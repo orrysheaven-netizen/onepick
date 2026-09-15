@@ -1,6 +1,6 @@
 # OnePick
 
-OnePick 앱 개발용 저장소입니다. 현재 단계는 개발환경 준비이며 앱 코드는 아직 없습니다.
+OnePick 앱 개발용 저장소입니다. mobile 폴더에 Expo SDK 57 기본 앱이 생성되어 있습니다. OnePick 전용 기능은 아직 구현하지 않았습니다.
 
 ## 온라인 저장 원칙
 
@@ -23,4 +23,15 @@ OnePick 앱 개발용 저장소입니다. 현재 단계는 개발환경 준비�
 - 로컬 저장소 기본 파일 준비 완료.
 - 온라인 저장소: https://github.com/orrysheaven-netizen/onepick (비공개)
 - 이 디렉터리 외부의 ChatGPT 프로젝트 참조 파일은 업로드 대상이 아닙니다.
+
+
+## 아이폰에서 기본 앱 실행
+
+1. 아이폰에 Expo Go를 설치하고 PC와 같은 Wi-Fi에 연결합니다.
+2. PowerShell에서 mobile 폴더로 이동한 뒤 npm.cmd start를 실행합니다.
+3. PowerShell에 표시된 QR 코드를 아이폰 카메라로 스캔합니다.
+4. 서버가 실행되는 동안 PowerShell 창을 열어 둡니다.
+
+검증: 타입 검사 통과. 실제 아이폰 실행은 아직 확인 전입니다.
+
 
