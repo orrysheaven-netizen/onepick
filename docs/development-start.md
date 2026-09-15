@@ -3,7 +3,9 @@
 ## 이번 단계
 
 - Expo 기본 프로젝트를 mobile 하위 폴더에 생성하고 아이폰에서 실행한다.
-- Expo SDK 57 기본 프로젝트와 의존성 설치 완료. 타입 검사 통과. 아이폰 실행 확인은 대기 중.
+- Expo SDK 57 기본 프로젝트와 의존성 설치 완료. 타입 검사 통과.
+- OnePick 홈과 탐색 화면의 첫 MVP UI 구현 완료. PC 브라우저에서 실행 및 주요 상호작용을 확인했다.
+- 현재 제품과 저장 상태는 화면 확인용 임시 데이터이며, 로그인·데이터베이스 연결 전이다.
 - 생성 명령: npx create-expo-app@latest mobile --template default
 - 생성 후 mobile/package.json과 생성된 안내를 확인하고 SDK 및 아이폰 테스트 앱의 호환성을 확인한다.
 - 실행 확인 후 소스와 잠금 파일을 GitHub 비공개 저장소에 업로드한다. node_modules는 제외한다.
@@ -22,4 +24,14 @@
 ## 테스트 기기
 
 사용자가 아이폰을 선택했다. Expo 기본 앱 실행 방법은 생성된 SDK와 호환되는 Expo Go 또는 개발 빌드에 맞춰 안내한다.
+
+## 현재 실행 방법
+
+```powershell
+cd "C:\Users\orrys\.codex\.chatgpt-projects\g-p-6aa7ffa4da6c8191a5e88a7f9e4198bf\onepick\mobile"
+npm.cmd run web
+```
+
+PC 브라우저에서는 터미널에서 표시된 주소를 열어 홈과 탐색 화면을 확인한다. 아이폰 테스트는 Expo Go의 SDK 호환 여부를 확인한 뒤 진행한다.
+
 
