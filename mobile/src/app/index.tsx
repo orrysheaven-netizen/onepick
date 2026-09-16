@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useHomeData } from '@/hooks/queries/useHomeData';
+import { useHomeData } from '@/hooks/useHomeData';
 import type { Product } from '@/types/domain/product';
 
 function ProductCard({ product }: { product: Product }) {
