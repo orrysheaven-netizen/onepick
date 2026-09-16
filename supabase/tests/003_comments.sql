@@ -51,6 +51,9 @@ from public.picks
 where user_id = '33333333-3333-3333-3333-333333333333'
   and status = 'active';
 
+-- Only the temporary fixture is shared with anonymous test queries.
+grant select on comment_test_state to anon;
+
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 
 select lives_ok(
@@ -81,6 +84,7 @@ select throws_ok(
 
 reset role;
 set local role anon;
+select set_config('request.jwt.claim.sub', '', true);
 select results_eq(
   $$select count(*)::int from public.comments where pick_id = (select pick_id from comment_test_state)$$,
   array[1],
@@ -98,6 +102,7 @@ select public.change_pick(
 
 reset role;
 set local role anon;
+select set_config('request.jwt.claim.sub', '', true);
 select results_eq(
   $$select count(*)::int from public.comments where pick_id = (select pick_id from comment_test_state)$$,
   array[0],

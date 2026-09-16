@@ -18,7 +18,7 @@ insert into public.profiles (id, username, onboarding_completed)
 values ('22222222-2222-2222-2222-222222222222', 'onepick_mutations', true);
 
 insert into public.categories (id, name, slug, status, is_visible, is_pickable)
-values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면', 'ramen', 'open', true, true);
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면 테스트', 'pick-mutations-test', 'open', true, true);
 
 insert into public.products (id, category_id, name, normalized_name, status)
 values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '신라면', '신라면', 'active');
