@@ -1,0 +1,40 @@
+name: Prepare Supabase Dependencies
+
+on:
+  push:
+    paths:
+      - '.github/workflows/prepare-supabase-deps.yml'
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Add Supabase dependencies with Expo
+        run: npx expo install @supabase/supabase-js react-native-url-polyfill expo-sqlite --npm
+
+      - name: Upload dependency files
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-dependency-files
+          path: |
+            mobile/package.json
+            mobile/package-lock.json
+          if-no-files-found: error
