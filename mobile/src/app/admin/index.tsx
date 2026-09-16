@@ -74,6 +74,12 @@ export default function AdminScreen() {
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
 
+  const [reviewingProductId, setReviewingProductId] = useState<string | null>(null);
+  const [reviewName, setReviewName] = useState('');
+  const [reviewCategoryId, setReviewCategoryId] = useState('');
+  const [reviewBrandId, setReviewBrandId] = useState<string | null>(null);
+  const [reviewUrl, setReviewUrl] = useState('');
+
   const data = dashboard.data;
   const categories = data?.categories ?? [];
   const brands = data?.brands ?? [];
@@ -134,6 +140,40 @@ export default function AdminScreen() {
       setBrandSlug('');
     } catch {
       // Mutation state is rendered below.
+    }
+  };
+
+  const beginReview = (product: Product) => {
+    setReviewingProductId(product.id);
+    setReviewName(product.name);
+    setReviewCategoryId(product.categoryId);
+    setReviewBrandId(product.brandId);
+    setReviewUrl(product.officialUrl ?? '');
+  };
+
+  const cancelReview = () => {
+    setReviewingProductId(null);
+    setReviewName('');
+    setReviewCategoryId('');
+    setReviewBrandId(null);
+    setReviewUrl('');
+  };
+
+  const approveReviewedProduct = async (productId: string) => {
+    if (!reviewName.trim() || !reviewCategoryId || busy) return;
+    try {
+      await actions.approveProduct.mutateAsync({
+        productId,
+        edits: {
+          name: reviewName,
+          categoryId: reviewCategoryId,
+          brandId: reviewBrandId,
+          officialUrl: reviewUrl.trim() || null,
+        },
+      });
+      cancelReview();
+    } catch {
+      // Mutation state is rendered below and the draft remains editable.
     }
   };
 
@@ -202,11 +242,12 @@ export default function AdminScreen() {
 
         <Section
           title={`승인 대기 제품 ${data.pending.length}개`}
-          description="사용자가 찾지 못한 제품을 요청하면 여기에 쌓입니다. 기존 제품과 같으면 새로 만들지 말고 연결하세요.">
+          description="사용자가 찾지 못한 제품을 요청하면 여기에 쌓입니다. 제품명·카테고리·브랜드를 확인한 뒤 승인하거나, 기존 제품과 같으면 연결하세요.">
           {data.pending.length === 0 ? <Text style={styles.empty}>현재 승인 대기 제품이 없습니다.</Text> : null}
           {data.pending.map(({ product, submitter }) => {
             const category = categories.find((item) => item.id === product.categoryId);
             const candidates = similarProducts(product, products);
+            const isReviewing = reviewingProductId === product.id;
             return (
               <View key={product.id} style={styles.reviewCard}>
                 <Text style={styles.productName}>{product.name}</Text>
@@ -229,10 +270,55 @@ export default function AdminScreen() {
                   </View>
                 ) : <Text style={styles.meta}>비슷한 기존 제품 후보가 없습니다.</Text>}
 
+                {isReviewing ? (
+                  <View style={styles.reviewEditor}>
+                    <Text style={styles.smallTitle}>정식 제품으로 저장할 정보</Text>
+                    <TextInput style={styles.input} value={reviewName} onChangeText={setReviewName} placeholder="정식 제품명" />
+
+                    <Text style={styles.fieldLabel}>카테고리</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                      {leafCategories.map((leaf) => (
+                        <Pressable key={leaf.id} onPress={() => setReviewCategoryId(leaf.id)} style={[styles.chip, reviewCategoryId === leaf.id && styles.chipActive]}>
+                          <Text style={[styles.chipText, reviewCategoryId === leaf.id && styles.chipTextActive]}>{categoryPath(leaf, categories)}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.fieldLabel}>브랜드</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                      <Pressable onPress={() => setReviewBrandId(null)} style={[styles.chip, reviewBrandId === null && styles.chipActive]}>
+                        <Text style={[styles.chipText, reviewBrandId === null && styles.chipTextActive]}>없음</Text>
+                      </Pressable>
+                      {brands.filter((brand) => brand.isActive).map((brand) => (
+                        <Pressable key={brand.id} onPress={() => setReviewBrandId(brand.id)} style={[styles.chip, reviewBrandId === brand.id && styles.chipActive]}>
+                          <Text style={[styles.chipText, reviewBrandId === brand.id && styles.chipTextActive]}>{brand.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.fieldLabel}>공식 제품 URL · 선택</Text>
+                    <TextInput style={styles.input} value={reviewUrl} onChangeText={setReviewUrl} placeholder="https://..." autoCapitalize="none" keyboardType="url" />
+                  </View>
+                ) : null}
+
                 <View style={styles.actionsRow}>
-                  <Pressable disabled={busy} style={[styles.approveButton, busy && styles.disabled]} onPress={() => void actions.approveProduct.mutateAsync({ productId: product.id }).catch(() => {})}>
-                    <Text style={styles.approveText}>새 제품으로 승인</Text>
-                  </Pressable>
+                  {isReviewing ? (
+                    <>
+                      <Pressable
+                        disabled={busy || !reviewName.trim() || !reviewCategoryId}
+                        style={[styles.approveButton, (busy || !reviewName.trim() || !reviewCategoryId) && styles.disabled]}
+                        onPress={() => void approveReviewedProduct(product.id)}>
+                        <Text style={styles.approveText}>{actions.approveProduct.isPending ? '승인 중...' : '수정 내용으로 승인'}</Text>
+                      </Pressable>
+                      <Pressable disabled={busy} style={[styles.cancelButton, busy && styles.disabled]} onPress={cancelReview}>
+                        <Text style={styles.cancelText}>취소</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Pressable disabled={busy} style={[styles.approveButton, busy && styles.disabled]} onPress={() => beginReview(product)}>
+                      <Text style={styles.approveText}>검토 후 승인</Text>
+                    </Pressable>
+                  )}
                   <Pressable disabled={busy} style={[styles.rejectButton, busy && styles.disabled]} onPress={() => void actions.rejectProduct.mutateAsync(product.id).catch(() => {})}>
                     <Text style={styles.rejectText}>거절</Text>
                   </Pressable>
@@ -324,6 +410,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '900' },
   sectionDescription: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 14 },
   reviewCard: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E7E1DB', paddingTop: 16, marginTop: 12 },
+  reviewEditor: { backgroundColor: '#F7F5F2', borderRadius: 15, padding: 13, marginTop: 13 },
   productName: { color: '#202124', fontSize: 17, fontWeight: '900' },
   meta: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 5 },
   candidates: { backgroundColor: '#FAF8F5', borderRadius: 15, padding: 12, marginTop: 12 },
@@ -332,9 +419,11 @@ const styles = StyleSheet.create({
   candidateName: { flex: 1, color: '#202124', fontSize: 12, fontWeight: '700' },
   link: { color: '#D96D4B', fontSize: 11, fontWeight: '800', marginLeft: 10 },
   actionsRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
-  approveButton: { flex: 1, backgroundColor: '#202124', borderRadius: 13, alignItems: 'center', padding: 12 },
+  approveButton: { flex: 1, backgroundColor: '#202124', borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 12 },
   approveText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  rejectButton: { backgroundColor: '#F0ECE7', borderRadius: 13, alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12 },
+  cancelButton: { backgroundColor: '#E8E2DC', borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 12 },
+  cancelText: { color: '#5E5954', fontSize: 12, fontWeight: '800' },
+  rejectButton: { backgroundColor: '#F0ECE7', borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 12 },
   rejectText: { color: '#786F68', fontSize: 12, fontWeight: '800' },
   fieldLabel: { color: '#5E5954', fontSize: 11, fontWeight: '800', marginTop: 13, marginBottom: 7 },
   input: { minHeight: 46, borderRadius: 14, backgroundColor: '#F7F5F2', color: '#202124', paddingHorizontal: 13, marginTop: 9, fontSize: 13 },
