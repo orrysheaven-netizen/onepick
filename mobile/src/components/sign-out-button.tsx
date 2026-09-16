@@ -1,0 +1,30 @@
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { useSignOut } from '@/hooks/useSignOut';
+
+export function SignOutButton() {
+  const signOut = useSignOut();
+
+  return (
+    <View style={styles.container}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={signOut.isPending}
+        onPress={() => { if (!signOut.isPending) signOut.mutate(); }}
+        style={({ pressed }) => [styles.button, (pressed || signOut.isPending) && styles.muted]}>
+        {signOut.isPending ? <ActivityIndicator /> : <Text style={styles.label}>이 기기에서 로그아웃</Text>}
+      </Pressable>
+      {signOut.isError ? (
+        <Text accessibilityRole="alert" style={styles.error}>로그아웃하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { marginTop: 24, alignSelf: 'stretch' },
+  button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3DCD5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  label: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
+  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
+  muted: { opacity: 0.5 },
+});

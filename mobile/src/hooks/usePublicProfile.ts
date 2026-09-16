@@ -8,7 +8,7 @@ export function usePublicProfile(username?: string, currentUserId?: string) {
 
   return useQuery({
     queryKey: normalizedUsername
-      ? queryKeys.profiles.byUsername(normalizedUsername)
+      ? queryKeys.profiles.byUsername(normalizedUsername, currentUserId)
       : ['profiles', 'username', 'missing'],
     queryFn: () => profileService.getProfileByUsername(normalizedUsername!, currentUserId),
     enabled: Boolean(normalizedUsername),

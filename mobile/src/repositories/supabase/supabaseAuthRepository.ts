@@ -31,7 +31,12 @@ export class SupabaseAuthRepository implements AuthRepository {
   async getCurrentUser() {
     const {
       data: { session },
+      error,
     } = await this.client.auth.getSession();
+
+    if (error) {
+      throw new AppError('AUTH_FAILED', error.message, error);
+    }
 
     return session?.user ? mapAuthUser(session.user) : null;
   }
@@ -106,7 +111,7 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 
   async signOut() {
-    const { error } = await this.client.auth.signOut();
+    const { error } = await this.client.auth.signOut({ scope: 'local' });
 
     if (error) {
       throw new AppError('AUTH_FAILED', error.message, error);

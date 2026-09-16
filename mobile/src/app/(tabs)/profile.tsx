@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
@@ -32,7 +33,7 @@ function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; mut
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, isLoading: isSessionLoading } = useAuthSession();
+  const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
 
   const isProfileMissing =
@@ -44,6 +45,20 @@ export default function ProfileScreen() {
         <View style={styles.centerState}>
           <ActivityIndicator />
           <Text style={styles.stateText}>프로필을 확인하고 있어요</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.centerState}>
+          <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
+          <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
+          <Pressable accessibilityRole="button" onPress={retrySession} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+            <Text style={styles.secondaryButtonText}>다시 확인하기</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -73,6 +88,7 @@ export default function ProfileScreen() {
           <Pressable onPress={() => router.push('/auth/username')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>사용자명 만들기</Text>
           </Pressable>
+          <SignOutButton />
         </View>
       </SafeAreaView>
     );
@@ -84,6 +100,7 @@ export default function ProfileScreen() {
         <View style={styles.centerState}>
           <ActivityIndicator />
           <Text style={styles.stateText}>원픽을 모으고 있어요</Text>
+          <SignOutButton />
         </View>
       </SafeAreaView>
     );
@@ -97,6 +114,7 @@ export default function ProfileScreen() {
           <Pressable onPress={() => void profileQuery.refetch()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Text style={styles.secondaryButtonText}>다시 불러오기</Text>
           </Pressable>
+          <SignOutButton />
         </View>
       </SafeAreaView>
     );
@@ -139,6 +157,7 @@ export default function ProfileScreen() {
 
         <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text><Text style={styles.sectionHint}>{history.length}개</Text></View>
         {history.length > 0 ? history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />) : <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text>}
+        <SignOutButton />
       </ScrollView>
     </SafeAreaView>
   );

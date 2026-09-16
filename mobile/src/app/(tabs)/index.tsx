@@ -51,10 +51,10 @@ function HomeError({ onRetry }: { onRetry: () => void }) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, isLoading: isSessionLoading } = useAuthSession();
-  const homeQuery = useHomeData(user?.id, !isSessionLoading);
+  const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
+  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
-  const isLoading = isSessionLoading || homeQuery.isPending;
+  const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const openPick = (pickId: string) =>
     router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openProduct = (productId: string) =>
@@ -96,9 +96,18 @@ export default function HomeScreen() {
         </View>
 
         {isLoading ? <HomeLoading /> : null}
-        {!isSessionLoading && homeQuery.isError ? <HomeError onRetry={() => void homeQuery.refetch()} /> : null}
+        {sessionError ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
+            <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
+            <Pressable accessibilityRole="button" onPress={retrySession} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+              <Text style={styles.retryButtonText}>다시 확인하기</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!isSessionLoading && !sessionError && homeQuery.isError ? <HomeError onRetry={() => void homeQuery.refetch()} /> : null}
 
-        {!isLoading && !homeQuery.isError && data ? (
+        {!isLoading && !sessionError && !homeQuery.isError && data ? (
           <>
             {user ? (
               <>
