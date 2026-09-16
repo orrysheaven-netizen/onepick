@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - '.github/workflows/prepare-supabase-deps.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/prepare-supabase-deps.yml'
   workflow_dispatch:
 
 jobs:
