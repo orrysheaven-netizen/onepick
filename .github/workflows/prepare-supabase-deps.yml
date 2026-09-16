@@ -9,6 +9,9 @@ on:
       - '.github/workflows/prepare-supabase-deps.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -19,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: feature/pick-core
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -32,6 +37,19 @@ jobs:
 
       - name: Add Supabase dependencies with Expo
         run: npx expo install @supabase/supabase-js react-native-url-polyfill expo-sqlite --npm
+
+      - name: Commit dependency files
+        working-directory: .
+        run: |
+          if git diff --quiet -- mobile/package.json mobile/package-lock.json; then
+            echo "Dependency files already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/package.json mobile/package-lock.json
+          git commit -m "Install Supabase mobile dependencies"
+          git push origin HEAD:feature/pick-core
 
       - name: Upload dependency files
         uses: actions/upload-artifact@v4
