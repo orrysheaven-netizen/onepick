@@ -9,6 +9,7 @@ type SupabaseLikeError = {
 
 const knownCodes = new Set<AppErrorCode>([
   'AUTH_REQUIRED',
+  'AUTH_FAILED',
   'FORBIDDEN',
   'CATEGORY_NOT_FOUND',
   'CATEGORY_NOT_PICKABLE',
@@ -16,6 +17,8 @@ const knownCodes = new Set<AppErrorCode>([
   'PRODUCT_NOT_ELIGIBLE',
   'PRODUCT_CATEGORY_MISMATCH',
   'PROFILE_NOT_FOUND',
+  'USERNAME_INVALID',
+  'USERNAME_TAKEN',
   'REVIEW_INVALID',
   'PICK_CONFLICT',
   'PICK_NOT_FOUND',
