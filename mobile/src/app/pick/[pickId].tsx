@@ -1,15 +1,55 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useCreateComment } from '@/hooks/useCreateComment';
+import { usePickComments } from '@/hooks/usePickComments';
 import { usePickDetail } from '@/hooks/usePickDetail';
+
+function getCommentErrorMessage(error: unknown) {
+  if (error instanceof AppError) {
+    if (error.code === 'COMMENT_INVALID') return '댓글은 1~300자로 입력해주세요.';
+    if (error.code === 'AUTH_REQUIRED') return '댓글을 남기려면 로그인이 필요해요.';
+    if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 댓글을 남길 수 없어요.';
+  }
+
+  return '댓글을 저장하지 못했어요. 다시 시도해주세요.';
+}
 
 export default function PickDetailScreen() {
   const router = useRouter();
   const { pickId } = useLocalSearchParams<{ pickId?: string }>();
   const { user } = useAuthSession();
   const query = usePickDetail(pickId, user?.id);
+  const commentsQuery = usePickComments(pickId);
+  const createComment = useCreateComment(pickId ?? 'missing');
+  const [commentBody, setCommentBody] = useState('');
+
+  const trimmedComment = commentBody.trim();
+  const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
+
+  const handleCommentSubmit = async () => {
+    if (!pickId || !user || !query.data?.isCurrent || !canSubmitComment || createComment.isPending) {
+      return;
+    }
+
+    await createComment.mutateAsync({
+      userId: user.id,
+      body: trimmedComment,
+    });
+    setCommentBody('');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -67,14 +107,99 @@ export default function PickDetailScreen() {
               </Text>
             </View>
 
-            <View style={styles.placeholderCard}>
-              <Text style={styles.placeholderTitle}>댓글</Text>
-              <Text style={styles.placeholderText}>다음 단계에서 이 Pick을 중심으로 댓글이 연결됩니다.</Text>
+            <View style={styles.commentsCard}>
+              <View style={styles.commentsHeader}>
+                <Text style={styles.commentsTitle}>댓글</Text>
+                <Text style={styles.commentsCount}>{commentsQuery.data?.length ?? 0}개</Text>
+              </View>
+
+              {commentsQuery.isPending ? (
+                <View style={styles.commentsState}>
+                  <ActivityIndicator />
+                  <Text style={styles.commentsStateText}>댓글을 불러오고 있어요</Text>
+                </View>
+              ) : null}
+
+              {commentsQuery.isError ? (
+                <View style={styles.commentsState}>
+                  <Text style={styles.commentsStateText}>댓글을 불러오지 못했어요.</Text>
+                  <Pressable
+                    onPress={() => void commentsQuery.refetch()}
+                    style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}>
+                    <Text style={styles.smallButtonText}>다시 불러오기</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {commentsQuery.data?.length === 0 ? (
+                <Text style={styles.emptyComments}>아직 댓글이 없어요. 첫 의견을 남겨보세요.</Text>
+              ) : null}
+
+              {commentsQuery.data?.map(({ comment, author }) => (
+                <View key={comment.id} style={styles.commentRow}>
+                  <View style={styles.commentAvatar}>
+                    <Text style={styles.commentAvatarText}>
+                      {(author?.username ?? '?').slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.commentCopy}>
+                    <Text style={styles.commentAuthor}>@{author?.username ?? '사용자'}</Text>
+                    <Text style={styles.commentBody}>{comment.body}</Text>
+                  </View>
+                </View>
+              ))}
+
+              {query.data.isCurrent ? (
+                user ? (
+                  <View style={styles.commentComposer}>
+                    <View style={styles.commentInputHeader}>
+                      <Text style={styles.commentInputLabel}>댓글 남기기</Text>
+                      <Text style={styles.commentCounter}>{commentBody.length}/300</Text>
+                    </View>
+                    <TextInput
+                      accessibilityLabel="댓글 입력"
+                      maxLength={300}
+                      multiline
+                      onChangeText={setCommentBody}
+                      placeholder="이 원픽에 대해 이야기해보세요"
+                      placeholderTextColor="#AAA39C"
+                      style={styles.commentInput}
+                      value={commentBody}
+                    />
+                    {createComment.isError ? (
+                      <Text style={styles.commentError}>{getCommentErrorMessage(createComment.error)}</Text>
+                    ) : null}
+                    <Pressable
+                      disabled={!canSubmitComment || createComment.isPending}
+                      onPress={() => void handleCommentSubmit()}
+                      style={({ pressed }) => [
+                        styles.commentButton,
+                        (!canSubmitComment || createComment.isPending) && styles.commentButtonDisabled,
+                        pressed && canSubmitComment && !createComment.isPending && styles.pressed,
+                      ]}>
+                      {createComment.isPending ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.commentButtonText}>댓글 남기기</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => router.push('/auth/login')}
+                    style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
+                    <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
+                    <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
+                  </Pressable>
+                )
+              ) : (
+                <Text style={styles.historyCommentNotice}>이전 원픽에는 새 댓글을 남길 수 없습니다.</Text>
+              )}
             </View>
 
             <View style={styles.placeholderCard}>
               <Text style={styles.placeholderTitle}>공유</Text>
-              <Text style={styles.placeholderText}>Pick 링크 공유는 댓글 이후 같은 상세 화면을 기준으로 연결합니다.</Text>
+              <Text style={styles.placeholderText}>Pick 링크 공유는 이 상세 화면을 기준으로 다음 단계에서 연결합니다.</Text>
             </View>
           </>
         ) : null}
@@ -107,6 +232,34 @@ const styles = StyleSheet.create({
   metaCard: { backgroundColor: '#252B38', borderRadius: 20, padding: 18, marginTop: 14 },
   metaLabel: { color: '#F3B59D', fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   metaText: { color: '#FFF9F3', fontSize: 13, lineHeight: 20, marginTop: 8 },
+  commentsCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginTop: 14 },
+  commentsHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
+  commentsTitle: { color: '#202124', fontSize: 16, fontWeight: '800' },
+  commentsCount: { color: '#D96D4B', fontSize: 11, fontWeight: '800' },
+  commentsState: { alignItems: 'center', paddingVertical: 20 },
+  commentsStateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  smallButton: { backgroundColor: '#202124', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
+  smallButtonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  emptyComments: { color: '#8E8A85', fontSize: 12, lineHeight: 18, paddingVertical: 17 },
+  commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EEE8E2' },
+  commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#F0ECE7', alignItems: 'center', justifyContent: 'center' },
+  commentAvatarText: { color: '#5F5A54', fontSize: 13, fontWeight: '900' },
+  commentCopy: { flex: 1, marginLeft: 11 },
+  commentAuthor: { color: '#202124', fontSize: 11, fontWeight: '800' },
+  commentBody: { color: '#5F5A54', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  commentComposer: { marginTop: 18 },
+  commentInputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
+  commentInputLabel: { color: '#202124', fontSize: 12, fontWeight: '800' },
+  commentCounter: { color: '#AAA39C', fontSize: 10 },
+  commentInput: { minHeight: 88, borderRadius: 15, backgroundColor: '#FAF8F5', paddingHorizontal: 13, paddingVertical: 12, color: '#202124', fontSize: 13, lineHeight: 19, textAlignVertical: 'top' },
+  commentError: { color: '#A9482D', fontSize: 11, lineHeight: 17, marginTop: 8 },
+  commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  commentButtonDisabled: { opacity: 0.4 },
+  commentButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  loginPrompt: { backgroundColor: '#FAF8F5', borderRadius: 15, padding: 14, marginTop: 16 },
+  loginPromptTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
+  loginPromptText: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4 },
+  historyCommentNotice: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 16 },
   placeholderCard: { borderWidth: 1, borderColor: '#E3DCD5', borderRadius: 20, padding: 18, marginTop: 14 },
   placeholderTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   placeholderText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6 },
