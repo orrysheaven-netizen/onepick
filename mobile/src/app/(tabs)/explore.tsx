@@ -72,7 +72,7 @@ export default function ExploreScreen() {
                 <Text style={styles.sectionTitle}>최근 원픽</Text>
                 <Text style={styles.sectionDescription}>사람들이 최근 공개한 현재 원픽이에요.</Text>
               </View>
-              {query.isFetching ? <ActivityIndicator size="small" /> : null}
+              {query.isFetching && !query.isFetchingNextPage ? <ActivityIndicator size="small" /> : null}
             </View>
 
             {query.data.feed.length > 0 ? (
@@ -98,6 +98,16 @@ export default function ExploreScreen() {
                 <Text style={styles.emptyText}>첫 원픽이 선택되면 이곳에서 사람들의 선택을 볼 수 있습니다.</Text>
               </View>
             )}
+
+            {query.hasNextPage ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={query.isFetchingNextPage}
+                onPress={() => void query.fetchNextPage()}
+                style={({ pressed }) => [styles.loadMoreButton, query.isFetchingNextPage && styles.disabled, pressed && styles.pressed]}>
+                {query.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.loadMoreText}>원픽 더 보기</Text>}
+              </Pressable>
+            ) : null}
 
             {query.data.recentProducts.length > 0 ? (
               <>
@@ -164,8 +174,11 @@ const styles = StyleSheet.create({
   stateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 16 },
   retryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  loadMoreButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 6 },
+  loadMoreText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  disabled: { opacity: 0.5 },
   pressed: { opacity: 0.7 },
 });
