@@ -29,12 +29,13 @@ export interface PickReadInput {
   productId?: string;
   statuses?: PickStatus[];
   limit?: number;
+  offset?: number;
   orderBy?: 'started_at' | 'updated_at';
 }
 
 export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
-  getCommentsByPickId(pickId: string, limit?: number): Promise<CommentReadItem[]>;
+  getCommentsByPickId(pickId: string, limit?: number, offset?: number): Promise<CommentReadItem[]>;
   getProductRequestsByUser(userId: string, statuses?: ProductStatus[], limit?: number): Promise<ProductRequestReadItem[]>;
 }
