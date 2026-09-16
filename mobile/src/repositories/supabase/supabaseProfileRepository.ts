@@ -3,11 +3,13 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  CreateProfileInput,
   ProfileRepository,
   UpdateProfileInput,
 } from '@/repositories/interfaces/profileRepository';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
 
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 export class SupabaseProfileRepository implements ProfileRepository {
@@ -39,6 +41,43 @@ export class SupabaseProfileRepository implements ProfileRepository {
     }
 
     return data ? mapProfileRow(data) : null;
+  }
+
+  async create(input: CreateProfileInput) {
+    const {
+      data: { user },
+      error: authError,
+    } = await this.client.auth.getUser();
+
+    if (authError) {
+      throw mapSupabaseError(authError);
+    }
+
+    if (!user) {
+      throw new AppError('AUTH_REQUIRED');
+    }
+
+    const values: ProfileInsert = {
+      id: user.id,
+      username: input.username.trim().toLowerCase(),
+      onboarding_completed: true,
+    };
+
+    const { data, error } = await this.client
+      .from('profiles')
+      .insert(values)
+      .select('*')
+      .single();
+
+    if (error?.code === '23505') {
+      throw new AppError('USERNAME_TAKEN', 'USERNAME_TAKEN', error);
+    }
+
+    if (error) {
+      throw mapSupabaseError(error);
+    }
+
+    return mapProfileRow(data);
   }
 
   async update(input: UpdateProfileInput) {
@@ -85,6 +124,10 @@ export class SupabaseProfileRepository implements ProfileRepository {
       .eq('id', user.id)
       .select('*')
       .single();
+
+    if (error?.code === '23505') {
+      throw new AppError('USERNAME_TAKEN', 'USERNAME_TAKEN', error);
+    }
 
     if (error) {
       throw mapSupabaseError(error);
