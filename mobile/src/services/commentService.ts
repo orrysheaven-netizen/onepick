@@ -8,6 +8,7 @@ import type { ProfileRepository } from '@/repositories/interfaces/profileReposit
 import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const MAX_COMMENT_LENGTH = 300;
+export const COMMENTS_PAGE_SIZE = 20;
 
 function normalizeBody(value: string) {
   const body = value.trim();
@@ -23,10 +24,13 @@ export class CommentService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getComments(pickId: string) {
-    const pick = await this.pickRepository.getById(pickId);
-    if (!pick) throw new AppError('PICK_NOT_FOUND');
-    return this.readRepository.getCommentsByPickId(pickId, 100);
+  async getComments(pickId: string, offset = 0, limit = COMMENTS_PAGE_SIZE) {
+    const rows = await this.readRepository.getCommentsByPickId(pickId, limit + 1, offset);
+    const hasMore = rows.length > limit;
+    return {
+      items: rows.slice(0, limit),
+      nextOffset: hasMore ? offset + limit : null,
+    };
   }
 
   async createComment(input: { pickId: string; userId: string; body: string }) {
