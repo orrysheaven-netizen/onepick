@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
+import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -21,38 +22,20 @@ function getMessage(error: unknown) {
 
 export default function UsernameScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    action?: string;
-    productId?: string;
-    categoryId?: string;
-  }>();
-  const { user, isLoading } = useAuthSession();
+  const params = useLocalSearchParams<AuthReturnParams>();
+  const intent = getAuthIntent(params);
+  const { user, isLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const createProfile = useCreateProfile();
   const [username, setUsername] = useState('');
   const normalized = username.trim().toLowerCase();
   const valid = USERNAME_PATTERN.test(normalized);
 
-  const continuePendingAction = () => {
-    if (params.action === 'choose_pick' && params.productId && params.categoryId) {
-      router.replace({
-        pathname: '/pick/choose',
-        params: {
-          productId: params.productId,
-          categoryId: params.categoryId,
-        },
-      });
-      return;
-    }
-
-    router.replace('/');
-  };
-
   const handleSave = async () => {
-    if (!valid || createProfile.isPending) return;
+    if (!user || !valid || createProfile.isPending) return;
 
     try {
       await createProfile.mutateAsync(normalized);
-      continuePendingAction();
+      router.replace(getPostAuthRoute(intent));
     } catch {
       // Mutation state renders the error.
     }
@@ -66,7 +49,17 @@ export default function UsernameScreen() {
         <Text style={styles.subtitle}>프로필에서 보일 고유한 이름입니다. 나중에 수정할 수 있어요.</Text>
 
         {isLoading ? <Text style={styles.statusText}>로그인 상태 확인 중...</Text> : null}
-        {!isLoading && !user ? <Text style={styles.errorText}>로그인 정보가 없어요. 이전 화면에서 다시 로그인해주세요.</Text> : null}
+        {!isLoading && (sessionError || !user) ? (
+          <>
+            <Text style={styles.errorText}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인이 필요해요.'}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => sessionError ? retrySession() : router.replace({ pathname: '/auth/login', params: { ...intent } })}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+              <Text style={styles.primaryButtonText}>{sessionError ? '다시 확인하기' : '로그인하고 계속'}</Text>
+            </Pressable>
+          </>
+        ) : null}
 
         {!isLoading && user ? (
           <>

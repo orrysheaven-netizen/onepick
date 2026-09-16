@@ -216,7 +216,7 @@ export default function PickDetailScreen() {
                   </View>
                 ) : (
                   <Pressable
-                    onPress={() => router.push('/auth/login')}
+                    onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
                     style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
                     <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
                     <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>

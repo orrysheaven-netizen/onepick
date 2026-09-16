@@ -71,7 +71,7 @@ export default function ProfileScreen() {
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>1</Text></View>
           <Text style={styles.stateTitle}>나의 원픽을 모아보세요</Text>
           <Text style={styles.stateText}>로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요.</Text>
-          <Pressable onPress={() => router.push('/auth/login')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push({ pathname: '/auth/login', params: { action: 'profile' } })} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>로그인하기</Text>
           </Pressable>
         </View>
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>프로필을 완성해주세요</Text>
           <Text style={styles.stateText}>원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다.</Text>
-          <Pressable onPress={() => router.push('/auth/username')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push({ pathname: '/auth/username', params: { action: 'profile' } })} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>사용자명 만들기</Text>
           </Pressable>
           <SignOutButton />

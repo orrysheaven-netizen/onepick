@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useKakaoSignIn } from '@/hooks/useKakaoSignIn';
+import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 
 function getMessage(error: unknown) {
   if (error instanceof AppError && error.code === 'AUTH_FAILED') {
@@ -16,40 +17,21 @@ function getMessage(error: unknown) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    action?: string;
-    productId?: string;
-    categoryId?: string;
-  }>();
+  const params = useLocalSearchParams<AuthReturnParams>();
+  const intent = getAuthIntent(params);
   const kakaoSignIn = useKakaoSignIn();
 
-  const resumePick = (needsUsername: boolean) => {
-    const pathname = needsUsername ? '/auth/username' : '/pick/choose';
-
-    router.replace({
-      pathname,
-      params: {
-        action: params.action ?? 'choose_pick',
-        productId: params.productId ?? '',
-        categoryId: params.categoryId ?? '',
-      },
-    });
-  };
-
   const handleKakao = async () => {
+    if (kakaoSignIn.isPending) return;
     const redirectTo = Linking.createURL('auth/callback', {
-      queryParams: {
-        action: params.action ?? 'choose_pick',
-        productId: params.productId ?? '',
-        categoryId: params.categoryId ?? '',
-      },
+      queryParams: { ...intent },
     });
 
     try {
       const result = await kakaoSignIn.mutateAsync(redirectTo);
 
       if (!result) return;
-      resumePick(!result.profile);
+      router.replace(getPostAuthRoute(intent, !result.profile));
     } catch {
       // Mutation state renders the error. Avoid an unhandled mutateAsync rejection.
     }
@@ -64,7 +46,13 @@ export default function LoginScreen() {
 
         <Text style={styles.eyebrow}>ONEPICK</Text>
         <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
-        <Text style={styles.subtitle}>제품은 그대로 기억해두고 로그인 뒤 한줄평 화면으로 돌아옵니다.</Text>
+        <Text style={styles.subtitle}>
+          {intent.action === 'choose_pick'
+            ? '선택한 제품을 기억해두고 로그인 뒤 한줄평 화면으로 돌아옵니다.'
+            : intent.action === 'comment_pick'
+              ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'
+              : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
+        </Text>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>간편 로그인</Text>
@@ -80,6 +68,7 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{getMessage(kakaoSignIn.error)}</Text>
             </View>
           ) : null}
+          {kakaoSignIn.isSuccess && !kakaoSignIn.data ? <Text style={styles.note}>로그인을 취소했어요. 준비되면 다시 시작해주세요.</Text> : null}
         </View>
 
         <Text style={styles.note}>처음 로그인하면 사용할 사용자명만 정하면 됩니다.</Text>
