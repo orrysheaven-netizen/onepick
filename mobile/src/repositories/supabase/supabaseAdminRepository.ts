@@ -1,5 +1,6 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/database.types';
 import type {
   AdminBrandInput,
   AdminCategoryInput,
@@ -12,6 +13,9 @@ import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapProductRow } from '@/repositories/mappers/productMapper';
 
 type RpcResult<T> = Promise<{ data: T | null; error: { code?: string; message?: string; details?: string; hint?: string } | null }>;
+type CategoryUpdate = Database['public']['Tables']['categories']['Update'];
+type BrandUpdate = Database['public']['Tables']['brands']['Update'];
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -73,7 +77,7 @@ export class SupabaseAdminRepository implements AdminRepository {
   }
 
   async updateCategory(categoryId: string, input: Partial<AdminCategoryInput>) {
-    const patch: Record<string, unknown> = {};
+    const patch: CategoryUpdate = {};
     if (input.name !== undefined) patch.name = input.name;
     if (input.slug !== undefined) patch.slug = input.slug;
     if (input.parentId !== undefined) patch.parent_id = input.parentId;
@@ -111,7 +115,7 @@ export class SupabaseAdminRepository implements AdminRepository {
   }
 
   async updateBrand(brandId: string, input: Partial<AdminBrandInput>) {
-    const patch: Record<string, unknown> = {};
+    const patch: BrandUpdate = {};
     if (input.name !== undefined) {
       patch.name = input.name;
       patch.normalized_name = input.name.trim().toLowerCase().replace(/\s+/g, '');
@@ -151,7 +155,7 @@ export class SupabaseAdminRepository implements AdminRepository {
   }
 
   async updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }) {
-    const patch: Record<string, unknown> = {};
+    const patch: ProductUpdate = {};
     if (input.categoryId !== undefined) patch.category_id = input.categoryId;
     if (input.brandId !== undefined) patch.brand_id = input.brandId;
     if (input.name !== undefined) patch.name = input.name;
