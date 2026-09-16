@@ -10,6 +10,10 @@ on:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
 
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
