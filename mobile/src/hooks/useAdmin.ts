@@ -19,6 +19,7 @@ async function invalidateAdminData(client: ReturnType<typeof useQueryClient>) {
     client.invalidateQueries({ queryKey: adminKeys.all }),
     client.invalidateQueries({ queryKey: queryKeys.products.all }),
     client.invalidateQueries({ queryKey: queryKeys.categories.all }),
+    client.invalidateQueries({ queryKey: queryKeys.profiles.all }),
   ]);
 }
 
