@@ -104,6 +104,7 @@ export default function ProfileScreen() {
 
   const { profile, currentPicks, history } = profileQuery.data;
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
+  const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -122,6 +123,14 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{history.length}</Text><Text style={styles.summaryLabel}>이전 선택</Text></View>
         </View>
+
+        <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
+          <View>
+            <Text style={styles.publicProfileTitle}>공개 프로필 보기</Text>
+            <Text style={styles.publicProfileText}>다른 사람에게 보이는 현재 원픽 컬렉션을 확인하고 공유할 수 있어요.</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
         {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
@@ -145,10 +154,13 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 2 },
   username: { color: '#202124', fontSize: 24, fontWeight: '800', marginTop: 5 },
   bio: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 30 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 12 },
   summaryNumber: { color: '#202124', fontSize: 22, fontWeight: '900', textAlign: 'center' },
   summaryLabel: { color: '#8E8A85', fontSize: 11, marginTop: 4, textAlign: 'center' },
   summaryDivider: { width: 1, height: 34, backgroundColor: '#EEE8E2' },
+  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F2ECE7', borderRadius: 18, padding: 16, marginBottom: 30 },
+  publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
+  publicProfileText: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
   historyHeader: { marginTop: 28 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
