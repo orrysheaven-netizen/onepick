@@ -57,6 +57,23 @@ export class SupabasePickRepository implements PickRepository {
     return data.map(mapPickRow);
   }
 
+  async getHistoryByUser(userId: string, limit = 50) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const { data, error } = await this.client
+      .from('picks')
+      .select('*')
+      .eq('user_id', userId)
+      .in('status', ['replaced', 'removed', 'hidden'])
+      .order('started_at', { ascending: false })
+      .limit(safeLimit);
+
+    if (error) {
+      throw mapSupabaseError(error);
+    }
+
+    return data.map(mapPickRow);
+  }
+
   async getRecentPicks(input: RecentPicksInput) {
     const limit = Math.min(Math.max(input.limit, 1), 100);
 
