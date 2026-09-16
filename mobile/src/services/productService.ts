@@ -69,11 +69,20 @@ export class ProductService {
     };
   }
 
-  search(query: string, categoryId?: string) {
-    return this.productRepository.search({
+  async search(query: string, categoryId?: string) {
+    const products = await this.productRepository.search({
       query,
       categoryId,
       limit: 20,
     });
+
+    const eligible = await Promise.all(
+      products.map(async (product) => {
+        const category = await this.categoryRepository.getById(product.categoryId);
+        return Boolean(category?.status === 'open' && category.isVisible && category.isPickable);
+      }),
+    );
+
+    return products.filter((_, index) => eligible[index]);
   }
 }
