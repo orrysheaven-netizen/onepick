@@ -51,24 +51,35 @@ async function main() {
   assert.equal(useProductSearch('').enabled, false);
 
   const queryCalls = [];
-  const builder = { then: (resolve) => resolve({ data: [{ id: 'product-1', name: '라면' }], error: null }) };
+  const builder = { then: (resolve) => resolve({ data: [{ id: 'product-1', name: '라면', category_id: 'ramen' }], error: null }) };
   for (const method of ['select', 'in', 'ilike', 'order', 'limit', 'eq']) {
     builder[method] = (...args) => { queryCalls.push([method, ...args]); return builder; };
   }
   const { SupabaseProductRepository } = loadSource('repositories/supabase/supabaseProductRepository.ts', {
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
-    '@/repositories/mappers/productMapper': { mapProductRow: (row) => row },
+    '@/repositories/mappers/productMapper': { mapProductRow: (row) => ({ ...row, categoryId: row.category_id }) },
   });
   const repository = new SupabaseProductRepository({ from: () => builder });
   assert.equal((await repository.search({ query: ' ' })).length, 0);
   assert.equal(queryCalls.length, 0);
-  const { ProductService } = loadSource('services/productService.ts', { '@/errors/appError': { AppError: Error } });
-  const service = new ProductService(repository);
-  assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'product-1');
+  await repository.search({ query: ' 라면 ', categoryId: 'ramen' });
   assert.ok(queryCalls.some(([method, field, value]) => method === 'in' && field === 'status' && value.join(',') === 'active,discontinued'));
   assert.ok(queryCalls.some(([method, field, value]) => method === 'eq' && field === 'category_id' && value === 'ramen'));
   assert.ok(queryCalls.some(([method, field, value]) => method === 'ilike' && field === 'normalized_name' && value === '%라면%'));
   assert.ok(queryCalls.some(([method, value]) => method === 'limit' && value === 20));
+
+  const { ProductService } = loadSource('services/productService.ts', { '@/errors/appError': { AppError: Error } });
+  let categoryStatus = 'open';
+  const productRepository = {
+    search: async () => [{ id: 'product-1', name: '라면', categoryId: 'ramen', status: 'active' }],
+  };
+  const categoryRepository = {
+    getById: async () => ({ id: 'ramen', status: categoryStatus, isVisible: true, isPickable: true }),
+  };
+  const service = new ProductService(productRepository, {}, {}, categoryRepository);
+  assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'product-1');
+  categoryStatus = 'closed';
+  assert.equal((await service.search('라면', 'ramen')).length, 0, 'Closed categories are hidden from OnePick product search');
 
   let state = { hasSearchText: false, isPending: true };
   let selected, retried = false;
@@ -98,6 +109,6 @@ async function main() {
   assert.match(render(), /찾은 제품/);
   presses[0]();
   assert.equal(selected, 'product-1');
-  console.log('Product search checks passed: debounce, query/category isolation, repository filters and search states/actions.');
+  console.log('Product search checks passed: debounce, query/category isolation, repository filters, selectable-category filtering and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
