@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -24,6 +24,7 @@ function getCommentErrorMessage(error: unknown) {
     if (error.code === 'COMMENT_INVALID') return '댓글은 1~300자로 입력해주세요.';
     if (error.code === 'AUTH_REQUIRED') return '댓글을 남기려면 로그인이 필요해요.';
     if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 댓글을 남길 수 없어요.';
+    if (error.code === 'PROFILE_NOT_FOUND') return '댓글을 남기려면 사용자명을 먼저 정해주세요.';
   }
 
   return '댓글을 저장하지 못했어요. 다시 시도해주세요.';
@@ -37,20 +38,26 @@ export default function PickDetailScreen() {
   const commentsQuery = usePickComments(pickId);
   const createComment = useCreateComment(pickId ?? 'missing');
   const [commentBody, setCommentBody] = useState('');
+  const submittingComment = useRef(false);
+  const canComment = !query.isError && query.data?.pick.status === 'active';
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
 
   const handleCommentSubmit = async () => {
-    if (!pickId || !user || !query.data?.isCurrent || !canSubmitComment || createComment.isPending) {
+    if (!pickId || !user || !canComment || !canSubmitComment || createComment.isPending || submittingComment.current) {
       return;
     }
 
-    await createComment.mutateAsync({
-      userId: user.id,
-      body: trimmedComment,
-    });
-    setCommentBody('');
+    submittingComment.current = true;
+    try {
+      await createComment.mutateAsync({ userId: user.id, body: trimmedComment });
+      setCommentBody('');
+    } catch {
+      // Keep the draft; mutation state shows the failure and allows retry.
+    } finally {
+      submittingComment.current = false;
+    }
   };
 
   return (
@@ -154,7 +161,7 @@ export default function PickDetailScreen() {
               ) : null}
 
               {commentsQuery.data?.length === 0 ? (
-                <Text style={styles.emptyComments}>아직 댓글이 없어요. 첫 의견을 남겨보세요.</Text>
+                <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
               {commentsQuery.data?.map(({ comment, author }) => (
@@ -179,7 +186,7 @@ export default function PickDetailScreen() {
                 </View>
               ))}
 
-              {query.data.isCurrent ? (
+              {canComment ? (
                 user ? (
                   <View style={styles.commentComposer}>
                     <View style={styles.commentInputHeader}>
@@ -188,6 +195,7 @@ export default function PickDetailScreen() {
                     </View>
                     <TextInput
                       accessibilityLabel="댓글 입력"
+                      editable={!createComment.isPending}
                       maxLength={300}
                       multiline
                       onChangeText={setCommentBody}
@@ -198,6 +206,14 @@ export default function PickDetailScreen() {
                     />
                     {createComment.isError ? (
                       <Text style={styles.commentError}>{getCommentErrorMessage(createComment.error)}</Text>
+                    ) : null}
+                    {createComment.error instanceof AppError && createComment.error.code === 'PROFILE_NOT_FOUND' ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => router.push({ pathname: '/auth/username', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
+                        style={styles.smallButton}>
+                        <Text style={styles.smallButtonText}>사용자명 만들고 계속</Text>
+                      </Pressable>
                     ) : null}
                     <Pressable
                       disabled={!canSubmitComment || createComment.isPending}
@@ -223,7 +239,9 @@ export default function PickDetailScreen() {
                   </Pressable>
                 )
               ) : (
-                <Text style={styles.historyCommentNotice}>이전 원픽에는 새 댓글을 남길 수 없습니다.</Text>
+                <Text style={styles.historyCommentNotice}>
+                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다.' : '현재 댓글을 남길 수 없는 원픽입니다.'}
+                </Text>
               )}
             </View>
 

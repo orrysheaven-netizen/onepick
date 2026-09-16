@@ -46,11 +46,13 @@ export default function ChoosePickScreen() {
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const productQuery = useProductDetail(params.productId, user?.id);
   const choosePick = useChoosePick();
-  const [review, setReview] = useState('');
+  const [draftReview, setReview] = useState<string | null>(null);
   const [savedReview, setSavedReview] = useState('');
 
   const product = productQuery.data?.product;
   const pickStatus = productQuery.data?.myPickStatus;
+  const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
+  const canChoose = productQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const routeMatchesProduct = !product || !params.categoryId || product.categoryId === params.categoryId;
@@ -62,7 +64,7 @@ export default function ChoosePickScreen() {
   }, [pickStatus]);
 
   const handleSubmit = async () => {
-    if (!user || !product || !isValidReview || choosePick.isPending) return;
+    if (!user || !product || !canChoose || productQuery.isError || !routeMatchesProduct || !isValidReview || choosePick.isPending) return;
 
     try {
       const result = await choosePick.mutateAsync({
@@ -90,7 +92,8 @@ export default function ChoosePickScreen() {
     });
   };
 
-  const isLoading = isSessionLoading || productQuery.isPending;
+  const isLoading = isSessionLoading || (Boolean(params.productId) && productQuery.isPending);
+  const hasProduct = !isLoading && !productQuery.isError && Boolean(product) && routeMatchesProduct;
   const isSuccess = Boolean(savedReview);
 
   return (
@@ -117,7 +120,22 @@ export default function ChoosePickScreen() {
           </View>
         ) : null}
 
-        {!isLoading && product && routeMatchesProduct && !user ? (
+        {hasProduct && product && !canChoose && !isSuccess ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text>
+            <Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.replace(pickStatus?.type === 'selected_this'
+                ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } }
+                : { pathname: '/product/[productId]', params: { productId: product.id } })}
+              style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>{pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기'}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {hasProduct && product && canChoose && !user ? (
           <View style={styles.stateCard}>
             <View style={styles.productIcon}><Text style={styles.productEmoji}>🍜</Text></View>
             <Text style={styles.kicker}>원픽을 고르려면</Text>
@@ -134,7 +152,7 @@ export default function ChoosePickScreen() {
           </View>
         ) : null}
 
-        {!isLoading && product && routeMatchesProduct && user && !isSuccess ? (
+        {hasProduct && product && canChoose && user && !isSuccess ? (
           <>
             <Text style={styles.kicker}>YOUR ONE PICK</Text>
             <Text style={styles.title}>{product.name}</Text>

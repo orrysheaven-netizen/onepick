@@ -6,7 +6,7 @@ import type { ProfileRepository } from '@/repositories/interfaces/profileReposit
 
 export type MyProductPickStatus =
   | { type: 'not_selected' }
-  | { type: 'selected_this'; pickId: string }
+  | { type: 'selected_this'; pickId: string; oneLineReview: string }
   | {
       type: 'selected_other';
       currentPickId: string;
@@ -39,7 +39,7 @@ export class ProductService {
     let myPickStatus: MyProductPickStatus = { type: 'not_selected' };
 
     if (currentPick?.productId === product.id) {
-      myPickStatus = { type: 'selected_this', pickId: currentPick.id };
+      myPickStatus = { type: 'selected_this', pickId: currentPick.id, oneLineReview: currentPick.oneLineReview };
     } else if (currentPick) {
       myPickStatus = {
         type: 'selected_other',
@@ -55,11 +55,17 @@ export class ProductService {
       })),
     );
 
+    const canChoose = Boolean(
+      category?.status === 'open' && category.isVisible && category.isPickable &&
+      (product.status === 'active' || product.status === 'discontinued'),
+    );
+
     return {
       product,
       category,
       myPickStatus,
       picks,
+      canChoose,
     };
   }
 

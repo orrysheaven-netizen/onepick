@@ -35,12 +35,13 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const { product, category, myPickStatus, picks } = query.data;
+  const { product, category, myPickStatus, picks, canChoose } = query.data;
   const openPickAction = () => {
     if (myPickStatus.type === 'selected_this') {
       router.push({ pathname: '/pick/[pickId]', params: { pickId: myPickStatus.pickId } });
       return;
     }
+    if (!canChoose) return;
     router.push({ pathname: '/pick/choose', params: { productId: product.id, categoryId: product.categoryId } });
   };
 
@@ -56,18 +57,22 @@ export default function ProductDetailScreen() {
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productMeta}>
-            {picks.length > 0 ? `${picks.length}명이 최근 이 제품을 원픽으로 골랐어요` : '아직 공개된 원픽 기록이 없어요'}
+            {picks.length > 0 ? `최근 원픽 기록 ${picks.length}개를 보여드려요` : '아직 공개된 원픽 기록이 없어요'}
           </Text>
 
-          <Pressable accessibilityRole="button" onPress={openPickAction} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>
-              {myPickStatus.type === 'selected_this'
-                ? '내 원픽 한줄평 보기/수정'
-                : myPickStatus.type === 'selected_other'
-                  ? '이 제품으로 원픽 바꾸기'
-                  : '이 제품을 내 원픽으로'}
-            </Text>
-          </Pressable>
+          {canChoose || myPickStatus.type === 'selected_this' ? (
+            <Pressable accessibilityRole="button" onPress={openPickAction} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+              <Text style={styles.primaryButtonText}>
+                {myPickStatus.type === 'selected_this'
+                  ? '내 원픽 한줄평 보기/수정'
+                  : myPickStatus.type === 'selected_other'
+                    ? '이 제품으로 원픽 바꾸기'
+                    : '이 제품을 내 원픽으로'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.productMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -105,7 +110,7 @@ export default function ProductDetailScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>아직 이 제품의 원픽이 없어요</Text>
-            <Text style={styles.emptyText}>첫 번째로 이 제품을 원픽으로 선택할 수 있어요.</Text>
+            <Text style={styles.emptyText}>{canChoose ? '첫 번째로 이 제품을 원픽으로 선택할 수 있어요.' : '새로운 선택을 받을 수 없는 제품이나 카테고리입니다.'}</Text>
           </View>
         )}
       </ScrollView>

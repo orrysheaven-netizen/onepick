@@ -36,7 +36,7 @@ npm test
 
 Mobile CI runs both commands after `npm ci` using Node.js 22.13.1. The test runner discovers every `scripts/test-*.cjs` file and fails if any check fails.
 
-The checks cover home personalization, pick management, product search, auth session recovery/logout, and returning to the intended screen after login. They use repository/auth substitutes and rendered components; real Kakao authentication and device behavior still need separate verification.
+The checks cover home personalization, pick management, product search, auth session recovery/logout, returning to the intended screen after login, product/category eligibility, and comment submission failure/retry. They use repository/auth substitutes and rendered components; real Kakao authentication and device behavior still need separate verification.
 
 ## Get a fresh project
 
