@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PickShareCard } from '@/components/pick-share-card';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -197,10 +198,13 @@ export default function PickDetailScreen() {
               )}
             </View>
 
-            <View style={styles.placeholderCard}>
-              <Text style={styles.placeholderTitle}>공유</Text>
-              <Text style={styles.placeholderText}>Pick 링크 공유는 이 상세 화면을 기준으로 다음 단계에서 연결합니다.</Text>
-            </View>
+            <PickShareCard
+              categoryName={query.data.category.name}
+              oneLineReview={query.data.pick.oneLineReview}
+              pickId={query.data.pick.id}
+              productName={query.data.product.name}
+              username={query.data.profile.username}
+            />
           </>
         ) : null}
       </ScrollView>
@@ -260,9 +264,6 @@ const styles = StyleSheet.create({
   loginPromptTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
   loginPromptText: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4 },
   historyCommentNotice: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 16 },
-  placeholderCard: { borderWidth: 1, borderColor: '#E3DCD5', borderRadius: 20, padding: 18, marginTop: 14 },
-  placeholderTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  placeholderText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6 },
   stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 28, marginTop: 34 },
   stateTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   stateText: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
