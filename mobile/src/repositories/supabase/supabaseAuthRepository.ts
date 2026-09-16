@@ -1,0 +1,115 @@
+import type { User } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+
+import { AppError } from '@/errors/appError';
+import type { AppSupabaseClient } from '@/lib/supabase/client';
+import type { AuthRepository } from '@/repositories/interfaces/authRepository';
+import type { AuthUser } from '@/types/domain/auth';
+
+WebBrowser.maybeCompleteAuthSession();
+
+function mapAuthUser(user: User): AuthUser {
+  return {
+    id: user.id,
+    email: user.email ?? null,
+  };
+}
+
+function getUrlParam(url: string, key: string) {
+  const parsed = new URL(url);
+  const queryValue = parsed.searchParams.get(key);
+
+  if (queryValue) return queryValue;
+
+  const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+  return new URLSearchParams(hash).get(key);
+}
+
+export class SupabaseAuthRepository implements AuthRepository {
+  constructor(private readonly client: AppSupabaseClient) {}
+
+  async getCurrentUser() {
+    const {
+      data: { session },
+    } = await this.client.auth.getSession();
+
+    return session?.user ? mapAuthUser(session.user) : null;
+  }
+
+  subscribe(listener: (user: AuthUser | null) => void) {
+    const { data } = this.client.auth.onAuthStateChange((_event, session) => {
+      listener(session?.user ? mapAuthUser(session.user) : null);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }
+
+  async completeOAuthFromUrl(url: string) {
+    const errorDescription = getUrlParam(url, 'error_description');
+    const errorCode = getUrlParam(url, 'error');
+
+    if (errorDescription || errorCode) {
+      throw new AppError('AUTH_FAILED', errorDescription ?? errorCode ?? 'AUTH_FAILED');
+    }
+
+    const code = getUrlParam(url, 'code');
+
+    if (code) {
+      const { data, error } = await this.client.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        throw new AppError('AUTH_FAILED', error.message, error);
+      }
+
+      return data.user ? mapAuthUser(data.user) : null;
+    }
+
+    const accessToken = getUrlParam(url, 'access_token');
+    const refreshToken = getUrlParam(url, 'refresh_token');
+
+    if (!accessToken || !refreshToken) {
+      throw new AppError('AUTH_FAILED');
+    }
+
+    const { data, error } = await this.client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      throw new AppError('AUTH_FAILED', error.message, error);
+    }
+
+    return data.user ? mapAuthUser(data.user) : null;
+  }
+
+  async signInWithKakao(redirectTo: string) {
+    const { data, error } = await this.client.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data.url) {
+      throw new AppError('AUTH_FAILED', error?.message ?? 'AUTH_FAILED', error);
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type !== 'success') {
+      return null;
+    }
+
+    return this.completeOAuthFromUrl(result.url);
+  }
+
+  async signOut() {
+    const { error } = await this.client.auth.signOut();
+
+    if (error) {
+      throw new AppError('AUTH_FAILED', error.message, error);
+    }
+  }
+}
