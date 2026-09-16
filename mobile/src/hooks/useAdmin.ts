@@ -42,46 +42,36 @@ export function useAdminActions() {
   const client = useQueryClient();
   const after = () => invalidateAdminData(client);
 
-  const createCategory = useMutation({
-    mutationFn: (input: AdminCategoryInput) => adminService.createCategory(input),
-    onSuccess: after,
-  });
-  const createBrand = useMutation({
-    mutationFn: (input: AdminBrandInput) => adminService.createBrand(input),
-    onSuccess: after,
-  });
+  const createCategory = useMutation({ mutationFn: (input: AdminCategoryInput) => adminService.createCategory(input), onSuccess: after });
+  const createBrand = useMutation({ mutationFn: (input: AdminBrandInput) => adminService.createBrand(input), onSuccess: after });
   const updateCategory = useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<AdminCategoryInput> }) => adminService.updateCategory(id, input),
     onSuccess: after,
   });
-  const createProduct = useMutation({
-    mutationFn: (input: AdminProductInput) => adminService.createProduct(input),
+  const createProduct = useMutation({ mutationFn: (input: AdminProductInput) => adminService.createProduct(input), onSuccess: after });
+  const addProductAlias = useMutation({
+    mutationFn: ({ productId, alias }: { productId: string; alias: string }) => adminService.addProductAlias(productId, alias),
     onSuccess: after,
   });
+  const removeProductAlias = useMutation({ mutationFn: (aliasId: string) => adminService.removeProductAlias(aliasId), onSuccess: after });
   const approveProduct = useMutation({
-    mutationFn: ({ productId, edits }: { productId: string; edits?: Partial<AdminProductInput> }) =>
-      adminService.approveProduct(productId, edits),
+    mutationFn: ({ productId, edits }: { productId: string; edits?: Partial<AdminProductInput> }) => adminService.approveProduct(productId, edits),
     onSuccess: after,
   });
-  const rejectProduct = useMutation({
-    mutationFn: (productId: string) => adminService.rejectProduct(productId),
-    onSuccess: after,
-  });
+  const rejectProduct = useMutation({ mutationFn: (productId: string) => adminService.rejectProduct(productId), onSuccess: after });
   const mergeProduct = useMutation({
-    mutationFn: ({ productId, targetProductId }: { productId: string; targetProductId: string }) =>
-      adminService.mergeProduct(productId, targetProductId),
+    mutationFn: ({ productId, targetProductId }: { productId: string; targetProductId: string }) => adminService.mergeProduct(productId, targetProductId),
     onSuccess: after,
   });
-  const hideProduct = useMutation({
-    mutationFn: (productId: string) => adminService.hideProduct(productId),
-    onSuccess: after,
-  });
+  const hideProduct = useMutation({ mutationFn: (productId: string) => adminService.hideProduct(productId), onSuccess: after });
 
   return {
     createCategory,
     updateCategory,
     createBrand,
     createProduct,
+    addProductAlias,
+    removeProductAlias,
     approveProduct,
     rejectProduct,
     mergeProduct,
