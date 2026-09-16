@@ -26,6 +26,10 @@ export class AdminService {
     private readonly profileRepository: ProfileRepository,
   ) {}
 
+  isAdmin() {
+    return this.adminRepository.isAdmin();
+  }
+
   async getDashboard() {
     await this.assertAdmin();
     const [categories, brands, products] = await Promise.all([
