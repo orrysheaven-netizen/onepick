@@ -1,6 +1,7 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { AppError } from '@/errors/appError';
 import type { ProductStatus } from '@/types/domain/product';
+import type { ProductAlias } from '@/types/domain/productAlias';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
@@ -14,8 +15,34 @@ import { mapBrandRow } from '@/repositories/mappers/brandMapper';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapProductRow } from '@/repositories/mappers/productMapper';
 
+type ProductAliasRow = {
+  id: string;
+  product_id: string;
+  alias: string;
+  normalized_alias: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type UntypedFrom = (table: 'product_aliases') => any;
+
+function mapProductAlias(row: ProductAliasRow): ProductAlias {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    alias: row.alias,
+    normalizedAlias: row.normalized_alias,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
+
+  private productAliasesTable() {
+    return (this.client.from as unknown as UntypedFrom)('product_aliases');
+  }
 
   async isAdmin() {
     const { data, error } = await this.client.rpc('current_user_is_admin');
@@ -55,19 +82,6 @@ export class SupabaseAdminRepository implements AdminRepository {
       row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
   }
 
-  async createCategory(input: AdminCategoryInput) {
-    const { data, error } = await this.client
-      .from('categories')
-      .insert({
-        name: input.name, slug: input.slug, parent_id: input.parentId ?? null,
-        status: input.status ?? 'draft', is_visible: input.isVisible ?? false,
-        is_pickable: input.isPickable ?? false, sort_order: input.sortOrder ?? 0,
-        ranking_min_sample: input.rankingMinSample ?? 20,
-      }).select('*').single();
-    if (error) throw mapSupabaseError(error);
-    return mapCategoryRow(data);
-  }
-
   async getPendingProducts() {
     const { data, error } = await this.client.from('products').select('*')
       .eq('status', 'pending').order('created_at', { ascending: true }).limit(500);
@@ -81,6 +95,43 @@ export class SupabaseAdminRepository implements AdminRepository {
     const { data, error } = await this.client.from('products').select('*').eq('id', productId).maybeSingle();
     if (error) throw mapSupabaseError(error);
     return data ? mapProductRow(data) : null;
+  }
+
+  async getProductAliases(limit = 1000) {
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    const { data, error } = await this.productAliasesTable()
+      .select('*')
+      .order('alias', { ascending: true })
+      .limit(safeLimit);
+    if (error) throw mapSupabaseError(error);
+    return (data as ProductAliasRow[]).map(mapProductAlias);
+  }
+
+  async createProductAlias(productId: string, alias: string) {
+    const { data, error } = await this.productAliasesTable()
+      .insert({ product_id: productId, alias, normalized_alias: alias.toLowerCase().replace(/\s+/g, '') })
+      .select('*')
+      .single();
+    if (error) throw mapSupabaseError(error);
+    return mapProductAlias(data as ProductAliasRow);
+  }
+
+  async removeProductAlias(aliasId: string) {
+    const { error } = await this.productAliasesTable().delete().eq('id', aliasId);
+    if (error) throw mapSupabaseError(error);
+  }
+
+  async createCategory(input: AdminCategoryInput) {
+    const { data, error } = await this.client
+      .from('categories')
+      .insert({
+        name: input.name, slug: input.slug, parent_id: input.parentId ?? null,
+        status: input.status ?? 'draft', is_visible: input.isVisible ?? false,
+        is_pickable: input.isPickable ?? false, sort_order: input.sortOrder ?? 0,
+        ranking_min_sample: input.rankingMinSample ?? 20,
+      }).select('*').single();
+    if (error) throw mapSupabaseError(error);
+    return mapCategoryRow(data);
   }
 
   async updateCategory(categoryId: string, input: Partial<AdminCategoryInput>) {
