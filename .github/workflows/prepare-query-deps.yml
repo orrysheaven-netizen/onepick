@@ -46,4 +46,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add mobile/package.json mobile/package-lock.json
           git commit -m "Install TanStack Query"
+          git pull --rebase origin feature/pick-core
           git push origin HEAD:feature/pick-core
