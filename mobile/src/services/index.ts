@@ -1,18 +1,25 @@
 import {
   authRepository,
   categoryRepository,
+  commentRepository,
   pickRepository,
   productRepository,
   profileRepository,
 } from '@/repositories/supabase';
 
 import { AuthService } from './authService';
+import { CommentService } from './commentService';
 import { HomeService } from './homeService';
 import { PickService } from './pickService';
 import { ProductService } from './productService';
 import { ProfileService } from './profileService';
 
 export const authService = new AuthService(authRepository);
+export const commentService = new CommentService(
+  commentRepository,
+  pickRepository,
+  profileRepository,
+);
 export const homeService = new HomeService(
   categoryRepository,
   pickRepository,
@@ -32,4 +39,11 @@ export const profileService = new ProfileService(
   productRepository,
 );
 
-export { AuthService, HomeService, PickService, ProductService, ProfileService };
+export {
+  AuthService,
+  CommentService,
+  HomeService,
+  PickService,
+  ProductService,
+  ProfileService,
+};
