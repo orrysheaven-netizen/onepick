@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,13 +18,20 @@ function errorMessage(error: unknown) {
   return '제품 등록 요청을 보내지 못했어요. 다시 시도해주세요.';
 }
 
+type Params = { categoryId?: string; productName?: string };
+
 export default function RequestProductScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{ categoryId?: string; productName?: string }>();
+  const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
+  return <RequestProductForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.productName])} auth={auth} params={params} />;
+}
+
+function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
+  const router = useRouter();
   const categories = useRegistrationCategories();
   const profile = useMyProfile(auth.user?.id);
   const registration = useRegisterPick();
+  const busy = useRef(false);
   const [name, setName] = useState(typeof params.productName === 'string' ? params.productName : '');
   const [categoryId, setCategoryId] = useState(typeof params.categoryId === 'string' ? params.categoryId : '');
   const [submittedName, setSubmittedName] = useState<string | null>(null);
@@ -32,6 +39,8 @@ export default function RequestProductScreen() {
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
   const isValid = normalizedName.length >= 1 && normalizedName.length <= 100 && Boolean(selectedCategory);
+  const canSubmit = isValid && !categories.isPending && !categories.isError && !auth.isLoading && !auth.error
+    && !registration.isPending && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
   const intent = useMemo(() => ({
     action: 'request_product' as const,
     productName: normalizedName,
@@ -39,12 +48,12 @@ export default function RequestProductScreen() {
   }), [categoryId, normalizedName]);
 
   const submit = async () => {
+    if (!canSubmit || busy.current) return;
     if (!auth.user) {
       router.push({ pathname: '/auth/login', params: intent });
       return;
     }
-    if (!isValid || registration.isPending) return;
-
+    busy.current = true;
     try {
       const result = await registration.mutateAsync({
         userId: auth.user.id,
@@ -71,11 +80,26 @@ export default function RequestProductScreen() {
       router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
     } catch {
       // Mutation state renders the error without losing the draft.
+    } finally {
+      busy.current = false;
     }
   };
 
   if (auth.isLoading) {
     return <SafeAreaView style={styles.safeArea}><View style={styles.center}><ActivityIndicator /><Text style={styles.stateText}>로그인 상태를 확인하고 있어요</Text></View></SafeAreaView>;
+  }
+
+  if (auth.error) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
+          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => void auth.retry()}>
+            <Text style={styles.primaryButtonText}>로그인 상태 다시 확인</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (auth.user && profile.error instanceof AppError && profile.error.code === 'PROFILE_NOT_FOUND') {
@@ -111,7 +135,7 @@ export default function RequestProductScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={registration.isPending} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <Text style={styles.kicker}>REQUEST PRODUCT</Text>
@@ -121,6 +145,7 @@ export default function RequestProductScreen() {
         <Text style={styles.label}>제품명</Text>
         <TextInput
           accessibilityLabel="요청 제품명"
+          editable={!registration.isPending}
           maxLength={100}
           onChangeText={setName}
           placeholder="제품명"
@@ -131,13 +156,23 @@ export default function RequestProductScreen() {
 
         <Text style={styles.label}>카테고리</Text>
         {selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label}</Text> : null}
-        {categories.isPending ? <ActivityIndicator /> : (
+        {categories.isPending ? <ActivityIndicator /> : categories.isError ? (
+          <View>
+            <Text style={styles.error}>카테고리를 불러오지 못했어요. 입력한 내용은 그대로 있어요.</Text>
+            <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categories.refetch()}>
+              <Text style={styles.retryText}>카테고리 다시 불러오기</Text>
+            </Pressable>
+          </View>
+        ) : !categories.data?.length ? (
+          <Text style={styles.helper}>지금은 요청할 수 있는 카테고리가 없어요. 나중에 다시 확인해주세요.</Text>
+        ) : (
           <View style={styles.chips}>
             {categories.data?.map((category) => (
               <Pressable
                 key={category.id}
                 accessibilityRole="button"
-                accessibilityState={{ selected: category.id === categoryId }}
+                accessibilityState={{ selected: category.id === categoryId, disabled: registration.isPending }}
+                disabled={registration.isPending}
                 onPress={() => setCategoryId(category.id)}
                 style={[styles.chip, category.id === categoryId && styles.chipActive]}>
                 <Text style={[styles.chipText, category.id === categoryId && styles.chipTextActive]}>{category.label}</Text>
@@ -153,12 +188,23 @@ export default function RequestProductScreen() {
           </View>
         ) : null}
 
+        {auth.user && profile.isPending ? <Text style={styles.helper}>프로필을 확인하고 있어요</Text> : null}
+        {auth.user && profile.isError ? (
+          <View>
+            <Text style={styles.error}>프로필을 불러오지 못했어요. 다시 확인한 뒤 요청해주세요.</Text>
+            <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void profile.refetch()}>
+              <Text style={styles.retryText}>프로필 다시 불러오기</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
 
         <Pressable
-          disabled={!isValid || registration.isPending}
+          accessibilityRole="button"
+          disabled={!canSubmit}
           onPress={() => void submit()}
-          style={[styles.primaryButton, (!isValid || registration.isPending) && styles.disabled]}>
+          style={[styles.primaryButton, !canSubmit && styles.disabled]}>
           {registration.isPending ? <ActivityIndicator color="#FFFFFF" /> : (
             <Text style={styles.primaryButtonText}>{auth.user ? '제품 등록 요청 보내기' : '로그인하고 요청하기'}</Text>
           )}
@@ -188,6 +234,8 @@ const styles = StyleSheet.create({
   notice: { backgroundColor: '#F2ECE7', borderRadius: 14, padding: 13, marginTop: 18 },
   noticeText: { color: '#6C6863', fontSize: 11, lineHeight: 17 },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 14 },
+  retryButton: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4 },
+  retryText: { color: '#D96D4B', fontSize: 13, fontWeight: '800' },
   primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   requestedName: { color: '#202124', fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
