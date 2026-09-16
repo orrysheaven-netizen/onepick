@@ -29,7 +29,10 @@ export class SupabasePhotoRepository implements PhotoRepository {
       const { error } = await this.client.storage.from('product-photos').upload(path, bytes, {
         contentType: 'image/jpeg', cacheControl: '31536000', upsert: false,
       });
-      if (error && Number(error.statusCode) !== 409) throw new AppError('PHOTO_UPLOAD_FAILED', 'PHOTO_UPLOAD_FAILED', error);
+      // Both current and legacy Storage APIs report immutable-path retries as duplicates.
+      const duplicate = error && (Number(error.statusCode) === 409 ||
+        (Number(error.statusCode) === 400 && /^(?:The resource already exists|Asset Already Exists)$/i.test(error.message)));
+      if (error && !duplicate) throw new AppError('PHOTO_UPLOAD_FAILED', 'PHOTO_UPLOAD_FAILED', error);
     }
     return { imagePath, thumbnailPath };
   }
