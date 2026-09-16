@@ -78,7 +78,7 @@ async function main() {
     getById: async () => ({ id: 'ramen', status: categoryStatus, isVisible: true, isPickable: true }),
     getOpenCategories: async () => categoryStatus === 'open' ? [{ id: 'ramen' }] : [],
   };
-  const service = new ProductService(productRepository, {}, {}, categoryRepository);
+  const service = new ProductService(productRepository, {}, categoryRepository, { getPicks: async () => [] });
   assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'product-1');
   categoryStatus = 'closed';
   assert.equal((await service.search('라면', 'ramen')).length, 0, 'Closed categories are hidden from OnePick product search');
