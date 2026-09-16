@@ -1,12 +1,11 @@
 import type { User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import { AppError } from '@/errors/appError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { AuthRepository } from '@/repositories/interfaces/authRepository';
 import type { AuthUser } from '@/types/domain/auth';
-
-WebBrowser.maybeCompleteAuthSession();
 
 function mapAuthUser(user: User): AuthUser {
   return {
@@ -96,13 +95,17 @@ export class SupabaseAuthRepository implements AuthRepository {
         // `scopes` adds to Supabase's Kakao defaults; the provider's `scope`
         // parameter replaces them so email and profile photos are not requested.
         queryParams: { scope: 'profile_nickname' },
-        skipBrowserRedirect: true,
+        // Web uses a same-tab redirect; embedded browsers may not support popups.
+        skipBrowserRedirect: Platform.OS !== 'web',
       },
     });
 
     if (error || !data.url) {
       throw new AppError('AUTH_FAILED', error?.message ?? 'AUTH_FAILED', error);
     }
+
+    // The callback screen completes the session after the browser navigation.
+    if (Platform.OS === 'web') return null;
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 

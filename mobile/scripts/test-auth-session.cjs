@@ -12,6 +12,8 @@ function loadSource(relativePath, imports = {}) {
   const exports = {};
   vm.runInNewContext(result.outputText, {
     exports,
+    URL,
+    URLSearchParams,
     require: (name) => {
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];
@@ -92,14 +94,18 @@ async function main() {
 
   const { AppError } = loadSource('errors/appError.ts');
   let sessionResult = { data: { session: null }, error: { message: 'storage failed' } }, signOutOptions, oauthOptions;
+  let browserCalls = 0, sessionCalls = 0, oauthError = null;
+  const platform = { OS: 'ios' };
   const { SupabaseAuthRepository } = loadSource('repositories/supabase/supabaseAuthRepository.ts', {
-    'expo-web-browser': { maybeCompleteAuthSession() {}, openAuthSessionAsync: async () => ({ type: 'cancel' }) },
+    'expo-web-browser': { openAuthSessionAsync: async () => { browserCalls++; return { type: 'cancel' }; } },
+    'react-native': { Platform: platform },
     '@/errors/appError': { AppError },
   });
   const repository = new SupabaseAuthRepository({ auth: {
     getSession: async () => sessionResult,
     signOut: async (options) => { signOutOptions = options; return { error: null }; },
-    signInWithOAuth: async (options) => { oauthOptions = options; return { data: { url: 'https://example.com/auth' }, error: null }; },
+    signInWithOAuth: async (options) => { oauthOptions = options; return { data: { url: 'https://example.com/auth' }, error: oauthError }; },
+    setSession: async () => { sessionCalls++; return { data: { user: { id: 'signed-in', email: null } }, error: null }; },
   } });
   await assert.rejects(() => repository.getCurrentUser(), (error) => error.code === 'AUTH_FAILED');
   sessionResult = { data: { session: null }, error: null };
@@ -111,6 +117,22 @@ async function main() {
   assert.equal(oauthOptions.options.redirectTo, 'onepick://auth/callback');
   assert.equal(oauthOptions.options.queryParams.scope, 'profile_nickname');
   assert.equal(oauthOptions.options.scopes, undefined, 'Additive scopes must not reintroduce email and photos');
+  assert.equal(oauthOptions.options.skipBrowserRedirect, true);
+  assert.equal(browserCalls, 1, 'Native OAuth still uses the auth session browser');
+  platform.OS = 'web';
+  const callback = 'https://example.com/auth/callback?action=request_product&productName=ramen';
+  assert.equal(await repository.signInWithKakao(callback), null);
+  assert.equal(oauthOptions.options.redirectTo, callback);
+  assert.equal(oauthOptions.options.skipBrowserRedirect, false, 'Web lets Supabase navigate in the current tab');
+  assert.equal(browserCalls, 1, 'Web never opens an authentication popup');
+  const completed = await repository.completeOAuthFromUrl(callback + '#access_token=test-access&refresh_token=test-refresh');
+  assert.equal(completed.id, 'signed-in');
+  assert.equal(sessionCalls, 1, 'The web callback completes the session');
+  await assert.rejects(() => repository.completeOAuthFromUrl(callback + '&error=access_denied'), (error) => error.code === 'AUTH_FAILED');
+  assert.equal(sessionCalls, 1, 'Provider rejection must not establish a session');
+  oauthError = { message: 'unavailable' };
+  await assert.rejects(() => repository.signInWithKakao(callback), (error) => error.code === 'AUTH_FAILED');
+  assert.equal(browserCalls, 1);
 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['profiles', 'mine', 'owner'], { private: true });

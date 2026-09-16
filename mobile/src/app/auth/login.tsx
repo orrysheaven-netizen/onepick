@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
@@ -72,7 +72,9 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{getMessage(kakaoSignIn.error)}</Text>
             </View>
           ) : null}
-          {kakaoSignIn.isSuccess && !kakaoSignIn.data ? <Text style={styles.note}>로그인을 취소했어요. 준비되면 다시 시작해주세요.</Text> : null}
+          {kakaoSignIn.isSuccess && !kakaoSignIn.data ? (
+            <Text style={styles.note}>{Platform.OS === 'web' ? '카카오 로그인 화면으로 이동합니다.' : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
+          ) : null}
         </View>
 
         <Text style={styles.note}>처음 로그인하면 사용할 사용자명만 정하면 됩니다.</Text>
