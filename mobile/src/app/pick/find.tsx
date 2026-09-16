@@ -26,8 +26,11 @@ export default function FindPickProductScreen() {
 
   const requestProduct = () => {
     router.push({
-      pathname: '/pick/register',
-      params: params.categoryId ? { categoryId: params.categoryId } : {},
+      pathname: '/pick/request',
+      params: {
+        productName: query.trim(),
+        ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+      },
     });
   };
 
@@ -110,7 +113,7 @@ export default function FindPickProductScreen() {
         {noResults ? (
           <View style={styles.requestCard}>
             <Text style={styles.stateTitle}>찾는 제품이 없나요?</Text>
-            <Text style={styles.stateText}>없는 제품만 등록 요청을 보내면 관리자가 확인한 뒤 정식 제품으로 추가합니다.</Text>
+            <Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text>
             <Pressable onPress={requestProduct} style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>제품 등록 요청하기</Text>
             </Pressable>
