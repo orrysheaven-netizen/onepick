@@ -1,6 +1,18 @@
 # Shared product registration
 
-Users enter a product name, select an existing suggestion or add a new name/type, and leave a review. An image is optional. Picks refer to one product image pair: a representative image and a smaller thumbnail.
+OnePick treats products as shared master data. Users choose an existing product whenever possible. A missing product can be submitted by a user, but it is not selectable as a Pick until an administrator approves it.
+
+## Product ownership policy
+
+- **MVP official products:** administrators create and maintain them directly.
+- **Existing product:** the user selects it and writes a one-line Pick review immediately.
+- **Missing product:** the user submits the product name and optional representative image. The product is stored with `status = pending`.
+- **Pending product:** cannot be used for a Pick.
+- **Admin review:** the administrator can approve it as a new product, merge it into an existing product, or reject it.
+- **Approved product:** becomes `active` and can then be selected by any user.
+- **Duplicate request:** if the server finds an existing active, discontinued or pending product with the same category and canonical name, it reuses that product instead of creating another row.
+
+The product carries its category. After a user selects a product, the app should derive category information from the product instead of asking the user to enter it again. Category hierarchy is stored with `categories.parent_id`, so a product assigned to `라면` can be displayed as `먹을것 > 라면`.
 
 ## Identity rules
 
@@ -10,45 +22,107 @@ Users enter a product name, select an existing suggestion or add a new name/type
 | Beer / soju | Can/bottle, volume and quantity | Product line, nonalcoholic variant |
 | Snacks | Package weight and quantity | Taste or product line |
 
-The initial selectable categories are ramen, beer, soju and snacks. Alcohol is a non-selectable parent of beer and soju. Existing products are reused after whitespace/case normalization and the category rules above. This is not semantic alias resolution: brand prefixes, misspellings and alternative names may still require later moderation.
+Canonicalization reduces simple duplicates, but it is not semantic alias resolution. Brand prefixes, misspellings and alternative names can still require administrator moderation. The Admin review screen therefore shows likely existing products before a pending request is approved.
+
+## Product states
+
+`products.status` supports:
+
+- `pending` — user submission awaiting review
+- `active` — official selectable product
+- `discontinued` — existing historical/selectable product kept for continuity
+- `hidden` — not publicly exposed
+- `merged` — duplicate linked to `merged_into_product_id`
+- `rejected` — rejected user submission
+
+A regular user cannot directly create an `active` product or change product/category master data. RLS enforces this even if the mobile UI is bypassed.
+
+## Admin workflow
+
+The protected `/admin` route is backed by a private administrator allowlist. Admin permissions are not stored in user-editable profile metadata.
+
+The MVP Admin dashboard provides:
+
+1. **Pending product review**
+   - requester username
+   - category
+   - likely duplicate products
+   - approve as a new official product
+   - merge into an existing product
+   - reject
+2. **Official product creation**
+   - product name
+   - category
+   - optional brand
+   - optional official URL
+3. **Category creation**
+   - parent/child hierarchy
+   - visibility
+   - pickable status
+4. **Brand creation**
+
+## User submission flow
+
+```text
+Search product
+  ↓
+Existing product found ──→ Select product ──→ Write one-line reason ──→ Pick
+  ↓ no result
+Submit missing product
+  ↓
+products.status = pending
+  ↓
+Admin review
+  ├─ Approve ─→ active ─→ user can select it as a Pick
+  ├─ Merge ───→ merged_into_product_id
+  └─ Reject ──→ rejected
+```
+
+A user submitting a missing product does **not** need to write a Pick review yet. The review is requested after the product has been approved and the user actually selects it as their OnePick.
 
 ## Images
 
-- Existing product images are reused; registering another pick cannot overwrite them.
-- Missing images can be imported from the exact manufacturer hosts listed in `imageImport.ts`, or selected locally.
-- Imported images are previewed before registration. A public URL does not itself confer reuse permission.
-- JPEG/PNG imports have a 2 MiB download limit, 16 megapixel limit, HTTPS host allowlist, validated redirects, and no forwarded user credentials. HTML pages are limited to 512 KiB.
-- Both imported and local photos are converted to JPEG on the device: up to 1200 px / 768 KiB for the representative image and 320 px / 96 KiB for the thumbnail.
-- Only the two optimized images are uploaded. Original image bytes and base64 are not stored in database rows.
-- Images are public and immutable. The product row stores object paths and an optional source URL.
-- A successful registration attempts to remove uploads that lost a concurrent race; storage policies protect referenced images, including images used by hidden products.
-- Before a later upload, the client attempts to clean unreferenced uploads older than 24 hours among its oldest 100 files. This is best-effort cleanup, not a scheduled garbage collector.
-- Storage insertion checks recent retained uploads (20 objects per user/day); registration limits new products to 20 per user/day. The image-import quota is an atomic 10 requests per user/hour.
-- For 10,000 illustrated products, maximum image bytes are about 8.24 GiB before storage overhead. Adding users or picks for the same products does not add another image pair. Image delivery bandwidth remains a separate scaling consideration.
+- Existing product images are reused; picking a product does not overwrite its shared image.
+- A missing-product submission may include an optional image.
+- Imported images are previewed before submission. A public URL does not itself confer reuse permission.
+- JPEG/PNG imports have download and pixel limits and an HTTPS manufacturer-host allowlist.
+- Local/imported photos are converted to optimized JPEG representative and thumbnail files before upload.
+- Only optimized files are uploaded; original/base64 image data is not stored in product rows.
+- Pending products protect their referenced image objects while awaiting moderation.
+- Storage ownership and rate limits remain enforced independently of product approval.
 
-## Server rollout
+## Server enforcement
 
-The migration `20260916221838_add_shared_product_registration.sql` adds three nullable product fields, indexes, the initial categories, a public `product-photos` bucket with authenticated upload policies, a protected private quota table, and authenticated registration/import quota functions. It does not change existing pick rows. Its filename matches the version recorded by the hosted migration service when applied to `onepick-dev`.
+The approval model is enforced in PostgreSQL, not only in the UI:
 
-1. Apply the reviewed migration to the intended Supabase project.
-2. Deploy `import-product-image` with JWT verification enabled. The handler additionally validates the authenticated user and consumes the per-user quota.
-3. Refresh generated database types and run the security advisors.
-4. Verify image-free registration, image import/upload, thumbnail delivery and cross-user reuse with disposable test accounts. Preserve existing real picks.
+- `public.submit_product(...)` creates or reuses a product request and inserts new rows as `pending` only.
+- `public.register_pick(...)` requires a non-null existing product ID and accepts only `active` or `discontinued` products.
+- regular authenticated users cannot insert `active` products through the table API.
+- regular authenticated users cannot modify category/brand/product master data.
+- administrator writes are authorized through `private.admin_users` and `private.is_admin(...)`.
+- `public.current_user_is_admin()` exposes only the boolean access check needed by the app.
 
-The mobile flow uses Screen → Hook → Service → Repository → Supabase. The Edge Function is the authenticated server boundary for outbound image fetching. No service-role credential is used.
+Relevant hosted migrations on `onepick-dev`:
+
+- `20260916221838 add_shared_product_registration`
+- `20260916222321 add_admin_product_workflow`
+- `20260916222614 enforce_pending_product_approval`
 
 ## Validation
 
-`npm run typecheck` and `npm test` cover the app and registration/import regressions. Database Tests applies all migrations to a disposable CI database and runs the pgTAP tests, including product deduplication, optional images, shared-image ownership/protection, rollback, distinct tastes and the import quota. The workflow also runs `deno check` for the Edge Function.
+The hosted database smoke test verifies:
 
-A JavaScript export covers web, Android and iOS routing/bundling. It does not substitute for a physical-device test, a Hermes/native build, or the post-rollout end-to-end upload test.
+- normal users submit `pending` products,
+- normal users cannot create `active` products,
+- normal users cannot modify categories,
+- pending products cannot be picked,
+- an administrator can approve a pending product,
+- approved products can be shared by multiple users through one `product_id`.
 
-## onepick-dev rollout — 2026-09-17 KST
+The pgTAP shared-product regression test follows the same approval lifecycle. Mobile CI typechecks the Screen → Hook → Service → Repository → Supabase implementation.
 
-- Applied migration `20260916221838`; deployed `import-product-image` version 1 with JWT verification enabled.
-- Verified all four selectable categories, the non-selectable alcohol parent, and the public JPEG bucket with its file-size limit.
-- A transaction on the hosted database verified image-free registration, quantity normalization/reuse and rejection of missing image objects. All test writes were rolled back. The existing real pick and review were unchanged.
-- The deployed HTTP endpoint returned 204 for browser preflight and 401 for missing/invalid user sessions.
-- Refreshed generated database types. A separate type override preserves PostgreSQL's nullable `p_product_id` input, which generated RPC types cannot infer.
-- Security advisors reported an intentionally closed private quota table ([RLS without policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)) and the existing [disabled leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) setting. No client permissions were added to the quota table. Unused-index notices require no action for this rollout.
-- Authenticated image fetching and upload in the browser remain unverified after deployment: the previously authenticated Chrome browser was no longer connected. No real pick was changed for testing.
+## Security notes
+
+The administrator allowlist lives in the private schema and is not readable by `anon` or `authenticated`. Authorization does not rely on user-editable metadata.
+
+The latest security advisor output contains two pre-existing notices unrelated to the Admin RLS boundary: a private image-import quota table with RLS and no client policies, and leaked-password protection disabled in Auth settings. The private quota table is intentionally inaccessible to clients.
