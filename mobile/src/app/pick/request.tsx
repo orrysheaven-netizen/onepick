@@ -130,7 +130,7 @@ export default function RequestProductScreen() {
         />
 
         <Text style={styles.label}>카테고리</Text>
-        {selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.name}</Text> : null}
+        {selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label}</Text> : null}
         {categories.isPending ? <ActivityIndicator /> : (
           <View style={styles.chips}>
             {categories.data?.map((category) => (
@@ -140,7 +140,7 @@ export default function RequestProductScreen() {
                 accessibilityState={{ selected: category.id === categoryId }}
                 onPress={() => setCategoryId(category.id)}
                 style={[styles.chip, category.id === categoryId && styles.chipActive]}>
-                <Text style={[styles.chipText, category.id === categoryId && styles.chipTextActive]}>{category.name}</Text>
+                <Text style={[styles.chipText, category.id === categoryId && styles.chipTextActive]}>{category.label}</Text>
               </Pressable>
             ))}
           </View>
