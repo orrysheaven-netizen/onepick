@@ -10,6 +10,7 @@ import { adminService } from '@/services';
 
 const adminKeys = {
   all: ['admin'] as const,
+  access: ['admin', 'access'] as const,
   dashboard: ['admin', 'dashboard'] as const,
 };
 
@@ -19,6 +20,15 @@ async function invalidateAdminData(client: ReturnType<typeof useQueryClient>) {
     client.invalidateQueries({ queryKey: queryKeys.products.all }),
     client.invalidateQueries({ queryKey: queryKeys.categories.all }),
   ]);
+}
+
+export function useAdminAccess(enabled = true) {
+  return useQuery({
+    queryKey: adminKeys.access,
+    queryFn: () => adminService.isAdmin(),
+    enabled,
+    retry: false,
+  });
 }
 
 export function useAdminDashboard(enabled = true) {
