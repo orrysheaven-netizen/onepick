@@ -17,6 +17,7 @@ export interface SubmitProductInput {
 export interface ProductRepository {
   getById(productId: string): Promise<Product | null>;
   getByCategory(categoryId: string): Promise<Product[]>;
+  getSubmissionsByUser(userId: string, limit?: number): Promise<Product[]>;
   search(input: ProductSearchInput): Promise<Product[]>;
   submitProduct(input: SubmitProductInput): Promise<Product>;
 }
