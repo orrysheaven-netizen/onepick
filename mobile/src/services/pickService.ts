@@ -6,6 +6,7 @@ import type {
   UpdatePickReviewInput,
 } from '@/repositories/interfaces/pickRepository';
 import type { ProductRepository } from '@/repositories/interfaces/productRepository';
+import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 
 const PICKABLE_PRODUCT_STATUSES = new Set(['active', 'discontinued']);
 
@@ -24,7 +25,43 @@ export class PickService {
     private readonly pickRepository: PickRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly productRepository: ProductRepository,
+    private readonly profileRepository: ProfileRepository,
   ) {}
+
+  async getPickDetail(pickId: string, currentUserId?: string) {
+    const pick = await this.pickRepository.getById(pickId);
+
+    if (!pick) {
+      throw new AppError('PICK_NOT_FOUND');
+    }
+
+    const [category, product, profile] = await Promise.all([
+      this.categoryRepository.getById(pick.categoryId),
+      this.productRepository.getById(pick.productId),
+      this.profileRepository.getById(pick.userId),
+    ]);
+
+    if (!category) {
+      throw new AppError('CATEGORY_NOT_FOUND');
+    }
+
+    if (!product) {
+      throw new AppError('PRODUCT_NOT_FOUND');
+    }
+
+    if (!profile) {
+      throw new AppError('PROFILE_NOT_FOUND');
+    }
+
+    return {
+      pick,
+      category,
+      product,
+      profile,
+      isMine: currentUserId === pick.userId,
+      isCurrent: pick.status === 'active' || pick.status === 'needs_review',
+    };
+  }
 
   async choosePick(input: ChangePickInput) {
     const review = normalizeReview(input.oneLineReview);
