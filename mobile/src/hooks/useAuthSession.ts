@@ -1,36 +1,35 @@
-import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase/client';
+import { authService } from '@/services';
+import type { AuthUser } from '@/types/domain/auth';
 
 export function useAuthSession() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void authService.getCurrentUser().then((currentUser) => {
       if (!active) return;
-      setSession(data.session);
+      setUser(currentUser);
       setIsLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const unsubscribe = authService.subscribe((nextUser) => {
       if (!active) return;
-      setSession(nextSession);
+      setUser(nextUser);
       setIsLoading(false);
     });
 
     return () => {
       active = false;
-      subscription.subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
   return {
-    session,
-    user: session?.user ?? null,
+    user,
     isLoading,
   };
 }
