@@ -57,6 +57,21 @@ export class SupabasePickRepository implements PickRepository {
     return data.map(mapPickRow);
   }
 
+  async getCurrentPicksByUser(userId: string) {
+    const { data, error } = await this.client
+      .from('picks')
+      .select('*')
+      .eq('user_id', userId)
+      .in('status', ['active', 'needs_review'])
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      throw mapSupabaseError(error);
+    }
+
+    return data.map(mapPickRow);
+  }
+
   async getHistoryByUser(userId: string, limit = 50) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
     const { data, error } = await this.client
@@ -83,6 +98,10 @@ export class SupabasePickRepository implements PickRepository {
       .eq('status', 'active')
       .order('started_at', { ascending: false })
       .limit(limit);
+
+    if (input.excludeUserId) {
+      query = query.neq('user_id', input.excludeUserId);
+    }
 
     if (input.categoryId) {
       query = query.eq('category_id', input.categoryId);

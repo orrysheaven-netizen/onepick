@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { useHomeData } from '@/hooks/useHomeData';
 import type { Product } from '@/types/domain/product';
 
@@ -49,7 +51,14 @@ function HomeError({ onRetry }: { onRetry: () => void }) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const homeQuery = useHomeData();
+  const { user, isLoading: isSessionLoading } = useAuthSession();
+  const homeQuery = useHomeData(user?.id, !isSessionLoading);
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const isLoading = isSessionLoading || homeQuery.isPending;
+  const openPick = (pickId: string) =>
+    router.push({ pathname: '/pick/[pickId]', params: { pickId } });
+  const openProduct = (productId: string) =>
+    router.push({ pathname: '/product/[productId]', params: { productId } });
   const data = homeQuery.data;
   const singleCategory = data?.mode === 'single_category' ? data.openCategories[0] : undefined;
   const products = data?.singleCategoryProducts ?? [];
@@ -70,7 +79,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>ONEPICK</Text>
-            <Text style={styles.greeting}>추천은 많지만,{ '\n' }선택은 하나예요</Text>
+            <Text style={styles.greeting}>{user ? '나의 선택을\n모아보세요' : <>추천은 많지만,{ '\n' }선택은 하나예요</>}</Text>
           </View>
           <View style={styles.avatar}><Text style={styles.avatarText}>1</Text></View>
         </View>
@@ -79,19 +88,98 @@ export default function HomeScreen() {
           <View style={styles.heroCopy}>
             <Text style={styles.heroKicker}>YOUR ONE PICK</Text>
             <Text style={styles.heroTitle}>
-              {singleCategory ? `당신의 ${singleCategory.name} 원픽은?` : '당신의 원픽은 무엇인가요?'}
+              {user ? '오늘의 원픽을 만나보세요' : singleCategory ? `당신의 ${singleCategory.name} 원픽은?` : '당신의 원픽은 무엇인가요?'}
             </Text>
             <Text style={styles.heroSub}>지금 가장 좋아하는 하나를 고르고{ '\n' }짧은 이유를 남겨보세요.</Text>
           </View>
           <Text style={styles.heroShape}>1</Text>
         </View>
 
-        {homeQuery.isPending ? <HomeLoading /> : null}
-        {homeQuery.isError ? <HomeError onRetry={() => void homeQuery.refetch()} /> : null}
+        {isLoading ? <HomeLoading /> : null}
+        {!isSessionLoading && homeQuery.isError ? <HomeError onRetry={() => void homeQuery.refetch()} /> : null}
 
-        {!homeQuery.isPending && !homeQuery.isError && data ? (
+        {!isLoading && !homeQuery.isError && data ? (
           <>
-            {singleCategory ? (
+            {user ? (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>내 현재 원픽</Text>
+                  <Text style={styles.countText}>{data.currentPicks.length}개</Text>
+                </View>
+                {data.currentPicks.length > 0 ? data.currentPicks.map((item) => (
+                  <View key={item.pick.id} style={styles.homePickCard}>
+                    <Pressable accessibilityRole="button" onPress={() => openPick(item.pick.id)}>
+                      <Text style={styles.productBrand}>{item.category?.name ?? '카테고리'}</Text>
+                      <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
+                      <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
+                      {item.pick.status === 'needs_review' ? <Text style={styles.productNote}>확인이 필요한 원픽이에요.</Text> : null}
+                      <Text style={styles.categoryCardSub}>원픽 상세 보기 ›</Text>
+                    </Pressable>
+                    {item.product ? (
+                      <Pressable accessibilityRole="button" onPress={() => openProduct(item.pick.productId)} style={styles.cardAction}>
+                        <Text style={styles.categoryCardSub}>제품 상세 보기 ›</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )) : (
+                  <View style={styles.stateCard}>
+                    <Text style={styles.stateTitle}>아직 고른 원픽이 없어요</Text>
+                    <Text style={styles.stateText}>아래 카테고리에서 첫 원픽을 골라보세요.</Text>
+                  </View>
+                )}
+
+                <View style={[styles.sectionHeader, styles.productsHeader]}>
+                  <Text style={styles.sectionTitle}>아직 선택하지 않은 카테고리</Text>
+                  <Text style={styles.countText}>{data.categoriesToPick.length}개</Text>
+                </View>
+                {data.categoriesToPick.length > 0 ? data.categoriesToPick.map(({ category, products: categoryProducts }) => (
+                  <View key={category.id} style={styles.homePickCard}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: expandedCategoryId === category.id }}
+                      onPress={() => setExpandedCategoryId(expandedCategoryId === category.id ? null : category.id)}>
+                      <Text style={styles.categoryCardTitle}>{category.name}</Text>
+                      <Text style={styles.categoryCardSub}>{expandedCategoryId === category.id ? '제품 접기' : '제품 보고 원픽 고르기'} ›</Text>
+                    </Pressable>
+                    {expandedCategoryId === category.id ? (
+                      categoryProducts.length > 0 ? categoryProducts.map((product) => (
+                        <View key={product.id} style={styles.categoryProduct}>
+                          <Pressable accessibilityRole="button" onPress={() => openProduct(product.id)}>
+                            <Text style={styles.productName}>{product.name}</Text>
+                            <Text style={styles.productNote}>제품 상세 보기 ›</Text>
+                          </Pressable>
+                          <Pressable accessibilityRole="button" onPress={() => openChoosePick(product)} style={styles.retryButton}>
+                            <Text style={styles.retryButtonText}>내 원픽으로 선택</Text>
+                          </Pressable>
+                        </View>
+                      )) : <Text style={styles.productNote}>아직 고를 수 있는 제품이 없어요.</Text>
+                    ) : null}
+                  </View>
+                )) : (
+                  <View style={styles.stateCard}>
+                    <Text style={styles.stateTitle}>새로 고를 카테고리가 없어요</Text>
+                    <Text style={styles.stateText}>선택 가능한 카테고리를 모두 골랐거나, 새 카테고리를 준비 중이에요.</Text>
+                  </View>
+                )}
+
+                <View style={[styles.sectionHeader, styles.productsHeader]}>
+                  <Text style={styles.sectionTitle}>최근 사람들의 원픽</Text>
+                </View>
+                {data.feed.length > 0 ? data.feed.map((item) => (
+                  <Pressable key={item.pick.id} accessibilityRole="button" onPress={() => openPick(item.pick.id)} style={({ pressed }) => [styles.homePickCard, pressed && styles.pressed]}>
+                    <Text style={styles.productBrand}>{item.profile ? `@${item.profile.username}` : '사용자'} · {item.category?.name ?? '카테고리'}</Text>
+                    <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
+                    <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
+                    <Text style={styles.categoryCardSub}>원픽 상세 보기 ›</Text>
+                  </Pressable>
+                )) : (
+                  <View style={styles.stateCard}>
+                    <Text style={styles.stateTitle}>아직 다른 사람의 원픽이 없어요</Text>
+                    <Text style={styles.stateText}>새로운 선택이 올라오면 이곳에 표시됩니다.</Text>
+                  </View>
+                )}
+              </>
+            ) : singleCategory ? (
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>{singleCategory.name}</Text>
@@ -165,7 +253,7 @@ const styles = StyleSheet.create({
   heroShape: { color: '#E98A69', fontSize: 150, lineHeight: 150, fontWeight: '900', position: 'absolute', right: 12, bottom: -34, opacity: 0.9 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 13 },
   productsHeader: { marginTop: 29 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  sectionTitle: { flexShrink: 1, marginRight: 8, color: '#202124', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
   sectionHint: { color: '#8E8A85', fontSize: 12 },
   countText: { color: '#D96D4B', fontSize: 12, fontWeight: '700' },
   categoryChipActive: { alignSelf: 'flex-start', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 30, backgroundColor: '#D96D4B' },
@@ -193,5 +281,8 @@ const styles = StyleSheet.create({
   noticeCopy: { flex: 1, marginLeft: 13 },
   noticeTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
   noticeSub: { color: '#8E8A85', fontSize: 11, lineHeight: 16, marginTop: 5 },
+  homePickCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 11 },
+  cardAction: { paddingTop: 10, marginTop: 10, borderTopWidth: 1, borderTopColor: '#EEE8E2' },
+  categoryProduct: { marginTop: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEE8E2' },
   pressed: { opacity: 0.7 },
 });

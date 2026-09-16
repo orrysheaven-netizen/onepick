@@ -31,6 +31,7 @@ export const homeService = new HomeService(
   categoryRepository,
   pickRepository,
   productRepository,
+  profileRepository,
 );
 export const pickService = new PickService(
   pickRepository,
