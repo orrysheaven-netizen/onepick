@@ -6,12 +6,14 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
 
-function PickCard({ item, muted = false }: { item: Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>['currentPicks'][number]; muted?: boolean }) {
+type ProfilePickItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>['currentPicks'][number];
+
+function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; muted?: boolean; onPress: () => void }) {
   const title = item.product?.name ?? '제품 정보를 확인할 수 없어요';
   const category = item.category?.name ?? '카테고리';
 
   return (
-    <View style={[styles.pickCard, muted && styles.pickCardMuted]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.pickCard, muted && styles.pickCardMuted, pressed && styles.pressed]}>
       <View style={styles.pickIcon}><Text style={styles.pickEmoji}>🍜</Text></View>
       <View style={styles.pickCopy}>
         <Text style={styles.pickCategory}>{category}</Text>
@@ -23,7 +25,8 @@ function PickCard({ item, muted = false }: { item: Awaited<ReturnType<typeof imp
           </Text>
         ) : null}
       </View>
-    </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
   );
 }
 
@@ -53,9 +56,7 @@ export default function ProfileScreen() {
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>1</Text></View>
           <Text style={styles.stateTitle}>나의 원픽을 모아보세요</Text>
           <Text style={styles.stateText}>로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요.</Text>
-          <Pressable
-            onPress={() => router.push('/auth/login')}
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push('/auth/login')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>로그인하기</Text>
           </Pressable>
         </View>
@@ -69,9 +70,7 @@ export default function ProfileScreen() {
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>프로필을 완성해주세요</Text>
           <Text style={styles.stateText}>원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다.</Text>
-          <Pressable
-            onPress={() => router.push('/auth/username')}
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push('/auth/username')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>사용자명 만들기</Text>
           </Pressable>
         </View>
@@ -95,9 +94,7 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>프로필을 불러오지 못했어요</Text>
-          <Pressable
-            onPress={() => void profileQuery.refetch()}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => void profileQuery.refetch()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Text style={styles.secondaryButtonText}>다시 불러오기</Text>
           </Pressable>
         </View>
@@ -106,6 +103,7 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks, history } = profileQuery.data;
+  const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -120,44 +118,18 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <View>
-            <Text style={styles.summaryNumber}>{currentPicks.length}</Text>
-            <Text style={styles.summaryLabel}>현재 원픽</Text>
-          </View>
+          <View><Text style={styles.summaryNumber}>{currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
           <View style={styles.summaryDivider} />
-          <View>
-            <Text style={styles.summaryNumber}>{history.length}</Text>
-            <Text style={styles.summaryLabel}>이전 선택</Text>
-          </View>
+          <View><Text style={styles.summaryNumber}>{history.length}</Text><Text style={styles.summaryLabel}>이전 선택</Text></View>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>지금의 원픽</Text>
-          <Text style={styles.sectionHint}>{currentPicks.length}개</Text>
-        </View>
-
-        {currentPicks.length > 0 ? (
-          currentPicks.map((item) => <PickCard key={item.pick.id} item={item} />)
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text>
-            <Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text>
-            <Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text>
-            </Pressable>
-          </View>
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
+        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
+          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
 
-        <View style={[styles.sectionHeader, styles.historyHeader]}>
-          <Text style={styles.sectionTitle}>이전 원픽 기록</Text>
-          <Text style={styles.sectionHint}>{history.length}개</Text>
-        </View>
-
-        {history.length > 0 ? (
-          history.map((item) => <PickCard key={item.pick.id} item={item} muted />)
-        ) : (
-          <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text>
-        )}
+        <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text><Text style={styles.sectionHint}>{history.length}개</Text></View>
+        {history.length > 0 ? history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />) : <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -181,7 +153,7 @@ const styles = StyleSheet.create({
   historyHeader: { marginTop: 28 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionHint: { color: '#8E8A85', fontSize: 11 },
-  pickCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
+  pickCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   pickCardMuted: { opacity: 0.7 },
   pickIcon: { width: 76, height: 76, borderRadius: 16, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
   pickEmoji: { fontSize: 36 },
@@ -190,6 +162,7 @@ const styles = StyleSheet.create({
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
   pickReview: { color: '#6C6863', fontSize: 12, lineHeight: 18, marginTop: 6 },
   pickMeta: { color: '#AAA39C', fontSize: 10, marginTop: 6 },
+  chevron: { color: '#B8B1AA', fontSize: 26, paddingHorizontal: 4 },
   emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
