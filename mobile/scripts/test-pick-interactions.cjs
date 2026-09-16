@@ -32,8 +32,9 @@ async function main() {
   let currentPick = null;
   const service = new ProductService(
     { getById: async () => product },
-    { getCurrentPick: async () => currentPick, getRecentPicks: async () => [] },
-    {}, { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
+    { getCurrentPick: async () => currentPick },
+    { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
+    { getPicks: async () => [] },
   );
   assert.equal((await service.getProductDetail('product')).canChoose, true);
   for (const status of ['draft', 'paused', 'closed']) {
@@ -141,6 +142,6 @@ async function main() {
   presses.find((p) => textOf(p.children) === '사용자명 만들고 계속').onPress();
   assert.equal(destination.params.action, 'comment_pick');
   assert.equal(destination.params.pickId, 'pick');
-  console.log('Interaction checks passed: product/category eligibility, review prefill, comment failure/retry, duplicate taps and profile recovery.');
+  console.log('Interaction checks passed: product/category eligibility, read-model product picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
