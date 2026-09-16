@@ -21,6 +21,7 @@ export interface PickRepository {
   getById(pickId: string): Promise<Pick | null>;
   getCurrentPick(userId: string, categoryId: string): Promise<Pick | null>;
   getActivePicksByUser(userId: string): Promise<Pick[]>;
+  getHistoryByUser(userId: string, limit?: number): Promise<Pick[]>;
   getRecentPicks(input: RecentPicksInput): Promise<Pick[]>;
   changePick(input: ChangePickInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
