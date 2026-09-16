@@ -2,9 +2,10 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SignOutButton } from '@/components/sign-out-button';
 import { PickPhoto } from '@/components/pick-photo';
+import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
+import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
 
@@ -36,6 +37,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
+  const adminAccess = useAdminAccess(Boolean(user));
 
   const isProfileMissing =
     profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
@@ -144,12 +146,22 @@ export default function ProfileScreen() {
         </View>
 
         <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
-          <View>
+          <View style={styles.actionCopy}>
             <Text style={styles.publicProfileTitle}>공개 프로필 보기</Text>
             <Text style={styles.publicProfileText}>다른 사람에게 보이는 현재 원픽 컬렉션을 확인하고 공유할 수 있어요.</Text>
           </View>
           <Text style={styles.chevron}>›</Text>
         </Pressable>
+
+        {adminAccess.data === true ? (
+          <Pressable onPress={() => router.push('/admin')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
+            <View style={styles.actionCopy}>
+              <Text style={styles.adminTitle}>관리자 데이터 관리</Text>
+              <Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text>
+            </View>
+            <Text style={styles.adminChevron}>›</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
         {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
@@ -178,17 +190,20 @@ const styles = StyleSheet.create({
   summaryNumber: { color: '#202124', fontSize: 22, fontWeight: '900', textAlign: 'center' },
   summaryLabel: { color: '#8E8A85', fontSize: 11, marginTop: 4, textAlign: 'center' },
   summaryDivider: { width: 1, height: 34, backgroundColor: '#EEE8E2' },
-  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F2ECE7', borderRadius: 18, padding: 16, marginBottom: 30 },
+  actionCopy: { flex: 1 },
+  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F2ECE7', borderRadius: 18, padding: 16, marginBottom: 12 },
   publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
   publicProfileText: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4, paddingRight: 12 },
+  adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#252B38', borderRadius: 18, padding: 16, marginBottom: 30 },
+  adminTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  adminText: { color: '#C9CDD5', fontSize: 11, lineHeight: 17, marginTop: 4, paddingRight: 12 },
+  adminChevron: { color: '#FFFFFF', fontSize: 26, paddingHorizontal: 4 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
   historyHeader: { marginTop: 28 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionHint: { color: '#8E8A85', fontSize: 11 },
   pickCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   pickCardMuted: { opacity: 0.7 },
-  pickIcon: { width: 76, height: 76, borderRadius: 16, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
-  pickEmoji: { fontSize: 36 },
   pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
   pickCategory: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
