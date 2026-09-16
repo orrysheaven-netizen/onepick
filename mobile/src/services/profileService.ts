@@ -4,6 +4,7 @@ import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ProductRepository } from '@/repositories/interfaces/productRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 import type { Pick } from '@/types/domain/pick';
+import type { Product } from '@/types/domain/product';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -47,20 +48,23 @@ export class ProfileService {
       throw new AppError('PROFILE_NOT_FOUND');
     }
 
-    const [activePicks, history] = await Promise.all([
+    const [activePicks, history, submittedProducts] = await Promise.all([
       this.pickRepository.getActivePicksByUser(userId),
       this.pickRepository.getHistoryByUser(userId),
+      this.productRepository.getSubmissionsByUser(userId),
     ]);
 
-    const [current, previous] = await Promise.all([
+    const [current, previous, productRequests] = await Promise.all([
       this.hydratePicks(activePicks),
       this.hydratePicks(history),
+      this.hydrateProductRequests(submittedProducts),
     ]);
 
     return {
       profile,
       currentPicks: current,
       history: previous,
+      productRequests,
     };
   }
 
@@ -92,6 +96,25 @@ export class ProfileService {
           pick,
           category,
           product,
+        };
+      }),
+    );
+  }
+
+  private async hydrateProductRequests(products: Product[]) {
+    return Promise.all(
+      products.map(async (product) => {
+        const [category, mergedIntoProduct] = await Promise.all([
+          this.categoryRepository.getById(product.categoryId),
+          product.mergedIntoProductId
+            ? this.productRepository.getById(product.mergedIntoProductId)
+            : Promise.resolve(null),
+        ]);
+
+        return {
+          product,
+          category,
+          mergedIntoProduct,
         };
       }),
     );
