@@ -1,43 +1,121 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const categories = ['전체', '패션', '뷰티', '리빙', '테크'];
-const rankings = [
-  { rank: '01', category: '패션', name: '데일리 토트백', detail: '가볍고 오래 쓰는 기본 가방', emoji: '👜', color: '#F4D7C5' },
-  { rank: '02', category: '리빙', name: '오트밀 머그', detail: '아침을 위한 따뜻한 한 잔', emoji: '☕', color: '#E7D6B7' },
-  { rank: '03', category: '테크', name: '노이즈 캔슬링 헤드폰', detail: '집중을 위한 조용한 선택', emoji: '🎧', color: '#D4DDF1' },
-  { rank: '04', category: '뷰티', name: '라이트 글로우 크림', detail: '매일 쓰는 산뜻한 보습', emoji: '🧴', color: '#E7D7E2' },
-];
+import { useExploreData } from '@/hooks/useExploreData';
+import { useState } from 'react';
 
 export default function ExploreScreen() {
-  const [selected, setSelected] = useState('전체');
-  const filtered = useMemo(() => selected === '전체' ? rankings : rankings.filter((item) => item.category === selected), [selected]);
+  const router = useRouter();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
+  const query = useExploreData(selectedCategoryId);
+
+  const openPick = (pickId: string) => {
+    router.push({ pathname: '/pick/[pickId]', params: { pickId } });
+  };
+
+  const openProduct = (productId: string, categoryId: string) => {
+    router.push({ pathname: '/pick/choose', params: { productId, categoryId } });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>EXPLORE</Text>
         <Text style={styles.title}>사람들의 원픽을{ '\n' }구경해보세요</Text>
-        <Text style={styles.subtitle}>많이 선택한 제품부터 취향이 비슷한 사람들의 기록까지.</Text>
+        <Text style={styles.subtitle}>지금 사람들이 고른 하나와 그 이유를 실제 선택 기록으로 보여드려요.</Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-          {categories.map((category) => (
-            <Pressable key={category} onPress={() => setSelected(category)} style={[styles.chip, selected === category && styles.chipActive]}>
-              <Text style={[styles.chipText, selected === category && styles.chipTextActive]}>{category}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={styles.listHeader}><Text style={styles.listTitle}>이번 주 인기 원픽</Text><Text style={styles.updated}>방금 업데이트</Text></View>
-        {filtered.map((item) => (
-          <View style={styles.rankCard} key={item.rank}>
-            <Text style={styles.rank}>{item.rank}</Text>
-            <View style={[styles.thumb, { backgroundColor: item.color }]}><Text style={styles.emoji}>{item.emoji}</Text></View>
-            <View style={styles.rankCopy}><Text style={styles.category}>{item.category}</Text><Text style={styles.name}>{item.name}</Text><Text style={styles.detail}>{item.detail}</Text></View>
-            <Text style={styles.arrow}>›</Text>
+        {query.isPending && !query.data ? (
+          <View style={styles.stateCard}>
+            <ActivityIndicator />
+            <Text style={styles.stateText}>최근 원픽을 불러오고 있어요</Text>
           </View>
-        ))}
+        ) : null}
+
+        {query.isError && !query.data ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>탐색 데이터를 불러오지 못했어요</Text>
+            <Pressable onPress={() => void query.refetch()} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+              <Text style={styles.retryButtonText}>다시 불러오기</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {query.data ? (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
+              <Pressable
+                onPress={() => setSelectedCategoryId(undefined)}
+                style={[styles.chip, !selectedCategoryId && styles.chipActive]}>
+                <Text style={[styles.chipText, !selectedCategoryId && styles.chipTextActive]}>전체</Text>
+              </Pressable>
+              {query.data.openCategories.map((category) => (
+                <Pressable
+                  key={category.id}
+                  onPress={() => setSelectedCategoryId(category.id)}
+                  style={[styles.chip, selectedCategoryId === category.id && styles.chipActive]}>
+                  <Text style={[styles.chipText, selectedCategoryId === category.id && styles.chipTextActive]}>{category.name}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>최근 원픽</Text>
+                <Text style={styles.sectionDescription}>사람들이 최근 공개한 현재 원픽이에요.</Text>
+              </View>
+              {query.isFetching ? <ActivityIndicator size="small" /> : null}
+            </View>
+
+            {query.data.feed.length > 0 ? (
+              query.data.feed.map(({ pick, profile, product, category }) => (
+                <Pressable
+                  key={pick.id}
+                  onPress={() => openPick(pick.id)}
+                  style={({ pressed }) => [styles.pickCard, pressed && styles.pressed]}>
+                  <View style={styles.pickIcon}><Text style={styles.pickEmoji}>🍜</Text></View>
+                  <View style={styles.pickCopy}>
+                    <Text style={styles.pickMeta}>
+                      {profile ? `@${profile.username}` : 'OnePick 사용자'} · {category?.name ?? '카테고리'}
+                    </Text>
+                    <Text style={styles.pickName}>{product?.name ?? '제품 정보 확인 중'}</Text>
+                    <Text style={styles.pickReview}>“{pick.oneLineReview}”</Text>
+                  </View>
+                  <Text style={styles.arrow}>›</Text>
+                </Pressable>
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text>
+                <Text style={styles.emptyText}>첫 원픽이 선택되면 이곳에서 사람들의 선택을 볼 수 있습니다.</Text>
+              </View>
+            )}
+
+            {query.data.recentProducts.length > 0 ? (
+              <>
+                <View style={[styles.sectionHeader, styles.productSectionHeader]}>
+                  <View>
+                    <Text style={styles.sectionTitle}>최근 등장한 제품</Text>
+                    <Text style={styles.sectionDescription}>최근 원픽 기록에 등장한 제품을 중복 없이 모았어요.</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productList}>
+                  {query.data.recentProducts.map(({ product, category }) => (
+                    <Pressable
+                      key={product.id}
+                      onPress={() => openProduct(product.id, category.id)}
+                      style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
+                      <View style={styles.productThumb}><Text style={styles.productEmoji}>🍜</Text></View>
+                      <Text style={styles.productCategory}>{category.name}</Text>
+                      <Text numberOfLines={2} style={styles.productName}>{product.name}</Text>
+                      <Text style={styles.productAction}>이 제품 원픽 보기/고르기</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -48,22 +126,38 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 18, paddingBottom: 110 },
   eyebrow: { color: '#D96D4B', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 30, fontWeight: '800', lineHeight: 36, letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#8E8A85', fontSize: 13, lineHeight: 20, marginTop: 13, maxWidth: 330 },
+  subtitle: { color: '#8E8A85', fontSize: 13, lineHeight: 20, marginTop: 13, maxWidth: 360 },
   categoryList: { gap: 8, paddingVertical: 28 },
   chip: { backgroundColor: '#F0ECE7', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
   chipActive: { backgroundColor: '#D96D4B' },
   chipText: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
   chipTextActive: { color: '#FFF9F3' },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
-  listTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  updated: { color: '#8E8A85', fontSize: 11 },
-  rankCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  rank: { width: 27, color: '#D2CBC4', fontSize: 12, fontWeight: '800' },
-  thumb: { width: 70, height: 70, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 33 },
-  rankCopy: { flex: 1, paddingLeft: 13 },
-  category: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-  name: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 5 },
-  detail: { color: '#8E8A85', fontSize: 11, marginTop: 5 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 13 },
+  productSectionHeader: { marginTop: 30 },
+  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
+  sectionDescription: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4 },
+  pickCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
+  pickIcon: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
+  pickEmoji: { fontSize: 33 },
+  pickCopy: { flex: 1, paddingLeft: 13 },
+  pickMeta: { color: '#D96D4B', fontSize: 10, fontWeight: '800' },
+  pickName: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 5 },
+  pickReview: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 5 },
   arrow: { color: '#B8B1AA', fontSize: 25, marginLeft: 5 },
+  productList: { gap: 11, paddingRight: 10 },
+  productCard: { width: 158, backgroundColor: '#FFFFFF', borderRadius: 19, padding: 12 },
+  productThumb: { width: '100%', height: 112, borderRadius: 15, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
+  productEmoji: { fontSize: 44 },
+  productCategory: { color: '#D96D4B', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginTop: 11 },
+  productName: { color: '#202124', fontSize: 14, lineHeight: 19, fontWeight: '800', marginTop: 5 },
+  productAction: { color: '#8E8A85', fontSize: 10, marginTop: 9 },
+  stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, marginTop: 28 },
+  stateTitle: { color: '#202124', fontSize: 16, fontWeight: '800' },
+  stateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
+  retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 16 },
+  retryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26 },
+  emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  pressed: { opacity: 0.7 },
 });
