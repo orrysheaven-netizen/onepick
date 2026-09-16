@@ -57,6 +57,7 @@ async function main() {
   }
   const { SupabaseProductRepository } = loadSource('repositories/supabase/supabaseProductRepository.ts', {
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
+    '@/errors/appError': { AppError: Error },
     '@/repositories/mappers/productMapper': { mapProductRow: (row) => ({ ...row, categoryId: row.category_id }) },
   });
   const repository = new SupabaseProductRepository({ from: () => builder });
@@ -75,6 +76,7 @@ async function main() {
   };
   const categoryRepository = {
     getById: async () => ({ id: 'ramen', status: categoryStatus, isVisible: true, isPickable: true }),
+    getOpenCategories: async () => categoryStatus === 'open' ? [{ id: 'ramen' }] : [],
   };
   const service = new ProductService(productRepository, {}, {}, categoryRepository);
   assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'product-1');

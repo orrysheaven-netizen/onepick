@@ -1,4 +1,5 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
+import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
@@ -10,9 +11,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
     const { data, error } = await this.client
       .from('categories')
       .select('*')
-      .eq('status', 'open')
       .eq('is_visible', true)
-      .eq('is_pickable', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
 
@@ -20,7 +19,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
       throw mapSupabaseError(error);
     }
 
-    return data.map(mapCategoryRow);
+    return selectableCategories(data.map(mapCategoryRow));
   }
 
   async getById(categoryId: string) {

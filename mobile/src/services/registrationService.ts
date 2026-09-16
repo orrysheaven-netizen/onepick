@@ -41,7 +41,7 @@ export class RegistrationService {
 
   async getCategories() {
     return (await this.categoryRepository.getOpenCategories()).filter((category) =>
-      category.isVisible && category.isPickable);
+      category.isVisible && category.isPickable && category.status === 'open');
   }
 
   choosePhoto() { return this.devicePhotoRepository.choosePhoto(); }
@@ -57,7 +57,7 @@ export class RegistrationService {
   async register(input: RegisterPickInput): Promise<RegistrationResult> {
     if (!input.userId) throw new AppError('AUTH_REQUIRED');
 
-    const category = await this.categoryRepository.getById(input.categoryId);
+    const category = (await this.getCategories()).find((item) => item.id === input.categoryId);
     if (!category?.isVisible || !category.isPickable || category.status !== 'open') {
       throw new AppError('CATEGORY_NOT_PICKABLE');
     }

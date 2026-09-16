@@ -1,4 +1,6 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
+import { AppError } from '@/errors/appError';
+import type { ProductStatus } from '@/types/domain/product';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
@@ -12,17 +14,11 @@ import { mapBrandRow } from '@/repositories/mappers/brandMapper';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapProductRow } from '@/repositories/mappers/productMapper';
 
-type RpcResult<T> = Promise<{ data: T | null; error: { code?: string; message?: string; details?: string; hint?: string } | null }>;
-type CategoryUpdate = Database['public']['Tables']['categories']['Update'];
-type BrandUpdate = Database['public']['Tables']['brands']['Update'];
-type ProductUpdate = Database['public']['Tables']['products']['Update'];
-
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
   async isAdmin() {
-    const rpc = this.client.rpc as unknown as (fn: string) => RpcResult<boolean>;
-    const { data, error } = await rpc('current_user_is_admin');
+    const { data, error } = await this.client.rpc('current_user_is_admin');
     if (error) throw mapSupabaseError(error);
     return data === true;
   }
@@ -54,30 +50,41 @@ export class SupabaseAdminRepository implements AdminRepository {
       .order('updated_at', { ascending: false })
       .limit(safeLimit);
     if (error) throw mapSupabaseError(error);
-    return data.map((row) => mapProductRow(row));
+    return data.map((row) => mapProductRow(row,
+      row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+      row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
   }
 
   async createCategory(input: AdminCategoryInput) {
     const { data, error } = await this.client
       .from('categories')
       .insert({
-        name: input.name,
-        slug: input.slug,
-        parent_id: input.parentId ?? null,
-        status: input.status ?? 'draft',
-        is_visible: input.isVisible ?? false,
-        is_pickable: input.isPickable ?? false,
-        sort_order: input.sortOrder ?? 0,
+        name: input.name, slug: input.slug, parent_id: input.parentId ?? null,
+        status: input.status ?? 'draft', is_visible: input.isVisible ?? false,
+        is_pickable: input.isPickable ?? false, sort_order: input.sortOrder ?? 0,
         ranking_min_sample: input.rankingMinSample ?? 20,
-      })
-      .select('*')
-      .single();
+      }).select('*').single();
     if (error) throw mapSupabaseError(error);
     return mapCategoryRow(data);
   }
 
+  async getPendingProducts() {
+    const { data, error } = await this.client.from('products').select('*')
+      .eq('status', 'pending').order('created_at', { ascending: true }).limit(500);
+    if (error) throw mapSupabaseError(error);
+    return data.map((row) => mapProductRow(row,
+      row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+      row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
+  }
+
+  async getProductById(productId: string) {
+    const { data, error } = await this.client.from('products').select('*').eq('id', productId).maybeSingle();
+    if (error) throw mapSupabaseError(error);
+    return data ? mapProductRow(data) : null;
+  }
+
   async updateCategory(categoryId: string, input: Partial<AdminCategoryInput>) {
-    const patch: CategoryUpdate = {};
+    const patch: Database['public']['Tables']['categories']['Update'] = {};
     if (input.name !== undefined) patch.name = input.name;
     if (input.slug !== undefined) patch.slug = input.slug;
     if (input.parentId !== undefined) patch.parent_id = input.parentId;
@@ -115,7 +122,7 @@ export class SupabaseAdminRepository implements AdminRepository {
   }
 
   async updateBrand(brandId: string, input: Partial<AdminBrandInput>) {
-    const patch: BrandUpdate = {};
+    const patch: Database['public']['Tables']['brands']['Update'] = {};
     if (input.name !== undefined) {
       patch.name = input.name;
       patch.normalized_name = input.name.trim().toLowerCase().replace(/\s+/g, '');
@@ -154,8 +161,8 @@ export class SupabaseAdminRepository implements AdminRepository {
     return mapProductRow(data);
   }
 
-  async updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }) {
-    const patch: ProductUpdate = {};
+  async updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }, expectedStatus?: ProductStatus) {
+    const patch: Database['public']['Tables']['products']['Update'] = {};
     if (input.categoryId !== undefined) patch.category_id = input.categoryId;
     if (input.brandId !== undefined) patch.brand_id = input.brandId;
     if (input.name !== undefined) patch.name = input.name;
@@ -165,13 +172,11 @@ export class SupabaseAdminRepository implements AdminRepository {
     if (input.status !== undefined) patch.status = input.status;
     if (input.mergedIntoProductId !== undefined) patch.merged_into_product_id = input.mergedIntoProductId;
 
-    const { data, error } = await this.client
-      .from('products')
-      .update(patch)
-      .eq('id', productId)
-      .select('*')
-      .single();
+    let query = this.client.from('products').update(patch).eq('id', productId);
+    if (expectedStatus) query = query.eq('status', expectedStatus);
+    const { data, error } = await query.select('*').maybeSingle();
     if (error) throw mapSupabaseError(error);
+    if (!data) throw new AppError('PICK_CONFLICT');
     return mapProductRow(data);
   }
 }

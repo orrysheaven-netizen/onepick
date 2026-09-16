@@ -10,7 +10,7 @@ OnePick treats products as shared master data. Users choose an existing product 
 - **Pending product:** cannot be used for a Pick.
 - **Admin review:** the administrator can approve it as a new product, merge it into an existing product, or reject it.
 - **Approved product:** becomes `active` and can then be selected by any user.
-- **Duplicate request:** if the server finds an existing active, discontinued or pending product with the same category and canonical name, it reuses that product instead of creating another row.
+- **Duplicate request:** the server reuses a matching active/discontinued product or the caller's own pending request. Another user's pending request is private and is not returned by the submission RPC.
 
 The product carries its category. After a user selects a product, the app should derive category information from the product instead of asking the user to enter it again. Category hierarchy is stored with `categories.parent_id`, so a product assigned to `라면` can be displayed as `먹을것 > 라면`.
 
@@ -59,6 +59,8 @@ The MVP Admin dashboard provides:
    - parent/child hierarchy
    - visibility
    - pickable status
+   - edit name, parent, operational status and display order
+   - immutable slug for established links and identity rules
 4. **Brand creation**
 
 ## User submission flow
@@ -107,6 +109,19 @@ Relevant hosted migrations on `onepick-dev`:
 - `20260916221838 add_shared_product_registration`
 - `20260916222321 add_admin_product_workflow`
 - `20260916222614 enforce_pending_product_approval`
+- `20260916224617 validate_admin_categories`
+
+## Categories managed in Admin
+
+Open **My profile → 관리자 데이터 관리 → 카테고리**. New categories start as private drafts. To offer a category in the app, set its state to open, make it visible, and allow picking. No application release or slug allowlist change is required.
+
+The hierarchy has at most two levels, for example `먹을것 > 라면`. A parent containing children cannot be pickable. Both the leaf and its parent must be open and visible. The app uses the same category repository for Home, Explore and registration; edits invalidate their query caches. Server triggers reject cycles, third-level categories and picks under a hidden or paused parent. Existing category slugs are stable; their display names can change.
+
+Known ramen/beer/soju/snack slugs still have the agreed packaging normalization rules. Newly created categories preserve their product names until a category-specific rule is deliberately added.
+
+The product finder keeps the entered search name when opening a missing-product request. Selecting a formal product derives its category automatically. The profile's product-request list shows up to 20 recent submissions, with links to approved or merged products. Admin lists show up to 500 products and separately load the oldest 500 pending requests, so newer formal products cannot displace pending requests from the review queue.
+
+The user-facing table INSERT policy for pending products has been removed: all ordinary submissions must pass the RPC's photo, quota and normalization checks. Administrator membership and the quota table have RLS with no client policies by design.
 
 ## Validation
 
@@ -126,3 +141,4 @@ The pgTAP shared-product regression test follows the same approval lifecycle. Mo
 The administrator allowlist lives in the private schema and is not readable by `anon` or `authenticated`. Authorization does not rely on user-editable metadata.
 
 The latest security advisor output contains two pre-existing notices unrelated to the Admin RLS boundary: a private image-import quota table with RLS and no client policies, and leaked-password protection disabled in Auth settings. The private quota table is intentionally inaccessible to clients.
+

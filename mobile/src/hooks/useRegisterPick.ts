@@ -5,7 +5,7 @@ import { registrationService } from '@/services';
 import type { RegisterPickInput } from '@/services/registrationService';
 
 export function useRegistrationCategories() {
-  return useQuery({ queryKey: ['registration', 'categories'], queryFn: () => registrationService.getCategories() });
+  return useQuery({ queryKey: ['categories', 'registration'], queryFn: () => registrationService.getCategories() });
 }
 
 export function useChoosePhoto() {

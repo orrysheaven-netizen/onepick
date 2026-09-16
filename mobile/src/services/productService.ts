@@ -28,12 +28,13 @@ export class ProductService {
       throw new AppError('PRODUCT_NOT_FOUND');
     }
 
-    const [category, currentPick, recentPicks] = await Promise.all([
+    const [category, currentPick, recentPicks, openCategories] = await Promise.all([
       this.categoryRepository.getById(product.categoryId),
       userId
         ? this.pickRepository.getCurrentPick(userId, product.categoryId)
         : Promise.resolve(null),
       this.pickRepository.getRecentPicks({ productId, limit: 20 }),
+      this.categoryRepository.getOpenCategories(),
     ]);
 
     let myPickStatus: MyProductPickStatus = { type: 'not_selected' };
@@ -56,7 +57,7 @@ export class ProductService {
     );
 
     const canChoose = Boolean(
-      category?.status === 'open' && category.isVisible && category.isPickable &&
+      openCategories.some((item) => item.id === product.categoryId) &&
       (product.status === 'active' || product.status === 'discontinued'),
     );
 
@@ -70,19 +71,9 @@ export class ProductService {
   }
 
   async search(query: string, categoryId?: string) {
-    const products = await this.productRepository.search({
-      query,
-      categoryId,
-      limit: 20,
-    });
-
-    const eligible = await Promise.all(
-      products.map(async (product) => {
-        const category = await this.categoryRepository.getById(product.categoryId);
-        return Boolean(category?.status === 'open' && category.isVisible && category.isPickable);
-      }),
-    );
-
-    return products.filter((_, index) => eligible[index]);
+    const categories = await this.categoryRepository.getOpenCategories();
+    const ids = categories.filter((item) => !categoryId || item.id === categoryId).map((item) => item.id);
+    if (!ids.length || !query.trim()) return [];
+    return this.productRepository.search({ query, categoryId, categoryIds: ids, limit: 20 });
   }
 }

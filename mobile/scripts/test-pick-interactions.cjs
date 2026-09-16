@@ -33,7 +33,7 @@ async function main() {
   const service = new ProductService(
     { getById: async () => product },
     { getCurrentPick: async () => currentPick, getRecentPicks: async () => [] },
-    {}, { getById: async () => category },
+    {}, { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
   );
   assert.equal((await service.getProductDetail('product')).canChoose, true);
   for (const status of ['draft', 'paused', 'closed']) {

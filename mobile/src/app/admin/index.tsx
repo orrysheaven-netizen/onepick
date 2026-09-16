@@ -1,449 +1,154 @@
-import { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { useAdminAccess, useAdminActions, useAdminDashboard } from '@/hooks/useAdmin';
+import { PickPhoto } from '@/components/pick-photo';
+import { AppError } from '@/errors/appError';
+import { useAdminActions, useAdminDashboard } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import type { Category } from '@/types/domain/category';
+import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import type { AdminCategoryInput } from '@/repositories/interfaces/adminRepository';
+import type { Category, CategoryStatus } from '@/types/domain/category';
 import type { Product } from '@/types/domain/product';
 
-function categoryPath(category: Category, categories: Category[]) {
-  const parent = category.parentId ? categories.find((item) => item.id === category.parentId) : null;
-  return parent ? `${parent.name} > ${category.name}` : category.name;
+const statusNames: Record<CategoryStatus, string> = { draft: '준비 중', open: '운영 중', paused: '일시 중지', closed: '종료' };
+const emptyCategory = (): AdminCategoryInput => ({ name: '', slug: '', parentId: null, status: 'draft', isVisible: false, isPickable: false, sortOrder: 0 });
+function errorText(error: unknown) {
+  if (error instanceof AppError) {
+    if (error.code === 'FORBIDDEN') return '관리자 권한이 필요합니다.';
+    if (error.code === 'CATEGORY_INVALID') return '이름·식별자·순서를 확인해주세요. 상위 카테고리는 선택 불가여야 하며, 두 단계까지만 만들 수 있습니다.';
+    if (error.code === 'PICK_CONFLICT') return '이미 사용 중인 식별자이거나 다른 관리자가 처리한 항목입니다. 새로고침 후 확인해주세요.';
+    if (error.code === 'PRODUCT_NAME_INVALID') return '이름을 확인해주세요. 카테고리는 60자, 제품은 100자까지 입력할 수 있습니다.';
+    if (error.code === 'CATEGORY_NOT_FOUND') return '공개·운영 중인 선택 가능한 카테고리를 골라주세요.';
+  }
+  return '저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해주세요.';
+}
+function Button({ children, onPress, disabled = false, selected = false }: { children: string; onPress: () => void; disabled?: boolean; selected?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} onPress={onPress} disabled={disabled} style={[styles.button, selected && styles.selected, disabled && styles.disabled]}><Text style={[styles.buttonText, selected && styles.selectedText]}>{children}</Text></Pressable>;
 }
 
 function similarProducts(product: Product, products: Product[]) {
-  const needle = product.normalizedName.toLowerCase();
-  return products
-    .filter((item) =>
-      item.id !== product.id &&
-      item.categoryId === product.categoryId &&
-      (item.status === 'active' || item.status === 'discontinued'),
-    )
-    .map((item) => ({
-      item,
-      score: item.normalizedName === needle
-        ? 0
-        : item.normalizedName.includes(needle) || needle.includes(item.normalizedName)
-          ? 1
-          : 2,
-    }))
-    .sort((a, b) => a.score - b.score || a.item.name.localeCompare(b.item.name))
-    .slice(0, 3)
-    .map(({ item }) => item);
-}
-
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
-      {children}
-    </View>
-  );
+  const score = (item: Product) => item.normalizedName === product.normalizedName ? 0
+    : item.normalizedName.includes(product.normalizedName) || product.normalizedName.includes(item.normalizedName) ? 1 : 2;
+  return products.filter((item) => item.id !== product.id && item.categoryId === product.categoryId && ['active', 'discontinued'].includes(item.status))
+    .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name)).slice(0, 3);
 }
 
 export default function AdminScreen() {
-  const router = useRouter();
   const auth = useAuthSession();
-  const access = useAdminAccess(Boolean(auth.user));
-  const dashboard = useAdminDashboard(Boolean(auth.user && access.data));
+  return <AdminForm key={auth.user?.id ?? 'anonymous'} auth={auth} />;
+}
+function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
+  const router = useRouter();
+  const query = useAdminDashboard(auth.user?.id);
   const actions = useAdminActions();
-
+  const [tab, setTab] = useState<'categories' | 'products' | 'requests' | 'brands'>('categories');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [category, setCategory] = useState(emptyCategory);
+  const [sortOrder, setSortOrder] = useState('0');
   const [productName, setProductName] = useState('');
-  const [productCategoryId, setProductCategoryId] = useState('');
-  const [productBrandId, setProductBrandId] = useState<string | null>(null);
+  const [productCategory, setProductCategory] = useState('');
+  const [productBrand, setProductBrand] = useState<string | null>(null);
   const [productUrl, setProductUrl] = useState('');
-
-  const [categoryName, setCategoryName] = useState('');
-  const [categorySlug, setCategorySlug] = useState('');
-  const [categoryParentId, setCategoryParentId] = useState<string | null>(null);
-  const [categoryVisible, setCategoryVisible] = useState(true);
-  const [categoryPickable, setCategoryPickable] = useState(true);
-
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
-
-  const [reviewingProductId, setReviewingProductId] = useState<string | null>(null);
-  const [reviewName, setReviewName] = useState('');
-  const [reviewCategoryId, setReviewCategoryId] = useState('');
-  const [reviewBrandId, setReviewBrandId] = useState<string | null>(null);
-  const [reviewUrl, setReviewUrl] = useState('');
-
-  const data = dashboard.data;
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+  const data = query.data;
   const categories = data?.categories ?? [];
-  const brands = data?.brands ?? [];
-  const products = data?.products ?? [];
-  const leafCategories = useMemo(
-    () => categories.filter((category) => !categories.some((item) => item.parentId === category.id)),
-    [categories],
-  );
-
-  const busy = actions.approveProduct.isPending || actions.rejectProduct.isPending ||
-    actions.mergeProduct.isPending || actions.createProduct.isPending ||
-    actions.createCategory.isPending || actions.createBrand.isPending;
-
-  const submitProduct = async () => {
-    if (!productName.trim() || !productCategoryId || busy) return;
-    try {
-      await actions.createProduct.mutateAsync({
-        name: productName,
-        categoryId: productCategoryId,
-        brandId: productBrandId,
-        officialUrl: productUrl.trim() || null,
-        status: 'active',
-      });
-      setProductName('');
-      setProductUrl('');
-    } catch {
-      // Mutation state is rendered below.
-    }
+  const eligible = selectableCategories(categories);
+  const run = async (task: () => Promise<unknown>, success: string, after?: () => void) => {
+    if (busy.current) return;
+    busy.current = true; setSaving(true); setError(null); setNotice('');
+    try { await task(); setNotice(success); after?.(); }
+    catch (cause) { setError(cause); }
+    finally { busy.current = false; setSaving(false); }
   };
+  const clearCategory = () => { setCategoryId(null); setCategory(emptyCategory()); setSortOrder('0'); };
+  const editCategory = (item: Category) => { setCategoryId(item.id); setCategory({ ...item }); setSortOrder(String(item.sortOrder)); setNotice(''); setError(null); };
+  const editRequest = (item: Product) => { setRequestId(item.id); setProductName(item.name); setProductCategory(item.categoryId); setProductBrand(item.brandId); setProductUrl(item.officialUrl ?? ''); setNotice(''); setError(null); };
+  const clearProduct = () => { setRequestId(null); setProductName(''); setProductCategory(''); setProductBrand(null); setProductUrl(''); };
+  const saveCategory = () => run(async () => {
+    if (!sortOrder.trim() || !/^-?\d+$/.test(sortOrder)) throw new AppError('CATEGORY_INVALID');
+    const input = { ...category, sortOrder: Number(sortOrder) };
+    return categoryId ? actions.updateCategory.mutateAsync({ id: categoryId, input }) : actions.createCategory.mutateAsync(input);
+  }, '카테고리를 저장했습니다. 공개·운영 중·선택 가능 설정을 모두 켜면 사용자 앱에 표시됩니다.', clearCategory);
+  const saveProduct = () => run(() => {
+    const input = { name: productName, categoryId: productCategory, brandId: productBrand, officialUrl: productUrl.trim() || null };
+    return requestId ? actions.approveProduct.mutateAsync({ productId: requestId, edits: input }) : actions.createProduct.mutateAsync(input);
+  }, requestId ? '승인했습니다. 이제 원픽으로 선택할 수 있습니다.' : '정식 제품을 등록했습니다.', clearProduct);
 
-  const submitCategory = async () => {
-    if (!categoryName.trim() || !categorySlug.trim() || busy) return;
-    try {
-      await actions.createCategory.mutateAsync({
-        name: categoryName,
-        slug: categorySlug,
-        parentId: categoryParentId,
-        status: 'open',
-        isVisible: categoryVisible,
-        isPickable: categoryPickable,
-      });
-      setCategoryName('');
-      setCategorySlug('');
-    } catch {
-      // Mutation state is rendered below.
-    }
-  };
-
-  const submitBrand = async () => {
-    if (!brandName.trim() || busy) return;
-    try {
-      await actions.createBrand.mutateAsync({
-        name: brandName,
-        slug: brandSlug.trim() || null,
-        isActive: true,
-      });
-      setBrandName('');
-      setBrandSlug('');
-    } catch {
-      // Mutation state is rendered below.
-    }
-  };
-
-  const beginReview = (product: Product) => {
-    setReviewingProductId(product.id);
-    setReviewName(product.name);
-    setReviewCategoryId(product.categoryId);
-    setReviewBrandId(product.brandId);
-    setReviewUrl(product.officialUrl ?? '');
-  };
-
-  const cancelReview = () => {
-    setReviewingProductId(null);
-    setReviewName('');
-    setReviewCategoryId('');
-    setReviewBrandId(null);
-    setReviewUrl('');
-  };
-
-  const approveReviewedProduct = async (productId: string) => {
-    if (!reviewName.trim() || !reviewCategoryId || busy) return;
-    try {
-      await actions.approveProduct.mutateAsync({
-        productId,
-        edits: {
-          name: reviewName,
-          categoryId: reviewCategoryId,
-          brandId: reviewBrandId,
-          officialUrl: reviewUrl.trim() || null,
-        },
-      });
-      cancelReview();
-    } catch {
-      // Mutation state is rendered below and the draft remains editable.
-    }
-  };
-
-  if (auth.isLoading) {
-    return <SafeAreaView style={styles.safe}><View style={styles.center}><ActivityIndicator /><Text style={styles.muted}>로그인 상태를 확인하고 있어요</Text></View></SafeAreaView>;
-  }
-
-  if (!auth.user) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.centerTitle}>관리자 로그인이 필요합니다</Text>
-          <Pressable style={styles.primary} onPress={() => router.push('/auth/login')}><Text style={styles.primaryText}>로그인</Text></Pressable>
+  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Button onPress={() => router.replace('/(tabs)/profile')}>‹ 내 프로필</Button>
+    <Text style={styles.kicker}>ONEPICK ADMIN</Text><Text style={styles.title}>카테고리와 제품 관리</Text>
+    {auth.isLoading ? <ActivityIndicator /> : auth.error ? <Button onPress={auth.retry}>로그인 상태 다시 확인</Button> : !auth.user ? <Text style={styles.notice}>관리자 계정으로 로그인한 후 내 프로필에서 다시 열어주세요.</Text> : query.isPending ? <ActivityIndicator /> : query.isError ? <View style={styles.card}><Text>{errorText(query.error)}</Text><Button onPress={() => void query.refetch()}>다시 확인</Button></View> : data ? <>
+      <View style={styles.row}>{(['categories', 'products', 'requests', 'brands'] as const).map((value) => <Button key={value} disabled={saving} selected={tab === value} onPress={() => { setTab(value); clearProduct(); setError(null); setNotice(''); }}>{value === 'categories' ? '카테고리' : value === 'products' ? '정식 제품' : value === 'brands' ? '브랜드' : `등록 요청 ${data.pending.length}`}</Button>)}</View>
+      <Button disabled={saving || query.isFetching} onPress={() => void query.refetch()}>새로고침</Button>
+      {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}
+      {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
+      {tab === 'categories' ? <>
+        <View style={styles.card}><Text style={styles.heading}>{categoryId ? '카테고리 수정' : '카테고리 추가'}</Text>
+          <Text style={styles.label}>이름</Text><TextInput accessibilityLabel="카테고리 이름" editable={!saving} style={styles.input} value={category.name} maxLength={60} onChangeText={(name) => setCategory({ ...category, name })} placeholder="예: 먹을것, 라면" />
+          <Text style={styles.label}>식별자 · 영문 소문자, 숫자, 하이픈</Text><TextInput accessibilityLabel="카테고리 식별자" editable={!saving && !categoryId} autoCapitalize="none" style={styles.input} value={category.slug} maxLength={80} onChangeText={(slug) => setCategory({ ...category, slug })} placeholder="예: food, ramen" />
+          {categoryId ? <Text style={styles.hint}>식별자는 기존 링크와 제품 분류 규칙을 위해 유지합니다.</Text> : null}
+          <Text style={styles.label}>상위 카테고리</Text><View style={styles.row}>
+            <Button disabled={saving} selected={!category.parentId} onPress={() => setCategory({ ...category, parentId: null })}>없음 · 최상위</Button>
+            {categories.filter((item) => !item.parentId && !item.isPickable && item.id !== categoryId).map((item) => <Button key={item.id} disabled={saving} selected={category.parentId === item.id} onPress={() => setCategory({ ...category, parentId: item.id })}>{item.name}</Button>)}
+          </View><Text style={styles.hint}>예: 먹을것 › 라면. 상위 분류는 ‘원픽 선택 가능’을 꺼주세요.</Text>
+          <Text style={styles.label}>운영 상태</Text><View style={styles.row}>{(Object.keys(statusNames) as CategoryStatus[]).map((status) => <Button key={status} disabled={saving} selected={category.status === status} onPress={() => setCategory({ ...category, status })}>{statusNames[status]}</Button>)}</View>
+          <View style={styles.toggle}><Text>사용자에게 공개</Text><Switch accessibilityLabel="사용자에게 공개" disabled={saving} value={category.isVisible} onValueChange={(isVisible) => setCategory({ ...category, isVisible })} /></View>
+          <View style={styles.toggle}><Text>원픽 선택 가능</Text><Switch accessibilityLabel="원픽 선택 가능" disabled={saving} value={category.isPickable} onValueChange={(isPickable) => setCategory({ ...category, isPickable })} /></View>
+          <Text style={styles.label}>표시 순서 · 작은 숫자부터</Text><TextInput accessibilityLabel="표시 순서" editable={!saving} style={styles.input} keyboardType="numbers-and-punctuation" value={sortOrder} onChangeText={setSortOrder} />
+          <View style={styles.row}><Button selected disabled={saving || !category.name.trim() || !category.slug.trim()} onPress={() => void saveCategory()}>{saving ? '저장 중…' : '카테고리 저장'}</Button><Button disabled={saving} onPress={clearCategory}>새 카테고리</Button></View>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (access.isPending) {
-    return <SafeAreaView style={styles.safe}><View style={styles.center}><ActivityIndicator /><Text style={styles.muted}>관리자 권한을 확인하고 있어요</Text></View></SafeAreaView>;
-  }
-
-  if (access.isError || access.data !== true) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.centerTitle}>관리자만 사용할 수 있습니다</Text>
-          <Text style={styles.muted}>제품과 카테고리 기준 데이터는 관리자 권한으로만 변경됩니다.</Text>
-          <Pressable style={styles.secondary} onPress={() => router.replace('/')}><Text style={styles.secondaryText}>홈으로</Text></Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (dashboard.isPending || !data) {
-    return <SafeAreaView style={styles.safe}><View style={styles.center}><ActivityIndicator /><Text style={styles.muted}>관리 데이터를 불러오고 있어요</Text></View></SafeAreaView>;
-  }
-
-  if (dashboard.isError) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.centerTitle}>관리 데이터를 불러오지 못했습니다</Text>
-          <Pressable style={styles.secondary} onPress={() => void dashboard.refetch()}><Text style={styles.secondaryText}>다시 불러오기</Text></Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const actionError = actions.approveProduct.error || actions.rejectProduct.error || actions.mergeProduct.error ||
-    actions.createProduct.error || actions.createCategory.error || actions.createBrand.error;
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.topRow}>
-          <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')}><Text style={styles.back}>‹</Text></Pressable>
-          <View style={styles.topCopy}>
-            <Text style={styles.kicker}>ONEPICK ADMIN</Text>
-            <Text style={styles.title}>기준 데이터 관리</Text>
-          </View>
-        </View>
-        <Text style={styles.intro}>정식 제품은 관리자 승인 후에만 원픽으로 선택할 수 있습니다.</Text>
-
-        {actionError ? <View style={styles.errorBox}><Text style={styles.errorText}>처리하지 못했습니다. 입력값과 중복 데이터를 확인해주세요.</Text></View> : null}
-
-        <Section
-          title={`승인 대기 제품 ${data.pending.length}개`}
-          description="사용자가 찾지 못한 제품을 요청하면 여기에 쌓입니다. 제품명·카테고리·브랜드를 확인한 뒤 승인하거나, 기존 제품과 같으면 연결하세요.">
-          {data.pending.length === 0 ? <Text style={styles.empty}>현재 승인 대기 제품이 없습니다.</Text> : null}
-          {data.pending.map(({ product, submitter }) => {
-            const category = categories.find((item) => item.id === product.categoryId);
-            const candidates = similarProducts(product, products);
-            const isReviewing = reviewingProductId === product.id;
-            return (
-              <View key={product.id} style={styles.reviewCard}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.meta}>{category ? categoryPath(category, categories) : '카테고리 미확인'} · {submitter ? `@${submitter.username}` : '요청자 미확인'}</Text>
-                {product.imageUrl ? <Text style={styles.meta}>대표 이미지 제출됨</Text> : null}
-
-                {candidates.length > 0 ? (
-                  <View style={styles.candidates}>
-                    <Text style={styles.smallTitle}>기존 제품 후보</Text>
-                    {candidates.map((candidate) => (
-                      <Pressable
-                        key={candidate.id}
-                        disabled={busy}
-                        onPress={() => void actions.mergeProduct.mutateAsync({ productId: product.id, targetProductId: candidate.id }).catch(() => {})}
-                        style={({ pressed }) => [styles.candidate, pressed && styles.pressed]}>
-                        <Text style={styles.candidateName}>{candidate.name}</Text>
-                        <Text style={styles.link}>이 제품과 연결</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : <Text style={styles.meta}>비슷한 기존 제품 후보가 없습니다.</Text>}
-
-                {isReviewing ? (
-                  <View style={styles.reviewEditor}>
-                    <Text style={styles.smallTitle}>정식 제품으로 저장할 정보</Text>
-                    <TextInput style={styles.input} value={reviewName} onChangeText={setReviewName} placeholder="정식 제품명" />
-
-                    <Text style={styles.fieldLabel}>카테고리</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                      {leafCategories.map((leaf) => (
-                        <Pressable key={leaf.id} onPress={() => setReviewCategoryId(leaf.id)} style={[styles.chip, reviewCategoryId === leaf.id && styles.chipActive]}>
-                          <Text style={[styles.chipText, reviewCategoryId === leaf.id && styles.chipTextActive]}>{categoryPath(leaf, categories)}</Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-
-                    <Text style={styles.fieldLabel}>브랜드</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                      <Pressable onPress={() => setReviewBrandId(null)} style={[styles.chip, reviewBrandId === null && styles.chipActive]}>
-                        <Text style={[styles.chipText, reviewBrandId === null && styles.chipTextActive]}>없음</Text>
-                      </Pressable>
-                      {brands.filter((brand) => brand.isActive).map((brand) => (
-                        <Pressable key={brand.id} onPress={() => setReviewBrandId(brand.id)} style={[styles.chip, reviewBrandId === brand.id && styles.chipActive]}>
-                          <Text style={[styles.chipText, reviewBrandId === brand.id && styles.chipTextActive]}>{brand.name}</Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-
-                    <Text style={styles.fieldLabel}>공식 제품 URL · 선택</Text>
-                    <TextInput style={styles.input} value={reviewUrl} onChangeText={setReviewUrl} placeholder="https://..." autoCapitalize="none" keyboardType="url" />
-                  </View>
-                ) : null}
-
-                <View style={styles.actionsRow}>
-                  {isReviewing ? (
-                    <>
-                      <Pressable
-                        disabled={busy || !reviewName.trim() || !reviewCategoryId}
-                        style={[styles.approveButton, (busy || !reviewName.trim() || !reviewCategoryId) && styles.disabled]}
-                        onPress={() => void approveReviewedProduct(product.id)}>
-                        <Text style={styles.approveText}>{actions.approveProduct.isPending ? '승인 중...' : '수정 내용으로 승인'}</Text>
-                      </Pressable>
-                      <Pressable disabled={busy} style={[styles.cancelButton, busy && styles.disabled]} onPress={cancelReview}>
-                        <Text style={styles.cancelText}>취소</Text>
-                      </Pressable>
-                    </>
-                  ) : (
-                    <Pressable disabled={busy} style={[styles.approveButton, busy && styles.disabled]} onPress={() => beginReview(product)}>
-                      <Text style={styles.approveText}>검토 후 승인</Text>
-                    </Pressable>
-                  )}
-                  <Pressable disabled={busy} style={[styles.rejectButton, busy && styles.disabled]} onPress={() => void actions.rejectProduct.mutateAsync(product.id).catch(() => {})}>
-                    <Text style={styles.rejectText}>거절</Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
-        </Section>
-
-        <Section title="정식 제품 직접 등록" description="MVP 기준 제품은 관리자가 직접 등록합니다. 제품을 선택하면 카테고리는 이 데이터에서 자동으로 따라갑니다.">
-          <Text style={styles.fieldLabel}>제품명</Text>
-          <TextInput style={styles.input} value={productName} onChangeText={setProductName} placeholder="예: 신라면" />
-
-          <Text style={styles.fieldLabel}>카테고리</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {leafCategories.map((category) => (
-              <Pressable key={category.id} onPress={() => setProductCategoryId(category.id)} style={[styles.chip, productCategoryId === category.id && styles.chipActive]}>
-                <Text style={[styles.chipText, productCategoryId === category.id && styles.chipTextActive]}>{categoryPath(category, categories)}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.fieldLabel}>브랜드 · 선택</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            <Pressable onPress={() => setProductBrandId(null)} style={[styles.chip, productBrandId === null && styles.chipActive]}><Text style={[styles.chipText, productBrandId === null && styles.chipTextActive]}>없음</Text></Pressable>
-            {brands.filter((brand) => brand.isActive).map((brand) => (
-              <Pressable key={brand.id} onPress={() => setProductBrandId(brand.id)} style={[styles.chip, productBrandId === brand.id && styles.chipActive]}>
-                <Text style={[styles.chipText, productBrandId === brand.id && styles.chipTextActive]}>{brand.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.fieldLabel}>공식 제품 URL · 선택</Text>
-          <TextInput style={styles.input} value={productUrl} onChangeText={setProductUrl} placeholder="https://..." autoCapitalize="none" keyboardType="url" />
-          <Pressable disabled={!productName.trim() || !productCategoryId || busy} style={[styles.primary, (!productName.trim() || !productCategoryId || busy) && styles.disabled]} onPress={() => void submitProduct()}>
-            <Text style={styles.primaryText}>{actions.createProduct.isPending ? '등록 중...' : '정식 제품 등록'}</Text>
-          </Pressable>
-        </Section>
-
-        <Section title="카테고리 추가" description="상위 카테고리와 하위 선택 카테고리를 연결합니다. 예: 먹을것 > 라면">
-          <TextInput style={styles.input} value={categoryName} onChangeText={setCategoryName} placeholder="카테고리명" />
-          <TextInput style={styles.input} value={categorySlug} onChangeText={setCategorySlug} placeholder="slug 예: ramen" autoCapitalize="none" />
-          <Text style={styles.fieldLabel}>상위 카테고리 · 선택</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            <Pressable onPress={() => setCategoryParentId(null)} style={[styles.chip, categoryParentId === null && styles.chipActive]}><Text style={[styles.chipText, categoryParentId === null && styles.chipTextActive]}>최상위</Text></Pressable>
-            {categories.filter((item) => item.parentId === null).map((category) => (
-              <Pressable key={category.id} onPress={() => setCategoryParentId(category.id)} style={[styles.chip, categoryParentId === category.id && styles.chipActive]}>
-                <Text style={[styles.chipText, categoryParentId === category.id && styles.chipTextActive]}>{category.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <View style={styles.switchRow}><Text style={styles.switchLabel}>사용자에게 노출</Text><Switch value={categoryVisible} onValueChange={setCategoryVisible} /></View>
-          <View style={styles.switchRow}><Text style={styles.switchLabel}>원픽 선택 가능</Text><Switch value={categoryPickable} onValueChange={setCategoryPickable} /></View>
-          <Pressable disabled={!categoryName.trim() || !categorySlug.trim() || busy} style={[styles.primary, (!categoryName.trim() || !categorySlug.trim() || busy) && styles.disabled]} onPress={() => void submitCategory()}>
-            <Text style={styles.primaryText}>{actions.createCategory.isPending ? '추가 중...' : '카테고리 추가'}</Text>
-          </Pressable>
-          <View style={styles.compactList}>
-            {categories.map((category) => <Text key={category.id} style={styles.listText}>{categoryPath(category, categories)} · {category.status}{category.isPickable ? ' · 선택 가능' : ''}</Text>)}
-          </View>
-        </Section>
-
-        <Section title="브랜드 추가" description="제품 등록 시 브랜드를 선택할 수 있도록 기준 브랜드를 관리합니다.">
-          <TextInput style={styles.input} value={brandName} onChangeText={setBrandName} placeholder="브랜드명 예: 농심" />
-          <TextInput style={styles.input} value={brandSlug} onChangeText={setBrandSlug} placeholder="slug · 선택" autoCapitalize="none" />
-          <Pressable disabled={!brandName.trim() || busy} style={[styles.primary, (!brandName.trim() || busy) && styles.disabled]} onPress={() => void submitBrand()}>
-            <Text style={styles.primaryText}>{actions.createBrand.isPending ? '추가 중...' : '브랜드 추가'}</Text>
-          </Pressable>
-          <View style={styles.compactList}>
-            {brands.map((brand) => <Text key={brand.id} style={styles.listText}>{brand.name}{brand.isActive ? '' : ' · 비활성'}</Text>)}
-          </View>
-        </Section>
-      </ScrollView>
-    </SafeAreaView>
-  );
+        <Text style={styles.heading}>전체 카테고리 {categories.length}</Text>
+        {categories.map((item) => <View key={item.id} style={styles.card}><Text style={styles.heading}>{categoryLabel(item, categories)}</Text><Text style={styles.hint}>{statusNames[item.status]} · {item.isVisible ? '공개' : '비공개'} · {eligible.some((c) => c.id === item.id) ? '선택 가능' : '선택 불가'} · 순서 {item.sortOrder}</Text><Button disabled={saving} onPress={() => editCategory(item)}>수정</Button></View>)}
+      </> : tab === 'brands' ? <View style={styles.card}>
+        <Text style={styles.heading}>브랜드 추가</Text>
+        <TextInput accessibilityLabel="브랜드 이름" editable={!saving} style={styles.input} value={brandName} onChangeText={setBrandName} maxLength={80} placeholder="브랜드 이름" />
+        <TextInput accessibilityLabel="브랜드 식별자" editable={!saving} style={styles.input} value={brandSlug} onChangeText={setBrandSlug} autoCapitalize="none" placeholder="영문 식별자 · 선택" />
+        <Button selected disabled={saving || !brandName.trim()} onPress={() => void run(() => actions.createBrand.mutateAsync({ name: brandName, slug: brandSlug.trim() || null, isActive: true }), '브랜드를 추가했습니다.', () => { setBrandName(''); setBrandSlug(''); })}>브랜드 저장</Button>
+        {data.brands.map((brand) => <Text key={brand.id}>{brand.name}{brand.isActive ? '' : ' · 비활성'}</Text>)}
+      </View> : <>
+        {tab === 'products' || requestId ? <View style={styles.card}>
+          <Text style={styles.heading}>{requestId ? '요청 확인 후 승인' : '정식 제품 추가'}</Text>
+          <Text style={styles.label}>제품명 · 맛과 종류 포함</Text><TextInput accessibilityLabel="관리할 제품명" editable={!saving} style={styles.input} value={productName} maxLength={100} onChangeText={setProductName} placeholder="예: 진라면 매운맛" />
+          <Text style={styles.label}>공식 제품 링크 · 선택 사항</Text><TextInput accessibilityLabel="공식 제품 링크" editable={!saving} style={styles.input} value={productUrl} onChangeText={setProductUrl} autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" />
+          <Text style={styles.label}>카테고리</Text><View style={styles.row}>{eligible.map((item) => <Button key={item.id} disabled={saving} selected={productCategory === item.id} onPress={() => setProductCategory(item.id)}>{categoryLabel(item, categories)}</Button>)}</View>
+          <Text style={styles.label}>브랜드 · 선택 사항</Text><View style={styles.row}><Button disabled={saving} selected={!productBrand} onPress={() => setProductBrand(null)}>미지정</Button>{data.brands.filter((brand) => brand.isActive).map((brand) => <Button key={brand.id} disabled={saving} selected={productBrand === brand.id} onPress={() => setProductBrand(brand.id)}>{brand.name}</Button>)}</View>
+          <Button selected disabled={saving || !productName.trim() || !eligible.some((item) => item.id === productCategory)} onPress={() => void saveProduct()}>{saving ? '저장 중…' : requestId ? '승인하고 정식 등록' : '제품 등록'}</Button>
+          {requestId ? <Button disabled={saving} onPress={clearProduct}>편집 닫기</Button> : null}
+        </View> : null}
+        {tab === 'requests' ? data.pending.length ? data.pending.map(({ product, submitter }) => <View key={product.id} style={styles.card}>
+          <PickPhoto uri={product.thumbnailUrl} label={product.name} /><Text style={styles.heading}>{product.name}</Text>
+          <Text>{categories.find((item) => item.id === product.categoryId)?.name ?? '카테고리 확인 필요'} · @{submitter?.username ?? '탈퇴한 사용자'}</Text>
+          {similarProducts(product, data.products).length ? <Text style={styles.label}>기존 제품 후보 · 같은 제품인지 확인 후 연결</Text> : null}
+          {similarProducts(product, data.products).map((candidate) => <Button key={candidate.id} disabled={saving} onPress={() => void run(() => actions.mergeProduct.mutateAsync({ productId: product.id, targetProductId: candidate.id }), '기존 제품으로 연결했습니다.', clearProduct)}>{`${candidate.name}에 연결`}</Button>)}
+          <View style={styles.row}><Button disabled={saving} onPress={() => editRequest(product)}>이름·카테고리 확인</Button><Button disabled={saving} onPress={() => void run(() => actions.rejectProduct.mutateAsync(product.id), '요청을 보류했습니다.', clearProduct)}>등록 보류</Button></View>
+        </View>) : <Text style={styles.notice}>처리할 요청이 없습니다.</Text> : data.products.filter((product) => ['active', 'discontinued'].includes(product.status)).map((product) => <View key={product.id} style={styles.card}><Text style={styles.heading}>{product.name}</Text><Text>{categories.find((item) => item.id === product.categoryId)?.name}</Text><Button onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: product.id } })}>제품 상세</Button></View>)}
+        {(tab === 'requests' ? data.pending.length : data.products.length) >= 500 ? <Text style={styles.hint}>한 번에 최대 500개를 표시합니다. 요청은 오래된 순서로 표시하며 처리 후 다음 항목을 불러옵니다.</Text> : null}
+      </>}
+    </> : null}
+  </ScrollView></SafeAreaView>;
 }
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F5F2' },
-  content: { width: '100%', maxWidth: 900, alignSelf: 'center', padding: 20, paddingBottom: 80 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  centerTitle: { color: '#202124', fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  topRow: { flexDirection: 'row', alignItems: 'center' },
-  back: { width: 44, color: '#202124', fontSize: 36, lineHeight: 42 },
-  topCopy: { flex: 1 },
-  kicker: { color: '#D96D4B', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  title: { color: '#202124', fontSize: 28, fontWeight: '900', marginTop: 4 },
-  intro: { color: '#746F69', fontSize: 13, lineHeight: 20, marginTop: 10, marginBottom: 10 },
-  section: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 18, marginTop: 16 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '900' },
-  sectionDescription: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 14 },
-  reviewCard: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E7E1DB', paddingTop: 16, marginTop: 12 },
-  reviewEditor: { backgroundColor: '#F7F5F2', borderRadius: 15, padding: 13, marginTop: 13 },
-  productName: { color: '#202124', fontSize: 17, fontWeight: '900' },
-  meta: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 5 },
-  candidates: { backgroundColor: '#FAF8F5', borderRadius: 15, padding: 12, marginTop: 12 },
-  smallTitle: { color: '#5E5954', fontSize: 11, fontWeight: '800', marginBottom: 5 },
-  candidate: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  candidateName: { flex: 1, color: '#202124', fontSize: 12, fontWeight: '700' },
-  link: { color: '#D96D4B', fontSize: 11, fontWeight: '800', marginLeft: 10 },
-  actionsRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
-  approveButton: { flex: 1, backgroundColor: '#202124', borderRadius: 13, alignItems: 'center', justifyContent: 'center', padding: 12 },
-  approveText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  cancelButton: { backgroundColor: '#E8E2DC', borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 12 },
-  cancelText: { color: '#5E5954', fontSize: 12, fontWeight: '800' },
-  rejectButton: { backgroundColor: '#F0ECE7', borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 12 },
-  rejectText: { color: '#786F68', fontSize: 12, fontWeight: '800' },
-  fieldLabel: { color: '#5E5954', fontSize: 11, fontWeight: '800', marginTop: 13, marginBottom: 7 },
-  input: { minHeight: 46, borderRadius: 14, backgroundColor: '#F7F5F2', color: '#202124', paddingHorizontal: 13, marginTop: 9, fontSize: 13 },
-  chips: { gap: 7, paddingVertical: 3, paddingRight: 10 },
-  chip: { backgroundColor: '#F0ECE7', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
-  chipActive: { backgroundColor: '#D96D4B' },
-  chipText: { color: '#6C6863', fontSize: 11, fontWeight: '700' },
-  chipTextActive: { color: '#FFFFFF' },
-  primary: { minHeight: 48, borderRadius: 14, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 15 },
-  primaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  secondary: { minHeight: 46, borderRadius: 14, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 18 },
-  secondaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 9 },
-  switchLabel: { color: '#5E5954', fontSize: 12, fontWeight: '700' },
-  compactList: { marginTop: 15, gap: 6 },
-  listText: { color: '#8E8A85', fontSize: 11, lineHeight: 16 },
-  muted: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
-  empty: { color: '#8E8A85', fontSize: 12, paddingVertical: 12 },
-  errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 12, marginTop: 12 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
-  disabled: { opacity: 0.4 },
-  pressed: { opacity: 0.7 },
+  safe: { flex: 1, backgroundColor: '#FAF8F5' },
+  content: { width: '100%', maxWidth: 850, alignSelf: 'center', padding: 22, paddingBottom: 70, gap: 14 },
+  kicker: { color: '#A9482D', fontWeight: '800', fontSize: 11, letterSpacing: 2, marginTop: 14 },
+  title: { fontSize: 28, fontWeight: '800', color: '#202124' },
+  heading: { fontSize: 17, fontWeight: '700', color: '#202124' },
+  label: { marginTop: 10, fontSize: 13, fontWeight: '700', color: '#625A53' },
+  card: { backgroundColor: 'white', borderRadius: 18, padding: 20, gap: 12 },
+  input: { borderWidth: 1, borderColor: '#DDD5CD', borderRadius: 12, padding: 14, fontSize: 16, color: '#202124' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 6 },
+  button: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#DDD5CD', borderRadius: 12, padding: 12 },
+  buttonText: { color: '#625A53', fontWeight: '700' },
+  selected: { backgroundColor: '#A9482D', borderColor: '#A9482D' }, selectedText: { color: 'white' },
+  disabled: { opacity: 0.45 }, hint: { fontSize: 12, color: '#77706B', lineHeight: 19 },
+  notice: { padding: 16, backgroundColor: '#F7E7DD', color: '#625A53', lineHeight: 22, borderRadius: 12 },
+  error: { color: '#A9482D', lineHeight: 22 },
 });

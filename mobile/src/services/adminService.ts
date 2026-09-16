@@ -1,4 +1,6 @@
 import { AppError } from '@/errors/appError';
+import { selectableCategories } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 import { canonicalProductName } from '@/lib/products/productIdentity';
 import type {
   AdminBrandInput,
@@ -26,19 +28,30 @@ export class AdminService {
     private readonly profileRepository: ProfileRepository,
   ) {}
 
-  isAdmin() {
-    return this.adminRepository.isAdmin();
+  isAdmin() { return this.adminRepository.isAdmin(); }
+
+  private validateCategory(input: AdminCategoryInput, categories: Category[], id?: string) {
+    const invalid = () => { throw new AppError('CATEGORY_INVALID'); };
+    if (!input.name.trim() || input.name.trim().length > 60 || !SLUG_PATTERN.test(input.slug) || input.slug.length > 80) invalid();
+    if (input.sortOrder !== undefined && (!Number.isInteger(input.sortOrder) || Math.abs(input.sortOrder) > 100000)) invalid();
+    if (input.rankingMinSample !== undefined && (!Number.isInteger(input.rankingMinSample) || input.rankingMinSample < 1)) invalid();
+    const children = id ? categories.filter((item) => item.parentId === id) : [];
+    if (input.isPickable && children.length) invalid();
+    if (input.parentId) {
+      const parent = categories.find((item) => item.id === input.parentId);
+      if (!parent || parent.id === id || parent.parentId || parent.isPickable || children.length) invalid();
+    }
   }
 
   async getDashboard() {
     await this.assertAdmin();
-    const [categories, brands, products] = await Promise.all([
+    const [categories, brands, products, pending] = await Promise.all([
       this.adminRepository.getCategories(),
       this.adminRepository.getBrands(),
       this.adminRepository.getProducts(500),
+      this.adminRepository.getPendingProducts(),
     ]);
 
-    const pending = products.filter((product) => product.status === 'pending');
     const submitters = await Promise.all(
       pending.map(async (product) => ({
         product,
@@ -58,7 +71,7 @@ export class AdminService {
     await this.assertAdmin();
     const name = cleanName(input.name, 60);
     const slug = input.slug.trim().toLowerCase();
-    if (!SLUG_PATTERN.test(slug)) throw new AppError('INTERNAL_ERROR', 'CATEGORY_SLUG_INVALID');
+    this.validateCategory({ ...input, name, slug }, await this.adminRepository.getCategories());
 
     return this.adminRepository.createCategory({
       ...input,
@@ -73,9 +86,13 @@ export class AdminService {
     if (input.name !== undefined) patch.name = cleanName(input.name, 60);
     if (input.slug !== undefined) {
       const slug = input.slug.trim().toLowerCase();
-      if (!SLUG_PATTERN.test(slug)) throw new AppError('INTERNAL_ERROR', 'CATEGORY_SLUG_INVALID');
       patch.slug = slug;
     }
+    const categories = await this.adminRepository.getCategories();
+    const current = categories.find((item) => item.id === categoryId);
+    if (!current) throw new AppError('CATEGORY_NOT_FOUND');
+    if (patch.slug !== undefined && patch.slug !== current.slug) throw new AppError('CATEGORY_INVALID');
+    this.validateCategory({ ...current, ...patch }, categories, categoryId);
     return this.adminRepository.updateCategory(categoryId, patch);
   }
 
@@ -100,7 +117,7 @@ export class AdminService {
   async createProduct(input: AdminProductInput) {
     await this.assertAdmin();
     const categories = await this.adminRepository.getCategories();
-    const category = categories.find((item) => item.id === input.categoryId);
+    const category = selectableCategories(categories).find((item) => item.id === input.categoryId);
     if (!category) throw new AppError('CATEGORY_NOT_FOUND');
     const name = canonicalProductName(cleanName(input.name), category.slug);
 
@@ -114,13 +131,13 @@ export class AdminService {
 
   async approveProduct(productId: string, edits?: Partial<AdminProductInput>) {
     await this.assertAdmin();
-    const products = await this.adminRepository.getProducts(1000);
-    const product = products.find((item) => item.id === productId);
+    const product = await this.adminRepository.getProductById(productId);
     if (!product) throw new AppError('PRODUCT_NOT_FOUND');
+    if (product.status !== 'pending') throw new AppError('PICK_CONFLICT');
 
     const categories = await this.adminRepository.getCategories();
     const categoryId = edits?.categoryId ?? product.categoryId;
-    const category = categories.find((item) => item.id === categoryId);
+    const category = selectableCategories(categories).find((item) => item.id === categoryId);
     if (!category) throw new AppError('CATEGORY_NOT_FOUND');
     const name = canonicalProductName(cleanName(edits?.name ?? product.name), category.slug);
 
@@ -131,7 +148,7 @@ export class AdminService {
       normalizedName: normalizeProductName(name),
       mergedIntoProductId: null,
       status: 'active',
-    });
+    }, 'pending');
   }
 
   async rejectProduct(productId: string) {
@@ -139,20 +156,22 @@ export class AdminService {
     return this.adminRepository.updateProduct(productId, {
       status: 'rejected',
       mergedIntoProductId: null,
-    });
+    }, 'pending');
   }
 
   async mergeProduct(productId: string, targetProductId: string) {
     await this.assertAdmin();
     if (productId === targetProductId) throw new AppError('PICK_CONFLICT', 'PRODUCT_MERGE_SELF');
-    const products = await this.adminRepository.getProducts(1000);
-    const target = products.find((item) => item.id === targetProductId);
-    if (!target || !['active', 'discontinued'].includes(target.status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    const [product, target] = await Promise.all([
+      this.adminRepository.getProductById(productId), this.adminRepository.getProductById(targetProductId),
+    ]);
+    if (!product || product.status !== 'pending') throw new AppError('PICK_CONFLICT');
+    if (!target || target.categoryId !== product.categoryId || !['active', 'discontinued'].includes(target.status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
 
     return this.adminRepository.updateProduct(productId, {
       status: 'merged',
       mergedIntoProductId: target.id,
-    });
+    }, 'pending');
   }
 
   async hideProduct(productId: string) {

@@ -92,7 +92,7 @@ export default function FindPickProductScreen() {
           </View>
         ) : null}
 
-        {search.data?.map((product) => {
+        {!search.isWaiting && hasQuery && search.data?.map((product) => {
           const category = categories.data?.find((item) => item.id === product.categoryId);
           return (
             <Pressable

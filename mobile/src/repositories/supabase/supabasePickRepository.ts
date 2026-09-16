@@ -15,7 +15,7 @@ export class SupabasePickRepository implements PickRepository {
 
   async registerPick(input: RegisterPickRecordInput) {
     const { data, error } = await this.client.rpc('register_pick', {
-      p_category_id: input.categoryId, p_product_id: input.productId ?? null,
+      p_category_id: input.categoryId, p_product_id: input.productId,
       p_product_name: input.productName, p_one_line_review: input.oneLineReview,
       p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,

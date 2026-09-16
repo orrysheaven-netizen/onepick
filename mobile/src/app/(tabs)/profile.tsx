@@ -51,7 +51,7 @@ function getRequestState(item: ProductRequestItem) {
         targetId: item.mergedIntoProduct?.id ?? null,
       };
     case 'rejected':
-      return { label: '등록되지 않음', description: '중복이 아니거나 제품 기준에 맞지 않아 정식 등록되지 않았어요.', targetId: null };
+      return { label: '등록되지 않음', description: '제품 정보를 확인한 결과 정식 등록이 보류됐어요.', targetId: null };
     case 'hidden':
       return { label: '숨김', description: '현재 공개되지 않는 제품이에요.', targetId: null };
     default:
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
-  const adminAccess = useAdminAccess(Boolean(user));
+  const adminAccess = useAdminAccess(user?.id);
 
   const isProfileMissing =
     profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';

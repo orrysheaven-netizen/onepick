@@ -358,6 +358,7 @@ export type Database = {
         }
       }
       consume_image_import: { Args: never; Returns: undefined }
+      current_user_is_admin: { Args: never; Returns: boolean }
       register_pick: {
         Args: {
           p_category_id: string
@@ -389,6 +390,38 @@ export type Database = {
         }
       }
       remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      submit_product: {
+        Args: {
+          p_category_id: string
+          p_image_path?: string
+          p_image_source_url?: string
+          p_product_name: string
+          p_thumbnail_path?: string
+        }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          merged_into_product_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_pick_review: {
         Args: { p_one_line_review: string; p_pick_id: string }
         Returns: {
@@ -543,3 +576,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

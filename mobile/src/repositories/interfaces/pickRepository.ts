@@ -13,7 +13,7 @@ export interface UpdatePickReviewInput {
 
 export interface RegisterPickRecordInput {
   categoryId: string;
-  productId?: string;
+  productId: string;
   productName: string;
   oneLineReview: string;
   imagePath?: string;

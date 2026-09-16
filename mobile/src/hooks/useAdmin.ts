@@ -10,8 +10,7 @@ import { adminService } from '@/services';
 
 const adminKeys = {
   all: ['admin'] as const,
-  access: ['admin', 'access'] as const,
-  dashboard: ['admin', 'dashboard'] as const,
+  dashboard: (userId?: string) => ['admin', 'dashboard', userId] as const,
 };
 
 async function invalidateAdminData(client: ReturnType<typeof useQueryClient>) {
@@ -19,24 +18,22 @@ async function invalidateAdminData(client: ReturnType<typeof useQueryClient>) {
     client.invalidateQueries({ queryKey: adminKeys.all }),
     client.invalidateQueries({ queryKey: queryKeys.products.all }),
     client.invalidateQueries({ queryKey: queryKeys.categories.all }),
+    client.invalidateQueries({ queryKey: queryKeys.home.all }),
+    client.invalidateQueries({ queryKey: queryKeys.explore.all }),
     client.invalidateQueries({ queryKey: queryKeys.profiles.all }),
+    client.invalidateQueries({ queryKey: queryKeys.picks.all }),
   ]);
 }
 
-export function useAdminAccess(enabled = true) {
-  return useQuery({
-    queryKey: adminKeys.access,
-    queryFn: () => adminService.isAdmin(),
-    enabled,
-    retry: false,
-  });
+export function useAdminAccess(userId?: string) {
+  return useQuery({ queryKey: ['admin', 'access', userId], queryFn: () => adminService.isAdmin(), enabled: Boolean(userId), retry: false });
 }
 
-export function useAdminDashboard(enabled = true) {
+export function useAdminDashboard(userId?: string) {
   return useQuery({
-    queryKey: adminKeys.dashboard,
+    queryKey: adminKeys.dashboard(userId),
     queryFn: () => adminService.getDashboard(),
-    enabled,
+    enabled: Boolean(userId),
     retry: false,
   });
 }
@@ -51,6 +48,10 @@ export function useAdminActions() {
   });
   const createBrand = useMutation({
     mutationFn: (input: AdminBrandInput) => adminService.createBrand(input),
+    onSuccess: after,
+  });
+  const updateCategory = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<AdminCategoryInput> }) => adminService.updateCategory(id, input),
     onSuccess: after,
   });
   const createProduct = useMutation({
@@ -78,6 +79,7 @@ export function useAdminActions() {
 
   return {
     createCategory,
+    updateCategory,
     createBrand,
     createProduct,
     approveProduct,

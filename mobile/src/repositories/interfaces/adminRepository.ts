@@ -38,10 +38,12 @@ export interface AdminRepository {
   getCategories(): Promise<Category[]>;
   getBrands(): Promise<Brand[]>;
   getProducts(limit?: number): Promise<Product[]>;
+  getPendingProducts(): Promise<Product[]>;
+  getProductById(productId: string): Promise<Product | null>;
   createCategory(input: AdminCategoryInput): Promise<Category>;
   updateCategory(categoryId: string, input: Partial<AdminCategoryInput>): Promise<Category>;
   createBrand(input: AdminBrandInput): Promise<Brand>;
   updateBrand(brandId: string, input: Partial<AdminBrandInput>): Promise<Brand>;
   createProduct(input: AdminProductInput & { normalizedName: string; createdBy?: string | null }): Promise<Product>;
-  updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }): Promise<Product>;
+  updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }, expectedStatus?: ProductStatus): Promise<Product>;
 }
