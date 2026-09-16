@@ -187,6 +187,16 @@ export default function PickDetailScreen() {
                 </View>
               ))}
 
+              {commentsQuery.hasNextPage ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={commentsQuery.isFetchingNextPage}
+                  onPress={() => void commentsQuery.fetchNextPage()}
+                  style={({ pressed }) => [styles.smallButton, commentsQuery.isFetchingNextPage && { opacity: 0.5 }, pressed && styles.pressed]}>
+                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.smallButtonText}>댓글 더 보기</Text>}
+                </Pressable>
+              ) : null}
+
               {canComment ? (
                 user ? (
                   <View style={styles.commentComposer}>
