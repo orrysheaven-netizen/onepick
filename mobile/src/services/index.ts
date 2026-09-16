@@ -24,6 +24,11 @@ export const pickService = new PickService(
   productRepository,
 );
 export const productService = new ProductService(productRepository, pickRepository);
-export const profileService = new ProfileService(profileRepository, pickRepository);
+export const profileService = new ProfileService(
+  profileRepository,
+  pickRepository,
+  categoryRepository,
+  productRepository,
+);
 
 export { AuthService, HomeService, PickService, ProductService, ProfileService };
