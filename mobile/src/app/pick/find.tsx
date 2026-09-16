@@ -53,7 +53,7 @@ export default function FindPickProductScreen() {
 
         {selectedCategory ? (
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text>
+            <Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text>
           </View>
         ) : null}
 
@@ -102,7 +102,7 @@ export default function FindPickProductScreen() {
               style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
               <PickPhoto uri={product.thumbnailUrl} label={product.name} />
               <View style={styles.productCopy}>
-                <Text style={styles.productCategory}>{category?.name ?? '등록된 카테고리'}</Text>
+                <Text style={styles.productCategory}>{category?.label ?? '등록된 카테고리'}</Text>
                 <Text style={styles.productName}>{product.name}</Text>
                 <Text style={styles.productAction}>이 제품을 원픽으로 선택 ›</Text>
               </View>
