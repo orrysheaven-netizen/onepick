@@ -62,7 +62,7 @@ export default function HomeScreen() {
 
   const openRegistration = (categoryId?: string) => {
     router.push({
-      pathname: '/pick/register',
+      pathname: '/pick/find',
       params: categoryId ? { categoryId } : {},
     });
   };
@@ -84,9 +84,9 @@ export default function HomeScreen() {
             <Text style={styles.heroTitle}>
               {user ? '오늘의 원픽을 만나보세요' : singleCategory ? `당신의 ${singleCategory.name} 원픽은?` : '당신의 원픽은 무엇인가요?'}
             </Text>
-            <Text style={styles.heroSub}>좋아하는 제품의 이름을 적고{ '\n' }나의 선택을 남겨보세요.</Text>
+            <Text style={styles.heroSub}>제품명을 검색하면 카테고리는{ '\n' }제품 정보에서 자동으로 연결돼요.</Text>
             <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={styles.registerButton}>
-              <Text style={styles.retryButtonText}>＋ 원픽 등록</Text>
+              <Text style={styles.retryButtonText}>＋ 제품 찾아 원픽 고르기</Text>
             </Pressable>
           </View>
           <Text style={styles.heroShape}>1</Text>
@@ -131,7 +131,7 @@ export default function HomeScreen() {
                 )) : (
                   <View style={styles.stateCard}>
                     <Text style={styles.stateTitle}>아직 고른 원픽이 없어요</Text>
-                    <Text style={styles.stateText}>좋아하는 제품의 이름으로 첫 원픽을 등록해보세요.</Text>
+                    <Text style={styles.stateText}>좋아하는 제품 이름을 검색해 첫 원픽을 골라보세요.</Text>
                   </View>
                 )}
 
@@ -145,7 +145,7 @@ export default function HomeScreen() {
                       accessibilityRole="button"
                       onPress={() => openRegistration(category.id)}>
                       <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>제품명으로 원픽 등록 ›</Text>
+                      <Text style={styles.categoryCardSub}>이 카테고리에서 제품 찾기 ›</Text>
                     </Pressable>
                   </View>
                 )) : (
@@ -196,7 +196,7 @@ export default function HomeScreen() {
                 ) : (
                   <View style={styles.stateCard}>
                     <Text style={styles.stateTitle}>아직 등록된 제품이 없어요</Text>
-                    <Text style={styles.stateText}>제품명으로 첫 원픽을 등록해보세요.</Text>
+                    <Text style={styles.stateText}>찾는 제품이 없다면 등록 요청을 보낼 수 있어요.</Text>
                   </View>
                 )}
               </>
@@ -210,7 +210,7 @@ export default function HomeScreen() {
                   {data.openCategories.map((category) => (
                     <Pressable accessibilityRole="button" key={category.id} style={styles.categoryCard} onPress={() => openRegistration(category.id)}>
                       <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>제품명으로 원픽 등록</Text>
+                      <Text style={styles.categoryCardSub}>제품 찾아보기</Text>
                     </Pressable>
                   ))}
                 </View>
