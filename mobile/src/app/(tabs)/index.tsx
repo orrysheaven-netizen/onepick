@@ -1,26 +1,24 @@
-import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useHomeData } from '@/hooks/useHomeData';
+import { PickPhoto } from '@/components/pick-photo';
 import type { Product } from '@/types/domain/product';
 
 function ProductCard({ product, onPress }: { product: Product; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${product.name} 원픽으로 선택`}
+      accessibilityLabel={`${product.name} 제품 상세 보기`}
       onPress={onPress}
       style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
-      <View style={styles.productImage}>
-        <Text style={styles.productEmoji}>🍜</Text>
-      </View>
+      <PickPhoto uri={product.thumbnailUrl} label={product.name} />
       <View style={styles.productInfo}>
         <Text style={styles.productBrand}>ONEPICK</Text>
         <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productNote}>이 제품을 내 원픽으로 고르고 한줄평을 남겨보세요.</Text>
+        <Text style={styles.productNote}>이 제품에 남긴 사람들의 원픽을 만나보세요.</Text>
       </View>
       <Text style={styles.chevron}>›</Text>
     </Pressable>
@@ -53,7 +51,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const openPick = (pickId: string) =>
     router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -63,13 +60,10 @@ export default function HomeScreen() {
   const singleCategory = data?.mode === 'single_category' ? data.openCategories[0] : undefined;
   const products = data?.singleCategoryProducts ?? [];
 
-  const openChoosePick = (product: Product) => {
+  const openRegistration = (categoryId?: string) => {
     router.push({
-      pathname: '/pick/choose',
-      params: {
-        productId: product.id,
-        categoryId: product.categoryId,
-      },
+      pathname: '/pick/register',
+      params: categoryId ? { categoryId } : {},
     });
   };
 
@@ -90,7 +84,10 @@ export default function HomeScreen() {
             <Text style={styles.heroTitle}>
               {user ? '오늘의 원픽을 만나보세요' : singleCategory ? `당신의 ${singleCategory.name} 원픽은?` : '당신의 원픽은 무엇인가요?'}
             </Text>
-            <Text style={styles.heroSub}>지금 가장 좋아하는 하나를 고르고{ '\n' }짧은 이유를 남겨보세요.</Text>
+            <Text style={styles.heroSub}>좋아하는 제품의 이름을 적고{ '\n' }나의 선택을 남겨보세요.</Text>
+            <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={styles.registerButton}>
+              <Text style={styles.retryButtonText}>＋ 원픽 등록</Text>
+            </Pressable>
           </View>
           <Text style={styles.heroShape}>1</Text>
         </View>
@@ -118,6 +115,7 @@ export default function HomeScreen() {
                 {data.currentPicks.length > 0 ? data.currentPicks.map((item) => (
                   <View key={item.pick.id} style={styles.homePickCard}>
                     <Pressable accessibilityRole="button" onPress={() => openPick(item.pick.id)}>
+                      <PickPhoto uri={item.product?.thumbnailUrl} label={item.product?.name ?? '제품 대표 이미지'} />
                       <Text style={styles.productBrand}>{item.category?.name ?? '카테고리'}</Text>
                       <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
                       <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
@@ -133,7 +131,7 @@ export default function HomeScreen() {
                 )) : (
                   <View style={styles.stateCard}>
                     <Text style={styles.stateTitle}>아직 고른 원픽이 없어요</Text>
-                    <Text style={styles.stateText}>아래 카테고리에서 첫 원픽을 골라보세요.</Text>
+                    <Text style={styles.stateText}>좋아하는 제품의 이름으로 첫 원픽을 등록해보세요.</Text>
                   </View>
                 )}
 
@@ -141,28 +139,14 @@ export default function HomeScreen() {
                   <Text style={styles.sectionTitle}>아직 선택하지 않은 카테고리</Text>
                   <Text style={styles.countText}>{data.categoriesToPick.length}개</Text>
                 </View>
-                {data.categoriesToPick.length > 0 ? data.categoriesToPick.map(({ category, products: categoryProducts }) => (
+                {data.categoriesToPick.length > 0 ? data.categoriesToPick.map(({ category }) => (
                   <View key={category.id} style={styles.homePickCard}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityState={{ expanded: expandedCategoryId === category.id }}
-                      onPress={() => setExpandedCategoryId(expandedCategoryId === category.id ? null : category.id)}>
+                      onPress={() => openRegistration(category.id)}>
                       <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>{expandedCategoryId === category.id ? '제품 접기' : '제품 보고 원픽 고르기'} ›</Text>
+                      <Text style={styles.categoryCardSub}>제품명으로 원픽 등록 ›</Text>
                     </Pressable>
-                    {expandedCategoryId === category.id ? (
-                      categoryProducts.length > 0 ? categoryProducts.map((product) => (
-                        <View key={product.id} style={styles.categoryProduct}>
-                          <Pressable accessibilityRole="button" onPress={() => openProduct(product.id)}>
-                            <Text style={styles.productName}>{product.name}</Text>
-                            <Text style={styles.productNote}>제품 상세 보기 ›</Text>
-                          </Pressable>
-                          <Pressable accessibilityRole="button" onPress={() => openChoosePick(product)} style={styles.retryButton}>
-                            <Text style={styles.retryButtonText}>내 원픽으로 선택</Text>
-                          </Pressable>
-                        </View>
-                      )) : <Text style={styles.productNote}>아직 고를 수 있는 제품이 없어요.</Text>
-                    ) : null}
                   </View>
                 )) : (
                   <View style={styles.stateCard}>
@@ -176,6 +160,7 @@ export default function HomeScreen() {
                 </View>
                 {data.feed.length > 0 ? data.feed.map((item) => (
                   <Pressable key={item.pick.id} accessibilityRole="button" onPress={() => openPick(item.pick.id)} style={({ pressed }) => [styles.homePickCard, pressed && styles.pressed]}>
+                    <PickPhoto uri={item.product?.thumbnailUrl} label={item.product?.name ?? '제품 대표 이미지'} />
                     <Text style={styles.productBrand}>{item.profile ? `@${item.profile.username}` : '사용자'} · {item.category?.name ?? '카테고리'}</Text>
                     <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
                     <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
@@ -200,18 +185,18 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={[styles.sectionHeader, styles.productsHeader]}>
-                  <Text style={styles.sectionTitle}>지금 고를 수 있는 제품</Text>
+                  <Text style={styles.sectionTitle}>원픽 제품 둘러보기</Text>
                   <Text style={styles.countText}>{products.length}개</Text>
                 </View>
 
                 {products.length > 0 ? (
                   products.map((product) => (
-                    <ProductCard key={product.id} product={product} onPress={() => openChoosePick(product)} />
+                    <ProductCard key={product.id} product={product} onPress={() => openProduct(product.id)} />
                   ))
                 ) : (
                   <View style={styles.stateCard}>
                     <Text style={styles.stateTitle}>아직 등록된 제품이 없어요</Text>
-                    <Text style={styles.stateText}>운영자가 제품을 준비하면 이곳에 표시됩니다.</Text>
+                    <Text style={styles.stateText}>제품명으로 첫 원픽을 등록해보세요.</Text>
                   </View>
                 )}
               </>
@@ -223,10 +208,10 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.categoryGrid}>
                   {data.openCategories.map((category) => (
-                    <View key={category.id} style={styles.categoryCard}>
+                    <Pressable accessibilityRole="button" key={category.id} style={styles.categoryCard} onPress={() => openRegistration(category.id)}>
                       <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>내 원픽 고르기</Text>
-                    </View>
+                      <Text style={styles.categoryCardSub}>제품명으로 원픽 등록</Text>
+                    </Pressable>
                   ))}
                 </View>
               </>
@@ -247,6 +232,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  registerButton: { alignSelf: 'flex-start', backgroundColor: '#D96D4B', paddingHorizontal: 20, paddingVertical: 13, borderRadius: 14, marginTop: 20 },
   safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
   content: { width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 110 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, paddingBottom: 22 },

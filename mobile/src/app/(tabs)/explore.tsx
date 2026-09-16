@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -80,7 +81,7 @@ export default function ExploreScreen() {
                   key={pick.id}
                   onPress={() => openPick(pick.id)}
                   style={({ pressed }) => [styles.pickCard, pressed && styles.pressed]}>
-                  <View style={styles.pickIcon}><Text style={styles.pickEmoji}>🍜</Text></View>
+                  <PickPhoto uri={product?.thumbnailUrl} label={product?.name ?? '제품 대표 이미지'} />
                   <View style={styles.pickCopy}>
                     <Text style={styles.pickMeta}>
                       {profile ? `@${profile.username}` : 'OnePick 사용자'} · {category?.name ?? '카테고리'}
@@ -112,7 +113,7 @@ export default function ExploreScreen() {
                       key={product.id}
                       onPress={() => openProduct(product.id)}
                       style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
-                      <View style={styles.productThumb}><Text style={styles.productEmoji}>🍜</Text></View>
+                      <PickPhoto uri={product.thumbnailUrl} label={product.name} />
                       <Text style={styles.productCategory}>{category.name}</Text>
                       <Text numberOfLines={2} style={styles.productName}>{product.name}</Text>
                       <Text style={styles.productAction}>제품 상세 보기</Text>

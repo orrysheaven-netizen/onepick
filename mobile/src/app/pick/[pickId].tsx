@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickShareCard } from '@/components/pick-share-card';
 import { PickManagement } from '@/components/pick-management';
+import { PickPhoto } from '@/components/pick-photo';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -104,7 +105,7 @@ export default function PickDetailScreen() {
             </View>
 
             <View style={styles.heroCard}>
-              <View style={styles.productIcon}><Text style={styles.productEmoji}>🍜</Text></View>
+              <PickPhoto uri={query.data.product.imageUrl} label={query.data.product.name} large />
               <Text style={styles.category}>{query.data.category.name}</Text>
               <Text style={styles.productName}>{query.data.product.name}</Text>
               <Text style={styles.review}>“{query.data.pick.oneLineReview}”</Text>

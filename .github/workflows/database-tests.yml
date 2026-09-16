@@ -32,3 +32,11 @@ jobs:
 
       - name: Run database tests
         run: supabase test db
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check image import function
+        run: deno check --config supabase/functions/import-product-image/deno.json supabase/functions/import-product-image/index.ts

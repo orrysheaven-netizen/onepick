@@ -225,6 +225,9 @@ export type Database = {
           name: string
           normalized_name: string
           official_url: string | null
+          image_path: string | null
+          thumbnail_path: string | null
+          image_source_url: string | null
           status: string
           updated_at: string
         }
@@ -239,6 +242,9 @@ export type Database = {
           name: string
           normalized_name: string
           official_url?: string | null
+          image_path?: string | null
+          thumbnail_path?: string | null
+          image_source_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -253,6 +259,9 @@ export type Database = {
           name?: string
           normalized_name?: string
           official_url?: string | null
+          image_path?: string | null
+          thumbnail_path?: string | null
+          image_source_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -322,6 +331,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_image_import: { Args: Record<PropertyKey, never>; Returns: undefined }
+      register_pick: {
+        Args: {
+          p_category_id: string
+          p_product_id: string | null
+          p_product_name: string
+          p_one_line_review: string
+          p_image_path?: string | null
+          p_thumbnail_path?: string | null
+          p_image_source_url?: string | null
+        }
+        Returns: Database['public']['Tables']['picks']['Row']
+      }
       change_pick: {
         Args: {
           p_category_id: string

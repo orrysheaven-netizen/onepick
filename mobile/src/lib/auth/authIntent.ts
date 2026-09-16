@@ -8,6 +8,7 @@ export type AuthReturnParams = {
 };
 
 export type AuthIntent =
+  | { action: 'register_pick'; categoryId?: string; productId?: string }
   | { action: 'choose_pick'; productId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'profile' }
@@ -20,6 +21,12 @@ function isId(value: string | string[] | undefined): value is string {
 }
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
+  if (params.action === 'register_pick') {
+    return { action: 'register_pick',
+      ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
+      ...(isId(params.productId) ? { productId: params.productId } : {}),
+    };
+  }
   if (params.action === 'choose_pick' && isId(params.productId) && isId(params.categoryId)) {
     return { action: 'choose_pick', productId: params.productId, categoryId: params.categoryId };
   }
@@ -34,6 +41,8 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     return { pathname: '/auth/username', params: { ...intent } };
   }
   switch (intent.action) {
+    case 'register_pick':
+      return { pathname: '/pick/register', params: { ...intent } };
     case 'choose_pick':
       return { pathname: '/pick/choose', params: { productId: intent.productId, categoryId: intent.categoryId } };
     case 'comment_pick':

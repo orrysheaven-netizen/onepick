@@ -11,6 +11,16 @@ export interface UpdatePickReviewInput {
   oneLineReview: string;
 }
 
+export interface RegisterPickRecordInput {
+  categoryId: string;
+  productId?: string;
+  productName: string;
+  oneLineReview: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  imageSourceUrl?: string;
+}
+
 export interface RecentPicksInput {
   excludeUserId?: string;
   categoryId?: string;
@@ -26,6 +36,7 @@ export interface PickRepository {
   getHistoryByUser(userId: string, limit?: number): Promise<Pick[]>;
   getRecentPicks(input: RecentPicksInput): Promise<Pick[]>;
   changePick(input: ChangePickInput): Promise<Pick>;
+  registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
   removePick(categoryId: string): Promise<void>;
 }

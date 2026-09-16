@@ -67,7 +67,7 @@ async function main() {
   assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'product-1');
   assert.ok(queryCalls.some(([method, field, value]) => method === 'in' && field === 'status' && value.join(',') === 'active,discontinued'));
   assert.ok(queryCalls.some(([method, field, value]) => method === 'eq' && field === 'category_id' && value === 'ramen'));
-  assert.ok(queryCalls.some(([method, field, value]) => method === 'ilike' && field === 'name' && value === '%라면%'));
+  assert.ok(queryCalls.some(([method, field, value]) => method === 'ilike' && field === 'normalized_name' && value === '%라면%'));
   assert.ok(queryCalls.some(([method, value]) => method === 'limit' && value === 20));
 
   let state = { hasSearchText: false, isPending: true };

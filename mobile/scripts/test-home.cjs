@@ -52,7 +52,7 @@ async function main() {
   assert.equal(home.currentPicks[1].product, null, 'Missing metadata must not remove current selections');
   assert.equal(home.categoriesToPick.length, 1);
   assert.equal(home.categoriesToPick[0].category.id, 'new');
-  assert.equal(home.categoriesToPick[0].products[0].id, 'two');
+  assert.ok(!calls.some(([kind]) => kind === 'products'), 'Registration does not require a category product catalog');
   assert.equal(home.feed[0].profile.username, 'reader');
   assert.ok(calls.some(([kind, id]) => kind === 'recent' && id === 'me'));
 

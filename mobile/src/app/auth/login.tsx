@@ -47,7 +47,9 @@ export default function LoginScreen() {
         <Text style={styles.eyebrow}>ONEPICK</Text>
         <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
         <Text style={styles.subtitle}>
-          {intent.action === 'choose_pick'
+          {intent.action === 'register_pick'
+            ? '로그인 뒤 사진을 올리고 나의 원픽을 직접 등록할 수 있어요.'
+            : intent.action === 'choose_pick'
             ? '선택한 제품을 기억해두고 로그인 뒤 한줄평 화면으로 돌아옵니다.'
             : intent.action === 'comment_pick'
               ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'

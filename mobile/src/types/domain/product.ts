@@ -14,6 +14,10 @@ export interface Product {
   normalizedName: string;
   modelCode: string | null;
   officialUrl: string | null;
+  imagePath: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+  imageSourceUrl: string | null;
   status: ProductStatus;
   mergedIntoProductId: string | null;
   createdBy: string | null;

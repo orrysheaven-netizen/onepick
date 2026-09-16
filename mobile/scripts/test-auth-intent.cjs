@@ -30,6 +30,9 @@ const same = (a, b) => assert.equal(JSON.stringify(a), JSON.stringify(b));
 async function main() {
   const choose = { action: 'choose_pick', productId: ids[0], categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
+  const register = { action: 'register_pick', categoryId: ids[0], productId: ids[1] };
+  assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
+  same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', productId: [ids[0]] }), { action: 'register_pick' });
   same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { productId: ids[0], categoryId: ids[1] } });
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
@@ -39,7 +42,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, comment, { action: 'profile' }, { action: 'home' }]) {
+  for (const original of [choose, register, comment, { action: 'profile' }, { action: 'home' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));

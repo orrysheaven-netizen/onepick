@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useProductDetail } from '@/hooks/useProductDetail';
+import { PickPhoto } from '@/components/pick-photo';
 
 export default function ProductDetailScreen() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ProductDetailScreen() {
       return;
     }
     if (!canChoose) return;
-    router.push({ pathname: '/pick/choose', params: { productId: product.id, categoryId: product.categoryId } });
+    router.push({ pathname: '/pick/register', params: { productId: product.id, categoryId: product.categoryId } });
   };
 
   return (
@@ -53,7 +54,7 @@ export default function ProductDetailScreen() {
         </Pressable>
 
         <View style={styles.heroCard}>
-          <View style={styles.productIcon}><Text style={styles.productEmoji}>🍜</Text></View>
+          <PickPhoto uri={product.imageUrl} label={product.name} large />
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productMeta}>
@@ -67,7 +68,7 @@ export default function ProductDetailScreen() {
                   ? '내 원픽 한줄평 보기/수정'
                   : myPickStatus.type === 'selected_other'
                     ? '이 제품으로 원픽 바꾸기'
-                    : '이 제품을 내 원픽으로'}
+                    : '이 제품으로 원픽 등록'}
               </Text>
             </Pressable>
           ) : (

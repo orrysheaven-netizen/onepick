@@ -25,7 +25,7 @@ export class HomeService {
         ? this.pickRepository.getCurrentPicksByUser(userId)
         : Promise.resolve([]),
       this.pickRepository.getRecentPicks({ limit: 20, excludeUserId: userId }),
-      singleCategory
+      singleCategory && !userId
         ? this.productRepository.getByCategory(singleCategory.id)
         : Promise.resolve([]),
     ]);
@@ -43,11 +43,8 @@ export class HomeService {
             profile: await this.profileRepository.getById(pick.userId),
           })))
         : Promise.resolve([]),
-      Promise.all(unselectedCategories.map(async (category) => ({
+      Promise.resolve(unselectedCategories.map((category) => ({
         category,
-        products: category.id === singleCategory?.id
-          ? singleCategoryProducts
-          : await this.productRepository.getByCategory(category.id),
       }))),
     ]);
 

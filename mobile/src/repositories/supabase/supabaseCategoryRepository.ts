@@ -12,6 +12,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
       .select('*')
       .eq('status', 'open')
       .eq('is_visible', true)
+      .eq('is_pickable', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
 

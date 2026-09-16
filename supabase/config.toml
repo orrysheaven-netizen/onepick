@@ -20,3 +20,6 @@ port = 54323
 enabled = true
 site_url = "http://localhost:8081"
 additional_redirect_urls = ["http://localhost:8081"]
+
+[functions.import-product-image]
+verify_jwt = true

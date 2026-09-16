@@ -19,7 +19,7 @@ values ('11111111-1111-1111-1111-111111111111', 'onepick_test', true);
 
 insert into public.categories (id, name, slug, status, is_visible, is_pickable)
 values
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면', 'ramen', 'open', true, true),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면 테스트', 'change-pick-test', 'open', true, true),
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', '중지 카테고리', 'paused-test', 'paused', true, false);
 
 insert into public.products (id, category_id, name, normalized_name, status)

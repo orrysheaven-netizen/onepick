@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SignOutButton } from '@/components/sign-out-button';
+import { PickPhoto } from '@/components/pick-photo';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
@@ -15,7 +16,7 @@ function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; mut
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.pickCard, muted && styles.pickCardMuted, pressed && styles.pressed]}>
-      <View style={styles.pickIcon}><Text style={styles.pickEmoji}>🍜</Text></View>
+      <PickPhoto uri={item.product?.thumbnailUrl} label={title} />
       <View style={styles.pickCopy}>
         <Text style={styles.pickCategory}>{category}</Text>
         <Text style={styles.pickName}>{title}</Text>

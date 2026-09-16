@@ -110,6 +110,7 @@ async function main() {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('div') },
     '@/components/pick-share-card': { PickShareCard: () => null },
+    '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement },
     '@/errors/appError': { AppError },
     '@/hooks/useAuthSession': { useAuthSession: () => session },

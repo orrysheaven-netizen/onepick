@@ -67,6 +67,7 @@ async function main() {
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
   };
   const base = {
+    '@/components/pick-photo': { PickPhoto: () => null },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
@@ -107,6 +108,7 @@ async function main() {
     ...base,
     react: { ...React, useState: () => [draft, (value) => { draft = value; }] },
     '@/components/pick-share-card': { PickShareCard: () => null },
+    '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, product, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => ({ data: [] }) },

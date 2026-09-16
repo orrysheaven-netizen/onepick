@@ -1,5 +1,6 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/database.types';
 import type {
   ProductRepository,
   ProductSearchInput,
@@ -10,6 +11,10 @@ const PUBLIC_PRODUCT_STATUSES = ['active', 'discontinued'] as const;
 
 export class SupabaseProductRepository implements ProductRepository {
   constructor(private readonly client: AppSupabaseClient) {}
+
+  private mapRow = (row: Database['public']['Tables']['products']['Row']) => mapProductRow(row,
+    row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+    row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null);
 
   async getById(productId: string) {
     const { data, error } = await this.client
@@ -22,7 +27,7 @@ export class SupabaseProductRepository implements ProductRepository {
       throw mapSupabaseError(error);
     }
 
-    return data ? mapProductRow(data) : null;
+    return data ? this.mapRow(data) : null;
   }
 
   async getByCategory(categoryId: string) {
@@ -37,11 +42,11 @@ export class SupabaseProductRepository implements ProductRepository {
       throw mapSupabaseError(error);
     }
 
-    return data.map(mapProductRow);
+    return data.map(this.mapRow);
   }
 
   async search(input: ProductSearchInput) {
-    const searchText = input.query.trim();
+    const searchText = input.query.trim().replace(/\s+/g, '').replace(/[\\%_]/g, '\\$&');
 
     if (!searchText) {
       return [];
@@ -53,7 +58,7 @@ export class SupabaseProductRepository implements ProductRepository {
       .from('products')
       .select('*')
       .in('status', [...PUBLIC_PRODUCT_STATUSES])
-      .ilike('name', `%${searchText}%`)
+      .ilike('normalized_name', `%${searchText}%`)
       .order('name', { ascending: true })
       .limit(limit);
 
@@ -67,6 +72,6 @@ export class SupabaseProductRepository implements ProductRepository {
       throw mapSupabaseError(error);
     }
 
-    return data.map(mapProductRow);
+    return data.map(this.mapRow);
   }
 }
