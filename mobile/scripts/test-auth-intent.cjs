@@ -31,18 +31,31 @@ async function main() {
   const choose = { action: 'choose_pick', productId: ids[0], categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], productId: ids[1] };
+  const request = { action: 'request_product', productName: '  신라면   더 레드  ', categoryId: ids[0] };
+
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
   same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', productId: [ids[0]] }), { action: 'register_pick' });
   same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { productId: ids[0], categoryId: ids[1] } });
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
+  same(getAuthIntent(request), { action: 'request_product', productName: '신라면 더 레드', categoryId: ids[0] });
+  same(getPostAuthRoute(getAuthIntent(request)), {
+    pathname: '/pick/request',
+    params: { productName: '신라면 더 레드', categoryId: ids[0] },
+  });
+  same(getAuthIntent({ action: 'request_product', productName: '  신라면  ', categoryId: '../../bad' }), {
+    action: 'request_product', productName: '신라면',
+  });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_product', productName: ['신라면'] })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_product', productName: ' '.repeat(101) })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
+
   for (const params of [
     {}, { action: 'choose_pick' }, { ...choose, categoryId: '' },
     { ...comment, pickId: [ids[0], ids[1]] }, { action: ['profile'] },
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, register, comment, { action: 'profile' }, { action: 'home' }]) {
+  for (const original of [choose, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
@@ -84,6 +97,9 @@ async function main() {
   same(callbackParams, comment);
   await login(choose, { profile: {} });
   same(destination, getPostAuthRoute(choose));
+  await login(request, { profile: {} });
+  same(destination, getPostAuthRoute(getAuthIntent(request)));
+  same(callbackParams, getAuthIntent(request));
   await login(comment, null);
   assert.equal(destination, undefined, 'Cancelling OAuth stays on login');
 
@@ -97,19 +113,19 @@ async function main() {
       mutateAsync: async () => { if (callbackFailed) throw new Error('failed'); return mutationResult; },
     }) },
   });
-  params = comment; mutationResult = { profile: {} };
+  params = request; mutationResult = { profile: {} };
   renderToStaticMarkup(React.createElement(Callback));
   await flush();
-  same(destination, getPostAuthRoute(comment));
+  same(destination, getPostAuthRoute(getAuthIntent(request)));
   mutationResult = { profile: null };
   renderToStaticMarkup(React.createElement(Callback));
   await flush();
-  same(destination, getPostAuthRoute(comment, true));
+  same(destination, getPostAuthRoute(getAuthIntent(request), true));
   callbackFailed = true; presses.length = 0;
   assert.match(renderToStaticMarkup(React.createElement(Callback)), /다시 로그인하기/);
   await flush();
   presses[0]();
-  same(destination, { pathname: '/auth/login', params: comment });
-  console.log('Auth return checks passed: choose/comment/profile/home, onboarding, malformed params, cancellation and callback retry.');
+  same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
+  console.log('Auth return checks passed: choose/comment/profile/home/product-request, onboarding, malformed params, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
