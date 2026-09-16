@@ -14,8 +14,8 @@ export default function ExploreScreen() {
     router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   };
 
-  const openProduct = (productId: string, categoryId: string) => {
-    router.push({ pathname: '/pick/choose', params: { productId, categoryId } });
+  const openProduct = (productId: string) => {
+    router.push({ pathname: '/product/[productId]', params: { productId } });
   };
 
   return (
@@ -103,12 +103,12 @@ export default function ExploreScreen() {
                   {query.data.recentProducts.map(({ product, category }) => (
                     <Pressable
                       key={product.id}
-                      onPress={() => openProduct(product.id, category.id)}
+                      onPress={() => openProduct(product.id)}
                       style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
                       <View style={styles.productThumb}><Text style={styles.productEmoji}>🍜</Text></View>
                       <Text style={styles.productCategory}>{category.name}</Text>
                       <Text numberOfLines={2} style={styles.productName}>{product.name}</Text>
-                      <Text style={styles.productAction}>이 제품 원픽 보기/고르기</Text>
+                      <Text style={styles.productAction}>제품 상세 보기</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
