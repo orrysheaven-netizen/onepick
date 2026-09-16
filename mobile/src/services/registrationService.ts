@@ -20,7 +20,8 @@ export interface RegisterPickInput {
 
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
-  | { type: 'pending_product'; product: Product };
+  | { type: 'pending_product'; product: Product }
+  | { type: 'existing_product'; product: Product };
 
 export function formatProductName(name: string, variant: string) {
   return [name, variant].map((part) => part.trim().replace(/\s+/g, ' ')).filter(Boolean).join(' ');
@@ -69,38 +70,20 @@ export class RegistrationService {
     if (product && product.categoryId !== category.id) throw new AppError('PRODUCT_CATEGORY_MISMATCH');
     if (product && product.status !== 'active' && product.status !== 'discontinued') throw new AppError('PRODUCT_NOT_ELIGIBLE');
 
-    let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
-    if (input.photo && !product?.imagePath) {
-      await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
-      uploaded = await this.photoRepository.upload(input.userId, input.photo);
-    }
-
-    if (!product) {
-      const submitted = await this.productRepository.submitProduct({
-        categoryId: category.id,
-        productName: name,
-        ...uploaded,
-        imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
-      });
-
-      if (submitted.status === 'pending') {
-        if (uploaded && submitted.imagePath !== uploaded.imagePath) {
-          await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-        }
-        return { type: 'pending_product', product: submitted };
-      }
-
-      if (submitted.status !== 'active' && submitted.status !== 'discontinued') {
-        if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-        throw new AppError('PRODUCT_NOT_ELIGIBLE');
-      }
-
+    if (product) {
       const review = input.oneLineReview.trim();
       if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
+
+      let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
+      if (input.photo && !product.imagePath) {
+        await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+        uploaded = await this.photoRepository.upload(input.userId, input.photo);
+      }
+
       const pick = await this.pickRepository.registerPick({
         categoryId: category.id,
-        productId: submitted.id,
-        productName: submitted.name,
+        productId: product.id,
+        productName: product.name,
         oneLineReview: review,
         ...uploaded,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
@@ -109,17 +92,32 @@ export class RegistrationService {
       return { type: 'pick', pick };
     }
 
-    const review = input.oneLineReview.trim();
-    if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
-    const pick = await this.pickRepository.registerPick({
+    let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
+    if (input.photo) {
+      await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+      uploaded = await this.photoRepository.upload(input.userId, input.photo);
+    }
+
+    const submitted = await this.productRepository.submitProduct({
       categoryId: category.id,
-      productId: product.id,
-      productName: product.name,
-      oneLineReview: review,
+      productName: name,
       ...uploaded,
       imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
     });
+
+    if (submitted.status === 'pending') {
+      if (uploaded && submitted.imagePath !== uploaded.imagePath) {
+        await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      }
+      return { type: 'pending_product', product: submitted };
+    }
+
+    if (submitted.status === 'active' || submitted.status === 'discontinued') {
+      if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      return { type: 'existing_product', product: submitted };
+    }
+
     if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-    return { type: 'pick', pick };
+    throw new AppError('PRODUCT_NOT_ELIGIBLE');
   }
 }
