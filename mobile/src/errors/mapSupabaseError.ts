@@ -18,6 +18,9 @@ const knownCodes = new Set<AppErrorCode>([
   'PRODUCT_NOT_FOUND',
   'PRODUCT_NOT_ELIGIBLE',
   'PRODUCT_CATEGORY_MISMATCH',
+  'PRODUCT_ALIAS_INVALID',
+  'PRODUCT_ALIAS_CONFLICT',
+  'PRODUCT_ALIAS_REDUNDANT',
   'PROFILE_NOT_FOUND',
   'USERNAME_INVALID',
   'USERNAME_TAKEN',
@@ -37,11 +40,22 @@ const knownCodes = new Set<AppErrorCode>([
   'INTERNAL_ERROR',
 ]);
 
+const databaseCodeMap: Record<string, AppErrorCode> = {
+  ALIAS_INVALID: 'PRODUCT_ALIAS_INVALID',
+  ALIAS_CONFLICT: 'PRODUCT_ALIAS_CONFLICT',
+  ALIAS_REDUNDANT: 'PRODUCT_ALIAS_REDUNDANT',
+};
+
 export function mapSupabaseError(error: SupabaseLikeError): AppError {
   const message = error.message?.trim();
 
   if (message && knownCodes.has(message as AppErrorCode)) {
     return new AppError(message as AppErrorCode, message, error);
+  }
+
+  if (message && databaseCodeMap[message]) {
+    const code = databaseCodeMap[message];
+    return new AppError(code, code, error);
   }
 
   if (error.code === '42501') {
