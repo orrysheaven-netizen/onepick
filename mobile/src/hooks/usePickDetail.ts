@@ -5,7 +5,7 @@ import { pickService } from '@/services';
 
 export function usePickDetail(pickId?: string, currentUserId?: string) {
   return useQuery({
-    queryKey: pickId ? queryKeys.picks.detail(pickId) : ['picks', 'detail', 'missing'],
+    queryKey: pickId ? queryKeys.picks.detail(pickId, currentUserId) : ['picks', 'detail', 'missing'],
     queryFn: () => pickService.getPickDetail(pickId!, currentUserId),
     enabled: Boolean(pickId),
   });

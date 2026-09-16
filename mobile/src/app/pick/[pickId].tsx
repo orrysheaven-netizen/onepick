@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickShareCard } from '@/components/pick-share-card';
+import { PickManagement } from '@/components/pick-management';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -31,7 +32,7 @@ function getCommentErrorMessage(error: unknown) {
 export default function PickDetailScreen() {
   const router = useRouter();
   const { pickId } = useLocalSearchParams<{ pickId?: string }>();
-  const { user } = useAuthSession();
+  const { user, isLoading: isSessionLoading } = useAuthSession();
   const query = usePickDetail(pickId, user?.id);
   const commentsQuery = usePickComments(pickId);
   const createComment = useCreateComment(pickId ?? 'missing');
@@ -54,7 +55,7 @@ export default function PickDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
@@ -66,7 +67,7 @@ export default function PickDetailScreen() {
           </View>
         ) : null}
 
-        {query.isError || !query.data ? (
+        {!query.isPending && (query.isError || !query.data) ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>원픽을 볼 수 없어요</Text>
             <Text style={styles.stateText}>삭제되었거나 볼 수 없는 기록일 수 있어요.</Text>
@@ -107,6 +108,15 @@ export default function PickDetailScreen() {
                     : '선택이 종료되어 이전 기록으로 남아 있습니다.'}
               </Text>
             </View>
+
+            {!isSessionLoading && user?.id === query.data.pick.userId && query.data.isCurrent ? (
+              <PickManagement
+                key={`${user.id}:${query.data.pick.id}`}
+                pick={query.data.pick}
+                categoryName={query.data.category.name}
+                onRemoved={() => router.replace('/')}
+              />
+            ) : null}
 
             <View style={styles.commentsCard}>
               <View style={styles.commentsHeader}>

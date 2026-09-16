@@ -26,7 +26,8 @@ export const queryKeys = {
   },
   picks: {
     all: ['picks'] as const,
-    detail: (pickId: string) => ['picks', 'detail', pickId] as const,
+    detail: (pickId: string, userId?: string) =>
+      ['picks', 'detail', pickId, userId ?? 'public'] as const,
     current: (userId: string, categoryId: string) =>
       ['picks', 'current', userId, categoryId] as const,
     byUser: (userId: string) => ['picks', 'user', userId] as const,
