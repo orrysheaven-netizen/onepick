@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ProductSearch } from '@/components/product-search';
 import { useExploreData } from '@/hooks/useExploreData';
-import { useState } from 'react';
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -20,10 +21,32 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>EXPLORE</Text>
         <Text style={styles.title}>사람들의 원픽을{ '\n' }구경해보세요</Text>
         <Text style={styles.subtitle}>지금 사람들이 고른 하나와 그 이유를 실제 선택 기록으로 보여드려요.</Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: !selectedCategoryId }}
+            onPress={() => setSelectedCategoryId(undefined)}
+            style={[styles.chip, !selectedCategoryId && styles.chipActive]}>
+            <Text style={[styles.chipText, !selectedCategoryId && styles.chipTextActive]}>전체</Text>
+          </Pressable>
+          {query.data?.openCategories.map((category) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedCategoryId === category.id }}
+              key={category.id}
+              onPress={() => setSelectedCategoryId(category.id)}
+              style={[styles.chip, selectedCategoryId === category.id && styles.chipActive]}>
+              <Text style={[styles.chipText, selectedCategoryId === category.id && styles.chipTextActive]}>{category.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <ProductSearch categoryId={selectedCategoryId} onSelect={openProduct} />
 
         {query.isPending && !query.data ? (
           <View style={styles.stateCard}>
@@ -43,22 +66,6 @@ export default function ExploreScreen() {
 
         {query.data ? (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-              <Pressable
-                onPress={() => setSelectedCategoryId(undefined)}
-                style={[styles.chip, !selectedCategoryId && styles.chipActive]}>
-                <Text style={[styles.chipText, !selectedCategoryId && styles.chipTextActive]}>전체</Text>
-              </Pressable>
-              {query.data.openCategories.map((category) => (
-                <Pressable
-                  key={category.id}
-                  onPress={() => setSelectedCategoryId(category.id)}
-                  style={[styles.chip, selectedCategoryId === category.id && styles.chipActive]}>
-                  <Text style={[styles.chipText, selectedCategoryId === category.id && styles.chipTextActive]}>{category.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>최근 원픽</Text>
