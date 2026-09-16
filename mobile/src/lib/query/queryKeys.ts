@@ -3,6 +3,10 @@ export const queryKeys = {
     all: ['home'] as const,
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
   },
+  explore: {
+    all: ['explore'] as const,
+    data: (categoryId?: string) => ['explore', categoryId ?? 'all'] as const,
+  },
   categories: {
     all: ['categories'] as const,
     open: ['categories', 'open'] as const,
