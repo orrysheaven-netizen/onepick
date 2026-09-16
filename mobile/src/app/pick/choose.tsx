@@ -64,13 +64,30 @@ export default function ChoosePickScreen() {
   const handleSubmit = async () => {
     if (!user || !product || !isValidReview || choosePick.isPending) return;
 
-    const result = await choosePick.mutateAsync({
-      categoryId: product.categoryId,
-      productId: product.id,
-      oneLineReview: trimmedReview,
-    });
+    try {
+      const result = await choosePick.mutateAsync({
+        categoryId: product.categoryId,
+        productId: product.id,
+        oneLineReview: trimmedReview,
+      });
 
-    setSavedReview(result.oneLineReview);
+      setSavedReview(result.oneLineReview);
+    } catch {
+      // Mutation state renders the error.
+    }
+  };
+
+  const openLogin = () => {
+    if (!product) return;
+
+    router.push({
+      pathname: '/auth/login',
+      params: {
+        action: 'choose_pick',
+        productId: product.id,
+        categoryId: product.categoryId,
+      },
+    });
   };
 
   const isLoading = isSessionLoading || productQuery.isPending;
@@ -106,10 +123,13 @@ export default function ChoosePickScreen() {
             <Text style={styles.kicker}>원픽을 고르려면</Text>
             <Text style={styles.title}>로그인이 필요해요</Text>
             <Text style={styles.stateText}>
-              선택한 제품은 그대로 기억해두고 로그인 뒤 이 화면으로 돌아오도록 다음 단계에서 연결합니다.
+              선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.
             </Text>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <Text style={styles.secondaryButtonText}>홈으로 돌아가기</Text>
+            <Pressable onPress={openLogin} style={({ pressed }) => [styles.primaryButton, styles.loginButton, pressed && styles.pressed]}>
+              <Text style={styles.primaryButtonText}>로그인하고 계속</Text>
+            </Pressable>
+            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
+              <Text style={styles.textButtonText}>다음에 고르기</Text>
             </Pressable>
           </View>
         ) : null}
@@ -208,10 +228,13 @@ const styles = StyleSheet.create({
   reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 15, color: '#202124', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   helperText: { color: '#8E8A85', fontSize: 11, marginTop: 8 },
   primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
+  loginButton: { alignSelf: 'stretch' },
   primaryButtonDisabled: { opacity: 0.4 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   secondaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 20 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 6 },
+  textButtonText: { color: '#8E8A85', fontSize: 13, fontWeight: '700' },
   stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 26, marginTop: 34 },
   stateTitle: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 14 },
   stateText: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
