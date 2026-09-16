@@ -7,6 +7,7 @@ import {
   productRepository,
   profileRepository,
   photoRepository,
+  readRepository,
 } from '@/repositories/supabase';
 
 import { DevicePhotoRepository } from '@/repositories/device/devicePhotoRepository';
@@ -28,36 +29,32 @@ export const commentService = new CommentService(
   commentRepository,
   pickRepository,
   profileRepository,
+  readRepository,
 );
 export const exploreService = new ExploreService(
   categoryRepository,
-  pickRepository,
-  productRepository,
-  profileRepository,
+  readRepository,
 );
 export const homeService = new HomeService(
   categoryRepository,
-  pickRepository,
   productRepository,
-  profileRepository,
+  readRepository,
 );
 export const pickService = new PickService(
   pickRepository,
   categoryRepository,
   productRepository,
-  profileRepository,
+  readRepository,
 );
 export const productService = new ProductService(
   productRepository,
   pickRepository,
-  profileRepository,
   categoryRepository,
+  readRepository,
 );
 export const profileService = new ProfileService(
   profileRepository,
-  pickRepository,
-  categoryRepository,
-  productRepository,
+  readRepository,
 );
 
 export {
