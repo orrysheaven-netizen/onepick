@@ -1,71 +1,59 @@
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
-import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ProductRepository } from '@/repositories/interfaces/productRepository';
-import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { Pick } from '@/types/domain/pick';
+import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export type HomeMode = 'single_category' | 'multi_category';
 
 export class HomeService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
-    private readonly pickRepository: PickRepository,
     private readonly productRepository: ProductRepository,
-    private readonly profileRepository: ProfileRepository,
+    private readonly readRepository: ReadRepository,
   ) {}
 
   async getHomeData(userId?: string) {
     const openCategories = await this.categoryRepository.getOpenCategories();
-    const mode: HomeMode =
-      openCategories.length <= 1 ? 'single_category' : 'multi_category';
+    const mode: HomeMode = openCategories.length <= 1 ? 'single_category' : 'multi_category';
     const singleCategory = mode === 'single_category' ? openCategories[0] : undefined;
 
-    const [myPicks, recentPicks, singleCategoryProducts] = await Promise.all([
+    const [currentPicks, feed, singleCategoryProducts] = await Promise.all([
       userId
-        ? this.pickRepository.getCurrentPicksByUser(userId)
+        ? this.readRepository.getPicks({
+            userId,
+            statuses: ['active', 'needs_review'],
+            orderBy: 'updated_at',
+            limit: 100,
+          })
         : Promise.resolve([]),
-      this.pickRepository.getRecentPicks({ limit: 20, excludeUserId: userId }),
+      userId
+        ? this.readRepository.getPicks({
+            excludeUserId: userId,
+            statuses: ['active'],
+            limit: 20,
+          })
+        : Promise.resolve([]),
       singleCategory && !userId
         ? this.productRepository.getByCategory(singleCategory.id)
         : Promise.resolve([]),
     ]);
 
-    const selectedCategoryIds = new Set(myPicks.map((pick) => pick.categoryId));
-    const unselectedCategories = userId
-      ? openCategories.filter((category) => category.isPickable && !selectedCategoryIds.has(category.id))
+    const selectedCategoryIds = new Set(currentPicks.map((item) => item.pick.categoryId));
+    const categoriesToPick = userId
+      ? openCategories
+          .filter((category) => !selectedCategoryIds.has(category.id))
+          .map((category) => ({ category }))
       : [];
-
-    const [currentPicks, feed, categoriesToPick] = await Promise.all([
-      Promise.all(myPicks.map((pick) => this.hydratePick(pick))),
-      userId
-        ? Promise.all(recentPicks.map(async (pick) => ({
-            ...await this.hydratePick(pick),
-            profile: await this.profileRepository.getById(pick.userId),
-          })))
-        : Promise.resolve([]),
-      Promise.resolve(unselectedCategories.map((category) => ({
-        category,
-      }))),
-    ]);
 
     return {
       mode,
       openCategories,
       singleCategory: singleCategory ?? null,
       singleCategoryProducts,
-      myRecentPicks: myPicks.slice(0, 3),
-      recentPicks,
+      myRecentPicks: currentPicks.slice(0, 3).map((item) => item.pick),
+      recentPicks: feed.map((item) => item.pick),
       currentPicks,
       categoriesToPick,
       feed,
     };
-  }
-
-  private async hydratePick(pick: Pick) {
-    const [category, product] = await Promise.all([
-      this.categoryRepository.getById(pick.categoryId),
-      this.productRepository.getById(pick.productId),
-    ]);
-    return { pick, category, product };
   }
 }
