@@ -10,7 +10,11 @@ import { PickService } from './pickService';
 import { ProductService } from './productService';
 import { ProfileService } from './profileService';
 
-export const homeService = new HomeService(categoryRepository, pickRepository);
+export const homeService = new HomeService(
+  categoryRepository,
+  pickRepository,
+  productRepository,
+);
 export const pickService = new PickService(
   pickRepository,
   categoryRepository,
