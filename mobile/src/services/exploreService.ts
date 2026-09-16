@@ -1,34 +1,33 @@
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
+export const EXPLORE_PAGE_SIZE = 20;
+
 export class ExploreService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getExploreData(categoryId?: string) {
-    const [openCategories, feed] = await Promise.all([
+  async getExploreData(categoryId?: string, offset = 0, limit = EXPLORE_PAGE_SIZE) {
+    const [openCategories, rows] = await Promise.all([
       this.categoryRepository.getOpenCategories(),
-      this.readRepository.getPicks({ categoryId, statuses: ['active'], limit: 30 }),
+      this.readRepository.getPicks({
+        categoryId,
+        statuses: ['active'],
+        offset,
+        limit: limit + 1,
+      }),
     ]);
 
-    const seenProductIds = new Set<string>();
-    const recentProducts = feed
-      .filter((item) => item.product && item.category)
-      .filter((item) => {
-        if (seenProductIds.has(item.pick.productId)) return false;
-        seenProductIds.add(item.pick.productId);
-        return true;
-      })
-      .map((item) => ({ product: item.product!, category: item.category! }))
-      .slice(0, 8);
+    const hasMore = rows.length > limit;
+    const feed = rows.slice(0, limit);
 
     return {
       openCategories,
       selectedCategoryId: categoryId ?? null,
       feed,
-      recentProducts,
+      nextOffset: hasMore ? offset + limit : null,
     };
   }
 }
