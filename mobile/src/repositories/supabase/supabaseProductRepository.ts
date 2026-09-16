@@ -55,6 +55,22 @@ export class SupabaseProductRepository implements ProductRepository {
     return data.map(this.mapRow);
   }
 
+  async getSubmissionsByUser(userId: string, limit = 20) {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const { data, error } = await this.client
+      .from('products')
+      .select('*')
+      .eq('created_by', userId)
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+
+    if (error) {
+      throw mapSupabaseError(error);
+    }
+
+    return data.map(this.mapRow);
+  }
+
   async search(input: ProductSearchInput) {
     const searchText = input.query.trim().replace(/\s+/g, '').replace(/[\\%_]/g, '\\$&');
 
