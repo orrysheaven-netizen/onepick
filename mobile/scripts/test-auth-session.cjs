@@ -91,20 +91,26 @@ async function main() {
   assert.equal(abandoned.render().user, null);
 
   const { AppError } = loadSource('errors/appError.ts');
-  let sessionResult = { data: { session: null }, error: { message: 'storage failed' } }, signOutOptions;
+  let sessionResult = { data: { session: null }, error: { message: 'storage failed' } }, signOutOptions, oauthOptions;
   const { SupabaseAuthRepository } = loadSource('repositories/supabase/supabaseAuthRepository.ts', {
-    'expo-web-browser': { maybeCompleteAuthSession() {} },
+    'expo-web-browser': { maybeCompleteAuthSession() {}, openAuthSessionAsync: async () => ({ type: 'cancel' }) },
     '@/errors/appError': { AppError },
   });
   const repository = new SupabaseAuthRepository({ auth: {
     getSession: async () => sessionResult,
     signOut: async (options) => { signOutOptions = options; return { error: null }; },
+    signInWithOAuth: async (options) => { oauthOptions = options; return { data: { url: 'https://example.com/auth' }, error: null }; },
   } });
   await assert.rejects(() => repository.getCurrentUser(), (error) => error.code === 'AUTH_FAILED');
   sessionResult = { data: { session: null }, error: null };
   assert.equal(await repository.getCurrentUser(), null);
   await repository.signOut();
   assert.equal(signOutOptions.scope, 'local');
+  assert.equal(await repository.signInWithKakao('onepick://auth/callback'), null);
+  assert.equal(oauthOptions.provider, 'kakao');
+  assert.equal(oauthOptions.options.redirectTo, 'onepick://auth/callback');
+  assert.equal(oauthOptions.options.queryParams.scope, 'profile_nickname');
+  assert.equal(oauthOptions.options.scopes, undefined, 'Additive scopes must not reintroduce email and photos');
 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['profiles', 'mine', 'owner'], { private: true });

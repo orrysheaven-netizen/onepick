@@ -27,6 +27,12 @@ You can start developing by editing the files inside the **app** directory. This
 
 ## Validation
 
+Copy `.env.example` to `.env.local` and set the project's public Supabase key before running the app. Never use a service-role key in the mobile client.
+
+Kakao login requests only `profile_nickname` via `options.queryParams.scope`. The `scopes` option is additive for Supabase's Kakao provider and would still request email and a profile photo. In Kakao Developers, enable nickname as optional consent; leave email and profile image disabled. In Supabase's Kakao provider settings, enable **Allow users without an email**. Add the development/production callback URLs to Supabase's redirect allow list and its Auth callback URL to Kakao's Redirect URI list.
+
+Web uses browser local storage; native builds use Expo SQLite storage. Static web rendering uses Supabase's in-memory fallback. Public environment variables must use static `process.env.EXPO_PUBLIC_…` access so Expo can include them in the client bundle.
+
 Run these checks from the `mobile` directory:
 
 ```bash
@@ -36,7 +42,7 @@ npm test
 
 Mobile CI runs both commands after `npm ci` using Node.js 22.13.1. The test runner discovers every `scripts/test-*.cjs` file and fails if any check fails.
 
-The checks cover home personalization, pick management, product search, auth session recovery/logout, returning to the intended screen after login, product/category eligibility, and comment submission failure/retry. They use repository/auth substitutes and rendered components; real Kakao authentication and device behavior still need separate verification.
+The checks cover home personalization, pick management, product search, auth session recovery/logout, returning to the intended screen after login, product/category eligibility, comment submission failure/retry, and Expo runtime configuration. They use repository/auth substitutes and rendered components; real Kakao authentication and device behavior still need separate verification.
 
 ## Get a fresh project
 

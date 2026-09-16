@@ -93,6 +93,9 @@ export class SupabaseAuthRepository implements AuthRepository {
       provider: 'kakao',
       options: {
         redirectTo,
+        // `scopes` adds to Supabase's Kakao defaults; the provider's `scope`
+        // parameter replaces them so email and profile photos are not requested.
+        queryParams: { scope: 'profile_nickname' },
         skipBrowserRedirect: true,
       },
     });
