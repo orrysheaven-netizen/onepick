@@ -6,8 +6,17 @@ export interface ProductSearchInput {
   limit?: number;
 }
 
+export interface SubmitProductInput {
+  categoryId: string;
+  productName: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  imageSourceUrl?: string;
+}
+
 export interface ProductRepository {
   getById(productId: string): Promise<Product | null>;
   getByCategory(categoryId: string): Promise<Product[]>;
   search(input: ProductSearchInput): Promise<Product[]>;
+  submitProduct(input: SubmitProductInput): Promise<Product>;
 }
