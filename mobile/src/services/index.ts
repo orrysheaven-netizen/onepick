@@ -22,6 +22,7 @@ export const pickService = new PickService(
   pickRepository,
   categoryRepository,
   productRepository,
+  profileRepository,
 );
 export const productService = new ProductService(productRepository, pickRepository);
 export const profileService = new ProfileService(
