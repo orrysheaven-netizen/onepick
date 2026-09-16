@@ -36,7 +36,13 @@ export default function ProductDetailScreen() {
   }
 
   const { product, category, myPickStatus, picks } = query.data;
-  const openChoose = () => router.push({ pathname: '/pick/choose', params: { productId: product.id, categoryId: product.categoryId } });
+  const openPickAction = () => {
+    if (myPickStatus.type === 'selected_this') {
+      router.push({ pathname: '/pick/[pickId]', params: { pickId: myPickStatus.pickId } });
+      return;
+    }
+    router.push({ pathname: '/pick/choose', params: { productId: product.id, categoryId: product.categoryId } });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -53,7 +59,7 @@ export default function ProductDetailScreen() {
             {picks.length > 0 ? `${picks.length}명이 최근 이 제품을 원픽으로 골랐어요` : '아직 공개된 원픽 기록이 없어요'}
           </Text>
 
-          <Pressable onPress={openChoose} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" onPress={openPickAction} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryButtonText}>
               {myPickStatus.type === 'selected_this'
                 ? '내 원픽 한줄평 보기/수정'
@@ -71,19 +77,30 @@ export default function ProductDetailScreen() {
 
         {picks.length > 0 ? (
           picks.map(({ pick, profile }) => (
-            <Pressable
-              key={pick.id}
-              onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } })}
-              style={({ pressed }) => [styles.pickCard, pressed && styles.pressed]}>
+            <View key={pick.id} style={styles.pickCard}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{(profile?.username ?? '?').slice(0, 1).toUpperCase()}</Text>
               </View>
               <View style={styles.pickCopy}>
-                <Text style={styles.username}>@{profile?.username ?? '사용자'}</Text>
-                <Text style={styles.review}>“{pick.oneLineReview}”</Text>
+                {profile ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
+                    onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username } })}
+                    style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
+                    <Text style={styles.username}>@{profile.username} · 프로필 보기 ›</Text>
+                  </Pressable>
+                ) : <Text style={styles.username}>사용자</Text>}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="원픽 한줄평 상세 보기"
+                  onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } })}
+                  style={({ pressed }) => [styles.reviewLink, pressed && styles.pressed]}>
+                  <Text style={styles.review}>“{pick.oneLineReview}”</Text>
+                  <Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
+                </Pressable>
               </View>
-              <Text style={styles.arrow}>›</Text>
-            </Pressable>
+            </View>
           ))
         ) : (
           <View style={styles.emptyCard}>
@@ -118,7 +135,9 @@ const styles = StyleSheet.create({
   pickCopy: { flex: 1, marginLeft: 12 },
   username: { color: '#202124', fontSize: 12, fontWeight: '800' },
   review: { color: '#6C6863', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  arrow: { color: '#B8B1AA', fontSize: 25 },
+  profileLink: { minHeight: 44, justifyContent: 'center' },
+  reviewLink: { minHeight: 44, justifyContent: 'center' },
+  pickAction: { color: '#D96D4B', fontSize: 11, marginTop: 7 },
   emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },

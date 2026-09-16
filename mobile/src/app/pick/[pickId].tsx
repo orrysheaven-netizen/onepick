@@ -80,10 +80,15 @@ export default function PickDetailScreen() {
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{query.data.profile.username.slice(0, 1).toUpperCase()}</Text>
               </View>
-              <View style={styles.profileCopy}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`@${query.data.profile.username} 공개 프로필 보기`}
+                onPress={() => router.push({ pathname: '/u/[username]', params: { username: query.data.profile.username } })}
+                style={({ pressed }) => [styles.profileCopy, pressed && styles.pressed]}>
                 <Text style={styles.eyebrow}>PICK BY</Text>
                 <Text style={styles.username}>@{query.data.profile.username}</Text>
-              </View>
+                <Text style={styles.profileLink}>다른 원픽 보기 ›</Text>
+              </Pressable>
               <View style={[styles.statusBadge, !query.data.isCurrent && styles.statusBadgeMuted]}>
                 <Text style={[styles.statusText, !query.data.isCurrent && styles.statusTextMuted]}>
                   {query.data.isCurrent ? '현재 원픽' : '이전 원픽'}
@@ -96,6 +101,12 @@ export default function PickDetailScreen() {
               <Text style={styles.category}>{query.data.category.name}</Text>
               <Text style={styles.productName}>{query.data.product.name}</Text>
               <Text style={styles.review}>“{query.data.pick.oneLineReview}”</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: query.data.product.id } })}
+                style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}>
+                <Text style={styles.smallButtonText}>제품 상세 보기</Text>
+              </Pressable>
             </View>
 
             <View style={styles.metaCard}>
@@ -154,7 +165,15 @@ export default function PickDetailScreen() {
                     </Text>
                   </View>
                   <View style={styles.commentCopy}>
-                    <Text style={styles.commentAuthor}>@{author?.username ?? '사용자'}</Text>
+                    {author ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`@${author.username} 공개 프로필 보기`}
+                        onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
+                        style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
+                        <Text style={styles.commentAuthor}>@{author.username} ›</Text>
+                      </Pressable>
+                    ) : <Text style={styles.commentAuthor}>사용자</Text>}
                     <Text style={styles.commentBody}>{comment.body}</Text>
                   </View>
                 </View>
@@ -233,6 +252,8 @@ const styles = StyleSheet.create({
   profileCopy: { flex: 1, marginLeft: 12 },
   eyebrow: { color: '#D96D4B', fontSize: 9, fontWeight: '800', letterSpacing: 1.8 },
   username: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 4 },
+  profileLink: { color: '#D96D4B', fontSize: 11, marginTop: 5 },
+  commentAuthorLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   statusBadge: { borderRadius: 999, backgroundColor: '#F9E4DB', paddingHorizontal: 11, paddingVertical: 7 },
   statusBadgeMuted: { backgroundColor: '#EEE8E2' },
   statusText: { color: '#D96D4B', fontSize: 10, fontWeight: '800' },

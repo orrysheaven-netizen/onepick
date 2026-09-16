@@ -46,7 +46,7 @@ export default function PublicProfileScreen() {
           </View>
         ) : null}
 
-        {query.isError || !query.data ? (
+        {!query.isPending && (query.isError || !query.data) ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>프로필을 찾을 수 없어요</Text>
             <Text style={styles.stateText}>사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요.</Text>
@@ -78,17 +78,30 @@ export default function PublicProfileScreen() {
 
             {query.data.currentPicks.length > 0 ? (
               query.data.currentPicks.map((item) => (
-                <Pressable
-                  key={item.pick.id}
-                  onPress={() => router.push(`/pick/${item.pick.id}`)}
-                  style={({ pressed }) => [styles.pickCard, pressed && styles.pressed]}>
+                <View key={item.pick.id} style={styles.pickCard}>
                   <View style={styles.pickIcon}><Text style={styles.pickEmoji}>🍜</Text></View>
                   <View style={styles.pickCopy}>
-                    <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
-                    <Text style={styles.pickName}>{item.product?.name ?? '제품'}</Text>
-                    <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="원픽 상세 보기"
+                      onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })}
+                      style={({ pressed }) => pressed && styles.pressed}>
+                      <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
+                      <Text style={styles.pickName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
+                      <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
+                      <Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
+                    </Pressable>
+                    {item.product ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.product.name} 제품 상세 보기`}
+                        onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: item.pick.productId } })}
+                        style={({ pressed }) => [styles.productLink, pressed && styles.pressed]}>
+                        <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
-                </Pressable>
+                </View>
               ))
             ) : (
               <View style={styles.emptyCard}>
@@ -147,6 +160,8 @@ const styles = StyleSheet.create({
   pickCategory: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
   pickReview: { color: '#6C6863', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  pickAction: { color: '#D96D4B', fontSize: 11, fontWeight: '700', marginTop: 7 },
+  productLink: { minHeight: 44, justifyContent: 'center', marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEE8E2' },
   emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
