@@ -10,7 +10,8 @@ export const queryKeys = {
   },
   products: {
     all: ['products'] as const,
-    detail: (productId: string) => ['products', 'detail', productId] as const,
+    detail: (productId: string, userId?: string) =>
+      ['products', 'detail', productId, userId ?? 'public'] as const,
     byCategory: (categoryId: string) => ['products', 'category', categoryId] as const,
     search: (query: string, categoryId?: string) =>
       ['products', 'search', query, categoryId ?? 'all'] as const,
