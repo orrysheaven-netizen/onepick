@@ -79,11 +79,12 @@ export class SupabaseReadRepository implements ReadRepository {
 
   async getPicks(input: PickReadInput) {
     const limit = Math.min(Math.max(input.limit ?? 30, 1), 100);
+    const offset = Math.max(input.offset ?? 0, 0);
     let query = this.client
       .from('picks')
       .select(PICK_READ_SELECT)
       .order(input.orderBy ?? 'started_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (input.userId) query = query.eq('user_id', input.userId);
     if (input.excludeUserId) query = query.neq('user_id', input.excludeUserId);
@@ -96,14 +97,15 @@ export class SupabaseReadRepository implements ReadRepository {
     return (data as unknown as PickReadRow[]).map((row) => this.mapPickItem(row));
   }
 
-  async getCommentsByPickId(pickId: string, limit = 100) {
+  async getCommentsByPickId(pickId: string, limit = 20, offset = 0) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeOffset = Math.max(offset, 0);
     const { data, error } = await this.client
       .from('comments')
       .select(`*, author:profiles!comments_user_id_fkey(*)`)
       .eq('pick_id', pickId)
       .order('created_at', { ascending: true })
-      .limit(safeLimit);
+      .range(safeOffset, safeOffset + safeLimit - 1);
 
     if (error) throw mapSupabaseError(error);
     return (data as unknown as CommentReadRow[]).map((row) => {
