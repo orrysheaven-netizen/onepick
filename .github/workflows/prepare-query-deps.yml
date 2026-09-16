@@ -1,0 +1,49 @@
+name: Prepare Query Dependency
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/prepare-query-deps.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/pick-core
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Add TanStack Query
+        run: npm install --save @tanstack/react-query
+
+      - name: Commit dependency files
+        working-directory: .
+        run: |
+          if git diff --quiet -- mobile/package.json mobile/package-lock.json; then
+            echo "Dependency files already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/package.json mobile/package-lock.json
+          git commit -m "Install TanStack Query"
+          git push origin HEAD:feature/pick-core
