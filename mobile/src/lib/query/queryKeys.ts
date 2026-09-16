@@ -8,6 +8,10 @@ export const queryKeys = {
     open: ['categories', 'open'] as const,
     detail: (categoryId: string) => ['categories', 'detail', categoryId] as const,
   },
+  comments: {
+    all: ['comments'] as const,
+    byPick: (pickId: string) => ['comments', 'pick', pickId] as const,
+  },
   products: {
     all: ['products'] as const,
     detail: (productId: string, userId?: string) =>
