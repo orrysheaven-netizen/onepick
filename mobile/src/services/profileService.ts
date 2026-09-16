@@ -1,29 +1,19 @@
 import { AppError } from '@/errors/appError';
-import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
-import type { PickRepository } from '@/repositories/interfaces/pickRepository';
-import type { ProductRepository } from '@/repositories/interfaces/productRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { Pick } from '@/types/domain/pick';
-import type { Product } from '@/types/domain/product';
+import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
 function normalizeUsername(value: string) {
   const username = value.trim().toLowerCase();
-
-  if (!USERNAME_PATTERN.test(username)) {
-    throw new AppError('USERNAME_INVALID');
-  }
-
+  if (!USERNAME_PATTERN.test(username)) throw new AppError('USERNAME_INVALID');
   return username;
 }
 
 export class ProfileService {
   constructor(
     private readonly profileRepository: ProfileRepository,
-    private readonly pickRepository: PickRepository,
-    private readonly categoryRepository: CategoryRepository,
-    private readonly productRepository: ProductRepository,
+    private readonly readRepository: ReadRepository,
   ) {}
 
   getById(userId: string) {
@@ -33,90 +23,47 @@ export class ProfileService {
   async createProfile(usernameInput: string) {
     const username = normalizeUsername(usernameInput);
     const existing = await this.profileRepository.getByUsername(username);
-
-    if (existing) {
-      throw new AppError('USERNAME_TAKEN');
-    }
-
+    if (existing) throw new AppError('USERNAME_TAKEN');
     return this.profileRepository.create({ username });
   }
 
   async getMyProfile(userId: string) {
     const profile = await this.profileRepository.getById(userId);
+    if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
-    if (!profile) {
-      throw new AppError('PROFILE_NOT_FOUND');
-    }
-
-    const [activePicks, history, submittedProducts] = await Promise.all([
-      this.pickRepository.getActivePicksByUser(userId),
-      this.pickRepository.getHistoryByUser(userId),
-      this.productRepository.getSubmissionsByUser(userId),
+    const [currentPicks, history, productRequests] = await Promise.all([
+      this.readRepository.getPicks({
+        userId,
+        statuses: ['active', 'needs_review'],
+        orderBy: 'updated_at',
+        limit: 100,
+      }),
+      this.readRepository.getPicks({
+        userId,
+        statuses: ['replaced', 'removed', 'hidden'],
+        limit: 50,
+      }),
+      this.readRepository.getProductRequestsByUser(userId, undefined, 20),
     ]);
 
-    const [current, previous, productRequests] = await Promise.all([
-      this.hydratePicks(activePicks),
-      this.hydratePicks(history),
-      this.hydrateProductRequests(submittedProducts),
-    ]);
-
-    return {
-      profile,
-      currentPicks: current,
-      history: previous,
-      productRequests,
-    };
+    return { profile, currentPicks, history, productRequests };
   }
 
   async getProfileByUsername(username: string, currentUserId?: string) {
     const profile = await this.profileRepository.getByUsername(username);
+    if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
-    if (!profile) {
-      throw new AppError('PROFILE_NOT_FOUND');
-    }
-
-    const activePicks = await this.pickRepository.getActivePicksByUser(profile.id);
+    const currentPicks = await this.readRepository.getPicks({
+      userId: profile.id,
+      statuses: ['active'],
+      orderBy: 'updated_at',
+      limit: 100,
+    });
 
     return {
       profile,
-      currentPicks: await this.hydratePicks(activePicks),
+      currentPicks,
       isMine: currentUserId === profile.id,
     };
-  }
-
-  private async hydratePicks(picks: Pick[]) {
-    return Promise.all(
-      picks.map(async (pick) => {
-        const [category, product] = await Promise.all([
-          this.categoryRepository.getById(pick.categoryId),
-          this.productRepository.getById(pick.productId),
-        ]);
-
-        return {
-          pick,
-          category,
-          product,
-        };
-      }),
-    );
-  }
-
-  private async hydrateProductRequests(products: Product[]) {
-    return Promise.all(
-      products.map(async (product) => {
-        const [category, mergedIntoProduct] = await Promise.all([
-          this.categoryRepository.getById(product.categoryId),
-          product.mergedIntoProductId
-            ? this.productRepository.getById(product.mergedIntoProductId)
-            : Promise.resolve(null),
-        ]);
-
-        return {
-          product,
-          category,
-          mergedIntoProduct,
-        };
-      }),
-    );
   }
 }
