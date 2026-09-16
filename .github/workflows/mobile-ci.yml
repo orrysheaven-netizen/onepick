@@ -37,3 +37,6 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Regression tests
+        run: npm test
