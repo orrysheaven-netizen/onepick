@@ -26,6 +26,7 @@ export const queryKeys = {
   },
   profiles: {
     all: ['profiles'] as const,
+    mine: (userId: string) => ['profiles', 'mine', userId] as const,
     byUsername: (username: string) => ['profiles', 'username', username] as const,
   },
 } as const;
