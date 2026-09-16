@@ -23,8 +23,8 @@ jobs:
         with:
           version: latest
 
-      - name: Start local Supabase
-        run: supabase start
+      - name: Start local database
+        run: supabase db start
 
       - name: Run database tests
         run: supabase test db
