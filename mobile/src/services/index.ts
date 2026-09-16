@@ -9,6 +9,7 @@ import {
 
 import { AuthService } from './authService';
 import { CommentService } from './commentService';
+import { ExploreService } from './exploreService';
 import { HomeService } from './homeService';
 import { PickService } from './pickService';
 import { ProductService } from './productService';
@@ -18,6 +19,12 @@ export const authService = new AuthService(authRepository);
 export const commentService = new CommentService(
   commentRepository,
   pickRepository,
+  profileRepository,
+);
+export const exploreService = new ExploreService(
+  categoryRepository,
+  pickRepository,
+  productRepository,
   profileRepository,
 );
 export const homeService = new HomeService(
@@ -42,6 +49,7 @@ export const profileService = new ProfileService(
 export {
   AuthService,
   CommentService,
+  ExploreService,
   HomeService,
   PickService,
   ProductService,
