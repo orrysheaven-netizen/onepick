@@ -1,6 +1,7 @@
 import type { Brand } from '@/types/domain/brand';
 import type { Category, CategoryStatus } from '@/types/domain/category';
 import type { Product, ProductStatus } from '@/types/domain/product';
+import type { ProductAlias } from '@/types/domain/productAlias';
 
 export interface AdminCategoryInput {
   name: string;
@@ -40,6 +41,9 @@ export interface AdminRepository {
   getProducts(limit?: number): Promise<Product[]>;
   getPendingProducts(): Promise<Product[]>;
   getProductById(productId: string): Promise<Product | null>;
+  getProductAliases(limit?: number): Promise<ProductAlias[]>;
+  createProductAlias(productId: string, alias: string): Promise<ProductAlias>;
+  removeProductAlias(aliasId: string): Promise<void>;
   createCategory(input: AdminCategoryInput): Promise<Category>;
   updateCategory(categoryId: string, input: Partial<AdminCategoryInput>): Promise<Category>;
   createBrand(input: AdminBrandInput): Promise<Brand>;
