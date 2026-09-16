@@ -17,8 +17,8 @@ export class SupabasePickRepository implements PickRepository {
     const { data, error } = await this.client.rpc('register_pick', {
       p_category_id: input.categoryId, p_product_id: input.productId ?? null,
       p_product_name: input.productName, p_one_line_review: input.oneLineReview,
-      p_image_path: input.imagePath ?? null, p_thumbnail_path: input.thumbnailPath ?? null,
-      p_image_source_url: input.imageSourceUrl ?? null,
+      p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
+      p_image_source_url: input.imageSourceUrl,
     });
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');

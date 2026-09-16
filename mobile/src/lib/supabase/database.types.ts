@@ -220,15 +220,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          image_path: string | null
+          image_source_url: string | null
           merged_into_product_id: string | null
           model_code: string | null
           name: string
           normalized_name: string
           official_url: string | null
-          image_path: string | null
-          thumbnail_path: string | null
-          image_source_url: string | null
           status: string
+          thumbnail_path: string | null
           updated_at: string
         }
         Insert: {
@@ -237,15 +237,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          image_path?: string | null
+          image_source_url?: string | null
           merged_into_product_id?: string | null
           model_code?: string | null
           name: string
           normalized_name: string
           official_url?: string | null
-          image_path?: string | null
-          thumbnail_path?: string | null
-          image_source_url?: string | null
           status?: string
+          thumbnail_path?: string | null
           updated_at?: string
         }
         Update: {
@@ -254,15 +254,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          image_path?: string | null
+          image_source_url?: string | null
           merged_into_product_id?: string | null
           model_code?: string | null
           name?: string
           normalized_name?: string
           official_url?: string | null
-          image_path?: string | null
-          thumbnail_path?: string | null
-          image_source_url?: string | null
           status?: string
+          thumbnail_path?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -331,24 +331,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      consume_image_import: { Args: Record<PropertyKey, never>; Returns: undefined }
-      register_pick: {
-        Args: {
-          p_category_id: string
-          p_product_id: string | null
-          p_product_name: string
-          p_one_line_review: string
-          p_image_path?: string | null
-          p_thumbnail_path?: string | null
-          p_image_source_url?: string | null
-        }
-        Returns: Database['public']['Tables']['picks']['Row']
-      }
       change_pick: {
         Args: {
           p_category_id: string
           p_one_line_review: string
           p_product_id: string
+        }
+        Returns: {
+          category_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          one_line_review: string
+          product_id: string
+          replaced_by_pick_id: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "picks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      consume_image_import: { Args: never; Returns: undefined }
+      register_pick: {
+        Args: {
+          p_category_id: string
+          p_image_path?: string
+          p_image_source_url?: string
+          p_one_line_review: string
+          p_product_id: string
+          p_product_name: string
+          p_thumbnail_path?: string
         }
         Returns: {
           category_id: string

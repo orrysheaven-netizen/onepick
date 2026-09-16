@@ -28,7 +28,7 @@ The initial selectable categories are ramen, beer, soju and snacks. Alcohol is a
 
 ## Server rollout
 
-The migration `20260916132433_add_shared_product_registration.sql` adds three nullable product fields, indexes, the initial categories, a public `product-photos` bucket with authenticated upload policies, a protected private quota table, and authenticated registration/import quota functions. It does not change existing pick rows.
+The migration `20260916221838_add_shared_product_registration.sql` adds three nullable product fields, indexes, the initial categories, a public `product-photos` bucket with authenticated upload policies, a protected private quota table, and authenticated registration/import quota functions. It does not change existing pick rows. Its filename matches the version recorded by the hosted migration service when applied to `onepick-dev`.
 
 1. Apply the reviewed migration to the intended Supabase project.
 2. Deploy `import-product-image` with JWT verification enabled. The handler additionally validates the authenticated user and consumes the per-user quota.
@@ -42,3 +42,13 @@ The mobile flow uses Screen → Hook → Service → Repository → Supabase. Th
 `npm run typecheck` and `npm test` cover the app and registration/import regressions. Database Tests applies all migrations to a disposable CI database and runs the pgTAP tests, including product deduplication, optional images, shared-image ownership/protection, rollback, distinct tastes and the import quota. The workflow also runs `deno check` for the Edge Function.
 
 A JavaScript export covers web, Android and iOS routing/bundling. It does not substitute for a physical-device test, a Hermes/native build, or the post-rollout end-to-end upload test.
+
+## onepick-dev rollout — 2026-09-17 KST
+
+- Applied migration `20260916221838`; deployed `import-product-image` version 1 with JWT verification enabled.
+- Verified all four selectable categories, the non-selectable alcohol parent, and the public JPEG bucket with its file-size limit.
+- A transaction on the hosted database verified image-free registration, quantity normalization/reuse and rejection of missing image objects. All test writes were rolled back. The existing real pick and review were unchanged.
+- The deployed HTTP endpoint returned 204 for browser preflight and 401 for missing/invalid user sessions.
+- Refreshed generated database types. A separate type override preserves PostgreSQL's nullable `p_product_id` input, which generated RPC types cannot infer.
+- Security advisors reported an intentionally closed private quota table ([RLS without policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)) and the existing [disabled leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) setting. No client permissions were added to the quota table. Unused-index notices require no action for this rollout.
+- Authenticated image fetching and upload in the browser remain unverified after deployment: the previously authenticated Chrome browser was no longer connected. No real pick was changed for testing.
