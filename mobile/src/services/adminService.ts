@@ -22,6 +22,12 @@ function normalizeProductName(value: string) {
   return value.toLowerCase().replace(/\s+/g, '');
 }
 
+function cleanAlias(value: string) {
+  const alias = value.trim().replace(/\s+/g, ' ');
+  if (!alias || alias.length > 100) throw new AppError('PRODUCT_ALIAS_INVALID');
+  return alias;
+}
+
 export class AdminService {
   constructor(
     private readonly adminRepository: AdminRepository,
@@ -45,11 +51,12 @@ export class AdminService {
 
   async getDashboard() {
     await this.assertAdmin();
-    const [categories, brands, products, pending] = await Promise.all([
+    const [categories, brands, products, pending, aliases] = await Promise.all([
       this.adminRepository.getCategories(),
       this.adminRepository.getBrands(),
       this.adminRepository.getProducts(500),
       this.adminRepository.getPendingProducts(),
+      this.adminRepository.getProductAliases(2000),
     ]);
 
     const submitters = await Promise.all(
@@ -63,6 +70,7 @@ export class AdminService {
       categories,
       brands,
       products,
+      aliases,
       pending: submitters,
     };
   }
@@ -73,21 +81,14 @@ export class AdminService {
     const slug = input.slug.trim().toLowerCase();
     this.validateCategory({ ...input, name, slug }, await this.adminRepository.getCategories());
 
-    return this.adminRepository.createCategory({
-      ...input,
-      name,
-      slug,
-    });
+    return this.adminRepository.createCategory({ ...input, name, slug });
   }
 
   async updateCategory(categoryId: string, input: Partial<AdminCategoryInput>) {
     await this.assertAdmin();
     const patch = { ...input };
     if (input.name !== undefined) patch.name = cleanName(input.name, 60);
-    if (input.slug !== undefined) {
-      const slug = input.slug.trim().toLowerCase();
-      patch.slug = slug;
-    }
+    if (input.slug !== undefined) patch.slug = input.slug.trim().toLowerCase();
     const categories = await this.adminRepository.getCategories();
     const current = categories.find((item) => item.id === categoryId);
     if (!current) throw new AppError('CATEGORY_NOT_FOUND');
@@ -127,6 +128,21 @@ export class AdminService {
       normalizedName: normalizeProductName(name),
       status: input.status ?? 'active',
     });
+  }
+
+  async addProductAlias(productId: string, value: string) {
+    await this.assertAdmin();
+    const alias = cleanAlias(value);
+    const product = await this.adminRepository.getProductById(productId);
+    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
+    if (!['active', 'discontinued'].includes(product.status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    if (normalizeProductName(alias) === product.normalizedName) throw new AppError('PRODUCT_ALIAS_REDUNDANT');
+    return this.adminRepository.createProductAlias(productId, alias);
+  }
+
+  async removeProductAlias(aliasId: string) {
+    await this.assertAdmin();
+    return this.adminRepository.removeProductAlias(aliasId);
   }
 
   async approveProduct(productId: string, edits?: Partial<AdminProductInput>) {
