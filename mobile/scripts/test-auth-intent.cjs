@@ -29,6 +29,7 @@ const same = (a, b) => assert.equal(JSON.stringify(a), JSON.stringify(b));
 
 async function main() {
   const choose = { action: 'choose_pick', itemId: ids[0], categoryId: ids[1] };
+  const chooseMovie = { action: 'choose_movie', externalId: '157336', categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
@@ -36,6 +37,8 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
   same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', itemId: [ids[0]] }), { action: 'register_pick' });
   same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { itemId: ids[0], categoryId: ids[1] } });
+  same(getPostAuthRoute(getAuthIntent(chooseMovie)), { pathname: '/pick/find', params: { categoryId: ids[1], externalMovieId: '157336' } });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseMovie, externalId: '../../bad' })), '/');
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
   same(getAuthIntent(request), { action: 'request_item', itemName: '신라면 더 레드', categoryId: ids[0] });
   same(getPostAuthRoute(getAuthIntent(request)), {
@@ -55,7 +58,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
+  for (const original of [choose, chooseMovie, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));

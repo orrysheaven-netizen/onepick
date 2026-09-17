@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
@@ -11,7 +12,8 @@ import type { MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
 export default function FindPickItemScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ categoryId?: string }>();
+  const params = useLocalSearchParams<{ categoryId?: string; externalMovieId?: string }>();
+  const { user } = useAuthSession();
   const [query, setQuery] = useState('');
   const [importingMovieId, setImportingMovieId] = useState<string | null>(null);
   const categories = useRegistrationCategories();
@@ -20,6 +22,7 @@ export default function FindPickItemScreen() {
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const movieCatalog = useMovieCatalogSearch(query, isMovieCategory);
   const importMovie = useImportMovieCatalogItem();
+  const attemptedMovieId = useRef<string | null>(null);
   const hasQuery = query.trim().length > 0;
   const canSearchMovieCatalog = query.trim().length >= 2;
   const externalMovies = (movieCatalog.data ?? []).filter((movie) =>
@@ -57,6 +60,13 @@ export default function FindPickItemScreen() {
       chooseItem(movie.existingItemId, params.categoryId);
       return;
     }
+    if (!user) {
+      router.push({
+        pathname: '/auth/login',
+        params: { action: 'choose_movie', externalId: movie.externalId, categoryId: params.categoryId },
+      });
+      return;
+    }
 
     setImportingMovieId(movie.externalId);
     try {
@@ -68,6 +78,23 @@ export default function FindPickItemScreen() {
       setImportingMovieId(null);
     }
   };
+
+  useEffect(() => {
+    const externalId = params.externalMovieId;
+    if (!user || !params.categoryId || !externalId || !/^\d{1,12}$/.test(externalId)
+      || attemptedMovieId.current === externalId || importMovie.isPending) return;
+
+    attemptedMovieId.current = externalId;
+    setImportingMovieId(externalId);
+    void importMovie.mutateAsync(externalId)
+      .then((imported) => {
+        router.replace({ pathname: '/pick/choose', params: { itemId: imported.itemId, categoryId: imported.categoryId } });
+      })
+      .catch(() => {
+        attemptedMovieId.current = null;
+      })
+      .finally(() => setImportingMovieId(null));
+  }, [importMovie, params.categoryId, params.externalMovieId, router, user]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -141,6 +168,13 @@ export default function FindPickItemScreen() {
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>두 글자 이상 입력해주세요</Text>
             <Text style={styles.stateText}>한국어 제목과 원제를 함께 검색합니다.</Text>
+          </View>
+        ) : null}
+
+        {params.externalMovieId && importingMovieId ? (
+          <View style={styles.inlineState}>
+            <ActivityIndicator />
+            <Text style={styles.stateText}>선택한 영화 정보를 저장하고 있어요</Text>
           </View>
         ) : null}
 

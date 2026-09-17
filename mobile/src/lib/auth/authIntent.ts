@@ -6,12 +6,14 @@ export type AuthReturnParams = {
   itemName?: string | string[];
   categoryId?: string | string[];
   pickId?: string | string[];
+  externalId?: string | string[];
 };
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
   | { action: 'request_item'; itemName: string; categoryId?: string }
   | { action: 'choose_pick'; itemId: string; categoryId: string }
+  | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'profile' }
   | { action: 'home' };
@@ -26,6 +28,10 @@ function getItemName(value: string | string[] | undefined) {
   if (typeof value !== 'string') return null;
   const name = value.trim().replace(/\s+/g, ' ');
   return name.length >= 1 && name.length <= 100 ? name : null;
+}
+
+function getExternalId(value: string | string[] | undefined) {
+  return typeof value === 'string' && /^\d{1,12}$/.test(value) ? value : null;
 }
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
@@ -50,6 +56,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) {
     return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
   }
+  if (params.action === 'choose_movie' && isId(params.categoryId)) {
+    const externalId = getExternalId(params.externalId);
+    if (externalId) return { action: 'choose_movie', externalId, categoryId: params.categoryId };
+  }
   if (params.action === 'comment_pick' && isId(params.pickId)) {
     return { action: 'comment_pick', pickId: params.pickId };
   }
@@ -73,6 +83,8 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
       };
     case 'choose_pick':
       return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
+    case 'choose_movie':
+      return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'comment_pick':
       return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'profile':

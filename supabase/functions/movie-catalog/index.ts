@@ -90,7 +90,7 @@ async function searchMovies(query: unknown) {
   });
 }
 
-async function importMovie(externalId: unknown) {
+async function importMovie(externalId: unknown, req: Request) {
   const id = typeof externalId === 'string' ? externalId.trim() : '';
   if (!/^\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
 
@@ -104,6 +104,12 @@ async function importMovie(externalId: unknown) {
 
   const client = adminClient();
   if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+
+  const authorization = req.headers.get('Authorization') ?? '';
+  const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  if (!accessToken) return json({ error: 'AUTH_REQUIRED' }, 401);
+  const { data: authData, error: authError } = await client.auth.getUser(accessToken);
+  if (authError || !authData.user) return json({ error: 'AUTH_REQUIRED' }, 401);
 
   const { data: category, error: categoryError } = await client
     .from('categories')
@@ -166,6 +172,6 @@ Deno.serve(async (req: Request) => {
   }
 
   if (body.action === 'search') return searchMovies(body.query);
-  if (body.action === 'import') return importMovie(body.externalId);
+  if (body.action === 'import') return importMovie(body.externalId, req);
   return json({ error: 'ACTION_INVALID' }, 400);
 });
