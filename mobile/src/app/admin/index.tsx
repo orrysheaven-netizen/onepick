@@ -33,10 +33,10 @@ function Button({ children, onPress, disabled = false, selected = false }: { chi
   return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} onPress={onPress} disabled={disabled} style={[styles.button, selected && styles.selected, disabled && styles.disabled]}><Text style={[styles.buttonText, selected && styles.selectedText]}>{children}</Text></Pressable>;
 }
 
-function similarItems(item: Item, items: Item[]) {
-  const score = (item: Item) => item.normalizedName === item.normalizedName ? 0
-    : item.normalizedName.includes(item.normalizedName) || item.normalizedName.includes(item.normalizedName) ? 1 : 2;
-  return items.filter((item) => item.id !== item.id && item.categoryId === item.categoryId && ['active', 'discontinued'].includes(item.status))
+function similarItems(request: Item, items: Item[]) {
+  const score = (item: Item) => item.normalizedName === request.normalizedName ? 0
+    : item.normalizedName.includes(request.normalizedName) || request.normalizedName.includes(item.normalizedName) ? 1 : 2;
+  return items.filter((item) => item.id !== request.id && item.categoryId === request.categoryId && ['active', 'discontinued'].includes(item.status))
     .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name)).slice(0, 3);
 }
 
