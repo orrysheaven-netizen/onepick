@@ -119,7 +119,7 @@ The hierarchy has at most two levels, for example `먹을것 > 라면`. A parent
 
 Known ramen/beer/soju/snack slugs still have the agreed packaging normalization rules. Newly created categories preserve their product names until a category-specific rule is deliberately added.
 
-The product finder keeps the entered search name when opening a missing-product request. Selecting a formal product derives its category automatically. The profile's product-request list shows up to 20 recent submissions, with links to approved or merged products. Admin lists show up to 500 products and separately load the oldest 500 pending requests, so newer formal products cannot displace pending requests from the review queue.
+The product finder keeps the entered search name when opening a missing-product request. Selecting a formal product derives its category automatically. The request confirmation links directly to My Profile. The profile's product-request list shows up to 20 recent submissions, with links to approved products or public merge targets. Users can refresh the profile to check approval from another administrator session; a failed refresh keeps the last loaded data visible with an error notice. Product detail leads to the existing Pick selection flow. Admin lists show up to 500 products and separately load the oldest 500 pending requests, so newer formal products cannot displace pending requests from the review queue.
 
 The user-facing table INSERT policy for pending products has been removed: all ordinary submissions must pass the RPC's photo, quota and normalization checks. Administrator membership and the quota table have RLS with no client policies by design.
 

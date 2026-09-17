@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
@@ -41,14 +41,15 @@ function getRequestState(item: ProductRequestItem) {
       return { label: '승인 대기', description: '관리자가 제품 정보를 확인하고 있어요.', targetId: null };
     case 'active':
     case 'discontinued':
-      return { label: '승인됨', description: '정식 제품으로 등록됐어요. 이제 원픽으로 선택할 수 있어요.', targetId: item.product.id };
+      return { label: '승인됨', description: '정식 제품으로 등록됐어요. 제품을 열어 원픽으로 선택해주세요.', targetId: item.product.id };
     case 'merged':
       return {
         label: '기존 제품과 연결됨',
         description: item.mergedIntoProduct
           ? `${item.mergedIntoProduct.name} 제품으로 통합됐어요.`
           : '이미 등록된 정식 제품과 연결됐어요.',
-        targetId: item.mergedIntoProduct?.id ?? null,
+        targetId: item.mergedIntoProduct && ['active', 'discontinued'].includes(item.mergedIntoProduct.status)
+          ? item.mergedIntoProduct.id : null,
       };
     case 'rejected':
       return { label: '등록되지 않음', description: '제품 정보를 확인한 결과 정식 등록이 보류됐어요.', targetId: null };
@@ -170,7 +171,7 @@ export default function ProfileScreen() {
     );
   }
 
-  if (profileQuery.isError || !profileQuery.data) {
+  if (!profileQuery.data) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.centerState}>
@@ -191,7 +192,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={profileQuery.isRefetching} onRefresh={() => void profileQuery.refetch()} tintColor="#4945ED" />}>
         <View style={styles.header}>
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{profile.username.slice(0, 1).toUpperCase()}</Text></View>
           <View style={styles.headerCopy}>
@@ -200,6 +204,19 @@ export default function ProfileScreen() {
             {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
           </View>
         </View>
+
+        {profileQuery.isRefetchError ? (
+          <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+          disabled={profileQuery.isFetching}
+          onPress={() => void profileQuery.refetch()}
+          style={({ pressed }) => [styles.refreshButton, (pressed || profileQuery.isFetching) && styles.pressed]}>
+          <Text style={styles.refreshText}>{profileQuery.isFetching ? '최신 상태 확인 중…' : '상태 새로고침'}</Text>
+        </Pressable>
 
         <View style={styles.summaryCard}>
           <View><Text style={styles.summaryNumber}>{currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
@@ -234,7 +251,7 @@ export default function ProfileScreen() {
           <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>
               <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>
-              <Text style={styles.sectionHint}>{productRequests.length}개</Text>
+              <Text style={styles.sectionHint}>최근 {productRequests.length}개</Text>
             </View>
             {productRequests.map((item) => (
               <ProductRequestCard key={item.product.id} item={item} onOpenProduct={openProduct} />
@@ -258,6 +275,9 @@ const styles = StyleSheet.create({
   profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center' },
   profileAvatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
+  refreshButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
+  refreshText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  refreshError: { color: '#A9482D', fontSize: 13, lineHeight: 20, marginBottom: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   username: { color: '#202124', fontSize: 24, fontWeight: '800', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },

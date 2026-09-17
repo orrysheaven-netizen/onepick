@@ -116,6 +116,10 @@ async function main() {
   press('제품 등록 요청 보내기'); await settle();
   assert.equal(calls, 2, 'Failure releases the in-flight guard for retry');
   assert.match(render(), /제품 등록 요청을 보냈어요/);
+  press('내 등록 요청 보기');
+  assert.equal(destination, '/(tabs)/profile', 'A pending request leads directly to its status in My Profile');
+  press('홈으로 돌아가기');
+  assert.equal(destination, '/');
 
   state = []; mutation.isError = false; mutation.error = null;
   outcome = async () => ({ type: 'existing_product', product: { id: 'existing', categoryId: category.id } });

@@ -123,9 +123,12 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.kicker}>REQUEST SENT</Text>
           <Text style={styles.stateTitle}>제품 등록 요청을 보냈어요</Text>
           <Text style={styles.requestedName}>{submittedName}</Text>
-          <Text style={styles.stateText}>관리자가 확인해 정식 제품으로 승인하면 원픽으로 선택할 수 있습니다.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.replace('/')}>
-            <Text style={styles.primaryButtonText}>홈으로 돌아가기</Text>
+          <Text style={styles.stateText}>내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 제품을 열어 원픽으로 선택해주세요.</Text>
+          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
+            <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
+            <Text style={styles.retryText}>홈으로 돌아가기</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -235,6 +238,7 @@ const styles = StyleSheet.create({
   noticeText: { color: '#5F6470', fontSize: 12, lineHeight: 17 },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 14 },
   retryButton: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4 },
+  homeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, marginTop: 8 },
   retryText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
   primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
