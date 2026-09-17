@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
@@ -65,11 +65,21 @@ export default function HomeScreen() {
   const openProduct = (productId: string) => router.push({ pathname: '/product/[productId]', params: { productId } });
   const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
-  const ready = !isLoading && !sessionError && !homeQuery.isError;
+  const ready = !isLoading && !sessionError && Boolean(data);
+  const refresh = () => {
+    if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
+      void homeQuery.refetch({ cancelRefetch: false });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, compact && styles.contentCompact]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={!isSessionLoading && !sessionError ? (
+          <RefreshControl refreshing={homeQuery.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />
+        ) : undefined}>
         {Platform.OS !== 'web' ? <View style={styles.nativeHeader}>
           <OnePickBrand />
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
@@ -95,13 +105,24 @@ export default function HomeScreen() {
         </View>
 
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
-        {sessionError || (!isSessionLoading && homeQuery.isError) ? <View style={styles.stateCard}>
+        {sessionError || (!isSessionLoading && homeQuery.isError && !data) ? <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '원픽을 불러오지 못했어요'}</Text>
           <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
-          <Pressable accessibilityRole="button" onPress={sessionError ? retrySession : () => void homeQuery.refetch()} style={styles.retryButton}><Text style={styles.actionText}>다시 불러오기</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={!sessionError && homeQuery.isFetching} onPress={sessionError ? retrySession : refresh} style={styles.retryButton}><Text style={styles.actionText}>다시 불러오기</Text></Pressable>
         </View> : null}
 
         {ready && data ? <>
+          <View style={styles.refreshRow}>
+            {homeQuery.isError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="홈 원픽 새로고침"
+              disabled={homeQuery.isFetching}
+              onPress={refresh}
+              style={({ pressed }) => [styles.refreshButton, (pressed || homeQuery.isFetching) && styles.pressed]}>
+              <Text style={styles.actionText}>{homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'}</Text>
+            </Pressable>
+          </View>
           <View style={styles.grid}>
             {user ? data.currentPicks.map((item) => <View key={item.pick.id} style={cellStyle}>
               <CollectionCard item={item} mine onOpen={() => openPick(item.pick.id)} onProduct={() => openProduct(item.pick.productId)} />
@@ -209,6 +230,9 @@ const styles = StyleSheet.create({
   stateTitle: { color: OnePick.text, fontSize: 16, fontWeight: '600', marginTop: 10, textAlign: 'center' },
   stateText: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: 'center' },
   retryButton: { minHeight: 44, justifyContent: 'center', marginTop: 12, paddingHorizontal: 14 },
+  refreshRow: { alignItems: 'flex-end', marginBottom: 12 },
+  refreshButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  refreshError: { alignSelf: 'stretch', color: '#A9482D', fontSize: 13, lineHeight: 20 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: OnePick.border, marginTop: 50, paddingTop: 24 },
   footerMark: { color: OnePick.accent, fontSize: 22, fontWeight: '800' },
   footerText: { color: OnePick.muted, fontSize: 13, lineHeight: 21, flex: 1 },

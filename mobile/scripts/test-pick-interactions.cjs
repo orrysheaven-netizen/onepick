@@ -58,10 +58,11 @@ async function main() {
   assert.equal(detail.myPickStatus.oneLineReview, '기존 한줄평');
 
   const presses = [], inputs = [];
-  let destination, params = { productId: 'product' };
+  let destination, params = { productId: 'product' }, pullToRefresh;
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
-    View: nativeComponent('div'), Text: nativeComponent('span'), ScrollView: nativeComponent('main'),
+    View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
+    ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     TextInput: (props) => { inputs.push(props); return null; },
@@ -162,11 +163,12 @@ async function main() {
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 
-  let feedPages = 0;
+  let feedPages = 0, feedRefreshes = 0;
   const feedQuery = {
     data: { openCategories: [], recentProducts: [], feed: [{ pick: { id: 'cached', oneLineReview: '이미 불러온 원픽' }, profile: null, product: null, category: null }] },
     hasNextPage: true, isError: true, isFetchNextPageError: true, isFetching: false,
     fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
+    refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
   };
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
@@ -176,6 +178,7 @@ async function main() {
   const failedFeed = render(Explore);
   assert.match(failedFeed, /이미 불러온 원픽/);
   assert.match(failedFeed, /다음 원픽을 불러오지 못했어요/);
+  assert.doesNotMatch(failedFeed, /최신 원픽을 확인하지 못했어요/, 'Page errors must not be described as full refresh errors');
   presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도').onPress();
   assert.equal(feedPages, 1);
   feedQuery.isFetching = true;
@@ -183,6 +186,29 @@ async function main() {
   const feedMore = presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도');
   assert.equal(feedMore.disabled, true);
   feedMore.onPress(); assert.equal(feedPages, 1, 'Background feed refresh must not be interrupted');
+  const feedRefreshButton = () => presses.find((p) => p.accessibilityLabel === '탐색 원픽 새로고침');
+  assert.equal(feedRefreshButton().disabled, true);
+  feedRefreshButton().onPress(); pullToRefresh.props.onRefresh();
+  assert.equal(feedRefreshes, 0, 'Refreshing must not cancel a pending next page');
+  feedQuery.isFetching = false; feedQuery.isFetchNextPageError = false;
+  const staleFeed = render(Explore);
+  assert.match(staleFeed, /최신 원픽을 확인하지 못했어요/);
+  assert.match(staleFeed, /이미 불러온 원픽/);
+  assert.doesNotMatch(staleFeed, /다음 원픽을 불러오지 못했어요/);
+  feedRefreshButton().onPress(); assert.equal(feedRefreshes, 1); assert.equal(feedPages, 1);
+  pullToRefresh.props.onRefresh(); assert.equal(feedRefreshes, 2);
+  feedQuery.isFetching = true; feedQuery.isRefetching = true;
+  assert.match(render(Explore), /새로고침 중/);
+  assert.equal(pullToRefresh.props.refreshing, true);
+  assert.equal(feedRefreshButton().disabled, true);
+  feedQuery.isFetching = false; feedQuery.isRefetching = false; feedQuery.isError = false;
+  assert.doesNotMatch(render(Explore), /최신 원픽을 확인하지 못했어요/);
+  feedRefreshButton().onPress(); assert.equal(feedRefreshes, 3);
+  feedQuery.data = undefined; feedQuery.isError = true;
+  assert.match(render(Explore), /탐색 데이터를 불러오지 못했어요/);
+  assert.equal(feedRefreshButton(), undefined);
+  presses.find((p) => textOf(p.children) === '다시 불러오기').onPress();
+  assert.equal(feedRefreshes, 4);
   console.log('Interaction checks passed: product/category eligibility, read-model product picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

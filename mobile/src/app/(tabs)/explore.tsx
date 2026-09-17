@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProductSearch } from '@/components/product-search';
@@ -12,6 +12,9 @@ export default function ExploreScreen() {
   const { width } = useWindowDimensions();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   const query = useExploreData(selectedCategoryId);
+  const refresh = () => {
+    if (!query.isFetching) void query.refetch({ cancelRefetch: false });
+  };
 
   const openPick = (pickId: string) => {
     router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -23,7 +26,11 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
         <Text style={styles.eyebrow}>EXPLORE</Text>
         <Text style={styles.title}>사람들의 원픽</Text>
         <Text style={styles.subtitle}>마음에 든 하나, 그리고 그걸 고른 이유.</Text>
@@ -60,7 +67,7 @@ export default function ExploreScreen() {
         {query.isError && !query.data ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>탐색 데이터를 불러오지 못했어요</Text>
-            <Pressable onPress={() => void query.refetch()} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={refresh} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
               <Text style={styles.retryButtonText}>다시 불러오기</Text>
             </Pressable>
           </View>
@@ -68,6 +75,19 @@ export default function ExploreScreen() {
 
         {query.data ? (
           <>
+            <View style={styles.refreshRow}>
+              {query.isError && !query.isFetchNextPageError ? (
+                <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="탐색 원픽 새로고침"
+                disabled={query.isFetching}
+                onPress={refresh}
+                style={({ pressed }) => [styles.refreshButton, (pressed || query.isFetching) && styles.pressed]}>
+                <Text style={styles.refreshText}>{query.isRefetching ? '새로고침 중…' : query.isError && !query.isFetchNextPageError ? '다시 불러오기' : '새로고침'}</Text>
+              </Pressable>
+            </View>
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>최근 원픽</Text>
@@ -180,6 +200,10 @@ const styles = StyleSheet.create({
   stateText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 16 },
   retryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  refreshRow: { alignItems: 'flex-end', marginTop: 8, marginBottom: 12 },
+  refreshButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  refreshText: { color: '#4945ED', fontSize: 14, fontWeight: '600' },
+  refreshError: { alignSelf: 'stretch', color: '#A9482D', fontSize: 13, lineHeight: 20 },
   loadMoreButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 6 },
   loadMoreText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26 },

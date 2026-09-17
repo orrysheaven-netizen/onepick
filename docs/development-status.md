@@ -79,6 +79,24 @@ It covers equal timestamps, deleted cursor rows, new rows, moderation changes,
 owner/status filters, account cache isolation and retry. `test-request-status.cjs`
 checks the rendered controls, independent failures, routes and privacy states.
 
+## Home and Explore refresh recovery
+
+Home and Explore provide an explicit refresh action on web and native, plus a
+native pull-to-refresh control. Home retains its loaded cards and routes when a
+data refresh fails; Explore now distinguishes a refresh failure from a failed
+additional page. Both show a cached-data notice and let the user retry. Initial
+load errors still show the full error state instead of empty success content.
+
+Refresh uses the existing query hooks, preserving the current account/category
+key and loaded infinite-query pages. Fetching guards and `cancelRefetch: false`
+prevent refresh and load-more actions from cancelling one another. Home still
+hides private cards while the session is being checked, on session errors and
+after logout. This is recovery for loaded in-memory data, not persistent offline
+storage or offline writes. No API, database or package changes are needed.
+
+The Home and interaction regression checks cover cached versus initial errors,
+both refresh controls, pending-request guards, retry recovery and session privacy.
+
 ## Deferred verification
 
 The user deferred Kakao login until the evening. Authenticated browser verification
