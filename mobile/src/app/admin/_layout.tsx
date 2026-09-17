@@ -1,22 +1,25 @@
 import { Slot } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdminShell, adminStyles } from '@/components/admin/admin-shell';
-import { checkAdminSession, signInAdmin, signOutAdmin } from '@/lib/admin-api';
+import { beginKakaoAdminSignIn, checkAdminSession, signOutAdmin } from '@/lib/admin-api';
 
 type AuthState = 'checking' | 'signedOut' | 'signedIn';
 
 export default function AdminLayout() {
   const [authState, setAuthState] = useState<AuthState>('checking');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    checkAdminSession().then((ok) => setAuthState(ok ? 'signedIn' : 'signedOut'));
+    checkAdminSession()
+      .then((ok) => setAuthState(ok ? 'signedIn' : 'signedOut'))
+      .catch((caught) => {
+        setError(caught instanceof Error ? caught.message : '관리자 인증에 실패했습니다.');
+        setAuthState('signedOut');
+      });
   }, []);
 
   if (Platform.OS !== 'web') {
@@ -40,20 +43,13 @@ export default function AdminLayout() {
   }
 
   if (authState === 'signedOut') {
-    const submit = async () => {
-      if (!email.trim() || !password) {
-        setError('이메일과 비밀번호를 입력해 주세요.');
-        return;
-      }
+    const submit = () => {
       setSubmitting(true);
       setError('');
       try {
-        await signInAdmin(email.trim(), password);
-        setPassword('');
-        setAuthState('signedIn');
+        beginKakaoAdminSignIn();
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : '로그인에 실패했습니다.');
-      } finally {
+        setError(caught instanceof Error ? caught.message : '카카오 로그인을 시작하지 못했습니다.');
         setSubmitting(false);
       }
     };
@@ -64,37 +60,20 @@ export default function AdminLayout() {
           <Text style={styles.logo}>OnePick</Text>
           <Text style={styles.adminLabel}>ADMIN</Text>
           <Text style={styles.loginTitle}>관리자 로그인</Text>
-          <Text style={styles.loginDescription}>Supabase 관리자 allowlist에 등록된 계정만 접근할 수 있습니다.</Text>
+          <Text style={styles.loginDescription}>관리자 allowlist에 등록된 카카오 계정만 접근할 수 있습니다.</Text>
 
-          <Text style={adminStyles.label}>이메일</Text>
-          <TextInput
-            accessibilityLabel="관리자 이메일"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={adminStyles.input}
-            placeholder="admin@example.com"
-          />
+          {!!error && <Text accessibilityRole="alert" style={[adminStyles.error, { marginBottom: 14 }]}>{error}</Text>}
 
-          <Text style={[adminStyles.label, { marginTop: 16 }]}>비밀번호</Text>
-          <TextInput
-            accessibilityLabel="관리자 비밀번호"
-            autoCapitalize="none"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={submit}
-            style={adminStyles.input}
-            placeholder="비밀번호"
-          />
-
-          {!!error && <Text accessibilityRole="alert" style={[adminStyles.error, { marginTop: 14 }]}>{error}</Text>}
-
-          <Pressable disabled={submitting} onPress={submit} style={[adminStyles.primaryButton, { marginTop: 22 }, submitting && { opacity: 0.5 }]}>
-            <Text style={adminStyles.primaryButtonText}>{submitting ? '확인 중...' : '로그인'}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={submitting}
+            onPress={submit}
+            style={[styles.kakaoButton, submitting && { opacity: 0.55 }]}
+          >
+            <Text style={styles.kakaoButtonText}>{submitting ? '카카오로 이동 중...' : '카카오로 관리자 로그인'}</Text>
           </Pressable>
+
+          <Text style={styles.loginHint}>로그인 후 Supabase에서 관리자 권한을 다시 확인합니다.</Text>
         </View>
       </SafeAreaView>
     );
@@ -120,4 +99,7 @@ const styles = StyleSheet.create({
   adminLabel: { marginTop: 3, color: '#9CA3AF', fontSize: 10, fontWeight: '800', letterSpacing: 2.4 },
   loginTitle: { marginTop: 34, color: '#111827', fontSize: 23, fontWeight: '800' },
   loginDescription: { marginTop: 8, marginBottom: 24, color: '#6B7280', fontSize: 13, lineHeight: 20 },
+  kakaoButton: { minHeight: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEE500', paddingHorizontal: 16 },
+  kakaoButtonText: { color: '#191919', fontSize: 14, fontWeight: '700' },
+  loginHint: { marginTop: 14, color: '#9CA3AF', fontSize: 11, lineHeight: 17, textAlign: 'center' },
 });
