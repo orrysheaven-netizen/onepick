@@ -90,9 +90,7 @@ export default function FindPickItemScreen() {
       .then((imported) => {
         router.replace({ pathname: '/pick/choose', params: { itemId: imported.itemId, categoryId: imported.categoryId } });
       })
-      .catch(() => {
-        attemptedMovieId.current = null;
-      })
+      .catch(() => {})
       .finally(() => setImportingMovieId(null));
   }, [importMovie, params.categoryId, params.externalMovieId, router, user]);
 
