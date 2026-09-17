@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnePick } from '@/constants/onepick';
 
-type TabIcon = 'home' | 'profile';
+type TabIcon = 'home' | 'explore' | 'profile';
 
 export default function AppTabs() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function AppTabs() {
       <TabSlot style={styles.slot} />
       <TabList style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TabTrigger name="home" href="/" asChild><TabButton icon="home" label="홈" /></TabTrigger>
+        <TabTrigger name="explore" href="/explore" asChild><TabButton icon="explore" label="탐색" /></TabTrigger>
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/find')}
           style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
@@ -30,6 +31,7 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
   return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={active ? OnePick.accent : OnePick.muted}
     strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" />
+      : name === 'explore' ? <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>
       : <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 6 0 0 1 16 0v2" /></>}
   </svg>;
 }

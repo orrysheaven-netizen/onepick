@@ -62,9 +62,9 @@ async function main() {
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
-    Image: nativeComponent('img'),
     ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,
+    Image: nativeComponent('img'),
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     TextInput: (props) => { inputs.push(props); return null; },
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
@@ -218,10 +218,14 @@ async function main() {
     fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
     refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
   };
-  const { default: Explore } = loadSource('app/explore.tsx', {
+  const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
+  const { browseCategoryGroups } = loadSource('lib/categories/categoryTree.ts');
+  const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
+    react: { ...React, useState: () => ['root', () => {}] },
+    '@/lib/categories/categoryTree': { browseCategoryGroups },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreData: () => feedQuery },
+    '@/hooks/useExploreData': { useExploreData: () => feedQuery, useExploreCategories: () => ({ data: browseCategories, refetch() {} }) },
   });
   const failedFeed = render(Explore);
   assert.match(failedFeed, /이미 불러온 원픽/);

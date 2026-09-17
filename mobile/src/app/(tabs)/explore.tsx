@@ -6,14 +6,22 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useExploreData } from '@/hooks/useExploreData';
+import { useExploreCategories, useExploreData } from '@/hooks/useExploreData';
+import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
-  const query = useExploreData(selectedCategoryId);
+  const [parentId, setParentId] = useState<string | undefined>();
+  const [childId, setChildId] = useState<string | undefined>();
+  const categories = useExploreCategories();
+  const groups = browseCategoryGroups(categories.data ?? []);
+  const group = groups.find((entry) => entry.category.id === parentId);
+  const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
+  const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
+  const query = useExploreData(selectedCategoryId, Boolean(selectedCategoryId));
   const refresh = () => {
-    if (!query.isFetching) void query.refetch({ cancelRefetch: false });
+    if (!categories.isFetching) void categories.refetch();
+    if (selectedCategoryId && !query.isFetching) void query.refetch({ cancelRefetch: false });
   };
 
   const openPick = (pickId: string) => {
@@ -25,51 +33,51 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
-        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기"
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-        <Text style={styles.eyebrow}>MORE PICKS</Text>
-        <Text style={styles.title}>사람들의 원픽</Text>
-        <Text style={styles.subtitle}>마음에 든 하나, 그리고 그걸 고른 이유.</Text>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
+        <Text style={styles.eyebrow}>EXPLORE</Text>
+        <Text style={styles.title}>카테고리 탐색</Text>
+        <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: !selectedCategoryId }}
-            onPress={() => setSelectedCategoryId(undefined)}
-            style={[styles.chip, !selectedCategoryId && styles.chipActive]}>
-            <Text style={[styles.chipText, !selectedCategoryId && styles.chipTextActive]}>전체</Text>
-          </Pressable>
-          {query.data?.openCategories.map((category) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: selectedCategoryId === category.id }}
-              key={category.id}
-              onPress={() => setSelectedCategoryId(category.id)}
-              style={[styles.chip, selectedCategoryId === category.id && styles.chipActive]}>
-              <Text style={[styles.chipText, selectedCategoryId === category.id && styles.chipTextActive]}>{category.name}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>
+        {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
+        {categories.isError ? <View style={styles.stateCard}><Text style={styles.stateText}>카테고리를 불러오지 못했어요.</Text><Pressable accessibilityRole="button" onPress={refresh}><Text style={styles.refreshText}>다시 불러오기</Text></Pressable></View> : null}
+        <View style={styles.categoryGrid}>
+          {groups.map(({ category, children, directlySelectable }) => <Pressable key={category.id}
+            accessibilityRole="button" accessibilityLabel={`${category.name} 1차 카테고리`}
+            accessibilityState={{ selected: parentId === category.id }}
+            onPress={() => { setParentId(category.id); setChildId(undefined); }}
+            style={[styles.parentCard, parentId === category.id && styles.parentActive]}>
+            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{category.name}</Text>
+            <Text style={styles.parentHint}>{directlySelectable ? '원픽 둘러보기' : children.length ? `${children.length}개 카테고리` : '준비 중'}</Text>
+            <Text style={styles.parentArrow}>↗</Text>
+          </Pressable>)}
+        </View>
+        {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
+        {group && !group.directlySelectable ? <View style={styles.childPanel}>
+          <Text style={styles.sectionTitle}>2. {group.category.name}에서 골라주세요</Text>
+          <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
+            accessibilityLabel={`${category.name} 2차 카테고리`} accessibilityState={{ selected: childId === category.id }}
+            onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
+            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{category.name}</Text>
+          </Pressable>)}</View>
+          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 선택하면 제품과 원픽이 표시돼요.</Text> : null}
+        </View> : null}
 
-        <ItemSearch categoryId={selectedCategoryId} onSelect={openItem} />
+        {selectedCategoryId ? <><Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text><ItemSearch key={selectedCategoryId} categoryId={selectedCategoryId} onSelect={openItem} /></> : null}
 
-        {query.isPending && !query.data ? (
+        {selectedCategoryId && query.isPending && !query.data ? (
           <View style={styles.stateCard}>
             <ActivityIndicator />
             <Text style={styles.stateText}>최근 원픽을 불러오고 있어요</Text>
           </View>
         ) : null}
 
-        {query.isError && !query.data ? (
+        {selectedCategoryId && query.isError && !query.data ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>탐색 데이터를 불러오지 못했어요</Text>
             <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={refresh} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
@@ -78,7 +86,7 @@ export default function ExploreScreen() {
           </View>
         ) : null}
 
-        {query.data ? (
+        {selectedCategoryId && query.data ? (
           <>
             <View style={styles.refreshRow}>
               {query.isError && !query.isFetchNextPageError ? (
@@ -95,7 +103,7 @@ export default function ExploreScreen() {
             </View>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>최근 원픽</Text>
+                <Text style={styles.sectionTitle}>{selectedCategory?.name} 원픽</Text>
                 <Text style={styles.sectionDescription}>사람들이 최근 공개한 현재 원픽이에요.</Text>
               </View>
               {query.isFetching && !query.isFetchingNextPage ? <ActivityIndicator size="small" /> : null}
@@ -177,6 +185,17 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
+  levelTitle: { color: '#202124', fontSize: 15, fontWeight: '700', marginTop: 28, marginBottom: 14 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  parentCard: { width: '48%', flexGrow: 1, minHeight: 118, padding: 18, borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, backgroundColor: '#FFFFFF' },
+  parentActive: { backgroundColor: '#EFEEFF', borderColor: '#4945ED' },
+  parentName: { color: '#202124', fontSize: 20, fontWeight: '800' },
+  parentNameActive: { color: '#4945ED' },
+  parentHint: { color: '#747985', fontSize: 12, marginTop: 8 },
+  parentArrow: { color: '#4945ED', fontSize: 20, alignSelf: 'flex-end', marginTop: 8 },
+  childPanel: { padding: 18, marginTop: 22, borderRadius: 20, backgroundColor: '#FFFFFF' },
+  childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  selectionLabel: { color: '#4945ED', fontSize: 14, fontWeight: '700', marginTop: 26 },
   categoryList: { gap: 8, paddingVertical: 20 },
   chip: { minHeight: 44, justifyContent: 'center', backgroundColor: '#ECEEF3', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
   chipActive: { backgroundColor: '#4945ED' },

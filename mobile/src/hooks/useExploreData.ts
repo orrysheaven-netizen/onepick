@@ -1,11 +1,16 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { exploreService } from '@/services';
 
-export function useExploreData(categoryId?: string) {
+export function useExploreCategories() {
+  return useQuery({ queryKey: ['categories', 'browse'], queryFn: () => exploreService.getCategories() });
+}
+
+export function useExploreData(categoryId?: string, enabled = true) {
   return useInfiniteQuery({
+    enabled,
     queryKey: queryKeys.explore.data(categoryId),
     initialPageParam: null as ReadCursor | null,
     queryFn: ({ pageParam }) => exploreService.getExploreData(categoryId, pageParam),

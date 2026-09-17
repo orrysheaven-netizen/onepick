@@ -8,6 +8,10 @@ export class SupabaseCategoryRepository implements CategoryRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
   async getOpenCategories() {
+    return selectableCategories(await this.getBrowseCategories());
+  }
+
+  async getBrowseCategories() {
     const { data, error } = await this.client
       .from('categories')
       .select('*')
@@ -19,7 +23,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
       throw mapSupabaseError(error);
     }
 
-    return selectableCategories(data.map(mapCategoryRow));
+    return data.map(mapCategoryRow);
   }
 
   async getById(categoryId: string) {
