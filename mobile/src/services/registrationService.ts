@@ -18,6 +18,12 @@ export interface RegisterPickInput {
   photo?: PickPhotoDraft | null;
 }
 
+export interface AttachItemPhotoInput {
+  userId: string;
+  itemId: string;
+  photo: PickPhotoDraft;
+}
+
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
   | { type: 'pending_item'; item: Item }
@@ -60,6 +66,35 @@ export class RegistrationService {
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new AppError('IMAGE_SOURCE_UNSUPPORTED');
     const image = await this.photoRepository.importFromUrl(parsed.href);
     return this.devicePhotoRepository.preparePhoto(image.dataUri, image.sourceUrl);
+  }
+
+  async attachItemPhoto(input: AttachItemPhotoInput) {
+    if (!input.userId) throw new AppError('AUTH_REQUIRED');
+
+    const current = await this.itemRepository.getById(input.itemId);
+    if (!current) throw new AppError('ITEM_NOT_FOUND');
+    if (current.status !== 'active' && current.status !== 'discontinued') {
+      throw new AppError('ITEM_NOT_ELIGIBLE');
+    }
+    if (current.imagePath) return current;
+
+    await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+    const uploaded = await this.photoRepository.upload(input.userId, input.photo);
+
+    try {
+      const item = await this.itemRepository.attachPhoto({
+        itemId: current.id,
+        ...uploaded,
+        imageSourceUrl: input.photo.sourceUrl,
+      });
+      if (item.imagePath !== uploaded.imagePath) {
+        await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      }
+      return item;
+    } catch (error) {
+      await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      throw error;
+    }
   }
 
   async register(input: RegisterPickInput): Promise<RegistrationResult> {

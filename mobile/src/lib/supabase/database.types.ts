@@ -529,6 +529,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_item_photo: {
+        Args: {
+          p_image_path: string
+          p_image_source_url?: string
+          p_item_id: string
+          p_thumbnail_path: string
+        }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          merged_into_item_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       change_pick: {
         Args: {
           p_category_id: string

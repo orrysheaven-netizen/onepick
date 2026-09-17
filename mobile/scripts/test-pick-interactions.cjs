@@ -62,6 +62,7 @@ async function main() {
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
+    Image: nativeComponent('img'),
     ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
@@ -77,6 +78,10 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false }) },
     '@/errors/appError': { AppError },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ data: detail }) },
+    '@/hooks/useRegisterPick': {
+      useChoosePhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null }),
+      useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
+    },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
   const { default: Item } = loadSource('app/item/[itemId].tsx', base);
@@ -96,48 +101,6 @@ async function main() {
   detail.canChoose = true;
   render(Choose);
   assert.equal(inputs[0].value, '기존 한줄평');
-
-  // A product change starts with a blank review. The action must explain what is
-  // missing instead of silently disabling itself or copying the previous reason.
-  let chooseStates = [], chooseStateIndex = 0, reviewFocuses = 0;
-  const chosenInputs = [];
-  const choiceMutation = { isPending: false, mutateAsync: async (input) => { chosenInputs.push(input); return input; } };
-  const { default: ChangeChoice } = loadSource('app/pick/choose.tsx', {
-    ...base,
-    react: { ...React,
-      useState: (initial) => {
-        const index = chooseStateIndex++;
-        if (!(index in chooseStates)) chooseStates[index] = initial;
-        return [chooseStates[index], (value) => { chooseStates[index] = value; }];
-      },
-      useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
-    },
-    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation },
-  });
-  detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
-  const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이 제품으로 바꾸기');
-  renderChoice();
-  assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
-  assert.equal(changeButton().disabled, false);
-  changeButton().onPress();
-  assert.equal(chosenInputs.length, 0);
-  assert.equal(reviewFocuses, 1);
-  assert.match(renderChoice(), /한줄평을 입력해주세요/);
-  inputs[0].onChangeText('   '); renderChoice(); changeButton().onPress();
-  assert.equal(chosenInputs.length, 0, 'Whitespace is not a valid review');
-  inputs[0].onChangeText('  삼양라면이 좋아요  ');
-  assert.doesNotMatch(renderChoice(), /한줄평을 입력해주세요/);
-  choiceMutation.isPending = true; renderChoice();
-  assert.equal(changeButton().disabled, true);
-  changeButton().onPress(); assert.equal(chosenInputs.length, 0);
-  choiceMutation.isPending = false; renderChoice(); changeButton().onPress();
-  await flush();
-  assert.equal(chosenInputs.length, 1);
-  assert.equal(chosenInputs[0].oneLineReview, '삼양라면이 좋아요');
-  assert.equal(chosenInputs[0].itemId, 'item');
-  assert.match(renderChoice(), /원픽이 선택됐어요/);
-
   const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
     ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },

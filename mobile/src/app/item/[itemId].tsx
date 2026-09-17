@@ -1,17 +1,66 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { useAttachItemPhoto, useChoosePhoto } from '@/hooks/useRegisterPick';
 import { ItemPickCount } from '@/components/item-pick-count';
 import { PickPhoto } from '@/components/pick-photo';
+import type { PickPhotoDraft } from '@/types/domain/photo';
+
+function photoErrorMessage(error: unknown) {
+  if (error instanceof AppError) {
+    switch (error.code) {
+      case 'PHOTO_INVALID': return '이미지를 읽지 못했어요. 다른 사진을 선택해주세요.';
+      case 'PHOTO_TOO_LARGE': return '사진이 너무 커요. 더 작은 사진을 선택해주세요.';
+      case 'PHOTO_UPLOAD_FAILED': return '사진을 저장하지 못했어요. 다시 시도해주세요.';
+      case 'ITEM_NOT_ELIGIBLE': return '현재 이 제품에는 이미지를 추가할 수 없어요.';
+      case 'AUTH_REQUIRED': return '로그인 상태를 다시 확인해주세요.';
+      case 'PROFILE_NOT_FOUND': return '사용자명을 먼저 정해주세요.';
+    }
+  }
+  return '대표 이미지를 추가하지 못했어요. 잠시 후 다시 시도해주세요.';
+}
 
 export default function ItemDetailScreen() {
   const router = useRouter();
   const { itemId } = useLocalSearchParams<{ itemId?: string }>();
   const { user } = useAuthSession();
   const query = useItemDetail(itemId, user?.id);
+  const photoPicker = useChoosePhoto();
+  const photoAttachment = useAttachItemPhoto();
+  const busy = useRef(false);
+  const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
+  const [photoApproved, setPhotoApproved] = useState(false);
+
+  const choosePhoto = async () => {
+    if (busy.current || photoPicker.isPending || photoAttachment.isPending) return;
+    busy.current = true;
+    try {
+      const selected = await photoPicker.mutateAsync();
+      if (selected) {
+        setPhoto(selected);
+        setPhotoApproved(false);
+        photoAttachment.reset();
+      }
+    } catch { /* The mutation renders an actionable error below. */ }
+    finally { busy.current = false; }
+  };
+
+  const attachPhoto = async () => {
+    if (!user || !itemId || !photo || !photoApproved || busy.current) return;
+    busy.current = true;
+    try {
+      await photoAttachment.mutateAsync({ userId: user.id, itemId, photo });
+      setPhoto(null);
+      setPhotoApproved(false);
+      await query.refetch();
+    } catch { /* Keep the selected image for retry. */ }
+    finally { busy.current = false; }
+  };
 
   if (query.isPending) {
     return (
@@ -56,6 +105,51 @@ export default function ItemDetailScreen() {
 
         <View style={styles.heroCard}>
           <PickPhoto uri={item.imageUrl} label={item.name} large />
+          {!item.imagePath && user ? (
+            <View style={styles.photoContribution}>
+              <Text style={styles.photoContributionTitle}>대표 이미지가 비어 있어요</Text>
+              <Text style={styles.photoContributionHint}>직접 찍었거나 사용 권한이 있는 제품 사진을 첫 대표 이미지로 공유할 수 있어요.</Text>
+              {photo ? (
+                <>
+                  <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: photoApproved }}
+                    disabled={photoAttachment.isPending}
+                    onPress={() => setPhotoApproved((approved) => !approved)}
+                    style={({ pressed }) => [styles.photoConsent, pressed && styles.pressed]}>
+                    <Text style={styles.photoConsentText}>{photoApproved ? '☑' : '☐'} 이 제품의 사진이 맞으며 대표 이미지로 공유할 수 있어요</Text>
+                  </Pressable>
+                  <View style={styles.photoActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={photoAttachment.isPending}
+                      onPress={() => void choosePhoto()}
+                      style={({ pressed }) => [styles.photoSecondaryButton, pressed && styles.pressed]}>
+                      <Text style={styles.photoSecondaryText}>다시 선택</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!photoApproved || photoAttachment.isPending}
+                      onPress={() => void attachPhoto()}
+                      style={({ pressed }) => [styles.photoPrimaryButton, (!photoApproved || photoAttachment.isPending) && styles.disabled, pressed && styles.pressed]}>
+                      {photoAttachment.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={photoPicker.isPending}
+                  onPress={() => void choosePhoto()}
+                  style={({ pressed }) => [styles.photoPrimaryButton, styles.photoChooseButton, pressed && styles.pressed]}>
+                  {photoPicker.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>사진 선택</Text>}
+                </Pressable>
+              )}
+              {photoPicker.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoPicker.error)}</Text> : null}
+              {photoAttachment.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoAttachment.error)}</Text> : null}
+            </View>
+          ) : null}
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <ItemPickCount itemId={item.id} />
@@ -128,6 +222,19 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, marginTop: 8 },
+  photoContribution: { width: '100%', borderWidth: 1, borderColor: '#DDDDF5', backgroundColor: '#F7F7FF', borderRadius: 18, padding: 16, marginTop: 18 },
+  photoContributionTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  photoContributionHint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: '#FFFFFF', marginTop: 14 },
+  photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
+  photoConsentText: { color: '#202124', fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  photoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
+  photoChooseButton: { marginTop: 14 },
+  photoPrimaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  photoSecondaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4D6DD', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
+  photoSecondaryText: { color: '#202124', fontSize: 13, fontWeight: '800' },
+  photoError: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 10 },
   itemIcon: { width: 122, height: 122, borderRadius: 30, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
   itemEmoji: { fontSize: 58 },
   category: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
@@ -158,4 +265,5 @@ const styles = StyleSheet.create({
   secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.4 },
 });

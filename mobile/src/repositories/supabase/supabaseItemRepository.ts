@@ -3,6 +3,7 @@ import { AppError } from '@/errors/appError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  AttachItemPhotoInput,
   ItemRepository,
   ItemSearchInput,
   SubmitItemInput,
@@ -18,6 +19,18 @@ export class SupabaseItemRepository implements ItemRepository {
   private mapRow = (row: ItemRow) => mapItemRow(row,
     row.image_path ? this.client.storage.from('item-photos').getPublicUrl(row.image_path).data.publicUrl : null,
     row.thumbnail_path ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null);
+
+  async attachPhoto(input: AttachItemPhotoInput) {
+    const { data, error } = await this.client.rpc('attach_item_photo', {
+      p_item_id: input.itemId,
+      p_image_path: input.imagePath,
+      p_thumbnail_path: input.thumbnailPath,
+      p_image_source_url: input.imageSourceUrl,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data) throw new AppError('INTERNAL_ERROR');
+    return this.mapRow(data);
+  }
 
   async getById(itemId: string) {
     const { data, error } = await this.client
