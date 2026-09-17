@@ -34,17 +34,23 @@ You can start developing by editing the files inside the **app** directory. This
 
 ## OnePick Admin
 
-The first admin MVP is available on web under `/admin`.
+The admin workspace is available on web under `/admin`.
 
 - `/admin` — dashboard metrics and recent admin audit logs
 - `/admin/categories` — category creation and operating settings
+- `/admin/items` — item search, status and metadata management
 - `/admin/pending` — approve or reject pending items
+- `/admin/users` — read-only user lookup
+- `/admin/reports` — content report review and resolution status
+- `/admin/audit` — recent admin audit log history
 
 Admin authentication uses the existing Supabase Kakao provider. After Kakao sign-in, the app calls `current_user_is_admin()` and only allows users present in the server-side admin allowlist.
 
 Before testing Kakao admin login, add every admin web origin to **Supabase Auth > URL Configuration > Redirect URLs** with the `/admin` path. For example, when Expo web runs on port 8081, add `http://localhost:8081/admin`. Add the production `/admin` URL separately when the app is deployed.
 
 Do not put a Supabase secret/service-role key in `EXPO_PUBLIC_*` variables or client code.
+
+The admin list screens intentionally cap a single request at 100 records. Use search/status filters rather than loading the full catalog as the dataset grows.
 
 ## Get a fresh project
 
