@@ -5,10 +5,19 @@ import { adminStyles } from '@/components/admin/admin-shell';
 import { getModeratedUsers, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { ModeratedAdminUser } from '@/lib/admin-moderation-api';
 
+type UserFilter = 'all' | 'active' | 'suspended';
+
+const FILTERS: Array<{ value: UserFilter; label: string }> = [
+  { value: 'all', label: '전체' },
+  { value: 'active', label: '정상' },
+  { value: 'suspended', label: '정지' },
+];
+
 export default function AdminUsersScreen() {
   const [users, setUsers] = useState<ModeratedAdminUser[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<UserFilter>('all');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -21,7 +30,8 @@ export default function AdminUsersScreen() {
     try {
       const result = await getModeratedUsers(query);
       setUsers(result);
-      setSelectedId((current) => current && result.some((user) => user.id === current) ? current : result[0]?.id ?? null);
+      const visible = filter === 'all' ? result : result.filter((user) => user.moderation_status === filter);
+      setSelectedId((current) => current && visible.some((user) => user.id === current) ? current : visible[0]?.id ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '사용자 목록을 불러오지 못했습니다.');
     } finally {
@@ -33,6 +43,9 @@ export default function AdminUsersScreen() {
     load();
   }, []);
 
+  const activeCount = users.filter((user) => user.moderation_status === 'active').length;
+  const suspendedCount = users.length - activeCount;
+  const visibleUsers = filter === 'all' ? users : users.filter((user) => user.moderation_status === filter);
   const selected = users.find((user) => user.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -40,6 +53,12 @@ export default function AdminUsersScreen() {
     setError('');
     setMessage('');
   }, [selectedId]);
+
+  const changeFilter = (next: UserFilter) => {
+    setFilter(next);
+    const nextUsers = next === 'all' ? users : users.filter((user) => user.moderation_status === next);
+    setSelectedId((current) => current && nextUsers.some((user) => user.id === current) ? current : nextUsers[0]?.id ?? null);
+  };
 
   const changeSuspension = async (suspended: boolean) => {
     if (!selected || processing) return;
@@ -52,14 +71,20 @@ export default function AdminUsersScreen() {
     setMessage('');
     try {
       const state = await setUserSuspension(selected.id, suspended, reason);
+      const nextStatus = state.status;
       setUsers((current) => current.map((user) => user.id === selected.id ? {
         ...user,
-        moderation_status: state.status,
+        moderation_status: nextStatus,
         suspension_reason: state.reason,
         suspended_at: state.suspended_at,
       } : user));
       setMessage(suspended ? `@${selected.username} 계정을 정지했습니다.` : `@${selected.username} 계정 정지를 해제했습니다.`);
       if (!suspended) setReason('');
+
+      if (filter !== 'all' && filter !== nextStatus) {
+        const remaining = users.filter((user) => user.id !== selected.id && user.moderation_status === filter);
+        setSelectedId(remaining[0]?.id ?? null);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '사용자 제재 상태를 변경하지 못했습니다.');
     } finally {
@@ -72,6 +97,12 @@ export default function AdminUsersScreen() {
       <View>
         <Text style={adminStyles.pageTitle}>사용자</Text>
         <Text style={adminStyles.pageDescription}>사용자를 조회하고 계정을 정지하거나 해제합니다. 정지된 사용자의 공개 콘텐츠는 숨겨지고 새 Pick·댓글 작성이 차단됩니다.</Text>
+      </View>
+
+      <View style={styles.summaryRow}>
+        <SummaryCard label="전체" value={users.length} />
+        <SummaryCard label="정상" value={activeCount} />
+        <SummaryCard label="정지" value={suspendedCount} />
       </View>
 
       <View style={styles.toolbar}>
@@ -89,17 +120,31 @@ export default function AdminUsersScreen() {
         </Pressable>
       </View>
 
+      <View style={adminStyles.row}>
+        {FILTERS.map((item) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === item.value }}
+            key={item.value}
+            onPress={() => changeFilter(item.value)}
+            style={[styles.filterButton, filter === item.value && styles.filterButtonActive]}
+          >
+            <Text style={[styles.filterText, filter === item.value && styles.filterTextActive]}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
       {!!message && <Text accessibilityLiveRegion="polite" style={adminStyles.success}>{message}</Text>}
 
       <View style={styles.workspace}>
         <View style={[adminStyles.card, styles.listPanel]}>
           <View style={styles.header}>
-            <Text style={adminStyles.sectionTitle}>사용자 · {users.length}</Text>
+            <Text style={adminStyles.sectionTitle}>{FILTERS.find((item) => item.value === filter)?.label} 사용자 · {visibleUsers.length}</Text>
             {loading && <ActivityIndicator size="small" />}
           </View>
-          {!loading && users.length === 0 && <Text style={styles.empty}>조건에 맞는 사용자가 없습니다.</Text>}
-          {users.map((user) => (
+          {!loading && visibleUsers.length === 0 && <Text style={styles.empty}>조건에 맞는 사용자가 없습니다.</Text>}
+          {visibleUsers.map((user) => (
             <Pressable key={user.id} onPress={() => setSelectedId(user.id)} style={[styles.userRow, selectedId === user.id && styles.userRowSelected]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{user.username.slice(0, 1).toUpperCase()}</Text></View>
               <View style={styles.userBody}>
@@ -165,6 +210,15 @@ export default function AdminUsersScreen() {
   );
 }
 
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.summaryCard}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
 function StatusBadge({ suspended }: { suspended: boolean }) {
   return <Text style={[styles.statusBadge, suspended && styles.statusBadgeSuspended]}>{suspended ? '정지' : '정상'}</Text>;
 }
@@ -175,8 +229,16 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   page: { gap: 20 },
+  summaryRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  summaryCard: { minWidth: 108, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  summaryLabel: { color: '#6B7280', fontSize: 11, fontWeight: '600' },
+  summaryValue: { marginTop: 4, color: '#111827', fontSize: 20, fontWeight: '800' },
   toolbar: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   search: { flexGrow: 1, flexBasis: 280, maxWidth: 520 },
+  filterButton: { minHeight: 34, justifyContent: 'center', borderRadius: 17, paddingHorizontal: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
+  filterButtonActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  filterText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
+  filterTextActive: { color: '#FFFFFF' },
   workspace: { flexDirection: 'row', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' },
   listPanel: { flexGrow: 1, flexBasis: 520, minWidth: 320 },
   detailPanel: { flexGrow: 1, flexBasis: 380, minWidth: 300 },
