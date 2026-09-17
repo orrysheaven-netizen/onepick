@@ -1,6 +1,7 @@
 import { AppError } from '@/errors/appError';
 import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
+import type { ProductStatus } from '@/types/domain/product';
 import { canonicalProductName } from '@/lib/products/productIdentity';
 import type {
   AdminBrandInput,
@@ -11,6 +12,7 @@ import type {
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MANAGED_PRODUCT_STATUSES = new Set<ProductStatus>(['active', 'discontinued', 'hidden']);
 
 function cleanName(value: string, max = 100) {
   const name = value.trim().replace(/\s+/g, ' ');
@@ -66,13 +68,7 @@ export class AdminService {
       })),
     );
 
-    return {
-      categories,
-      brands,
-      products,
-      aliases,
-      pending: submitters,
-    };
+    return { categories, brands, products, aliases, pending: submitters };
   }
 
   async createCategory(input: AdminCategoryInput) {
@@ -80,7 +76,6 @@ export class AdminService {
     const name = cleanName(input.name, 60);
     const slug = input.slug.trim().toLowerCase();
     this.validateCategory({ ...input, name, slug }, await this.adminRepository.getCategories());
-
     return this.adminRepository.createCategory({ ...input, name, slug });
   }
 
@@ -128,6 +123,37 @@ export class AdminService {
       normalizedName: normalizeProductName(name),
       status: input.status ?? 'active',
     });
+  }
+
+  async updateProduct(productId: string, input: Partial<AdminProductInput>) {
+    await this.assertAdmin();
+    const [product, categories] = await Promise.all([
+      this.adminRepository.getProductById(productId),
+      this.adminRepository.getCategories(),
+    ]);
+    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
+    if (!MANAGED_PRODUCT_STATUSES.has(product.status)) throw new AppError('PICK_CONFLICT');
+    if (input.categoryId !== undefined && input.categoryId !== product.categoryId) {
+      throw new AppError('PRODUCT_CATEGORY_MISMATCH');
+    }
+
+    const status = input.status ?? product.status;
+    if (!MANAGED_PRODUCT_STATUSES.has(status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    const category = categories.find((item) => item.id === product.categoryId);
+    if (!category) throw new AppError('CATEGORY_NOT_FOUND');
+    if (status !== 'hidden' && !selectableCategories(categories).some((item) => item.id === product.categoryId)) {
+      throw new AppError('CATEGORY_NOT_PICKABLE');
+    }
+
+    const name = canonicalProductName(cleanName(input.name ?? product.name), category.slug);
+    return this.adminRepository.updateProduct(productId, {
+      ...input,
+      categoryId: product.categoryId,
+      name,
+      normalizedName: normalizeProductName(name),
+      status,
+      mergedIntoProductId: null,
+    }, product.status);
   }
 
   async addProductAlias(productId: string, value: string) {
@@ -191,8 +217,7 @@ export class AdminService {
   }
 
   async hideProduct(productId: string) {
-    await this.assertAdmin();
-    return this.adminRepository.updateProduct(productId, { status: 'hidden', mergedIntoProductId: null });
+    return this.updateProduct(productId, { status: 'hidden' });
   }
 
   private async assertAdmin() {
