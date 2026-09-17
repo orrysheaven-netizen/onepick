@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { ItemPickCount } from '@/components/item-pick-count';
 import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -147,29 +146,6 @@ export default function ExploreScreen() {
               </Pressable>
             ) : null}
 
-            {query.data.recentItems.length > 0 ? (
-              <>
-                <View style={[styles.sectionHeader, styles.itemSectionHeader]}>
-                  <View>
-                    <Text style={styles.sectionTitle}>최근 등장한 제품</Text>
-                    <Text style={styles.sectionDescription}>최근 원픽 기록에 등장한 제품을 중복 없이 모았어요.</Text>
-                  </View>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemList}>
-                  {query.data.recentItems.map(({ item, category }) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => openItem(item.id)}
-                      style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]}>
-                      <PickPhoto uri={item.thumbnailUrl} label={item.name} />
-                      <Text style={styles.itemCategory}>{category.name}</Text>
-                      <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text><ItemPickCount itemId={item.id} />
-                      <Text style={styles.itemAction}>제품 상세 보기</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
-            ) : null}
           </>
         ) : null}
       </ScrollView>
