@@ -20,12 +20,20 @@ export function SignOutButton() {
         <Text style={styles.settingsLabel}>계정 설정 · 차단 관리</Text>
       </Pressable>
       {adminAccess.data === true ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/admin/reports')}
-          style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
-          <Text style={styles.adminLabel}>신고 관리</Text>
-        </Pressable>
+        <>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/admin/ops')}
+            style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
+            <Text style={styles.adminLabel}>운영 현황 · 감사 로그</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/admin/reports')}
+            style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
+            <Text style={styles.adminLabel}>신고 관리</Text>
+          </Pressable>
+        </>
       ) : null}
       <Pressable
         accessibilityRole="button"
