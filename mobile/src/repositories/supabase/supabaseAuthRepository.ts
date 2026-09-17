@@ -123,4 +123,22 @@ export class SupabaseAuthRepository implements AuthRepository {
       throw new AppError('AUTH_FAILED', error.message, error);
     }
   }
+
+  async deleteAccount() {
+    const { data, error } = await this.client.functions.invoke('delete-account', {
+      body: {},
+    });
+
+    if (error || data?.ok !== true) {
+      throw new AppError(
+        'ACCOUNT_DELETE_FAILED',
+        data?.code ?? error?.message ?? 'ACCOUNT_DELETE_FAILED',
+        error ?? data,
+      );
+    }
+
+    // The server has already removed the Auth user. This call only clears the
+    // locally persisted session and should not change the deletion result.
+    await this.client.auth.signOut({ scope: 'local' });
+  }
 }
