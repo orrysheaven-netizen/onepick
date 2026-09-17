@@ -15,7 +15,7 @@ export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbna
     officialUrl: row.official_url,
     imagePath: row.image_path ?? null,
     imageUrl: imageUrl ?? sourceImageUrl,
-    thumbnailUrl: thumbnailUrl ?? sourceImageUrl,
+    thumbnailUrl: thumbnailUrl ?? imageUrl ?? sourceImageUrl,
     imageSourceUrl: sourceImageUrl,
     externalSource: row.external_source,
     externalId: row.external_id,
