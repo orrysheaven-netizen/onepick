@@ -94,6 +94,7 @@ export default function HomeScreen() {
             <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
             <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
             <Text style={styles.introDescription}>여러 사람의 선택이 모인 제품을 만나보세요.</Text>
+            <Text style={styles.photoGuide}>원픽 사진은 직접 등록해주세요. 내가 쓰는 제품의 실제 사진을 올려주세요.</Text>
           </View>
         </View>
 
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
   headline: { color: OnePick.text, fontSize: 30, lineHeight: 40, letterSpacing: -1.2, fontWeight: '800', marginTop: 8 },
   accent: { color: OnePick.accent },
   introDescription: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  photoGuide: { color: OnePick.text, fontSize: 13, lineHeight: 20, marginTop: 10, fontWeight: '600' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
   sectionCopy: { flexShrink: 1 },
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
