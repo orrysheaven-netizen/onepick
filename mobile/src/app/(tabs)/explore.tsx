@@ -12,6 +12,7 @@ export default function ExploreScreen() {
   const router = useRouter();
   const [parentId, setParentId] = useState<string | undefined>();
   const [childId, setChildId] = useState<string | undefined>();
+  const [searchOpen, setSearchOpen] = useState(false);
   const categories = useExploreCategories();
   const groups = browseCategoryGroups(categories.data ?? []);
   const group = groups.find((entry) => entry.category.id === parentId);
@@ -38,9 +39,19 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={categories.isRefetching || query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
-        <Text style={styles.eyebrow}>EXPLORE</Text>
-        <Text style={styles.title}>카테고리 탐색</Text>
+        <View style={styles.titleRow}>
+          <View><Text style={styles.eyebrow}>EXPLORE</Text><Text style={styles.title}>카테고리 탐색</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '제품 검색 닫기' : '제품 검색 열기'}
+            accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
+            style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
+            {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
+        {searchOpen ? <View style={styles.searchPanel}>
+          <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 제품 검색'}</Text>
+          <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId} onSelect={openItem} />
+        </View> : null}
 
         <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
@@ -67,7 +78,7 @@ export default function ExploreScreen() {
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 선택하면 제품과 원픽이 표시돼요.</Text> : null}
         </View> : null}
 
-        {selectedCategoryId ? <><Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text><ItemSearch key={selectedCategoryId} categoryId={selectedCategoryId} onSelect={openItem} /></> : null}
+        {selectedCategoryId ? <Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text> : null}
 
         {selectedCategoryId && query.isPending && !query.data ? (
           <View style={styles.stateCard}>
@@ -160,6 +171,15 @@ const styles = StyleSheet.create({
   backText: { color: '#202124', fontSize: 36, lineHeight: 40, fontWeight: '300' },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.8, marginTop: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  searchButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA' },
+  searchButtonActive: { backgroundColor: '#EFEEFF', borderColor: '#4945ED' },
+  magnifier: { width: 24, height: 24 },
+  magnifierRing: { position: 'absolute', width: 16, height: 16, borderWidth: 2, borderColor: '#202124', borderRadius: 8, top: 1, left: 1 },
+  magnifierHandle: { position: 'absolute', width: 10, height: 2, borderRadius: 1, backgroundColor: '#202124', transform: [{ rotate: '45deg' }], top: 18, left: 14 },
+  closeSearch: { color: '#4945ED', fontSize: 28, lineHeight: 30 },
+  searchPanel: { marginTop: 18, gap: 8 },
+  searchScope: { fontSize: 12, color: '#747985' },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
   levelTitle: { color: '#202124', fontSize: 15, fontWeight: '700', marginTop: 28, marginBottom: 14 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
