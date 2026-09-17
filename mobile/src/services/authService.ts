@@ -22,4 +22,8 @@ export class AuthService {
   signOut() {
     return this.authRepository.signOut();
   }
+
+  deleteAccount() {
+    return this.authRepository.deleteAccount();
+  }
 }
