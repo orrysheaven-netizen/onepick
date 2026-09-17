@@ -42,5 +42,5 @@ export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
-  getProductRequestsByUser(userId: string, statuses?: ProductStatus[], limit?: number): Promise<ProductRequestReadItem[]>;
+  getProductRequestsByUser(userId: string, statuses?: ProductStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ProductRequestReadItem[]>;
 }

@@ -52,6 +52,33 @@ The load-more action does not interrupt background refreshes. Cursor-shaped quer
 keys are separate from old offset caches. Regression tests exercise the real
 Supabase query builder and TanStack infinite-query behavior with changing fixtures.
 
+## Private profile lists
+
+My Profile loads previous Picks and product registration requests in separate,
+account-scoped infinite queries, 20 items per page. The previous limits of 50
+history items and 20 requests no longer make older entries inaccessible. Both
+lists reuse the timestamp/UUID cursor convention; requests use immutable
+`created_at` ordering so moderation status changes do not reorder pages.
+
+The basic profile query only loads the profile and current Picks. Other screens
+that use it no longer fetch history or requests they do not display. A list
+failure leaves the basic profile and the other list usable. Each list provides
+loading, empty and error states, retains loaded cards after failed refresh/more
+actions, and offers the appropriate retry. Refresh updates all three queries;
+additional loading cannot interrupt an in-flight refresh. Counts describe loaded
+items instead of implying a database total. Existing Pick/product detail routes,
+including canonical targets after request merges, are preserved.
+
+Private query keys include the account ID and remain under the existing profile
+invalidation prefix. The screen hides these lists while the session is loading
+or after logout. No database, RLS, authentication or image-storage change is made.
+
+`test-pagination.cjs` exercises 61 historical Picks and 45 requests through the
+real Supabase query builder and TanStack query client with a mocked HTTP boundary.
+It covers equal timestamps, deleted cursor rows, new rows, moderation changes,
+owner/status filters, account cache isolation and retry. `test-request-status.cjs`
+checks the rendered controls, independent failures, routes and privacy states.
+
 ## Deferred verification
 
 The user deferred Kakao login until the evening. Authenticated browser verification

@@ -135,7 +135,7 @@ export class SupabaseReadRepository implements ReadRepository {
     });
   }
 
-  async getProductRequestsByUser(userId: string, statuses?: ProductRequestReadRow['status'][], limit = 20) {
+  async getProductRequestsByUser(userId: string, statuses?: ProductRequestReadRow['status'][], limit = 20, cursor?: ReadCursor | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     let query = this.client
       .from('products')
@@ -146,8 +146,10 @@ export class SupabaseReadRepository implements ReadRepository {
       `)
       .eq('created_by', userId)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(safeLimit);
 
+    if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
     if (statuses?.length) query = query.in('status', statuses);
 
     const { data, error } = await query;

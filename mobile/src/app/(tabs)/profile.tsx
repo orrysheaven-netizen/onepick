@@ -8,10 +8,40 @@ import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
+import { useMyPickHistory, useMyProductRequests } from '@/hooks/useMyProfileLists';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ProfilePickItem = MyProfileData['currentPicks'][number];
-type ProductRequestItem = MyProfileData['productRequests'][number];
+type ProductRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyProductRequests>>['items'][number];
+
+function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyProductRequests>; label: string }) {
+  if (query.isPending) return <ActivityIndicator accessibilityLabel={`${label} 불러오는 중`} />;
+  const pageError = query.isFetchNextPageError;
+  const refreshError = query.isError && !pageError;
+  return (
+    <>
+      {query.isError ? (
+        <Text accessibilityRole="alert" style={styles.refreshError}>
+          {pageError ? '다음 목록을 불러오지 못했어요.' : query.data ? '최신 목록을 확인하지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요.' : `${label}을 불러오지 못했어요.`}
+        </Text>
+      ) : null}
+      {query.hasNextPage || query.isError ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${label} ${query.isError ? '다시 불러오기' : '더 보기'}`}
+          disabled={query.isFetching}
+          onPress={() => {
+            if (query.isFetching) return;
+            if (refreshError) void query.refetch({ cancelRefetch: false });
+            else void query.fetchNextPage({ cancelRefetch: false });
+          }}
+          style={({ pressed }) => [styles.secondaryButton, (pressed || query.isFetching) && styles.pressed]}>
+          <Text style={styles.secondaryButtonText}>{query.isFetching ? '불러오는 중…' : query.isError ? '다시 불러오기' : `${label} 더 보기`}</Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
 
 function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; muted?: boolean; onPress: () => void }) {
   const title = item.product?.name ?? '제품 정보를 확인할 수 없어요';
@@ -99,10 +129,12 @@ export default function ProfileScreen() {
   const { width } = useWindowDimensions();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
-  const adminAccess = useAdminAccess(user?.id);
-
   const isProfileMissing =
     profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
+  const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
+  const historyQuery = useMyPickHistory(listUserId);
+  const requestsQuery = useMyProductRequests(listUserId);
+  const adminAccess = useAdminAccess(user?.id);
 
   if (isSessionLoading) {
     return (
@@ -185,7 +217,19 @@ export default function ProfileScreen() {
     );
   }
 
-  const { profile, currentPicks, history, productRequests } = profileQuery.data;
+  const { profile, currentPicks } = profileQuery.data;
+  const history = historyQuery.data ?? [];
+  const productRequests = requestsQuery.data ?? [];
+  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
+  const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
+  const refreshAll = async () => {
+    if (isFetching) return;
+    await Promise.all([
+      profileQuery.refetch({ cancelRefetch: false }),
+      historyQuery.refetch({ cancelRefetch: false }),
+      requestsQuery.refetch({ cancelRefetch: false }),
+    ]);
+  };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openProduct = (productId: string) => router.push({ pathname: '/product/[productId]', params: { productId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
@@ -195,7 +239,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={profileQuery.isRefetching} onRefresh={() => void profileQuery.refetch()} tintColor="#4945ED" />}>
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor="#4945ED" />}>
         <View style={styles.header}>
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{profile.username.slice(0, 1).toUpperCase()}</Text></View>
           <View style={styles.headerCopy}>
@@ -212,16 +256,16 @@ export default function ProfileScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
-          disabled={profileQuery.isFetching}
-          onPress={() => void profileQuery.refetch()}
-          style={({ pressed }) => [styles.refreshButton, (pressed || profileQuery.isFetching) && styles.pressed]}>
-          <Text style={styles.refreshText}>{profileQuery.isFetching ? '최신 상태 확인 중…' : '상태 새로고침'}</Text>
+          disabled={isFetching}
+          onPress={refreshAll}
+          style={({ pressed }) => [styles.refreshButton, (pressed || isFetching) && styles.pressed]}>
+          <Text style={styles.refreshText}>{isFetching ? '최신 상태 확인 중…' : '상태 새로고침'}</Text>
         </Pressable>
 
         <View style={styles.summaryCard}>
           <View><Text style={styles.summaryNumber}>{currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
           <View style={styles.summaryDivider} />
-          <View><Text style={styles.summaryNumber}>{history.length}</Text><Text style={styles.summaryLabel}>이전 선택</Text></View>
+          <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
 
         <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
@@ -247,20 +291,20 @@ export default function ProfileScreen() {
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
 
-        {productRequests.length > 0 ? (
-          <>
-            <View style={[styles.sectionHeader, styles.requestHeader]}>
-              <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>
-              <Text style={styles.sectionHint}>최근 {productRequests.length}개</Text>
-            </View>
-            {productRequests.map((item) => (
-              <ProductRequestCard key={item.product.id} item={item} onOpenProduct={openProduct} />
-            ))}
-          </>
-        ) : null}
+        <View style={[styles.sectionHeader, styles.requestHeader]}>
+          <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>
+          {requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {productRequests.length}개</Text> : null}
+        </View>
+        {productRequests.map((item) => (
+          <ProductRequestCard key={item.product.id} item={item} onOpenProduct={openProduct} />
+        ))}
+        {requestsQuery.data && productRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
+        <ListControls query={requestsQuery} label="등록 요청" />
 
-        <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text><Text style={styles.sectionHint}>{history.length}개</Text></View>
-        {history.length > 0 ? history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />) : <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text>}
+        <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
+        {history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />)}
+        {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
+        <ListControls query={historyQuery} label="이전 기록" />
         <SignOutButton />
       </ScrollView>
     </SafeAreaView>

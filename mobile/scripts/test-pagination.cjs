@@ -35,7 +35,7 @@ async function main() {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
-  let picks = [], comments = [], calls = [], fail = false;
+  let picks = [], comments = [], products = [], calls = [], fail = false;
   // Real Supabase/PostgREST query builders, with an in-memory HTTP boundary.
   const client = createClient('https://onepick.test', 'public-test-key', {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -44,13 +44,13 @@ async function main() {
       calls.push(url);
       if (fail) return new Response(JSON.stringify({ code: 'PGRST301', message: 'Session expired' }), { status: 401 });
       const table = url.pathname.split('/').pop();
-      assert.ok(['picks', 'comments'].includes(table));
+      assert.ok(['picks', 'comments', 'products'].includes(table));
       const params = url.searchParams;
       assert.equal(params.has('offset'), false, 'Infinite reads must not use positional offsets');
       const [column, direction] = params.get('order').split(',')[0].split('.');
       assert.equal(params.get('order'), `${column}.${direction},id.${direction}`, 'Equal timestamps need deterministic UUID ordering');
-      let rows = table === 'picks' ? picks : comments;
-      for (const field of ['user_id', 'category_id', 'product_id', 'pick_id']) {
+      let rows = table === 'picks' ? picks : table === 'comments' ? comments : products;
+      for (const field of ['user_id', 'category_id', 'product_id', 'pick_id', 'created_by']) {
         const value = params.get(field);
         if (value?.startsWith('eq.')) rows = rows.filter((item) => item[field] === value.slice(3));
         if (value?.startsWith('neq.')) rows = rows.filter((item) => item[field] !== value.slice(4));
@@ -78,6 +78,9 @@ async function main() {
   const { CommentService } = load('services/commentService.ts', { '@/errors/appError': { AppError } });
   const explore = new ExploreService({ getOpenCategories: async () => [{ id: id(901), name: 'Category' }] }, repo);
   const commentService = new CommentService({}, {}, {}, repo);
+  const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError } });
+  const owner = id(2000);
+  const profileService = new ProfileService({ getById: async (userId) => userId === owner ? { id: owner } : null }, repo);
 
   picks = Array.from({ length: 45 }, (_, i) => row(i + 1));
   const first = await explore.getExploreData(id(901));
@@ -122,6 +125,7 @@ async function main() {
     const before = calls.length;
     await assert.rejects(() => repo.getPicks({ cursor }), /INVALID_PAGINATION_CURSOR/);
     await assert.rejects(() => repo.getCommentsByPickId(id(902), 20, cursor), /INVALID_PAGINATION_CURSOR/);
+    await assert.rejects(() => repo.getProductRequestsByUser(owner, undefined, 20, cursor), /INVALID_PAGINATION_CURSOR/);
     assert.equal(calls.length, before, 'Malformed cursors must not reach the API');
   }
   picks = Array.from({ length: 120 }, (_, i) => row(i + 1));
@@ -132,17 +136,67 @@ async function main() {
   fail = false;
   assert.equal((await explore.getExploreData(undefined, large.nextCursor)).feed[0].pick.id, id(21), 'Retry resumes the same cursor');
 
+  // Profile histories exceed the old 50-row cutoff; requests exceed 20 rows.
+  const ownHistory = (i) => ({ ...row(i), user_id: owner, status: ['replaced', 'removed', 'hidden'][i % 3] });
+  picks = Array.from({ length: 61 }, (_, i) => ownHistory(i + 1));
+  picks.push({ ...row(9000), user_id: owner }, { ...row(9001), status: 'replaced' });
+  let before = calls.length;
+  const basicProfile = await profileService.getMyProfile(owner);
+  assert.equal(basicProfile.currentPicks.length, 1);
+  assert.equal(calls.length - before, 1, 'Consumers of the basic profile must not fetch unneeded history or requests');
+  before = calls.length;
+  await assert.rejects(() => profileService.getMyProfile(id(9999)), (error) => error.code === 'PROFILE_NOT_FOUND');
+  assert.equal(calls.length, before);
+  const historyFirst = await profileService.getMyPickHistory(owner);
+  assert.equal(historyFirst.items.length, 20); assert.equal(historyFirst.nextCursor.id, id(42));
+  picks = picks.filter((item) => item.id !== id(42));
+  picks.push({ ...ownHistory(100), started_at: '2026-09-17T10:00:00.123457+00:00' });
+  const historySecond = await profileService.getMyPickHistory(owner, historyFirst.nextCursor);
+  const historyThird = await profileService.getMyPickHistory(owner, historySecond.nextCursor);
+  const historyLast = await profileService.getMyPickHistory(owner, historyThird.nextCursor);
+  const historyIds = [...historyFirst.items, ...historySecond.items, ...historyThird.items, ...historyLast.items].map((item) => item.pick.id);
+  assert.equal(new Set(historyIds).size, 61); assert.equal(historyLast.items.length, 1); assert.equal(historyLast.nextCursor, null);
+  assert.ok(!historyIds.includes(id(9000)) && !historyIds.includes(id(9001)), 'Only the owner’s historical statuses are included');
+
+  const productRow = (i) => ({ ...row(i), name: `Product ${i}`, created_by: owner, status: ['pending', 'active', 'merged', 'rejected', 'hidden', 'discontinued'][i % 6] });
+  products = Array.from({ length: 45 }, (_, i) => productRow(i + 1));
+  products.push({ ...productRow(9000), created_by: id(3000) });
+  const requestsFirst = await profileService.getMyProductRequests(owner);
+  assert.equal(requestsFirst.items.length, 20); assert.equal(requestsFirst.nextCursor.id, id(26));
+  assert.equal(requestsFirst.nextCursor.timestamp, time);
+  products.find((item) => item.id === id(25)).status = 'active';
+  products = products.filter((item) => item.id !== id(26));
+  products.push({ ...productRow(100), created_at: '2026-09-17T10:00:00.123457+00:00' });
+  fail = true;
+  await assert.rejects(() => profileService.getMyProductRequests(owner, requestsFirst.nextCursor), (error) => error.code === 'AUTH_REQUIRED');
+  fail = false;
+  const requestsSecond = await profileService.getMyProductRequests(owner, requestsFirst.nextCursor);
+  const requestsLast = await profileService.getMyProductRequests(owner, requestsSecond.nextCursor);
+  assert.equal(requestsSecond.items[0].product.id, id(25)); assert.equal(requestsSecond.items[0].product.status, 'active');
+  assert.equal(requestsLast.items.length, 5); assert.equal(requestsLast.nextCursor, null);
+  const requestIds = [...requestsFirst.items, ...requestsSecond.items, ...requestsLast.items].map((item) => item.product.id);
+  assert.equal(new Set(requestIds).size, 45); assert.ok(!requestIds.includes(id(9000)));
+  assert.equal((await profileService.getMyProductRequests(id(9999))).items.length, 0);
+  assert.equal((await profileService.getMyProductRequests(owner)).items[0].product.id, id(100));
+
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const hooksImports = {
     '@tanstack/react-query': { useInfiniteQuery: (options) => options },
-    '@/lib/query/queryKeys': { queryKeys }, '@/services': { exploreService: explore, commentService },
+    '@/lib/query/queryKeys': { queryKeys }, '@/services': { exploreService: explore, commentService, profileService },
   };
   const { useExploreData } = load('hooks/useExploreData.ts', hooksImports);
   const { usePickComments } = load('hooks/usePickComments.ts', hooksImports);
+  const { useMyPickHistory, useMyProductRequests } = load('hooks/useMyProfileLists.ts', hooksImports);
   const feedOptions = useExploreData(id(901)), commentOptions = usePickComments(id(902));
   assert.equal(feedOptions.initialPageParam, null); assert.equal(commentOptions.initialPageParam, null);
   assert.notEqual(JSON.stringify(feedOptions.queryKey), JSON.stringify(useExploreData(id(999)).queryKey));
   assert.equal(usePickComments().enabled, false);
+  for (const useList of [useMyPickHistory, useMyProductRequests]) {
+    assert.equal(useList().enabled, false);
+    assert.equal(useList(owner).enabled, true);
+    assert.notEqual(JSON.stringify(useList(owner).queryKey), JSON.stringify(useList(id(3000)).queryKey), 'Private list caches must be scoped by account');
+    assert.equal(useList(owner).queryKey[0], queryKeys.profiles.all[0], 'Existing profile invalidation must cover these lists');
+  }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   try {
     picks = Array.from({ length: 45 }, (_, i) => row(i + 1));
@@ -153,6 +207,18 @@ async function main() {
     assert.equal(feedOptions.getNextPageParam(fetched.pages[2]), undefined);
     const fetchedComments = await queryClient.fetchInfiniteQuery({ ...commentOptions, pages: 3 });
     assert.equal(commentOptions.select(fetchedComments).length, comments.length);
+
+    picks = Array.from({ length: 61 }, (_, i) => ownHistory(i + 1));
+    for (const [useList, count, pageCount] of [[useMyPickHistory, 61, 4], [useMyProductRequests, 45, 3]]) {
+      const options = useList(owner);
+      const loaded = await queryClient.fetchInfiniteQuery({ ...options, pages: pageCount });
+      assert.equal(options.select(loaded).length, count);
+      assert.equal(loaded.pageParams[0], null);
+      assert.equal(options.getNextPageParam(loaded.pages.at(-1)), undefined);
+      const otherAccount = useList(id(9999));
+      const otherData = await queryClient.fetchInfiniteQuery(otherAccount);
+      assert.equal(otherAccount.select(otherData).length, 0, 'Account switches must not inherit another account’s pages');
+    }
   } finally { queryClient.clear(); }
   console.log('Pagination checks passed: real query builders, timestamp ties, insert/delete stability, precision, cursor validation, filters, retries and infinite-query wiring.');
 }

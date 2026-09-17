@@ -36,6 +36,8 @@ export const queryKeys = {
   profiles: {
     all: ['profiles'] as const,
     mine: (userId: string) => ['profiles', 'mine', userId] as const,
+    history: (userId?: string) => ['profiles', 'history', userId ?? 'anonymous', 'cursor'] as const,
+    requests: (userId?: string) => ['profiles', 'requests', userId ?? 'anonymous', 'cursor'] as const,
     byUsername: (username: string, userId?: string) =>
       ['profiles', 'username', username, userId ?? 'public'] as const,
   },

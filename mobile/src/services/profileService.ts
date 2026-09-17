@@ -1,6 +1,6 @@
 import { AppError } from '@/errors/appError';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -31,22 +31,39 @@ export class ProfileService {
     const profile = await this.profileRepository.getById(userId);
     if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
-    const [currentPicks, history, productRequests] = await Promise.all([
-      this.readRepository.getPicks({
-        userId,
-        statuses: ['active', 'needs_review'],
-        orderBy: 'updated_at',
-        limit: 100,
-      }),
-      this.readRepository.getPicks({
-        userId,
-        statuses: ['replaced', 'removed', 'hidden'],
-        limit: 50,
-      }),
-      this.readRepository.getProductRequestsByUser(userId, undefined, 20),
-    ]);
+    const currentPicks = await this.readRepository.getPicks({
+      userId,
+      statuses: ['active', 'needs_review'],
+      orderBy: 'updated_at',
+      limit: 100,
+    });
 
-    return { profile, currentPicks, history, productRequests };
+    return { profile, currentPicks };
+  }
+
+  async getMyPickHistory(userId: string, cursor: ReadCursor | null = null) {
+    const rows = await this.readRepository.getPicks({
+      userId,
+      statuses: ['replaced', 'removed', 'hidden'],
+      cursor,
+      limit: 21,
+    });
+    const items = rows.slice(0, 20);
+    const last = items[items.length - 1]?.pick;
+    return {
+      items,
+      nextCursor: rows.length > 20 && last ? { timestamp: last.startedAt, id: last.id } : null,
+    };
+  }
+
+  async getMyProductRequests(userId: string, cursor: ReadCursor | null = null) {
+    const rows = await this.readRepository.getProductRequestsByUser(userId, undefined, 21, cursor);
+    const items = rows.slice(0, 20);
+    const last = items[items.length - 1]?.product;
+    return {
+      items,
+      nextCursor: rows.length > 20 && last ? { timestamp: last.createdAt, id: last.id } : null,
+    };
   }
 
   async getProfileByUsername(username: string, currentUserId?: string) {
