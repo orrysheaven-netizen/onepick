@@ -99,6 +99,13 @@ both refresh controls, pending-request guards, retry recovery and session privac
 
 ## Deferred verification
 
+Web deployment preparation is documented in [MVP web deployment](web-deployment.md).
+The web output is now an SPA with a host fallback rule for dynamic product/Pick/
+profile URLs. Web shares default to the current origin; native deep-link behavior
+is preserved. Mobile CI exports the web bundle and checks direct routes/assets
+with isolated CI configuration. Hosting/domain selection and publication remain
+separate from these build checks.
+
 The user deferred Kakao login until the evening. Authenticated browser verification
 of request → Admin approval → Pick selection remains pending, as does physical
 iOS/Android device testing. Database role tests and mocked UI tests do not replace

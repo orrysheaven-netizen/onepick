@@ -23,6 +23,8 @@ Copy the values represented in `mobile/.env.example` into the local environment.
 
 The mobile client only uses the public Supabase URL / publishable key. Admin secrets and service-role capabilities must stay server-side.
 
+For the web build and deployment workflow, see [MVP web deployment](web-deployment.md).
+
 ## Database
 
 From the repository root:

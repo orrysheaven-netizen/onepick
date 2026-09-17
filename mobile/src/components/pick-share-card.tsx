@@ -42,7 +42,7 @@ export function PickShareCard(props: PickShareCardProps) {
       <Text style={styles.eyebrow}>SHARE THIS PICK</Text>
       <Text style={styles.title}>이 원픽을 공유해보세요</Text>
       <Text style={styles.description}>
-        받은 사람이 OnePick을 설치한 상태라면 이 Pick 상세 화면으로 바로 들어옵니다.
+        이 원픽과 선택한 이유를 링크로 함께 전해보세요.
       </Text>
       <Text numberOfLines={1} style={styles.link}>{shareUrl}</Text>
 

@@ -62,3 +62,6 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Produ
 The project has separate Mobile and Database CI workflows. Current feature work is kept on `feature/pick-core` and reviewed through Draft PR #1 before merge.
 
 See `docs/development-start.md` for local setup and `docs/shared-product-registration.md` for the product-master workflow.
+
+See [MVP web deployment](docs/web-deployment.md) for production web builds,
+SPA routing, hosting environment, OAuth callbacks and release verification.

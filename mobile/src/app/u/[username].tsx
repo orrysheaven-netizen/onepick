@@ -132,7 +132,7 @@ export default function PublicProfileScreen() {
             <View style={styles.shareCard}>
               <Text style={styles.shareEyebrow}>SHARE PROFILE</Text>
               <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
-              <Text style={styles.shareText}>받은 사람이 OnePick을 설치했다면 이 프로필로 바로 들어옵니다.</Text>
+              <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
               {shareError ? <Text style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
               <Pressable
                 disabled={isSharing}

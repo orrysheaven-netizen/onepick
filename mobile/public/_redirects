@@ -1,0 +1,3 @@
+# SPA fallback for hosts supporting _redirects (Netlify / Cloudflare Pages).
+# Existing files must be served before this rewrite. This is not a 301/302 redirect.
+/* /index.html 200
