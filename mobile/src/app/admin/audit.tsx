@@ -31,7 +31,7 @@ export default function AdminAuditScreen() {
       <View style={styles.header}>
         <View>
           <Text style={adminStyles.pageTitle}>운영 기록</Text>
-          <Text style={adminStyles.pageDescription}>카테고리·브랜드·상품·신고에 대한 최근 관리자 변경 기록을 확인합니다.</Text>
+          <Text style={adminStyles.pageDescription}>카테고리·브랜드·상품·신고·사용자 제재에 대한 최근 관리자 변경 기록을 확인합니다.</Text>
         </View>
         <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>새로고침</Text>
@@ -62,7 +62,7 @@ export default function AdminAuditScreen() {
 }
 
 function entityLabel(value: string) {
-  return ({ category: '카테고리', brand: '브랜드', item: '상품', content_report: '신고' } as Record<string, string>)[value] ?? value;
+  return ({ category: '카테고리', brand: '브랜드', item: '상품', content_report: '신고', user_moderation: '사용자 제재' } as Record<string, string>)[value] ?? value;
 }
 
 function actionLabel(value: string) {
@@ -70,6 +70,11 @@ function actionLabel(value: string) {
 }
 
 function summaryText(summary: Record<string, unknown>) {
+  if (typeof summary.status === 'string' && typeof summary.user_id === 'string') {
+    const status = summary.status === 'suspended' ? '정지' : summary.status === 'active' ? '정상' : summary.status;
+    const reason = typeof summary.reason === 'string' ? ` · 사유: ${summary.reason}` : '';
+    return `사용자 ${summary.user_id} · 상태: ${status}${reason}`;
+  }
   const entries = Object.entries(summary).slice(0, 4);
   if (entries.length === 0) return '변경 내용 기록';
   return entries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(' · ');
