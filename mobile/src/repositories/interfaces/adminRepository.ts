@@ -1,5 +1,6 @@
 import type { Brand } from '@/types/domain/brand';
 import type { Category, CategoryStatus } from '@/types/domain/category';
+import type { AdminAuditLog, AdminOperationsMetrics, ClientErrorEvent } from '@/types/domain/operations';
 import type { Product, ProductStatus } from '@/types/domain/product';
 import type { ProductAlias } from '@/types/domain/productAlias';
 
@@ -36,6 +37,9 @@ export interface AdminProductUpdateInput extends Partial<AdminProductInput> {
 
 export interface AdminRepository {
   isAdmin(): Promise<boolean>;
+  getOperationsMetrics(): Promise<AdminOperationsMetrics>;
+  getAuditLogs(limit?: number): Promise<AdminAuditLog[]>;
+  getClientErrorEvents(limit?: number): Promise<ClientErrorEvent[]>;
   getCategories(): Promise<Category[]>;
   getBrands(): Promise<Brand[]>;
   getProducts(limit?: number): Promise<Product[]>;
