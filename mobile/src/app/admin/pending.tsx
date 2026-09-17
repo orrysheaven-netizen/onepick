@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { getPendingItems, PendingItem, updatePendingItem } from '@/lib/admin-api';
+import { getPendingItems, updatePendingItem } from '@/lib/admin-api';
+import type { PendingItem } from '@/lib/admin-api';
 
 export default function AdminPendingScreen() {
   const [items, setItems] = useState<PendingItem[]>([]);
@@ -46,11 +47,9 @@ export default function AdminPendingScreen() {
     setMessage('');
     try {
       await updatePendingItem(selected.id, status);
-      setItems((current) => current.filter((item) => item.id !== selected.id));
-      setSelectedId((current) => {
-        const remaining = items.filter((item) => item.id !== selected.id);
-        return current === selected.id ? remaining[0]?.id ?? null : current;
-      });
+      const remaining = items.filter((item) => item.id !== selected.id);
+      setItems(remaining);
+      setSelectedId(remaining[0]?.id ?? null);
       setMessage(`${selected.name} 상품을 ${status === 'active' ? '승인' : '반려'}했습니다.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '상품 검수 처리에 실패했습니다.');
@@ -170,8 +169,8 @@ const styles = StyleSheet.create({
   itemRow: { minHeight: 68, borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingVertical: 13, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 8 },
   itemRowSelected: { backgroundColor: '#F7F7F8' },
   itemBody: { flex: 1, minWidth: 0 },
-  itemName: { color: '#111827', fontSize: 14, fontWeight: '750', marginBottom: 5 },
-  pendingBadge: { color: '#8A5A16', backgroundColor: '#FFF5DD', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '750' },
+  itemName: { color: '#111827', fontSize: 14, fontWeight: '700', marginBottom: 5 },
+  pendingBadge: { color: '#8A5A16', backgroundColor: '#FFF5DD', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
   detailBody: { marginTop: 16, gap: 18 },
   preview: { minHeight: 150, borderRadius: 10, backgroundColor: '#F7F7F8', alignItems: 'center', justifyContent: 'center', gap: 8 },
   previewIcon: { color: '#9CA3AF', fontSize: 34 },
