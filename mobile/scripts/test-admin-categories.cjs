@@ -23,12 +23,16 @@ async function main() {
     assert.equal(tree.selectableCategories([{ ...parent, ...patch }, child]).length, 0);
   }
   assert.equal(tree.selectableCategories([child]).length, 0, 'Missing or inaccessible parent blocks eligibility');
-  let admin = true, writes = [];
+  let admin = true, writes = [], aliases = [];
   const repo = {
     isAdmin: async () => admin, getCategories: async () => categories,
     createCategory: async (value) => { writes.push(value); return value; },
     updateCategory: async (id, value) => { writes.push(value); return value; },
-    getProductById: async () => ({ status: 'active' }),
+    getProductById: async (id) => id === 'already-approved'
+      ? { id, status: 'active', normalizedName: '기존제품' }
+      : { id, status: 'active', normalizedName: '테스트제품', categoryId: 'new' },
+    createProductAlias: async (productId, alias) => { aliases.push({ productId, alias }); return { productId, alias }; },
+    removeProductAlias: async (id) => { aliases = aliases.filter((item) => item.id !== id); },
   };
   const identity = load('lib/products/productIdentity.ts');
   const { AdminService } = load('services/adminService.ts', {
@@ -43,8 +47,12 @@ async function main() {
   await assert.rejects(() => service.updateCategory('new', { parentId: 'new' }), (e) => e.code === 'CATEGORY_INVALID');
   await assert.rejects(() => service.createCategory({ name: '순서 오류', slug: 'bad', sortOrder: NaN }), (e) => e.code === 'CATEGORY_INVALID');
   await assert.rejects(() => service.approveProduct('already-approved'), (e) => e.code === 'PICK_CONFLICT');
+  await assert.rejects(() => service.addProductAlias('product', '테스트 제품'), (e) => e.code === 'PRODUCT_ALIAS_REDUNDANT');
+  await service.addProductAlias('product', '다른 검색 이름');
+  assert.equal(aliases[0].alias, '다른 검색 이름');
   admin = false;
   await assert.rejects(() => service.createCategory({ name: '금지', slug: 'denied' }), (e) => e.code === 'FORBIDDEN');
+  await assert.rejects(() => service.addProductAlias('product', '금지 별칭'), (e) => e.code === 'FORBIDDEN');
   assert.equal(writes.length, 1, 'Invalid or unauthorized changes never reach repository');
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const invalidated = [];
@@ -57,6 +65,9 @@ async function main() {
   assert.notEqual(JSON.stringify(hooks.useAdminDashboard('a').queryKey), JSON.stringify(hooks.useAdminDashboard('b').queryKey));
   await hooks.useAdminActions().updateCategory.onSuccess();
   assert.equal(invalidated.sort().join(','), 'admin,categories,explore,home,picks,products,profiles');
-  console.log('Admin checks passed: dynamic category tree, hierarchy validation, permission guards and cache refresh.');
+  invalidated.length = 0;
+  await hooks.useAdminActions().addProductAlias.onSuccess();
+  assert.equal(invalidated.sort().join(','), 'admin,categories,explore,home,picks,products,profiles');
+  console.log('Admin checks passed: category tree, alias validation, permissions and cache refresh.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
