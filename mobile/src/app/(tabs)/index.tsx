@@ -10,7 +10,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useHomeData } from '@/hooks/useHomeData';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
-type PickItem = HomeData['currentPicks'][number];
+type PickItem = HomeData['feed'][number];
 
 function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?: boolean; onOpen: () => void; onItem?: () => void }) {
   const name = item.item?.name ?? '제품 정보를 확인할 수 없어요';
@@ -24,7 +24,7 @@ function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?:
         <View style={styles.cardBody}>
           <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl} label={name} />
           <View style={styles.cardCopy}>
-            {!mine ? <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text> : null}
+            <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text>
             <Text style={styles.itemName}>{name}</Text>
             {item.item ? <ItemPickCount itemId={item.item.id} /> : null}
             <Text numberOfLines={3} style={styles.review}>“{item.pick.oneLineReview}”</Text>
@@ -90,14 +90,14 @@ export default function HomeScreen() {
 
         <View style={styles.intro}>
           <View style={styles.introCopy}>
-            <Text style={styles.eyebrow}>하나씩 모으는 나의 취향</Text>
-            <Text style={styles.headline}>마음에 드는 <Text style={styles.accent}>하나.</Text></Text>
-            <Text style={styles.introDescription}>카테고리마다 가장 좋아하는 하나를 골라보세요.</Text>
+            <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
+            <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
+            <Text style={styles.introDescription}>누군가의 가장 좋아하는 제품을 만나보세요.</Text>
           </View>
         </View>
 
         <View style={styles.sectionHeader}>
-          <SectionTitle title="나의 원픽" count={user && ready && data ? data.currentPicks.length : undefined} description="내 취향을 담은 작은 컬렉션" />
+          <SectionTitle title="최근 원픽" description="새로 등록된 순서로 만나보세요." />
           <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
             <Text style={styles.primaryText}>＋ 원픽 등록</Text>
           </Pressable>
@@ -122,19 +122,28 @@ export default function HomeScreen() {
               <Text style={styles.actionText}>{homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'}</Text>
             </Pressable>
           </View>
-          <View style={styles.grid}>
-            {user ? data.currentPicks.map((item) => <View key={item.pick.id} style={cellStyle}>
-              <CollectionCard item={item} mine onOpen={() => openPick(item.pick.id)} onItem={() => openItem(item.pick.itemId)} />
-            </View>) : null}
-            <View style={cellStyle}><AddCard first={!user || data.currentPicks.length === 0} onPress={() => openRegistration()} /></View>
-            {!user ? <View style={[styles.welcomeCard, cellStyle]}>
+          {data.feed.length ? <View style={styles.grid}>
+            {data.feed.map((item) => <View key={item.pick.id} style={cellStyle}>
+              <CollectionCard item={item} mine={Boolean(user && item.pick.userId === user.id)}
+                onOpen={() => openPick(item.pick.id)} onItem={() => openItem(item.pick.itemId)} />
+            </View>)}
+            <Pressable accessibilityRole="button" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} style={styles.moreButton}>
+              <Text style={styles.actionText}>원픽 더 둘러보기</Text><Text style={styles.arrow}>↗</Text>
+            </Pressable>
+          </View> : <View style={styles.grid}>
+            <Text style={styles.emptyText}>아직 등록된 원픽이 없어요. 첫 원픽을 남겨보세요.</Text>
+            <AddCard first onPress={() => openRegistration()} />
+          </View>}
+
+          {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
+            <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
+          </Pressable> : <View style={styles.welcomeCard}>
               <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
               <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
                 <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
               </Pressable>
-            </View> : null}
-          </View>
+          </View>}
 
           <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
           {categories.length ? <View style={styles.categoryGrid}>
@@ -153,13 +162,6 @@ export default function HomeScreen() {
             </View>)}</View>
           </> : null}
 
-          {user ? <>
-            <View style={styles.nextSection}><SectionTitle title="최근 사람들의 원픽" description="다른 사람은 어떤 하나를 골랐을까요?" /></View>
-            {data.feed.length ? <View style={styles.grid}>{data.feed.map((item) => <View key={item.pick.id} style={cellStyle}>
-              <CollectionCard item={item} onOpen={() => openPick(item.pick.id)} />
-            </View>)}</View> : <Text style={styles.emptyText}>새로운 선택이 올라오면 이곳에서 만날 수 있어요.</Text>}
-          </> : null}
-
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
       </ScrollView>
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EAECF1', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, color: OnePick.text, fontWeight: '600' },
-  intro: { paddingTop: 18, paddingBottom: 28 },
+  intro: { paddingTop: 8, paddingBottom: 24 },
   introCopy: { flex: 1 },
   eyebrow: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
   headline: { color: OnePick.text, fontSize: 30, lineHeight: 40, letterSpacing: -1.2, fontWeight: '800', marginTop: 8 },
@@ -187,6 +189,8 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, borderRadius: 13, backgroundColor: OnePick.accent },
   primaryText: { color: OnePick.surface, fontSize: 14, fontWeight: '700' },
   grid: { gap: 12 },
+  moreButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 10 },
+  profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },
   card: { flex: 1, padding: 16, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
   cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -207,10 +211,10 @@ const styles = StyleSheet.create({
   addTitle: { fontSize: 17, lineHeight: 24, fontWeight: '600', color: OnePick.text, textAlign: 'center' },
   addDescription: { fontSize: 13, lineHeight: 21, color: OnePick.muted, textAlign: 'center', marginTop: 8 },
   addAction: { color: OnePick.accent, fontSize: 14, fontWeight: '600', marginTop: 22 },
-  welcomeCard: { padding: 32, justifyContent: 'center', minHeight: 260 },
-  welcomeTitle: { color: OnePick.text, fontSize: 24, lineHeight: 34, fontWeight: '700', letterSpacing: -0.8 },
-  welcomeText: { color: OnePick.muted, fontSize: 16, lineHeight: 27, marginTop: 14 },
-  loginButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 44, marginTop: 24 },
+  welcomeCard: { padding: 20, marginTop: 20, borderRadius: 20, backgroundColor: OnePick.accentSoft },
+  welcomeTitle: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.8 },
+  welcomeText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, marginTop: 8 },
+  loginButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 44, marginTop: 12 },
   nextSection: { marginTop: 30, marginBottom: 16 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   categoryCard: { width: '46%', flexGrow: 1, padding: 16, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, backgroundColor: OnePick.surface },

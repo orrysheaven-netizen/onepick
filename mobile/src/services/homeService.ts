@@ -25,13 +25,11 @@ export class HomeService {
             limit: 100,
           })
         : Promise.resolve([]),
-      userId
-        ? this.readRepository.getPicks({
-            excludeUserId: userId,
-            statuses: ['active'],
-            limit: 20,
-          })
-        : Promise.resolve([]),
+      this.readRepository.getPicks({
+        statuses: ['active'],
+        orderBy: 'started_at',
+        limit: 20,
+      }),
       singleCategory && !userId
         ? this.itemRepository.getByCategory(singleCategory.id)
         : Promise.resolve([]),
