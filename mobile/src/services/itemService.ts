@@ -24,7 +24,7 @@ export class ItemService {
     const [category, currentPick, picks, openCategories] = await Promise.all([
       this.categoryRepository.getById(item.categoryId),
       userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
-      this.readRepository.getPicks({ itemId, statuses: ['active'], limit: 20 }),
+      this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 }),
       this.categoryRepository.getOpenCategories(),
     ]);
 
@@ -39,6 +39,17 @@ export class ItemService {
       };
     }
 
+    // Fetch my current choice separately so it stays first even outside the latest page.
+    const mine = userId && currentPick?.itemId === item.id
+      ? await this.readRepository.getPickById(currentPick.id)
+      : null;
+    const ownReview = mine && mine.pick.userId === userId && mine.pick.itemId === item.id
+      && mine.pick.id === currentPick?.id && ['active', 'needs_review'].includes(mine.pick.status)
+      ? [{ pick: mine.pick, profile: mine.profile, isMine: true }]
+      : [];
+    const otherReviews = picks.filter((entry) => entry.pick.userId !== userId)
+      .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
+
     const canChoose = Boolean(
       openCategories.some((category) => category.id === item.categoryId) &&
       (item.status === 'active' || item.status === 'discontinued'),
@@ -48,7 +59,7 @@ export class ItemService {
       item,
       category,
       myPickStatus,
-      picks: picks.map((item) => ({ pick: item.pick, profile: item.profile })),
+      picks: [...ownReview, ...otherReviews],
       canChoose,
     };
   }

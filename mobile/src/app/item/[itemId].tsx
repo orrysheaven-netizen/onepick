@@ -60,7 +60,7 @@ export default function ItemDetailScreen() {
           <Text style={styles.itemName}>{item.name}</Text>
           <ItemPickCount itemId={item.id} />
           <Text style={styles.itemMeta}>
-            {picks.length > 0 ? `최근 원픽 기록 ${picks.length}개를 보여드려요` : '아직 공개된 원픽 기록이 없어요'}
+            이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.
           </Text>
 
           {canChoose || myPickStatus.type === 'selected_this' ? (
@@ -79,17 +79,18 @@ export default function ItemDetailScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>이 제품을 고른 사람들</Text>
-          <Text style={styles.sectionHint}>{picks.length}개 Pick</Text>
+          <Text style={styles.sectionTitle}>원픽 한줄평</Text>
+          <Text style={styles.sectionHint}>최근 한줄평 {picks.length}개</Text>
         </View>
 
         {picks.length > 0 ? (
-          picks.map(({ pick, profile }) => (
-            <View key={pick.id} style={styles.pickCard}>
+          picks.map(({ pick, profile, isMine }) => (
+            <View key={pick.id} style={[styles.pickCard, isMine && styles.myPickCard]}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{(profile?.username ?? '?').slice(0, 1).toUpperCase()}</Text>
               </View>
               <View style={styles.pickCopy}>
+                {isMine ? <Text style={styles.myReviewLabel}>내 원픽 · 내 한줄평</Text> : null}
                 {profile ? (
                   <Pressable
                     accessibilityRole="button"
@@ -105,14 +106,14 @@ export default function ItemDetailScreen() {
                   onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } })}
                   style={({ pressed }) => [styles.reviewLink, pressed && styles.pressed]}>
                   <Text style={styles.review}>“{pick.oneLineReview}”</Text>
-                  <Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
+                  <Text style={styles.pickAction}>{isMine ? '내 한줄평 보기 / 수정 ›' : '원픽 상세 보기 ›'}</Text>
                 </Pressable>
               </View>
             </View>
           ))
         ) : (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>아직 이 제품의 원픽이 없어요</Text>
+            <Text style={styles.emptyTitle}>아직 다른 사람의 한줄평이 없어요</Text>
             <Text style={styles.emptyText}>{canChoose ? '첫 번째로 이 제품을 원픽으로 선택할 수 있어요.' : '새로운 선택을 받을 수 없는 제품이나 카테고리입니다.'}</Text>
           </View>
         )}
@@ -138,6 +139,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionHint: { color: '#747985', fontSize: 12 },
   pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 19, padding: 13, marginBottom: 10 },
+  myPickCard: { backgroundColor: '#F1F0FF', borderColor: '#B9B5F5' },
+  myReviewLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginBottom: 4 },
   avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
   pickCopy: { flex: 1, marginLeft: 12 },
