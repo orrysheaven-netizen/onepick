@@ -61,6 +61,15 @@ export type AdminItem = {
   categories: { name: string } | null;
 };
 
+export type AdminItemAlias = {
+  id: string;
+  item_id: string;
+  alias: string;
+  normalized_alias: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PendingItem = {
   id: string;
   category_id: string;
@@ -317,6 +326,33 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
+  });
+}
+
+export function getItemAliases(itemId: string) {
+  return adminRequest<AdminItemAlias[]>(`/rest/v1/item_aliases?select=id,item_id,alias,normalized_alias,created_at,updated_at&item_id=eq.${encodeURIComponent(itemId)}&order=alias.asc`);
+}
+
+export function createItemAlias(itemId: string, alias: string) {
+  return adminRequest<AdminItemAlias[]>('/rest/v1/item_aliases?select=id,item_id,alias,normalized_alias,created_at,updated_at', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ item_id: itemId, alias }),
+  });
+}
+
+export function updateItemAlias(id: string, alias: string) {
+  return adminRequest<AdminItemAlias[]>(`/rest/v1/item_aliases?id=eq.${encodeURIComponent(id)}&select=id,item_id,alias,normalized_alias,created_at,updated_at`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ alias }),
+  });
+}
+
+export function deleteItemAlias(id: string) {
+  return adminRequest(`/rest/v1/item_aliases?id=eq.${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
   });
 }
 
