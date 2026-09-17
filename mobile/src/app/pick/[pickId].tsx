@@ -24,6 +24,7 @@ import { usePickDetail } from '@/hooks/usePickDetail';
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'COMMENT_INVALID') return '댓글은 1~300자로 입력해주세요.';
+    if (error.code === 'RATE_LIMITED') return '댓글 요청이 많아요. 1분 후 다시 시도해주세요.';
     if (error.code === 'AUTH_REQUIRED') return '댓글을 남기려면 로그인이 필요해요.';
     if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 댓글을 남길 수 없어요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '댓글을 남기려면 사용자명을 먼저 정해주세요.';

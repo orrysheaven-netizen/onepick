@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -16,6 +16,7 @@ const REASONS: Array<{ value: ReportReason; label: string }> = [
 function errorText(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'REPORT_DUPLICATE') return '이미 확인 중인 신고가 있습니다.';
+    if (error.code === 'RATE_LIMITED') return '신고 요청이 많아요. 최대 1시간 후 다시 시도해주세요.';
     if (error.code === 'REPORT_SELF') return '내 콘텐츠는 신고할 수 없습니다.';
     if (error.code === 'REPORT_TARGET_NOT_FOUND') return '신고할 콘텐츠를 찾을 수 없습니다.';
   }
@@ -34,10 +35,13 @@ export function ReportAction({
   const { submitReport } = useSafetyActions();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const submitting = useRef(false);
 
   if (!reporterUserId) return null;
 
   const submit = async (reason: ReportReason) => {
+    if (submitting.current || submitReport.isPending || done) return;
+    submitting.current = true;
     try {
       await submitReport.mutateAsync({
         reporterUserId,
@@ -49,6 +53,8 @@ export function ReportAction({
       setOpen(false);
     } catch {
       // Mutation state renders the failure.
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -58,7 +64,9 @@ export function ReportAction({
     <View style={styles.container}>
       <Pressable
         accessibilityRole="button"
+        disabled={submitReport.isPending}
         onPress={() => {
+          if (submitting.current) return;
           setOpen((value) => !value);
           submitReport.reset();
         }}
