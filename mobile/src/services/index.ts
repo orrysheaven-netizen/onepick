@@ -3,6 +3,7 @@ import {
   authRepository,
   categoryRepository,
   commentRepository,
+  observabilityRepository,
   pickRepository,
   productRepository,
   profileRepository,
@@ -17,6 +18,7 @@ import { AuthService } from './authService';
 import { CommentService } from './commentService';
 import { ExploreService } from './exploreService';
 import { HomeService } from './homeService';
+import { ObservabilityService } from './observabilityService';
 import { PickService } from './pickService';
 import { ProductService } from './productService';
 import { ProfileService } from './profileService';
@@ -27,6 +29,7 @@ export const adminService = new AdminService(adminRepository, profileRepository)
 export const registrationService = new RegistrationService(categoryRepository, pickRepository, productRepository, photoRepository, new DevicePhotoRepository());
 
 export const authService = new AuthService(authRepository);
+export const observabilityService = new ObservabilityService(observabilityRepository);
 export const safetyService = new SafetyService(safetyRepository);
 export const commentService = new CommentService(
   commentRepository,
@@ -66,6 +69,7 @@ export {
   CommentService,
   ExploreService,
   HomeService,
+  ObservabilityService,
   PickService,
   ProductService,
   ProfileService,
