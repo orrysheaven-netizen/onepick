@@ -25,4 +25,5 @@ additional_redirect_urls = ["http://localhost:8081"]
 verify_jwt = true
 
 [functions.movie-catalog]
-verify_jwt = true
+# Search is public. The function verifies a real user JWT itself before imports.
+verify_jwt = false

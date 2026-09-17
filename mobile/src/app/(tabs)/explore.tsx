@@ -18,6 +18,7 @@ export default function ExploreScreen() {
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
+  const movieCategory = categories.data?.find((category) => category.slug === 'movie');
   const topItems = useCategoryTopItems(selectedCategoryId);
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
@@ -46,7 +47,15 @@ export default function ExploreScreen() {
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 제품 검색'}</Text>
-          <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId} onSelect={openItem} />
+          <ItemSearch
+            key={selectedCategoryId ?? 'all'}
+            compact
+            categoryId={selectedCategoryId}
+            onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
+              ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } })
+              : undefined}
+            onSelect={openItem}
+          />
         </View> : null}
 
         <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>

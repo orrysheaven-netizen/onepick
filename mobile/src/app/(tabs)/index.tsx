@@ -42,6 +42,7 @@ export default function HomeScreen() {
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
+  const movieCategory = data?.openCategories.find((category) => category.slug === 'movie');
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
@@ -79,7 +80,14 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
         </View>
 
-        <ItemSearch compact onSelect={openItem} />
+        <ItemSearch
+          compact
+          onSearchMovie={movieCategory ? (query) => router.push({
+            pathname: '/pick/find',
+            params: { categoryId: movieCategory.id, query },
+          }) : undefined}
+          onSelect={openItem}
+        />
 
         <View style={styles.intro}>
           <View style={styles.introCopy}>

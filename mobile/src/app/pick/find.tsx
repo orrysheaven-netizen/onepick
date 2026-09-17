@@ -12,13 +12,13 @@ import type { MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
 export default function FindPickItemScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ categoryId?: string; externalMovieId?: string }>();
+  const params = useLocalSearchParams<{ categoryId?: string; externalMovieId?: string; query?: string }>();
   const { user } = useAuthSession();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => typeof params.query === 'string' ? params.query.slice(0, 100) : '');
   const [importingMovieId, setImportingMovieId] = useState<string | null>(null);
   const categories = useRegistrationCategories();
-  const search = useItemSearch(query, params.categoryId);
   const selectedCategory = categories.data?.find((category) => category.id === params.categoryId);
+  const search = useItemSearch(selectedCategory ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const movieCatalog = useMovieCatalogSearch(query, isMovieCategory);
   const importMovie = useImportMovieCatalogItem();
@@ -30,6 +30,7 @@ export default function FindPickItemScreen() {
   const isSearching = search.isWaiting || search.isFetching
     || (isMovieCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching));
   const noResults = hasQuery
+    && Boolean(selectedCategory)
     && (!isMovieCategory || canSearchMovieCatalog)
     && !isSearching
     && !search.isError
@@ -44,26 +45,33 @@ export default function FindPickItemScreen() {
     });
   };
 
+  const selectCategory = (categoryId: string) => {
+    router.replace({
+      pathname: '/pick/find',
+      params: { categoryId, ...(query.trim() ? { query: query.trim() } : {}) },
+    });
+  };
+
   const requestItem = () => {
     router.push({
       pathname: '/pick/request',
       params: {
         itemName: query.trim(),
-        ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+        ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
       },
     });
   };
 
   const chooseMovie = async (movie: MovieCatalogEntry) => {
-    if (!params.categoryId || importMovie.isPending) return;
+    if (!selectedCategory || importMovie.isPending) return;
     if (movie.existingItemId) {
-      chooseItem(movie.existingItemId, params.categoryId);
+      chooseItem(movie.existingItemId, selectedCategory.id);
       return;
     }
     if (!user) {
       router.push({
         pathname: '/auth/login',
-        params: { action: 'choose_movie', externalId: movie.externalId, categoryId: params.categoryId },
+        params: { action: 'choose_movie', externalId: movie.externalId, categoryId: selectedCategory.id },
       });
       return;
     }
@@ -81,7 +89,7 @@ export default function FindPickItemScreen() {
 
   useEffect(() => {
     const externalId = params.externalMovieId;
-    if (!user || !params.categoryId || !externalId || !/^\d{1,12}$/.test(externalId)
+    if (!user || !selectedCategory || !externalId || !/^\d{1,12}$/.test(externalId)
       || attemptedMovieId.current === externalId || importMovie.isPending) return;
 
     attemptedMovieId.current = externalId;
@@ -92,7 +100,7 @@ export default function FindPickItemScreen() {
       })
       .catch(() => {})
       .finally(() => setImportingMovieId(null));
-  }, [importMovie, params.categoryId, params.externalMovieId, router, user]);
+  }, [importMovie, params.externalMovieId, router, selectedCategory, user]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -115,14 +123,37 @@ export default function FindPickItemScreen() {
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.categorySection}>
+            <Text style={styles.categoryTitle}>먼저 카테고리를 선택해주세요</Text>
+            <View style={styles.categoryList}>
+              {categories.data?.map((category) => (
+                <Pressable
+                  key={category.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${category.label} 카테고리 선택`}
+                  onPress={() => selectCategory(category.id)}
+                  style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}>
+                  <Text style={styles.categoryChipText}>{category.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {categories.isPending ? <ActivityIndicator style={styles.categoryLoading} /> : null}
+            {categories.isError ? (
+              <Pressable onPress={() => void categories.refetch()} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
 
         <TextInput
-          autoFocus
+          autoFocus={Boolean(selectedCategory)}
           accessibilityLabel={isMovieCategory ? '원픽 영화 검색' : '원픽 제품 검색'}
           autoCapitalize="none"
+          editable={Boolean(selectedCategory)}
           onChangeText={setQuery}
-          placeholder={isMovieCategory ? '영화 제목 검색' : '제품명 검색'}
+          placeholder={!selectedCategory ? '카테고리를 먼저 선택해주세요' : isMovieCategory ? '영화 제목 검색' : '제품명 검색'}
           placeholderTextColor="#89909C"
           returnKeyType="search"
           style={styles.input}
@@ -155,7 +186,7 @@ export default function FindPickItemScreen() {
           </View>
         ) : null}
 
-        {!hasQuery ? (
+        {selectedCategory && !hasQuery ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>{isMovieCategory ? '영화 제목만 입력하면 됩니다' : '제품명만 입력하면 됩니다'}</Text>
             <Text style={styles.stateText}>검색 결과를 선택하면 원픽을 남길 수 있어요.</Text>
@@ -256,6 +287,12 @@ const styles = StyleSheet.create({
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   categoryBadgeText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  categorySection: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginTop: 18 },
+  categoryTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
+  categoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  categoryChip: { minHeight: 42, justifyContent: 'center', borderRadius: 999, backgroundColor: '#EFEEFF', paddingHorizontal: 14, paddingVertical: 9 },
+  categoryChipText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  categoryLoading: { marginTop: 14 },
   input: { minHeight: 54, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 17, paddingHorizontal: 16, color: '#202124', fontSize: 16, marginTop: 22 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
   stateCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginTop: 16 },

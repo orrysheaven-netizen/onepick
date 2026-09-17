@@ -21,6 +21,14 @@ function load(file, imports = {}) {
 }
 
 async function main() {
+  const config = fs.readFileSync(path.join(__dirname, '../../supabase/config.toml'), 'utf8');
+  assert.match(config, /\[functions\.movie-catalog\][\s\S]*?verify_jwt\s*=\s*false/,
+    'Movie search stays public while import auth is verified inside the function');
+  const edgeFunction = fs.readFileSync(path.join(__dirname, '../../supabase/functions/movie-catalog/index.ts'), 'utf8');
+  assert.match(edgeFunction, /body\.action === 'import'/);
+  assert.match(edgeFunction, /client\.auth\.getUser\(accessToken\)/,
+    'Movie imports must validate the caller even when platform JWT verification is disabled');
+
   const catalog = load(path.join(__dirname, '../../supabase/functions/movie-catalog/movieCatalog.ts'));
   const interstellar = catalog.mapTmdbMovie({
     id: 157336,

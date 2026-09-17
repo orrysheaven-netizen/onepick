@@ -3,9 +3,10 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { useItemSearch } from '@/hooks/useItemSearch';
 
-export function ItemSearch({ categoryId, compact = false, onSelect }: {
+export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelect }: {
   categoryId?: string;
   compact?: boolean;
+  onSearchMovie?: (query: string) => void;
   onSelect: (itemId: string) => void;
 }) {
   const [searchText, setSearchText] = useState('');
@@ -59,7 +60,18 @@ export function ItemSearch({ categoryId, compact = false, onSelect }: {
             {query.data.length === 20 ? '검색 결과 · 최대 20개 표시' : `검색 결과 ${query.data.length}개`}
           </Text>
           {query.data.length === 0 ? (
-            <Text style={styles.description}>일치하는 제품이 없어요. 다른 제품명이나 카테고리로 찾아보세요.</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.description}>일치하는 제품이 없어요. 다른 제품명이나 카테고리로 찾아보세요.</Text>
+              {onSearchMovie && searchText.trim().length >= 2 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${searchText.trim()} 영화 DB에서 검색`}
+                  onPress={() => onSearchMovie(searchText.trim())}
+                  style={styles.movieSearchButton}>
+                  <Text style={styles.movieSearchText}>영화 DB에서 찾아보기</Text>
+                </Pressable>
+              ) : null}
+            </View>
           ) : query.data.map((item) => (
             <Pressable
               accessibilityRole="button"
@@ -94,6 +106,9 @@ const styles = StyleSheet.create({
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
   retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   resultCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginVertical: 14 },
+  emptyState: { alignItems: 'flex-start' },
+  movieSearchButton: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: '#EFEEFF', paddingHorizontal: 15, marginTop: 12 },
+  movieSearchText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
   resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
   resultCopy: { flex: 1 },
   itemName: { color: '#202124', fontSize: 15, fontWeight: '800' },
