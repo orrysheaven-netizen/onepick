@@ -37,7 +37,7 @@ async function main() {
   const native = {
     Text: component('span'), View: component('div'), ScrollView: component('main'),
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
-    TextInput: (props) => { inputs.push(props); return null; }, ActivityIndicator: () => null,
+    TextInput: (props) => { inputs.push(props); return null; }, ActivityIndicator: () => null, Image: () => null,
     StyleSheet: { create: (styles) => styles },
   };
   const { AppError } = load('errors/appError.ts');
@@ -47,10 +47,14 @@ async function main() {
   const categories = { data: [category], isPending: false, isError: false, refetch: () => { categoryRetries++; } };
   const profile = { data: { currentPicks: [] }, isPending: false, isError: false, error: null, refetch: () => { profileRetries++; } };
   let outcome = async () => ({ type: 'pending_item', item: { name: '새 라면' } });
-  const mutation = { isPending: false, isError: false, error: null, mutateAsync: async (input) => {
+  const mutation = { isPending: false, isError: false, error: null, reset() { this.isError = false; this.error = null; }, mutateAsync: async (input) => {
     calls++; payload = input;
     return outcome();
   } };
+  const draft = { uri: 'data:image/jpeg;base64,cGhvdG8=', base64: 'cGhvdG8=', thumbnailBase64: 'dGh1bWI=', uploadId: 'request-photo' };
+  let chosenPhoto = draft, pickerCalls = 0, importedUrl;
+  const picker = { isPending: false, isError: false, error: null, reset() { this.isError = false; this.error = null; }, mutateAsync: async () => { pickerCalls++; return chosenPhoto; } };
+  const importer = { ...picker, mutateAsync: async (url) => { importedUrl = url; return { ...draft, sourceUrl: url }; } };
   const { default: Request } = load('app/pick/request.tsx', {
     react: fakeReact, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
@@ -60,7 +64,8 @@ async function main() {
     '@/errors/appError': { AppError },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
-    '@/hooks/useRegisterPick': { useRegisterPick: () => mutation, useRegistrationCategories: () => categories },
+    '@/hooks/useRegisterPick': { useRegisterPick: () => mutation, useRegistrationCategories: () => categories,
+      useChoosePhoto: () => picker, useImportItemPhoto: () => importer },
   });
   const render = () => { index = 0; presses = []; inputs = []; return renderToStaticMarkup(React.createElement(Request)); };
   const button = (text) => { const found = presses.find((p) => textOf(p.children).includes(text)); assert.ok(found, text); return found; };
@@ -127,14 +132,52 @@ async function main() {
   assert.equal(destination.pathname, '/pick/choose');
   assert.equal(destination.params.itemId, 'existing');
 
+  state = []; render();
+  press('직접 사진 선택'); await settle(); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'A photo needs explicit shared-image confirmation');
+  press('이 제품의 사진이 맞으며'); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, false);
+  chosenPhoto = null;
+  press('사진 바꾸기'); await settle(); render();
+  assert.equal(button('이 제품의 사진이 맞으며').accessibilityState.checked, true, 'Cancelling keeps the confirmed photo');
+  nameInput().onChangeText('사진 있는 라면'); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Changing identity requires confirming the photo again');
+  press('이 제품의 사진이 맞으며'); render();
+  picker.isPending = true; render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Submitting is blocked during photo preparation');
+  assert.equal(nameInput().editable, false);
+  picker.isPending = false;
+  outcome = async () => { throw new AppError('PHOTO_UPLOAD_FAILED'); };
+  render(); press('제품 등록 요청 보내기'); await settle();
+  assert.equal(payload.photo, draft, 'The actual request carries the selected image');
+  mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
+  assert.match(render(), /사진을 저장하지 못했어요/);
+  assert.equal(button('이 제품의 사진이 맞으며').accessibilityState.checked, true, 'Upload failure preserves photo for retry');
+  press('사진 제거'); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Image-free requests remain supported');
+  inputs.find((p) => p.accessibilityLabel === '제품 이미지 링크').onChangeText('https://maker.example/ramen');
+  render(); press('링크에서 이미지 가져오기'); await settle(); render();
+  assert.equal(importedUrl, 'https://maker.example/ramen');
+  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Imported images also need confirmation');
+  press('이 제품의 사진이 맞으며'); render();
+  outcome = async () => ({ type: 'pending_item', item: { name: '사진 있는 라면' } });
+  press('제품 등록 요청 보내기'); await settle();
+  assert.equal(payload.photo.sourceUrl, importedUrl, 'Source attribution reaches the existing registration service');
+  assert.match(render(), /제품 등록 요청을 보냈어요/);
+
   state = []; auth.user = null; profile.data = undefined; profile.isPending = true;
   const beforeLogin = calls;
-  render(); press('로그인하고 요청하기');
+  render();
+  const beforePicker = pickerCalls;
+  press('로그인하고 사진 추가');
+  assert.equal(pickerCalls, beforePicker, 'Sign in before choosing a photo so OAuth cannot lose the file draft');
+  assert.equal(destination.params.action, 'request_item');
+  press('로그인하고 요청하기');
   assert.equal(calls, beforeLogin);
   assert.equal(destination.pathname, '/auth/login');
   assert.equal(destination.params.action, 'request_item');
   assert.equal(destination.params.itemName, params.itemName);
   assert.equal(destination.params.categoryId, category.id);
-  console.log('Item request checks passed: prerequisite failures, retries, draft preservation, duplicate taps and login/approval routes.');
+  console.log('Item request checks passed: prerequisites, photo selection/import/confirmation, retry preservation, duplicate taps and login/approval routes.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
