@@ -13,31 +13,33 @@ import { useHomeData } from '@/hooks/useHomeData';
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type PickItem = HomeData['feed'][number];
 
-function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?: boolean; onOpen: () => void; onItem?: () => void }) {
+function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?: boolean; onOpen: () => void; onItem: () => void }) {
   const name = item.item?.name ?? '제품 정보를 확인할 수 없어요';
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" accessibilityLabel={name + ' 원픽 상세 보기'} onPress={onOpen} style={({ pressed }) => pressed && styles.pressed}>
-        <View style={styles.cardTop}>
-          <Text style={styles.cardCategory}>{item.category?.name ?? '카테고리'}</Text>
-          {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
-        </View>
-        <View style={styles.cardBody}>
+      <View style={styles.cardTop}>
+        <Text style={styles.cardCategory}>{item.category?.name ?? '카테고리'}</Text>
+        {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
+      </View>
+      <View style={styles.cardBody}>
+        <Pressable accessibilityRole="button" accessibilityLabel={name + ' 사진, 제품 상세 보기'} disabled={!item.item}
+          onPress={onItem} style={({ pressed }) => pressed && styles.pressed}>
           <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl} label={name} />
-          <View style={styles.cardCopy}>
-            <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text>
+        </Pressable>
+        <View style={styles.cardCopy}>
+          <Pressable accessibilityRole="button" accessibilityLabel={name + ' 제품 상세 보기'} disabled={!item.item}
+            onPress={onItem} style={({ pressed }) => [styles.productText, pressed && styles.pressed]}>
             <Text style={styles.itemName}>{name}</Text>
             {item.item ? <ItemPickCount itemId={item.item.id} /> : null}
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={name + ' 원픽 상세 보기'} onPress={onOpen}
+            style={({ pressed }) => [styles.pickPreview, pressed && styles.pressed]}>
+            <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text>
             <Text numberOfLines={3} style={styles.review}>“{item.pick.oneLineReview}”</Text>
             {item.pick.status === 'needs_review' ? <Text style={styles.reviewNotice}>확인이 필요한 원픽이에요.</Text> : null}
-          </View>
+          </Pressable>
         </View>
-      </Pressable>
-      {onItem && item.item ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={name + ' 제품 상세 보기'} onPress={onItem} style={styles.cardFooter}>
-          <Text style={styles.actionText}>제품 상세 보기</Text><Text style={styles.arrow}>↗</Text>
-        </Pressable>
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -158,7 +160,7 @@ export default function HomeScreen() {
             <View style={styles.nextSection}><SectionTitle title="원픽 제품 둘러보기" count={data.singleCategoryItems.length} /></View>
             <View style={styles.grid}>{data.singleCategoryItems.map((item) => <View key={item.id} style={cellStyle}>
               <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={() => openItem(item.id)} style={styles.card}>
-                <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl} label={item.name} large /><Text style={styles.itemName}>{item.name}</Text><ItemPickCount itemId={item.id} /><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
+                <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl} label={item.name} large /><Text style={styles.itemName}>{item.name}</Text><ItemPickCount itemId={item.id} />
               </Pressable>
             </View>)}</View>
           </> : null}
@@ -194,14 +196,15 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
   cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   cardCopy: { flex: 1, minWidth: 0 },
+  productText: { minHeight: 44, justifyContent: 'center' },
+  pickPreview: { minHeight: 44, justifyContent: 'center', marginTop: 10 },
   cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
   badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
   itemName: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '700', letterSpacing: -0.5 },
-  byline: { fontSize: 12, color: OnePick.muted, marginBottom: 5 },
+  byline: { fontSize: 12, color: OnePick.muted },
   review: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 6 },
   reviewNotice: { color: '#9A5D13', fontSize: 13, marginTop: 8 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: OnePick.border, minHeight: 44 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
   arrow: { color: OnePick.accent, fontSize: 20 },
   addCard: { flex: 1, minHeight: 200, padding: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: '#CCD0DA', borderRadius: 20 },
