@@ -9,6 +9,7 @@ import { SupabaseProductRepository } from './supabaseProductRepository';
 import { SupabaseProfileRepository } from './supabaseProfileRepository';
 import { SupabasePhotoRepository } from './supabasePhotoRepository';
 import { SupabaseReadRepository } from './supabaseReadRepository';
+import { SupabaseSafetyRepository } from './supabaseSafetyRepository';
 
 export const adminRepository = new SupabaseAdminRepository(supabase);
 export const authRepository = new SupabaseAuthRepository(supabase);
@@ -19,6 +20,7 @@ export const pickRepository = new SupabasePickRepository(supabase);
 export const profileRepository = new SupabaseProfileRepository(supabase);
 export const photoRepository = new SupabasePhotoRepository(supabase);
 export const readRepository = new SupabaseReadRepository(supabase);
+export const safetyRepository = new SupabaseSafetyRepository(supabase);
 
 export {
   SupabaseAdminRepository,
@@ -29,4 +31,5 @@ export {
   SupabaseProductRepository,
   SupabaseProfileRepository,
   SupabaseReadRepository,
+  SupabaseSafetyRepository,
 };
