@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickPhoto } from '@/components/pick-photo';
+import { AdminHomeSettings } from '@/components/admin-home-settings';
 import { AppError } from '@/errors/appError';
 import { useAdminActions, useAdminDashboard } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -120,6 +121,7 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession>; }) {
     <Text style={styles.kicker}>ONEPICK ADMIN</Text><Text style={styles.title}>카테고리와 제품 관리</Text>
     <Button onPress={() => router.push('/auth/admin-security')}>관리자 추가 인증</Button>
     {auth.isLoading ? <ActivityIndicator /> : auth.error ? <Button onPress={auth.retry}>로그인 상태 다시 확인</Button> : !auth.user ? <Text style={styles.notice}>관리자 계정으로 로그인한 후 내 프로필에서 다시 열어주세요.</Text> : query.isPending ? <ActivityIndicator /> : query.isError ? <View style={styles.card}><Text>{errorText(query.error)}</Text><Button onPress={() => void query.refetch()}>다시 확인</Button></View> : data ? <>
+      <AdminHomeSettings userId={auth.user.id} />
       <View style={styles.row}>{(['categories', 'items', 'aliases', 'requests', 'brands'] as const).map((value) => <Button key={value} disabled={saving} selected={tab === value} onPress={() => { setTab(value); clearItem(); setError(null); setNotice(''); }}>{value === 'categories' ? '카테고리' : value === 'items' ? '정식 제품' : value === 'aliases' ? '검색 별칭' : value === 'brands' ? '브랜드' : `등록 요청 ${data.pending.length}`}</Button>)}</View>
       <Button disabled={saving || query.isFetching} onPress={() => void query.refetch()}>새로고침</Button>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}

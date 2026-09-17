@@ -56,6 +56,19 @@ function mapClientErrorEvent(row: any): ClientErrorEvent {
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
+  async getHomeMinimumPickCount() {
+    const { data, error } = await this.client.from('home_settings').select('minimum_pick_count').eq('id', true).single();
+    if (error) throw mapSupabaseError(error);
+    return data.minimum_pick_count;
+  }
+
+  async setHomeMinimumPickCount(count: number) {
+    const { data, error } = await this.client.from('home_settings').update({ minimum_pick_count: count })
+      .eq('id', true).select('minimum_pick_count').single();
+    if (error) throw mapSupabaseError(error);
+    return data.minimum_pick_count;
+  }
+
   private operationsTable(name: 'admin_audit_logs' | 'client_error_events') {
     return (this.client.from as unknown as (table: string) => any)(name);
   }

@@ -36,6 +36,8 @@ export interface AdminItemUpdateInput extends Partial<AdminItemInput> {
 }
 
 export interface AdminRepository {
+  getHomeMinimumPickCount(): Promise<number>;
+  setHomeMinimumPickCount(count: number): Promise<number>;
   isAdmin(): Promise<boolean>;
   getOperationsMetrics(): Promise<AdminOperationsMetrics>;
   getAuditLogs(limit?: number): Promise<AdminAuditLog[]>;

@@ -36,6 +36,20 @@ export interface CategoryTopItem {
   isTied: boolean;
 }
 
+export interface HomeShowcaseItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  thumbnailUrl: string | null;
+  pickCount: number;
+}
+
+export interface HomeShowcase {
+  minimumPickCount: number;
+  items: HomeShowcaseItem[];
+}
+
 export interface PickReadInput {
   userId?: string;
   excludeUserId?: string;
@@ -48,6 +62,7 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
+  getHomeShowcase(): Promise<HomeShowcase>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;

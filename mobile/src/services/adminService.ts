@@ -38,6 +38,17 @@ export class AdminService {
 
   isAdmin() { return this.adminRepository.isAdmin(); }
 
+  async getHomeMinimumPickCount() {
+    await this.assertAdmin();
+    return this.adminRepository.getHomeMinimumPickCount();
+  }
+
+  async setHomeMinimumPickCount(count: number) {
+    await this.assertAdmin();
+    if (!Number.isInteger(count) || count < 1 || count > 100000) throw new RangeError('HOME_THRESHOLD_INVALID');
+    return this.adminRepository.setHomeMinimumPickCount(count);
+  }
+
   private validateCategory(input: AdminCategoryInput, categories: Category[], id?: string) {
     const invalid = () => { throw new AppError('CATEGORY_INVALID'); };
     if (!input.name.trim() || input.name.trim().length > 60 || !SLUG_PATTERN.test(input.slug) || input.slug.length > 80) invalid();

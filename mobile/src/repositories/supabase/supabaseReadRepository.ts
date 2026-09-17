@@ -18,6 +18,15 @@ type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type CategoryRow = Database['public']['Tables']['categories']['Row'];
 type ItemRow = Database['public']['Tables']['items']['Row'];
 type CommentRow = Database['public']['Tables']['comments']['Row'];
+type HomeShowcaseItemRow = {
+  item_id: string;
+  name: string;
+  category_id: string;
+  category_name: string;
+  image_path: string | null;
+  thumbnail_path: string | null;
+  pick_count: number;
+};
 
 type Related<T> = T | T[] | null;
 type PickReadRow = PickRow & {
@@ -58,6 +67,24 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
+
+  async getHomeShowcase() {
+    const { data, error } = await this.countClient.rpc('home_showcase').single();
+    if (error) throw mapSupabaseError(error);
+    if (!data || !Array.isArray(data.items)) throw new AppError('INTERNAL_ERROR');
+    return {
+      minimumPickCount: data.minimum_pick_count,
+      items: (data.items as unknown as HomeShowcaseItemRow[]).map((row) => {
+        const photo = row.thumbnail_path ?? row.image_path;
+        return {
+          itemId: row.item_id, name: row.name,
+          categoryId: row.category_id, categoryName: row.category_name,
+          thumbnailUrl: photo ? this.client.storage.from('item-photos').getPublicUrl(photo).data.publicUrl : null,
+          pickCount: row.pick_count,
+        };
+      }),
+    };
+  }
 
   async getCategoryTopItems(categoryId: string) {
     // Use the same public count client as item detail: personal blocks must not

@@ -70,6 +70,7 @@ async function main() {
 
   let dashboard = { isError: true, error: new AppError('FORBIDDEN') };
   const { default: Admin } = load('app/admin/index.tsx', { ...common,
+    '@/components/admin-home-settings': { AdminHomeSettings: () => null },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/hooks/useAdmin': { useAdminDashboard: () => dashboard, useAdminActions: () => ({}) },
   });

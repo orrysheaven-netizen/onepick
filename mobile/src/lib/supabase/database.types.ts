@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      home_settings: {
+        Row: {
+          id: boolean
+          minimum_pick_count: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          minimum_pick_count?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          minimum_pick_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -541,6 +559,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      home_showcase: {
+        Args: never
+        Returns: {
+          items: Json
+          minimum_pick_count: number
+        }[]
+      }
       admin_dashboard_metrics: { Args: never; Returns: Json }
       admin_merge_pending_item: {
         Args: { p_source_item_id: string; p_target_item_id: string }
@@ -897,4 +922,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

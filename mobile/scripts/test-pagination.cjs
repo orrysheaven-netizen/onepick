@@ -82,18 +82,6 @@ async function main() {
   const owner = id(2000);
   const profileService = new ProfileService({ getById: async (userId) => userId === owner ? { id: owner } : null }, repo);
 
-  const { HomeService } = load('services/homeService.ts');
-  const home = new HomeService({ getOpenCategories: async () => [] }, {}, repo);
-  picks = [
-    { ...row(1, '2026-09-16T10:00:00Z'), user_id: owner, updated_at: '2026-09-18T10:00:00Z' },
-    row(2), row(3),
-    ...['hidden', 'removed', 'replaced', 'needs_review'].map((status, i) => ({ ...row(10 + i), user_id: owner, status })),
-  ];
-  for (const userId of [undefined, owner]) {
-    const data = await home.getHomeData(userId);
-    assert.deepEqual(Array.from(data.feed, (item) => item.pick.id), [id(3), id(2), id(1)], 'Home includes own/public active picks, sorts registration time descending with stable ties, and ignores review edit time');
-  }
-
   picks = Array.from({ length: 45 }, (_, i) => row(i + 1));
   const first = await explore.getExploreData(id(901));
   assert.equal(first.feed.length, 20);
