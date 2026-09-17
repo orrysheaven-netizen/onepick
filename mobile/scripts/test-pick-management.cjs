@@ -105,10 +105,11 @@ async function main() {
     category: { name: '라면' }, item: { name: '제품' }, profile: { username: 'owner' }, isCurrent: true,
   };
   let query = { data, isPending: false, isError: false };
-  const { default: Screen } = loadSource('app/pick/[pickId].tsx', {
+  const { ItemReviewCard } = loadSource('components/item-review-card.tsx', {
     'expo-router': { useRouter: () => ({}), useLocalSearchParams: () => ({ pickId: 'pick-1' }) },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('div') },
+    '@/components/pick-replies': { PickReplies: () => null },
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement },
@@ -119,7 +120,7 @@ async function main() {
     '@/hooks/usePickComments': { usePickComments: () => ({ data: [] }) },
     '@/hooks/usePickDetail': { usePickDetail: () => query },
   });
-  const render = () => renderToStaticMarkup(React.createElement(Screen));
+  const render = () => renderToStaticMarkup(React.createElement(ItemReviewCard, { pick: data.pick, profile: data.profile, categoryName: data.category.name, itemName: data.item.name, focused: false, highlighted: false, onRemoved() {} }));
   assert.match(render(), /한줄평 수정/);
   assert.match(render(), /원픽 선택 해제/);
   session = { user: { id: 'someone' }, isLoading: false };
@@ -130,13 +131,12 @@ async function main() {
   assert.doesNotMatch(render(), /내 원픽 관리/);
   session.isLoading = false;
   data.isCurrent = false;
+  data.pick.status = 'replaced';
   assert.doesNotMatch(render(), /내 원픽 관리/);
   data.isCurrent = true;
   data.pick.status = 'needs_review';
   assert.match(render(), /내 원픽 관리/);
-  query = { isPending: true, isError: false };
-  assert.match(render(), /원픽을 불러오고 있어요/);
-  assert.doesNotMatch(render(), /원픽을 볼 수 없어요/);
+
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

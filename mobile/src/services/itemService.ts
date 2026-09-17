@@ -17,7 +17,7 @@ export class ItemService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getItemDetail(itemId: string, userId?: string) {
+  async getItemDetail(itemId: string, userId?: string, focusPickId?: string) {
     const item = await this.itemRepository.getById(itemId);
     if (!item) throw new AppError('ITEM_NOT_FOUND');
 
@@ -50,6 +50,18 @@ export class ItemService {
     const otherReviews = picks.filter((entry) => entry.pick.userId !== userId)
       .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
 
+    const reviews = [...ownReview, ...otherReviews];
+    // Shared links can reference a review beyond the first page or a previous choice.
+    // Read through the same permission-checked repository and verify its product.
+    if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
+      const focused = await this.readRepository.getPickById(focusPickId);
+      if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
+        reviews.splice(ownReview.length, 0, {
+          pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
+        });
+      }
+    }
+
     const canChoose = Boolean(
       openCategories.some((category) => category.id === item.categoryId) &&
       (item.status === 'active' || item.status === 'discontinued'),
@@ -59,7 +71,8 @@ export class ItemService {
       item,
       category,
       myPickStatus,
-      picks: [...ownReview, ...otherReviews],
+      picks: reviews,
+      focusAvailable: !focusPickId || reviews.some(({ pick }) => pick.id === focusPickId),
       canChoose,
     };
   }

@@ -13,13 +13,13 @@ async function main() {
   const mine = { id: 'mine', itemId: 'item', userId: 'me', status: 'active', oneLineReview: 'My older review' };
   const entry = (pick) => ({ pick, profile: { id: pick.userId, username: pick.userId } });
   const others = Array.from({ length: 20 }, (_, i) => entry({ id: `other-${i}`, itemId: 'item', userId: `person-${i}`, status: 'active' }));
-  let current = mine, fetchedMine = 0;
+  let current = mine, fetchedMine = 0, focused = null;
   const service = new exportsObject.ItemService(
     { getById: async () => item }, { getCurrentPick: async () => current },
     { getById: async () => ({ id: 'category' }), getOpenCategories: async () => [{ id: 'category' }] },
     {
       getPicks: async () => [...others, entry(mine)], // Defensive duplicate removal even if an adapter returns self.
-      getPickById: async () => { fetchedMine++; return entry(mine); },
+      getPickById: async (id) => { if (id !== mine.id) return focused; fetchedMine++; return entry(mine); },
     },
   );
   let result = await service.getItemDetail('item', 'me');
@@ -37,6 +37,23 @@ async function main() {
   assert.equal(fetchedMine, 1, 'Only fetch a personal review for the currently selected item');
   result = await service.getItemDetail('item');
   assert.ok(result.picks.every((p) => !p.isMine), 'Visitors see a shared list without a personal pin');
-  console.log('Item review ordering passed: my current choice first, no duplicates, others retain order, former choice and visitor states.');
+  current = mine;
+  focused = entry({ id: 'older', itemId: 'item', userId: 'friend', status: 'active' });
+  result = await service.getItemDetail('item', 'me', 'older');
+  assert.equal(result.picks[0].pick.id, 'mine');
+  assert.equal(result.picks[1].pick.id, 'older', 'Shared review outside the first page remains reachable');
+  assert.equal(result.focusAvailable, true);
+  result = await service.getItemDetail('item', 'me', 'other-0');
+  assert.equal(result.picks.filter((p) => p.pick.id === 'other-0').length, 1);
+  focused.pick.status = 'replaced';
+  result = await service.getItemDetail('item', 'me', 'older');
+  assert.equal(result.picks[1].pick.status, 'replaced', 'Readable history retains its thread');
+  for (const invalid of [null, entry({ id: 'older', itemId: 'different', status: 'active' }), entry({ id: 'older', itemId: 'item', status: 'hidden' })]) {
+    focused = invalid;
+    result = await service.getItemDetail('item', 'me', 'older');
+    assert.equal(result.focusAvailable, false);
+    assert.ok(!result.picks.some((p) => p.pick.id === 'older'));
+  }
+  console.log('Item reviews passed: own-first order, focused older review, history, deduplication, product isolation and unavailable links.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

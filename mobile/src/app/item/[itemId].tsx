@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachItemPhoto, useChoosePhoto } from '@/hooks/useRegisterPick';
 import { ItemPickCount } from '@/components/item-pick-count';
+import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
@@ -27,9 +28,37 @@ function photoErrorMessage(error: unknown) {
 
 export default function ItemDetailScreen() {
   const router = useRouter();
-  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const params = useLocalSearchParams<{ itemId?: string; pickId?: string }>();
+  const itemId = typeof params.itemId === 'string' ? params.itemId : undefined;
+  const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const { user } = useAuthSession();
-  const query = useItemDetail(itemId, user?.id);
+  const query = useItemDetail(itemId, user?.id, focusPickId);
+
+  const scroll = useRef<ScrollView>(null);
+  const reviewPositions = useRef<Record<string, number>>({});
+  const [highlightedId, setHighlightedId] = useState<string>();
+  const [focusRevision, setFocusRevision] = useState(0);
+  const scrolledTo = useRef<string | undefined>(undefined);
+  const focusReview = useCallback((id: string) => {
+    const y = reviewPositions.current[id];
+    if (y === undefined) return;
+    scroll.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+    setHighlightedId(id);
+    setFocusRevision((value) => value + 1);
+  }, []);
+  useEffect(() => {
+    scrolledTo.current = undefined;
+    if (focusPickId && reviewPositions.current[focusPickId] !== undefined) {
+      focusReview(focusPickId);
+      scrolledTo.current = focusPickId;
+    }
+  }, [focusPickId, focusReview, user?.id]);
+  useEffect(() => {
+    if (!highlightedId) return;
+    const timer = setTimeout(() => setHighlightedId(undefined), 4000);
+    return () => clearTimeout(timer);
+  }, [highlightedId, focusRevision]);
+
   const photoPicker = useChoosePhoto();
   const photoAttachment = useAttachItemPhoto();
   const busy = useRef(false);
@@ -78,7 +107,7 @@ export default function ItemDetailScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>제품을 볼 수 없어요</Text>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Text style={styles.secondaryButtonText}>돌아가기</Text>
           </Pressable>
         </View>
@@ -89,7 +118,7 @@ export default function ItemDetailScreen() {
   const { item, category, myPickStatus, picks, canChoose } = query.data;
   const openPickAction = () => {
     if (myPickStatus.type === 'selected_this') {
-      router.push({ pathname: '/pick/[pickId]', params: { pickId: myPickStatus.pickId } });
+      focusReview(myPickStatus.pickId);
       return;
     }
     if (!canChoose) return;
@@ -98,8 +127,8 @@ export default function ItemDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
@@ -174,35 +203,22 @@ export default function ItemDetailScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>원픽 한줄평</Text>
-          <Text style={styles.sectionHint}>최근 한줄평 {picks.length}개</Text>
+          <Text style={styles.sectionHint}>각 한줄평에서 답글로 대화해요</Text>
         </View>
 
+        {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
         {picks.length > 0 ? (
-          picks.map(({ pick, profile, isMine }) => (
-            <View key={pick.id} style={[styles.pickCard, isMine && styles.myPickCard]}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{(profile?.username ?? '?').slice(0, 1).toUpperCase()}</Text>
-              </View>
-              <View style={styles.pickCopy}>
-                {isMine ? <Text style={styles.myReviewLabel}>내 원픽 · 내 한줄평</Text> : null}
-                {profile ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
-                    onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username } })}
-                    style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
-                    <Text style={styles.username}>@{profile.username} · 프로필 보기 ›</Text>
-                  </Pressable>
-                ) : <Text style={styles.username}>사용자</Text>}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="원픽 한줄평 상세 보기"
-                  onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } })}
-                  style={({ pressed }) => [styles.reviewLink, pressed && styles.pressed]}>
-                  <Text style={styles.review}>“{pick.oneLineReview}”</Text>
-                  <Text style={styles.pickAction}>{isMine ? '내 한줄평 보기 / 수정 ›' : '원픽 상세 보기 ›'}</Text>
-                </Pressable>
-              </View>
+          picks.map(({ pick, profile }) => (
+            <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
+              reviewPositions.current[pick.id] = event.nativeEvent.layout.y;
+              if (pick.id === focusPickId && scrolledTo.current !== focusPickId) {
+                focusReview(pick.id);
+                scrolledTo.current = pick.id;
+              }
+            }}>
+              <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
+                itemName={item.name} focused={pick.id === focusPickId} highlighted={pick.id === highlightedId}
+                onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
         ) : (

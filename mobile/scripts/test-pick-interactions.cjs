@@ -70,6 +70,7 @@ async function main() {
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
   };
   const base = {
+    '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/item-pick-count': { ItemPickCount: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
@@ -91,7 +92,7 @@ async function main() {
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   render(Item);
   presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
-  assert.equal(destination.params.pickId, 'mine');
+  assert.equal(destination, undefined, 'Own review action stays on the product page');
 
   const { default: Choose } = loadSource('app/pick/choose.tsx', {
     ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
@@ -155,7 +156,7 @@ async function main() {
   let mutation = { mutateAsync: () => { attempts++; return new Promise((resolve, reject) => { resolveSave = resolve; rejectSave = reject; }); } };
   const commentsQuery = { data: [] };
   params = { pickId: 'pick' };
-  const { default: Pick } = loadSource('app/pick/[pickId].tsx', {
+  const { PickReplies } = loadSource('components/pick-replies.tsx', {
     ...base,
     react: { ...React, useState: () => [draft, (value) => { draft = value; }] },
     '@/components/pick-share-card': { PickShareCard: () => null },
@@ -166,8 +167,9 @@ async function main() {
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
   });
+  const Pick = () => React.createElement(PickReplies, { pickId: 'pick' });
   render(Pick);
-  const submit = presses.find((p) => textOf(p.children) === '댓글 남기기').onPress;
+  const submit = presses.find((p) => textOf(p.children) === '답글 남기기').onPress;
   const unhandled = [];
   const capture = (error) => unhandled.push(error);
   process.on('unhandledRejection', capture);
@@ -185,7 +187,7 @@ async function main() {
     assert.equal(draft, '', 'Successful saves clear the draft');
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
-  assert.match(render(Pick), /확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다/);
+  assert.match(render(Pick), /확인이 필요한 원픽에는 새 답글을 남길 수 없습니다/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   mutation = { isError: true, error: new AppError('PROFILE_NOT_FOUND') };
@@ -202,12 +204,12 @@ async function main() {
   });
   const failedComments = render(Pick);
   assert.match(failedComments, /이미 불러온 댓글/);
-  assert.match(failedComments, /다음 댓글을 불러오지 못했어요/);
-  presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도').onPress();
+  assert.match(failedComments, /다음 답글을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도').onPress();
   assert.equal(commentPages, 1); assert.equal(fullCommentRefreshes, 0);
   commentsQuery.isFetching = true;
   render(Pick);
-  const commentMore = presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도');
+  const commentMore = presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도');
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 

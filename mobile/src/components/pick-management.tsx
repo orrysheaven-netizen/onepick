@@ -110,7 +110,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
             disabled={isBusy}
             onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
-            {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>선택 해제하고 홈으로</Text>}
+            {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
           </Pressable>
         </>
       )}
