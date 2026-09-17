@@ -4,6 +4,18 @@ type StorageLike = {
   removeItem: (key: string) => void;
 };
 
+type BrowserLocationLike = {
+  origin: string;
+  pathname: string;
+  search: string;
+  hash: string;
+  assign: (url: string) => void;
+};
+
+type BrowserHistoryLike = {
+  replaceState: (data: unknown, unused: string, url?: string | URL | null) => void;
+};
+
 type AdminSession = {
   accessToken: string;
   refreshToken: string;
@@ -68,6 +80,16 @@ function storage(): StorageLike | null {
   return candidate ?? null;
 }
 
+function browserLocation(): BrowserLocationLike | null {
+  const candidate = (globalThis as unknown as { location?: BrowserLocationLike }).location;
+  return candidate ?? null;
+}
+
+function browserHistory(): BrowserHistoryLike | null {
+  const candidate = (globalThis as unknown as { history?: BrowserHistoryLike }).history;
+  return candidate ?? null;
+}
+
 function readSession(): AdminSession | null {
   const value = storage()?.getItem(SESSION_KEY);
   if (!value) return null;
@@ -87,6 +109,31 @@ function saveSession(payload: { access_token: string; refresh_token: string; exp
   };
   storage()?.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
+}
+
+function consumeAdminOAuthRedirect() {
+  const location = browserLocation();
+  if (!location?.hash) return false;
+
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const oauthError = params.get('error_description') ?? params.get('error');
+  if (oauthError) {
+    browserHistory()?.replaceState(null, '', `${location.pathname}${location.search}`);
+    throw new Error(oauthError);
+  }
+
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const expiresIn = Number.parseInt(params.get('expires_in') ?? '3600', 10);
+  if (!accessToken || !refreshToken) return false;
+
+  saveSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: Number.isFinite(expiresIn) ? expiresIn : 3600,
+  });
+  browserHistory()?.replaceState(null, '', `${location.pathname}${location.search}`);
+  return true;
 }
 
 async function authRequest(path: string, body: Record<string, unknown>) {
@@ -141,19 +188,16 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
   return data as T;
 }
 
-export async function signInAdmin(email: string, password: string) {
-  const payload = await authRequest('/auth/v1/token?grant_type=password', { email, password });
-  saveSession(payload);
-  try {
-    const isAdmin = await adminRequest<boolean>('/rest/v1/rpc/current_user_is_admin', {
-      method: 'POST',
-      body: '{}',
-    });
-    if (!isAdmin) throw new Error('관리자 권한이 없는 계정입니다.');
-  } catch (error) {
-    signOutAdmin();
-    throw error;
-  }
+export function beginKakaoAdminSignIn() {
+  const current = config();
+  const location = browserLocation();
+  if (!location) throw new Error('카카오 로그인은 웹 브라우저에서 사용할 수 있습니다.');
+
+  const redirectTo = `${location.origin}/admin`;
+  const authorizeUrl = new URL(`${current.supabaseUrl}/auth/v1/authorize`);
+  authorizeUrl.searchParams.set('provider', 'kakao');
+  authorizeUrl.searchParams.set('redirect_to', redirectTo);
+  location.assign(authorizeUrl.toString());
 }
 
 export function signOutAdmin() {
@@ -161,15 +205,22 @@ export function signOutAdmin() {
 }
 
 export async function checkAdminSession() {
+  consumeAdminOAuthRedirect();
   if (!readSession()) return false;
+
   try {
-    return await adminRequest<boolean>('/rest/v1/rpc/current_user_is_admin', {
+    const isAdmin = await adminRequest<boolean>('/rest/v1/rpc/current_user_is_admin', {
       method: 'POST',
       body: '{}',
     });
-  } catch {
+    if (!isAdmin) {
+      signOutAdmin();
+      throw new Error('관리자 권한이 없는 카카오 계정입니다.');
+    }
+    return true;
+  } catch (error) {
     signOutAdmin();
-    return false;
+    throw error;
   }
 }
 
