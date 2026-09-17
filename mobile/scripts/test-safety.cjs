@@ -36,7 +36,7 @@ async function main() {
   });
   const service = new SafetyService(repository);
 
-  await assert.rejects(() => service.blockUser('me', 'me'), (error) => error.code === 'BLOCK_SELF');
+  assert.throws(() => service.blockUser('me', 'me'), (error) => error.code === 'BLOCK_SELF');
   assert.equal(calls.length, 0, 'Self-block never reaches repository');
   await service.blockUser('me', 'other');
   assert.deepEqual(calls[0], ['block', 'me', 'other']);
@@ -45,11 +45,11 @@ async function main() {
     reporterUserId: 'me', targetType: 'pick', targetId: 'pick-1', reason: 'spam', details: '  detail  ',
   });
   assert.equal(calls[1][1].details, 'detail');
-  await assert.rejects(
+  assert.throws(
     () => service.submitReport({ reporterUserId: 'me', targetType: 'pick', targetId: '', reason: 'spam' }),
     (error) => error.code === 'REPORT_INVALID',
   );
-  await assert.rejects(
+  assert.throws(
     () => service.submitReport({ reporterUserId: 'me', targetType: 'pick', targetId: 'p', reason: 'other', details: 'x'.repeat(501) }),
     (error) => error.code === 'REPORT_INVALID',
   );
