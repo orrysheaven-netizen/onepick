@@ -1,7 +1,7 @@
 # 소수 테스터용 호스팅 준비
 
-현재 상태: **코드와 연결 설정 준비 완료, Cloudflare 계정·실제 테스트 주소는 미생성**.
-실제 외부 접속과 카카오 로그인 검증은 주소 생성 후 진행한다.
+현재 상태: **Cloudflare 계정 인증·GitHub 연결 및 빌드 설정 완료. 최신 코드 배포와 로그인 검증 진행 중**.
+공개 기본 주소: https://onepick-5cl.pages.dev (Cloudflare 프로젝트: onepick).
 
 목표는 테스터가 휴대폰 브라우저에서 고정 링크를 열고 원픽을 사용해 보는 것이다.
 앱스토어 등록이나 별도 도메인 구매는 필요하지 않다. Cloudflare Pages의 기본
@@ -24,7 +24,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 프로젝트 이름 | `onepick-test` 제안. 사용 중이면 다른 이름 선택 |
+| 프로젝트 이름 | `onepick` (주소: `onepick-5cl.pages.dev`) |
 | Production branch | `feature/pick-core` |
 | Framework preset | None |
 | Root directory | `mobile` |
@@ -106,3 +106,4 @@ Kakao Developers의 OAuth Redirect URI는 원픽 화면 주소와 다르다. 기
 - [SPA 기본 처리](https://developers.cloudflare.com/pages/configuration/serving-pages/) · [리다이렉트 우선순위](https://developers.cloudflare.com/pages/configuration/redirects/)
 - [검색 제외 헤더](https://developers.cloudflare.com/pages/configuration/headers/)
 - [Supabase 로그인 복귀 주소](https://supabase.com/docs/guides/auth/redirect-urls)
+
