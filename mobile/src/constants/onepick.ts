@@ -8,5 +8,5 @@ export const OnePick = {
   border: '#E3E5EA',
   accent: '#4945ED',
   accentSoft: '#EFEEFF',
-  maxWidth: 1200,
+  maxWidth: 480,
 } as const;

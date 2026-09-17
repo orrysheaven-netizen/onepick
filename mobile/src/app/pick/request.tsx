@@ -167,12 +167,12 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
         </Pressable>
-        <Text style={styles.kicker}>REQUEST ITEM</Text>
-        <Text style={styles.title}>없는 제품만 요청해주세요</Text>
+        <Text style={styles.kicker}>새로운 원픽의 시작</Text>
+        <Text style={styles.title}>제품 등록 요청</Text>
         <Text style={styles.subtitle}>제품명과 카테고리를 확인하고, 제품을 알아볼 수 있는 대표 사진을 함께 보내주세요. 사진 없이도 요청할 수 있어요.</Text>
 
         <Text style={styles.label}>제품명</Text>
@@ -281,17 +281,18 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
-  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 60 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
   center: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  back: { color: '#202124', fontSize: 36, lineHeight: 42, marginTop: 4 },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 18 },
-  title: { color: '#202124', fontSize: 29, lineHeight: 36, fontWeight: '900', marginTop: 8 },
+  backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },
+  back: { color: '#202124', fontSize: 36, lineHeight: 42 },
+  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 16 },
+  title: { color: '#202124', fontSize: 26, lineHeight: 34, fontWeight: '900', marginTop: 8 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
   label: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 25, marginBottom: 9 },
   input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
   selectedCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginBottom: 9 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 999, backgroundColor: '#ECEEF3', paddingHorizontal: 14, paddingVertical: 10 },
+  chip: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: '#ECEEF3', paddingHorizontal: 14, paddingVertical: 10 },
   chipActive: { backgroundColor: '#4945ED' },
   chipText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: '#FFFFFF' },

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { ItemPickCount } from '@/components/item-pick-count';
 import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
@@ -10,7 +10,6 @@ import { useExploreData } from '@/hooks/useExploreData';
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   const query = useExploreData(selectedCategoryId);
   const refresh = () => {
@@ -28,7 +27,7 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
@@ -167,13 +166,12 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
-  content: { width: '100%', maxWidth: 1200, alignSelf: 'center', paddingHorizontal: 40, paddingTop: 42, paddingBottom: 72 },
-  contentCompact: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
-  title: { color: '#202124', fontSize: 30, fontWeight: '800', lineHeight: 36, letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#747985', fontSize: 15, lineHeight: 24, marginTop: 13 },
-  categoryList: { gap: 8, paddingVertical: 28 },
-  chip: { backgroundColor: '#ECEEF3', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
+  title: { color: '#202124', fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.8, marginTop: 8 },
+  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
+  categoryList: { gap: 8, paddingVertical: 20 },
+  chip: { minHeight: 44, justifyContent: 'center', backgroundColor: '#ECEEF3', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
   chipActive: { backgroundColor: '#4945ED' },
   chipText: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
   chipTextActive: { color: '#FFFFFF' },

@@ -39,6 +39,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': { PickPhoto: () => null },
+  '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/constants/onepick': load('constants/onepick.ts'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useHomeData': { useHomeData: () => query },

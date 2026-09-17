@@ -1,50 +1,50 @@
 import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps } from 'expo-router/ui';
-import { Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnePick } from '@/constants/onepick';
-import { OnePickBrand } from './onepick-brand';
+
+type TabIcon = 'home' | 'explore' | 'profile';
 
 export default function AppTabs() {
-  const { width } = useWindowDimensions();
-  const compact = width < 600;
+  const insets = useSafeAreaInsets();
   return (
     <Tabs style={styles.tabs}>
-      <TabList style={[styles.header, styles.headerInner, compact && styles.innerCompact]}>
-          <TabTrigger name="home" href="/" asChild>
-            <BrandTab />
-          </TabTrigger>
-            <TabTrigger name="explore" href="/explore" asChild><TabButton>탐색</TabButton></TabTrigger>
-            <TabTrigger name="profile" href="/profile" asChild><TabButton avatar>나</TabButton></TabTrigger>
-      </TabList>
       <TabSlot style={styles.slot} />
+      <TabList style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <TabTrigger name="home" href="/" asChild><TabButton icon="home" label="홈" /></TabTrigger>
+        <TabTrigger name="explore" href="/explore" asChild><TabButton icon="explore" label="탐색" /></TabTrigger>
+        <TabTrigger name="profile" href="/profile" asChild><TabButton icon="profile" label="내 프로필" /></TabTrigger>
+      </TabList>
     </Tabs>
   );
 }
 
-function BrandTab({ isFocused, ...props }: TabTriggerSlotProps) {
-  return <Pressable {...props} accessibilityLabel="ONE PICK 홈" accessibilityState={{ selected: isFocused }} style={({ pressed }) => [styles.brandLink, pressed && styles.pressed]}><OnePickBrand /></Pressable>;
+function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
+  return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={active ? OnePick.accent : OnePick.muted}
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" />
+      : name === 'explore' ? <><circle cx="12" cy="12" r="9" /><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z" /></>
+      : <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 6 0 0 1 16 0v2" /></>}
+  </svg>;
 }
 
-function TabButton({ children, isFocused, avatar, ...props }: TabTriggerSlotProps & { avatar?: boolean }) {
-  return (
-    <Pressable {...props} accessibilityLabel={avatar ? '내 프로필' : '탐색'} accessibilityState={{ selected: isFocused }}
-      style={({ pressed }) => [styles.link, avatar && styles.avatar, isFocused && styles.active, pressed && styles.pressed]}>
-      <Text style={[styles.linkText, isFocused && styles.activeText]}>{children}</Text>
-    </Pressable>
-  );
+function TabButton({ icon, label, isFocused, ...props }: TabTriggerSlotProps & { icon: TabIcon; label: string }) {
+  return <Pressable {...props} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: isFocused }}
+    style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+    <View style={[styles.icon, isFocused && styles.active]}><Icon name={icon} active={isFocused} /></View>
+    <Text style={[styles.label, isFocused && styles.activeLabel]}>{label}</Text>
+  </Pressable>;
 }
 
 const styles = StyleSheet.create({
-  tabs: { flex: 1, backgroundColor: OnePick.background },
-  slot: { flex: 1 },
-  header: { backgroundColor: OnePick.background, borderBottomWidth: 1, borderBottomColor: OnePick.border },
-  headerInner: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', minHeight: 94, paddingHorizontal: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  innerCompact: { minHeight: 72, paddingHorizontal: 22 },
-  brandLink: { marginRight: 'auto' },
-  link: { minHeight: 44, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  avatar: { width: 42, paddingHorizontal: 0, backgroundColor: '#EAECF1' },
-  linkText: { fontSize: 14, fontWeight: '700', color: OnePick.muted },
+  tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.background },
+  slot: { flex: 1, minHeight: 0 },
+  bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
+  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   active: { backgroundColor: OnePick.accentSoft },
-  activeText: { color: OnePick.accent },
+  label: { fontSize: 11, fontWeight: '600', color: OnePick.muted },
+  activeLabel: { color: OnePick.accent, fontWeight: '800' },
   pressed: { opacity: 0.65 },
 });

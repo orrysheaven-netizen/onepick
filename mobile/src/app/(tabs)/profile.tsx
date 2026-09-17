@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
@@ -126,7 +126,6 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing =
@@ -237,7 +236,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor="#4945ED" />}>
         <View style={styles.header}>
@@ -313,8 +312,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
-  content: { width: '100%', maxWidth: 1000, alignSelf: 'center', paddingHorizontal: 40, paddingTop: 42, paddingBottom: 72 },
-  contentCompact: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 24 },
   profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center' },
   profileAvatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },

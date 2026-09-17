@@ -34,7 +34,7 @@ async function main() {
     { getById: async () => item },
     { getCurrentPick: async () => currentPick },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
-    { getPicks: async () => [] },
+    { getPicks: async () => [], getPickById: async () => null },
   );
   assert.equal((await service.getItemDetail('item')).canChoose, true);
   for (const status of ['draft', 'paused', 'closed']) {
@@ -69,6 +69,7 @@ async function main() {
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
   };
   const base = {
+    '@/components/item-pick-count': { ItemPickCount: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,

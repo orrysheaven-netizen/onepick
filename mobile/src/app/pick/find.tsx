@@ -36,7 +36,7 @@ export default function FindPickItemScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="돌아가기"
@@ -126,11 +126,11 @@ export default function FindPickItemScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
-  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 60 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 40, fontWeight: '300' },
   kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 12 },
-  title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
+  title: { color: '#202124', fontSize: 26, lineHeight: 34, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   categoryBadgeText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
