@@ -1,56 +1,45 @@
-# Welcome to your Expo app 👋
+# OnePick
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Admin web
 
-## Get started
+The admin workspace is available on web under `/admin`.
 
-1. Install dependencies
+- `/admin` — dashboard metrics and recent admin audit logs
+- `/admin/categories` — category creation and operating settings
+- `/admin/items` — item search, status and metadata management
+- `/admin/pending` — approve, reject, or merge pending items into existing catalog items
+- `/admin/users` — read-only user lookup
+- `/admin/reports` — content report review and resolution status
+- `/admin/audit` — recent admin audit log history
 
-   ```bash
-   npm install
-   ```
+Admin authentication uses the existing Supabase Kakao provider. After Kakao sign-in, the app calls `current_user_is_admin()` and only allows users present in the server-side admin allowlist.
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Local setup
 
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env
+npm run web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Required environment variables:
 
-### Other setup steps
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Before testing Kakao admin login, add the local `/admin` URL to Supabase Auth Redirect URLs. For example: `http://localhost:8081/admin`.
 
-## Learn more
+## Production build
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run typecheck
+npm run build:web
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The static site is exported to `dist/`.
 
-## Join the community
+A repository-level `vercel.json` is included. Configure the same two `EXPO_PUBLIC_*` environment variables in the hosting project, then add the production `/admin` URL to Supabase Auth Redirect URLs.
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Never expose a Supabase secret/service-role key in client code.
