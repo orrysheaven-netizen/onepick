@@ -46,6 +46,21 @@ export type AdminCategory = {
   image_url: string | null;
 };
 
+export type AdminItemStatus = 'pending' | 'active' | 'discontinued' | 'hidden' | 'merged' | 'rejected';
+
+export type AdminItem = {
+  id: string;
+  category_id: string;
+  name: string;
+  model_code: string | null;
+  official_url: string | null;
+  status: AdminItemStatus;
+  created_at: string;
+  updated_at: string;
+  image_path: string | null;
+  categories: { name: string } | null;
+};
+
 export type PendingItem = {
   id: string;
   category_id: string;
@@ -54,6 +69,29 @@ export type PendingItem = {
   created_at: string;
   image_path: string | null;
   categories: { name: string } | null;
+};
+
+export type AdminReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
+
+export type AdminReport = {
+  id: string;
+  target_type: 'profile' | 'pick' | 'comment';
+  target_id: string;
+  target_user_id: string | null;
+  reason: 'spam' | 'harassment' | 'inappropriate' | 'misleading' | 'other';
+  details: string | null;
+  status: AdminReportStatus;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+};
+
+export type AdminUser = {
+  id: string;
+  username: string;
+  onboarding_completed: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AdminAuditLog = {
@@ -232,7 +270,7 @@ export function getDashboardMetrics() {
 }
 
 export function getAuditLogs(limit = 8) {
-  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?select=id,entity_type,action,summary,created_at&order=created_at.desc&limit=${limit}`);
+  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?select=id,entity_type,action,summary,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 100)}`);
 }
 
 export function getCategories() {
@@ -262,8 +300,28 @@ export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'n
   });
 }
 
+export function getItems(input: { query?: string; status?: AdminItemStatus | 'all' } = {}) {
+  const params = new URLSearchParams({
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    order: 'updated_at.desc',
+    limit: '100',
+  });
+  const query = input.query?.trim();
+  if (query) params.set('name', `ilike.*${query}*`);
+  if (input.status && input.status !== 'all') params.set('status', `eq.${input.status}`);
+  return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
+}
+
+export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' | 'model_code' | 'official_url'>>) {
+  return adminRequest<AdminItem[]>(`/rest/v1/items?id=eq.${encodeURIComponent(id)}&select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(patch),
+  });
+}
+
 export function getPendingItems() {
-  return adminRequest<PendingItem[]>('/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc');
+  return adminRequest<PendingItem[]>('/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc&limit=100');
 }
 
 export function updatePendingItem(id: string, status: 'active' | 'rejected') {
@@ -272,4 +330,33 @@ export function updatePendingItem(id: string, status: 'active' | 'rejected') {
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({ status }),
   });
+}
+
+export function getReports(status: AdminReportStatus | 'all' = 'all') {
+  const params = new URLSearchParams({
+    select: 'id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at',
+    order: 'created_at.desc',
+    limit: '100',
+  });
+  if (status !== 'all') params.set('status', `eq.${status}`);
+  return adminRequest<AdminReport[]>(`/rest/v1/content_reports?${params.toString()}`);
+}
+
+export function updateReportStatus(id: string, status: AdminReportStatus) {
+  return adminRequest<AdminReport[]>(`/rest/v1/content_reports?id=eq.${encodeURIComponent(id)}&select=id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function getUsers(query = '') {
+  const params = new URLSearchParams({
+    select: 'id,username,onboarding_completed,created_at,updated_at',
+    order: 'created_at.desc',
+    limit: '100',
+  });
+  const keyword = query.trim();
+  if (keyword) params.set('username', `ilike.*${keyword}*`);
+  return adminRequest<AdminUser[]>(`/rest/v1/profiles?${params.toString()}`);
 }
