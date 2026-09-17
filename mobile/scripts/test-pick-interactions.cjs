@@ -104,6 +104,7 @@ async function main() {
   let draft = '  댓글 초안  ', attempts = 0, rejectSave, resolveSave;
   let pick = { id: 'pick', userId: 'owner', status: 'active', oneLineReview: '이유' };
   let mutation = { mutateAsync: () => { attempts++; return new Promise((resolve, reject) => { resolveSave = resolve; rejectSave = reject; }); } };
+  const commentsQuery = { data: [] };
   params = { pickId: 'pick' };
   const { default: Pick } = loadSource('app/pick/[pickId].tsx', {
     ...base,
@@ -113,7 +114,7 @@ async function main() {
     '@/components/pick-management': { PickManagement: () => null },
     '@/components/report-action': { ReportAction: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, product, category, profile: { username: 'owner' }, isCurrent: true } }) },
-    '@/hooks/usePickComments': { usePickComments: () => ({ data: [] }) },
+    '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
   });
   render(Pick);
@@ -143,6 +144,45 @@ async function main() {
   presses.find((p) => textOf(p.children) === '사용자명 만들고 계속').onPress();
   assert.equal(destination.params.action, 'comment_pick');
   assert.equal(destination.params.pickId, 'pick');
+  let commentPages = 0, fullCommentRefreshes = 0;
+  Object.assign(commentsQuery, {
+    data: [{ comment: { id: 'cached', body: '이미 불러온 댓글' }, author: null }],
+    hasNextPage: true, isError: true, isFetchNextPageError: true, isFetching: false,
+    fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); commentPages++; },
+    refetch: () => { fullCommentRefreshes++; },
+  });
+  const failedComments = render(Pick);
+  assert.match(failedComments, /이미 불러온 댓글/);
+  assert.match(failedComments, /다음 댓글을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도').onPress();
+  assert.equal(commentPages, 1); assert.equal(fullCommentRefreshes, 0);
+  commentsQuery.isFetching = true;
+  render(Pick);
+  const commentMore = presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도');
+  assert.equal(commentMore.disabled, true);
+  commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
+
+  let feedPages = 0;
+  const feedQuery = {
+    data: { openCategories: [], recentProducts: [], feed: [{ pick: { id: 'cached', oneLineReview: '이미 불러온 원픽' }, profile: null, product: null, category: null }] },
+    hasNextPage: true, isError: true, isFetchNextPageError: true, isFetching: false,
+    fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
+  };
+  const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
+    ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
+    '@/components/product-search': { ProductSearch: () => null },
+    '@/hooks/useExploreData': { useExploreData: () => feedQuery },
+  });
+  const failedFeed = render(Explore);
+  assert.match(failedFeed, /이미 불러온 원픽/);
+  assert.match(failedFeed, /다음 원픽을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도').onPress();
+  assert.equal(feedPages, 1);
+  feedQuery.isFetching = true;
+  render(Explore);
+  const feedMore = presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도');
+  assert.equal(feedMore.disabled, true);
+  feedMore.onPress(); assert.equal(feedPages, 1, 'Background feed refresh must not be interrupted');
   console.log('Interaction checks passed: product/category eligibility, read-model product picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

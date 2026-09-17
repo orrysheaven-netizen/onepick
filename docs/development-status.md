@@ -35,6 +35,23 @@ Repository → Supabase remains the boundary; no schema or policy change is need
 `mobile/scripts/test-admin-dashboard.cjs` checks the 500-author budget, deduplication,
 unordered/missing results, deleted accounts, error recovery and authorization.
 
+## Feed and comment pagination
+
+Explore and comments now continue from the last visible row's timestamp plus UUID,
+instead of a positional offset. Equal timestamps have deterministic ID ordering,
+and PostgreSQL microseconds are kept intact. Each read requests one extra row to
+decide whether more data is available, with a default page size of 20.
+
+Inserting or removing rows before the cursor does not shift the next page. A
+deleted cursor row still works because its sort values are carried in the cursor.
+This is not a frozen database snapshot: refreshing the list starts at the beginning
+to pick up newer items and current visibility rules. Existing RLS still applies.
+
+Failed additional loads retain visible content and offer a retry of that page.
+The load-more action does not interrupt background refreshes. Cursor-shaped query
+keys are separate from old offset caches. Regression tests exercise the real
+Supabase query builder and TanStack infinite-query behavior with changing fixtures.
+
 ## Deferred verification
 
 The user deferred Kakao login until the evening. Authenticated browser verification

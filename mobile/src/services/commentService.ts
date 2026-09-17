@@ -5,7 +5,7 @@ import type {
 } from '@/repositories/interfaces/commentRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const MAX_COMMENT_LENGTH = 300;
 export const COMMENTS_PAGE_SIZE = 20;
@@ -24,12 +24,14 @@ export class CommentService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getComments(pickId: string, offset = 0, limit = COMMENTS_PAGE_SIZE) {
-    const rows = await this.readRepository.getCommentsByPickId(pickId, limit + 1, offset);
-    const hasMore = rows.length > limit;
+  async getComments(pickId: string, cursor: ReadCursor | null = null, limit = COMMENTS_PAGE_SIZE) {
+    const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 99) : COMMENTS_PAGE_SIZE;
+    const rows = await this.readRepository.getCommentsByPickId(pickId, pageSize + 1, cursor);
+    const items = rows.slice(0, pageSize);
+    const last = items[items.length - 1]?.comment;
     return {
-      items: rows.slice(0, limit),
-      nextOffset: hasMore ? offset + limit : null,
+      items,
+      nextCursor: rows.length > pageSize && last ? { timestamp: last.createdAt, id: last.id } : null,
     };
   }
 

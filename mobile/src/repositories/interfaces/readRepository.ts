@@ -22,6 +22,11 @@ export interface ProductRequestReadItem {
   mergedIntoProduct: Product | null;
 }
 
+export interface ReadCursor {
+  timestamp: string;
+  id: string;
+}
+
 export interface PickReadInput {
   userId?: string;
   excludeUserId?: string;
@@ -29,13 +34,13 @@ export interface PickReadInput {
   productId?: string;
   statuses?: PickStatus[];
   limit?: number;
-  offset?: number;
+  cursor?: ReadCursor | null;
   orderBy?: 'started_at' | 'updated_at';
 }
 
 export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
-  getCommentsByPickId(pickId: string, limit?: number, offset?: number): Promise<CommentReadItem[]>;
+  getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
   getProductRequestsByUser(userId: string, statuses?: ProductStatus[], limit?: number): Promise<ProductRequestReadItem[]>;
 }

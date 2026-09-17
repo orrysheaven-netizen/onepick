@@ -151,7 +151,7 @@ export default function PickDetailScreen() {
                 </View>
               ) : null}
 
-              {commentsQuery.isError ? (
+              {commentsQuery.isError && !commentsQuery.isFetchNextPageError ? (
                 <View style={styles.commentsState}>
                   <Text style={styles.commentsStateText}>댓글을 불러오지 못했어요.</Text>
                   <Pressable
@@ -193,13 +193,17 @@ export default function PickDetailScreen() {
                 </View>
               ))}
 
+              {commentsQuery.isFetchNextPageError ? (
+                <Text accessibilityRole="alert" style={styles.commentsStateText}>다음 댓글을 불러오지 못했어요. 다시 시도해주세요.</Text>
+              ) : null}
+
               {commentsQuery.hasNextPage ? (
                 <Pressable
                   accessibilityRole="button"
-                  disabled={commentsQuery.isFetchingNextPage}
-                  onPress={() => void commentsQuery.fetchNextPage()}
-                  style={({ pressed }) => [styles.smallButton, commentsQuery.isFetchingNextPage && { opacity: 0.5 }, pressed && styles.pressed]}>
-                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.smallButtonText}>댓글 더 보기</Text>}
+                  disabled={commentsQuery.isFetching}
+                  onPress={() => { if (!commentsQuery.isFetching) void commentsQuery.fetchNextPage({ cancelRefetch: false }); }}
+                  style={({ pressed }) => [styles.smallButton, commentsQuery.isFetching && { opacity: 0.5 }, pressed && styles.pressed]}>
+                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '댓글 더 보기 다시 시도' : '댓글 더 보기'}</Text>}
                 </Pressable>
               ) : null}
 

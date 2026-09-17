@@ -1,8 +1,10 @@
+import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
   PickReadInput,
+  ReadCursor,
   ReadRepository,
 } from '@/repositories/interfaces/readRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
@@ -42,6 +44,18 @@ function one<T>(value: Related<T>): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
+function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor: ReadCursor, ascending: boolean) {
+  // Raw PostgREST filters need strict values. Preserve PostgreSQL microseconds;
+  // converting through Date.toISOString() would round the cursor to milliseconds.
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(cursor.id)
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(cursor.timestamp)
+    || !Number.isFinite(Date.parse(cursor.timestamp.replace(/(\.\d{3})\d+/, '$1')))) {
+    throw new AppError('INTERNAL_ERROR', 'INVALID_PAGINATION_CURSOR');
+  }
+  const comparison = ascending ? 'gt' : 'lt';
+  return `${column}.${comparison}.${cursor.timestamp},and(${column}.eq.${cursor.timestamp},id.${comparison}.${cursor.id})`;
+}
+
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
@@ -79,13 +93,15 @@ export class SupabaseReadRepository implements ReadRepository {
 
   async getPicks(input: PickReadInput) {
     const limit = Math.min(Math.max(input.limit ?? 30, 1), 100);
-    const offset = Math.max(input.offset ?? 0, 0);
+    const orderBy = input.orderBy ?? 'started_at';
     let query = this.client
       .from('picks')
       .select(PICK_READ_SELECT)
-      .order(input.orderBy ?? 'started_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order(orderBy, { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit);
 
+    if (input.cursor) query = query.or(cursorFilter(orderBy, input.cursor, false));
     if (input.userId) query = query.eq('user_id', input.userId);
     if (input.excludeUserId) query = query.neq('user_id', input.excludeUserId);
     if (input.categoryId) query = query.eq('category_id', input.categoryId);
@@ -97,16 +113,18 @@ export class SupabaseReadRepository implements ReadRepository {
     return (data as unknown as PickReadRow[]).map((row) => this.mapPickItem(row));
   }
 
-  async getCommentsByPickId(pickId: string, limit = 20, offset = 0) {
+  async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
-    const safeOffset = Math.max(offset, 0);
-    const { data, error } = await this.client
+    let query = this.client
       .from('comments')
       .select(`*, author:profiles!comments_user_id_fkey(*)`)
       .eq('pick_id', pickId)
       .order('created_at', { ascending: true })
-      .range(safeOffset, safeOffset + safeLimit - 1);
+      .order('id', { ascending: true })
+      .limit(safeLimit);
 
+    if (cursor) query = query.or(cursorFilter('created_at', cursor, true));
+    const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
     return (data as unknown as CommentReadRow[]).map((row) => {
       const author = one(row.author);

@@ -5,7 +5,7 @@ export const queryKeys = {
   },
   explore: {
     all: ['explore'] as const,
-    data: (categoryId?: string) => ['explore', categoryId ?? 'all'] as const,
+    data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
   },
   categories: {
     all: ['categories'] as const,
@@ -14,7 +14,7 @@ export const queryKeys = {
   },
   comments: {
     all: ['comments'] as const,
-    byPick: (pickId: string) => ['comments', 'pick', pickId] as const,
+    byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
   },
   products: {
     all: ['products'] as const,

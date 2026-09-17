@@ -100,13 +100,17 @@ export default function ExploreScreen() {
               </View>
             )}
 
+            {query.isFetchNextPageError ? (
+              <Text accessibilityRole="alert" style={styles.stateText}>다음 원픽을 불러오지 못했어요. 다시 시도해주세요.</Text>
+            ) : null}
+
             {query.hasNextPage ? (
               <Pressable
                 accessibilityRole="button"
-                disabled={query.isFetchingNextPage}
-                onPress={() => void query.fetchNextPage()}
-                style={({ pressed }) => [styles.loadMoreButton, query.isFetchingNextPage && styles.disabled, pressed && styles.pressed]}>
-                {query.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.loadMoreText}>원픽 더 보기</Text>}
+                disabled={query.isFetching}
+                onPress={() => { if (!query.isFetching) void query.fetchNextPage({ cancelRefetch: false }); }}
+                style={({ pressed }) => [styles.loadMoreButton, query.isFetching && styles.disabled, pressed && styles.pressed]}>
+                {query.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.loadMoreText}>{query.isFetchNextPageError ? '원픽 더 보기 다시 시도' : '원픽 더 보기'}</Text>}
               </Pressable>
             ) : null}
 

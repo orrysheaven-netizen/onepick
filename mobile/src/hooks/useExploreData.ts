@@ -1,14 +1,15 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
+import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { exploreService } from '@/services';
 
 export function useExploreData(categoryId?: string) {
   return useInfiniteQuery({
     queryKey: queryKeys.explore.data(categoryId),
-    initialPageParam: 0,
+    initialPageParam: null as ReadCursor | null,
     queryFn: ({ pageParam }) => exploreService.getExploreData(categoryId, pageParam),
-    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     select: (data) => {
       const feed = data.pages.flatMap((page) => page.feed);
       const seenProductIds = new Set<string>();
