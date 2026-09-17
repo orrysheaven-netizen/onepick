@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { AdminCategory, createCategory, getCategories, updateCategory } from '@/lib/admin-api';
+import { createCategory, getCategories, updateCategory } from '@/lib/admin-api';
+import type { AdminCategory } from '@/lib/admin-api';
 
 const STATUSES: AdminCategory['status'][] = ['draft', 'open', 'paused', 'closed'];
 
