@@ -3,12 +3,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useMyProfile } from '@/hooks/useMyProfile';
 import { createPickShareUrl } from '@/lib/share/shareLinks';
 import { sharePick } from '@/lib/share/sharePick';
 
 interface PickShareCardProps {
   pickId: string;
+  authorUserId: string;
   username: string;
   categoryName: string;
   productName: string;
@@ -17,11 +17,10 @@ interface PickShareCardProps {
 
 export function PickShareCard(props: PickShareCardProps) {
   const { user } = useAuthSession();
-  const myProfile = useMyProfile(user?.id);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const shareUrl = createPickShareUrl(props.pickId);
-  const canReport = Boolean(user && myProfile.data && myProfile.data.profile.username !== props.username);
+  const canReport = Boolean(user && user.id !== props.authorUserId);
 
   const handleShare = async () => {
     if (isSharing) return;
