@@ -13,7 +13,16 @@ async function main() {
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   assert.equal(config.expo.web.output, 'single', 'Dynamic user content needs the configured SPA fallback');
-  assert.match(fs.readFileSync(path.join(dist, '_redirects'), 'utf8'), /^\/\*\s+\/index\.html\s+200\s*$/m);
+  // Cloudflare Pages has a native SPA fallback, but redirects take priority over
+  // real assets. A catch-all rewrite would also intercept the app's JS and CSS.
+  const redirects = fs.readFileSync(path.join(dist, '_redirects'), 'utf8');
+  assert.equal(redirects.split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith('#')).length, 0,
+    'Review explicit redirects before enabling them on the Pages test host');
+  assert.ok(!fs.existsSync(path.join(dist, '404.html')), 'A root 404.html disables the Pages SPA fallback');
+  const headers = fs.readFileSync(path.join(dist, '_headers'), 'utf8');
+  assert.equal(headers, fs.readFileSync(path.join(root, 'public', '_headers'), 'utf8'), 'Test-host headers must be copied into the export');
+  assert.match(headers, /https:\/\/:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex/);
+  assert.match(headers, /https:\/\/:version\.:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex/);
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
 

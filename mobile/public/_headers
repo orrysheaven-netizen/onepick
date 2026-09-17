@@ -1,0 +1,7 @@
+# Ask search engines not to index the test host or its preview deployments.
+# This is not authentication; anyone with the URL can still open the site.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

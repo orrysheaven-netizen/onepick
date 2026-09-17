@@ -1,8 +1,10 @@
 # MVP web deployment
 
 Source of truth: `orrysheaven-netizen/onepick`, branch `feature/pick-core`, Draft PR #1.
-Hosting provider and public domain have not been selected. The changes here prepare
-and verify the build; they do not publish a site or change OAuth provider settings.
+Cloudflare Pages is the selected preparation target for a small tester group.
+The account and actual host URL are still pending. Start with
+[테스트 호스팅 연결 안내](test-hosting.md). The changes here prepare and verify the
+build; they do not publish a site or change OAuth provider settings.
 
 ## Build and preview
 
@@ -82,8 +84,14 @@ Serve existing JS, CSS and image files normally, then internally rewrite page
 requests to `/index.html` with HTTP 200 while preserving the original URL/query.
 Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/302.
 
-- Hosts supporting `_redirects` can use the file copied from `mobile/public/`.
-- On other hosts, configure an equivalent SPA fallback after existing files.
+- Cloudflare Pages uses its built-in SPA fallback when no top-level `404.html`
+  exists. `_redirects` deliberately contains comments only: a catch-all Pages
+  rewrite also matches existing JS/CSS/image assets and must not be used here.
+- On other hosts (including Netlify), configure the provider's equivalent SPA
+  fallback after existing files. Do not assume identical `_redirects` behavior.
+- `_headers` requests `noindex` for Pages test/preview domains. This is crawler
+  guidance, not an access restriction. Local `serve` does not interpret this
+  provider-specific file; verify its actual response header after hosting.
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
@@ -92,7 +100,9 @@ The SPA choice does not generate per-Pick search-engine/social-preview HTML.
 Rich link previews and server rendering are separate follow-up work.
 
 References: [Expo web publishing](https://docs.expo.dev/guides/publishing-websites/),
-[Expo static rendering](https://docs.expo.dev/router/web/static-rendering/).
+[Expo static rendering](https://docs.expo.dev/router/web/static-rendering/),
+[Pages SPA defaults](https://developers.cloudflare.com/pages/configuration/serving-pages/),
+[Pages redirects](https://developers.cloudflare.com/pages/configuration/redirects/).
 
 ## OAuth and sharing on the chosen domain
 
@@ -132,5 +142,5 @@ Before inviting testers, verify on the actual HTTPS deployment:
 - Retain the previous working deployment for rollback. Review and merge the
   release through PR #1 after the agreed checks pass.
 
-Actual hosting, domain configuration, authenticated browser flow and physical
-device verification remain pending until those environments are available.
+Actual hosting, test URL configuration, authenticated browser flow and physical
+device verification remain pending until the account and URL are available.

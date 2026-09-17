@@ -114,6 +114,14 @@ errors omit configuration values. The preflight is offline and does not establis
 OAuth readiness or the validity of credentials. Hosting/domain selection remains
 pending by the user's choice; no site or Auth configuration was published.
 
+The user subsequently selected preparation for a small-group Cloudflare Pages
+test host and confirmed no Cloudflare account exists yet. The Git integration
+settings and tester instructions are in [test-hosting.md](test-hosting.md) and
+[tester-guide.md](tester-guide.md). Pages will use its native SPA fallback rather
+than an asset-intercepting catch-all rewrite. Pages-domain noindex headers and
+the Node version are tracked with the code. An actual URL, account connection,
+OAuth allowlist updates and external/device verification remain pending.
+
 The user deferred Kakao login until the evening. Authenticated browser verification
 of request → Admin approval → Pick selection remains pending, as does physical
 iOS/Android device testing. Database role tests and mocked UI tests do not replace

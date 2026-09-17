@@ -65,3 +65,6 @@ See `docs/development-start.md` for local setup and `docs/shared-item-registrati
 
 See [MVP web deployment](docs/web-deployment.md) for production web builds,
 SPA routing, hosting environment, OAuth callbacks and release verification.
+
+For the small tester group, use [테스트 호스팅 연결 안내](docs/test-hosting.md)
+and [테스터 안내문](docs/tester-guide.md).

@@ -1,3 +1,4 @@
-# SPA fallback for hosts supporting _redirects (Netlify / Cloudflare Pages).
-# Existing files must be served before this rewrite. This is not a 301/302 redirect.
-/* /index.html 200
+# Cloudflare Pages serves existing assets and falls back to index.html for the SPA.
+# Keep the export free of a top-level 404.html.
+# Do not add a catch-all rewrite here: Pages redirects also match existing assets.
+# Other hosting providers must configure their own asset-first SPA fallback.
