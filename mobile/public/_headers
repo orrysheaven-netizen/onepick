@@ -1,3 +1,9 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+
 # Ask search engines not to index the test host or its preview deployments.
 # This is not authentication; anyone with the URL can still open the site.
 https://:project.pages.dev/*
