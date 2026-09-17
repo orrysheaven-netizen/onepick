@@ -18,6 +18,10 @@ export interface Item {
   imageUrl: string | null;
   thumbnailUrl: string | null;
   imageSourceUrl: string | null;
+  externalSource: string | null;
+  externalId: string | null;
+  originalName: string | null;
+  releaseYear: number | null;
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

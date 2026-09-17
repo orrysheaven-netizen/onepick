@@ -44,6 +44,10 @@ Mobile CI runs both commands after `npm ci` using Node.js 22.13.1. The test runn
 
 The checks cover home personalization, pick management, item search, auth session recovery/logout, returning to the intended screen after login, item/category eligibility, comment submission failure/retry, and Expo runtime configuration. They use repository/auth substitutes and rendered components; real Kakao authentication and device behavior still need separate verification.
 
+## Movie catalog
+
+Movie search uses the `movie-catalog` Supabase Edge Function. Store the TMDB API Read Access Token as the server-side `TMDB_READ_ACCESS_TOKEN` Edge Function secret; never add it to `EXPO_PUBLIC_…` variables. The app searches TMDB only inside `콘텐츠 › 영화` and saves a movie to `items` only after the user selects it. See `docs/movie-catalog.md` from the repository root for the data and security rules.
+
 ## Get a fresh project
 
 When you're ready, run:

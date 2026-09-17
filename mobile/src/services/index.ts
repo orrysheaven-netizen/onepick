@@ -6,6 +6,7 @@ import {
   observabilityRepository,
   pickRepository,
   itemRepository,
+  movieCatalogRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -21,6 +22,7 @@ import { HomeService } from './homeService';
 import { ObservabilityService } from './observabilityService';
 import { PickService } from './pickService';
 import { ItemService } from './itemService';
+import { MovieCatalogService } from './movieCatalogService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
@@ -58,6 +60,7 @@ export const itemService = new ItemService(
   categoryRepository,
   readRepository,
 );
+export const movieCatalogService = new MovieCatalogService(movieCatalogRepository);
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
@@ -72,6 +75,7 @@ export {
   ObservabilityService,
   PickService,
   ItemService,
+  MovieCatalogService,
   ProfileService,
   SafetyService,
 };

@@ -5,7 +5,6 @@ export const queryKeys = {
   },
   explore: {
     all: ['explore'] as const,
-    topItems: (categoryId?: string) => ['explore', categoryId ?? 'all', 'top-items'] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
   },
   categories: {
@@ -24,6 +23,9 @@ export const queryKeys = {
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string) =>
       ['items', 'search', query, categoryId ?? 'all'] as const,
+  },
+  movieCatalog: {
+    search: (query: string) => ['movie-catalog', 'search', query] as const,
   },
   picks: {
     all: ['picks'] as const,

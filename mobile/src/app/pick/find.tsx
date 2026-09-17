@@ -5,17 +5,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { useItemSearch } from '@/hooks/useItemSearch';
+import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import type { MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
 export default function FindPickItemScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const [query, setQuery] = useState('');
+  const [importingMovieId, setImportingMovieId] = useState<string | null>(null);
   const categories = useRegistrationCategories();
   const search = useItemSearch(query, params.categoryId);
   const selectedCategory = categories.data?.find((category) => category.id === params.categoryId);
+  const isMovieCategory = selectedCategory?.slug === 'movie';
+  const movieCatalog = useMovieCatalogSearch(query, isMovieCategory);
+  const importMovie = useImportMovieCatalogItem();
   const hasQuery = query.trim().length > 0;
-  const noResults = hasQuery && !search.isWaiting && !search.isFetching && !search.isError && search.data?.length === 0;
+  const canSearchMovieCatalog = query.trim().length >= 2;
+  const externalMovies = (movieCatalog.data ?? []).filter((movie) =>
+    !(search.data ?? []).some((item) => item.externalSource === movie.source && item.externalId === movie.externalId));
+  const isSearching = search.isWaiting || search.isFetching
+    || (isMovieCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching));
+  const noResults = hasQuery
+    && (!isMovieCategory || canSearchMovieCatalog)
+    && !isSearching
+    && !search.isError
+    && (!isMovieCategory || !movieCatalog.isError)
+    && search.data?.length === 0
+    && (!isMovieCategory || externalMovies.length === 0);
 
   const chooseItem = (itemId: string, categoryId: string) => {
     router.push({
@@ -34,6 +51,24 @@ export default function FindPickItemScreen() {
     });
   };
 
+  const chooseMovie = async (movie: MovieCatalogEntry) => {
+    if (!params.categoryId || importMovie.isPending) return;
+    if (movie.existingItemId) {
+      chooseItem(movie.existingItemId, params.categoryId);
+      return;
+    }
+
+    setImportingMovieId(movie.externalId);
+    try {
+      const imported = await importMovie.mutateAsync(movie.externalId);
+      chooseItem(imported.itemId, imported.categoryId);
+    } catch {
+      // Mutation state renders the error.
+    } finally {
+      setImportingMovieId(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -48,7 +83,7 @@ export default function FindPickItemScreen() {
         <Text style={styles.kicker}>FIND YOUR ONE PICK</Text>
         <Text style={styles.title}>나의 원픽 찾기</Text>
         <Text style={styles.subtitle}>
-          좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.
+          {isMovieCategory ? '좋아하는 영화 제목을 검색하고, 나만의 하나를 골라보세요.' : '좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.'}
         </Text>
 
         {selectedCategory ? (
@@ -59,20 +94,20 @@ export default function FindPickItemScreen() {
 
         <TextInput
           autoFocus
-          accessibilityLabel="원픽 제품 검색"
+          accessibilityLabel={isMovieCategory ? '원픽 영화 검색' : '원픽 제품 검색'}
           autoCapitalize="none"
           onChangeText={setQuery}
-          placeholder="제품명 검색"
+          placeholder={isMovieCategory ? '영화 제목 검색' : '제품명 검색'}
           placeholderTextColor="#89909C"
           returnKeyType="search"
           style={styles.input}
           value={query}
         />
 
-        {search.isWaiting || search.isFetching ? (
+        {isSearching ? (
           <View style={styles.inlineState}>
             <ActivityIndicator />
-            <Text style={styles.stateText}>등록된 제품을 찾고 있어요</Text>
+            <Text style={styles.stateText}>{isMovieCategory ? '등록된 영화와 TMDB를 함께 찾고 있어요' : '등록된 제품을 찾고 있어요'}</Text>
           </View>
         ) : null}
 
@@ -85,10 +120,27 @@ export default function FindPickItemScreen() {
           </View>
         ) : null}
 
+        {isMovieCategory && canSearchMovieCatalog && movieCatalog.isError ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>외부 영화 검색을 불러오지 못했어요</Text>
+            <Text style={styles.stateText}>등록된 영화 검색은 계속 사용할 수 있어요.</Text>
+            <Pressable onPress={() => void movieCatalog.refetch()} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>TMDB 다시 검색</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {!hasQuery ? (
           <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>제품명만 입력하면 됩니다</Text>
-            <Text style={styles.stateText}>검색한 제품을 선택하면 원픽을 남길 수 있어요.</Text>
+            <Text style={styles.stateTitle}>{isMovieCategory ? '영화 제목만 입력하면 됩니다' : '제품명만 입력하면 됩니다'}</Text>
+            <Text style={styles.stateText}>검색 결과를 선택하면 원픽을 남길 수 있어요.</Text>
+          </View>
+        ) : null}
+
+        {isMovieCategory && hasQuery && !canSearchMovieCatalog ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>두 글자 이상 입력해주세요</Text>
+            <Text style={styles.stateText}>한국어 제목과 원제를 함께 검색합니다.</Text>
           </View>
         ) : null}
 
@@ -110,7 +162,34 @@ export default function FindPickItemScreen() {
           );
         })}
 
-        {noResults ? (
+        {!movieCatalog.isWaiting && isMovieCategory && canSearchMovieCatalog && externalMovies.map((movie) => (
+          <Pressable
+            key={`${movie.source}:${movie.externalId}`}
+            accessibilityRole="button"
+            accessibilityLabel={`${movie.title} 영화 선택`}
+            accessibilityState={{ disabled: importMovie.isPending }}
+            disabled={importMovie.isPending}
+            onPress={() => void chooseMovie(movie)}
+            style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importMovie.isPending && styles.disabled]}>
+            <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
+            <View style={styles.itemCopy}>
+              <Text style={styles.itemCategory}>콘텐츠 › 영화 · TMDB</Text>
+              <Text style={styles.itemName}>{movie.title}</Text>
+              <Text style={styles.movieMeta}>
+                {[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || '개봉 정보 없음'}
+              </Text>
+              <Text style={styles.itemAction}>
+                {importingMovieId === movie.externalId ? '영화 정보를 저장하고 있어요…' : '이 영화를 원픽으로 선택 ›'}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+
+        {importMovie.isError ? (
+          <Text accessibilityRole="alert" style={styles.errorText}>영화 정보를 저장하지 못했어요. 잠시 후 다시 선택해주세요.</Text>
+        ) : null}
+
+        {noResults && !isMovieCategory ? (
           <View style={styles.requestCard}>
             <Text style={styles.stateTitle}>찾는 제품이 없나요?</Text>
             <Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text>
@@ -118,6 +197,17 @@ export default function FindPickItemScreen() {
               <Text style={styles.primaryButtonText}>제품 등록 요청하기</Text>
             </Pressable>
           </View>
+        ) : null}
+
+        {noResults && isMovieCategory ? (
+          <View style={styles.requestCard}>
+            <Text style={styles.stateTitle}>일치하는 영화를 찾지 못했어요</Text>
+            <Text style={styles.stateText}>띄어쓰기나 한국어·원제 제목을 바꿔서 검색해보세요.</Text>
+          </View>
+        ) : null}
+
+        {isMovieCategory ? (
+          <Text style={styles.attribution}>This product uses the TMDB API but is not endorsed or certified by TMDB.</Text>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -145,9 +235,13 @@ const styles = StyleSheet.create({
   itemCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
   itemName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
   itemAction: { color: '#747985', fontSize: 12, marginTop: 7 },
+  movieMeta: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 12 },
+  attribution: { color: '#89909C', fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.5 },
 });

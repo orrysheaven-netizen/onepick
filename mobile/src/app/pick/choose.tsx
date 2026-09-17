@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PickPhoto } from '@/components/pick-photo';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -146,7 +147,7 @@ export default function ChoosePickScreen() {
 
         {hasItem && item && canChoose && !user ? (
           <View style={styles.stateCard}>
-            <View style={styles.itemIcon}><Text style={styles.itemEmoji}>🍜</Text></View>
+            <PickPhoto uri={item.thumbnailUrl} label={`${item.name} 대표 이미지`} />
             <Text style={styles.kicker}>원픽을 고르려면</Text>
             <Text style={styles.title}>로그인이 필요해요</Text>
             <Text style={styles.stateText}>
@@ -168,7 +169,7 @@ export default function ChoosePickScreen() {
             <Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
 
             <View style={styles.itemCard}>
-              <View style={styles.itemIcon}><Text style={styles.itemEmoji}>🍜</Text></View>
+              <PickPhoto uri={item.thumbnailUrl} label={`${item.name} 대표 이미지`} />
               <View style={styles.itemCopy}>
                 <Text style={styles.itemLabel}>선택한 제품</Text>
                 <Text style={styles.itemName}>{item.name}</Text>
@@ -250,8 +251,6 @@ const styles = StyleSheet.create({
   title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
   subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 10 },
   itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
-  itemIcon: { width: 86, height: 86, borderRadius: 18, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  itemEmoji: { fontSize: 42 },
   itemCopy: { flex: 1, paddingLeft: 16 },
   itemLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
   itemName: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 6 },

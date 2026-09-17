@@ -310,6 +310,8 @@ export type Database = {
           category_id: string
           created_at: string
           created_by: string | null
+          external_id: string | null
+          external_source: string | null
           id: string
           image_path: string | null
           image_source_url: string | null
@@ -318,6 +320,8 @@ export type Database = {
           name: string
           normalized_name: string
           official_url: string | null
+          original_name: string | null
+          release_year: number | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -327,6 +331,8 @@ export type Database = {
           category_id: string
           created_at?: string
           created_by?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           image_path?: string | null
           image_source_url?: string | null
@@ -335,6 +341,8 @@ export type Database = {
           name: string
           normalized_name: string
           official_url?: string | null
+          original_name?: string | null
+          release_year?: number | null
           status?: string
           thumbnail_path?: string | null
           updated_at?: string
@@ -344,6 +352,8 @@ export type Database = {
           category_id?: string
           created_at?: string
           created_by?: string | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           image_path?: string | null
           image_source_url?: string | null
@@ -352,6 +362,8 @@ export type Database = {
           name?: string
           normalized_name?: string
           official_url?: string | null
+          original_name?: string | null
+          release_year?: number | null
           status?: string
           thumbnail_path?: string | null
           updated_at?: string
@@ -529,6 +541,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_dashboard_metrics: { Args: never; Returns: Json }
+      admin_merge_pending_item: {
+        Args: { p_source_item_id: string; p_target_item_id: string }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          external_id: string | null
+          external_source: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          merged_into_item_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          original_name: string | null
+          release_year: number | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       attach_item_photo: {
         Args: {
           p_image_path: string
@@ -541,6 +584,8 @@ export type Database = {
           category_id: string
           created_at: string
           created_by: string | null
+          external_id: string | null
+          external_source: string | null
           id: string
           image_path: string | null
           image_source_url: string | null
@@ -549,6 +594,8 @@ export type Database = {
           name: string
           normalized_name: string
           official_url: string | null
+          original_name: string | null
+          release_year: number | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -637,6 +684,8 @@ export type Database = {
           category_id: string
           created_at: string
           created_by: string | null
+          external_id: string | null
+          external_source: string | null
           id: string
           image_path: string | null
           image_source_url: string | null
@@ -645,6 +694,8 @@ export type Database = {
           name: string
           normalized_name: string
           official_url: string | null
+          original_name: string | null
+          release_year: number | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -669,6 +720,8 @@ export type Database = {
           category_id: string
           created_at: string
           created_by: string | null
+          external_id: string | null
+          external_source: string | null
           id: string
           image_path: string | null
           image_source_url: string | null
@@ -677,6 +730,8 @@ export type Database = {
           name: string
           normalized_name: string
           official_url: string | null
+          original_name: string | null
+          release_year: number | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -842,3 +897,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
