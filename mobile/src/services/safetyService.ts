@@ -1,6 +1,6 @@
 import { AppError } from '@/errors/appError';
 import type { SafetyRepository, SubmitReportInput } from '@/repositories/interfaces/safetyRepository';
-import type { ReportReason, ReportTargetType } from '@/types/domain/safety';
+import type { ReportReason, ReportStatus, ReportTargetType } from '@/types/domain/safety';
 
 const REPORT_REASONS = new Set<ReportReason>([
   'spam',
@@ -10,6 +10,7 @@ const REPORT_REASONS = new Set<ReportReason>([
   'other',
 ]);
 const REPORT_TARGET_TYPES = new Set<ReportTargetType>(['profile', 'pick', 'comment']);
+const REPORT_STATUSES = new Set<ReportStatus>(['open', 'reviewing', 'resolved', 'dismissed']);
 
 export class SafetyService {
   constructor(private readonly safetyRepository: SafetyRepository) {}
@@ -43,5 +44,14 @@ export class SafetyService {
     if (details && details.length > 500) throw new AppError('REPORT_INVALID');
 
     return this.safetyRepository.submitReport({ ...input, details });
+  }
+
+  getReports(limit = 200) {
+    return this.safetyRepository.getReports(limit);
+  }
+
+  updateReportStatus(reportId: string, status: ReportStatus) {
+    if (!reportId || !REPORT_STATUSES.has(status)) throw new AppError('REPORT_INVALID');
+    return this.safetyRepository.updateReportStatus(reportId, status);
   }
 }
