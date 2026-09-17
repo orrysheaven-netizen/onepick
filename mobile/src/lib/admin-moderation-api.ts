@@ -29,6 +29,7 @@ export type UserModeration = {
   status: UserModerationStatus;
   reason: string | null;
   suspended_at: string | null;
+  is_admin: boolean;
 };
 
 const SESSION_KEY = 'onepick.admin.session';
