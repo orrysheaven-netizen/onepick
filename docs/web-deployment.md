@@ -121,9 +121,9 @@ contacting the live database.
 
 Before inviting testers, verify on the actual HTTPS deployment:
 
-- Open a item, Pick and public profile link directly in a fresh browser and
+- Open an item, Pick and public profile link directly in a fresh browser and
   reload each page. A newly created item must work without rebuilding.
-- Complete Kakao login from both Home and a item action and return to the
+- Complete Kakao login from both Home and an item action and return to the
   expected screen. Test sign-out and a second account separately.
 - Submit a photo/request, approve it in Admin, and select the approved item.
 - Share a Pick/profile and open the copied HTTPS link on another device.

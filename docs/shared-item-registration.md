@@ -12,7 +12,7 @@ OnePick treats items as shared master data. Users choose an existing item whenev
 - **Approved item:** becomes `active` and can then be selected by any user.
 - **Duplicate request:** the server reuses a matching active/discontinued item or the caller's own pending request. Another user's pending request is private and is not returned by the submission RPC.
 
-The item carries its category. After a user selects a item, the app should derive category information from the item instead of asking the user to enter it again. Category hierarchy is stored with `categories.parent_id`, so a item assigned to `라면` can be displayed as `먹을것 > 라면`.
+The item carries its category. After a user selects an item, the app should derive category information from the item instead of asking the user to enter it again. Category hierarchy is stored with `categories.parent_id`, so an item assigned to `라면` can be displayed as `먹을것 > 라면`.
 
 ## Identity rules
 
@@ -84,7 +84,7 @@ A user submitting a missing item does **not** need to write a Pick review yet. T
 
 ## Images
 
-- Existing item images are reused; picking a item does not overwrite its shared image.
+- Existing item images are reused; picking an item does not overwrite its shared image.
 - A missing-item submission may include an optional image.
 - Imported images are previewed before submission. A public URL does not itself confer reuse permission.
 - JPEG/PNG imports have download and pixel limits and an HTTPS manufacturer-host allowlist.
@@ -97,7 +97,7 @@ A user submitting a missing item does **not** need to write a Pick review yet. T
 
 The approval model is enforced in PostgreSQL, not only in the UI:
 
-- `public.submit_item(...)` creates or reuses a item request and inserts new rows as `pending` only.
+- `public.submit_item(...)` creates or reuses an item request and inserts new rows as `pending` only.
 - `public.register_pick(...)` requires a non-null existing item ID and accepts only `active` or `discontinued` items.
 - regular authenticated users cannot insert `active` items through the table API.
 - regular authenticated users cannot modify category/brand/item master data.
@@ -141,4 +141,3 @@ The pgTAP shared-item regression test follows the same approval lifecycle. Mobil
 The administrator allowlist lives in the private schema and is not readable by `anon` or `authenticated`. Authorization does not rely on user-editable metadata.
 
 The latest security advisor output contains two pre-existing notices unrelated to the Admin RLS boundary: a private image-import quota table with RLS and no client policies, and leaked-password protection disabled in Auth settings. The private quota table is intentionally inaccessible to clients.
-

@@ -1,8 +1,8 @@
 # OnePick
 
-OnePick is a mobile-first social favorites item where each user keeps exactly one current favorite per category.
+OnePick is a mobile-first social favorites product where each user keeps exactly one current favorite per category.
 
-## Item principle
+## OnePick principle
 
 - One current Pick per category.
 - Every Pick has a short one-line reason.
