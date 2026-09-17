@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
 insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at) values
@@ -18,9 +19,9 @@ insert into public.products(id,category_id,name,normalized_name,status) values
 ('bbbbbbbb-0000-0000-0000-000000000002','aaaaaaaa-0000-0000-0000-000000000001','테스트 키보드 미니','테스트키보드미니','active'),
 ('bbbbbbbb-0000-0000-0000-000000000003','aaaaaaaa-0000-0000-0000-000000000001','숨김 테스트 제품','숨김테스트제품','hidden');
 
-select ok(has_index('public','product_aliases','product_aliases_normalized_trgm_idx'),'alias trigram index exists');
-select ok(has_index('public','products','products_normalized_name_trgm_idx'),'product trigram index exists');
-select ok(has_function('public','search_products',array['text','uuid[]','integer']),'search RPC exists');
+select has_index('public','product_aliases','product_aliases_normalized_trgm_idx','alias trigram index exists');
+select has_index('public','products','products_normalized_name_trgm_idx','product trigram index exists');
+select has_function('public','search_products',array['text','uuid[]','integer'],'search RPC exists');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','88888888-8888-8888-8888-888888888888',true);
