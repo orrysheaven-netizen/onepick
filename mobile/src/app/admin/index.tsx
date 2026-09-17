@@ -12,17 +12,20 @@ import type { Category, CategoryStatus } from '@/types/domain/category';
 import type { Product } from '@/types/domain/product';
 
 const statusNames: Record<CategoryStatus, string> = { draft: '준비 중', open: '운영 중', paused: '일시 중지', closed: '종료' };
+const productStatusNames = { active: '활성', discontinued: '단종', hidden: '숨김' } as const;
+type ManagedProductStatus = keyof typeof productStatusNames;
 const emptyCategory = (): AdminCategoryInput => ({ name: '', slug: '', parentId: null, status: 'draft', isVisible: false, isPickable: false, sortOrder: 0 });
 function errorText(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'FORBIDDEN') return '관리자 권한이 필요합니다.';
     if (error.code === 'CATEGORY_INVALID') return '이름·식별자·순서를 확인해주세요. 상위 카테고리는 선택 불가여야 하며, 두 단계까지만 만들 수 있습니다.';
-    if (error.code === 'PICK_CONFLICT') return '이미 사용 중인 식별자이거나 다른 관리자가 처리한 항목입니다. 새로고침 후 확인해주세요.';
+    if (error.code === 'PICK_CONFLICT') return '다른 관리자가 먼저 처리했거나 현재 상태에서는 수정할 수 없습니다. 새로고침 후 확인해주세요.';
     if (error.code === 'PRODUCT_NAME_INVALID') return '이름을 확인해주세요. 카테고리는 60자, 제품은 100자까지 입력할 수 있습니다.';
+    if (error.code === 'PRODUCT_CATEGORY_MISMATCH') return '정식 제품의 카테고리는 기존 Pick 관계를 보호하기 위해 변경하지 않습니다.';
     if (error.code === 'PRODUCT_ALIAS_INVALID') return '검색 별칭은 1~100자로 입력해주세요.';
     if (error.code === 'PRODUCT_ALIAS_REDUNDANT') return '정식 제품명과 같은 별칭은 추가할 필요가 없습니다.';
     if (error.code === 'PRODUCT_ALIAS_CONFLICT') return '같은 카테고리의 다른 제품에서 이미 사용하는 검색 이름입니다.';
-    if (error.code === 'CATEGORY_NOT_FOUND') return '공개·운영 중인 선택 가능한 카테고리를 골라주세요.';
+    if (error.code === 'CATEGORY_NOT_FOUND' || error.code === 'CATEGORY_NOT_PICKABLE') return '공개·운영 중인 선택 가능한 카테고리를 확인해주세요.';
   }
   return '저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해주세요.';
 }
@@ -41,7 +44,7 @@ export default function AdminScreen() {
   const auth = useAuthSession();
   return <AdminForm key={auth.user?.id ?? 'anonymous'} auth={auth} />;
 }
-function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
+function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession>; }) {
   const router = useRouter();
   const query = useAdminDashboard(auth.user?.id);
   const actions = useAdminActions();
@@ -53,6 +56,9 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
   const [productCategory, setProductCategory] = useState('');
   const [productBrand, setProductBrand] = useState<string | null>(null);
   const [productUrl, setProductUrl] = useState('');
+  const [productStatus, setProductStatus] = useState<ManagedProductStatus>('active');
+  const [productEditId, setProductEditId] = useState<string | null>(null);
+  const [productListQuery, setProductListQuery] = useState('');
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
@@ -75,25 +81,39 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
   };
   const clearCategory = () => { setCategoryId(null); setCategory(emptyCategory()); setSortOrder('0'); };
   const editCategory = (item: Category) => { setCategoryId(item.id); setCategory({ ...item }); setSortOrder(String(item.sortOrder)); setNotice(''); setError(null); };
-  const editRequest = (item: Product) => { setRequestId(item.id); setProductName(item.name); setProductCategory(item.categoryId); setProductBrand(item.brandId); setProductUrl(item.officialUrl ?? ''); setNotice(''); setError(null); };
-  const clearProduct = () => { setRequestId(null); setProductName(''); setProductCategory(''); setProductBrand(null); setProductUrl(''); };
+  const clearProduct = () => {
+    setRequestId(null); setProductEditId(null); setProductName(''); setProductCategory('');
+    setProductBrand(null); setProductUrl(''); setProductStatus('active');
+  };
+  const editRequest = (item: Product) => {
+    setProductEditId(null); setRequestId(item.id); setProductName(item.name); setProductCategory(item.categoryId);
+    setProductBrand(item.brandId); setProductUrl(item.officialUrl ?? ''); setProductStatus('active'); setNotice(''); setError(null);
+  };
+  const editFormalProduct = (item: Product) => {
+    if (!['active', 'discontinued', 'hidden'].includes(item.status)) return;
+    setRequestId(null); setProductEditId(item.id); setProductName(item.name); setProductCategory(item.categoryId);
+    setProductBrand(item.brandId); setProductUrl(item.officialUrl ?? ''); setProductStatus(item.status as ManagedProductStatus); setNotice(''); setError(null);
+  };
   const saveCategory = () => run(async () => {
     if (!sortOrder.trim() || !/^-?\d+$/.test(sortOrder)) throw new AppError('CATEGORY_INVALID');
     const input = { ...category, sortOrder: Number(sortOrder) };
     return categoryId ? actions.updateCategory.mutateAsync({ id: categoryId, input }) : actions.createCategory.mutateAsync(input);
   }, '카테고리를 저장했습니다. 공개·운영 중·선택 가능 설정을 모두 켜면 사용자 앱에 표시됩니다.', clearCategory);
   const saveProduct = () => run(() => {
-    const input = { name: productName, categoryId: productCategory, brandId: productBrand, officialUrl: productUrl.trim() || null };
-    return requestId ? actions.approveProduct.mutateAsync({ productId: requestId, edits: input }) : actions.createProduct.mutateAsync(input);
-  }, requestId ? '승인했습니다. 이제 원픽으로 선택할 수 있습니다.' : '정식 제품을 등록했습니다.', clearProduct);
+    const common = { name: productName, brandId: productBrand, officialUrl: productUrl.trim() || null };
+    if (requestId) return actions.approveProduct.mutateAsync({ productId: requestId, edits: { ...common, categoryId: productCategory } });
+    if (productEditId) return actions.updateProduct.mutateAsync({ productId: productEditId, input: { ...common, status: productStatus } });
+    return actions.createProduct.mutateAsync({ ...common, categoryId: productCategory });
+  }, requestId ? '승인했습니다. 이제 원픽으로 선택할 수 있습니다.' : productEditId ? '정식 제품 정보를 수정했습니다.' : '정식 제품을 등록했습니다.', clearProduct);
   const saveAlias = () => {
     if (!aliasProductId || !aliasValue.trim()) return;
-    void run(
-      () => actions.addProductAlias.mutateAsync({ productId: aliasProductId, alias: aliasValue }),
-      '검색 별칭을 추가했습니다.',
-      () => setAliasValue(''),
-    );
+    void run(() => actions.addProductAlias.mutateAsync({ productId: aliasProductId, alias: aliasValue }), '검색 별칭을 추가했습니다.', () => setAliasValue(''));
   };
+  const productReady = Boolean(productName.trim() && productCategory && (productEditId || eligible.some((item) => item.id === productCategory)));
+  const filteredProducts = (data?.products ?? [])
+    .filter((product) => ['active', 'discontinued', 'hidden'].includes(product.status))
+    .filter((product) => !productListQuery.trim() || product.name.toLowerCase().includes(productListQuery.trim().toLowerCase()))
+    .slice(0, 100);
 
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Button onPress={() => router.replace('/(tabs)/profile')}>‹ 내 프로필</Button>
@@ -139,9 +159,10 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
         {aliasProductId ? (() => {
           const product = data.products.find((item) => item.id === aliasProductId);
           const aliases = data.aliases.filter((item) => item.productId === aliasProductId);
+          const productCategoryItem = product ? categories.find((item) => item.id === product.categoryId) : null;
           return product ? <View style={styles.card}>
             <Text style={styles.heading}>{product.name}</Text>
-            <Text style={styles.hint}>{categoryLabel(categories.find((item) => item.id === product.categoryId) ?? categories[0], categories)}</Text>
+            <Text style={styles.hint}>{productCategoryItem ? categoryLabel(productCategoryItem, categories) : '카테고리 확인 필요'}</Text>
             <Text style={styles.label}>새 검색 별칭</Text>
             <TextInput accessibilityLabel="새 검색 별칭" editable={!saving} style={styles.input} value={aliasValue} onChangeText={setAliasValue} maxLength={100} placeholder="다르게 검색할 수 있는 이름" />
             <Button selected disabled={saving || !aliasValue.trim()} onPress={saveAlias}>{saving ? '저장 중…' : '별칭 추가'}</Button>
@@ -151,13 +172,15 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
         })() : null}
       </> : <>
         {tab === 'products' || requestId ? <View style={styles.card}>
-          <Text style={styles.heading}>{requestId ? '요청 확인 후 승인' : '정식 제품 추가'}</Text>
+          <Text style={styles.heading}>{requestId ? '요청 확인 후 승인' : productEditId ? '정식 제품 수정' : '정식 제품 추가'}</Text>
           <Text style={styles.label}>제품명 · 맛과 종류 포함</Text><TextInput accessibilityLabel="관리할 제품명" editable={!saving} style={styles.input} value={productName} maxLength={100} onChangeText={setProductName} placeholder="예: 진라면 매운맛" />
           <Text style={styles.label}>공식 제품 링크 · 선택 사항</Text><TextInput accessibilityLabel="공식 제품 링크" editable={!saving} style={styles.input} value={productUrl} onChangeText={setProductUrl} autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" />
-          <Text style={styles.label}>카테고리</Text><View style={styles.row}>{eligible.map((item) => <Button key={item.id} disabled={saving} selected={productCategory === item.id} onPress={() => setProductCategory(item.id)}>{categoryLabel(item, categories)}</Button>)}</View>
+          <Text style={styles.label}>카테고리</Text><View style={styles.row}>{eligible.map((item) => <Button key={item.id} disabled={saving || Boolean(productEditId)} selected={productCategory === item.id} onPress={() => setProductCategory(item.id)}>{categoryLabel(item, categories)}</Button>)}</View>
+          {productEditId ? <Text style={styles.hint}>정식 제품의 카테고리는 기존 Pick 관계를 보호하기 위해 고정합니다. 잘못 등록된 제품은 숨기고 올바른 제품으로 새로 등록해주세요.</Text> : null}
           <Text style={styles.label}>브랜드 · 선택 사항</Text><View style={styles.row}><Button disabled={saving} selected={!productBrand} onPress={() => setProductBrand(null)}>미지정</Button>{data.brands.filter((brand) => brand.isActive).map((brand) => <Button key={brand.id} disabled={saving} selected={productBrand === brand.id} onPress={() => setProductBrand(brand.id)}>{brand.name}</Button>)}</View>
-          <Button selected disabled={saving || !productName.trim() || !eligible.some((item) => item.id === productCategory)} onPress={() => void saveProduct()}>{saving ? '저장 중…' : requestId ? '승인하고 정식 등록' : '제품 등록'}</Button>
-          {requestId ? <Button disabled={saving} onPress={clearProduct}>편집 닫기</Button> : null}
+          {productEditId ? <><Text style={styles.label}>제품 상태</Text><View style={styles.row}>{(Object.keys(productStatusNames) as ManagedProductStatus[]).map((status) => <Button key={status} disabled={saving} selected={productStatus === status} onPress={() => setProductStatus(status)}>{productStatusNames[status]}</Button>)}</View></> : null}
+          <Button selected disabled={saving || !productReady} onPress={() => void saveProduct()}>{saving ? '저장 중…' : requestId ? '승인하고 정식 등록' : productEditId ? '제품 수정 저장' : '제품 등록'}</Button>
+          {(requestId || productEditId) ? <Button disabled={saving} onPress={clearProduct}>편집 닫기</Button> : null}
         </View> : null}
         {tab === 'requests' ? data.pending.length ? data.pending.map(({ product, submitter }) => <View key={product.id} style={styles.card}>
           <PickPhoto uri={product.thumbnailUrl} label={product.name} /><Text style={styles.heading}>{product.name}</Text>
@@ -165,8 +188,14 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
           {similarProducts(product, data.products).length ? <Text style={styles.label}>기존 제품 후보 · 같은 제품인지 확인 후 연결</Text> : null}
           {similarProducts(product, data.products).map((candidate) => <Button key={candidate.id} disabled={saving} onPress={() => void run(() => actions.mergeProduct.mutateAsync({ productId: product.id, targetProductId: candidate.id }), '기존 제품으로 연결했습니다.', clearProduct)}>{`${candidate.name}에 연결`}</Button>)}
           <View style={styles.row}><Button disabled={saving} onPress={() => editRequest(product)}>이름·카테고리 확인</Button><Button disabled={saving} onPress={() => void run(() => actions.rejectProduct.mutateAsync(product.id), '요청을 보류했습니다.', clearProduct)}>등록 보류</Button></View>
-        </View>) : <Text style={styles.notice}>처리할 요청이 없습니다.</Text> : data.products.filter((product) => ['active', 'discontinued'].includes(product.status)).map((product) => <View key={product.id} style={styles.card}><Text style={styles.heading}>{product.name}</Text><Text>{categories.find((item) => item.id === product.categoryId)?.name}</Text><Button onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: product.id } })}>제품 상세</Button></View>)}
-        {(tab === 'requests' ? data.pending.length : data.products.length) >= 500 ? <Text style={styles.hint}>한 번에 최대 500개를 표시합니다. 요청은 오래된 순서로 표시하며 처리 후 다음 항목을 불러옵니다.</Text> : null}
+        </View>) : <Text style={styles.notice}>처리할 요청이 없습니다.</Text> : <>
+          <View style={styles.card}><Text style={styles.heading}>정식 제품 찾기</Text><TextInput accessibilityLabel="정식 제품 검색" editable={!saving} style={styles.input} value={productListQuery} onChangeText={setProductListQuery} placeholder="제품명 검색" /><Text style={styles.hint}>활성·단종·숨김 제품을 최대 100개 표시합니다.</Text></View>
+          {filteredProducts.map((product) => {
+            const itemCategory = categories.find((item) => item.id === product.categoryId);
+            return <View key={product.id} style={styles.card}><Text style={styles.heading}>{product.name}</Text><Text style={styles.hint}>{itemCategory ? categoryLabel(itemCategory, categories) : '카테고리 확인 필요'} · {productStatusNames[product.status as ManagedProductStatus] ?? product.status}</Text><View style={styles.row}><Button disabled={saving} onPress={() => editFormalProduct(product)}>수정</Button><Button onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: product.id } })}>제품 상세</Button></View></View>;
+          })}
+        </>}
+        {(tab === 'requests' ? data.pending.length : data.products.length) >= 500 ? <Text style={styles.hint}>한 번에 최대 500개를 불러옵니다. 검색과 상태 관리가 필요한 대규모 운영 단계에서는 서버 페이지네이션으로 확장합니다.</Text> : null}
       </>}
     </> : null}
   </ScrollView></SafeAreaView>;
