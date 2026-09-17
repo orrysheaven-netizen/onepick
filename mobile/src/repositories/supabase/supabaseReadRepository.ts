@@ -142,7 +142,7 @@ export class SupabaseReadRepository implements ReadRepository {
       .select(`
         *,
         category:categories!items_category_id_fkey(*),
-        mergedIntoItem:items!items_merged_into_item_id_fkey(*)
+        mergedIntoItem:items!merged_into_item_id(*)
       `)
       .eq('created_by', userId)
       .order('created_at', { ascending: false })
