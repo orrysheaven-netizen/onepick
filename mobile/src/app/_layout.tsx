@@ -1,39 +1,57 @@
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppFrame from '@/components/app-frame';
 import { RootErrorBoundary } from '@/components/root-error-boundary';
-import { AppQueryProvider } from '@/lib/query/appQueryProvider';
 import { OnePick } from '@/constants/onepick';
+import { AppQueryProvider } from '@/lib/query/appQueryProvider';
 
 SplashScreen.preventAutoHideAsync();
-const theme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: OnePick.background, card: OnePick.surface, text: OnePick.text, border: OnePick.border, primary: OnePick.accent } };
+
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: OnePick.background,
+    card: OnePick.surface,
+    text: OnePick.text,
+    border: OnePick.border,
+    primary: OnePick.accent,
+  },
+};
+
+function AppStack() {
+  return (
+    <>
+      <AnimatedSplashOverlay />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="admin" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pick/choose" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pick/register" options={{ presentation: 'card' }} />
+        <Stack.Screen name="auth/login" options={{ presentation: 'card' }} />
+        <Stack.Screen name="auth/username" options={{ presentation: 'card' }} />
+        <Stack.Screen name="auth/callback" options={{ presentation: 'card' }} />
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout() {
+  const pathname = usePathname();
+  const isAdminRoute = pathname.startsWith('/admin');
+
   return (
     <RootErrorBoundary>
       <AppQueryProvider>
         <Head><title>OnePick</title></Head>
         <ThemeProvider value={theme}>
-          <AppFrame>
-            <AnimatedSplashOverlay />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="settings" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin/index" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin/reports" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin/ops" options={{ presentation: 'card' }} />
-              <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
-              <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
-              <Stack.Screen name="pick/choose" options={{ presentation: 'card' }} />
-              <Stack.Screen name="pick/register" options={{ presentation: 'card' }} />
-              <Stack.Screen name="auth/login" options={{ presentation: 'card' }} />
-              <Stack.Screen name="auth/username" options={{ presentation: 'card' }} />
-              <Stack.Screen name="auth/callback" options={{ presentation: 'card' }} />
-            </Stack>
-          </AppFrame>
+          {isAdminRoute ? <AppStack /> : <AppFrame><AppStack /></AppFrame>}
         </ThemeProvider>
       </AppQueryProvider>
     </RootErrorBoundary>
