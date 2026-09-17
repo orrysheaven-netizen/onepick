@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickShareCard } from '@/components/pick-share-card';
 import { PickManagement } from '@/components/pick-management';
 import { PickPhoto } from '@/components/pick-photo';
+import { ReportAction } from '@/components/report-action';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -183,6 +184,11 @@ export default function PickDetailScreen() {
                       </Pressable>
                     ) : <Text style={styles.commentAuthor}>사용자</Text>}
                     <Text style={styles.commentBody}>{comment.body}</Text>
+                    {user && author && author.id !== user.id ? (
+                      <View style={styles.commentSafety}>
+                        <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               ))}
@@ -311,6 +317,7 @@ const styles = StyleSheet.create({
   commentCopy: { flex: 1, marginLeft: 11 },
   commentAuthor: { color: '#202124', fontSize: 12, fontWeight: '800' },
   commentBody: { color: '#5F5A54', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  commentSafety: { marginTop: 8 },
   commentComposer: { marginTop: 18 },
   commentInputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
   commentInputLabel: { color: '#202124', fontSize: 12, fontWeight: '800' },
