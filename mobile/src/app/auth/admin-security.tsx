@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Linking from 'expo-linking';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { supabase } from '@/lib/supabase/client';
 import { AdminMfaService } from '@/services/adminMfaService';
@@ -28,6 +29,8 @@ function SecurityForm({ userId }: { userId: string }) {
   const [factorId, setFactorId] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
   const active = useRef(false);
@@ -60,7 +63,18 @@ function SecurityForm({ userId }: { userId: string }) {
     <Text style={styles.note}>현재는 등록 단계입니다. 관리자 추가 인증의 필수 적용은 아직 완료되지 않았습니다.</Text>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {busy ? <ActivityIndicator /> : null}
-    {!status ? button('상태 다시 확인', refresh) : status.elevated ? <View style={styles.card}>
+    {!status ? button('상태 다시 확인', refresh) : !status.emailReady ? <View style={styles.card}>
+      <Text style={styles.heading}>먼저 관리자 이메일을 연결해주세요</Text>
+      <Text style={styles.text}>카카오 로그인에 이메일이 포함되지 않아 인증 앱 등록에 필요한 정보가 없습니다. 본인이 받을 수 있는 이메일을 연결하고 확인해야 합니다.</Text>
+      <TextInput accessibilityLabel="관리자 이메일" placeholder="이메일 주소" value={email} onChangeText={(value) => { setEmail(value); setEmailSent(false); }} editable={!busy} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={styles.emailInput} />
+      {button('확인 메일 보내기', async () => {
+        const redirectTo = Platform.OS === 'web' ? `${window.location.origin}/auth/callback` : Linking.createURL('auth/callback');
+        await service.requestEmail(userId, email, redirectTo);
+        if (active.current) setEmailSent(true);
+      }, !email.trim() || emailSent)}
+      {emailSent ? <Text style={styles.text}>확인 메일을 보냈습니다. 메일의 확인 링크를 누른 뒤 이 화면으로 돌아와 아래 버튼을 눌러주세요. 스팸함도 확인해주세요.</Text> : null}
+      {button('메일 확인 완료 · 상태 다시 확인', async () => { await refresh(); })}
+    </View> : status.elevated ? <View style={styles.card}>
       <Text style={styles.heading}>추가 인증이 완료됐습니다.</Text>
       <Text style={styles.text}>이번 로그인에서 추가 인증을 확인했습니다.</Text>
       {button('관리자 화면으로', async () => { await client.invalidateQueries({ queryKey: ['admin'] }); router.replace('/admin'); })}
@@ -108,6 +122,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#FFFFFF', fontWeight: '700' },
   disabled: { opacity: 0.5 },
   input: { padding: 14, borderWidth: 1, borderColor: '#CFC7BD', borderRadius: 10, fontSize: 22, letterSpacing: 8 },
+  emailInput: { padding: 14, borderWidth: 1, borderColor: '#CFC7BD', borderRadius: 10, fontSize: 16 },
   error: { color: '#A33220', lineHeight: 22 },
   link: { color: '#425C39', paddingVertical: 12, fontWeight: '700' },
   secret: { padding: 12, backgroundColor: '#F2F1EC', fontSize: 16 },

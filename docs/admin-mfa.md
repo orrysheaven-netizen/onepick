@@ -23,3 +23,13 @@ Reference: https://supabase.com/docs/guides/auth/auth-mfa/totp
 - Use the supported Supabase Auth factor administration facility for the confirmed user, not direct deletion of Auth schema rows. Record the actor, account ID, time and reason without passwords, seeds, QR codes or OTPs.
 - Require fresh login and new verified enrollment before restoring administrator membership. Confirm server AAL2 checks and session behavior. Do not expose this privileged reset as a public RPC or client-side service-key operation.
 - These steps are documented, not executed or validated end-to-end in this stage. No project-owner recovery credentials are stored in the application.
+
+## Email-less Kakao enrollment prerequisite
+
+The first real enrollment attempt failed before producing a factor. Read-only inspection showed the administrator has no Auth email, no confirmed email and zero TOTP factors. Kakao sign-in intentionally requests only profile_nickname. Upstream Supabase Auth TOTP enrollment passes the account email to the OTP generator; empty-email accounts cannot complete that generation path. The generic error handler initially hid this prerequisite. The captured SDK error had no structured code; no server log or raw error body was available, so other provider-side errors have not been ruled out.
+
+The screen now checks a server-verified user for a confirmed email before enabling enrollment. It offers email linking through `auth.updateUser`, only after the user enters an address and presses Send confirmation email. It refuses to replace an existing email. The confirmation link returns through the existing auth callback; the user then returns to this screen and refreshes status. Sending mail does not count as confirming it. Confirmation delivery, callbacks and real-device enrollment still require the user and have not been verified end-to-end. SMTP restrictions/rate limits are reported without showing raw Auth error payloads.
+
+Regression coverage includes missing/unconfirmed email, invalid addresses, no email replacement, mail-provider rejection, and sanitized enrollment errors. No email was invented or written directly to the Auth database, and email verification was not bypassed.
+
+References: https://github.com/supabase/auth/blob/master/internal/api/mfa.go and https://supabase.com/docs/reference/javascript/auth-updateuser
