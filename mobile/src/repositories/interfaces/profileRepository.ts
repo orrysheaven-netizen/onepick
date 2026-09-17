@@ -12,6 +12,8 @@ export interface UpdateProfileInput {
 
 export interface ProfileRepository {
   getById(userId: string): Promise<Profile | null>;
+  // Returns visible profiles for unique IDs; missing profiles are omitted and order is unspecified.
+  getByIds(userIds: string[]): Promise<Profile[]>;
   getByUsername(username: string): Promise<Profile | null>;
   create(input: CreateProfileInput): Promise<Profile>;
   update(input: UpdateProfileInput): Promise<Profile>;

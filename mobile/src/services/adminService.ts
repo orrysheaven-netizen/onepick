@@ -61,12 +61,14 @@ export class AdminService {
       this.adminRepository.getProductAliases(2000),
     ]);
 
-    const submitters = await Promise.all(
-      pending.map(async (product) => ({
-        product,
-        submitter: product.createdBy ? await this.profileRepository.getById(product.createdBy) : null,
-      })),
+    const profiles = await this.profileRepository.getByIds(
+      pending.flatMap((product) => product.createdBy ? [product.createdBy] : []),
     );
+    const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+    const submitters = pending.map((product) => ({
+      product,
+      submitter: product.createdBy ? profilesById.get(product.createdBy) ?? null : null,
+    }));
 
     return { categories, brands, products, aliases, pending: submitters };
   }

@@ -12,6 +12,9 @@ import { mapProfileRow } from '@/repositories/mappers/profileMapper';
 type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
+// Keep UUID filters below common request URL limits, even for a full admin queue.
+const PROFILE_BATCH_SIZE = 100;
+
 export class SupabaseProfileRepository implements ProfileRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
@@ -27,6 +30,21 @@ export class SupabaseProfileRepository implements ProfileRepository {
     }
 
     return data ? mapProfileRow(data) : null;
+  }
+
+  async getByIds(userIds: string[]) {
+    const uniqueIds = [...new Set(userIds)];
+    const batches: string[][] = [];
+    for (let offset = 0; offset < uniqueIds.length; offset += PROFILE_BATCH_SIZE) {
+      batches.push(uniqueIds.slice(offset, offset + PROFILE_BATCH_SIZE));
+    }
+
+    const results = await Promise.all(batches.map(async (ids) => {
+      const { data, error } = await this.client.from('profiles').select('*').in('id', ids);
+      if (error) throw mapSupabaseError(error);
+      return data.map(mapProfileRow);
+    }));
+    return results.flat();
   }
 
   async getByUsername(username: string) {
