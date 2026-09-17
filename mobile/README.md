@@ -10,7 +10,14 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Create `.env` from `.env.example` and set the Supabase client values.
+
+   ```bash
+   EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+   ```
+
+3. Start the app
 
    ```bash
    npx expo start
@@ -24,6 +31,20 @@ In the output, you'll find options to open the app in a
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## OnePick Admin
+
+The first admin MVP is available on web under `/admin`.
+
+- `/admin` — dashboard metrics and recent admin audit logs
+- `/admin/categories` — category creation and operating settings
+- `/admin/pending` — approve or reject pending items
+
+Admin authentication uses the existing Supabase Kakao provider. After Kakao sign-in, the app calls `current_user_is_admin()` and only allows users present in the server-side admin allowlist.
+
+Before testing Kakao admin login, add every admin web origin to **Supabase Auth > URL Configuration > Redirect URLs** with the `/admin` path. For example, when Expo web runs on port 8081, add `http://localhost:8081/admin`. Add the production `/admin` URL separately when the app is deployed.
+
+Do not put a Supabase secret/service-role key in `EXPO_PUBLIC_*` variables or client code.
 
 ## Get a fresh project
 
