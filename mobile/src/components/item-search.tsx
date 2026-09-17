@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { useItemSearch } from '@/hooks/useItemSearch';
 
-export function ItemSearch({ categoryId, onSelect }: {
+export function ItemSearch({ categoryId, compact = false, onSelect }: {
   categoryId?: string;
+  compact?: boolean;
   onSelect: (itemId: string) => void;
 }) {
   const [searchText, setSearchText] = useState('');
@@ -12,10 +13,12 @@ export function ItemSearch({ categoryId, onSelect }: {
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>제품 찾기</Text>
-      <Text style={styles.description}>선택한 카테고리에서 제품명으로 검색해보세요.</Text>
-      <View style={styles.searchRow}>
+    <View style={compact ? styles.compactContainer : styles.container}>
+      {!compact ? <>
+        <Text style={styles.title}>제품 찾기</Text>
+        <Text style={styles.description}>{categoryId ? '선택한 카테고리에서 제품명으로 검색해보세요.' : '모든 카테고리에서 제품명으로 검색해보세요.'}</Text>
+      </> : null}
+      <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput
           accessibilityLabel="제품명 검색"
           autoCapitalize="none"
@@ -35,7 +38,7 @@ export function ItemSearch({ categoryId, onSelect }: {
         ) : null}
       </View>
 
-      {!query.hasSearchText ? <Text style={styles.description}>제품을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
+      {!compact && !query.hasSearchText ? <Text style={styles.description}>제품을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
       {isLoading ? (
         <View style={styles.state}>
           <ActivityIndicator />
@@ -79,6 +82,8 @@ export function ItemSearch({ categoryId, onSelect }: {
 
 const styles = StyleSheet.create({
   container: { marginTop: 20, marginBottom: 28 },
+  compactContainer: { marginBottom: 16 },
+  compactSearchRow: { marginTop: 0, borderWidth: 1, borderColor: '#E3E5EA' },
   title: { color: '#202124', fontSize: 18, fontWeight: '800' },
   description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 },

@@ -41,6 +41,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/item-pick-count': { ItemPickCount: () => null },
+  '@/components/item-search': { ItemSearch: () => null },
   '@/constants/onepick': load('constants/onepick.ts'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useHomeData': { useHomeData: () => query },
