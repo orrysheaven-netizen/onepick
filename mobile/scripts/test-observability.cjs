@@ -33,7 +33,7 @@ async function main() {
     },
   };
   const { ObservabilityService } = loadSource('services/observabilityService.ts', {
-    'expo-constants': { default: { expoConfig: { version: '1.2.3' } } },
+    'expo-constants': { expoConfig: { version: '1.2.3' } },
     'react-native': { Platform: { OS: 'ios' } },
     '@/errors/appError': { AppError },
   });
