@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { AdminAuditLog, AdminDashboardMetrics, getAuditLogs, getDashboardMetrics } from '@/lib/admin-api';
+import { getAuditLogs, getDashboardMetrics } from '@/lib/admin-api';
+import type { AdminAuditLog, AdminDashboardMetrics } from '@/lib/admin-api';
 
 const EMPTY_METRICS: AdminDashboardMetrics = {
   users_total: 0,
@@ -116,8 +117,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metricCard: { minWidth: 165, flexGrow: 1, flexBasis: 180, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 18 },
-  metricLabel: { color: '#6B7280', fontSize: 13, fontWeight: '650' },
-  metricValue: { marginTop: 18, color: '#111827', fontSize: 29, fontWeight: '850', letterSpacing: -0.7 },
+  metricLabel: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
+  metricValue: { marginTop: 18, color: '#111827', fontSize: 29, fontWeight: '800', letterSpacing: -0.7 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   logRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 16, borderTopWidth: 1, borderTopColor: '#F1F3F5', paddingVertical: 12 },
   logBody: { flex: 1, minWidth: 0 },
