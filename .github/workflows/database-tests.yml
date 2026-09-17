@@ -40,5 +40,5 @@ jobs:
 
       - name: Check edge functions
         run: |
-          deno check --config supabase/functions/import-product-image/deno.json supabase/functions/import-product-image/index.ts
+          deno check --config supabase/functions/import-item-image/deno.json supabase/functions/import-item-image/index.ts
           deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts

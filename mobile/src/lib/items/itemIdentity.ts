@@ -1,7 +1,7 @@
 // These categories have packaging normalization rules, not exclusive registration permission.
 const PACKAGING_NORMALIZED_SLUGS = ['ramen', 'beer', 'soju', 'snacks'] as const;
 
-export function canonicalProductName(value: string, slug: string) {
+export function canonicalItemName(value: string, slug: string) {
   let name = value.trim().replace(/\s+/g, ' ');
   if (!PACKAGING_NORMALIZED_SLUGS.includes(slug as typeof PACKAGING_NORMALIZED_SLUGS[number])) return name;
   name = name.replace(/\s*\d+(?:\.\d+)?\s*(?:kg|ml|g|l|개입|입|개|팩|봉|병|캔)(?=\s|$|[×xX])/gi, ' ').replace(/\s*[×xX]\s*\d+\s*$/g, '');

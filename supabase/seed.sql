@@ -23,9 +23,9 @@ on conflict (id) do update set
   sort_order = excluded.sort_order,
   updated_at = now();
 
-insert into public.products (
+insert into public.items (
   id, category_id, brand_id, name, normalized_name, model_code,
-  official_url, status, merged_into_product_id, created_by
+  official_url, status, merged_into_item_id, created_by
 ) values
   (
     '20000000-0000-0000-0000-000000000001',

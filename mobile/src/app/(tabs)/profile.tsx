@@ -8,13 +8,13 @@ import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
-import { useMyPickHistory, useMyProductRequests } from '@/hooks/useMyProfileLists';
+import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ProfilePickItem = MyProfileData['currentPicks'][number];
-type ProductRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyProductRequests>>['items'][number];
+type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
 
-function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyProductRequests>; label: string }) {
+function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyItemRequests>; label: string }) {
   if (query.isPending) return <ActivityIndicator accessibilityLabel={`${label} 불러오는 중`} />;
   const pageError = query.isFetchNextPageError;
   const refreshError = query.isError && !pageError;
@@ -44,12 +44,12 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
 }
 
 function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; muted?: boolean; onPress: () => void }) {
-  const title = item.product?.name ?? '제품 정보를 확인할 수 없어요';
+  const title = item.item?.name ?? '제품 정보를 확인할 수 없어요';
   const category = item.category?.name ?? '카테고리';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.pickCard, muted && styles.pickCardMuted, pressed && styles.pressed]}>
-      <PickPhoto uri={item.product?.thumbnailUrl} label={title} />
+      <PickPhoto uri={item.item?.thumbnailUrl} label={title} />
       <View style={styles.pickCopy}>
         <Text style={styles.pickCategory}>{category}</Text>
         <Text style={styles.pickName}>{title}</Text>
@@ -65,37 +65,37 @@ function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; mut
   );
 }
 
-function getRequestState(item: ProductRequestItem) {
-  switch (item.product.status) {
+function getRequestState(item: ItemRequestItem) {
+  switch (item.item.status) {
     case 'pending':
       return { label: '승인 대기', description: '관리자가 제품 정보를 확인하고 있어요.', targetId: null };
     case 'active':
     case 'discontinued':
-      return { label: '승인됨', description: '정식 제품으로 등록됐어요. 제품을 열어 원픽으로 선택해주세요.', targetId: item.product.id };
+      return { label: '승인됨', description: '정식 제품으로 등록됐어요. 제품을 열어 원픽으로 선택해주세요.', targetId: item.item.id };
     case 'merged':
       return {
         label: '기존 제품과 연결됨',
-        description: item.mergedIntoProduct
-          ? `${item.mergedIntoProduct.name} 제품으로 통합됐어요.`
+        description: item.mergedIntoItem
+          ? `${item.mergedIntoItem.name} 제품으로 통합됐어요.`
           : '이미 등록된 정식 제품과 연결됐어요.',
-        targetId: item.mergedIntoProduct && ['active', 'discontinued'].includes(item.mergedIntoProduct.status)
-          ? item.mergedIntoProduct.id : null,
+        targetId: item.mergedIntoItem && ['active', 'discontinued'].includes(item.mergedIntoItem.status)
+          ? item.mergedIntoItem.id : null,
       };
     case 'rejected':
       return { label: '등록되지 않음', description: '제품 정보를 확인한 결과 정식 등록이 보류됐어요.', targetId: null };
     case 'hidden':
       return { label: '숨김', description: '현재 공개되지 않는 제품이에요.', targetId: null };
     default:
-      return { label: item.product.status, description: '제품 상태를 확인해주세요.', targetId: null };
+      return { label: item.item.status, description: '제품 상태를 확인해주세요.', targetId: null };
   }
 }
 
-function ProductRequestCard({ item, onOpenProduct }: { item: ProductRequestItem; onOpenProduct: (productId: string) => void }) {
+function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenItem: (itemId: string) => void }) {
   const state = getRequestState(item);
   const category = item.category?.name ?? '카테고리';
   const content = (
     <>
-      <PickPhoto uri={item.product.thumbnailUrl} label={item.product.name} />
+      <PickPhoto uri={item.item.thumbnailUrl} label={item.item.name} />
       <View style={styles.requestCopy}>
         <View style={styles.requestTopRow}>
           <Text style={styles.requestCategory}>{category}</Text>
@@ -103,7 +103,7 @@ function ProductRequestCard({ item, onOpenProduct }: { item: ProductRequestItem;
             <Text style={[styles.requestBadgeText, state.targetId && styles.requestBadgeTextDone]}>{state.label}</Text>
           </View>
         </View>
-        <Text style={styles.requestName}>{item.product.name}</Text>
+        <Text style={styles.requestName}>{item.item.name}</Text>
         <Text style={styles.requestDescription}>{state.description}</Text>
         {state.targetId ? <Text style={styles.requestAction}>정식 제품 보기 ›</Text> : null}
       </View>
@@ -117,7 +117,7 @@ function ProductRequestCard({ item, onOpenProduct }: { item: ProductRequestItem;
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => onOpenProduct(state.targetId!)}
+      onPress={() => onOpenItem(state.targetId!)}
       style={({ pressed }) => [styles.requestCard, pressed && styles.pressed]}>
       {content}
     </Pressable>
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
     profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
   const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
   const historyQuery = useMyPickHistory(listUserId);
-  const requestsQuery = useMyProductRequests(listUserId);
+  const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
 
   if (isSessionLoading) {
@@ -219,7 +219,7 @@ export default function ProfileScreen() {
 
   const { profile, currentPicks } = profileQuery.data;
   const history = historyQuery.data ?? [];
-  const productRequests = requestsQuery.data ?? [];
+  const itemRequests = requestsQuery.data ?? [];
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
@@ -231,7 +231,7 @@ export default function ProfileScreen() {
     ]);
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
-  const openProduct = (productId: string) => router.push({ pathname: '/product/[productId]', params: { productId } });
+  const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
 
   return (
@@ -293,12 +293,12 @@ export default function ProfileScreen() {
 
         <View style={[styles.sectionHeader, styles.requestHeader]}>
           <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>
-          {requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {productRequests.length}개</Text> : null}
+          {requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
         </View>
-        {productRequests.map((item) => (
-          <ProductRequestCard key={item.product.id} item={item} onOpenProduct={openProduct} />
+        {itemRequests.map((item) => (
+          <ItemRequestCard key={item.item.id} item={item} onOpenItem={openItem} />
         ))}
-        {requestsQuery.data && productRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
+        {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
         <ListControls query={requestsQuery} label="등록 요청" />
 
         <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>

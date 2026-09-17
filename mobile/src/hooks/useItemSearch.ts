@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { queryKeys } from '@/lib/query/queryKeys';
-import { productService } from '@/services';
+import { itemService } from '@/services';
 
-export function useProductSearch(searchText: string, categoryId?: string) {
+export function useItemSearch(searchText: string, categoryId?: string) {
   const normalizedQuery = searchText.trim();
   const [settledQuery, setSettledQuery] = useState('');
 
@@ -15,8 +15,8 @@ export function useProductSearch(searchText: string, categoryId?: string) {
 
   const isWaiting = normalizedQuery !== settledQuery;
   const query = useQuery({
-    queryKey: queryKeys.products.search(normalizedQuery, categoryId),
-    queryFn: () => productService.search(normalizedQuery, categoryId),
+    queryKey: queryKeys.items.search(normalizedQuery, categoryId),
+    queryFn: () => itemService.search(normalizedQuery, categoryId),
     enabled: normalizedQuery.length > 0 && !isWaiting,
   });
 

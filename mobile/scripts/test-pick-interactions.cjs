@@ -26,39 +26,39 @@ const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ?
 
 async function main() {
   const { AppError } = loadSource('errors/appError.ts');
-  const { ProductService } = loadSource('services/productService.ts', { '@/errors/appError': { AppError } });
+  const { ItemService } = loadSource('services/itemService.ts', { '@/errors/appError': { AppError } });
   let category = { id: 'category', status: 'open', isVisible: true, isPickable: true };
-  let product = { id: 'product', categoryId: 'category', status: 'active', name: '제품' };
+  let item = { id: 'item', categoryId: 'category', status: 'active', name: '제품' };
   let currentPick = null;
-  const service = new ProductService(
-    { getById: async () => product },
+  const service = new ItemService(
+    { getById: async () => item },
     { getCurrentPick: async () => currentPick },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
     { getPicks: async () => [] },
   );
-  assert.equal((await service.getProductDetail('product')).canChoose, true);
+  assert.equal((await service.getItemDetail('item')).canChoose, true);
   for (const status of ['draft', 'paused', 'closed']) {
     category.status = status;
-    assert.equal((await service.getProductDetail('product')).canChoose, false);
+    assert.equal((await service.getItemDetail('item')).canChoose, false);
   }
   category.status = 'open';
   category.isVisible = false;
-  assert.equal((await service.getProductDetail('product')).canChoose, false);
+  assert.equal((await service.getItemDetail('item')).canChoose, false);
   category.isVisible = true; category.isPickable = false;
-  assert.equal((await service.getProductDetail('product')).canChoose, false);
+  assert.equal((await service.getItemDetail('item')).canChoose, false);
   category.isPickable = true;
   for (const status of ['pending', 'hidden', 'merged', 'rejected']) {
-    product.status = status;
-    assert.equal((await service.getProductDetail('product')).canChoose, false);
+    item.status = status;
+    assert.equal((await service.getItemDetail('item')).canChoose, false);
   }
-  product.status = 'discontinued';
-  assert.equal((await service.getProductDetail('product')).canChoose, true);
-  currentPick = { id: 'mine', productId: 'product', oneLineReview: '기존 한줄평' };
-  let detail = await service.getProductDetail('product', 'owner');
+  item.status = 'discontinued';
+  assert.equal((await service.getItemDetail('item')).canChoose, true);
+  currentPick = { id: 'mine', itemId: 'item', oneLineReview: '기존 한줄평' };
+  let detail = await service.getItemDetail('item', 'owner');
   assert.equal(detail.myPickStatus.oneLineReview, '기존 한줄평');
 
   const presses = [], inputs = [];
-  let destination, params = { productId: 'product' }, pullToRefresh;
+  let destination, params = { itemId: 'item' }, pullToRefresh;
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
@@ -75,15 +75,15 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false }) },
     '@/errors/appError': { AppError },
-    '@/hooks/useProductDetail': { useProductDetail: () => ({ data: detail }) },
+    '@/hooks/useItemDetail': { useItemDetail: () => ({ data: detail }) },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
-  const { default: Product } = loadSource('app/product/[productId].tsx', base);
+  const { default: Item } = loadSource('app/item/[itemId].tsx', base);
   detail = { ...detail, canChoose: false, myPickStatus: { type: 'not_selected' } };
-  assert.match(render(Product), /새 원픽을 선택할 수 없어요/);
+  assert.match(render(Item), /새 원픽을 선택할 수 없어요/);
   assert.ok(!presses.some((p) => textOf(p.children) === '이 제품을 내 원픽으로'));
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
-  render(Product);
+  render(Item);
   presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
   assert.equal(destination.params.pickId, 'mine');
 
@@ -91,16 +91,16 @@ async function main() {
     ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
   });
   assert.match(render(Choose), /지금은 선택할 수 없어요/);
-  assert.equal(inputs.length, 0, 'Unavailable products must not show the submission form');
+  assert.equal(inputs.length, 0, 'Unavailable items must not show the submission form');
   detail.canChoose = true;
   render(Choose);
   assert.equal(inputs[0].value, '기존 한줄평');
-  const { default: MissingProduct } = loadSource('app/pick/choose.tsx', {
+  const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
     ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
-    '@/hooks/useProductDetail': { useProductDetail: () => ({ isPending: true }) },
+    '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
-  assert.match(render(MissingProduct), /제품을 불러오지 못했어요/);
+  assert.match(render(MissingItem), /제품을 불러오지 못했어요/);
 
   let draft = '  댓글 초안  ', attempts = 0, rejectSave, resolveSave;
   let pick = { id: 'pick', userId: 'owner', status: 'active', oneLineReview: '이유' };
@@ -114,7 +114,7 @@ async function main() {
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement: () => null },
     '@/components/report-action': { ReportAction: () => null },
-    '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, product, category, profile: { username: 'owner' }, isCurrent: true } }) },
+    '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
   });
@@ -165,14 +165,14 @@ async function main() {
 
   let feedPages = 0, feedRefreshes = 0;
   const feedQuery = {
-    data: { openCategories: [], recentProducts: [], feed: [{ pick: { id: 'cached', oneLineReview: '이미 불러온 원픽' }, profile: null, product: null, category: null }] },
+    data: { openCategories: [], recentItems: [], feed: [{ pick: { id: 'cached', oneLineReview: '이미 불러온 원픽' }, profile: null, item: null, category: null }] },
     hasNextPage: true, isError: true, isFetchNextPageError: true, isFetching: false,
     fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
     refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
   };
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
-    '@/components/product-search': { ProductSearch: () => null },
+    '@/components/item-search': { ItemSearch: () => null },
     '@/hooks/useExploreData': { useExploreData: () => feedQuery },
   });
   const failedFeed = render(Explore);
@@ -209,6 +209,6 @@ async function main() {
   assert.equal(feedRefreshButton(), undefined);
   presses.find((p) => textOf(p.children) === '다시 불러오기').onPress();
   assert.equal(feedRefreshes, 4);
-  console.log('Interaction checks passed: product/category eligibility, read-model product picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
+  console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

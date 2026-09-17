@@ -15,8 +15,8 @@ export class SupabasePickRepository implements PickRepository {
 
   async registerPick(input: RegisterPickRecordInput) {
     const { data, error } = await this.client.rpc('register_pick', {
-      p_category_id: input.categoryId, p_product_id: input.productId,
-      p_product_name: input.productName, p_one_line_review: input.oneLineReview,
+      p_category_id: input.categoryId, p_item_id: input.itemId,
+      p_item_name: input.itemName, p_one_line_review: input.oneLineReview,
       p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,
     });
@@ -120,8 +120,8 @@ export class SupabasePickRepository implements PickRepository {
       query = query.eq('category_id', input.categoryId);
     }
 
-    if (input.productId) {
-      query = query.eq('product_id', input.productId);
+    if (input.itemId) {
+      query = query.eq('item_id', input.itemId);
     }
 
     const { data, error } = await query;
@@ -136,7 +136,7 @@ export class SupabasePickRepository implements PickRepository {
   async changePick(input: ChangePickInput) {
     const { data, error } = await this.client.rpc('change_pick', {
       p_category_id: input.categoryId,
-      p_product_id: input.productId,
+      p_item_id: input.itemId,
       p_one_line_review: input.oneLineReview,
     });
 

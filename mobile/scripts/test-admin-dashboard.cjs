@@ -23,7 +23,7 @@ async function main() {
   const { AdminService } = load('services/adminService.ts', {
     '@/errors/appError': { AppError },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
-    '@/lib/products/productIdentity': load('lib/products/productIdentity.ts'),
+    '@/lib/items/itemIdentity': load('lib/items/itemIdentity.ts'),
   });
 
   const ids = Array.from({ length: 500 }, (_, i) => `f8300000-0000-4000-8000-${String(i).padStart(12, '0')}`);
@@ -50,14 +50,14 @@ async function main() {
   profiles.getById = async () => { assert.fail('Admin must not issue a per-request profile read'); };
   let allowed = true, dashboardReads = 0;
   let pending = ids.map((id, index) => ({ id: `request_${index}`, createdBy: id }));
-  const categories = [{ id: 'category' }], products = [{ id: 'product' }], brands = [], aliases = [];
+  const categories = [{ id: 'category' }], items = [{ id: 'item' }], brands = [], aliases = [];
   const repo = {
     isAdmin: async () => allowed,
     getCategories: async () => { dashboardReads++; return categories; },
     getBrands: async () => { dashboardReads++; return brands; },
-    getProducts: async () => { dashboardReads++; return products; },
-    getPendingProducts: async () => { dashboardReads++; return pending; },
-    getProductAliases: async () => { dashboardReads++; return aliases; },
+    getItems: async () => { dashboardReads++; return items; },
+    getPendingItems: async () => { dashboardReads++; return pending; },
+    getItemAliases: async () => { dashboardReads++; return aliases; },
   };
   const service = new AdminService(repo, profiles);
   profileRows.delete(ids[7]);
@@ -67,11 +67,11 @@ async function main() {
   assert.ok(profileReads.every((batch) => batch.length <= 100), 'UUID filters must stay within the URL budget');
   assert.equal(dashboard.pending.length, 500, 'Unavailable authors must not remove moderation requests');
   dashboard.pending.forEach((item, index) => {
-    assert.equal(item.product.id, `request_${index}`, 'Oldest-first moderation order must be retained');
+    assert.equal(item.item.id, `request_${index}`, 'Oldest-first moderation order must be retained');
     assert.equal(item.submitter?.username ?? null, index === 7 ? null : `submitter_${index}`);
   });
   assert.equal(dashboard.categories, categories);
-  assert.equal(dashboard.products, products);
+  assert.equal(dashboard.items, items);
   assert.equal(dashboard.brands, brands);
   assert.equal(dashboard.aliases, aliases);
 

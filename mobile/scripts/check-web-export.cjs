@@ -48,11 +48,11 @@ async function main() {
 
     const routes = [
       '/', '/explore', '/profile', '/admin',
-      '/product/20000000-0000-0000-0000-000000000001',
+      '/item/20000000-0000-0000-0000-000000000001',
       '/pick/661201d7-ad86-444f-b280-6c964b309c78',
       '/u/onepick_qa', '/u/new_user_created_after_build',
-      '/pick/choose?productId=new-product',
-      '/auth/callback?action=choose_pick&productId=new-product',
+      '/pick/choose?itemId=new-item',
+      '/auth/callback?action=choose_pick&itemId=new-item',
     ];
     for (const route of routes) {
       const response = await fetch(origin + route, { redirect: 'manual', signal: AbortSignal.timeout(5_000) });

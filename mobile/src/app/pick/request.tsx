@@ -11,28 +11,28 @@ import { useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterP
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';
-    if (error.code === 'PRODUCT_NAME_INVALID') return '제품명은 1~100자로 입력해주세요.';
+    if (error.code === 'ITEM_NAME_INVALID') return '제품명은 1~100자로 입력해주세요.';
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
   return '제품 등록 요청을 보내지 못했어요. 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; productName?: string };
+type Params = { categoryId?: string; itemName?: string };
 
-export default function RequestProductScreen() {
+export default function RequestItemScreen() {
   const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
-  return <RequestProductForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.productName])} auth={auth} params={params} />;
+  return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName])} auth={auth} params={params} />;
 }
 
-function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
+function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
   const categories = useRegistrationCategories();
   const profile = useMyProfile(auth.user?.id);
   const registration = useRegisterPick();
   const busy = useRef(false);
-  const [name, setName] = useState(typeof params.productName === 'string' ? params.productName : '');
+  const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
   const [categoryId, setCategoryId] = useState(typeof params.categoryId === 'string' ? params.categoryId : '');
   const [submittedName, setSubmittedName] = useState<string | null>(null);
 
@@ -42,8 +42,8 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
   const canSubmit = isValid && !categories.isPending && !categories.isError && !auth.isLoading && !auth.error
     && !registration.isPending && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
   const intent = useMemo(() => ({
-    action: 'request_product' as const,
-    productName: normalizedName,
+    action: 'request_item' as const,
+    itemName: normalizedName,
     ...(categoryId ? { categoryId } : {}),
   }), [categoryId, normalizedName]);
 
@@ -58,21 +58,21 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
       const result = await registration.mutateAsync({
         userId: auth.user.id,
         categoryId,
-        productName: normalizedName,
+        itemName: normalizedName,
         variant: '',
         oneLineReview: '',
         photo: null,
       });
 
-      if (result.type === 'pending_product') {
-        setSubmittedName(result.product.name);
+      if (result.type === 'pending_item') {
+        setSubmittedName(result.item.name);
         return;
       }
 
-      if (result.type === 'existing_product') {
+      if (result.type === 'existing_item') {
         router.replace({
           pathname: '/pick/choose',
-          params: { productId: result.product.id, categoryId: result.product.categoryId },
+          params: { itemId: result.item.id, categoryId: result.item.categoryId },
         });
         return;
       }
@@ -141,7 +141,7 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={registration.isPending} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
         </Pressable>
-        <Text style={styles.kicker}>REQUEST PRODUCT</Text>
+        <Text style={styles.kicker}>REQUEST ITEM</Text>
         <Text style={styles.title}>없는 제품만 요청해주세요</Text>
         <Text style={styles.subtitle}>검색했던 제품명은 그대로 넣어두었습니다. 제품명과 카테고리만 확인하면 됩니다.</Text>
 

@@ -22,7 +22,7 @@ values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면 테스트', 'change-pick-test', 'open', true, true),
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', '중지 카테고리', 'paused-test', 'paused', true, false);
 
-insert into public.products (id, category_id, name, normalized_name, status)
+insert into public.items (id, category_id, name, normalized_name, status)
 values
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '신라면', '신라면', 'active'),
   ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '짜파게티', '짜파게티', 'active'),
@@ -59,13 +59,13 @@ select public.change_pick(
 select is(
   (select id from public.picks where user_id = '11111111-1111-1111-1111-111111111111' and status = 'active'),
   (select first_pick_id from test_state),
-  'same product keeps same pick id'
+  'same item keeps same pick id'
 );
 
 select is(
   (select one_line_review from public.picks where user_id = '11111111-1111-1111-1111-111111111111' and status = 'active'),
   '수정된 한줄평',
-  'same product updates review'
+  'same item updates review'
 );
 
 select public.change_pick(
@@ -83,14 +83,14 @@ select is(
 select is(
   (select count(*)::int from public.picks where user_id = '11111111-1111-1111-1111-111111111111' and category_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' and status = 'active'),
   1,
-  'changing product leaves one active pick'
+  'changing item leaves one active pick'
 );
 
 select throws_ok(
   $$select public.change_pick('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','잘못된 제품')$$,
   'P0001',
-  'PRODUCT_CATEGORY_MISMATCH',
-  'cross-category product is rejected'
+  'ITEM_CATEGORY_MISMATCH',
+  'cross-category item is rejected'
 );
 
 select throws_ok(
@@ -103,8 +103,8 @@ select throws_ok(
 select throws_ok(
   $$select public.change_pick('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','ffffffff-ffff-ffff-ffff-ffffffffffff','숨김 제품')$$,
   'P0001',
-  'PRODUCT_NOT_ELIGIBLE',
-  'hidden product is rejected'
+  'ITEM_NOT_ELIGIBLE',
+  'hidden item is rejected'
 );
 
 select * from finish();

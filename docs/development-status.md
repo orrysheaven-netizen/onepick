@@ -10,11 +10,11 @@ and reconcile intervening commits before updating the branch without force.
 
 ## Integrated work
 
-- Personalized Home, shared product requests, Admin category/product management.
-- Joined read models, Explore/comment pagination, aliases and indexed product search.
+- Personalized Home, shared item requests, Admin category/item management.
+- Joined read models, Explore/comment pagination, aliases and indexed item search.
 - Account settings/deletion, blocking, reporting and Admin report moderation.
 - The clean MVP mockup design, request follow-up routes and profile refresh.
-- Database approval lifecycle verification, including merge/rejection and shared products.
+- Database approval lifecycle verification, including merge/rejection and shared items.
 
 ## Admin queue performance
 
@@ -54,7 +54,7 @@ Supabase query builder and TanStack infinite-query behavior with changing fixtur
 
 ## Private profile lists
 
-My Profile loads previous Picks and product registration requests in separate,
+My Profile loads previous Picks and item registration requests in separate,
 account-scoped infinite queries, 20 items per page. The previous limits of 50
 history items and 20 requests no longer make older entries inaccessible. Both
 lists reuse the timestamp/UUID cursor convention; requests use immutable
@@ -66,7 +66,7 @@ failure leaves the basic profile and the other list usable. Each list provides
 loading, empty and error states, retains loaded cards after failed refresh/more
 actions, and offers the appropriate retry. Refresh updates all three queries;
 additional loading cannot interrupt an in-flight refresh. Counts describe loaded
-items instead of implying a database total. Existing Pick/product detail routes,
+items instead of implying a database total. Existing Pick/item detail routes,
 including canonical targets after request merges, are preserved.
 
 Private query keys include the account ID and remain under the existing profile
@@ -100,7 +100,7 @@ both refresh controls, pending-request guards, retry recovery and session privac
 ## Deferred verification
 
 Web deployment preparation is documented in [MVP web deployment](web-deployment.md).
-The web output is now an SPA with a host fallback rule for dynamic product/Pick/
+The web output is now an SPA with a host fallback rule for dynamic item/Pick/
 profile URLs. Web shares default to the current origin; native deep-link behavior
 is preserved. Mobile CI exports the web bundle and checks direct routes/assets
 with isolated CI configuration. Hosting/domain selection and publication remain

@@ -2,7 +2,7 @@ import type { Pick } from '@/types/domain/pick';
 
 export interface ChangePickInput {
   categoryId: string;
-  productId: string;
+  itemId: string;
   oneLineReview: string;
 }
 
@@ -13,8 +13,8 @@ export interface UpdatePickReviewInput {
 
 export interface RegisterPickRecordInput {
   categoryId: string;
-  productId: string;
-  productName: string;
+  itemId: string;
+  itemName: string;
   oneLineReview: string;
   imagePath?: string;
   thumbnailPath?: string;
@@ -24,7 +24,7 @@ export interface RegisterPickRecordInput {
 export interface RecentPicksInput {
   excludeUserId?: string;
   categoryId?: string;
-  productId?: string;
+  itemId?: string;
   limit: number;
 }
 

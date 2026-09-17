@@ -3,14 +3,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useProductDetail } from '@/hooks/useProductDetail';
+import { useItemDetail } from '@/hooks/useItemDetail';
 import { PickPhoto } from '@/components/pick-photo';
 
-export default function ProductDetailScreen() {
+export default function ItemDetailScreen() {
   const router = useRouter();
-  const { productId } = useLocalSearchParams<{ productId?: string }>();
+  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
   const { user } = useAuthSession();
-  const query = useProductDetail(productId, user?.id);
+  const query = useItemDetail(itemId, user?.id);
 
   if (query.isPending) {
     return (
@@ -36,14 +36,14 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const { product, category, myPickStatus, picks, canChoose } = query.data;
+  const { item, category, myPickStatus, picks, canChoose } = query.data;
   const openPickAction = () => {
     if (myPickStatus.type === 'selected_this') {
       router.push({ pathname: '/pick/[pickId]', params: { pickId: myPickStatus.pickId } });
       return;
     }
     if (!canChoose) return;
-    router.push({ pathname: '/pick/register', params: { productId: product.id, categoryId: product.categoryId } });
+    router.push({ pathname: '/pick/register', params: { itemId: item.id, categoryId: item.categoryId } });
   };
 
   return (
@@ -54,10 +54,10 @@ export default function ProductDetailScreen() {
         </Pressable>
 
         <View style={styles.heroCard}>
-          <PickPhoto uri={product.imageUrl} label={product.name} large />
+          <PickPhoto uri={item.imageUrl} label={item.name} large />
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productMeta}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemMeta}>
             {picks.length > 0 ? `최근 원픽 기록 ${picks.length}개를 보여드려요` : '아직 공개된 원픽 기록이 없어요'}
           </Text>
 
@@ -72,7 +72,7 @@ export default function ProductDetailScreen() {
               </Text>
             </Pressable>
           ) : (
-            <Text style={styles.productMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
+            <Text style={styles.itemMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
           )}
         </View>
 
@@ -125,11 +125,11 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, marginTop: 8 },
-  productIcon: { width: 122, height: 122, borderRadius: 30, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  productEmoji: { fontSize: 58 },
+  itemIcon: { width: 122, height: 122, borderRadius: 30, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
+  itemEmoji: { fontSize: 58 },
   category: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
-  productName: { color: '#202124', fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
-  productMeta: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
+  itemName: { color: '#202124', fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
+  itemMeta: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
   primaryButton: { width: '100%', minHeight: 50, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 30, marginBottom: 12 },

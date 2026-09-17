@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { useProductSearch } from '@/hooks/useProductSearch';
+import { useItemSearch } from '@/hooks/useItemSearch';
 
-export function ProductSearch({ categoryId, onSelect }: {
+export function ItemSearch({ categoryId, onSelect }: {
   categoryId?: string;
-  onSelect: (productId: string) => void;
+  onSelect: (itemId: string) => void;
 }) {
   const [searchText, setSearchText] = useState('');
-  const query = useProductSearch(searchText, categoryId);
+  const query = useItemSearch(searchText, categoryId);
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
 
   return (
@@ -57,15 +57,15 @@ export function ProductSearch({ categoryId, onSelect }: {
           </Text>
           {query.data.length === 0 ? (
             <Text style={styles.description}>일치하는 제품이 없어요. 다른 제품명이나 카테고리로 찾아보세요.</Text>
-          ) : query.data.map((product) => (
+          ) : query.data.map((item) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${product.name} 제품 상세 보기`}
-              key={product.id}
-              onPress={() => onSelect(product.id)}
+              accessibilityLabel={`${item.name} 제품 상세 보기`}
+              key={item.id}
+              onPress={() => onSelect(item.id)}
               style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}>
               <View style={styles.resultCopy}>
-                <Text style={styles.productName}>{product.name}</Text>
+                <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.description}>제품 상세 보기</Text>
               </View>
               <Text style={styles.arrow}>›</Text>
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   resultCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginVertical: 14 },
   resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
   resultCopy: { flex: 1 },
-  productName: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  itemName: { color: '#202124', fontSize: 15, fontWeight: '800' },
   arrow: { color: '#A6ADBB', fontSize: 25, marginLeft: 10 },
   pressed: { opacity: 0.7 },
 });

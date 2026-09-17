@@ -62,17 +62,17 @@ async function main() {
   const { updateReview, removePick } = useManagePick();
   await updateReview.mutationFn({ pickId: 'pick-1', oneLineReview: '수정' });
   await updateReview.onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,picks,products,profiles');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
   invalidated.length = 0;
   await removePick.mutationFn('category-2');
   await removePick.onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,picks,products,profiles');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
   assert.equal(repositoryCalls.at(-1), 'category-2');
 
   const { useChoosePick } = loadSource('hooks/useChoosePick.ts', hookImports);
   invalidated.length = 0;
   await useChoosePick().onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,picks,products,profiles');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
 
   const { usePickDetail } = loadSource('hooks/usePickDetail.ts', {
     '@tanstack/react-query': { useQuery: (options) => options },
@@ -102,7 +102,7 @@ async function main() {
   let session = { user: { id: 'owner' }, isLoading: false };
   const data = {
     pick: { id: 'pick-1', userId: 'owner', categoryId: 'category-1', oneLineReview: '기존 이유', status: 'active' },
-    category: { name: '라면' }, product: { name: '제품' }, profile: { username: 'owner' }, isCurrent: true,
+    category: { name: '라면' }, item: { name: '제품' }, profile: { username: 'owner' }, isCurrent: true,
   };
   let query = { data, isPending: false, isError: false };
   const { default: Screen } = loadSource('app/pick/[pickId].tsx', {

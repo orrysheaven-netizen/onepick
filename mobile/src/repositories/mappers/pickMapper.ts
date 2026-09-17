@@ -8,7 +8,7 @@ export function mapPickRow(row: PickRow): Pick {
     id: row.id,
     userId: row.user_id,
     categoryId: row.category_id,
-    productId: row.product_id,
+    itemId: row.item_id,
     oneLineReview: row.one_line_review,
     status: row.status as PickStatus,
     startedAt: row.started_at,

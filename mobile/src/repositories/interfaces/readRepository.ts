@@ -1,14 +1,14 @@
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
 import type { Pick, PickStatus } from '@/types/domain/pick';
-import type { Product, ProductStatus } from '@/types/domain/product';
+import type { Item, ItemStatus } from '@/types/domain/item';
 import type { Profile } from '@/types/domain/profile';
 
 export interface PickReadItem {
   pick: Pick;
   profile: Profile | null;
   category: Category | null;
-  product: Product | null;
+  item: Item | null;
 }
 
 export interface CommentReadItem {
@@ -16,10 +16,10 @@ export interface CommentReadItem {
   author: Profile | null;
 }
 
-export interface ProductRequestReadItem {
-  product: Product;
+export interface ItemRequestReadItem {
+  item: Item;
   category: Category | null;
-  mergedIntoProduct: Product | null;
+  mergedIntoItem: Item | null;
 }
 
 export interface ReadCursor {
@@ -31,7 +31,7 @@ export interface PickReadInput {
   userId?: string;
   excludeUserId?: string;
   categoryId?: string;
-  productId?: string;
+  itemId?: string;
   statuses?: PickStatus[];
   limit?: number;
   cursor?: ReadCursor | null;
@@ -42,5 +42,5 @@ export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
-  getProductRequestsByUser(userId: string, statuses?: ProductStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ProductRequestReadItem[]>;
+  getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }

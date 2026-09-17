@@ -1,6 +1,6 @@
-export interface ProductAlias {
+export interface ItemAlias {
   id: string;
-  productId: string;
+  itemId: string;
   alias: string;
   normalizedAlias: string;
   createdAt: string;

@@ -1,18 +1,18 @@
 import { AppError } from '@/errors/appError';
-import { canonicalProductName } from '@/lib/products/productIdentity';
+import { canonicalItemName } from '@/lib/items/itemIdentity';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { PhotoRepository } from '@/repositories/interfaces/photoRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
-import type { ProductRepository } from '@/repositories/interfaces/productRepository';
+import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { Pick } from '@/types/domain/pick';
 import type { PickPhotoDraft } from '@/types/domain/photo';
-import type { Product } from '@/types/domain/product';
+import type { Item } from '@/types/domain/item';
 
 export interface RegisterPickInput {
   userId: string;
   categoryId: string;
-  productId?: string;
-  productName: string;
+  itemId?: string;
+  itemName: string;
   variant: string;
   oneLineReview: string;
   photo?: PickPhotoDraft | null;
@@ -20,10 +20,10 @@ export interface RegisterPickInput {
 
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
-  | { type: 'pending_product'; product: Product }
-  | { type: 'existing_product'; product: Product };
+  | { type: 'pending_item'; item: Item }
+  | { type: 'existing_item'; item: Item };
 
-export function formatProductName(name: string, variant: string) {
+export function formatItemName(name: string, variant: string) {
   return [name, variant].map((part) => part.trim().replace(/\s+/g, ' ')).filter(Boolean).join(' ');
 }
 
@@ -31,7 +31,7 @@ export class RegistrationService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
     private readonly pickRepository: PickRepository,
-    private readonly productRepository: ProductRepository,
+    private readonly itemRepository: ItemRepository,
     private readonly photoRepository: PhotoRepository,
     private readonly devicePhotoRepository: {
       choosePhoto(): Promise<PickPhotoDraft | null>;
@@ -70,28 +70,28 @@ export class RegistrationService {
       throw new AppError('CATEGORY_NOT_PICKABLE');
     }
 
-    const name = canonicalProductName(formatProductName(input.productName, input.variant), category.slug);
-    if (!name || name.length > 100) throw new AppError('PRODUCT_NAME_INVALID');
+    const name = canonicalItemName(formatItemName(input.itemName, input.variant), category.slug);
+    if (!name || name.length > 100) throw new AppError('ITEM_NAME_INVALID');
 
-    const product = input.productId ? await this.productRepository.getById(input.productId) : null;
-    if (input.productId && !product) throw new AppError('PRODUCT_NOT_FOUND');
-    if (product && product.categoryId !== category.id) throw new AppError('PRODUCT_CATEGORY_MISMATCH');
-    if (product && product.status !== 'active' && product.status !== 'discontinued') throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    const item = input.itemId ? await this.itemRepository.getById(input.itemId) : null;
+    if (input.itemId && !item) throw new AppError('ITEM_NOT_FOUND');
+    if (item && item.categoryId !== category.id) throw new AppError('ITEM_CATEGORY_MISMATCH');
+    if (item && item.status !== 'active' && item.status !== 'discontinued') throw new AppError('ITEM_NOT_ELIGIBLE');
 
-    if (product) {
+    if (item) {
       const review = input.oneLineReview.trim();
       if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
 
       let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
-      if (input.photo && !product.imagePath) {
+      if (input.photo && !item.imagePath) {
         await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
         uploaded = await this.photoRepository.upload(input.userId, input.photo);
       }
 
       const pick = await this.pickRepository.registerPick({
         categoryId: category.id,
-        productId: product.id,
-        productName: product.name,
+        itemId: item.id,
+        itemName: item.name,
         oneLineReview: review,
         ...uploaded,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
@@ -106,9 +106,9 @@ export class RegistrationService {
       uploaded = await this.photoRepository.upload(input.userId, input.photo);
     }
 
-    const submitted = await this.productRepository.submitProduct({
+    const submitted = await this.itemRepository.submitItem({
       categoryId: category.id,
-      productName: name,
+      itemName: name,
       ...uploaded,
       imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
     });
@@ -117,15 +117,15 @@ export class RegistrationService {
       if (uploaded && submitted.imagePath !== uploaded.imagePath) {
         await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       }
-      return { type: 'pending_product', product: submitted };
+      return { type: 'pending_item', item: submitted };
     }
 
     if (submitted.status === 'active' || submitted.status === 'discontinued') {
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-      return { type: 'existing_product', product: submitted };
+      return { type: 'existing_item', item: submitted };
     }
 
     if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-    throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    throw new AppError('ITEM_NOT_ELIGIBLE');
   }
 }

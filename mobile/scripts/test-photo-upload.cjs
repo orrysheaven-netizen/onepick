@@ -25,7 +25,7 @@ async function main() {
   const saved = new Map();
   let failThumbnail = true, duplicateStatus = '400', uploadCount = 0;
   const repository = new SupabasePhotoRepository({ storage: { from: (bucket) => {
-    assert.equal(bucket, 'product-photos');
+    assert.equal(bucket, 'item-photos');
     return { upload: async (name, bytes, options) => {
       uploadCount++;
       assert.equal(options.upsert, false, 'Retries never overwrite a shared image');

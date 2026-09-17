@@ -42,11 +42,11 @@ async function main() {
   };
   const { AppError } = load('errors/appError.ts');
   const category = { id: 'ramen', label: '먹을것 › 라면' };
-  const params = { categoryId: category.id, productName: '새 라면' };
+  const params = { categoryId: category.id, itemName: '새 라면' };
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => { sessionRetries++; } };
   const categories = { data: [category], isPending: false, isError: false, refetch: () => { categoryRetries++; } };
   const profile = { data: { currentPicks: [] }, isPending: false, isError: false, error: null, refetch: () => { profileRetries++; } };
-  let outcome = async () => ({ type: 'pending_product', product: { name: '새 라면' } });
+  let outcome = async () => ({ type: 'pending_item', item: { name: '새 라면' } });
   const mutation = { isPending: false, isError: false, error: null, mutateAsync: async (input) => {
     calls++; payload = input;
     return outcome();
@@ -93,7 +93,7 @@ async function main() {
   profile.error = new AppError('PROFILE_NOT_FOUND');
   render(); press('사용자명 만들기');
   assert.equal(destination.pathname, '/auth/username');
-  assert.equal(destination.params.productName, '수정한 라면');
+  assert.equal(destination.params.itemName, '수정한 라면');
   assert.equal(destination.params.categoryId, category.id);
   profile.isError = false; profile.error = null;
 
@@ -101,7 +101,7 @@ async function main() {
   outcome = () => new Promise((_, reject) => { rejectRequest = reject; });
   render(); press('제품 등록 요청 보내기'); press('제품 등록 요청 보내기');
   assert.equal(calls, 1, 'Two taps before a rerender send exactly one request');
-  assert.equal(payload.productName, '수정한 라면');
+  assert.equal(payload.itemName, '수정한 라면');
   assert.equal(payload.categoryId, category.id);
   assert.equal(payload.photo, null);
   mutation.isPending = true; render();
@@ -112,7 +112,7 @@ async function main() {
   mutation.isPending = false; mutation.isError = true; mutation.error = new Error('offline');
   assert.match(render(), /요청을 보내지 못했어요/);
   assert.equal(nameInput().value, '  수정한   라면  ', 'A failed request keeps the edited draft');
-  outcome = async () => ({ type: 'pending_product', product: { name: '수정한 라면' } });
+  outcome = async () => ({ type: 'pending_item', item: { name: '수정한 라면' } });
   press('제품 등록 요청 보내기'); await settle();
   assert.equal(calls, 2, 'Failure releases the in-flight guard for retry');
   assert.match(render(), /제품 등록 요청을 보냈어요/);
@@ -122,19 +122,19 @@ async function main() {
   assert.equal(destination, '/');
 
   state = []; mutation.isError = false; mutation.error = null;
-  outcome = async () => ({ type: 'existing_product', product: { id: 'existing', categoryId: category.id } });
+  outcome = async () => ({ type: 'existing_item', item: { id: 'existing', categoryId: category.id } });
   render(); press('제품 등록 요청 보내기'); await settle();
   assert.equal(destination.pathname, '/pick/choose');
-  assert.equal(destination.params.productId, 'existing');
+  assert.equal(destination.params.itemId, 'existing');
 
   state = []; auth.user = null; profile.data = undefined; profile.isPending = true;
   const beforeLogin = calls;
   render(); press('로그인하고 요청하기');
   assert.equal(calls, beforeLogin);
   assert.equal(destination.pathname, '/auth/login');
-  assert.equal(destination.params.action, 'request_product');
-  assert.equal(destination.params.productName, params.productName);
+  assert.equal(destination.params.action, 'request_item');
+  assert.equal(destination.params.itemName, params.itemName);
   assert.equal(destination.params.categoryId, category.id);
-  console.log('Product request checks passed: prerequisite failures, retries, draft preservation, duplicate taps and login/approval routes.');
+  console.log('Item request checks passed: prerequisite failures, retries, draft preservation, duplicate taps and login/approval routes.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

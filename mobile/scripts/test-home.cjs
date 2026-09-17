@@ -17,10 +17,10 @@ const { HomeService } = loadSource('services/homeService.ts');
 const category = (id) => ({ id, name: id, status: 'open', isVisible: true, isPickable: true });
 const categories = [category('picked'), category('review'), category('new')];
 const current = [
-  { pick: { id: 'p1', categoryId: 'picked', productId: 'one', userId: 'me', status: 'active' }, category: categories[0], product: { id: 'one' }, profile: null },
-  { pick: { id: 'p2', categoryId: 'review', productId: 'missing', userId: 'me', status: 'needs_review' }, category: categories[1], product: null, profile: null },
+  { pick: { id: 'p1', categoryId: 'picked', itemId: 'one', userId: 'me', status: 'active' }, category: categories[0], item: { id: 'one' }, profile: null },
+  { pick: { id: 'p2', categoryId: 'review', itemId: 'missing', userId: 'me', status: 'needs_review' }, category: categories[1], item: null, profile: null },
 ];
-const feed = [{ pick: { id: 'other', userId: 'someone', categoryId: 'new', productId: 'two', status: 'active' }, category: categories[2], product: { id: 'two' }, profile: { id: 'someone', username: 'reader' } }];
+const feed = [{ pick: { id: 'other', userId: 'someone', categoryId: 'new', itemId: 'two', status: 'active' }, category: categories[2], item: { id: 'two' }, profile: { id: 'someone', username: 'reader' } }];
 let calls = [];
 const readRepository = {
   getPicks: async (input) => {
@@ -28,13 +28,13 @@ const readRepository = {
     return input.userId ? current : feed;
   },
 };
-const productRepository = { getByCategory: async (id) => { calls.push(['products', id]); return [{ id: 'two', categoryId: id }]; } };
-const service = new HomeService({ getOpenCategories: async () => categories }, productRepository, readRepository);
+const itemRepository = { getByCategory: async (id) => { calls.push(['items', id]); return [{ id: 'two', categoryId: id }]; } };
+const service = new HomeService({ getOpenCategories: async () => categories }, itemRepository, readRepository);
 
 async function main() {
   const home = await service.getHomeData('me');
   assert.equal(home.currentPicks.length, 2);
-  assert.equal(home.currentPicks[1].product, null, 'Missing metadata must not remove current selections');
+  assert.equal(home.currentPicks[1].item, null, 'Missing metadata must not remove current selections');
   assert.equal(home.categoriesToPick.length, 1);
   assert.equal(home.categoriesToPick[0].category.id, 'new');
   assert.equal(home.feed[0].profile.username, 'reader');
@@ -51,8 +51,8 @@ async function main() {
   categories.splice(0, categories.length, category('only'));
   const single = await service.getHomeData();
   assert.equal(single.mode, 'single_category');
-  assert.equal(single.singleCategoryProducts[0].categoryId, 'only');
-  assert.ok(calls.some(([kind, id]) => kind === 'products' && id === 'only'));
+  assert.equal(single.singleCategoryItems[0].categoryId, 'only');
+  assert.ok(calls.some(([kind, id]) => kind === 'items' && id === 'only'));
 
   categories.length = 0;
   current.length = 0;

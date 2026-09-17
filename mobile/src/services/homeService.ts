@@ -1,5 +1,5 @@
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
-import type { ProductRepository } from '@/repositories/interfaces/productRepository';
+import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export type HomeMode = 'single_category' | 'multi_category';
@@ -7,7 +7,7 @@ export type HomeMode = 'single_category' | 'multi_category';
 export class HomeService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
-    private readonly productRepository: ProductRepository,
+    private readonly itemRepository: ItemRepository,
     private readonly readRepository: ReadRepository,
   ) {}
 
@@ -16,7 +16,7 @@ export class HomeService {
     const mode: HomeMode = openCategories.length <= 1 ? 'single_category' : 'multi_category';
     const singleCategory = mode === 'single_category' ? openCategories[0] : undefined;
 
-    const [currentPicks, feed, singleCategoryProducts] = await Promise.all([
+    const [currentPicks, feed, singleCategoryItems] = await Promise.all([
       userId
         ? this.readRepository.getPicks({
             userId,
@@ -33,7 +33,7 @@ export class HomeService {
           })
         : Promise.resolve([]),
       singleCategory && !userId
-        ? this.productRepository.getByCategory(singleCategory.id)
+        ? this.itemRepository.getByCategory(singleCategory.id)
         : Promise.resolve([]),
     ]);
 
@@ -48,7 +48,7 @@ export class HomeService {
       mode,
       openCategories,
       singleCategory: singleCategory ?? null,
-      singleCategoryProducts,
+      singleCategoryItems,
       myRecentPicks: currentPicks.slice(0, 3).map((item) => item.pick),
       recentPicks: feed.map((item) => item.pick),
       currentPicks,

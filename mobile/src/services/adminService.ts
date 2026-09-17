@@ -1,32 +1,32 @@
 import { AppError } from '@/errors/appError';
 import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
-import type { ProductStatus } from '@/types/domain/product';
-import { canonicalProductName } from '@/lib/products/productIdentity';
+import type { ItemStatus } from '@/types/domain/item';
+import { canonicalItemName } from '@/lib/items/itemIdentity';
 import type {
   AdminBrandInput,
   AdminCategoryInput,
-  AdminProductInput,
+  AdminItemInput,
   AdminRepository,
 } from '@/repositories/interfaces/adminRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const MANAGED_PRODUCT_STATUSES = new Set<ProductStatus>(['active', 'discontinued', 'hidden']);
+const MANAGED_ITEM_STATUSES = new Set<ItemStatus>(['active', 'discontinued', 'hidden']);
 
 function cleanName(value: string, max = 100) {
   const name = value.trim().replace(/\s+/g, ' ');
-  if (!name || name.length > max) throw new AppError('PRODUCT_NAME_INVALID');
+  if (!name || name.length > max) throw new AppError('ITEM_NAME_INVALID');
   return name;
 }
 
-function normalizeProductName(value: string) {
+function normalizeItemName(value: string) {
   return value.toLowerCase().replace(/\s+/g, '');
 }
 
 function cleanAlias(value: string) {
   const alias = value.trim().replace(/\s+/g, ' ');
-  if (!alias || alias.length > 100) throw new AppError('PRODUCT_ALIAS_INVALID');
+  if (!alias || alias.length > 100) throw new AppError('ITEM_ALIAS_INVALID');
   return alias;
 }
 
@@ -53,24 +53,24 @@ export class AdminService {
 
   async getDashboard() {
     await this.assertAdmin();
-    const [categories, brands, products, pending, aliases] = await Promise.all([
+    const [categories, brands, items, pending, aliases] = await Promise.all([
       this.adminRepository.getCategories(),
       this.adminRepository.getBrands(),
-      this.adminRepository.getProducts(500),
-      this.adminRepository.getPendingProducts(),
-      this.adminRepository.getProductAliases(2000),
+      this.adminRepository.getItems(500),
+      this.adminRepository.getPendingItems(),
+      this.adminRepository.getItemAliases(2000),
     ]);
 
     const profiles = await this.profileRepository.getByIds(
-      pending.flatMap((product) => product.createdBy ? [product.createdBy] : []),
+      pending.flatMap((item) => item.createdBy ? [item.createdBy] : []),
     );
     const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
-    const submitters = pending.map((product) => ({
-      product,
-      submitter: product.createdBy ? profilesById.get(product.createdBy) ?? null : null,
+    const submitters = pending.map((item) => ({
+      item,
+      submitter: item.createdBy ? profilesById.get(item.createdBy) ?? null : null,
     }));
 
-    return { categories, brands, products, aliases, pending: submitters };
+    return { categories, brands, items, aliases, pending: submitters };
   }
 
   async getOperationsOverview() {
@@ -135,114 +135,114 @@ export class AdminService {
     });
   }
 
-  async createProduct(input: AdminProductInput) {
+  async createItem(input: AdminItemInput) {
     await this.assertAdmin();
     const categories = await this.adminRepository.getCategories();
     const category = selectableCategories(categories).find((item) => item.id === input.categoryId);
     if (!category) throw new AppError('CATEGORY_NOT_FOUND');
-    const name = canonicalProductName(cleanName(input.name), category.slug);
+    const name = canonicalItemName(cleanName(input.name), category.slug);
 
-    return this.adminRepository.createProduct({
+    return this.adminRepository.createItem({
       ...input,
       name,
-      normalizedName: normalizeProductName(name),
+      normalizedName: normalizeItemName(name),
       status: input.status ?? 'active',
     });
   }
 
-  async updateProduct(productId: string, input: Partial<AdminProductInput>) {
+  async updateItem(itemId: string, input: Partial<AdminItemInput>) {
     await this.assertAdmin();
-    const [product, categories] = await Promise.all([
-      this.adminRepository.getProductById(productId),
+    const [item, categories] = await Promise.all([
+      this.adminRepository.getItemById(itemId),
       this.adminRepository.getCategories(),
     ]);
-    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
-    if (!MANAGED_PRODUCT_STATUSES.has(product.status)) throw new AppError('PICK_CONFLICT');
-    if (input.categoryId !== undefined && input.categoryId !== product.categoryId) {
-      throw new AppError('PRODUCT_CATEGORY_MISMATCH');
+    if (!item) throw new AppError('ITEM_NOT_FOUND');
+    if (!MANAGED_ITEM_STATUSES.has(item.status)) throw new AppError('PICK_CONFLICT');
+    if (input.categoryId !== undefined && input.categoryId !== item.categoryId) {
+      throw new AppError('ITEM_CATEGORY_MISMATCH');
     }
 
-    const status = input.status ?? product.status;
-    if (!MANAGED_PRODUCT_STATUSES.has(status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
-    const category = categories.find((item) => item.id === product.categoryId);
+    const status = input.status ?? item.status;
+    if (!MANAGED_ITEM_STATUSES.has(status)) throw new AppError('ITEM_NOT_ELIGIBLE');
+    const category = categories.find((category) => category.id === item.categoryId);
     if (!category) throw new AppError('CATEGORY_NOT_FOUND');
-    if (status !== 'hidden' && !selectableCategories(categories).some((item) => item.id === product.categoryId)) {
+    if (status !== 'hidden' && !selectableCategories(categories).some((category) => category.id === item.categoryId)) {
       throw new AppError('CATEGORY_NOT_PICKABLE');
     }
 
-    const name = canonicalProductName(cleanName(input.name ?? product.name), category.slug);
-    return this.adminRepository.updateProduct(productId, {
+    const name = canonicalItemName(cleanName(input.name ?? item.name), category.slug);
+    return this.adminRepository.updateItem(itemId, {
       ...input,
-      categoryId: product.categoryId,
+      categoryId: item.categoryId,
       name,
-      normalizedName: normalizeProductName(name),
+      normalizedName: normalizeItemName(name),
       status,
-      mergedIntoProductId: null,
-    }, product.status);
+      mergedIntoItemId: null,
+    }, item.status);
   }
 
-  async addProductAlias(productId: string, value: string) {
+  async addItemAlias(itemId: string, value: string) {
     await this.assertAdmin();
     const alias = cleanAlias(value);
-    const product = await this.adminRepository.getProductById(productId);
-    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
-    if (!['active', 'discontinued'].includes(product.status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
-    if (normalizeProductName(alias) === product.normalizedName) throw new AppError('PRODUCT_ALIAS_REDUNDANT');
-    return this.adminRepository.createProductAlias(productId, alias);
+    const item = await this.adminRepository.getItemById(itemId);
+    if (!item) throw new AppError('ITEM_NOT_FOUND');
+    if (!['active', 'discontinued'].includes(item.status)) throw new AppError('ITEM_NOT_ELIGIBLE');
+    if (normalizeItemName(alias) === item.normalizedName) throw new AppError('ITEM_ALIAS_REDUNDANT');
+    return this.adminRepository.createItemAlias(itemId, alias);
   }
 
-  async removeProductAlias(aliasId: string) {
+  async removeItemAlias(aliasId: string) {
     await this.assertAdmin();
-    return this.adminRepository.removeProductAlias(aliasId);
+    return this.adminRepository.removeItemAlias(aliasId);
   }
 
-  async approveProduct(productId: string, edits?: Partial<AdminProductInput>) {
+  async approveItem(itemId: string, edits?: Partial<AdminItemInput>) {
     await this.assertAdmin();
-    const product = await this.adminRepository.getProductById(productId);
-    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
-    if (product.status !== 'pending') throw new AppError('PICK_CONFLICT');
+    const item = await this.adminRepository.getItemById(itemId);
+    if (!item) throw new AppError('ITEM_NOT_FOUND');
+    if (item.status !== 'pending') throw new AppError('PICK_CONFLICT');
 
     const categories = await this.adminRepository.getCategories();
-    const categoryId = edits?.categoryId ?? product.categoryId;
+    const categoryId = edits?.categoryId ?? item.categoryId;
     const category = selectableCategories(categories).find((item) => item.id === categoryId);
     if (!category) throw new AppError('CATEGORY_NOT_FOUND');
-    const name = canonicalProductName(cleanName(edits?.name ?? product.name), category.slug);
+    const name = canonicalItemName(cleanName(edits?.name ?? item.name), category.slug);
 
-    return this.adminRepository.updateProduct(productId, {
+    return this.adminRepository.updateItem(itemId, {
       ...edits,
       categoryId,
       name,
-      normalizedName: normalizeProductName(name),
-      mergedIntoProductId: null,
+      normalizedName: normalizeItemName(name),
+      mergedIntoItemId: null,
       status: 'active',
     }, 'pending');
   }
 
-  async rejectProduct(productId: string) {
+  async rejectItem(itemId: string) {
     await this.assertAdmin();
-    return this.adminRepository.updateProduct(productId, {
+    return this.adminRepository.updateItem(itemId, {
       status: 'rejected',
-      mergedIntoProductId: null,
+      mergedIntoItemId: null,
     }, 'pending');
   }
 
-  async mergeProduct(productId: string, targetProductId: string) {
+  async mergeItem(itemId: string, targetItemId: string) {
     await this.assertAdmin();
-    if (productId === targetProductId) throw new AppError('PICK_CONFLICT', 'PRODUCT_MERGE_SELF');
-    const [product, target] = await Promise.all([
-      this.adminRepository.getProductById(productId), this.adminRepository.getProductById(targetProductId),
+    if (itemId === targetItemId) throw new AppError('PICK_CONFLICT', 'ITEM_MERGE_SELF');
+    const [item, target] = await Promise.all([
+      this.adminRepository.getItemById(itemId), this.adminRepository.getItemById(targetItemId),
     ]);
-    if (!product || product.status !== 'pending') throw new AppError('PICK_CONFLICT');
-    if (!target || target.categoryId !== product.categoryId || !['active', 'discontinued'].includes(target.status)) throw new AppError('PRODUCT_NOT_ELIGIBLE');
+    if (!item || item.status !== 'pending') throw new AppError('PICK_CONFLICT');
+    if (!target || target.categoryId !== item.categoryId || !['active', 'discontinued'].includes(target.status)) throw new AppError('ITEM_NOT_ELIGIBLE');
 
-    return this.adminRepository.updateProduct(productId, {
+    return this.adminRepository.updateItem(itemId, {
       status: 'merged',
-      mergedIntoProductId: target.id,
+      mergedIntoItemId: target.id,
     }, 'pending');
   }
 
-  async hideProduct(productId: string) {
-    return this.updateProduct(productId, { status: 'hidden' });
+  async hideItem(itemId: string) {
+    return this.updateItem(itemId, { status: 'hidden' });
   }
 
   private async assertAdmin() {

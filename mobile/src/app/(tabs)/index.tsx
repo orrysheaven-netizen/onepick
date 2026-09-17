@@ -11,8 +11,8 @@ import { useHomeData } from '@/hooks/useHomeData';
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type PickItem = HomeData['currentPicks'][number];
 
-function CollectionCard({ item, mine, onOpen, onProduct }: { item: PickItem; mine?: boolean; onOpen: () => void; onProduct?: () => void }) {
-  const name = item.product?.name ?? '제품 정보를 확인할 수 없어요';
+function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?: boolean; onOpen: () => void; onItem?: () => void }) {
+  const name = item.item?.name ?? '제품 정보를 확인할 수 없어요';
   return (
     <View style={styles.card}>
       <Pressable accessibilityRole="button" accessibilityLabel={name + ' 원픽 상세 보기'} onPress={onOpen} style={({ pressed }) => pressed && styles.pressed}>
@@ -20,14 +20,14 @@ function CollectionCard({ item, mine, onOpen, onProduct }: { item: PickItem; min
           <Text style={styles.cardCategory}>{item.category?.name ?? '카테고리'}</Text>
           {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
         </View>
-        <PickPhoto uri={item.product?.imageUrl ?? item.product?.thumbnailUrl} label={name} large />
+        <PickPhoto uri={item.item?.imageUrl ?? item.item?.thumbnailUrl} label={name} large />
         {!mine ? <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text> : null}
-        <Text style={styles.productName}>{name}</Text>
+        <Text style={styles.itemName}>{name}</Text>
         <Text numberOfLines={3} style={styles.review}>“{item.pick.oneLineReview}”</Text>
         {item.pick.status === 'needs_review' ? <Text style={styles.reviewNotice}>확인이 필요한 원픽이에요.</Text> : null}
       </Pressable>
-      {onProduct && item.product ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={name + ' 제품 상세 보기'} onPress={onProduct} style={styles.cardFooter}>
+      {onItem && item.item ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={name + ' 제품 상세 보기'} onPress={onItem} style={styles.cardFooter}>
           <Text style={styles.actionText}>제품 상세 보기</Text><Text style={styles.arrow}>↗</Text>
         </Pressable>
       ) : null}
@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
-  const openProduct = (productId: string) => router.push({ pathname: '/product/[productId]', params: { productId } });
+  const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
   const ready = !isLoading && !sessionError && Boolean(data);
@@ -125,7 +125,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.grid}>
             {user ? data.currentPicks.map((item) => <View key={item.pick.id} style={cellStyle}>
-              <CollectionCard item={item} mine onOpen={() => openPick(item.pick.id)} onProduct={() => openProduct(item.pick.productId)} />
+              <CollectionCard item={item} mine onOpen={() => openPick(item.pick.id)} onItem={() => openItem(item.pick.itemId)} />
             </View>) : null}
             <View style={cellStyle}><AddCard first={!user || data.currentPicks.length === 0} onPress={() => openRegistration()} /></View>
             {!user ? <View style={[styles.welcomeCard, columns === 1 ? cellStyle : { flex: 1 }]}>
@@ -145,11 +145,11 @@ export default function HomeScreen() {
             </Pressable>)}
           </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
 
-          {!user && data.mode === 'single_category' && data.singleCategoryProducts.length ? <>
-            <View style={styles.nextSection}><SectionTitle title="원픽 제품 둘러보기" count={data.singleCategoryProducts.length} /></View>
-            <View style={styles.grid}>{data.singleCategoryProducts.map((product) => <View key={product.id} style={cellStyle}>
-              <Pressable accessibilityRole="button" accessibilityLabel={product.name + ' 제품 상세 보기'} onPress={() => openProduct(product.id)} style={styles.card}>
-                <PickPhoto uri={product.imageUrl ?? product.thumbnailUrl} label={product.name} large /><Text style={styles.productName}>{product.name}</Text><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
+          {!user && data.mode === 'single_category' && data.singleCategoryItems.length ? <>
+            <View style={styles.nextSection}><SectionTitle title="원픽 제품 둘러보기" count={data.singleCategoryItems.length} /></View>
+            <View style={styles.grid}>{data.singleCategoryItems.map((item) => <View key={item.id} style={cellStyle}>
+              <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={() => openItem(item.id)} style={styles.card}>
+                <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl} label={item.name} large /><Text style={styles.itemName}>{item.name}</Text><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
               </Pressable>
             </View>)}</View>
           </> : null}
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
   badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
-  productName: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
+  itemName: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
   byline: { fontSize: 12, color: OnePick.muted, marginBottom: 5 },
   review: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
   reviewNotice: { color: '#9A5D13', fontSize: 13, marginTop: 8 },

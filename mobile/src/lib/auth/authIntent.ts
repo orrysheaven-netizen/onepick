@@ -2,16 +2,16 @@ import type { Href } from 'expo-router';
 
 export type AuthReturnParams = {
   action?: string | string[];
-  productId?: string | string[];
-  productName?: string | string[];
+  itemId?: string | string[];
+  itemName?: string | string[];
   categoryId?: string | string[];
   pickId?: string | string[];
 };
 
 export type AuthIntent =
-  | { action: 'register_pick'; categoryId?: string; productId?: string }
-  | { action: 'request_product'; productName: string; categoryId?: string }
-  | { action: 'choose_pick'; productId: string; categoryId: string }
+  | { action: 'register_pick'; categoryId?: string; itemId?: string }
+  | { action: 'request_item'; itemName: string; categoryId?: string }
+  | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'profile' }
   | { action: 'home' };
@@ -22,7 +22,7 @@ function isId(value: string | string[] | undefined): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
 }
 
-function getProductName(value: string | string[] | undefined) {
+function getItemName(value: string | string[] | undefined) {
   if (typeof value !== 'string') return null;
   const name = value.trim().replace(/\s+/g, ' ');
   return name.length >= 1 && name.length <= 100 ? name : null;
@@ -33,22 +33,22 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     return {
       action: 'register_pick',
       ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
-      ...(isId(params.productId) ? { productId: params.productId } : {}),
+      ...(isId(params.itemId) ? { itemId: params.itemId } : {}),
     };
   }
-  if (params.action === 'request_product') {
-    const productName = getProductName(params.productName);
-    if (productName) {
+  if (params.action === 'request_item') {
+    const itemName = getItemName(params.itemName);
+    if (itemName) {
       return {
-        action: 'request_product',
-        productName,
+        action: 'request_item',
+        itemName,
         ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
       };
     }
     return { action: 'home' };
   }
-  if (params.action === 'choose_pick' && isId(params.productId) && isId(params.categoryId)) {
-    return { action: 'choose_pick', productId: params.productId, categoryId: params.categoryId };
+  if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) {
+    return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
   }
   if (params.action === 'comment_pick' && isId(params.pickId)) {
     return { action: 'comment_pick', pickId: params.pickId };
@@ -63,16 +63,16 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   switch (intent.action) {
     case 'register_pick':
       return { pathname: '/pick/register', params: { ...intent } };
-    case 'request_product':
+    case 'request_item':
       return {
         pathname: '/pick/request',
         params: {
-          productName: intent.productName,
+          itemName: intent.itemName,
           ...(intent.categoryId ? { categoryId: intent.categoryId } : {}),
         },
       };
     case 'choose_pick':
-      return { pathname: '/pick/choose', params: { productId: intent.productId, categoryId: intent.categoryId } };
+      return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
     case 'comment_pick':
       return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'profile':

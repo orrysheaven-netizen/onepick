@@ -56,10 +56,10 @@ export class ProfileService {
     };
   }
 
-  async getMyProductRequests(userId: string, cursor: ReadCursor | null = null) {
-    const rows = await this.readRepository.getProductRequestsByUser(userId, undefined, 21, cursor);
+  async getMyItemRequests(userId: string, cursor: ReadCursor | null = null) {
+    const rows = await this.readRepository.getItemRequestsByUser(userId, undefined, 21, cursor);
     const items = rows.slice(0, 20);
-    const last = items[items.length - 1]?.product;
+    const last = items[items.length - 1]?.item;
     return {
       items,
       nextCursor: rows.length > 20 && last ? { timestamp: last.createdAt, id: last.id } : null,

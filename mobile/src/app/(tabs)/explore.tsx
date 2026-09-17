@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ProductSearch } from '@/components/product-search';
+import { ItemSearch } from '@/components/item-search';
 import { useExploreData } from '@/hooks/useExploreData';
 
 export default function ExploreScreen() {
@@ -20,8 +20,8 @@ export default function ExploreScreen() {
     router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   };
 
-  const openProduct = (productId: string) => {
-    router.push({ pathname: '/product/[productId]', params: { productId } });
+  const openItem = (itemId: string) => {
+    router.push({ pathname: '/item/[itemId]', params: { itemId } });
   };
 
   return (
@@ -55,7 +55,7 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
 
-        <ProductSearch categoryId={selectedCategoryId} onSelect={openProduct} />
+        <ItemSearch categoryId={selectedCategoryId} onSelect={openItem} />
 
         {query.isPending && !query.data ? (
           <View style={styles.stateCard}>
@@ -97,17 +97,17 @@ export default function ExploreScreen() {
             </View>
 
             {query.data.feed.length > 0 ? (
-              query.data.feed.map(({ pick, profile, product, category }) => (
+              query.data.feed.map(({ pick, profile, item, category }) => (
                 <Pressable
                   key={pick.id}
                   onPress={() => openPick(pick.id)}
                   style={({ pressed }) => [styles.pickCard, pressed && styles.pressed]}>
-                  <PickPhoto uri={product?.thumbnailUrl} label={product?.name ?? '제품 대표 이미지'} />
+                  <PickPhoto uri={item?.thumbnailUrl} label={item?.name ?? '제품 대표 이미지'} />
                   <View style={styles.pickCopy}>
                     <Text style={styles.pickMeta}>
                       {profile ? `@${profile.username}` : 'OnePick 사용자'} · {category?.name ?? '카테고리'}
                     </Text>
-                    <Text style={styles.pickName}>{product?.name ?? '제품 정보 확인 중'}</Text>
+                    <Text style={styles.pickName}>{item?.name ?? '제품 정보 확인 중'}</Text>
                     <Text style={styles.pickReview}>“{pick.oneLineReview}”</Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>
@@ -134,24 +134,24 @@ export default function ExploreScreen() {
               </Pressable>
             ) : null}
 
-            {query.data.recentProducts.length > 0 ? (
+            {query.data.recentItems.length > 0 ? (
               <>
-                <View style={[styles.sectionHeader, styles.productSectionHeader]}>
+                <View style={[styles.sectionHeader, styles.itemSectionHeader]}>
                   <View>
                     <Text style={styles.sectionTitle}>최근 등장한 제품</Text>
                     <Text style={styles.sectionDescription}>최근 원픽 기록에 등장한 제품을 중복 없이 모았어요.</Text>
                   </View>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productList}>
-                  {query.data.recentProducts.map(({ product, category }) => (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemList}>
+                  {query.data.recentItems.map(({ item, category }) => (
                     <Pressable
-                      key={product.id}
-                      onPress={() => openProduct(product.id)}
-                      style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
-                      <PickPhoto uri={product.thumbnailUrl} label={product.name} />
-                      <Text style={styles.productCategory}>{category.name}</Text>
-                      <Text numberOfLines={2} style={styles.productName}>{product.name}</Text>
-                      <Text style={styles.productAction}>제품 상세 보기</Text>
+                      key={item.id}
+                      onPress={() => openItem(item.id)}
+                      style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]}>
+                      <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+                      <Text style={styles.itemCategory}>{category.name}</Text>
+                      <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemAction}>제품 상세 보기</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   chipText: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
   chipTextActive: { color: '#FFFFFF' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 13 },
-  productSectionHeader: { marginTop: 30 },
+  itemSectionHeader: { marginTop: 30 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionDescription: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4 },
   pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
@@ -188,13 +188,13 @@ const styles = StyleSheet.create({
   pickName: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 5 },
   pickReview: { color: '#747985', fontSize: 14, lineHeight: 22, marginTop: 7 },
   arrow: { color: '#A6ADBB', fontSize: 25, marginLeft: 5 },
-  productList: { gap: 11, paddingRight: 10 },
-  productCard: { width: 158, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 19, padding: 12 },
-  productThumb: { width: '100%', height: 112, borderRadius: 15, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  productEmoji: { fontSize: 44 },
-  productCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1, marginTop: 11 },
-  productName: { color: '#202124', fontSize: 14, lineHeight: 19, fontWeight: '800', marginTop: 5 },
-  productAction: { color: '#747985', fontSize: 12, marginTop: 9 },
+  itemList: { gap: 11, paddingRight: 10 },
+  itemCard: { width: 158, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 19, padding: 12 },
+  itemThumb: { width: '100%', height: 112, borderRadius: 15, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
+  itemEmoji: { fontSize: 44 },
+  itemCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1, marginTop: 11 },
+  itemName: { color: '#202124', fontSize: 14, lineHeight: 19, fontWeight: '800', marginTop: 5 },
+  itemAction: { color: '#747985', fontSize: 12, marginTop: 9 },
   stateCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, marginTop: 28 },
   stateTitle: { color: '#202124', fontSize: 16, fontWeight: '800' },
   stateText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },

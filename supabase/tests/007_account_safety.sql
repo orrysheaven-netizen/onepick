@@ -14,9 +14,9 @@ insert into public.profiles(id,username,onboarding_completed) values
 insert into private.admin_users(user_id) values('c3333333-3333-3333-3333-333333333333');
 insert into public.categories(id,name,slug,status,is_visible,is_pickable,sort_order) values
 ('d4444444-4444-4444-4444-444444444444','Safety Test','safety-test','open',true,true,9999);
-insert into public.products(id,category_id,name,normalized_name,status,created_by) values
-('e5555555-5555-5555-5555-555555555555','d4444444-4444-4444-4444-444444444444','Safety Product','safetyproduct','active','b2222222-2222-2222-2222-222222222222');
-insert into public.picks(id,user_id,category_id,product_id,one_line_review,status) values
+insert into public.items(id,category_id,name,normalized_name,status,created_by) values
+('e5555555-5555-5555-5555-555555555555','d4444444-4444-4444-4444-444444444444','Safety Item','safetyitem','active','b2222222-2222-2222-2222-222222222222');
+insert into public.picks(id,user_id,category_id,item_id,one_line_review,status) values
 ('f6666666-6666-6666-6666-666666666666','b2222222-2222-2222-2222-222222222222','d4444444-4444-4444-4444-444444444444','e5555555-5555-5555-5555-555555555555','B pick','active');
 insert into public.comments(id,pick_id,user_id,body) values
 ('f7777777-7777-7777-7777-777777777777','f6666666-6666-6666-6666-666666666666','a1111111-1111-1111-1111-111111111111','A comment');
@@ -55,7 +55,7 @@ delete from auth.users where id='b2222222-2222-2222-2222-222222222222';
 select is((select count(*)::int from public.profiles where id='b2222222-2222-2222-2222-222222222222'),0,'deleting auth user cascades profile');
 select is((select count(*)::int from public.picks where user_id='b2222222-2222-2222-2222-222222222222'),0,'deleting auth user cascades Picks');
 select is((select count(*)::int from public.user_blocks where blocked_user_id='b2222222-2222-2222-2222-222222222222'),0,'deleting auth user cascades blocks');
-select is((select created_by from public.products where id='e5555555-5555-5555-5555-555555555555'),null::uuid,'approved product remains with creator cleared');
+select is((select created_by from public.items where id='e5555555-5555-5555-5555-555555555555'),null::uuid,'approved item remains with creator cleared');
 select is((select target_user_id from public.content_reports where reporter_user_id='a1111111-1111-1111-1111-111111111111'),null::uuid,'report history remains with deleted target cleared');
 
 select * from finish();

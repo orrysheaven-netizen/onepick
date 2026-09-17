@@ -8,8 +8,8 @@ Use a quiet, light interface with a clear primary action. The home page leads wi
 - Primary accent: `#4945ED`; subtle selected surfaces: `#EFEEFF`.
 - Text: `#202124`; secondary text: `#747985`.
 - Brand: an indigo rounded square with a white `1`, followed by `ONE PICK`.
-- Collection cards use category labels, existing representative images, product names and personal reasons. “MY PICK” is reserved for the signed-in user's own selections.
-- The dashed add card remains an actionable entry to the existing product finder.
+- Collection cards use category labels, existing representative images, item names and personal reasons. “MY PICK” is reserved for the signed-in user's own selections.
+- The dashed add card remains an actionable entry to the existing item finder.
 - Desktop collections use three columns, medium screens two, and small screens one. Forms stay narrow enough to read comfortably.
 - Use actual database content and administrator-controlled categories. Mockup examples and sample counts are not production data.
 - Keep existing authentication, request/approval, Pick, profile and administration routes intact. Future screens should follow this palette and avoid decorative sections without a clear purpose.

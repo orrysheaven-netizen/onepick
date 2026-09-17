@@ -28,25 +28,25 @@ const { getAuthIntent, getPostAuthRoute } = intents;
 const same = (a, b) => assert.equal(JSON.stringify(a), JSON.stringify(b));
 
 async function main() {
-  const choose = { action: 'choose_pick', productId: ids[0], categoryId: ids[1] };
+  const choose = { action: 'choose_pick', itemId: ids[0], categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
-  const register = { action: 'register_pick', categoryId: ids[0], productId: ids[1] };
-  const request = { action: 'request_product', productName: '  신라면   더 레드  ', categoryId: ids[0] };
+  const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
+  const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
 
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
-  same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', productId: [ids[0]] }), { action: 'register_pick' });
-  same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { productId: ids[0], categoryId: ids[1] } });
+  same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', itemId: [ids[0]] }), { action: 'register_pick' });
+  same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { itemId: ids[0], categoryId: ids[1] } });
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
-  same(getAuthIntent(request), { action: 'request_product', productName: '신라면 더 레드', categoryId: ids[0] });
+  same(getAuthIntent(request), { action: 'request_item', itemName: '신라면 더 레드', categoryId: ids[0] });
   same(getPostAuthRoute(getAuthIntent(request)), {
     pathname: '/pick/request',
-    params: { productName: '신라면 더 레드', categoryId: ids[0] },
+    params: { itemName: '신라면 더 레드', categoryId: ids[0] },
   });
-  same(getAuthIntent({ action: 'request_product', productName: '  신라면  ', categoryId: '../../bad' }), {
-    action: 'request_product', productName: '신라면',
+  same(getAuthIntent({ action: 'request_item', itemName: '  신라면  ', categoryId: '../../bad' }), {
+    action: 'request_item', itemName: '신라면',
   });
-  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_product', productName: ['신라면'] })), '/');
-  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_product', productName: ' '.repeat(101) })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ['신라면'] })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ' '.repeat(101) })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
 
   for (const params of [
@@ -126,6 +126,6 @@ async function main() {
   await flush();
   presses[0]();
   same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
-  console.log('Auth return checks passed: choose/comment/profile/home/product-request, onboarding, malformed params, cancellation and callback retry.');
+  console.log('Auth return checks passed: choose/comment/profile/home/item-request, onboarding, malformed params, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

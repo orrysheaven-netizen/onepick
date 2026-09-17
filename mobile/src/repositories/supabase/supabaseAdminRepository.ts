@@ -1,27 +1,27 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { AppError } from '@/errors/appError';
-import type { ProductStatus } from '@/types/domain/product';
-import type { ProductAlias } from '@/types/domain/productAlias';
+import type { ItemStatus } from '@/types/domain/item';
+import type { ItemAlias } from '@/types/domain/itemAlias';
 import type { AdminAuditLog, ClientErrorEvent } from '@/types/domain/operations';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
   AdminBrandInput,
   AdminCategoryInput,
-  AdminProductInput,
-  AdminProductUpdateInput,
+  AdminItemInput,
+  AdminItemUpdateInput,
   AdminRepository,
 } from '@/repositories/interfaces/adminRepository';
 import { mapBrandRow } from '@/repositories/mappers/brandMapper';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
-import { mapProductRow } from '@/repositories/mappers/productMapper';
+import { mapItemRow } from '@/repositories/mappers/itemMapper';
 
-type ProductAliasRow = Database['public']['Tables']['product_aliases']['Row'];
+type ItemAliasRow = Database['public']['Tables']['item_aliases']['Row'];
 
-function mapProductAlias(row: ProductAliasRow): ProductAlias {
+function mapItemAlias(row: ItemAliasRow): ItemAlias {
   return {
     id: row.id,
-    productId: row.product_id,
+    itemId: row.item_id,
     alias: row.alias,
     normalizedAlias: row.normalized_alias,
     createdAt: row.created_at,
@@ -71,8 +71,8 @@ export class SupabaseAdminRepository implements AdminRepository {
       this.client.from('profiles').select('id', { count: 'exact', head: true }),
       this.client.from('picks').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       this.client.from('comments').select('id', { count: 'exact', head: true }),
-      this.client.from('products').select('id', { count: 'exact', head: true }).in('status', ['active', 'discontinued']),
-      this.client.from('products').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      this.client.from('items').select('id', { count: 'exact', head: true }).in('status', ['active', 'discontinued']),
+      this.client.from('items').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       this.client.from('content_reports').select('id', { count: 'exact', head: true }).in('status', ['open', 'reviewing']),
     ]);
 
@@ -84,8 +84,8 @@ export class SupabaseAdminRepository implements AdminRepository {
       profiles: results[0].count ?? 0,
       activePicks: results[1].count ?? 0,
       comments: results[2].count ?? 0,
-      activeProducts: results[3].count ?? 0,
-      pendingProducts: results[4].count ?? 0,
+      activeItems: results[3].count ?? 0,
+      pendingItems: results[4].count ?? 0,
       openReports: results[5].count ?? 0,
     };
   }
@@ -129,57 +129,57 @@ export class SupabaseAdminRepository implements AdminRepository {
     return data.map(mapBrandRow);
   }
 
-  async getProducts(limit = 300) {
+  async getItems(limit = 300) {
     const safeLimit = Math.min(Math.max(limit, 1), 1000);
     const { data, error } = await this.client
-      .from('products')
+      .from('items')
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(safeLimit);
     if (error) throw mapSupabaseError(error);
-    return data.map((row) => mapProductRow(row,
-      row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
-      row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
+    return data.map((row) => mapItemRow(row,
+      row.image_path ? this.client.storage.from('item-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+      row.thumbnail_path ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
   }
 
-  async getPendingProducts() {
-    const { data, error } = await this.client.from('products').select('*')
+  async getPendingItems() {
+    const { data, error } = await this.client.from('items').select('*')
       .eq('status', 'pending').order('created_at', { ascending: true }).limit(500);
     if (error) throw mapSupabaseError(error);
-    return data.map((row) => mapProductRow(row,
-      row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
-      row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
+    return data.map((row) => mapItemRow(row,
+      row.image_path ? this.client.storage.from('item-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+      row.thumbnail_path ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null));
   }
 
-  async getProductById(productId: string) {
-    const { data, error } = await this.client.from('products').select('*').eq('id', productId).maybeSingle();
+  async getItemById(itemId: string) {
+    const { data, error } = await this.client.from('items').select('*').eq('id', itemId).maybeSingle();
     if (error) throw mapSupabaseError(error);
-    return data ? mapProductRow(data) : null;
+    return data ? mapItemRow(data) : null;
   }
 
-  async getProductAliases(limit = 1000) {
+  async getItemAliases(limit = 1000) {
     const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const { data, error } = await this.client
-      .from('product_aliases')
+      .from('item_aliases')
       .select('*')
       .order('alias', { ascending: true })
       .limit(safeLimit);
     if (error) throw mapSupabaseError(error);
-    return data.map(mapProductAlias);
+    return data.map(mapItemAlias);
   }
 
-  async createProductAlias(productId: string, alias: string) {
+  async createItemAlias(itemId: string, alias: string) {
     const { data, error } = await this.client
-      .from('product_aliases')
-      .insert({ product_id: productId, alias, normalized_alias: alias.toLowerCase().replace(/\s+/g, '') })
+      .from('item_aliases')
+      .insert({ item_id: itemId, alias, normalized_alias: alias.toLowerCase().replace(/\s+/g, '') })
       .select('*')
       .single();
     if (error) throw mapSupabaseError(error);
-    return mapProductAlias(data);
+    return mapItemAlias(data);
   }
 
-  async removeProductAlias(aliasId: string) {
-    const { error } = await this.client.from('product_aliases').delete().eq('id', aliasId);
+  async removeItemAlias(aliasId: string) {
+    const { error } = await this.client.from('item_aliases').delete().eq('id', aliasId);
     if (error) throw mapSupabaseError(error);
   }
 
@@ -254,10 +254,10 @@ export class SupabaseAdminRepository implements AdminRepository {
     return mapBrandRow(data);
   }
 
-  async createProduct(input: AdminProductInput & { normalizedName: string; createdBy?: string | null }) {
+  async createItem(input: AdminItemInput & { normalizedName: string; createdBy?: string | null }) {
     const { data: authData } = await this.client.auth.getUser();
     const { data, error } = await this.client
-      .from('products')
+      .from('items')
       .insert({
         category_id: input.categoryId,
         brand_id: input.brandId ?? null,
@@ -271,11 +271,11 @@ export class SupabaseAdminRepository implements AdminRepository {
       .select('*')
       .single();
     if (error) throw mapSupabaseError(error);
-    return mapProductRow(data);
+    return mapItemRow(data);
   }
 
-  async updateProduct(productId: string, input: AdminProductUpdateInput & { normalizedName?: string }, expectedStatus?: ProductStatus) {
-    const patch: Database['public']['Tables']['products']['Update'] = {};
+  async updateItem(itemId: string, input: AdminItemUpdateInput & { normalizedName?: string }, expectedStatus?: ItemStatus) {
+    const patch: Database['public']['Tables']['items']['Update'] = {};
     if (input.categoryId !== undefined) patch.category_id = input.categoryId;
     if (input.brandId !== undefined) patch.brand_id = input.brandId;
     if (input.name !== undefined) patch.name = input.name;
@@ -283,13 +283,13 @@ export class SupabaseAdminRepository implements AdminRepository {
     if (input.modelCode !== undefined) patch.model_code = input.modelCode;
     if (input.officialUrl !== undefined) patch.official_url = input.officialUrl;
     if (input.status !== undefined) patch.status = input.status;
-    if (input.mergedIntoProductId !== undefined) patch.merged_into_product_id = input.mergedIntoProductId;
+    if (input.mergedIntoItemId !== undefined) patch.merged_into_item_id = input.mergedIntoItemId;
 
-    let query = this.client.from('products').update(patch).eq('id', productId);
+    let query = this.client.from('items').update(patch).eq('id', itemId);
     if (expectedStatus) query = query.eq('status', expectedStatus);
     const { data, error } = await query.select('*').maybeSingle();
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('PICK_CONFLICT');
-    return mapProductRow(data);
+    return mapItemRow(data);
   }
 }

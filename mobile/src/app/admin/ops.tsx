@@ -16,7 +16,7 @@ function formatTime(value: string) {
 function auditTitle(item: AdminAuditLog) {
   const entity = item.entityType === 'category' ? '카테고리'
     : item.entityType === 'brand' ? '브랜드'
-      : item.entityType === 'product' ? '제품' : '신고';
+      : item.entityType === 'item' ? '제품' : '신고';
   const action = item.action === 'insert' ? '생성' : item.action === 'update' ? '수정' : '삭제';
   return `${entity} ${action}`;
 }
@@ -64,8 +64,8 @@ export default function AdminOperationsScreen() {
                 ['사용자', query.data.metrics.profiles],
                 ['활성 원픽', query.data.metrics.activePicks],
                 ['댓글', query.data.metrics.comments],
-                ['정식 제품', query.data.metrics.activeProducts],
-                ['승인 대기', query.data.metrics.pendingProducts],
+                ['정식 제품', query.data.metrics.activeItems],
+                ['승인 대기', query.data.metrics.pendingItems],
                 ['미처리 신고', query.data.metrics.openReports],
               ].map(([label, value]) => (
                 <View key={String(label)} style={styles.metricCard}>

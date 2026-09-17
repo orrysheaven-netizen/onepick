@@ -33,8 +33,8 @@ async function main() {
   const { AppError } = load('errors/appError.ts');
   const auth = { user: { id: 'owner' }, isLoading: false, error: null };
   const category = { id: 'ramen', name: '라면' };
-  const request = (id, status, mergedIntoProduct = null) => ({
-    product: { id, name: `${id} 제품`, status }, category, mergedIntoProduct,
+  const request = (id, status, mergedIntoItem = null) => ({
+    item: { id, name: `${id} 제품`, status }, category, mergedIntoItem,
   });
   const profileQuery = {
     data: {
@@ -67,7 +67,7 @@ async function main() {
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
-      useMyProductRequests: (userId) => { requestsUser = userId; return requestsQuery; },
+      useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
     },
   });
   const render = () => { presses = []; return renderToStaticMarkup(React.createElement(Profile)); };
@@ -76,13 +76,13 @@ async function main() {
 
   assert.match(render(), /승인 대기/);
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
-  assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable product');
+  assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable item');
   await refreshButton().onPress();
   assert.equal(refreshes, 1);
   assert.match(render(), /승인됨/);
   button('waiting 제품').onPress();
-  assert.equal(destination.pathname, '/product/[productId]');
-  assert.equal(destination.params.productId, 'waiting', 'Approval leads to the same shared product');
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'waiting', 'Approval leads to the same shared item');
   await pullToRefresh.props.onRefresh();
   assert.equal(refreshes, 2);
   assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Both refresh actions update all three queries');
@@ -101,12 +101,12 @@ async function main() {
   ];
   render();
   button('merged 제품').onPress();
-  assert.equal(destination.params.productId, 'canonical', 'Merged requests open the canonical product, not the duplicate');
+  assert.equal(destination.params.itemId, 'canonical', 'Merged requests open the canonical item, not the duplicate');
   for (const id of ['merged-hidden', 'merged-missing', 'rejected', 'hidden']) {
-    assert.equal(button(`${id} 제품`), undefined, `${id} must not open a non-public product`);
+    assert.equal(button(`${id} 제품`), undefined, `${id} must not open a non-public item`);
   }
   button('old 제품').onPress();
-  assert.equal(destination.params.productId, 'old');
+  assert.equal(destination.params.itemId, 'old');
 
   profileQuery.isError = true; profileQuery.isRefetchError = true;
   const stale = render();
@@ -146,7 +146,7 @@ async function main() {
     query.isPending = false; query.data = data;
   }
 
-  historyQuery.data = [{ pick: { id: 'old-pick', oneLineReview: 'Previous choice', status: 'replaced' }, product: { name: '이전 제품' }, category }];
+  historyQuery.data = [{ pick: { id: 'old-pick', oneLineReview: 'Previous choice', status: 'replaced' }, item: { name: '이전 제품' }, category }];
   render(); button('이전 제품').onPress();
   assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'old-pick');
   const cached = profileQuery.data;

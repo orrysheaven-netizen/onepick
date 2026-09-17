@@ -32,7 +32,7 @@ values
 insert into public.categories (id, name, slug, status, is_visible, is_pickable)
 values ('cccccccc-cccc-cccc-cccc-cccccccccccc', '댓글 테스트', 'comment-test', 'open', true, true);
 
-insert into public.products (id, category_id, name, normalized_name, status)
+insert into public.items (id, category_id, name, normalized_name, status)
 values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'cccccccc-cccc-cccc-cccc-cccccccccccc', '제품 A', '제품 a', 'active'),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'cccccccc-cccc-cccc-cccc-cccccccccccc', '제품 B', '제품 b', 'active');

@@ -1,4 +1,4 @@
-export type ProductStatus =
+export type ItemStatus =
   | 'pending'
   | 'active'
   | 'discontinued'
@@ -6,7 +6,7 @@ export type ProductStatus =
   | 'merged'
   | 'rejected';
 
-export interface Product {
+export interface Item {
   id: string;
   categoryId: string;
   brandId: string | null;
@@ -18,8 +18,8 @@ export interface Product {
   imageUrl: string | null;
   thumbnailUrl: string | null;
   imageSourceUrl: string | null;
-  status: ProductStatus;
-  mergedIntoProductId: string | null;
+  status: ItemStatus;
+  mergedIntoItemId: string | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

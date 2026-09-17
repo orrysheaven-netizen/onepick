@@ -4,7 +4,7 @@ export interface Pick {
   id: string;
   userId: string;
   categoryId: string;
-  productId: string;
+  itemId: string;
   oneLineReview: string;
   status: PickStatus;
   startedAt: string;

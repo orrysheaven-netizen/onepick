@@ -106,13 +106,13 @@ export default function PickDetailScreen() {
             </View>
 
             <View style={styles.heroCard}>
-              <PickPhoto uri={query.data.product.imageUrl} label={query.data.product.name} large />
+              <PickPhoto uri={query.data.item.imageUrl} label={query.data.item.name} large />
               <Text style={styles.category}>{query.data.category.name}</Text>
-              <Text style={styles.productName}>{query.data.product.name}</Text>
+              <Text style={styles.itemName}>{query.data.item.name}</Text>
               <Text style={styles.review}>“{query.data.pick.oneLineReview}”</Text>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: query.data.product.id } })}
+                onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: query.data.item.id } })}
                 style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}>
                 <Text style={styles.smallButtonText}>제품 상세 보기</Text>
               </Pressable>
@@ -271,7 +271,7 @@ export default function PickDetailScreen() {
               categoryName={query.data.category.name}
               oneLineReview={query.data.pick.oneLineReview}
               pickId={query.data.pick.id}
-              productName={query.data.product.name}
+              itemName={query.data.item.name}
               username={query.data.profile.username}
             />
           </>
@@ -299,10 +299,10 @@ const styles = StyleSheet.create({
   statusText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
   statusTextMuted: { color: '#747985' },
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28 },
-  productIcon: { width: 116, height: 116, borderRadius: 28, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  productEmoji: { fontSize: 56 },
+  itemIcon: { width: 116, height: 116, borderRadius: 28, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
+  itemEmoji: { fontSize: 56 },
   category: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
-  productName: { color: '#202124', fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 8 },
+  itemName: { color: '#202124', fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 8 },
   review: { color: '#5F5A54', fontSize: 16, lineHeight: 24, textAlign: 'center', marginTop: 22 },
   metaCard: { backgroundColor: '#252B38', borderRadius: 20, padding: 18, marginTop: 14 },
   metaLabel: { color: '#C7C4FF', fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },

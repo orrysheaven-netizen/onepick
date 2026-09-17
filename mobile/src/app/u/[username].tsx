@@ -98,7 +98,7 @@ export default function PublicProfileScreen() {
             {query.data.currentPicks.length > 0 ? (
               query.data.currentPicks.map((item) => (
                 <View key={item.pick.id} style={styles.pickCard}>
-                  <PickPhoto uri={item.product?.thumbnailUrl} label={item.product?.name ?? '제품 대표 이미지'} />
+                  <PickPhoto uri={item.item?.thumbnailUrl} label={item.item?.name ?? '제품 대표 이미지'} />
                   <View style={styles.pickCopy}>
                     <Pressable
                       accessibilityRole="button"
@@ -106,16 +106,16 @@ export default function PublicProfileScreen() {
                       onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })}
                       style={({ pressed }) => pressed && styles.pressed}>
                       <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
-                      <Text style={styles.pickName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
+                      <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
                       <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
                       <Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
                     </Pressable>
-                    {item.product ? (
+                    {item.item ? (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={`${item.product.name} 제품 상세 보기`}
-                        onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: item.pick.productId } })}
-                        style={({ pressed }) => [styles.productLink, pressed && styles.pressed]}>
+                        accessibilityLabel={`${item.item.name} 제품 상세 보기`}
+                        onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } })}
+                        style={({ pressed }) => [styles.itemLink, pressed && styles.pressed]}>
                         <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
                       </Pressable>
                     ) : null}
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
   pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
   pickAction: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 7 },
-  productLink: { minHeight: 44, justifyContent: 'center', marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA' },
+  itemLink: { minHeight: 44, justifyContent: 'center', marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA' },
   emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },

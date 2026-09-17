@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          summary: Json
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          summary?: Json
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          summary?: Json
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           created_at: string
@@ -99,6 +129,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_error_events: {
+        Row: {
+          app_version: string | null
+          context: string
+          created_at: string
+          error_code: string
+          id: string
+          platform: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          context: string
+          created_at?: string
+          error_code: string
+          id?: string
+          platform?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          context?: string
+          created_at?: string
+          error_code?: string
+          id?: string
+          platform?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       comments: {
         Row: {
@@ -209,113 +269,42 @@ export type Database = {
           },
         ]
       }
-      picks: {
-        Row: {
-          category_id: string
-          created_at: string
-          ended_at: string | null
-          id: string
-          one_line_review: string
-          product_id: string
-          replaced_by_pick_id: string | null
-          started_at: string
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          category_id: string
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          one_line_review: string
-          product_id: string
-          replaced_by_pick_id?: string | null
-          started_at?: string
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          category_id?: string
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          one_line_review?: string
-          product_id?: string
-          replaced_by_pick_id?: string | null
-          started_at?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "picks_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "picks_product_category_fk"
-            columns: ["product_id", "category_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "category_id"]
-          },
-          {
-            foreignKeyName: "picks_replaced_by_pick_id_fkey"
-            columns: ["replaced_by_pick_id"]
-            isOneToOne: false
-            referencedRelation: "picks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "picks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      product_aliases: {
+      item_aliases: {
         Row: {
           alias: string
           created_at: string
           id: string
+          item_id: string
           normalized_alias: string
-          product_id: string
           updated_at: string
         }
         Insert: {
           alias: string
           created_at?: string
           id?: string
+          item_id: string
           normalized_alias: string
-          product_id: string
           updated_at?: string
         }
         Update: {
           alias?: string
           created_at?: string
           id?: string
+          item_id?: string
           normalized_alias?: string
-          product_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "product_aliases_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "item_aliases_item_id_fkey"
+            columns: ["item_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
       }
-      products: {
+      items: {
         Row: {
           brand_id: string | null
           category_id: string
@@ -324,7 +313,7 @@ export type Database = {
           id: string
           image_path: string | null
           image_source_url: string | null
-          merged_into_product_id: string | null
+          merged_into_item_id: string | null
           model_code: string | null
           name: string
           normalized_name: string
@@ -341,7 +330,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           image_source_url?: string | null
-          merged_into_product_id?: string | null
+          merged_into_item_id?: string | null
           model_code?: string | null
           name: string
           normalized_name: string
@@ -358,7 +347,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           image_source_url?: string | null
-          merged_into_product_id?: string | null
+          merged_into_item_id?: string | null
           model_code?: string | null
           name?: string
           normalized_name?: string
@@ -369,31 +358,102 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "products_brand_id_fkey"
+            foreignKeyName: "items_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "products_category_id_fkey"
+            foreignKeyName: "items_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "products_created_by_fkey"
+            foreignKeyName: "items_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "products_merged_into_product_id_fkey"
-            columns: ["merged_into_product_id"]
+            foreignKeyName: "items_merged_into_item_id_fkey"
+            columns: ["merged_into_item_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      picks: {
+        Row: {
+          category_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          item_id: string
+          one_line_review: string
+          replaced_by_pick_id: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          item_id: string
+          one_line_review: string
+          replaced_by_pick_id?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          item_id?: string
+          one_line_review?: string
+          replaced_by_pick_id?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picks_item_category_fk"
+            columns: ["item_id", "category_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id", "category_id"]
+          },
+          {
+            foreignKeyName: "picks_replaced_by_pick_id_fkey"
+            columns: ["replaced_by_pick_id"]
+            isOneToOne: false
+            referencedRelation: "picks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -472,16 +532,16 @@ export type Database = {
       change_pick: {
         Args: {
           p_category_id: string
+          p_item_id: string
           p_one_line_review: string
-          p_product_id: string
         }
         Returns: {
           category_id: string
           created_at: string
           ended_at: string | null
           id: string
+          item_id: string
           one_line_review: string
-          product_id: string
           replaced_by_pick_id: string | null
           started_at: string
           status: string
@@ -502,9 +562,9 @@ export type Database = {
           p_category_id: string
           p_image_path?: string
           p_image_source_url?: string
+          p_item_id: string
+          p_item_name: string
           p_one_line_review: string
-          p_product_id: string
-          p_product_name: string
           p_thumbnail_path?: string
         }
         Returns: {
@@ -512,8 +572,8 @@ export type Database = {
           created_at: string
           ended_at: string | null
           id: string
+          item_id: string
           one_line_review: string
-          product_id: string
           replaced_by_pick_id: string | null
           started_at: string
           status: string
@@ -528,7 +588,7 @@ export type Database = {
         }
       }
       remove_pick: { Args: { p_category_id: string }; Returns: boolean }
-      search_products: {
+      search_items: {
         Args: { p_category_ids?: string[]; p_limit?: number; p_query: string }
         Returns: {
           brand_id: string | null
@@ -538,7 +598,7 @@ export type Database = {
           id: string
           image_path: string | null
           image_source_url: string | null
-          merged_into_product_id: string | null
+          merged_into_item_id: string | null
           model_code: string | null
           name: string
           normalized_name: string
@@ -549,17 +609,17 @@ export type Database = {
         }[]
         SetofOptions: {
           from: "*"
-          to: "products"
+          to: "items"
           isOneToOne: false
           isSetofReturn: true
         }
       }
-      submit_product: {
+      submit_item: {
         Args: {
           p_category_id: string
           p_image_path?: string
           p_image_source_url?: string
-          p_product_name: string
+          p_item_name: string
           p_thumbnail_path?: string
         }
         Returns: {
@@ -570,7 +630,7 @@ export type Database = {
           id: string
           image_path: string | null
           image_source_url: string | null
-          merged_into_product_id: string | null
+          merged_into_item_id: string | null
           model_code: string | null
           name: string
           normalized_name: string
@@ -581,7 +641,7 @@ export type Database = {
         }
         SetofOptions: {
           from: "*"
-          to: "products"
+          to: "items"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -593,8 +653,8 @@ export type Database = {
           created_at: string
           ended_at: string | null
           id: string
+          item_id: string
           one_line_review: string
-          product_id: string
           replaced_by_pick_id: string | null
           started_at: string
           status: string

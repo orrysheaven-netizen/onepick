@@ -5,7 +5,7 @@ import {
   commentRepository,
   observabilityRepository,
   pickRepository,
-  productRepository,
+  itemRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -20,13 +20,13 @@ import { ExploreService } from './exploreService';
 import { HomeService } from './homeService';
 import { ObservabilityService } from './observabilityService';
 import { PickService } from './pickService';
-import { ProductService } from './productService';
+import { ItemService } from './itemService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
 
 export const adminService = new AdminService(adminRepository, profileRepository);
-export const registrationService = new RegistrationService(categoryRepository, pickRepository, productRepository, photoRepository, new DevicePhotoRepository());
+export const registrationService = new RegistrationService(categoryRepository, pickRepository, itemRepository, photoRepository, new DevicePhotoRepository());
 
 export const authService = new AuthService(authRepository);
 export const observabilityService = new ObservabilityService(observabilityRepository);
@@ -43,17 +43,17 @@ export const exploreService = new ExploreService(
 );
 export const homeService = new HomeService(
   categoryRepository,
-  productRepository,
+  itemRepository,
   readRepository,
 );
 export const pickService = new PickService(
   pickRepository,
   categoryRepository,
-  productRepository,
+  itemRepository,
   readRepository,
 );
-export const productService = new ProductService(
-  productRepository,
+export const itemService = new ItemService(
+  itemRepository,
   pickRepository,
   categoryRepository,
   readRepository,
@@ -71,7 +71,7 @@ export {
   HomeService,
   ObservabilityService,
   PickService,
-  ProductService,
+  ItemService,
   ProfileService,
   SafetyService,
 };

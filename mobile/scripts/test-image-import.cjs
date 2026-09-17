@@ -3,14 +3,14 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
-const output=ts.transpileModule(fs.readFileSync(path.join(__dirname,'../../supabase/functions/import-product-image/imageImport.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const output=ts.transpileModule(fs.readFileSync(path.join(__dirname,'../../supabase/functions/import-item-image/imageImport.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const api={};
 vm.runInNewContext(output,{exports:api,URL,Response,AbortSignal,TextDecoder,Uint8Array,DataView,btoa,fetch});
 async function main(){
   for(const url of ['http://www.otoki.com/a','https://www.otoki.com.evil.example/a','https://127.0.0.1/a','https://169.254.169.254/','https://user:pass@www.otoki.com/a','https://www.otoki.com:444/a','file:///x','https://www.otoki.com./x']){
     assert.throws(()=>api.validateSource(url),/IMAGE_SOURCE_UNSUPPORTED/);
   }
-  const base=new URL('https://www.otoki.com/product');
+  const base=new URL('https://www.otoki.com/item');
   assert.equal(api.extractImageUrl('<meta content="/photo.jpg?a=1&amp;b=2" property="og:image">',base).href,'https://www.otoki.com/photo.jpg?a=1&b=2');
   assert.throws(()=>api.extractImageUrl('<meta property="og:image" content="https://localhost/private">',base),/IMAGE_IMPORT_FAILED/);
   let calls=[];
@@ -23,7 +23,7 @@ async function main(){
   calls=[];
   const imported=await api.importImage(base.href,async(url,options)=>{
     calls.push(url);assert.equal(options.redirect,'manual');assert.equal(options.headers.Authorization,undefined);
-    return url.endsWith('/product') ? new Response('<meta property="og:image" content="/photo.png">',{headers:{'content-type':'text/html'}}) : new Response(png,{headers:{'content-type':'image/png'}});
+    return url.endsWith('/item') ? new Response('<meta property="og:image" content="/photo.png">',{headers:{'content-type':'text/html'}}) : new Response(png,{headers:{'content-type':'image/png'}});
   });
   assert.equal(calls.length,2);assert.ok(imported.dataUri.startsWith('data:image/png;base64,'));
   assert.equal(imported.sourceUrl,base.href);

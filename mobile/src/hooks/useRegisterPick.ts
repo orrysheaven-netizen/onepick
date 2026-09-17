@@ -12,7 +12,7 @@ export function useChoosePhoto() {
   return useMutation({ mutationFn: () => registrationService.choosePhoto() });
 }
 
-export function useImportProductPhoto() {
+export function useImportItemPhoto() {
   return useMutation({ mutationFn: (url: string) => registrationService.importPhoto(url) });
 }
 

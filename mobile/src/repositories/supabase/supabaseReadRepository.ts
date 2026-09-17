@@ -10,34 +10,34 @@ import type {
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
-import { mapProductRow } from '@/repositories/mappers/productMapper';
+import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
 
 type PickRow = Database['public']['Tables']['picks']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type CategoryRow = Database['public']['Tables']['categories']['Row'];
-type ProductRow = Database['public']['Tables']['products']['Row'];
+type ItemRow = Database['public']['Tables']['items']['Row'];
 type CommentRow = Database['public']['Tables']['comments']['Row'];
 
 type Related<T> = T | T[] | null;
 type PickReadRow = PickRow & {
   profile: Related<ProfileRow>;
   category: Related<CategoryRow>;
-  product: Related<ProductRow>;
+  item: Related<ItemRow>;
 };
 type CommentReadRow = CommentRow & {
   author: Related<ProfileRow>;
 };
-type ProductRequestReadRow = ProductRow & {
+type ItemRequestReadRow = ItemRow & {
   category: Related<CategoryRow>;
-  mergedIntoProduct: Related<ProductRow>;
+  mergedIntoItem: Related<ItemRow>;
 };
 
 const PICK_READ_SELECT = `
   *,
   profile:profiles!picks_user_id_fkey(*),
   category:categories!picks_category_id_fkey(*),
-  product:products!picks_product_category_fk(*)
+  item:items!picks_item_category_fk(*)
 `;
 
 function one<T>(value: Related<T>): T | null {
@@ -59,24 +59,24 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  private mapProduct(row: ProductRow | null) {
+  private mapItem(row: ItemRow | null) {
     if (!row) return null;
-    return mapProductRow(
+    return mapItemRow(
       row,
-      row.image_path ? this.client.storage.from('product-photos').getPublicUrl(row.image_path).data.publicUrl : null,
-      row.thumbnail_path ? this.client.storage.from('product-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null,
+      row.image_path ? this.client.storage.from('item-photos').getPublicUrl(row.image_path).data.publicUrl : null,
+      row.thumbnail_path ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null,
     );
   }
 
   private mapPickItem(row: PickReadRow) {
     const profile = one(row.profile);
     const category = one(row.category);
-    const product = one(row.product);
+    const item = one(row.item);
     return {
       pick: mapPickRow(row),
       profile: profile ? mapProfileRow(profile) : null,
       category: category ? mapCategoryRow(category) : null,
-      product: this.mapProduct(product),
+      item: this.mapItem(item),
     };
   }
 
@@ -105,7 +105,7 @@ export class SupabaseReadRepository implements ReadRepository {
     if (input.userId) query = query.eq('user_id', input.userId);
     if (input.excludeUserId) query = query.neq('user_id', input.excludeUserId);
     if (input.categoryId) query = query.eq('category_id', input.categoryId);
-    if (input.productId) query = query.eq('product_id', input.productId);
+    if (input.itemId) query = query.eq('item_id', input.itemId);
     if (input.statuses?.length) query = query.in('status', input.statuses);
 
     const { data, error } = await query;
@@ -135,14 +135,14 @@ export class SupabaseReadRepository implements ReadRepository {
     });
   }
 
-  async getProductRequestsByUser(userId: string, statuses?: ProductRequestReadRow['status'][], limit = 20, cursor?: ReadCursor | null) {
+  async getItemRequestsByUser(userId: string, statuses?: ItemRequestReadRow['status'][], limit = 20, cursor?: ReadCursor | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     let query = this.client
-      .from('products')
+      .from('items')
       .select(`
         *,
-        category:categories!products_category_id_fkey(*),
-        mergedIntoProduct:products!products_merged_into_product_id_fkey(*)
+        category:categories!items_category_id_fkey(*),
+        mergedIntoItem:items!items_merged_into_item_id_fkey(*)
       `)
       .eq('created_by', userId)
       .order('created_at', { ascending: false })
@@ -154,13 +154,13 @@ export class SupabaseReadRepository implements ReadRepository {
 
     const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as ProductRequestReadRow[]).map((row) => {
+    return (data as unknown as ItemRequestReadRow[]).map((row) => {
       const category = one(row.category);
-      const mergedIntoProduct = one(row.mergedIntoProduct);
+      const mergedIntoItem = one(row.mergedIntoItem);
       return {
-        product: this.mapProduct(row)!,
+        item: this.mapItem(row)!,
         category: category ? mapCategoryRow(category) : null,
-        mergedIntoProduct: this.mapProduct(mergedIntoProduct),
+        mergedIntoItem: this.mapItem(mergedIntoItem),
       };
     });
   }

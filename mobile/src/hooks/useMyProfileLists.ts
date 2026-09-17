@@ -15,11 +15,11 @@ export function useMyPickHistory(userId?: string) {
   });
 }
 
-export function useMyProductRequests(userId?: string) {
+export function useMyItemRequests(userId?: string) {
   return useInfiniteQuery({
     queryKey: queryKeys.profiles.requests(userId),
     initialPageParam: null as ReadCursor | null,
-    queryFn: ({ pageParam }) => profileService.getMyProductRequests(userId!, pageParam),
+    queryFn: ({ pageParam }) => profileService.getMyItemRequests(userId!, pageParam),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     select: (data) => data.pages.flatMap((page) => page.items),
     enabled: Boolean(userId),

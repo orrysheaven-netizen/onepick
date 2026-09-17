@@ -120,7 +120,7 @@ async function main() {
   assert.equal(oauthOptions.options.skipBrowserRedirect, true);
   assert.equal(browserCalls, 1, 'Native OAuth still uses the auth session browser');
   platform.OS = 'web';
-  const callback = 'https://example.com/auth/callback?action=request_product&productName=ramen';
+  const callback = 'https://example.com/auth/callback?action=request_item&itemName=ramen';
   assert.equal(await repository.signInWithKakao(callback), null);
   assert.equal(oauthOptions.options.redirectTo, callback);
   assert.equal(oauthOptions.options.skipBrowserRedirect, false, 'Web lets Supabase navigate in the current tab');

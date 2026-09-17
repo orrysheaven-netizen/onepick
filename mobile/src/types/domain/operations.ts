@@ -2,15 +2,15 @@ export interface AdminOperationsMetrics {
   profiles: number;
   activePicks: number;
   comments: number;
-  activeProducts: number;
-  pendingProducts: number;
+  activeItems: number;
+  pendingItems: number;
   openReports: number;
 }
 
 export interface AdminAuditLog {
   id: string;
   actorUserId: string | null;
-  entityType: 'category' | 'brand' | 'product' | 'content_report';
+  entityType: 'category' | 'brand' | 'item' | 'content_report';
   entityId: string;
   action: 'insert' | 'update' | 'delete';
   summary: Record<string, unknown>;

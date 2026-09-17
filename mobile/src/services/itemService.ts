@@ -1,51 +1,51 @@
 import { AppError } from '@/errors/appError';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
-import type { ProductRepository } from '@/repositories/interfaces/productRepository';
+import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ReadRepository } from '@/repositories/interfaces/readRepository';
 
-export type MyProductPickStatus =
+export type MyItemPickStatus =
   | { type: 'not_selected' }
   | { type: 'selected_this'; pickId: string; oneLineReview: string }
-  | { type: 'selected_other'; currentPickId: string; currentProductId: string };
+  | { type: 'selected_other'; currentPickId: string; currentItemId: string };
 
-export class ProductService {
+export class ItemService {
   constructor(
-    private readonly productRepository: ProductRepository,
+    private readonly itemRepository: ItemRepository,
     private readonly pickRepository: PickRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getProductDetail(productId: string, userId?: string) {
-    const product = await this.productRepository.getById(productId);
-    if (!product) throw new AppError('PRODUCT_NOT_FOUND');
+  async getItemDetail(itemId: string, userId?: string) {
+    const item = await this.itemRepository.getById(itemId);
+    if (!item) throw new AppError('ITEM_NOT_FOUND');
 
     const [category, currentPick, picks, openCategories] = await Promise.all([
-      this.categoryRepository.getById(product.categoryId),
-      userId ? this.pickRepository.getCurrentPick(userId, product.categoryId) : Promise.resolve(null),
-      this.readRepository.getPicks({ productId, statuses: ['active'], limit: 20 }),
+      this.categoryRepository.getById(item.categoryId),
+      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
+      this.readRepository.getPicks({ itemId, statuses: ['active'], limit: 20 }),
       this.categoryRepository.getOpenCategories(),
     ]);
 
-    let myPickStatus: MyProductPickStatus = { type: 'not_selected' };
-    if (currentPick?.productId === product.id) {
+    let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
+    if (currentPick?.itemId === item.id) {
       myPickStatus = { type: 'selected_this', pickId: currentPick.id, oneLineReview: currentPick.oneLineReview };
     } else if (currentPick) {
       myPickStatus = {
         type: 'selected_other',
         currentPickId: currentPick.id,
-        currentProductId: currentPick.productId,
+        currentItemId: currentPick.itemId,
       };
     }
 
     const canChoose = Boolean(
-      openCategories.some((item) => item.id === product.categoryId) &&
-      (product.status === 'active' || product.status === 'discontinued'),
+      openCategories.some((category) => category.id === item.categoryId) &&
+      (item.status === 'active' || item.status === 'discontinued'),
     );
 
     return {
-      product,
+      item,
       category,
       myPickStatus,
       picks: picks.map((item) => ({ pick: item.pick, profile: item.profile })),
@@ -57,6 +57,6 @@ export class ProductService {
     const categories = await this.categoryRepository.getOpenCategories();
     const ids = categories.filter((item) => !categoryId || item.id === categoryId).map((item) => item.id);
     if (!ids.length || !query.trim()) return [];
-    return this.productRepository.search({ query, categoryId, categoryIds: ids, limit: 20 });
+    return this.itemRepository.search({ query, categoryId, categoryIds: ids, limit: 20 });
   }
 }

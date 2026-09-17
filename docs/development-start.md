@@ -15,7 +15,7 @@ The app follows:
 Screen → Hook → Service → Repository Interface → Supabase Repository → Supabase/PostgreSQL
 ```
 
-Keep Supabase access out of screens and services. Read-heavy social views use `ReadRepository` so related Pick / Product / Category / Profile data can be fetched together.
+Keep Supabase access out of screens and services. Read-heavy social views use `ReadRepository` so related Pick / Item / Category / Profile data can be fetched together.
 
 ## Environment
 
@@ -40,9 +40,9 @@ Current database coverage includes:
 
 - Pick replacement / review / removal.
 - Comments and RLS.
-- Shared product requests and Admin approval.
+- Shared item requests and Admin approval.
 - Category hierarchy validation.
-- Product aliases and search.
+- Item aliases and search.
 - Account deletion cascade rules.
 - User blocking visibility.
 - Profile / Pick / Comment reporting and Admin moderation.
@@ -51,10 +51,10 @@ Current database coverage includes:
 
 Database CI also runs `deno check` against:
 
-- `supabase/functions/import-product-image`
+- `supabase/functions/import-item-image`
 - `supabase/functions/delete-account`
 
-`delete-account` uses `@supabase/server` with user authentication inside the function. It preserves product-master images still referenced by approved products, removes the user's storage folder, then deletes the Auth user.
+`delete-account` uses `@supabase/server` with user authentication inside the function. It preserves item-master images still referenced by approved items, removes the user's storage folder, then deletes the Auth user.
 
 ## Safety model
 

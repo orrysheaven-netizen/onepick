@@ -11,7 +11,7 @@ interface PickShareCardProps {
   authorUserId: string;
   username: string;
   categoryName: string;
-  productName: string;
+  itemName: string;
   oneLineReview: string;
 }
 

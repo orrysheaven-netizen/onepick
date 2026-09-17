@@ -22,11 +22,11 @@ const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ?
 let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
-const own = { pick: { id: 'mine', productId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, product: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
-const other = { ...own, pick: { ...own.pick, id: 'other', oneLineReview: '다른 사람의 이유' }, product: { name: '진라면' }, profile: { username: 'friend' } };
+const own = { pick: { id: 'mine', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
+const other = { ...own, pick: { ...own.pick, id: 'other', oneLineReview: '다른 사람의 이유' }, item: { name: '진라면' }, profile: { username: 'friend' } };
 const query = { isPending: false, isError: false, isFetching: false, isRefetching: false,
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
-  mode: 'multi_category', currentPicks: [own], feed: [other], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryProducts: [],
+  mode: 'multi_category', currentPicks: [own], feed: [other], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -54,7 +54,7 @@ for (width of [390, 800, 1200]) {
   const page = render();
   assert.match(page, /내 실제 선택 이유/); assert.match(page, /다른 사람의 이유/); assert.match(page, /MY PICK/);
   press('신라면 원픽 상세 보기'); assert.equal(destination.params.pickId, 'mine');
-  press('신라면 제품 상세 보기'); assert.equal(destination.params.productId, 'ramen');
+  press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 원픽 상세 보기'); assert.equal(destination.params.pickId, 'other');
   press('과자 원픽 찾기'); assert.equal(destination.params.categoryId, 'snacks');
   press('＋ 원픽 등록'); assert.equal(destination.pathname, '/pick/find');
@@ -63,8 +63,8 @@ for (width of [390, 800, 1200]) {
 auth.user = null;
 assert.doesNotMatch(render(), /내 실제 선택 이유|다른 사람의 이유|MY PICK/, 'Anonymous rendering never exposes cached personal cards');
 press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
-query.data.mode = 'single_category'; query.data.singleCategoryProducts = [{ id: 'public', name: '공개 제품' }];
-render(); press('공개 제품 제품 상세 보기'); assert.equal(destination.params.productId, 'public');
+query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
+render(); press('공개 제품 제품 상세 보기'); assert.equal(destination.params.itemId, 'public');
 
 auth.user = { id: 'owner' }; auth.error = new Error('offline');
 assert.doesNotMatch(render(), /내 실제 선택 이유|다른 사람의 이유/);

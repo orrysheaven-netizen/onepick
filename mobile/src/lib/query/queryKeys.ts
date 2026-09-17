@@ -16,13 +16,13 @@ export const queryKeys = {
     all: ['comments'] as const,
     byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
   },
-  products: {
-    all: ['products'] as const,
-    detail: (productId: string, userId?: string) =>
-      ['products', 'detail', productId, userId ?? 'public'] as const,
-    byCategory: (categoryId: string) => ['products', 'category', categoryId] as const,
+  items: {
+    all: ['items'] as const,
+    detail: (itemId: string, userId?: string) =>
+      ['items', 'detail', itemId, userId ?? 'public'] as const,
+    byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string) =>
-      ['products', 'search', query, categoryId ?? 'all'] as const,
+      ['items', 'search', query, categoryId ?? 'all'] as const,
   },
   picks: {
     all: ['picks'] as const,

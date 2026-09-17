@@ -12,15 +12,15 @@ export function useExploreData(categoryId?: string) {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     select: (data) => {
       const feed = data.pages.flatMap((page) => page.feed);
-      const seenProductIds = new Set<string>();
-      const recentProducts = feed
-        .filter((item) => item.product && item.category)
+      const seenItemIds = new Set<string>();
+      const recentItems = feed
+        .filter((item) => item.item && item.category)
         .filter((item) => {
-          if (seenProductIds.has(item.pick.productId)) return false;
-          seenProductIds.add(item.pick.productId);
+          if (seenItemIds.has(item.pick.itemId)) return false;
+          seenItemIds.add(item.pick.itemId);
           return true;
         })
-        .map((item) => ({ product: item.product!, category: item.category! }))
+        .map((item) => ({ item: item.item!, category: item.category! }))
         .slice(0, 8);
 
       return {
@@ -29,7 +29,7 @@ export function useExploreData(categoryId?: string) {
         openCategories: data.pages[0]?.openCategories ?? [],
         selectedCategoryId: categoryId ?? null,
         feed,
-        recentProducts,
+        recentItems,
       };
     },
   });

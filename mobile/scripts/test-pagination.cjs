@@ -21,21 +21,21 @@ const compare = (a, b, column) => {
   return delta < 0n ? -1 : delta > 0n ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 };
 const row = (i, timestamp = time) => ({
-  id: id(i), user_id: id(1000 + i), product_id: id(900), category_id: id(901), pick_id: id(902),
+  id: id(i), user_id: id(1000 + i), item_id: id(900), category_id: id(901), pick_id: id(902),
   status: 'active', one_line_review: `Pick ${i}`, body: `Comment ${i}`,
   started_at: timestamp, created_at: timestamp, updated_at: timestamp,
-  profile: null, category: null, product: null, author: null,
+  profile: null, category: null, item: null, author: null,
 });
 
 async function main() {
   const { AppError } = load('errors/appError.ts');
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
   const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError } };
-  for (const name of ['category', 'comment', 'pick', 'product', 'profile']) {
+  for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
-  let picks = [], comments = [], products = [], calls = [], fail = false;
+  let picks = [], comments = [], items = [], calls = [], fail = false;
   // Real Supabase/PostgREST query builders, with an in-memory HTTP boundary.
   const client = createClient('https://onepick.test', 'public-test-key', {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -44,13 +44,13 @@ async function main() {
       calls.push(url);
       if (fail) return new Response(JSON.stringify({ code: 'PGRST301', message: 'Session expired' }), { status: 401 });
       const table = url.pathname.split('/').pop();
-      assert.ok(['picks', 'comments', 'products'].includes(table));
+      assert.ok(['picks', 'comments', 'items'].includes(table));
       const params = url.searchParams;
       assert.equal(params.has('offset'), false, 'Infinite reads must not use positional offsets');
       const [column, direction] = params.get('order').split(',')[0].split('.');
       assert.equal(params.get('order'), `${column}.${direction},id.${direction}`, 'Equal timestamps need deterministic UUID ordering');
-      let rows = table === 'picks' ? picks : table === 'comments' ? comments : products;
-      for (const field of ['user_id', 'category_id', 'product_id', 'pick_id', 'created_by']) {
+      let rows = table === 'picks' ? picks : table === 'comments' ? comments : items;
+      for (const field of ['user_id', 'category_id', 'item_id', 'pick_id', 'created_by']) {
         const value = params.get(field);
         if (value?.startsWith('eq.')) rows = rows.filter((item) => item[field] === value.slice(3));
         if (value?.startsWith('neq.')) rows = rows.filter((item) => item[field] !== value.slice(4));
@@ -125,7 +125,7 @@ async function main() {
     const before = calls.length;
     await assert.rejects(() => repo.getPicks({ cursor }), /INVALID_PAGINATION_CURSOR/);
     await assert.rejects(() => repo.getCommentsByPickId(id(902), 20, cursor), /INVALID_PAGINATION_CURSOR/);
-    await assert.rejects(() => repo.getProductRequestsByUser(owner, undefined, 20, cursor), /INVALID_PAGINATION_CURSOR/);
+    await assert.rejects(() => repo.getItemRequestsByUser(owner, undefined, 20, cursor), /INVALID_PAGINATION_CURSOR/);
     assert.equal(calls.length, before, 'Malformed cursors must not reach the API');
   }
   picks = Array.from({ length: 120 }, (_, i) => row(i + 1));
@@ -158,26 +158,26 @@ async function main() {
   assert.equal(new Set(historyIds).size, 61); assert.equal(historyLast.items.length, 1); assert.equal(historyLast.nextCursor, null);
   assert.ok(!historyIds.includes(id(9000)) && !historyIds.includes(id(9001)), 'Only the owner’s historical statuses are included');
 
-  const productRow = (i) => ({ ...row(i), name: `Product ${i}`, created_by: owner, status: ['pending', 'active', 'merged', 'rejected', 'hidden', 'discontinued'][i % 6] });
-  products = Array.from({ length: 45 }, (_, i) => productRow(i + 1));
-  products.push({ ...productRow(9000), created_by: id(3000) });
-  const requestsFirst = await profileService.getMyProductRequests(owner);
+  const itemRow = (i) => ({ ...row(i), name: `Item ${i}`, created_by: owner, status: ['pending', 'active', 'merged', 'rejected', 'hidden', 'discontinued'][i % 6] });
+  items = Array.from({ length: 45 }, (_, i) => itemRow(i + 1));
+  items.push({ ...itemRow(9000), created_by: id(3000) });
+  const requestsFirst = await profileService.getMyItemRequests(owner);
   assert.equal(requestsFirst.items.length, 20); assert.equal(requestsFirst.nextCursor.id, id(26));
   assert.equal(requestsFirst.nextCursor.timestamp, time);
-  products.find((item) => item.id === id(25)).status = 'active';
-  products = products.filter((item) => item.id !== id(26));
-  products.push({ ...productRow(100), created_at: '2026-09-17T10:00:00.123457+00:00' });
+  items.find((item) => item.id === id(25)).status = 'active';
+  items = items.filter((item) => item.id !== id(26));
+  items.push({ ...itemRow(100), created_at: '2026-09-17T10:00:00.123457+00:00' });
   fail = true;
-  await assert.rejects(() => profileService.getMyProductRequests(owner, requestsFirst.nextCursor), (error) => error.code === 'AUTH_REQUIRED');
+  await assert.rejects(() => profileService.getMyItemRequests(owner, requestsFirst.nextCursor), (error) => error.code === 'AUTH_REQUIRED');
   fail = false;
-  const requestsSecond = await profileService.getMyProductRequests(owner, requestsFirst.nextCursor);
-  const requestsLast = await profileService.getMyProductRequests(owner, requestsSecond.nextCursor);
-  assert.equal(requestsSecond.items[0].product.id, id(25)); assert.equal(requestsSecond.items[0].product.status, 'active');
+  const requestsSecond = await profileService.getMyItemRequests(owner, requestsFirst.nextCursor);
+  const requestsLast = await profileService.getMyItemRequests(owner, requestsSecond.nextCursor);
+  assert.equal(requestsSecond.items[0].item.id, id(25)); assert.equal(requestsSecond.items[0].item.status, 'active');
   assert.equal(requestsLast.items.length, 5); assert.equal(requestsLast.nextCursor, null);
-  const requestIds = [...requestsFirst.items, ...requestsSecond.items, ...requestsLast.items].map((item) => item.product.id);
+  const requestIds = [...requestsFirst.items, ...requestsSecond.items, ...requestsLast.items].map((item) => item.item.id);
   assert.equal(new Set(requestIds).size, 45); assert.ok(!requestIds.includes(id(9000)));
-  assert.equal((await profileService.getMyProductRequests(id(9999))).items.length, 0);
-  assert.equal((await profileService.getMyProductRequests(owner)).items[0].product.id, id(100));
+  assert.equal((await profileService.getMyItemRequests(id(9999))).items.length, 0);
+  assert.equal((await profileService.getMyItemRequests(owner)).items[0].item.id, id(100));
 
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const hooksImports = {
@@ -186,12 +186,12 @@ async function main() {
   };
   const { useExploreData } = load('hooks/useExploreData.ts', hooksImports);
   const { usePickComments } = load('hooks/usePickComments.ts', hooksImports);
-  const { useMyPickHistory, useMyProductRequests } = load('hooks/useMyProfileLists.ts', hooksImports);
+  const { useMyPickHistory, useMyItemRequests } = load('hooks/useMyProfileLists.ts', hooksImports);
   const feedOptions = useExploreData(id(901)), commentOptions = usePickComments(id(902));
   assert.equal(feedOptions.initialPageParam, null); assert.equal(commentOptions.initialPageParam, null);
   assert.notEqual(JSON.stringify(feedOptions.queryKey), JSON.stringify(useExploreData(id(999)).queryKey));
   assert.equal(usePickComments().enabled, false);
-  for (const useList of [useMyPickHistory, useMyProductRequests]) {
+  for (const useList of [useMyPickHistory, useMyItemRequests]) {
     assert.equal(useList().enabled, false);
     assert.equal(useList(owner).enabled, true);
     assert.notEqual(JSON.stringify(useList(owner).queryKey), JSON.stringify(useList(id(3000)).queryKey), 'Private list caches must be scoped by account');
@@ -209,7 +209,7 @@ async function main() {
     assert.equal(commentOptions.select(fetchedComments).length, comments.length);
 
     picks = Array.from({ length: 61 }, (_, i) => ownHistory(i + 1));
-    for (const [useList, count, pageCount] of [[useMyPickHistory, 61, 4], [useMyProductRequests, 45, 3]]) {
+    for (const [useList, count, pageCount] of [[useMyPickHistory, 61, 4], [useMyItemRequests, 45, 3]]) {
       const options = useList(owner);
       const loaded = await queryClient.fetchInfiniteQuery({ ...options, pages: pageCount });
       assert.equal(options.select(loaded).length, count);

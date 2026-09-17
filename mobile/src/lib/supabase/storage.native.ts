@@ -1,3 +1,4 @@
-import 'expo-sqlite/localStorage/install';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const authStorage = localStorage;
+// Persist the Supabase session so Kakao login survives an app restart.
+export const authStorage = AsyncStorage;

@@ -76,7 +76,7 @@ public settings. Do not use `dist` from Mobile CI for publication.
 
 ## Hosting contract
 
-The MVP uses Expo's `web.output: "single"`. New Picks, products and usernames are
+The MVP uses Expo's `web.output: "single"`. New Picks, items and usernames are
 resolved by the client router without a build for each newly created ID.
 Serve existing JS, CSS and image files normally, then internally rewrite page
 requests to `/index.html` with HTTP 200 while preserving the original URL/query.
@@ -98,7 +98,7 @@ References: [Expo web publishing](https://docs.expo.dev/guides/publishing-websit
 
 Once the domain is decided, set the Supabase Auth Site URL to its HTTPS origin and
 allow the app's `/auth/callback` URL. OnePick adds return-intent query parameters;
-verify both the bare callback and a callback with `action`/`productId` on that
+verify both the bare callback and a callback with `action`/`itemId` on that
 exact host. Keep preview allowances specific to previews the team controls.
 
 Kakao's provider callback is a separate URL: use the Supabase Auth callback shown
@@ -121,11 +121,11 @@ contacting the live database.
 
 Before inviting testers, verify on the actual HTTPS deployment:
 
-- Open a product, Pick and public profile link directly in a fresh browser and
+- Open a item, Pick and public profile link directly in a fresh browser and
   reload each page. A newly created item must work without rebuilding.
-- Complete Kakao login from both Home and a product action and return to the
+- Complete Kakao login from both Home and a item action and return to the
   expected screen. Test sign-out and a second account separately.
-- Submit a photo/request, approve it in Admin, and select the approved product.
+- Submit a photo/request, approve it in Admin, and select the approved item.
 - Share a Pick/profile and open the copied HTTPS link on another device.
 - Confirm private routes request login and unavailable content shows its normal
   error state. Check network failures and refresh recovery.

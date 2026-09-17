@@ -4,31 +4,31 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { useProductSearch } from '@/hooks/useProductSearch';
+import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 
-export default function FindPickProductScreen() {
+export default function FindPickItemScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const [query, setQuery] = useState('');
   const categories = useRegistrationCategories();
-  const search = useProductSearch(query, params.categoryId);
+  const search = useItemSearch(query, params.categoryId);
   const selectedCategory = categories.data?.find((category) => category.id === params.categoryId);
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && !search.isWaiting && !search.isFetching && !search.isError && search.data?.length === 0;
 
-  const chooseProduct = (productId: string, categoryId: string) => {
+  const chooseItem = (itemId: string, categoryId: string) => {
     router.push({
       pathname: '/pick/choose',
-      params: { productId, categoryId },
+      params: { itemId, categoryId },
     });
   };
 
-  const requestProduct = () => {
+  const requestItem = () => {
     router.push({
       pathname: '/pick/request',
       params: {
-        productName: query.trim(),
+        itemName: query.trim(),
         ...(params.categoryId ? { categoryId: params.categoryId } : {}),
       },
     });
@@ -92,19 +92,19 @@ export default function FindPickProductScreen() {
           </View>
         ) : null}
 
-        {!search.isWaiting && hasQuery && search.data?.map((product) => {
-          const category = categories.data?.find((item) => item.id === product.categoryId);
+        {!search.isWaiting && hasQuery && search.data?.map((item) => {
+          const category = categories.data?.find((category) => category.id === item.categoryId);
           return (
             <Pressable
-              key={product.id}
+              key={item.id}
               accessibilityRole="button"
-              onPress={() => chooseProduct(product.id, product.categoryId)}
-              style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
-              <PickPhoto uri={product.thumbnailUrl} label={product.name} />
-              <View style={styles.productCopy}>
-                <Text style={styles.productCategory}>{category?.label ?? '등록된 카테고리'}</Text>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productAction}>이 제품을 원픽으로 선택 ›</Text>
+              onPress={() => chooseItem(item.id, item.categoryId)}
+              style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]}>
+              <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+              <View style={styles.itemCopy}>
+                <Text style={styles.itemCategory}>{category?.label ?? '등록된 카테고리'}</Text>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemAction}>이 제품을 원픽으로 선택 ›</Text>
               </View>
             </Pressable>
           );
@@ -114,7 +114,7 @@ export default function FindPickProductScreen() {
           <View style={styles.requestCard}>
             <Text style={styles.stateTitle}>찾는 제품이 없나요?</Text>
             <Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text>
-            <Pressable onPress={requestProduct} style={styles.primaryButton}>
+            <Pressable onPress={requestItem} style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>제품 등록 요청하기</Text>
             </Pressable>
           </View>
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
   requestCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 22, marginTop: 18 },
   stateTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  productCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
-  productCopy: { flex: 1, paddingLeft: 14 },
-  productCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
-  productName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  productAction: { color: '#747985', fontSize: 12, marginTop: 7 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
+  itemCopy: { flex: 1, paddingLeft: 14 },
+  itemCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
+  itemName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
+  itemAction: { color: '#747985', fontSize: 12, marginTop: 7 },
   primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },

@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
-import { useProductDetail } from '@/hooks/useProductDetail';
+import { useItemDetail } from '@/hooks/useItemDetail';
 
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) {
@@ -26,10 +26,10 @@ function getErrorMessage(error: unknown) {
       return '원픽을 고르려면 로그인이 필요해요.';
     case 'CATEGORY_NOT_PICKABLE':
       return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
-    case 'PRODUCT_NOT_ELIGIBLE':
-    case 'PRODUCT_NOT_FOUND':
+    case 'ITEM_NOT_ELIGIBLE':
+    case 'ITEM_NOT_FOUND':
       return '지금은 이 제품을 원픽으로 고를 수 없어요.';
-    case 'PRODUCT_CATEGORY_MISMATCH':
+    case 'ITEM_CATEGORY_MISMATCH':
       return '제품과 카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID':
       return '한줄평을 1~100자로 입력해주세요.';
@@ -42,20 +42,20 @@ function getErrorMessage(error: unknown) {
 
 export default function ChoosePickScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ productId?: string; categoryId?: string }>();
+  const params = useLocalSearchParams<{ itemId?: string; categoryId?: string }>();
   const { user, isLoading: isSessionLoading } = useAuthSession();
-  const productQuery = useProductDetail(params.productId, user?.id);
+  const itemQuery = useItemDetail(params.itemId, user?.id);
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
   const [savedReview, setSavedReview] = useState('');
 
-  const product = productQuery.data?.product;
-  const pickStatus = productQuery.data?.myPickStatus;
+  const item = itemQuery.data?.item;
+  const pickStatus = itemQuery.data?.myPickStatus;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
-  const canChoose = productQuery.data?.canChoose ?? false;
+  const canChoose = itemQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const routeMatchesProduct = !product || !params.categoryId || product.categoryId === params.categoryId;
+  const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
 
   const submitLabel = useMemo(() => {
     if (pickStatus?.type === 'selected_other') return '이 제품으로 바꾸기';
@@ -64,12 +64,12 @@ export default function ChoosePickScreen() {
   }, [pickStatus]);
 
   const handleSubmit = async () => {
-    if (!user || !product || !canChoose || productQuery.isError || !routeMatchesProduct || !isValidReview || choosePick.isPending) return;
+    if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem || !isValidReview || choosePick.isPending) return;
 
     try {
       const result = await choosePick.mutateAsync({
-        categoryId: product.categoryId,
-        productId: product.id,
+        categoryId: item.categoryId,
+        itemId: item.id,
         oneLineReview: trimmedReview,
       });
 
@@ -80,20 +80,20 @@ export default function ChoosePickScreen() {
   };
 
   const openLogin = () => {
-    if (!product) return;
+    if (!item) return;
 
     router.push({
       pathname: '/auth/login',
       params: {
         action: 'choose_pick',
-        productId: product.id,
-        categoryId: product.categoryId,
+        itemId: item.id,
+        categoryId: item.categoryId,
       },
     });
   };
 
-  const isLoading = isSessionLoading || (Boolean(params.productId) && productQuery.isPending);
-  const hasProduct = !isLoading && !productQuery.isError && Boolean(product) && routeMatchesProduct;
+  const isLoading = isSessionLoading || (Boolean(params.itemId) && itemQuery.isPending);
+  const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   const isSuccess = Boolean(savedReview);
 
   return (
@@ -110,7 +110,7 @@ export default function ChoosePickScreen() {
           </View>
         ) : null}
 
-        {!isLoading && (productQuery.isError || !product || !routeMatchesProduct) ? (
+        {!isLoading && (itemQuery.isError || !item || !routeMatchesItem) ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text>
             <Text style={styles.stateText}>제품 정보가 바뀌었거나 사용할 수 없는 링크예요.</Text>
@@ -120,7 +120,7 @@ export default function ChoosePickScreen() {
           </View>
         ) : null}
 
-        {hasProduct && product && !canChoose && !isSuccess ? (
+        {hasItem && item && !canChoose && !isSuccess ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text>
             <Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
@@ -128,16 +128,16 @@ export default function ChoosePickScreen() {
               accessibilityRole="button"
               onPress={() => router.replace(pickStatus?.type === 'selected_this'
                 ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } }
-                : { pathname: '/product/[productId]', params: { productId: product.id } })}
+                : { pathname: '/item/[itemId]', params: { itemId: item.id } })}
               style={styles.secondaryButton}>
               <Text style={styles.secondaryButtonText}>{pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기'}</Text>
             </Pressable>
           </View>
         ) : null}
 
-        {hasProduct && product && canChoose && !user ? (
+        {hasItem && item && canChoose && !user ? (
           <View style={styles.stateCard}>
-            <View style={styles.productIcon}><Text style={styles.productEmoji}>🍜</Text></View>
+            <View style={styles.itemIcon}><Text style={styles.itemEmoji}>🍜</Text></View>
             <Text style={styles.kicker}>원픽을 고르려면</Text>
             <Text style={styles.title}>로그인이 필요해요</Text>
             <Text style={styles.stateText}>
@@ -152,18 +152,18 @@ export default function ChoosePickScreen() {
           </View>
         ) : null}
 
-        {hasProduct && product && canChoose && user && !isSuccess ? (
+        {hasItem && item && canChoose && user && !isSuccess ? (
           <>
             <Text style={styles.kicker}>YOUR ONE PICK</Text>
-            <Text style={styles.title}>{product.name}</Text>
+            <Text style={styles.title}>{item.name}</Text>
             <Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
 
-            <View style={styles.productCard}>
-              <View style={styles.productIcon}><Text style={styles.productEmoji}>🍜</Text></View>
-              <View style={styles.productCopy}>
-                <Text style={styles.productLabel}>선택한 제품</Text>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productState}>
+            <View style={styles.itemCard}>
+              <View style={styles.itemIcon}><Text style={styles.itemEmoji}>🍜</Text></View>
+              <View style={styles.itemCopy}>
+                <Text style={styles.itemLabel}>선택한 제품</Text>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemState}>
                   {pickStatus?.type === 'selected_other'
                     ? '현재 원픽을 이 제품으로 변경합니다.'
                     : pickStatus?.type === 'selected_this'
@@ -208,12 +208,12 @@ export default function ChoosePickScreen() {
           </>
         ) : null}
 
-        {!isLoading && product && user && isSuccess ? (
+        {!isLoading && item && user && isSuccess ? (
           <View style={styles.successCard}>
             <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
             <Text style={styles.kicker}>ONE PICK SAVED</Text>
             <Text style={styles.title}>원픽이 선택됐어요</Text>
-            <Text style={styles.successProduct}>{product.name}</Text>
+            <Text style={styles.successItem}>{item.name}</Text>
             <Text style={styles.savedReview}>“{savedReview}”</Text>
             <Pressable onPress={() => router.replace('/')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
               <Text style={styles.primaryButtonText}>홈에서 확인하기</Text>
@@ -233,13 +233,13 @@ const styles = StyleSheet.create({
   kicker: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
   title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
   subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 10 },
-  productCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
-  productIcon: { width: 86, height: 86, borderRadius: 18, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  productEmoji: { fontSize: 42 },
-  productCopy: { flex: 1, paddingLeft: 16 },
-  productLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
-  productName: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 6 },
-  productState: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
+  itemIcon: { width: 86, height: 86, borderRadius: 18, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
+  itemEmoji: { fontSize: 42 },
+  itemCopy: { flex: 1, paddingLeft: 16 },
+  itemLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
+  itemName: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 6 },
+  itemState: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 10 },
   inputLabel: { color: '#202124', fontSize: 15, fontWeight: '800' },
   counter: { color: '#747985', fontSize: 12 },
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   successCard: { alignItems: 'center', paddingTop: 58 },
   successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#EFEEFF', alignItems: 'center', justifyContent: 'center' },
   successIconText: { color: '#4945ED', fontSize: 34, fontWeight: '900' },
-  successProduct: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
+  successItem: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
   savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
   pressed: { opacity: 0.7 },
 });

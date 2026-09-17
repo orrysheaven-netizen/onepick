@@ -1,31 +1,31 @@
 import { withSupabase } from '@supabase/server';
 
-const PRODUCT_BUCKET = 'product-photos';
+const ITEM_BUCKET = 'item-photos';
 const DELETE_REQUEST_STATUSES = ['pending', 'rejected', 'merged'];
 
 function jsonError(code: string, status = 500) {
   return Response.json({ ok: false, code }, { status });
 }
 
-async function preserveProductAsset(
+async function preserveItemAsset(
   admin: any,
   userId: string,
-  productId: string,
+  itemId: string,
   sourcePath: string | null,
   kind: 'image' | 'thumb',
 ) {
   if (!sourcePath || !sourcePath.startsWith(`${userId}/`)) return sourcePath;
 
   const { data: blob, error: downloadError } = await admin.storage
-    .from(PRODUCT_BUCKET)
+    .from(ITEM_BUCKET)
     .download(sourcePath);
   if (downloadError || !blob) throw new Error('ACCOUNT_ASSET_READ_FAILED');
 
   const destination = kind === 'image'
-    ? `catalog/${productId}.jpg`
-    : `catalog/${productId}-thumb.jpg`;
+    ? `catalog/${itemId}.jpg`
+    : `catalog/${itemId}-thumb.jpg`;
   const { error: uploadError } = await admin.storage
-    .from(PRODUCT_BUCKET)
+    .from(ITEM_BUCKET)
     .upload(destination, blob, {
       upsert: true,
       cacheControl: '31536000',
@@ -39,7 +39,7 @@ async function preserveProductAsset(
 async function removeUserFolder(admin: any, userId: string) {
   for (;;) {
     const { data, error } = await admin.storage
-      .from(PRODUCT_BUCKET)
+      .from(ITEM_BUCKET)
       .list(userId, { limit: 1000, offset: 0, sortBy: { column: 'name', order: 'asc' } });
     if (error) throw new Error('ACCOUNT_ASSET_LIST_FAILED');
     if (!data?.length) return;
@@ -49,7 +49,7 @@ async function removeUserFolder(admin: any, userId: string) {
       .map((item: { name: string }) => `${userId}/${item.name}`);
     if (!paths.length) return;
 
-    const { error: removeError } = await admin.storage.from(PRODUCT_BUCKET).remove(paths);
+    const { error: removeError } = await admin.storage.from(ITEM_BUCKET).remove(paths);
     if (removeError) throw new Error('ACCOUNT_ASSET_DELETE_FAILED');
   }
 }
@@ -61,41 +61,41 @@ export default {
 
     try {
       const { error: discardError } = await ctx.supabaseAdmin
-        .from('products')
+        .from('items')
         .delete()
         .eq('created_by', userId)
         .in('status', DELETE_REQUEST_STATUSES);
-      if (discardError) throw new Error('ACCOUNT_PRODUCT_REQUEST_CLEANUP_FAILED');
+      if (discardError) throw new Error('ACCOUNT_ITEM_REQUEST_CLEANUP_FAILED');
 
       const userPrefix = `${userId}/%`;
-      const { data: referencedProducts, error: productError } = await ctx.supabaseAdmin
-        .from('products')
+      const { data: referencedItems, error: itemError } = await ctx.supabaseAdmin
+        .from('items')
         .select('id,image_path,thumbnail_path')
         .or(`image_path.like.${userPrefix},thumbnail_path.like.${userPrefix}`);
-      if (productError) throw new Error('ACCOUNT_PRODUCT_ASSET_LOOKUP_FAILED');
+      if (itemError) throw new Error('ACCOUNT_ITEM_ASSET_LOOKUP_FAILED');
 
-      for (const product of referencedProducts ?? []) {
-        const imagePath = await preserveProductAsset(
+      for (const item of referencedItems ?? []) {
+        const imagePath = await preserveItemAsset(
           ctx.supabaseAdmin,
           userId,
-          product.id,
-          product.image_path,
+          item.id,
+          item.image_path,
           'image',
         );
-        const thumbnailPath = await preserveProductAsset(
+        const thumbnailPath = await preserveItemAsset(
           ctx.supabaseAdmin,
           userId,
-          product.id,
-          product.thumbnail_path,
+          item.id,
+          item.thumbnail_path,
           'thumb',
         );
 
-        if (imagePath !== product.image_path || thumbnailPath !== product.thumbnail_path) {
+        if (imagePath !== item.image_path || thumbnailPath !== item.thumbnail_path) {
           const { error: updateError } = await ctx.supabaseAdmin
-            .from('products')
+            .from('items')
             .update({ image_path: imagePath, thumbnail_path: thumbnailPath })
-            .eq('id', product.id);
-          if (updateError) throw new Error('ACCOUNT_PRODUCT_ASSET_UPDATE_FAILED');
+            .eq('id', item.id);
+          if (updateError) throw new Error('ACCOUNT_ITEM_ASSET_UPDATE_FAILED');
         }
       }
 

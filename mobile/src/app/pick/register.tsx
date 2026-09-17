@@ -6,12 +6,12 @@ import { PickPhoto } from '@/components/pick-photo';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
-import { useProductDetail } from '@/hooks/useProductDetail';
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { useChoosePhoto, useImportProductPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
-import { canonicalProductName, categoryRegistrationHint } from '@/lib/products/productIdentity';
+import { useItemDetail } from '@/hooks/useItemDetail';
+import { useItemSearch } from '@/hooks/useItemSearch';
+import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { canonicalItemName, categoryRegistrationHint } from '@/lib/items/itemIdentity';
 import type { PickPhotoDraft } from '@/types/domain/photo';
-import type { Product } from '@/types/domain/product';
+import type { Item } from '@/types/domain/item';
 
 function message(error: unknown) {
   if (error instanceof AppError) {
@@ -22,7 +22,7 @@ function message(error: unknown) {
       case 'IMAGE_SOURCE_UNSUPPORTED': return '지원하는 제조사 사이트의 HTTPS 상품·이미지 링크를 넣어주세요. 다른 링크는 직접 업로드를 이용해주세요.';
       case 'IMAGE_IMPORT_FAILED': return '이 링크에서 사진을 가져오지 못했어요. 이미지 직접 링크·직접 업로드를 이용하거나 사진 없이 등록해주세요.';
       case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에 등록할 수 없어요.';
-      case 'PRODUCT_NAME_INVALID': return '제품명과 세부 종류를 합쳐 1~100자로 입력해주세요.';
+      case 'ITEM_NAME_INVALID': return '제품명과 세부 종류를 합쳐 1~100자로 입력해주세요.';
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
       case 'RATE_LIMITED': return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
       case 'AUTH_REQUIRED': return '로그인 상태를 다시 확인해주세요.';
@@ -32,11 +32,11 @@ function message(error: unknown) {
   return '등록하지 못했어요. 입력한 내용은 그대로 있어요. 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; productId?: string; productName?: string };
+type Params = { categoryId?: string; itemId?: string; itemName?: string };
 export default function RegisterPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  return <RegistrationForm key={`${auth.user?.id ?? 'anon'}:${params.categoryId ?? ''}:${params.productId ?? ''}`} auth={auth} params={params} />;
+  return <RegistrationForm key={`${auth.user?.id ?? 'anon'}:${params.categoryId ?? ''}:${params.itemId ?? ''}`} auth={auth} params={params} />;
 }
 
 function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -44,38 +44,38 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
   const { user, isLoading, error: sessionError, retry } = auth;
   const categories = useRegistrationCategories();
   const profile = useMyProfile(user?.id);
-  const prefill = useProductDetail(params.productId, user?.id);
+  const prefill = useItemDetail(params.itemId, user?.id);
   const photoPicker = useChoosePhoto();
-  const imageImport = useImportProductPhoto();
+  const imageImport = useImportItemPhoto();
   const registration = useRegisterPick();
   const busy = useRef(false);
-  const [submitted, setSubmitted] = useState<Product | null>(null);
+  const [submitted, setSubmitted] = useState<Item | null>(null);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [photoApproved, approvePhoto] = useState(false);
   const [imageLink, setImageLink] = useState('');
   const [chosenCategory, setCategory] = useState<string | null>(null);
-  const [name, setName] = useState<string | null>(params.productName?.slice(0, 100) ?? null);
-  const [selected, setSelected] = useState<Product | null | undefined>(undefined);
-  const [custom, setCustom] = useState(Boolean(params.productName));
+  const [name, setName] = useState<string | null>(params.itemName?.slice(0, 100) ?? null);
+  const [selected, setSelected] = useState<Item | null | undefined>(undefined);
+  const [custom, setCustom] = useState(Boolean(params.itemName));
   const [variantMode, setVariantMode] = useState<'none' | 'custom' | null>(null);
   const [variant, setVariant] = useState('');
   const [draftReview, setReview] = useState<string | null>(null);
-  const categoryId = chosenCategory ?? params.categoryId ?? prefill.data?.product.categoryId ?? '';
+  const categoryId = chosenCategory ?? params.categoryId ?? prefill.data?.item.categoryId ?? '';
   const category = categories.data?.find((item) => item.id === categoryId);
-  const selectedProduct = selected === undefined && !prefill.isError ? prefill.data?.product : selected;
-  const productName = name ?? selectedProduct?.name ?? '';
-  const fullName = selectedProduct?.name ?? canonicalProductName([productName, variantMode === 'custom' ? variant : ''].join(' '), category?.slug ?? '');
-  const searchName = canonicalProductName(productName, category?.slug ?? '');
-  const search = useProductSearch(!selectedProduct ? searchName : '', categoryId || undefined);
+  const selectedItem = selected === undefined && !prefill.isError ? prefill.data?.item : selected;
+  const itemName = name ?? selectedItem?.name ?? '';
+  const fullName = selectedItem?.name ?? canonicalItemName([itemName, variantMode === 'custom' ? variant : ''].join(' '), category?.slug ?? '');
+  const searchName = canonicalItemName(itemName, category?.slug ?? '');
+  const search = useItemSearch(!selectedItem ? searchName : '', categoryId || undefined);
   const currentPick = profile.data?.currentPicks.find((item) => item.pick.categoryId === categoryId);
-  const review = draftReview ?? (currentPick?.pick.productId === selectedProduct?.id ? currentPick?.pick.oneLineReview ?? '' : '');
-  const nameConfirmed = Boolean(selectedProduct || (custom && variantMode && (variantMode === 'none' || variant.trim())));
+  const review = draftReview ?? (currentPick?.pick.itemId === selectedItem?.id ? currentPick?.pick.oneLineReview ?? '' : '');
+  const nameConfirmed = Boolean(selectedItem || (custom && variantMode && (variantMode === 'none' || variant.trim())));
   const submitting = registration.isPending || photoPicker.isPending || imageImport.isPending;
-  const sharedImage = selectedProduct?.imageUrl;
+  const sharedImage = selectedItem?.imageUrl;
   const ready = Boolean(category && !categories.isError && nameConfirmed && fullName.length > 0 && fullName.length <= 100
-    && (!selectedProduct || selectedProduct.categoryId === categoryId) && (!selectedProduct || (review.trim().length > 0 && review.trim().length <= 100))
+    && (!selectedItem || selectedItem.categoryId === categoryId) && (!selectedItem || (review.trim().length > 0 && review.trim().length <= 100))
     && (!photo || sharedImage || photoApproved) && !submitting && profile.data && !profile.isError);
-  const intent = { action: 'register_pick', ...(categoryId ? { categoryId } : {}), ...(selectedProduct ? { productId: selectedProduct.id } : {}) };
+  const intent = { action: 'register_pick', ...(categoryId ? { categoryId } : {}), ...(selectedItem ? { itemId: selectedItem.id } : {}) };
 
   const changeName = (value: string) => { setName(value); setSelected(null); setCustom(false); setVariantMode(null); setVariant(''); approvePhoto(false); registration.reset(); };
   const getPhoto = async (fromLink: boolean) => {
@@ -91,11 +91,11 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
     if (!ready || !user || busy.current) return;
     busy.current = true;
     try {
-      const result = await registration.mutateAsync({ userId: user.id, categoryId, productId: selectedProduct?.id,
-        productName: selectedProduct?.name ?? productName, variant: selectedProduct || variantMode === 'none' ? '' : variant,
+      const result = await registration.mutateAsync({ userId: user.id, categoryId, itemId: selectedItem?.id,
+        itemName: selectedItem?.name ?? itemName, variant: selectedItem || variantMode === 'none' ? '' : variant,
         oneLineReview: review, photo: sharedImage ? null : photo });
       if (result.type === 'pick') router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
-      else setSubmitted(result.product);
+      else setSubmitted(result.item);
     } catch { /* Keep the whole draft for retry. */ }
     finally { busy.current = false; }
   };
@@ -104,7 +104,7 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
     <Text style={styles.title}>{submitted.status === 'pending' ? '제품 등록을 요청했어요' : '이미 등록된 제품이에요'}</Text>
     <Text style={styles.subtitle}>{submitted.name}</Text>
     <Text style={styles.notice}>{submitted.status === 'pending' ? '관리자가 확인한 뒤 정식 제품으로 등록해요. 승인 후 내 프로필의 제품 등록 요청에서 원픽으로 선택할 수 있어요.' : '이 제품을 선택하고 나만의 한줄평을 남겨주세요.'}</Text>
-    <Pressable style={styles.primary} onPress={() => submitted.status === 'pending' ? router.replace('/(tabs)/profile') : router.replace({ pathname: '/pick/register', params: { productId: submitted.id } })}><Text style={styles.primaryText}>{submitted.status === 'pending' ? '내 프로필로' : '이 제품으로 원픽 등록'}</Text></Pressable>
+    <Pressable style={styles.primary} onPress={() => submitted.status === 'pending' ? router.replace('/(tabs)/profile') : router.replace({ pathname: '/pick/register', params: { itemId: submitted.id } })}><Text style={styles.primaryText}>{submitted.status === 'pending' ? '내 프로필로' : '이 제품으로 원픽 등록'}</Text></Pressable>
   </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -119,13 +119,13 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
           <View style={styles.card}><Text>원픽에 표시할 사용자명을 먼저 정해주세요.</Text><Pressable style={styles.primary} onPress={() => router.push({ pathname: '/auth/username', params: intent })}><Text style={styles.primaryText}>사용자명 만들기</Text></Pressable></View>
           : <>
             <Text style={styles.label}>제품명과 세부 종류</Text>
-            <TextInput accessibilityLabel="제품명" editable={!submitting} style={styles.input} placeholder={category?.slug === 'ramen' ? '예: 진라면' : '브랜드와 제품 이름을 입력해주세요'} maxLength={100} value={productName} onChangeText={changeName} />
+            <TextInput accessibilityLabel="제품명" editable={!submitting} style={styles.input} placeholder={category?.slug === 'ramen' ? '예: 진라면' : '브랜드와 제품 이름을 입력해주세요'} maxLength={100} value={itemName} onChangeText={changeName} />
             <Text style={styles.hint}>같은 제품이 있으면 아래 이름을 선택해주세요. 없는 제품은 관리자에게 등록을 요청할 수 있어요.</Text>
-            {params.productId && prefill.isError && name === null ? <Text style={styles.error}>제품 정보를 불러오지 못했어요. 이름을 입력해 다시 찾아주세요.</Text> : null}
-            {selectedProduct ? <View style={styles.confirmed}><Text style={styles.confirmedText}>✓ {selectedProduct.name}</Text><Text style={styles.hint}>{category ? `${category.name} · 카테고리가 자동으로 선택됐어요.` : '현재 선택할 수 없는 카테고리예요.'}</Text></View> : productName.trim() ? <>
+            {params.itemId && prefill.isError && name === null ? <Text style={styles.error}>제품 정보를 불러오지 못했어요. 이름을 입력해 다시 찾아주세요.</Text> : null}
+            {selectedItem ? <View style={styles.confirmed}><Text style={styles.confirmedText}>✓ {selectedItem.name}</Text><Text style={styles.hint}>{category ? `${category.name} · 카테고리가 자동으로 선택됐어요.` : '현재 선택할 수 없는 카테고리예요.'}</Text></View> : itemName.trim() ? <>
               {search.isWaiting || search.isFetching ? <ActivityIndicator /> : null}
               {search.isError ? <Pressable onPress={() => void search.refetch()}><Text style={styles.error}>이름 후보를 불러오지 못했어요. 다시 불러오기</Text></Pressable> : null}
-              {!search.isWaiting && search.data?.map((product) => <Pressable key={product.id} accessibilityRole="button" disabled={submitting} style={styles.option} onPress={() => { setCategory(product.categoryId); setSelected(product); setName(product.name); setCustom(false); setPhoto(null); }}><Text style={styles.optionText}>{product.name}</Text><Text style={styles.link}>이 제품 선택 ›</Text></Pressable>)}
+              {!search.isWaiting && search.data?.map((item) => <Pressable key={item.id} accessibilityRole="button" disabled={submitting} style={styles.option} onPress={() => { setCategory(item.categoryId); setSelected(item); setName(item.name); setCustom(false); setPhoto(null); }}><Text style={styles.optionText}>{item.name}</Text><Text style={styles.link}>이 제품 선택 ›</Text></Pressable>)}
               <Pressable accessibilityRole="button" accessibilityState={{ selected: custom }} disabled={submitting} style={[styles.option, custom && styles.confirmed]} onPress={() => setCustom(true)}><Text style={styles.optionText}>{custom ? '✓ ' : '＋ '}목록에 없어요 — 제품 등록 요청</Text></Pressable>
               {custom ? <>
             <Text style={styles.label}>카테고리</Text>
@@ -143,11 +143,11 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
                 {variantMode === 'custom' ? <TextInput accessibilityLabel="세부 종류" editable={!submitting} style={styles.input} placeholder="예: 매운맛, 순한맛, 무알코올" value={variant} maxLength={60} onChangeText={(value) => { setVariant(value); approvePhoto(false); }} /> : null}
               </> : null}
             </> : null}
-            {nameConfirmed ? <Text style={styles.summary}>{selectedProduct ? '선택 제품' : '요청 제품명'}: {fullName}</Text> : null}
+            {nameConfirmed ? <Text style={styles.summary}>{selectedItem ? '선택 제품' : '요청 제품명'}: {fullName}</Text> : null}
 
             {nameConfirmed ? <>
               <Text style={styles.label}>제품 대표 이미지 · 선택</Text>
-              {sharedImage ? <><PickPhoto uri={sharedImage} label={selectedProduct?.name ?? fullName} large /><Text style={styles.hint}>이미 등록된 대표 이미지를 사용해요. 새 사진을 올리지 않아도 됩니다.</Text></> : <>
+              {sharedImage ? <><PickPhoto uri={sharedImage} label={selectedItem?.name ?? fullName} large /><Text style={styles.hint}>이미 등록된 대표 이미지를 사용해요. 새 사진을 올리지 않아도 됩니다.</Text></> : <>
                 <Text style={styles.hint}>제품 링크에서 사진을 가져오거나 직접 올릴 수 있어요. 사진 없이 등록해도 괜찮아요.</Text>
                 <TextInput accessibilityLabel="제품 이미지 링크" editable={!submitting} autoCapitalize="none" keyboardType="url" style={styles.input} value={imageLink} onChangeText={setImageLink} placeholder="https://…" maxLength={2048} />
                 <Pressable accessibilityRole="button" disabled={submitting || !imageLink.trim()} onPress={() => void getPhoto(true)} style={[styles.option, (submitting || !imageLink.trim()) && styles.disabled]}><Text style={styles.optionText}>링크에서 이미지 가져오기</Text></Pressable>
@@ -165,16 +165,16 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
               </>}
             </> : null}
 
-            {selectedProduct ? <>
+            {selectedItem ? <>
             <Text style={styles.label}>한줄평</Text>
             <TextInput accessibilityLabel="원픽 한줄평" editable={!submitting} style={[styles.input, styles.review]} multiline maxLength={100} placeholder="왜 이 제품이 나의 원픽인가요?" value={review} onChangeText={setReview} />
             <Text style={styles.hint}>{review.length}/100 · 한줄평은 필수예요.</Text>
-            {currentPick ? <Text style={styles.notice}>현재 원픽: {currentPick.product?.name ?? '등록된 제품'}. 같은 제품이면 한줄평을 갱신하고, 다른 제품이면 이전 원픽을 기록으로 남깁니다.</Text> : null}
+            {currentPick ? <Text style={styles.notice}>현재 원픽: {currentPick.item?.name ?? '등록된 제품'}. 같은 제품이면 한줄평을 갱신하고, 다른 제품이면 이전 원픽을 기록으로 남깁니다.</Text> : null}
             </> : custom ? <Text style={styles.notice}>관리자 승인 후 원픽으로 선택할 수 있어요. 지금의 원픽은 유지됩니다.</Text> : null}
             {categories.isError ? <Pressable onPress={() => void categories.refetch()}><Text style={styles.error}>카테고리를 다시 불러오기</Text></Pressable> : null}
             {profile.isPending ? <ActivityIndicator /> : profile.isError ? <Pressable onPress={() => void profile.refetch()}><Text style={styles.error}>내 원픽 정보를 확인하지 못했어요. 다시 확인하기</Text></Pressable> : null}
             {registration.isError ? <Text accessibilityRole="alert" style={styles.error}>{message(registration.error)}</Text> : null}
-            <Pressable accessibilityRole="button" disabled={!ready} onPress={() => void submit()} style={[styles.primary, !ready && styles.disabled]}>{registration.isPending ? <ActivityIndicator color="white" /> : <Text style={styles.primaryText}>{selectedProduct ? '원픽 등록하기' : '제품 등록 요청하기'}</Text>}</Pressable>
+            <Pressable accessibilityRole="button" disabled={!ready} onPress={() => void submit()} style={[styles.primary, !ready && styles.disabled]}>{registration.isPending ? <ActivityIndicator color="white" /> : <Text style={styles.primaryText}>{selectedItem ? '원픽 등록하기' : '제품 등록 요청하기'}</Text>}</Pressable>
           </>}
     </ScrollView>
   </SafeAreaView>;

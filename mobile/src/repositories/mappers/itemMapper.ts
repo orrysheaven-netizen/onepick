@@ -1,9 +1,9 @@
 import type { Database } from '@/lib/supabase/database.types';
-import type { Product, ProductStatus } from '@/types/domain/product';
+import type { Item, ItemStatus } from '@/types/domain/item';
 
-type ProductRow = Database['public']['Tables']['products']['Row'];
+type ItemRow = Database['public']['Tables']['items']['Row'];
 
-export function mapProductRow(row: ProductRow, imageUrl: string | null = null, thumbnailUrl: string | null = null): Product {
+export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbnailUrl: string | null = null): Item {
   return {
     id: row.id,
     categoryId: row.category_id,
@@ -16,8 +16,8 @@ export function mapProductRow(row: ProductRow, imageUrl: string | null = null, t
     imageUrl,
     thumbnailUrl,
     imageSourceUrl: row.image_source_url ?? null,
-    status: row.status as ProductStatus,
-    mergedIntoProductId: row.merged_into_product_id,
+    status: row.status as ItemStatus,
+    mergedIntoItemId: row.merged_into_item_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

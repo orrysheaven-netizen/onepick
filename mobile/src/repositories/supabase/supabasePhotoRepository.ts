@@ -9,7 +9,7 @@ export class SupabasePhotoRepository implements PhotoRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
   async importFromUrl(url: string) {
-    const { data, error } = await this.client.functions.invoke('import-product-image', { body: { url } });
+    const { data, error } = await this.client.functions.invoke('import-item-image', { body: { url } });
     if (error) {
       // FunctionsHttpError exposes the structured response without logging user URLs.
       const context = 'context' in error ? error.context : undefined;
@@ -26,7 +26,7 @@ export class SupabasePhotoRepository implements PhotoRepository {
     if (full.byteLength > MAX_PICK_PHOTO_BYTES || thumb.byteLength > MAX_THUMBNAIL_BYTES) throw new AppError('PHOTO_TOO_LARGE');
     const imagePath = `${userId}/${photo.uploadId}.jpg`, thumbnailPath = `${userId}/${photo.uploadId}-thumb.jpg`;
     for (const [path, bytes] of [[imagePath, full], [thumbnailPath, thumb]] as const) {
-      const { error } = await this.client.storage.from('product-photos').upload(path, bytes, {
+      const { error } = await this.client.storage.from('item-photos').upload(path, bytes, {
         contentType: 'image/jpeg', cacheControl: '31536000', upsert: false,
       });
       // Both current and legacy Storage APIs report immutable-path retries as duplicates.
@@ -38,12 +38,12 @@ export class SupabasePhotoRepository implements PhotoRepository {
   }
 
   async removeUnused(paths: string[]) {
-    // RLS protects any object already referenced by a shared product.
-    if (paths.length) await this.client.storage.from('product-photos').remove(paths);
+    // RLS protects any object already referenced by a shared item.
+    if (paths.length) await this.client.storage.from('item-photos').remove(paths);
   }
 
   async cleanupUnused(userId: string) {
-    const { data, error } = await this.client.storage.from('product-photos').list(userId, {
+    const { data, error } = await this.client.storage.from('item-photos').list(userId, {
       limit: 100, sortBy: { column: 'created_at', order: 'asc' },
     });
     if (error || !data) return;
