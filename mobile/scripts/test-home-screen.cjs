@@ -66,7 +66,6 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   press('과자 원픽 찾기'); assert.equal(destination.params.categoryId, 'snacks');
-  press('＋ 원픽 등록'); assert.equal(destination.pathname, '/pick/find');
 }
 
 auth.user = null;
@@ -112,7 +111,7 @@ assert.doesNotMatch(render(), /비공개 확인 대기 원픽|MY PICK/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
 query.data = { ...cached, feed: [], currentPicks: [] }; query.isError = false;
 assert.match(render(), /아직 등록된 원픽이 없어요/);
-press('＋ 원픽 등록'); assert.equal(destination.pathname, '/pick/find');
+press('원픽 등록'); assert.equal(destination.pathname, '/pick/find');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
 console.log('Home screen checks passed: public feed first, newest-first rendering, pick/product/profile routes, empty states, refresh recovery and session privacy.');

@@ -171,7 +171,7 @@ async function main() {
     fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
     refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
   };
-  const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
+  const { default: Explore } = loadSource('app/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     '@/components/item-search': { ItemSearch: () => null },
     '@/hooks/useExploreData': { useExploreData: () => feedQuery },

@@ -43,7 +43,7 @@ function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?:
 }
 
 function AddCard({ first, onPress }: { first?: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={onPress} style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}>
     <View style={styles.addCircle}><Text style={styles.plus}>＋</Text></View>
     <Text style={styles.addTitle}>{first ? '첫 원픽을 골라볼까요?' : '다음 원픽은 무엇인가요?'}</Text>
     <Text style={styles.addDescription}>지금 가장 좋아하는 하나를 남겨보세요.</Text>
@@ -102,9 +102,6 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <SectionTitle title="최근 원픽" description="새로 등록된 순서로 만나보세요." />
-          <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryText}>＋ 원픽 등록</Text>
-          </Pressable>
         </View>
 
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
@@ -190,8 +187,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
   count: { color: OnePick.accent },
   sectionDescription: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  primaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, borderRadius: 13, backgroundColor: OnePick.accent },
-  primaryText: { color: OnePick.surface, fontSize: 14, fontWeight: '700' },
   grid: { gap: 12 },
   moreButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 10 },
   profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },

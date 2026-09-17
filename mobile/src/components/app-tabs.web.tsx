@@ -1,19 +1,25 @@
 import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps } from 'expo-router/ui';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnePick } from '@/constants/onepick';
 
-type TabIcon = 'home' | 'explore' | 'profile';
+type TabIcon = 'home' | 'profile';
 
 export default function AppTabs() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   return (
     <Tabs style={styles.tabs}>
       <TabSlot style={styles.slot} />
       <TabList style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TabTrigger name="home" href="/" asChild><TabButton icon="home" label="홈" /></TabTrigger>
-        <TabTrigger name="explore" href="/explore" asChild><TabButton icon="explore" label="탐색" /></TabTrigger>
+        <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/find')}
+          style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+          <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
+          <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
+        </Pressable>
         <TabTrigger name="profile" href="/profile" asChild><TabButton icon="profile" label="내 프로필" /></TabTrigger>
       </TabList>
     </Tabs>
@@ -24,7 +30,6 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
   return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={active ? OnePick.accent : OnePick.muted}
     strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" />
-      : name === 'explore' ? <><circle cx="12" cy="12" r="9" /><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z" /></>
       : <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 6 0 0 1 16 0v2" /></>}
   </svg>;
 }
@@ -43,6 +48,8 @@ const styles = StyleSheet.create({
   bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
   icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  registerIcon: { width: 56, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accent },
+  plus: { color: OnePick.surface, fontSize: 27, lineHeight: 30, fontWeight: '400' },
   active: { backgroundColor: OnePick.accentSoft },
   label: { fontSize: 11, fontWeight: '600', color: OnePick.muted },
   activeLabel: { color: OnePick.accent, fontWeight: '800' },

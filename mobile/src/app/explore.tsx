@@ -25,13 +25,18 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
-        <Text style={styles.eyebrow}>EXPLORE</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기"
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+        <Text style={styles.eyebrow}>MORE PICKS</Text>
         <Text style={styles.title}>사람들의 원픽</Text>
         <Text style={styles.subtitle}>마음에 든 하나, 그리고 그걸 고른 이유.</Text>
 
@@ -167,6 +172,8 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
+  backButton: { width: 44, height: 44, justifyContent: 'center', marginLeft: -8, marginBottom: 8 },
+  backText: { color: '#202124', fontSize: 36, lineHeight: 40, fontWeight: '300' },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
