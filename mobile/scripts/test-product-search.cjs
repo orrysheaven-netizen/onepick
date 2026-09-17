@@ -50,24 +50,27 @@ async function main() {
   assert.equal(useProductSearch('').hasSearchText, false);
   assert.equal(useProductSearch('').enabled, false);
 
-  const queryCalls = [];
-  const builder = { then: (resolve) => resolve({ data: [{ id: 'product-1', name: '라면', category_id: 'ramen' }], error: null }) };
-  for (const method of ['select', 'in', 'ilike', 'order', 'limit', 'eq']) {
-    builder[method] = (...args) => { queryCalls.push([method, ...args]); return builder; };
-  }
+  const rpcCalls = [];
   const { SupabaseProductRepository } = loadSource('repositories/supabase/supabaseProductRepository.ts', {
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
     '@/errors/appError': { AppError: Error },
     '@/repositories/mappers/productMapper': { mapProductRow: (row) => ({ ...row, categoryId: row.category_id }) },
   });
-  const repository = new SupabaseProductRepository({ from: () => builder });
+  const repository = new SupabaseProductRepository({
+    rpc: async (fn, args) => {
+      rpcCalls.push([fn, args]);
+      return { data: [{ id: 'product-1', name: '라면', category_id: 'ramen', image_path: null, thumbnail_path: null }], error: null };
+    },
+    storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: '' } }) }) },
+  });
   assert.equal((await repository.search({ query: ' ' })).length, 0);
-  assert.equal(queryCalls.length, 0);
-  await repository.search({ query: ' 라면 ', categoryId: 'ramen' });
-  assert.ok(queryCalls.some(([method, field, value]) => method === 'in' && field === 'status' && value.join(',') === 'active,discontinued'));
-  assert.ok(queryCalls.some(([method, field, value]) => method === 'eq' && field === 'category_id' && value === 'ramen'));
-  assert.ok(queryCalls.some(([method, field, value]) => method === 'ilike' && field === 'normalized_name' && value === '%라면%'));
-  assert.ok(queryCalls.some(([method, value]) => method === 'limit' && value === 20));
+  assert.equal(rpcCalls.length, 0);
+  const repoResult = await repository.search({ query: ' 별칭 검색 ', categoryId: 'ramen', limit: 20 });
+  assert.equal(repoResult[0].id, 'product-1');
+  assert.equal(rpcCalls[0][0], 'search_products');
+  assert.equal(rpcCalls[0][1].p_query, '별칭 검색');
+  assert.equal(JSON.stringify(rpcCalls[0][1].p_category_ids), JSON.stringify(['ramen']));
+  assert.equal(rpcCalls[0][1].p_limit, 20);
 
   const { ProductService } = loadSource('services/productService.ts', { '@/errors/appError': { AppError: Error } });
   let categoryStatus = 'open';
@@ -111,6 +114,6 @@ async function main() {
   assert.match(render(), /찾은 제품/);
   presses[0]();
   assert.equal(selected, 'product-1');
-  console.log('Product search checks passed: debounce, query/category isolation, repository filters, selectable-category filtering and search states/actions.');
+  console.log('Product search checks passed: debounce, alias-aware RPC, category isolation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
