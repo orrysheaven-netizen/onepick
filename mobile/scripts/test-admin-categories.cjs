@@ -23,14 +23,15 @@ async function main() {
     assert.equal(tree.selectableCategories([{ ...parent, ...patch }, child]).length, 0);
   }
   assert.equal(tree.selectableCategories([child]).length, 0, 'Missing or inaccessible parent blocks eligibility');
-  let admin = true, writes = [], aliases = [];
+  let admin = true, writes = [], aliases = [], productWrites = [];
   const repo = {
     isAdmin: async () => admin, getCategories: async () => categories,
     createCategory: async (value) => { writes.push(value); return value; },
     updateCategory: async (id, value) => { writes.push(value); return value; },
     getProductById: async (id) => id === 'already-approved'
-      ? { id, status: 'active', normalizedName: '기존제품' }
-      : { id, status: 'active', normalizedName: '테스트제품', categoryId: 'new' },
+      ? { id, status: 'active', normalizedName: '기존제품', name: '기존 제품', categoryId: 'new' }
+      : { id, status: 'active', normalizedName: '테스트제품', name: '테스트 제품', categoryId: 'new', brandId: null, officialUrl: null },
+    updateProduct: async (id, value, expectedStatus) => { productWrites.push({ id, value, expectedStatus }); return { id, ...value }; },
     createProductAlias: async (productId, alias) => { aliases.push({ productId, alias }); return { productId, alias }; },
     removeProductAlias: async (id) => { aliases = aliases.filter((item) => item.id !== id); },
   };
@@ -47,13 +48,24 @@ async function main() {
   await assert.rejects(() => service.updateCategory('new', { parentId: 'new' }), (e) => e.code === 'CATEGORY_INVALID');
   await assert.rejects(() => service.createCategory({ name: '순서 오류', slug: 'bad', sortOrder: NaN }), (e) => e.code === 'CATEGORY_INVALID');
   await assert.rejects(() => service.approveProduct('already-approved'), (e) => e.code === 'PICK_CONFLICT');
+
+  await service.updateProduct('product', { name: '  수정 제품  ', status: 'hidden', officialUrl: 'https://example.com/item' });
+  assert.equal(productWrites[0].value.name, '수정 제품');
+  assert.equal(productWrites[0].value.normalizedName, '수정제품');
+  assert.equal(productWrites[0].value.status, 'hidden');
+  assert.equal(productWrites[0].expectedStatus, 'active');
+  await assert.rejects(() => service.updateProduct('product', { categoryId: 'other' }), (e) => e.code === 'PRODUCT_CATEGORY_MISMATCH');
+
   await assert.rejects(() => service.addProductAlias('product', '테스트 제품'), (e) => e.code === 'PRODUCT_ALIAS_REDUNDANT');
   await service.addProductAlias('product', '다른 검색 이름');
   assert.equal(aliases[0].alias, '다른 검색 이름');
   admin = false;
   await assert.rejects(() => service.createCategory({ name: '금지', slug: 'denied' }), (e) => e.code === 'FORBIDDEN');
   await assert.rejects(() => service.addProductAlias('product', '금지 별칭'), (e) => e.code === 'FORBIDDEN');
-  assert.equal(writes.length, 1, 'Invalid or unauthorized changes never reach repository');
+  await assert.rejects(() => service.updateProduct('product', { name: '금지 수정' }), (e) => e.code === 'FORBIDDEN');
+  assert.equal(writes.length, 1, 'Invalid or unauthorized category changes never reach repository');
+  assert.equal(productWrites.length, 1, 'Invalid or unauthorized product changes never reach repository');
+
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const invalidated = [];
   const client = { invalidateQueries: async ({ queryKey }) => invalidated.push(queryKey[0]) };
@@ -68,6 +80,9 @@ async function main() {
   invalidated.length = 0;
   await hooks.useAdminActions().addProductAlias.onSuccess();
   assert.equal(invalidated.sort().join(','), 'admin,categories,explore,home,picks,products,profiles');
-  console.log('Admin checks passed: category tree, alias validation, permissions and cache refresh.');
+  invalidated.length = 0;
+  await hooks.useAdminActions().updateProduct.onSuccess();
+  assert.equal(invalidated.sort().join(','), 'admin,categories,explore,home,picks,products,profiles');
+  console.log('Admin checks passed: category tree, formal product edits, alias validation, permissions and cache refresh.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
