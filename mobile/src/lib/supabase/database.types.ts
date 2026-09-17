@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      comment_notifications: {
+        Row: { comment_id: string; recipient_id: string; created_at: string; read_at: string | null }
+        Insert: { comment_id: string; recipient_id: string; created_at?: string; read_at?: string | null }
+        Update: { read_at?: string | null }
+        Relationships: []
+      }
       home_settings: {
         Row: {
           id: boolean
@@ -559,6 +565,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      comment_notification_count: { Args: { p_recipient_id: string }; Returns: number }
+      comment_notification_page: {
+        Args: { p_recipient_id: string; p_before_time?: string; p_before_id?: string }
+        Returns: { comment_id: string; pick_id: string; username: string; body: string; item_name: string; created_at: string; read_at: string | null }[]
+      }
       home_showcase_page: {
         Args: { p_before_time?: string; p_after_id?: string }
         Returns: { items: Json; minimum_pick_count: number }[]
