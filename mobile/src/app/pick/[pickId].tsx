@@ -263,6 +263,7 @@ export default function PickDetailScreen() {
             </View>
 
             <PickShareCard
+              authorUserId={query.data.pick.userId}
               categoryName={query.data.category.name}
               oneLineReview={query.data.pick.oneLineReview}
               pickId={query.data.pick.id}
