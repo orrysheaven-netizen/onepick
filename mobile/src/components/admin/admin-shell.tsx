@@ -55,7 +55,7 @@ export function AdminShell({ children, onSignOut }: { children: ReactNode; onSig
 export const adminStyles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.7 },
   pageDescription: { marginTop: 8, color: '#6B7280', fontSize: 14, lineHeight: 21 },
-  sectionTitle: { fontSize: 17, fontWeight: '750', color: '#111827' },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 18 },
   muted: { color: '#6B7280', fontSize: 13 },
   label: { color: '#374151', fontSize: 12, fontWeight: '700', marginBottom: 7 },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   navListCompact: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap' },
   navItem: { paddingVertical: 11, paddingHorizontal: 12, borderRadius: 8 },
   navItemActive: { backgroundColor: '#F3F4F6' },
-  navText: { color: '#6B7280', fontSize: 14, fontWeight: '650' },
+  navText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
   navTextActive: { color: '#111827' },
   sidebarFooter: { marginTop: 'auto', gap: 14, paddingTop: 30 },
   sidebarFooterCompact: { flexDirection: 'row', marginTop: 18, paddingTop: 0 },
