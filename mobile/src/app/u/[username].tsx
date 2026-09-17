@@ -1,9 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BlockUserButton } from '@/components/block-user-button';
+import { PickPhoto } from '@/components/pick-photo';
+import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
@@ -71,6 +73,22 @@ export default function PublicProfileScreen() {
               <Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text>
               <Text style={styles.summaryLabel}>현재 원픽</Text>
             </View>
+
+            {!query.data.isMine && user ? (
+              <View style={styles.safetyCard}>
+                <Text style={styles.safetyTitle}>사용자 관리</Text>
+                <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
+                <View style={styles.safetyActions}>
+                  <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
+                  <BlockUserButton
+                    blockerUserId={user.id}
+                    blockedUserId={query.data.profile.id}
+                    username={query.data.profile.username}
+                    onBlocked={() => router.back()}
+                  />
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>지금의 원픽</Text>
@@ -148,9 +166,13 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.9 },
   username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 28 },
+  summaryCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 18 },
   summaryNumber: { color: '#202124', fontSize: 24, fontWeight: '900' },
   summaryLabel: { color: '#8E8A85', fontSize: 11, marginTop: 4 },
+  safetyCard: { backgroundColor: '#F2ECE7', borderRadius: 18, padding: 16, marginBottom: 28 },
+  safetyTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
+  safetyText: { color: '#7D756E', fontSize: 11, lineHeight: 17, marginTop: 5 },
+  safetyActions: { gap: 10, marginTop: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionHint: { color: '#8E8A85', fontSize: 11 },
