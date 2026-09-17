@@ -29,14 +29,14 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   hasNextPage: true, isFetchNextPageError: false, fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); pageCalls++; },
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
-    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5 },
-    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3 },
+    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickerProfileImageUrl: null, latestPickReview: '다른 사람의 이유' },
+    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickerProfileImageUrl: 'https://example.com/owner.jpg', latestPickReview: '내 실제 선택 이유' },
   ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': {
-    Text: component('span'), View: component('div'), ActivityIndicator: () => null, RefreshControl: () => null,
+    Text: component('span'), View: component('div'), Image: component('img'), ActivityIndicator: () => null, RefreshControl: () => null,
     FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
@@ -60,6 +60,7 @@ const press = (label) => {
 for (width of [390, 800, 1200]) {
   const page = render();
   assert.match(page, /현재 5명이 원픽으로 선택/); assert.match(page, /현재 3명이 원픽으로 선택/); assert.match(page, /MY PICK/);
+  assert.match(page, /최근 이 제품을 원픽한 사람/); assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
@@ -68,6 +69,7 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   press('과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
