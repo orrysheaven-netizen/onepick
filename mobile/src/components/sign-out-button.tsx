@@ -1,10 +1,14 @@
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAdminAccess } from '@/hooks/useAdmin';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { useSignOut } from '@/hooks/useSignOut';
 
 export function SignOutButton() {
   const router = useRouter();
+  const { user } = useAuthSession();
+  const adminAccess = useAdminAccess(user?.id);
   const signOut = useSignOut();
 
   return (
@@ -15,6 +19,14 @@ export function SignOutButton() {
         style={({ pressed }) => [styles.settingsButton, pressed && styles.muted]}>
         <Text style={styles.settingsLabel}>계정 설정 · 차단 관리</Text>
       </Pressable>
+      {adminAccess.data === true ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/admin/reports')}
+          style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
+          <Text style={styles.adminLabel}>신고 관리</Text>
+        </Pressable>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         disabled={signOut.isPending}
@@ -33,6 +45,8 @@ const styles = StyleSheet.create({
   container: { marginTop: 24, alignSelf: 'stretch', gap: 10 },
   settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#F2ECE7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   settingsLabel: { color: '#202124', fontSize: 13, fontWeight: '800' },
+  adminButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  adminLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3DCD5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   label: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
