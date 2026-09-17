@@ -112,6 +112,7 @@ async function main() {
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement },
+    '@/components/report-action': { ReportAction: () => null },
     '@/errors/appError': { AppError },
     '@/hooks/useAuthSession': { useAuthSession: () => session },
     '@/hooks/useCreateComment': { useCreateComment: () => ({}) },
