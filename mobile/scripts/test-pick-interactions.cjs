@@ -111,6 +111,7 @@ async function main() {
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/pick-management': { PickManagement: () => null },
+    '@/components/report-action': { ReportAction: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, product, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => ({ data: [] }) },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
