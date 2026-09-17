@@ -39,7 +39,7 @@ The admin workspace is available on web under `/admin`.
 - `/admin` — dashboard metrics and recent admin audit logs
 - `/admin/categories` — category creation and operating settings
 - `/admin/items` — item search, status and metadata management
-- `/admin/pending` — approve or reject pending items
+- `/admin/pending` — approve, reject, or merge pending items into existing catalog items
 - `/admin/users` — read-only user lookup
 - `/admin/reports` — content report review and resolution status
 - `/admin/audit` — recent admin audit log history
@@ -51,6 +51,26 @@ Before testing Kakao admin login, add every admin web origin to **Supabase Auth 
 Do not put a Supabase secret/service-role key in `EXPO_PUBLIC_*` variables or client code.
 
 The admin list screens intentionally cap a single request at 100 records. Use search/status filters rather than loading the full catalog as the dataset grows.
+
+## Production web build
+
+The project uses Expo Router static web output. Verify a production-ready build with:
+
+```bash
+npm run typecheck
+npm run build:web
+```
+
+The exported website is written to `dist/`. GitHub Actions runs the same checks for admin changes.
+
+A repository-level `vercel.json` is included so Vercel can build the app from the monorepo root. Configure these two environment variables in the hosting project before deployment:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+```
+
+After the production domain is known, add `https://YOUR_DOMAIN/admin` to Supabase Auth Redirect URLs so Kakao login can return to the admin workspace.
 
 ## Get a fresh project
 
@@ -72,12 +92,5 @@ This command will move the starter code to the **app-example** directory and cre
 
 To learn more about developing your project with Expo, look at the following resources:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides/)
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
