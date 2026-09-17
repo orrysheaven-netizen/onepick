@@ -4,6 +4,11 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { SafetyRepository, SubmitReportInput } from '@/repositories/interfaces/safetyRepository';
 import type { ContentReport, ReportStatus, UserBlock } from '@/types/domain/safety';
 
+function relationUsername(value: any) {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row?.username ?? null;
+}
+
 function mapBlock(row: any): UserBlock {
   return {
     blockerUserId: row.blocker_user_id,
@@ -17,9 +22,11 @@ function mapReport(row: any): ContentReport {
   return {
     id: row.id,
     reporterUserId: row.reporter_user_id,
+    reporterUsername: relationUsername(row.reporter),
     targetType: row.target_type,
     targetId: row.target_id,
     targetUserId: row.target_user_id,
+    targetUsername: relationUsername(row.target),
     reason: row.reason,
     details: row.details,
     status: row.status,
@@ -103,7 +110,11 @@ export class SupabaseSafetyRepository implements SafetyRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const { data, error } = await db
       .from('content_reports')
-      .select('*')
+      .select(`
+        *,
+        reporter:profiles!content_reports_reporter_user_id_fkey(username),
+        target:profiles!content_reports_target_user_id_fkey(username)
+      `)
       .order('created_at', { ascending: false })
       .limit(safeLimit);
     if (error) throw mapSupabaseError(error);
