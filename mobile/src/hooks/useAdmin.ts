@@ -49,6 +49,10 @@ export function useAdminActions() {
     onSuccess: after,
   });
   const createProduct = useMutation({ mutationFn: (input: AdminProductInput) => adminService.createProduct(input), onSuccess: after });
+  const updateProduct = useMutation({
+    mutationFn: ({ productId, input }: { productId: string; input: Partial<AdminProductInput> }) => adminService.updateProduct(productId, input),
+    onSuccess: after,
+  });
   const addProductAlias = useMutation({
     mutationFn: ({ productId, alias }: { productId: string; alias: string }) => adminService.addProductAlias(productId, alias),
     onSuccess: after,
@@ -70,6 +74,7 @@ export function useAdminActions() {
     updateCategory,
     createBrand,
     createProduct,
+    updateProduct,
     addProductAlias,
     removeProductAlias,
     approveProduct,
