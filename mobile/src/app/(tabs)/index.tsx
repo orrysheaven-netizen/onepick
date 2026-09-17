@@ -94,7 +94,7 @@ export default function HomeScreen() {
             <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
             <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
             <Text style={styles.introDescription}>여러 사람의 선택이 모인 제품을 만나보세요.</Text>
-            <Text style={styles.photoGuide}>원픽 사진은 직접 등록해주세요. 내가 쓰는 제품의 실제 사진을 올려주세요.</Text>
+            <Text style={styles.photoGuide}>원픽 사진은 직접 등록해주세요. 내가 쓰는 제품의 사진을 올려주세요.</Text>
           </View>
         </View>
 
