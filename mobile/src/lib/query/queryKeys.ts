@@ -39,4 +39,8 @@ export const queryKeys = {
     byUsername: (username: string, userId?: string) =>
       ['profiles', 'username', username, userId ?? 'public'] as const,
   },
+  safety: {
+    all: ['safety'] as const,
+    blocks: (userId: string) => ['safety', 'blocks', userId] as const,
+  },
 } as const;
