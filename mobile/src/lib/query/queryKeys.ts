@@ -42,5 +42,6 @@ export const queryKeys = {
   safety: {
     all: ['safety'] as const,
     blocks: (userId: string) => ['safety', 'blocks', userId] as const,
+    reports: ['safety', 'reports'] as const,
   },
 } as const;
