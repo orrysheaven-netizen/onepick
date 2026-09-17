@@ -59,6 +59,22 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
 
+  async getCategoryTopItems(categoryId: string) {
+    // Use the same public count client as item detail: personal blocks must not
+    // change the aggregate. The RPC counts all current picks before limiting.
+    const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map((row) => ({
+      itemId: row.item_id,
+      name: row.name,
+      thumbnailUrl: row.thumbnail_path
+        ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null,
+      pickCount: row.pick_count,
+      rank: row.rank,
+      isTied: row.is_tied,
+    }));
+  }
+
   async countActivePicks(itemId: string) {
     // One current pick per user/category plus the item/category FK prevents duplicate people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.

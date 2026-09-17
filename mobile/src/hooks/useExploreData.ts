@@ -8,6 +8,14 @@ export function useExploreCategories() {
   return useQuery({ queryKey: ['categories', 'browse'], queryFn: () => exploreService.getCategories() });
 }
 
+export function useCategoryTopItems(categoryId?: string) {
+  return useQuery({
+    queryKey: queryKeys.explore.topItems(categoryId),
+    enabled: Boolean(categoryId),
+    queryFn: () => categoryId ? exploreService.getCategoryTopItems(categoryId) : Promise.resolve([]),
+  });
+}
+
 export function useExploreData(categoryId?: string, enabled = true) {
   return useInfiniteQuery({
     enabled,

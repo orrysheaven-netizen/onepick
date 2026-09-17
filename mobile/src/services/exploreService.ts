@@ -11,6 +11,10 @@ export class ExploreService {
 
   getCategories() { return this.categoryRepository.getBrowseCategories(); }
 
+  getCategoryTopItems(categoryId: string) {
+    return this.readRepository.getCategoryTopItems(categoryId);
+  }
+
   async getExploreData(categoryId?: string, cursor: ReadCursor | null = null, limit = EXPLORE_PAGE_SIZE) {
     const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 99) : EXPLORE_PAGE_SIZE;
     const [openCategories, rows] = await Promise.all([

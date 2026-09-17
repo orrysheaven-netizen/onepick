@@ -27,6 +27,15 @@ export interface ReadCursor {
   id: string;
 }
 
+export interface CategoryTopItem {
+  itemId: string;
+  name: string;
+  thumbnailUrl: string | null;
+  pickCount: number;
+  rank: number;
+  isTied: boolean;
+}
+
 export interface PickReadInput {
   userId?: string;
   excludeUserId?: string;
@@ -39,6 +48,7 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
+  getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;

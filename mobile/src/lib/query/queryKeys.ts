@@ -5,6 +5,7 @@ export const queryKeys = {
   },
   explore: {
     all: ['explore'] as const,
+    topItems: (categoryId?: string) => ['explore', categoryId ?? 'all', 'top-items'] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
   },
   categories: {

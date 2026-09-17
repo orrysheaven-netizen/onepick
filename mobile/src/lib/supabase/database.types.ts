@@ -560,6 +560,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      category_top_items: {
+        Args: { p_category_id: string }
+        Returns: {
+          is_tied: boolean
+          item_id: string
+          name: string
+          pick_count: number
+          rank: number
+          thumbnail_path: string
+        }[]
+      }
       change_pick: {
         Args: {
           p_category_id: string

@@ -219,13 +219,16 @@ async function main() {
     refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
   };
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
+  let rankRefreshes = 0;
+  const rankingQuery = { data: [{ itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 }],
+    isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
     '@/lib/categories/categoryTree': { browseCategoryGroups },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreData: () => feedQuery, useExploreCategories: () => ({ data: browseCategories, refetch() {} }) },
+    '@/hooks/useExploreData': { useExploreData: () => feedQuery, useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
   });
   const failedFeed = render(Explore);
   assert.match(failedFeed, /이미 불러온 원픽/);
@@ -261,6 +264,26 @@ async function main() {
   assert.equal(feedRefreshButton(), undefined);
   presses.find((p) => textOf(p.children) === '다시 불러오기').onPress();
   assert.equal(feedRefreshes, 4);
+  const ranking = render(Explore);
+  assert.match(ranking, /원픽 TOP 3/);
+  assert.match(ranking, /101명이 선택/);
+  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 제품 상세 보기').onPress();
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'ranked-item');
+  rankingQuery.isError = true;
+  assert.match(render(Explore), /순위를 갱신하지 못했어요/);
+  rankingQuery.data = undefined;
+  assert.match(render(Explore), /제품 순위를 불러오지 못했어요/);
+  const beforeRankRetry = rankRefreshes;
+  presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침').onPress();
+  assert.equal(rankRefreshes, beforeRankRetry + 1);
+  rankingQuery.isFetching = true;
+  render(Explore);
+  const rankRefresh = presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침');
+  assert.equal(rankRefresh.disabled, true);
+  rankRefresh.onPress(); assert.equal(rankRefreshes, beforeRankRetry + 1);
+  rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
+  assert.match(render(Explore), /아직 선택된 제품이 없어요/);
   console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

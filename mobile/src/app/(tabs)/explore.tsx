@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useExploreCategories, useExploreData } from '@/hooks/useExploreData';
+import { useCategoryTopItems, useExploreCategories, useExploreData } from '@/hooks/useExploreData';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 
 export default function ExploreScreen() {
@@ -19,9 +19,11 @@ export default function ExploreScreen() {
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
   const query = useExploreData(selectedCategoryId, Boolean(selectedCategoryId));
+  const topItems = useCategoryTopItems(selectedCategoryId);
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
     if (selectedCategoryId && !query.isFetching) void query.refetch({ cancelRefetch: false });
+    if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
   };
 
   const openPick = (pickId: string) => {
@@ -38,7 +40,7 @@ export default function ExploreScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={categories.isRefetching || query.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || query.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
         <View style={styles.titleRow}>
           <View><Text style={styles.eyebrow}>EXPLORE</Text><Text style={styles.title}>카테고리 탐색</Text></View>
           <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '제품 검색 닫기' : '제품 검색 열기'}
@@ -80,6 +82,42 @@ export default function ExploreScreen() {
 
         {selectedCategoryId ? <Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text> : null}
 
+        {selectedCategoryId ? <View style={styles.rankingSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategory?.name} 원픽 TOP 3</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="제품 순위 새로고침"
+              disabled={topItems.isFetching} onPress={() => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); }}
+              style={({ pressed }) => [styles.refreshButton, (pressed || topItems.isFetching) && styles.pressed]}>
+              <Text style={styles.refreshText}>{topItems.isFetching ? '불러오는 중…' : '새로고침'}</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.rankingDescription}>지금 이 제품을 원픽으로 고른 사람 수 기준이에요.</Text>
+          {topItems.isPending ? <ActivityIndicator accessibilityLabel="제품 순위 불러오는 중" style={styles.rankingLoading} /> : null}
+          {topItems.isError ? <Text accessibilityRole="alert" style={styles.refreshError}>
+            {topItems.data ? '순위를 갱신하지 못했어요. 마지막으로 불러온 순위예요.' : '제품 순위를 불러오지 못했어요. 새로고침으로 다시 시도해주세요.'}
+          </Text> : null}
+          {topItems.data?.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
+            accessibilityLabel={`${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 제품 상세 보기`}
+            onPress={() => openItem(item.itemId)}
+            style={({ pressed }) => [styles.rankCard, item.rank === 1 && styles.rankCardFirst, pressed && styles.pressed]}>
+            <View style={styles.rankBadge}>
+              {item.isTied ? <Text style={styles.rankTie}>공동</Text> : null}
+              <Text style={styles.rankNumber}>{item.rank}</Text>
+            </View>
+            <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+            <View style={styles.rankCopy}>
+              <Text style={styles.rankName}>{item.name}</Text>
+              <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </Pressable>)}
+          {topItems.data?.length === 0 && !topItems.isError ? <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>아직 선택된 제품이 없어요</Text>
+            <Text style={styles.emptyText}>첫 원픽이 등록되면 이곳에 제품이 표시돼요.</Text>
+          </View> : null}
+          {topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개 제품</Text> : null}
+        </View> : null}
+
         {selectedCategoryId && query.isPending && !query.data ? (
           <View style={styles.stateCard}>
             <ActivityIndicator />
@@ -113,7 +151,7 @@ export default function ExploreScreen() {
             </View>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>{selectedCategory?.name} 원픽</Text>
+                <Text style={styles.sectionTitle}>사람들이 고른 이유</Text>
                 <Text style={styles.sectionDescription}>사람들이 최근 공개한 현재 원픽이에요.</Text>
               </View>
               {query.isFetching && !query.isFetchingNextPage ? <ActivityIndicator size="small" /> : null}
@@ -192,6 +230,19 @@ const styles = StyleSheet.create({
   childPanel: { padding: 18, marginTop: 22, borderRadius: 20, backgroundColor: '#FFFFFF' },
   childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   selectionLabel: { color: '#4945ED', fontSize: 14, fontWeight: '700', marginTop: 26 },
+  rankingSection: { marginTop: 8, marginBottom: 18 },
+  rankTitle: { flex: 1, marginRight: 12 },
+  rankingDescription: { color: '#747985', fontSize: 12, lineHeight: 18, marginBottom: 16 },
+  rankingLoading: { marginVertical: 20 },
+  rankCard: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 10, borderRadius: 20, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF' },
+  rankCardFirst: { borderColor: '#B8B5FF', backgroundColor: '#F4F3FF' },
+  rankBadge: { width: 28, alignItems: 'center', marginRight: 10 },
+  rankTie: { color: '#747985', fontSize: 10, fontWeight: '600' },
+  rankNumber: { color: '#4945ED', fontSize: 25, fontWeight: '800' },
+  rankCopy: { flex: 1, paddingLeft: 12 },
+  rankName: { color: '#202124', fontSize: 15, lineHeight: 21, fontWeight: '800' },
+  rankCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 8 },
+  rankingFootnote: { color: '#747985', fontSize: 11, lineHeight: 16, marginTop: 2 },
   categoryList: { gap: 8, paddingVertical: 20 },
   chip: { minHeight: 44, justifyContent: 'center', backgroundColor: '#ECEEF3', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
   chipActive: { backgroundColor: '#4945ED' },
