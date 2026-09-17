@@ -8,6 +8,7 @@ import {
   profileRepository,
   photoRepository,
   readRepository,
+  safetyRepository,
 } from '@/repositories/supabase';
 
 import { DevicePhotoRepository } from '@/repositories/device/devicePhotoRepository';
@@ -20,11 +21,13 @@ import { PickService } from './pickService';
 import { ProductService } from './productService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
+import { SafetyService } from './safetyService';
 
 export const adminService = new AdminService(adminRepository, profileRepository);
 export const registrationService = new RegistrationService(categoryRepository, pickRepository, productRepository, photoRepository, new DevicePhotoRepository());
 
 export const authService = new AuthService(authRepository);
+export const safetyService = new SafetyService(safetyRepository);
 export const commentService = new CommentService(
   commentRepository,
   pickRepository,
@@ -66,4 +69,5 @@ export {
   PickService,
   ProductService,
   ProfileService,
+  SafetyService,
 };
