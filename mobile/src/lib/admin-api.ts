@@ -332,6 +332,26 @@ export function updatePendingItem(id: string, status: 'active' | 'rejected') {
   });
 }
 
+export function getMergeCandidates(query: string, categoryId: string) {
+  const params = new URLSearchParams({
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    category_id: `eq.${categoryId}`,
+    or: '(status.eq.active,status.eq.discontinued)',
+    order: 'updated_at.desc',
+    limit: '8',
+  });
+  const keyword = query.trim();
+  if (keyword) params.set('name', `ilike.*${keyword}*`);
+  return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
+}
+
+export function mergePendingItem(sourceItemId: string, targetItemId: string) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_merge_pending_item', {
+    method: 'POST',
+    body: JSON.stringify({ p_source_item_id: sourceItemId, p_target_item_id: targetItemId }),
+  });
+}
+
 export function getReports(status: AdminReportStatus | 'all' = 'all') {
   const params = new URLSearchParams({
     select: 'id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at',
