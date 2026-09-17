@@ -1,12 +1,20 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSignOut } from '@/hooks/useSignOut';
 
 export function SignOutButton() {
+  const router = useRouter();
   const signOut = useSignOut();
 
   return (
     <View style={styles.container}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/settings')}
+        style={({ pressed }) => [styles.settingsButton, pressed && styles.muted]}>
+        <Text style={styles.settingsLabel}>계정 설정 · 차단 관리</Text>
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         disabled={signOut.isPending}
@@ -22,7 +30,9 @@ export function SignOutButton() {
 }
 
 const styles = StyleSheet.create({
-  container: { marginTop: 24, alignSelf: 'stretch' },
+  container: { marginTop: 24, alignSelf: 'stretch', gap: 10 },
+  settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#F2ECE7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  settingsLabel: { color: '#202124', fontSize: 13, fontWeight: '800' },
   button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3DCD5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   label: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
