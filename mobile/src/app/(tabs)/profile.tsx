@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
@@ -238,6 +239,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor="#4945ED" />}>
         <View style={styles.header}>
@@ -248,6 +250,8 @@ export default function ProfileScreen() {
             {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
           </View>
         </View>
+
+        <ProfileSocialLinks profileUserId={profile.id} editable />
 
         {profileQuery.isRefetchError ? (
           <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text>
