@@ -1,6 +1,6 @@
 # 소수 테스터용 호스팅 준비
 
-현재 상태: **Cloudflare 계정 인증·GitHub 연결 및 빌드 설정 완료. 최신 코드 배포와 로그인 검증 진행 중**.
+현재 상태: **공개 배포·로그인 복귀 설정 완료. 기존 카카오 계정 로그인과 실제 상품 조회 확인**.
 공개 기본 주소: https://onepick-5cl.pages.dev (Cloudflare 프로젝트: onepick).
 
 목표는 테스터가 휴대폰 브라우저에서 고정 링크를 열고 원픽을 사용해 보는 것이다.
@@ -55,16 +55,14 @@ Cloudflare의 “Production branch”는 이 **테스트 사이트의 기본 주
 
 ## 3. 주소가 만들어지면 로그인 연결
 
-배포 결과에 표시되는 실제 기본 주소를 기록한다. `<실제주소>.pages.dev`는
-설명용 표기이며, `onepick-test.pages.dev`가 확보되었다고 가정하지 않는다.
-임의의 배포별 해시 주소보다 프로젝트 기본 주소를 테스터에게 전달한다.
+고정 테스트 주소: https://onepick-5cl.pages.dev
 
-Supabase Authentication → URL Configuration에서:
+Supabase Authentication → URL Configuration에 저장한 값:
 
-- Site URL: 실제 테스트 사이트의 HTTPS origin.
-- Redirect URLs: 기존 로컬 주소를 보존하고 아래 두 패턴을 추가한다.
-  - `https://<실제주소>.pages.dev/auth/callback`
-  - `https://<실제주소>.pages.dev/auth/callback?*`
+- Site URL: `https://onepick-5cl.pages.dev`.
+- Redirect URLs: 기존 Vercel 관리자 주소를 보존하고 아래 두 패턴을 추가했다.
+  - `https://onepick-5cl.pages.dev/auth/callback`
+  - `https://onepick-5cl.pages.dev/auth/callback?*`
 
 두 번째 패턴은 로그인 후 원픽 선택/댓글 화면으로 돌아가는 query parameter를
 허용하기 위한 것이다. 실제 주소에서 홈 로그인과 아이템 선택 후 로그인을 각각
@@ -107,3 +105,13 @@ Kakao Developers의 OAuth Redirect URI는 원픽 화면 주소와 다르다. 기
 - [검색 제외 헤더](https://developers.cloudflare.com/pages/configuration/headers/)
 - [Supabase 로그인 복귀 주소](https://supabase.com/docs/guides/auth/redirect-urls)
 
+
+## 2026-09-17 배포 확인 기록
+
+- 최초 정상 배포 커밋: `29cb1729d255c2c5e90d5be0045f2b98468d056d`.
+- Cloudflare 빌드 성공: 의존성 설치, TypeScript, 회귀 검사, release export 및 경로/파일 검사 통과.
+- 공개 HTTPS에서 9개 직접 경로가 HTTP 200으로 응답하고 noindex 헤더가 적용됨. JS/CSS는 각각 올바른 파일 형식으로 응답.
+- 기존 카카오 계정으로 로그인 → 새 공개 주소로 복귀 → 기존 원픽 조회 → 상품 검색 → 한줄평 편집 화면 진입 확인. 실제 개인 원픽 내용은 변경하지 않음.
+- 일반 사용자 두 계정의 상품 요청·승인·원픽·댓글 권한은 기존 rollback SQL 검사 통과. 이것은 실제 다른 카카오 계정의 가입 검증을 대신하지 않음.
+- 남은 참여자 확인: 다른 카카오 계정의 첫 가입, 실제 휴대폰의 사진 선택·등록 요청·공유. 첫 참여자 한 명부터 확인 후 나머지에게 안내.
+- 홈 노출 기준은 같은 제품을 현재 원픽으로 선택한 서로 다른 사용자 3명. 가입자 수 3명만으로 제품이 홈에 표시되지는 않음.

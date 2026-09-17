@@ -1,10 +1,10 @@
 # MVP web deployment
 
 Source of truth: `orrysheaven-netizen/onepick`, branch `feature/pick-core`, Draft PR #1.
-Cloudflare Pages is the selected preparation target for a small tester group.
-The account and actual host URL are still pending. Start with
-[테스트 호스팅 연결 안내](test-hosting.md). The changes here prepare and verify the
-build; they do not publish a site or change OAuth provider settings.
+Cloudflare Pages now serves the tester site at https://onepick-5cl.pages.dev.
+Project: `onepick`; production branch: `feature/pick-core`; preview branch builds disabled.
+Supabase Site URL and the two app callback patterns point to this origin.
+See [배포 설정과 확인 기록](test-hosting.md) for the verified configuration and remaining device checks.
 
 ## Build and preview
 
@@ -142,5 +142,6 @@ Before inviting testers, verify on the actual HTTPS deployment:
 - Retain the previous working deployment for rollback. Review and merge the
   release through PR #1 after the agreed checks pass.
 
-Actual hosting, test URL configuration, authenticated browser flow and physical
-device verification remain pending until the account and URL are available.
+Hosting, exact test URL configuration and an existing Kakao account's authenticated
+browser flow were verified on 2026-09-17. First signup with a different Kakao account
+and physical device photo/share flows remain to be checked by a participant.
