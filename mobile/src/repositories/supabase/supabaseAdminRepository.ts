@@ -15,16 +15,7 @@ import { mapBrandRow } from '@/repositories/mappers/brandMapper';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapProductRow } from '@/repositories/mappers/productMapper';
 
-type ProductAliasRow = {
-  id: string;
-  product_id: string;
-  alias: string;
-  normalized_alias: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type UntypedFrom = (table: 'product_aliases') => any;
+type ProductAliasRow = Database['public']['Tables']['product_aliases']['Row'];
 
 function mapProductAlias(row: ProductAliasRow): ProductAlias {
   return {
@@ -39,10 +30,6 @@ function mapProductAlias(row: ProductAliasRow): ProductAlias {
 
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
-
-  private productAliasesTable() {
-    return (this.client.from as unknown as UntypedFrom)('product_aliases');
-  }
 
   async isAdmin() {
     const { data, error } = await this.client.rpc('current_user_is_admin');
@@ -99,25 +86,27 @@ export class SupabaseAdminRepository implements AdminRepository {
 
   async getProductAliases(limit = 1000) {
     const safeLimit = Math.min(Math.max(limit, 1), 2000);
-    const { data, error } = await this.productAliasesTable()
+    const { data, error } = await this.client
+      .from('product_aliases')
       .select('*')
       .order('alias', { ascending: true })
       .limit(safeLimit);
     if (error) throw mapSupabaseError(error);
-    return (data as ProductAliasRow[]).map(mapProductAlias);
+    return data.map(mapProductAlias);
   }
 
   async createProductAlias(productId: string, alias: string) {
-    const { data, error } = await this.productAliasesTable()
+    const { data, error } = await this.client
+      .from('product_aliases')
       .insert({ product_id: productId, alias, normalized_alias: alias.toLowerCase().replace(/\s+/g, '') })
       .select('*')
       .single();
     if (error) throw mapSupabaseError(error);
-    return mapProductAlias(data as ProductAliasRow);
+    return mapProductAlias(data);
   }
 
   async removeProductAlias(aliasId: string) {
-    const { error } = await this.productAliasesTable().delete().eq('id', aliasId);
+    const { error } = await this.client.from('product_aliases').delete().eq('id', aliasId);
     if (error) throw mapSupabaseError(error);
   }
 
