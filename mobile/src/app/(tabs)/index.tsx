@@ -43,6 +43,8 @@ export default function HomeScreen() {
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
+  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
+  const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
   const ready = !isLoading && !sessionError && Boolean(data);
   const refresh = () => {
     if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
@@ -125,13 +127,27 @@ export default function HomeScreen() {
               style={styles.retryButton}><Text style={styles.actionText}>다음 제품 다시 불러오기</Text></Pressable>
           </View> : null}
           {!homeQuery.hasNextPage && data.featuredItems.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 제품을 모두 확인했어요.</Text> : null}
-          {!user ? <View style={styles.welcomeCard}>
+          <Pressable accessibilityRole="button" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} style={styles.moreButton}>
+            <Text style={styles.actionText}>원픽 더 둘러보기</Text><Text style={styles.arrow}>↗</Text>
+          </Pressable>
+
+          {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
+            <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
+          </Pressable> : <View style={styles.welcomeCard}>
               <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
               <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
                 <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
               </Pressable>
-          </View> : null}
+          </View>}
+
+          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
+          {categories.length ? <View style={styles.categoryGrid}>
+            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
+              onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
+            </Pressable>)}
+          </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
 
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
