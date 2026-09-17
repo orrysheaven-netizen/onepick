@@ -60,10 +60,10 @@ export default function AuthCallbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   title: { color: '#202124', fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' },
-  subtitle: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   retryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
   retryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 });

@@ -1,20 +1,19 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppQueryProvider } from '@/lib/query/appQueryProvider';
+import { OnePick } from '@/constants/onepick';
 
 SplashScreen.preventAutoHideAsync();
+const theme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: OnePick.background, card: OnePick.surface, text: OnePick.text, border: OnePick.border, primary: OnePick.accent } };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <AppQueryProvider>
       <Head><title>OnePick</title></Head>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={theme}>
         <AnimatedSplashOverlay />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />

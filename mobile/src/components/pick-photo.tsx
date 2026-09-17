@@ -10,8 +10,8 @@ export function PickPhoto({ uri, label, large = false }: { uri?: string | null; 
 }
 
 const styles = StyleSheet.create({
-  frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: '#EFE9E1', justifyContent: 'center', alignItems: 'center' },
+  frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center' },
   large: { width: '100%', height: 230, marginBottom: 14 },
   image: { width: '100%', height: '100%' },
-  fallback: { color: '#8E8A85', fontSize: 11, textAlign: 'center', padding: 8 },
+  fallback: { color: '#747985', fontSize: 12, textAlign: 'center', padding: 8 },
 });

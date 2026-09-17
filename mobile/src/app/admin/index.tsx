@@ -201,9 +201,9 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession>; }) {
   </ScrollView></SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FAF8F5' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 850, alignSelf: 'center', padding: 22, paddingBottom: 70, gap: 14 },
-  kicker: { color: '#A9482D', fontWeight: '800', fontSize: 11, letterSpacing: 2, marginTop: 14 },
+  kicker: { color: '#A9482D', fontWeight: '800', fontSize: 12, letterSpacing: 2, marginTop: 14 },
   title: { fontSize: 28, fontWeight: '800', color: '#202124' },
   heading: { fontSize: 17, fontWeight: '700', color: '#202124' },
   label: { marginTop: 10, fontSize: 13, fontWeight: '700', color: '#625A53' },

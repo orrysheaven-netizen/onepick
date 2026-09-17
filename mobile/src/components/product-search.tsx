@@ -23,7 +23,7 @@ export function ProductSearch({ categoryId, onSelect }: {
           maxLength={100}
           onChangeText={setSearchText}
           placeholder="어떤 제품을 찾으세요?"
-          placeholderTextColor="#AAA39C"
+          placeholderTextColor="#89909C"
           returnKeyType="search"
           style={styles.input}
           value={searchText}
@@ -80,18 +80,18 @@ export function ProductSearch({ categoryId, onSelect }: {
 const styles = StyleSheet.create({
   container: { marginTop: 20, marginBottom: 28 },
   title: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  description: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 },
   input: { flex: 1, minWidth: 0, minHeight: 50, color: '#202124', fontSize: 14, paddingHorizontal: 15, paddingVertical: 12 },
   clearButton: { minHeight: 44, minWidth: 58, alignItems: 'center', justifyContent: 'center' },
-  clearText: { color: '#6C6863', fontSize: 12, fontWeight: '700' },
+  clearText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
   state: { alignItems: 'center', paddingVertical: 20 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
   retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  resultCount: { color: '#D96D4B', fontSize: 12, fontWeight: '700', marginVertical: 14 },
-  resultCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
+  resultCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginVertical: 14 },
+  resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
   resultCopy: { flex: 1 },
   productName: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  arrow: { color: '#B8B1AA', fontSize: 25, marginLeft: 10 },
+  arrow: { color: '#A6ADBB', fontSize: 25, marginLeft: 10 },
   pressed: { opacity: 0.7 },
 });

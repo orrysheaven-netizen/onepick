@@ -1,283 +1,216 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OnePickBrand } from '@/components/onepick-brand';
+import { PickPhoto } from '@/components/pick-photo';
+import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useHomeData } from '@/hooks/useHomeData';
-import { PickPhoto } from '@/components/pick-photo';
-import type { Product } from '@/types/domain/product';
 
-function ProductCard({ product, onPress }: { product: Product; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${product.name} 제품 상세 보기`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}>
-      <PickPhoto uri={product.thumbnailUrl} label={product.name} />
-      <View style={styles.productInfo}>
-        <Text style={styles.productBrand}>ONEPICK</Text>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productNote}>이 제품에 남긴 사람들의 원픽을 만나보세요.</Text>
-      </View>
-      <Text style={styles.chevron}>›</Text>
-    </Pressable>
-  );
-}
+type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
+type PickItem = HomeData['currentPicks'][number];
 
-function HomeLoading() {
+function CollectionCard({ item, mine, onOpen, onProduct }: { item: PickItem; mine?: boolean; onOpen: () => void; onProduct?: () => void }) {
+  const name = item.product?.name ?? '제품 정보를 확인할 수 없어요';
   return (
-    <View style={styles.stateCard}>
-      <ActivityIndicator />
-      <Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text>
-      <Text style={styles.stateText}>열린 카테고리와 제품을 확인하고 있습니다.</Text>
-    </View>
-  );
-}
-
-function HomeError({ onRetry }: { onRetry: () => void }) {
-  return (
-    <View style={styles.stateCard}>
-      <Text style={styles.stateTitle}>원픽을 불러오지 못했어요</Text>
-      <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
-      <Pressable onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-        <Text style={styles.retryButtonText}>다시 불러오기</Text>
+    <View style={styles.card}>
+      <Pressable accessibilityRole="button" accessibilityLabel={name + ' 원픽 상세 보기'} onPress={onOpen} style={({ pressed }) => pressed && styles.pressed}>
+        <View style={styles.cardTop}>
+          <Text style={styles.cardCategory}>{item.category?.name ?? '카테고리'}</Text>
+          {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
+        </View>
+        <PickPhoto uri={item.product?.imageUrl ?? item.product?.thumbnailUrl} label={name} large />
+        {!mine ? <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text> : null}
+        <Text style={styles.productName}>{name}</Text>
+        <Text numberOfLines={3} style={styles.review}>“{item.pick.oneLineReview}”</Text>
+        {item.pick.status === 'needs_review' ? <Text style={styles.reviewNotice}>확인이 필요한 원픽이에요.</Text> : null}
       </Pressable>
+      {onProduct && item.product ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={name + ' 제품 상세 보기'} onPress={onProduct} style={styles.cardFooter}>
+          <Text style={styles.actionText}>제품 상세 보기</Text><Text style={styles.arrow}>↗</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
+}
+
+function AddCard({ first, onPress }: { first?: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}>
+    <View style={styles.addCircle}><Text style={styles.plus}>＋</Text></View>
+    <Text style={styles.addTitle}>{first ? '첫 원픽을 골라볼까요?' : '다음 원픽은 무엇인가요?'}</Text>
+    <Text style={styles.addDescription}>지금 가장 좋아하는 하나를 남겨보세요.</Text>
+    <Text style={styles.addAction}>원픽 등록하기</Text>
+  </Pressable>;
+}
+
+function SectionTitle({ title, count, description }: { title: string; count?: number; description?: string }) {
+  return <View style={styles.sectionCopy}>
+    <Text style={styles.sectionTitle}>{title}{count !== undefined ? <Text style={styles.count}>  {count}</Text> : null}</Text>
+    {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
+  </View>;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const compact = width < 650;
+  const columns = width >= 1000 ? 3 : compact ? 1 : 2;
+  const cellStyle = { width: columns === 3 ? '31.8%' as const : columns === 2 ? '48.8%' as const : '100%' as const };
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
-  const openPick = (pickId: string) =>
-    router.push({ pathname: '/pick/[pickId]', params: { pickId } });
-  const openProduct = (productId: string) =>
-    router.push({ pathname: '/product/[productId]', params: { productId } });
   const data = homeQuery.data;
-  const singleCategory = data?.mode === 'single_category' ? data.openCategories[0] : undefined;
-  const products = data?.singleCategoryProducts ?? [];
-
-  const openRegistration = (categoryId?: string) => {
-    router.push({
-      pathname: '/pick/find',
-      params: categoryId ? { categoryId } : {},
-    });
-  };
+  const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
+  const openProduct = (productId: string) => router.push({ pathname: '/product/[productId]', params: { productId } });
+  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
+  const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
+  const ready = !isLoading && !sessionError && !homeQuery.isError;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>ONEPICK</Text>
-            <Text style={styles.greeting}>{user ? '나의 선택을\n모아보세요' : <>추천은 많지만,{ '\n' }선택은 하나예요</>}</Text>
+      <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]} showsVerticalScrollIndicator={false}>
+        {Platform.OS !== 'web' ? <View style={styles.nativeHeader}>
+          <OnePickBrand />
+          <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
+        </View> : null}
+
+        <View style={[styles.intro, compact && styles.introCompact]}>
+          <View style={styles.introCopy}>
+            <Text style={styles.eyebrow}>MY PERSONAL FAVORITES</Text>
+            <Text style={[styles.headline, compact && styles.headlineCompact]}>많은 것보다,{ '\n' }마음에 드는 <Text style={styles.accent}>하나.</Text></Text>
+            <Text style={styles.introDescription}>카테고리마다 가장 좋아하는 하나를 골라보세요.</Text>
           </View>
-          <View style={styles.avatar}><Text style={styles.avatarText}>1</Text></View>
+          {!compact ? <View style={styles.rule}>
+            <Text style={styles.ruleLine}><Text style={styles.ruleNumber}>1</Text><Text style={styles.ruleUnit}> / category</Text></Text>
+            <Text style={styles.ruleDescription}>하나의 카테고리, 하나의 원픽.</Text>
+          </View> : null}
         </View>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroKicker}>YOUR ONE PICK</Text>
-            <Text style={styles.heroTitle}>
-              {user ? '오늘의 원픽을 만나보세요' : singleCategory ? `당신의 ${singleCategory.name} 원픽은?` : '당신의 원픽은 무엇인가요?'}
-            </Text>
-            <Text style={styles.heroSub}>제품명을 검색하면 카테고리는{ '\n' }제품 정보에서 자동으로 연결돼요.</Text>
-            <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={styles.registerButton}>
-              <Text style={styles.retryButtonText}>＋ 제품 찾아 원픽 고르기</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.heroShape}>1</Text>
+        <View style={[styles.sectionHeader, compact && styles.sectionHeaderCompact]}>
+          <SectionTitle title="나의 원픽" count={user && ready && data ? data.currentPicks.length : undefined} description="내 취향을 담은 작은 컬렉션" />
+          <Pressable accessibilityRole="button" onPress={() => openRegistration()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+            <Text style={styles.primaryText}>＋ 원픽 등록</Text>
+          </Pressable>
         </View>
 
-        {isLoading ? <HomeLoading /> : null}
-        {sessionError ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-            <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
-            <Pressable accessibilityRole="button" onPress={retrySession} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-              <Text style={styles.retryButtonText}>다시 확인하기</Text>
-            </Pressable>
+        {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
+        {sessionError || (!isSessionLoading && homeQuery.isError) ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '원픽을 불러오지 못했어요'}</Text>
+          <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
+          <Pressable accessibilityRole="button" onPress={sessionError ? retrySession : () => void homeQuery.refetch()} style={styles.retryButton}><Text style={styles.actionText}>다시 불러오기</Text></Pressable>
+        </View> : null}
+
+        {ready && data ? <>
+          <View style={styles.grid}>
+            {user ? data.currentPicks.map((item) => <View key={item.pick.id} style={cellStyle}>
+              <CollectionCard item={item} mine onOpen={() => openPick(item.pick.id)} onProduct={() => openProduct(item.pick.productId)} />
+            </View>) : null}
+            <View style={cellStyle}><AddCard first={!user || data.currentPicks.length === 0} onPress={() => openRegistration()} /></View>
+            {!user ? <View style={[styles.welcomeCard, columns === 1 ? cellStyle : { flex: 1 }]}>
+              <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
+              <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
+              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
+                <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
+              </Pressable>
+            </View> : null}
           </View>
-        ) : null}
-        {!isSessionLoading && !sessionError && homeQuery.isError ? <HomeError onRetry={() => void homeQuery.refetch()} /> : null}
 
-        {!isLoading && !sessionError && !homeQuery.isError && data ? (
-          <>
-            {user ? (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>내 현재 원픽</Text>
-                  <Text style={styles.countText}>{data.currentPicks.length}개</Text>
-                </View>
-                {data.currentPicks.length > 0 ? data.currentPicks.map((item) => (
-                  <View key={item.pick.id} style={styles.homePickCard}>
-                    <Pressable accessibilityRole="button" onPress={() => openPick(item.pick.id)}>
-                      <PickPhoto uri={item.product?.thumbnailUrl} label={item.product?.name ?? '제품 대표 이미지'} />
-                      <Text style={styles.productBrand}>{item.category?.name ?? '카테고리'}</Text>
-                      <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
-                      <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
-                      {item.pick.status === 'needs_review' ? <Text style={styles.productNote}>확인이 필요한 원픽이에요.</Text> : null}
-                      <Text style={styles.categoryCardSub}>원픽 상세 보기 ›</Text>
-                    </Pressable>
-                    {item.product ? (
-                      <Pressable accessibilityRole="button" onPress={() => openProduct(item.pick.productId)} style={styles.cardAction}>
-                        <Text style={styles.categoryCardSub}>제품 상세 보기 ›</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                )) : (
-                  <View style={styles.stateCard}>
-                    <Text style={styles.stateTitle}>아직 고른 원픽이 없어요</Text>
-                    <Text style={styles.stateText}>좋아하는 제품 이름을 검색해 첫 원픽을 골라보세요.</Text>
-                  </View>
-                )}
+          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
+          {categories.length ? <View style={styles.categoryGrid}>
+            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
+              onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, compact && styles.categoryCardCompact, pressed && styles.pressed]}>
+              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
+            </Pressable>)}
+          </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
 
-                <View style={[styles.sectionHeader, styles.productsHeader]}>
-                  <Text style={styles.sectionTitle}>아직 선택하지 않은 카테고리</Text>
-                  <Text style={styles.countText}>{data.categoriesToPick.length}개</Text>
-                </View>
-                {data.categoriesToPick.length > 0 ? data.categoriesToPick.map(({ category }) => (
-                  <View key={category.id} style={styles.homePickCard}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => openRegistration(category.id)}>
-                      <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>이 카테고리에서 제품 찾기 ›</Text>
-                    </Pressable>
-                  </View>
-                )) : (
-                  <View style={styles.stateCard}>
-                    <Text style={styles.stateTitle}>새로 고를 카테고리가 없어요</Text>
-                    <Text style={styles.stateText}>선택 가능한 카테고리를 모두 골랐거나, 새 카테고리를 준비 중이에요.</Text>
-                  </View>
-                )}
+          {!user && data.mode === 'single_category' && data.singleCategoryProducts.length ? <>
+            <View style={styles.nextSection}><SectionTitle title="원픽 제품 둘러보기" count={data.singleCategoryProducts.length} /></View>
+            <View style={styles.grid}>{data.singleCategoryProducts.map((product) => <View key={product.id} style={cellStyle}>
+              <Pressable accessibilityRole="button" accessibilityLabel={product.name + ' 제품 상세 보기'} onPress={() => openProduct(product.id)} style={styles.card}>
+                <PickPhoto uri={product.imageUrl ?? product.thumbnailUrl} label={product.name} large /><Text style={styles.productName}>{product.name}</Text><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
+              </Pressable>
+            </View>)}</View>
+          </> : null}
 
-                <View style={[styles.sectionHeader, styles.productsHeader]}>
-                  <Text style={styles.sectionTitle}>최근 사람들의 원픽</Text>
-                </View>
-                {data.feed.length > 0 ? data.feed.map((item) => (
-                  <Pressable key={item.pick.id} accessibilityRole="button" onPress={() => openPick(item.pick.id)} style={({ pressed }) => [styles.homePickCard, pressed && styles.pressed]}>
-                    <PickPhoto uri={item.product?.thumbnailUrl} label={item.product?.name ?? '제품 대표 이미지'} />
-                    <Text style={styles.productBrand}>{item.profile ? `@${item.profile.username}` : '사용자'} · {item.category?.name ?? '카테고리'}</Text>
-                    <Text style={styles.productName}>{item.product?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
-                    <Text style={styles.productNote}>“{item.pick.oneLineReview}”</Text>
-                    <Text style={styles.categoryCardSub}>원픽 상세 보기 ›</Text>
-                  </Pressable>
-                )) : (
-                  <View style={styles.stateCard}>
-                    <Text style={styles.stateTitle}>아직 다른 사람의 원픽이 없어요</Text>
-                    <Text style={styles.stateText}>새로운 선택이 올라오면 이곳에 표시됩니다.</Text>
-                  </View>
-                )}
-              </>
-            ) : singleCategory ? (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{singleCategory.name}</Text>
-                  <Text style={styles.sectionHint}>현재 열린 카테고리</Text>
-                </View>
+          {user ? <>
+            <View style={styles.nextSection}><SectionTitle title="최근 사람들의 원픽" description="다른 사람은 어떤 하나를 골랐을까요?" /></View>
+            {data.feed.length ? <View style={styles.grid}>{data.feed.map((item) => <View key={item.pick.id} style={cellStyle}>
+              <CollectionCard item={item} onOpen={() => openPick(item.pick.id)} />
+            </View>)}</View> : <Text style={styles.emptyText}>새로운 선택이 올라오면 이곳에서 만날 수 있어요.</Text>}
+          </> : null}
 
-                <View style={styles.categoryChipActive}>
-                  <Text style={styles.categoryTextActive}>{singleCategory.name}</Text>
-                </View>
-
-                <View style={[styles.sectionHeader, styles.productsHeader]}>
-                  <Text style={styles.sectionTitle}>원픽 제품 둘러보기</Text>
-                  <Text style={styles.countText}>{products.length}개</Text>
-                </View>
-
-                {products.length > 0 ? (
-                  products.map((product) => (
-                    <ProductCard key={product.id} product={product} onPress={() => openProduct(product.id)} />
-                  ))
-                ) : (
-                  <View style={styles.stateCard}>
-                    <Text style={styles.stateTitle}>아직 등록된 제품이 없어요</Text>
-                    <Text style={styles.stateText}>찾는 제품이 없다면 등록 요청을 보낼 수 있어요.</Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>카테고리</Text>
-                  <Text style={styles.sectionHint}>{data.openCategories.length}개 열림</Text>
-                </View>
-                <View style={styles.categoryGrid}>
-                  {data.openCategories.map((category) => (
-                    <Pressable accessibilityRole="button" key={category.id} style={styles.categoryCard} onPress={() => openRegistration(category.id)}>
-                      <Text style={styles.categoryCardTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCardSub}>제품 찾아보기</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
-
-            <View style={styles.noticeCard}>
-              <View style={styles.noticeIcon}><Text style={styles.noticeIconText}>1</Text></View>
-              <View style={styles.noticeCopy}>
-                <Text style={styles.noticeTitle}>카테고리마다 원픽은 하나</Text>
-                <Text style={styles.noticeSub}>다른 제품으로 바꾸면 이전 선택은 기록으로 남습니다.</Text>
-              </View>
-            </View>
-          </>
-        ) : null}
+          <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
+        </> : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  registerButton: { alignSelf: 'flex-start', backgroundColor: '#D96D4B', paddingHorizontal: 20, paddingVertical: 13, borderRadius: 14, marginTop: 20 },
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
-  content: { width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 110 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, paddingBottom: 22 },
-  eyebrow: { color: '#D96D4B', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
-  greeting: { color: '#202124', fontSize: 30, fontWeight: '800', lineHeight: 36, marginTop: 9, letterSpacing: -0.8 },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FAF8F5', fontSize: 18, fontWeight: '900' },
-  heroCard: { minHeight: 184, borderRadius: 24, backgroundColor: '#252B38', overflow: 'hidden', flexDirection: 'row', justifyContent: 'space-between', padding: 24, marginBottom: 30 },
-  heroCopy: { zIndex: 1, maxWidth: '78%' },
-  heroKicker: { color: '#F3B59D', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 13 },
-  heroTitle: { color: '#FFF9F3', fontSize: 25, lineHeight: 31, fontWeight: '800', letterSpacing: -0.6 },
-  heroSub: { color: '#C8C9CD', fontSize: 13, lineHeight: 19, marginTop: 14 },
-  heroShape: { color: '#E98A69', fontSize: 150, lineHeight: 150, fontWeight: '900', position: 'absolute', right: 12, bottom: -34, opacity: 0.9 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 13 },
-  productsHeader: { marginTop: 29 },
-  sectionTitle: { flexShrink: 1, marginRight: 8, color: '#202124', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
-  sectionHint: { color: '#8E8A85', fontSize: 12 },
-  countText: { color: '#D96D4B', fontSize: 12, fontWeight: '700' },
-  categoryChipActive: { alignSelf: 'flex-start', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 30, backgroundColor: '#D96D4B' },
-  categoryTextActive: { color: '#FFF9F3', fontSize: 13, fontWeight: '800' },
-  categoryGrid: { gap: 10 },
-  categoryCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18 },
-  categoryCardTitle: { color: '#202124', fontSize: 17, fontWeight: '800' },
-  categoryCardSub: { color: '#D96D4B', fontSize: 12, fontWeight: '700', marginTop: 7 },
-  productCard: { flexDirection: 'row', alignItems: 'center', padding: 11, backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 11, shadowColor: '#31251F', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  productImage: { width: 102, height: 102, borderRadius: 14, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
-  productEmoji: { fontSize: 48 },
-  productInfo: { flex: 1, paddingHorizontal: 14, paddingVertical: 7 },
-  productBrand: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  productName: { color: '#202124', fontSize: 17, fontWeight: '800', marginTop: 7 },
-  productNote: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 8 },
-  chevron: { color: '#B8B1AA', fontSize: 28, marginRight: 4 },
-  stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, marginBottom: 22 },
-  stateTitle: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 10 },
-  stateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
-  retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 16 },
-  retryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  noticeCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.2, borderColor: '#E3DCD5', borderRadius: 20, padding: 16, marginTop: 14 },
-  noticeIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#F9E4DB', alignItems: 'center', justifyContent: 'center' },
-  noticeIconText: { color: '#D96D4B', fontSize: 19, fontWeight: '900' },
-  noticeCopy: { flex: 1, marginLeft: 13 },
-  noticeTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  noticeSub: { color: '#8E8A85', fontSize: 11, lineHeight: 16, marginTop: 5 },
-  homePickCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 11 },
-  cardAction: { paddingTop: 10, marginTop: 10, borderTopWidth: 1, borderTopColor: '#EEE8E2' },
-  categoryProduct: { marginTop: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEE8E2' },
-  pressed: { opacity: 0.7 },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 40, paddingBottom: 72 },
+  contentCompact: { paddingHorizontal: 22, paddingBottom: 48 },
+  nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: OnePick.border },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EAECF1', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 14, color: OnePick.text, fontWeight: '600' },
+  intro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingBottom: 60, gap: 32 },
+  introCompact: { paddingTop: 36, paddingBottom: 38 },
+  introCopy: { flex: 1 },
+  eyebrow: { color: OnePick.muted, fontSize: 12, fontWeight: '700', letterSpacing: 2.4 },
+  headline: { color: OnePick.text, fontSize: 46, lineHeight: 62, letterSpacing: -1.8, fontWeight: '800', marginTop: 21 },
+  headlineCompact: { fontSize: 34, lineHeight: 47, letterSpacing: -1.2 },
+  accent: { color: OnePick.accent },
+  introDescription: { color: OnePick.muted, fontSize: 15, lineHeight: 24, marginTop: 22 },
+  rule: { borderLeftWidth: 1, borderLeftColor: OnePick.border, paddingLeft: 46, paddingVertical: 16, minWidth: 230 },
+  ruleLine: { color: OnePick.muted },
+  ruleNumber: { fontSize: 76, lineHeight: 88, fontWeight: '800', color: OnePick.accent },
+  ruleUnit: { fontSize: 15 },
+  ruleDescription: { color: OnePick.muted, fontSize: 14, marginTop: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
+  sectionHeaderCompact: { gap: 10 },
+  sectionCopy: { flexShrink: 1 },
+  sectionTitle: { color: OnePick.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.7 },
+  count: { color: OnePick.accent },
+  sectionDescription: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  primaryButton: { minHeight: 48, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18, borderRadius: 13, backgroundColor: OnePick.accent },
+  primaryText: { color: OnePick.surface, fontSize: 14, fontWeight: '700' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 24 },
+  card: { flex: 1, padding: 20, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 24 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 30, marginBottom: 16 },
+  cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
+  badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
+  badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
+  productName: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
+  byline: { fontSize: 12, color: OnePick.muted, marginBottom: 5 },
+  review: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
+  reviewNotice: { color: '#9A5D13', fontSize: 13, marginTop: 8 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 15, marginTop: 18, borderTopWidth: 1, borderTopColor: OnePick.border, minHeight: 44 },
+  actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
+  arrow: { color: OnePick.accent, fontSize: 20 },
+  addCard: { flex: 1, minHeight: 310, padding: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: '#CCD0DA', borderRadius: 24 },
+  addCircle: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: OnePick.border, marginBottom: 22 },
+  plus: { fontSize: 30, color: OnePick.accent, fontWeight: '300' },
+  addTitle: { fontSize: 17, lineHeight: 24, fontWeight: '600', color: OnePick.text, textAlign: 'center' },
+  addDescription: { fontSize: 13, lineHeight: 21, color: OnePick.muted, textAlign: 'center', marginTop: 8 },
+  addAction: { color: OnePick.accent, fontSize: 14, fontWeight: '600', marginTop: 22 },
+  welcomeCard: { padding: 32, justifyContent: 'center', minHeight: 260 },
+  welcomeTitle: { color: OnePick.text, fontSize: 24, lineHeight: 34, fontWeight: '700', letterSpacing: -0.8 },
+  welcomeText: { color: OnePick.muted, fontSize: 16, lineHeight: 27, marginTop: 14 },
+  loginButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 44, marginTop: 24 },
+  nextSection: { marginTop: 48, marginBottom: 22 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  categoryCard: { minWidth: 180, flexGrow: 1, padding: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, backgroundColor: OnePick.surface },
+  categoryCardCompact: { minWidth: '44%' },
+  categoryName: { color: OnePick.text, fontSize: 17, fontWeight: '700' },
+  categoryAction: { color: OnePick.muted, fontSize: 13, marginTop: 14 },
+  emptyText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, paddingVertical: 16 },
+  stateCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 24, padding: 32, alignItems: 'center' },
+  stateTitle: { color: OnePick.text, fontSize: 16, fontWeight: '600', marginTop: 10, textAlign: 'center' },
+  stateText: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: 'center' },
+  retryButton: { minHeight: 44, justifyContent: 'center', marginTop: 12, paddingHorizontal: 14 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: OnePick.border, marginTop: 50, paddingTop: 24 },
+  footerMark: { color: OnePick.accent, fontSize: 22, fontWeight: '800' },
+  footerText: { color: OnePick.muted, fontSize: 13, lineHeight: 21, flex: 1 },
+  pressed: { opacity: 0.65 },
 });

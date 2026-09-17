@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProductSearch } from '@/components/product-search';
@@ -9,6 +9,7 @@ import { useExploreData } from '@/hooks/useExploreData';
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   const query = useExploreData(selectedCategoryId);
 
@@ -22,10 +23,10 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>EXPLORE</Text>
-        <Text style={styles.title}>사람들의 원픽을{ '\n' }구경해보세요</Text>
-        <Text style={styles.subtitle}>지금 사람들이 고른 하나와 그 이유를 실제 선택 기록으로 보여드려요.</Text>
+        <Text style={styles.title}>사람들의 원픽</Text>
+        <Text style={styles.subtitle}>마음에 든 하나, 그리고 그걸 고른 이유.</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
           <Pressable
@@ -140,45 +141,46 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
-  content: { width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 18, paddingBottom: 110 },
-  eyebrow: { color: '#D96D4B', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  content: { width: '100%', maxWidth: 1200, alignSelf: 'center', paddingHorizontal: 40, paddingTop: 42, paddingBottom: 72 },
+  contentCompact: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 30, fontWeight: '800', lineHeight: 36, letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#8E8A85', fontSize: 13, lineHeight: 20, marginTop: 13, maxWidth: 360 },
+  subtitle: { color: '#747985', fontSize: 15, lineHeight: 24, marginTop: 13 },
   categoryList: { gap: 8, paddingVertical: 28 },
-  chip: { backgroundColor: '#F0ECE7', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
-  chipActive: { backgroundColor: '#D96D4B' },
-  chipText: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: '#FFF9F3' },
+  chip: { backgroundColor: '#ECEEF3', borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
+  chipActive: { backgroundColor: '#4945ED' },
+  chipText: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
+  chipTextActive: { color: '#FFFFFF' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 13 },
   productSectionHeader: { marginTop: 30 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  sectionDescription: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4 },
-  pickCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickIcon: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
+  sectionDescription: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4 },
+  pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
+  pickIcon: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
   pickEmoji: { fontSize: 33 },
   pickCopy: { flex: 1, paddingLeft: 13 },
-  pickMeta: { color: '#D96D4B', fontSize: 10, fontWeight: '800' },
+  pickMeta: { color: '#747985', fontSize: 12, fontWeight: '600' },
   pickName: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 5 },
-  arrow: { color: '#B8B1AA', fontSize: 25, marginLeft: 5 },
+  pickReview: { color: '#747985', fontSize: 14, lineHeight: 22, marginTop: 7 },
+  arrow: { color: '#A6ADBB', fontSize: 25, marginLeft: 5 },
   productList: { gap: 11, paddingRight: 10 },
-  productCard: { width: 158, backgroundColor: '#FFFFFF', borderRadius: 19, padding: 12 },
-  productThumb: { width: '100%', height: 112, borderRadius: 15, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
+  productCard: { width: 158, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 19, padding: 12 },
+  productThumb: { width: '100%', height: 112, borderRadius: 15, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
   productEmoji: { fontSize: 44 },
-  productCategory: { color: '#D96D4B', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginTop: 11 },
+  productCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1, marginTop: 11 },
   productName: { color: '#202124', fontSize: 14, lineHeight: 19, fontWeight: '800', marginTop: 5 },
-  productAction: { color: '#8E8A85', fontSize: 10, marginTop: 9 },
-  stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, marginTop: 28 },
+  productAction: { color: '#747985', fontSize: 12, marginTop: 9 },
+  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, marginTop: 28 },
   stateTitle: { color: '#202124', fontSize: 16, fontWeight: '800' },
-  stateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
+  stateText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 16 },
   retryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   loadMoreButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 6 },
   loadMoreText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26 },
+  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 26 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.7 },
 });

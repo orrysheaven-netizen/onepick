@@ -71,14 +71,14 @@ export function BlockUserButton({
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'stretch' },
-  confirm: { color: '#7A4B3F', fontSize: 11, lineHeight: 17, marginBottom: 8 },
-  error: { color: '#A9482D', fontSize: 10, lineHeight: 16, marginBottom: 8 },
+  confirm: { color: '#7A4B3F', fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  error: { color: '#A9482D', fontSize: 12, lineHeight: 16, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 8 },
   button: { minHeight: 40, minWidth: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#DDD5CD', paddingHorizontal: 12 },
   dangerButton: { backgroundColor: '#A9482D', borderColor: '#A9482D' },
-  buttonText: { color: '#7D756E', fontSize: 11, fontWeight: '800' },
+  buttonText: { color: '#747985', fontSize: 12, fontWeight: '800' },
   dangerText: { color: '#FFFFFF' },
   cancelButton: { minHeight: 40, justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12 },
-  cancelText: { color: '#7D756E', fontSize: 11, fontWeight: '700' },
+  cancelText: { color: '#747985', fontSize: 12, fontWeight: '700' },
   pressed: { opacity: 0.65 },
 });

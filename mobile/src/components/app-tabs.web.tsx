@@ -1,104 +1,50 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps } from 'expo-router/ui';
+import { Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native';
 
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { OnePick } from '@/constants/onepick';
+import { OnePickBrand } from './onepick-brand';
 
 export default function AppTabs() {
+  const { width } = useWindowDimensions();
+  const compact = width < 600;
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
+    <Tabs style={styles.tabs}>
+      <TabList style={[styles.header, styles.headerInner, compact && styles.innerCompact]}>
           <TabTrigger name="home" href="/" asChild>
-            <TabButton>홈</TabButton>
+            <BrandTab />
           </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>탐색</TabButton>
-          </TabTrigger>
-          <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton>프로필</TabButton>
-          </TabTrigger>
-        </CustomTabList>
+            <TabTrigger name="explore" href="/explore" asChild><TabButton>탐색</TabButton></TabTrigger>
+            <TabTrigger name="profile" href="/profile" asChild><TabButton avatar>나</TabButton></TabTrigger>
       </TabList>
+      <TabSlot style={styles.slot} />
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function BrandTab({ isFocused, ...props }: TabTriggerSlotProps) {
+  return <Pressable {...props} accessibilityLabel="ONE PICK 홈" accessibilityState={{ selected: isFocused }} style={({ pressed }) => [styles.brandLink, pressed && styles.pressed]}><OnePickBrand /></Pressable>;
+}
+
+function TabButton({ children, isFocused, avatar, ...props }: TabTriggerSlotProps & { avatar?: boolean }) {
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
+    <Pressable {...props} accessibilityLabel={avatar ? '내 프로필' : '탐색'} accessibilityState={{ selected: isFocused }}
+      style={({ pressed }) => [styles.link, avatar && styles.avatar, isFocused && styles.active, pressed && styles.pressed]}>
+      <Text style={[styles.linkText, isFocused && styles.activeText]}>{children}</Text>
     </Pressable>
   );
 }
 
-export function CustomTabList(props: TabListProps) {
-  return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          OnePick
-        </ThemedText>
-
-        {props.children}
-
-      </ThemedView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
-  },
-  brandText: {
-    marginRight: 'auto',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
-  },
+  tabs: { flex: 1, backgroundColor: OnePick.background },
+  slot: { flex: 1 },
+  header: { backgroundColor: OnePick.background, borderBottomWidth: 1, borderBottomColor: OnePick.border },
+  headerInner: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', minHeight: 94, paddingHorizontal: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  innerCompact: { minHeight: 72, paddingHorizontal: 22 },
+  brandLink: { marginRight: 'auto' },
+  link: { minHeight: 44, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  avatar: { width: 42, paddingHorizontal: 0, backgroundColor: '#EAECF1' },
+  linkText: { fontSize: 14, fontWeight: '700', color: OnePick.muted },
+  active: { backgroundColor: OnePick.accentSoft },
+  activeText: { color: OnePick.accent },
+  pressed: { opacity: 0.65 },
 });
-

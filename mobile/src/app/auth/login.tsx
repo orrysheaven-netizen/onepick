@@ -84,20 +84,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginTop: 5 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: '#D96D4B', fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
+  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
   title: { color: '#202124', fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#8E8A85', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20, marginTop: 34 },
+  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
+  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20, marginTop: 34 },
   cardTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   kakaoButton: { minHeight: 54, borderRadius: 16, backgroundColor: '#FEE500', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   kakaoButtonText: { color: '#191919', fontSize: 15, fontWeight: '800' },
   errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
   errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
-  note: { color: '#8E8A85', fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 18 },
+  note: { color: '#747985', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.7 },
 });

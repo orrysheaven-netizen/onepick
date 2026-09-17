@@ -46,9 +46,9 @@ export default function FindPickProductScreen() {
         </Pressable>
 
         <Text style={styles.kicker}>FIND YOUR ONE PICK</Text>
-        <Text style={styles.title}>제품을 먼저 찾아보세요</Text>
+        <Text style={styles.title}>나의 원픽 찾기</Text>
         <Text style={styles.subtitle}>
-          제품을 선택하면 카테고리는 자동으로 연결됩니다. 직접 카테고리를 고를 필요가 없어요.
+          좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.
         </Text>
 
         {selectedCategory ? (
@@ -62,8 +62,8 @@ export default function FindPickProductScreen() {
           accessibilityLabel="원픽 제품 검색"
           autoCapitalize="none"
           onChangeText={setQuery}
-          placeholder="예: 신라면, 아이폰 16 프로"
-          placeholderTextColor="#AAA39C"
+          placeholder="제품명 검색"
+          placeholderTextColor="#89909C"
           returnKeyType="search"
           style={styles.input}
           value={query}
@@ -88,7 +88,7 @@ export default function FindPickProductScreen() {
         {!hasQuery ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>제품명만 입력하면 됩니다</Text>
-            <Text style={styles.stateText}>검색 결과에서 정식 제품을 선택하면 제품에 연결된 카테고리를 그대로 사용합니다.</Text>
+            <Text style={styles.stateText}>검색한 제품을 선택하면 원픽을 남길 수 있어요.</Text>
           </View>
         ) : null}
 
@@ -125,27 +125,27 @@ export default function FindPickProductScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 60 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 40, fontWeight: '300' },
-  kicker: { color: '#D96D4B', fontSize: 10, fontWeight: '900', letterSpacing: 2.1, marginTop: 12 },
+  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 12 },
   title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
-  subtitle: { color: '#827C77', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#F4E7DF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
-  categoryBadgeText: { color: '#A95A40', fontSize: 11, fontWeight: '800' },
-  input: { minHeight: 54, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E1D9D2', borderRadius: 17, paddingHorizontal: 16, color: '#202124', fontSize: 16, marginTop: 22 },
+  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
+  categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
+  categoryBadgeText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  input: { minHeight: 54, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 17, paddingHorizontal: 16, color: '#202124', fontSize: 16, marginTop: 22 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
-  stateCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginTop: 16 },
-  requestCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 22, marginTop: 18 },
+  stateCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginTop: 16 },
+  requestCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 22, marginTop: 18 },
   stateTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  stateText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  productCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
+  stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  productCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
   productCopy: { flex: 1, paddingLeft: 14 },
-  productCategory: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  productCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
   productName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  productAction: { color: '#8E8A85', fontSize: 11, marginTop: 7 },
-  primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  productAction: { color: '#747985', fontSize: 12, marginTop: 7 },
+  primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },

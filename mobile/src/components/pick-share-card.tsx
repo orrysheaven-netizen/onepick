@@ -68,16 +68,16 @@ export function PickShareCard(props: PickShareCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#E3DCD5', borderRadius: 20, padding: 18, marginTop: 14 },
-  eyebrow: { color: '#D96D4B', fontSize: 9, fontWeight: '800', letterSpacing: 1.6 },
+  card: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, padding: 18, marginTop: 14 },
+  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
   title: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 6 },
-  description: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  link: { color: '#AAA39C', fontSize: 10, marginTop: 12 },
-  error: { color: '#A9482D', fontSize: 11, lineHeight: 17, marginTop: 10 },
+  description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  link: { color: '#89909C', fontSize: 12, marginTop: 12 },
+  error: { color: '#A9482D', fontSize: 12, lineHeight: 17, marginTop: 10 },
   button: { minHeight: 46, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', marginTop: 14 },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  safetyRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3DCD5', marginTop: 14, paddingTop: 14, gap: 8 },
-  safetyText: { color: '#8E8A85', fontSize: 10 },
+  safetyRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA', marginTop: 14, paddingTop: 14, gap: 8 },
+  safetyText: { color: '#747985', fontSize: 12 },
   pressed: { opacity: 0.72 },
 });

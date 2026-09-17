@@ -149,7 +149,7 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
           maxLength={100}
           onChangeText={setName}
           placeholder="제품명"
-          placeholderTextColor="#AAA39C"
+          placeholderTextColor="#89909C"
           style={styles.input}
           value={name}
         />
@@ -215,31 +215,31 @@ function RequestProductForm({ auth, params }: { auth: ReturnType<typeof useAuthS
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 60 },
   center: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   back: { color: '#202124', fontSize: 36, lineHeight: 42, marginTop: 4 },
-  kicker: { color: '#D96D4B', fontSize: 10, fontWeight: '900', letterSpacing: 2.1, marginTop: 18 },
+  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 18 },
   title: { color: '#202124', fontSize: 29, lineHeight: 36, fontWeight: '900', marginTop: 8 },
-  subtitle: { color: '#827C77', fontSize: 13, lineHeight: 20, marginTop: 10 },
+  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
   label: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 25, marginBottom: 9 },
-  input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E1D9D2', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
-  selectedCategory: { color: '#D96D4B', fontSize: 12, fontWeight: '800', marginBottom: 9 },
+  input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
+  selectedCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginBottom: 9 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 999, backgroundColor: '#F0ECE7', paddingHorizontal: 14, paddingVertical: 10 },
-  chipActive: { backgroundColor: '#D96D4B' },
-  chipText: { color: '#6C6863', fontSize: 12, fontWeight: '700' },
+  chip: { borderRadius: 999, backgroundColor: '#ECEEF3', paddingHorizontal: 14, paddingVertical: 10 },
+  chipActive: { backgroundColor: '#4945ED' },
+  chipText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: '#FFFFFF' },
-  helper: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 10 },
-  notice: { backgroundColor: '#F2ECE7', borderRadius: 14, padding: 13, marginTop: 18 },
-  noticeText: { color: '#6C6863', fontSize: 11, lineHeight: 17 },
+  helper: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 10 },
+  notice: { backgroundColor: '#ECEEF3', borderRadius: 14, padding: 13, marginTop: 18 },
+  noticeText: { color: '#5F6470', fontSize: 12, lineHeight: 17 },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 14 },
   retryButton: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4 },
-  retryText: { color: '#D96D4B', fontSize: 13, fontWeight: '800' },
-  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
+  retryText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   requestedName: { color: '#202124', fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
   stateTitle: { color: '#202124', fontSize: 21, fontWeight: '900', marginTop: 10, textAlign: 'center' },
-  stateText: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   disabled: { opacity: 0.4 },
 });

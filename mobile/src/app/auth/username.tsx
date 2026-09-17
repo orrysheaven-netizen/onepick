@@ -73,7 +73,7 @@ export default function UsernameScreen() {
               maxLength={20}
               onChangeText={setUsername}
               placeholder="onepick_user"
-              placeholderTextColor="#AAA39C"
+              placeholderTextColor="#89909C"
               style={styles.input}
               value={username}
             />
@@ -99,18 +99,18 @@ export default function UsernameScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 62 },
-  eyebrow: { color: '#D96D4B', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
+  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
   title: { color: '#202124', fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#8E8A85', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  statusText: { color: '#8E8A85', fontSize: 13, marginTop: 34 },
+  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
+  statusText: { color: '#747985', fontSize: 13, marginTop: 34 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 34, marginBottom: 10 },
   label: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  counter: { color: '#8E8A85', fontSize: 11 },
+  counter: { color: '#747985', fontSize: 12 },
   input: { minHeight: 54, borderRadius: 16, backgroundColor: '#FFFFFF', paddingHorizontal: 16, color: '#202124', fontSize: 16 },
-  helper: { color: '#8E8A85', fontSize: 11, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
+  helper: { color: '#747985', fontSize: 12, marginTop: 8 },
+  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
   errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 12 },

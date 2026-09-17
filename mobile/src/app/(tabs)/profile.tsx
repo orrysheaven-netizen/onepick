@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
@@ -95,6 +95,7 @@ function ProductRequestCard({ item, onOpenProduct }: { item: ProductRequestItem;
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
   const adminAccess = useAdminAccess(user?.id);
@@ -190,7 +191,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, width < 650 && styles.contentCompact]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{profile.username.slice(0, 1).toUpperCase()}</Text></View>
           <View style={styles.headerCopy}>
@@ -250,59 +251,60 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
-  content: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 18, paddingBottom: 120 },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  content: { width: '100%', maxWidth: 1000, alignSelf: 'center', paddingHorizontal: 40, paddingTop: 42, paddingBottom: 72 },
+  contentCompact: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 24 },
-  profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
-  profileAvatarText: { color: '#FFF9F3', fontSize: 27, fontWeight: '900' },
+  profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center' },
+  profileAvatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
-  eyebrow: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   username: { color: '#202124', fontSize: 24, fontWeight: '800', marginTop: 5 },
-  bio: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 12 },
+  bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 12 },
   summaryNumber: { color: '#202124', fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  summaryLabel: { color: '#8E8A85', fontSize: 11, marginTop: 4, textAlign: 'center' },
-  summaryDivider: { width: 1, height: 34, backgroundColor: '#EEE8E2' },
+  summaryLabel: { color: '#747985', fontSize: 12, marginTop: 4, textAlign: 'center' },
+  summaryDivider: { width: 1, height: 34, backgroundColor: '#E3E5EA' },
   actionCopy: { flex: 1 },
-  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F2ECE7', borderRadius: 18, padding: 16, marginBottom: 12 },
+  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 12 },
   publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  publicProfileText: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 4, paddingRight: 12 },
+  publicProfileText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#252B38', borderRadius: 18, padding: 16, marginBottom: 30 },
   adminTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  adminText: { color: '#C9CDD5', fontSize: 11, lineHeight: 17, marginTop: 4, paddingRight: 12 },
+  adminText: { color: '#C9CDD5', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminChevron: { color: '#FFFFFF', fontSize: 26, paddingHorizontal: 4 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
   requestHeader: { marginTop: 28 },
   historyHeader: { marginTop: 28 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  sectionHint: { color: '#8E8A85', fontSize: 11 },
-  pickCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
+  sectionHint: { color: '#747985', fontSize: 12 },
+  pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   pickCardMuted: { opacity: 0.7 },
   pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
-  pickCategory: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#6C6863', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  pickMeta: { color: '#AAA39C', fontSize: 10, marginTop: 6 },
-  requestCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
+  pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  pickMeta: { color: '#89909C', fontSize: 12, marginTop: 6 },
+  requestCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   requestCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
   requestTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  requestCategory: { flex: 1, color: '#8E8A85', fontSize: 10, fontWeight: '800' },
-  requestBadge: { borderRadius: 999, backgroundColor: '#F0ECE7', paddingHorizontal: 9, paddingVertical: 5 },
-  requestBadgeDone: { backgroundColor: '#F9E4DB' },
-  requestBadgeText: { color: '#7D756E', fontSize: 9, fontWeight: '800' },
-  requestBadgeTextDone: { color: '#D96D4B' },
+  requestCategory: { flex: 1, color: '#747985', fontSize: 12, fontWeight: '800' },
+  requestBadge: { borderRadius: 999, backgroundColor: '#ECEEF3', paddingHorizontal: 9, paddingVertical: 5 },
+  requestBadgeDone: { backgroundColor: '#EFEEFF' },
+  requestBadgeText: { color: '#747985', fontSize: 12, fontWeight: '800' },
+  requestBadgeTextDone: { color: '#4945ED' },
   requestName: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 6 },
-  requestDescription: { color: '#8E8A85', fontSize: 11, lineHeight: 17, marginTop: 5 },
-  requestAction: { color: '#D96D4B', fontSize: 10, fontWeight: '800', marginTop: 7 },
-  chevron: { color: '#B8B1AA', fontSize: 26, paddingHorizontal: 4 },
-  emptyCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
+  requestDescription: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 5 },
+  requestAction: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginTop: 7 },
+  chevron: { color: '#A6ADBB', fontSize: 26, paddingHorizontal: 4 },
+  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  emptyText: { color: '#8E8A85', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
-  noHistory: { color: '#8E8A85', fontSize: 12, lineHeight: 19, paddingVertical: 10 },
+  emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  noHistory: { color: '#747985', fontSize: 12, lineHeight: 19, paddingVertical: 10 },
   centerState: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   stateTitle: { color: '#202124', fontSize: 21, fontWeight: '800', marginTop: 18 },
-  stateText: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  primaryButton: { minHeight: 52, minWidth: 180, borderRadius: 17, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, marginTop: 22 },
+  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  primaryButton: { minHeight: 52, minWidth: 180, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, marginTop: 22 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },

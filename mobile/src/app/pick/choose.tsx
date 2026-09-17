@@ -183,7 +183,7 @@ export default function ChoosePickScreen() {
               multiline
               onChangeText={setReview}
               placeholder="예: 결국 기본으로 돌아오게 되는 맛"
-              placeholderTextColor="#AAA39C"
+              placeholderTextColor="#89909C"
               style={styles.reviewInput}
               value={review}
             />
@@ -226,42 +226,42 @@ export default function ChoosePickScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF8F5' },
+  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  kicker: { color: '#D96D4B', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
+  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
   title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
-  subtitle: { color: '#8E8A85', fontSize: 14, lineHeight: 21, marginTop: 10 },
-  productCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
-  productIcon: { width: 86, height: 86, borderRadius: 18, backgroundColor: '#F4D7C5', alignItems: 'center', justifyContent: 'center' },
+  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 10 },
+  productCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
+  productIcon: { width: 86, height: 86, borderRadius: 18, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
   productEmoji: { fontSize: 42 },
   productCopy: { flex: 1, paddingLeft: 16 },
-  productLabel: { color: '#D96D4B', fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  productLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
   productName: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 6 },
-  productState: { color: '#8E8A85', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  productState: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 10 },
   inputLabel: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  counter: { color: '#8E8A85', fontSize: 11 },
+  counter: { color: '#747985', fontSize: 12 },
   reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 15, color: '#202124', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
-  helperText: { color: '#8E8A85', fontSize: 11, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
+  helperText: { color: '#747985', fontSize: 12, marginTop: 8 },
+  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
   loginButton: { alignSelf: 'stretch' },
   primaryButtonDisabled: { opacity: 0.4 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   secondaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 20 },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 6 },
-  textButtonText: { color: '#8E8A85', fontSize: 13, fontWeight: '700' },
-  stateCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 26, marginTop: 34 },
+  textButtonText: { color: '#747985', fontSize: 13, fontWeight: '700' },
+  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 26, marginTop: 34 },
   stateTitle: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 14 },
-  stateText: { color: '#8E8A85', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
+  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
   errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
   errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
   successCard: { alignItems: 'center', paddingTop: 58 },
-  successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#F9E4DB', alignItems: 'center', justifyContent: 'center' },
-  successIconText: { color: '#D96D4B', fontSize: 34, fontWeight: '900' },
+  successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#EFEEFF', alignItems: 'center', justifyContent: 'center' },
+  successIconText: { color: '#4945ED', fontSize: 34, fontWeight: '900' },
   successProduct: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
-  savedReview: { color: '#6C6863', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
+  savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
   pressed: { opacity: 0.7 },
 });

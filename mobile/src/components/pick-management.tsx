@@ -125,15 +125,15 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginTop: 14 },
+  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginTop: 14 },
   title: { color: '#202124', fontSize: 16, fontWeight: '800' },
   description: { color: '#5F5A54', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  input: { minHeight: 96, borderRadius: 15, backgroundColor: '#FAF8F5', padding: 13, color: '#202124', fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
-  counter: { color: '#8E8A85', fontSize: 11, textAlign: 'right', marginTop: 6 },
-  button: { minHeight: 46, borderRadius: 14, backgroundColor: '#D96D4B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
+  input: { minHeight: 96, borderRadius: 15, backgroundColor: '#F5F6F8', padding: 13, color: '#202124', fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
+  counter: { color: '#747985', fontSize: 12, textAlign: 'right', marginTop: 6 },
+  button: { minHeight: 46, borderRadius: 14, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
   buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  secondaryText: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
+  secondaryText: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
   removeButton: { backgroundColor: '#A9482D' },
   disabled: { opacity: 0.4 },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 10 },

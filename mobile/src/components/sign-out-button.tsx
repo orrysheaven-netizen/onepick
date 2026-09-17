@@ -43,12 +43,12 @@ export function SignOutButton() {
 
 const styles = StyleSheet.create({
   container: { marginTop: 24, alignSelf: 'stretch', gap: 10 },
-  settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#F2ECE7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#ECEEF3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   settingsLabel: { color: '#202124', fontSize: 13, fontWeight: '800' },
   adminButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   adminLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3DCD5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  label: { color: '#6C6863', fontSize: 13, fontWeight: '700' },
+  button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3E5EA', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  label: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
   error: { color: '#A9482D', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
   muted: { opacity: 0.5 },
 });
