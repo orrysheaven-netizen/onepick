@@ -211,13 +211,6 @@ async function main() {
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 
-  let feedPages = 0, feedRefreshes = 0;
-  const feedQuery = {
-    data: { openCategories: [], recentItems: [], feed: [{ pick: { id: 'cached', oneLineReview: '이미 불러온 원픽' }, profile: null, item: null, category: null }] },
-    hasNextPage: true, isError: true, isFetchNextPageError: true, isFetching: false,
-    fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); feedPages++; },
-    refetch: (options) => { assert.equal(options.cancelRefetch, false); feedRefreshes++; },
-  };
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
   let rankRefreshes = 0;
   const rankingQuery = { data: [{ itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 }],
@@ -228,42 +221,8 @@ async function main() {
     react: { ...React, useState: () => ['root', () => {}] },
     '@/lib/categories/categoryTree': { browseCategoryGroups },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreData: () => feedQuery, useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
   });
-  const failedFeed = render(Explore);
-  assert.match(failedFeed, /이미 불러온 원픽/);
-  assert.match(failedFeed, /다음 원픽을 불러오지 못했어요/);
-  assert.doesNotMatch(failedFeed, /최신 원픽을 확인하지 못했어요/, 'Page errors must not be described as full refresh errors');
-  presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도').onPress();
-  assert.equal(feedPages, 1);
-  feedQuery.isFetching = true;
-  render(Explore);
-  const feedMore = presses.find((p) => textOf(p.children) === '원픽 더 보기 다시 시도');
-  assert.equal(feedMore.disabled, true);
-  feedMore.onPress(); assert.equal(feedPages, 1, 'Background feed refresh must not be interrupted');
-  const feedRefreshButton = () => presses.find((p) => p.accessibilityLabel === '탐색 원픽 새로고침');
-  assert.equal(feedRefreshButton().disabled, true);
-  feedRefreshButton().onPress(); pullToRefresh.props.onRefresh();
-  assert.equal(feedRefreshes, 0, 'Refreshing must not cancel a pending next page');
-  feedQuery.isFetching = false; feedQuery.isFetchNextPageError = false;
-  const staleFeed = render(Explore);
-  assert.match(staleFeed, /최신 원픽을 확인하지 못했어요/);
-  assert.match(staleFeed, /이미 불러온 원픽/);
-  assert.doesNotMatch(staleFeed, /다음 원픽을 불러오지 못했어요/);
-  feedRefreshButton().onPress(); assert.equal(feedRefreshes, 1); assert.equal(feedPages, 1);
-  pullToRefresh.props.onRefresh(); assert.equal(feedRefreshes, 2);
-  feedQuery.isFetching = true; feedQuery.isRefetching = true;
-  assert.match(render(Explore), /새로고침 중/);
-  assert.equal(pullToRefresh.props.refreshing, true);
-  assert.equal(feedRefreshButton().disabled, true);
-  feedQuery.isFetching = false; feedQuery.isRefetching = false; feedQuery.isError = false;
-  assert.doesNotMatch(render(Explore), /최신 원픽을 확인하지 못했어요/);
-  feedRefreshButton().onPress(); assert.equal(feedRefreshes, 3);
-  feedQuery.data = undefined; feedQuery.isError = true;
-  assert.match(render(Explore), /탐색 데이터를 불러오지 못했어요/);
-  assert.equal(feedRefreshButton(), undefined);
-  presses.find((p) => textOf(p.children) === '다시 불러오기').onPress();
-  assert.equal(feedRefreshes, 4);
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);
   assert.match(ranking, /101명이 선택/);
@@ -281,7 +240,12 @@ async function main() {
   render(Explore);
   const rankRefresh = presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침');
   assert.equal(rankRefresh.disabled, true);
-  rankRefresh.onPress(); assert.equal(rankRefreshes, beforeRankRetry + 1);
+  rankRefresh.onPress(); pullToRefresh.props.onRefresh();
+  assert.equal(rankRefreshes, beforeRankRetry + 1, 'Refreshing must not cancel a pending ranking request');
+  rankingQuery.isFetching = false; rankingQuery.isRefetching = true;
+  render(Explore);
+  assert.equal(pullToRefresh.props.refreshing, true);
+  pullToRefresh.props.onRefresh(); assert.equal(rankRefreshes, beforeRankRetry + 2);
   rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
   assert.match(render(Explore), /아직 선택된 제품이 없어요/);
   console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
