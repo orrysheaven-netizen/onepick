@@ -38,5 +38,7 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Check image import function
-        run: deno check --config supabase/functions/import-product-image/deno.json supabase/functions/import-product-image/index.ts
+      - name: Check edge functions
+        run: |
+          deno check --config supabase/functions/import-product-image/deno.json supabase/functions/import-product-image/index.ts
+          deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts
