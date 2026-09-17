@@ -2,6 +2,7 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { AppError } from '@/errors/appError';
 import type { ProductStatus } from '@/types/domain/product';
 import type { ProductAlias } from '@/types/domain/productAlias';
+import type { AdminAuditLog, ClientErrorEvent } from '@/types/domain/operations';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
@@ -28,13 +29,85 @@ function mapProductAlias(row: ProductAliasRow): ProductAlias {
   };
 }
 
+function mapAuditLog(row: any): AdminAuditLog {
+  return {
+    id: row.id,
+    actorUserId: row.actor_user_id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    action: row.action,
+    summary: row.summary && typeof row.summary === 'object' && !Array.isArray(row.summary) ? row.summary : {},
+    createdAt: row.created_at,
+  };
+}
+
+function mapClientErrorEvent(row: any): ClientErrorEvent {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    context: row.context,
+    errorCode: row.error_code,
+    platform: row.platform,
+    appVersion: row.app_version,
+    createdAt: row.created_at,
+  };
+}
+
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
+
+  private operationsTable(name: 'admin_audit_logs' | 'client_error_events') {
+    return (this.client.from as unknown as (table: string) => any)(name);
+  }
 
   async isAdmin() {
     const { data, error } = await this.client.rpc('current_user_is_admin');
     if (error) throw mapSupabaseError(error);
     return data === true;
+  }
+
+  async getOperationsMetrics() {
+    const results = await Promise.all([
+      this.client.from('profiles').select('id', { count: 'exact', head: true }),
+      this.client.from('picks').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      this.client.from('comments').select('id', { count: 'exact', head: true }),
+      this.client.from('products').select('id', { count: 'exact', head: true }).in('status', ['active', 'discontinued']),
+      this.client.from('products').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      this.client.from('content_reports').select('id', { count: 'exact', head: true }).in('status', ['open', 'reviewing']),
+    ]);
+
+    for (const result of results) {
+      if (result.error) throw mapSupabaseError(result.error);
+    }
+
+    return {
+      profiles: results[0].count ?? 0,
+      activePicks: results[1].count ?? 0,
+      comments: results[2].count ?? 0,
+      activeProducts: results[3].count ?? 0,
+      pendingProducts: results[4].count ?? 0,
+      openReports: results[5].count ?? 0,
+    };
+  }
+
+  async getAuditLogs(limit = 80) {
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
+    const { data, error } = await this.operationsTable('admin_audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map(mapAuditLog);
+  }
+
+  async getClientErrorEvents(limit = 80) {
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
+    const { data, error } = await this.operationsTable('client_error_events')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map(mapClientErrorEvent);
   }
 
   async getCategories() {
