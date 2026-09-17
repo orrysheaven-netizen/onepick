@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
@@ -37,7 +38,7 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
@@ -68,6 +69,8 @@ export default function PublicProfileScreen() {
                 {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
               </View>
             </View>
+
+            <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
 
             <View style={styles.summaryCard}>
               <Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text>
