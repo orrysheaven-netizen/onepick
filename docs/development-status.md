@@ -106,6 +106,14 @@ is preserved. Mobile CI exports the web bundle and checks direct routes/assets
 with isolated CI configuration. Hosting/domain selection and publication remain
 separate from these build checks.
 
+`build:web:release` now checks real public configuration before exporting to the
+separate, ignored `dist-release` directory, then runs the direct-route/asset
+checks. Missing/example settings, non-HTTPS origins and non-publishable keys fail
+before export. Expo production dotenv precedence and host overrides are reused;
+errors omit configuration values. The preflight is offline and does not establish
+OAuth readiness or the validity of credentials. Hosting/domain selection remains
+pending by the user's choice; no site or Auth configuration was published.
+
 The user deferred Kakao login until the evening. Authenticated browser verification
 of request → Admin approval → Pick selection remains pending, as does physical
 iOS/Android device testing. Database role tests and mocked UI tests do not replace

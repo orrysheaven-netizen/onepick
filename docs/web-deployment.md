@@ -24,7 +24,7 @@ The pinned `serve` development dependency is used only for local/CI verification
 ## Build-time environment
 
 For local builds, fill `mobile/.env.local` from `.env.example`. For hosted builds,
-set these in the host's build environment **before** running `build:web`:
+set these in the host's build environment **before** running `build:web:release`:
 
 | Variable | Value |
 | --- | --- |
@@ -39,6 +39,41 @@ remain on the preview site; native shares retain `onepick://` unless a canonical
 web origin is configured. A native release should set the public web origin once
 it is available, so people without the app can open shared links.
 
+## Release preflight and output
+
+Run from `mobile/` once the public settings are supplied:
+
+```sh
+npm run check:web:release-env
+npm run build:web:release
+npm run preview:web:release
+```
+
+`check:web:release-env` only checks configuration. `build:web:release` runs that
+same check, exports to **`mobile/dist-release`**, then verifies the 10 direct
+routes and the actual JS/CSS assets over a temporary loopback server. It exits
+with a nonzero status if any stage fails. The release preview is available at
+`http://127.0.0.1:4174`. Generated output is ignored by Git.
+
+Release commands use Expo's production dotenv precedence (including
+`.env.production.local` and `.env.local`); host-provided environment variables
+take precedence. `EXPO_NO_DOTENV=1` disables local dotenv files when the host
+supplies every setting. See [Expo environment variables](https://docs.expo.dev/guides/environment-variables/).
+
+The preflight rejects missing settings, the CI `.invalid` URL/placeholder key,
+local or example hosts, non-HTTPS URLs, URL credentials/query/fragments/subpaths,
+and non-publishable keys. This release path requires a modern `sb_publishable_`
+key; secret/service-role keys and legacy JWT keys are rejected. Error messages
+identify variable names without printing their values. See
+[Supabase API keys](https://supabase.com/docs/guides/api/api-keys).
+
+These are **offline format checks**, not proof that a key belongs to the chosen
+project, remains active, or that OAuth is configured. They do not contact
+Supabase or modify data. Actual site/login verification below is still required.
+The regular `build:web` / `check:web` pair continues to use `dist` for CI fixtures;
+only deploy the successful release output built with the intended project's
+public settings. Do not use `dist` from Mobile CI for publication.
+
 ## Hosting contract
 
 The MVP uses Expo's `web.output: "single"`. New Picks, products and usernames are
@@ -50,7 +85,7 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
 - Hosts supporting `_redirects` can use the file copied from `mobile/public/`.
 - On other hosts, configure an equivalent SPA fallback after existing files.
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
-  `npm run build:web`, and publish `dist` relative to that root.
+  `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
 
 The SPA choice does not generate per-Pick search-engine/social-preview HTML.
@@ -80,7 +115,9 @@ uses intentionally non-working CI-only Supabase values, exports the production
 bundle, and checks 10 direct routes and the referenced assets over a loopback
 HTTP server. It does not execute browser JavaScript or access the live database.
 Do not deploy a CI fixture build; the host must build with the selected project's
-real public settings.
+real public settings. Regression tests also check release preflight failures,
+production dotenv precedence, host overrides and redacted error output without
+contacting the live database.
 
 Before inviting testers, verify on the actual HTTPS deployment:
 

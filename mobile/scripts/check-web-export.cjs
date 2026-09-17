@@ -9,7 +9,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
-  const dist = path.join(root, 'dist');
+  const dist = path.resolve(root, process.argv[2] || 'dist');
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   assert.equal(config.expo.web.output, 'single', 'Dynamic user content needs the configured SPA fallback');
