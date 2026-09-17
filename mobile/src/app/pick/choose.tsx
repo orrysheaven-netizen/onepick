@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -48,6 +48,8 @@ export default function ChoosePickScreen() {
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
   const [savedReview, setSavedReview] = useState('');
+  const [showReviewError, setShowReviewError] = useState(false);
+  const reviewInput = useRef<TextInput>(null);
 
   const item = itemQuery.data?.item;
   const pickStatus = itemQuery.data?.myPickStatus;
@@ -55,6 +57,7 @@ export default function ChoosePickScreen() {
   const canChoose = itemQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
+  const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
 
   const submitLabel = useMemo(() => {
@@ -64,7 +67,13 @@ export default function ChoosePickScreen() {
   }, [pickStatus]);
 
   const handleSubmit = async () => {
-    if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem || !isValidReview || choosePick.isPending) return;
+    if (choosePick.isPending) return;
+    if (!isValidReview) {
+      setShowReviewError(true);
+      reviewInput.current?.focus();
+      return;
+    }
+    if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
 
     try {
       const result = await choosePick.mutateAsync({
@@ -174,20 +183,24 @@ export default function ChoosePickScreen() {
             </View>
 
             <View style={styles.inputHeader}>
-              <Text style={styles.inputLabel}>한줄평</Text>
+              <Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text>
               <Text style={styles.counter}>{review.length}/100</Text>
             </View>
             <TextInput
+              ref={reviewInput}
               accessibilityLabel="원픽 한줄평"
               maxLength={100}
               multiline
               onChangeText={setReview}
               placeholder="예: 결국 기본으로 돌아오게 되는 맛"
               placeholderTextColor="#89909C"
-              style={styles.reviewInput}
+              style={[styles.reviewInput, hasReviewError && styles.reviewInputError]}
               value={review}
             />
-            <Text style={styles.helperText}>짧아도 괜찮아요. 한줄평은 필수입니다.</Text>
+            <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
+            {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>
+              {trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}
+            </Text> : null}
 
             {choosePick.isError ? (
               <View style={styles.errorBox}>
@@ -196,12 +209,15 @@ export default function ChoosePickScreen() {
             ) : null}
 
             <Pressable
-              disabled={!isValidReview || choosePick.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={submitLabel}
+              accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
+              disabled={choosePick.isPending}
               onPress={() => void handleSubmit()}
               style={({ pressed }) => [
                 styles.primaryButton,
-                (!isValidReview || choosePick.isPending) && styles.primaryButtonDisabled,
-                pressed && isValidReview && !choosePick.isPending && styles.pressed,
+                choosePick.isPending && styles.primaryButtonDisabled,
+                pressed && !choosePick.isPending && styles.pressed,
               ]}>
               {choosePick.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
             </Pressable>
@@ -242,8 +258,11 @@ const styles = StyleSheet.create({
   itemState: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 10 },
   inputLabel: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  required: { color: '#A9482D', fontSize: 12, fontWeight: '600' },
   counter: { color: '#747985', fontSize: 12 },
   reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 15, color: '#202124', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  reviewInputError: { borderWidth: 1, borderColor: '#A9482D' },
+  reviewError: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 8 },
   helperText: { color: '#747985', fontSize: 12, marginTop: 8 },
   primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
   loginButton: { alignSelf: 'stretch' },
