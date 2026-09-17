@@ -2,7 +2,7 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { SafetyRepository, SubmitReportInput } from '@/repositories/interfaces/safetyRepository';
-import type { ContentReport, UserBlock } from '@/types/domain/safety';
+import type { ContentReport, ReportStatus, UserBlock } from '@/types/domain/safety';
 
 function mapBlock(row: any): UserBlock {
   return {
@@ -94,6 +94,30 @@ export class SupabaseSafetyRepository implements SafetyRepository {
       .select('*')
       .single();
     if (error?.code === '23505') throw new AppError('REPORT_DUPLICATE', 'REPORT_DUPLICATE', error);
+    if (error) throw mapSupabaseError(error);
+    return mapReport(data);
+  }
+
+  async getReports(limit = 200) {
+    const db = this.client as any;
+    const safeLimit = Math.min(Math.max(limit, 1), 500);
+    const { data, error } = await db
+      .from('content_reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map(mapReport);
+  }
+
+  async updateReportStatus(reportId: string, status: ReportStatus) {
+    const db = this.client as any;
+    const { data, error } = await db
+      .from('content_reports')
+      .update({ status })
+      .eq('id', reportId)
+      .select('*')
+      .single();
     if (error) throw mapSupabaseError(error);
     return mapReport(data);
   }
