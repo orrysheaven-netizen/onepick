@@ -10,10 +10,12 @@ SplashScreen.preventAutoHideAsync();
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const isAdminRoute = pathname.startsWith('/admin');
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      {pathname === '/admin' ? <Slot /> : <AppTabs />}
+      {isAdminRoute ? <Slot /> : <AppTabs />}
     </ThemeProvider>
   );
 }
