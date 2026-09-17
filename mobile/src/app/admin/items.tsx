@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { getItems, updateItem } from '@/lib/admin-api';
-import type { AdminItem, AdminItemStatus } from '@/lib/admin-api';
+import { createItemAlias, deleteItemAlias, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
+import type { AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
 
 const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
@@ -50,7 +50,7 @@ export default function AdminItemsScreen() {
     <View style={styles.page}>
       <View>
         <Text style={adminStyles.pageTitle}>상품</Text>
-        <Text style={adminStyles.pageDescription}>상품 상태와 운영 메타데이터를 관리합니다. 한 번에 최대 100건만 조회합니다.</Text>
+        <Text style={adminStyles.pageDescription}>상품 상태, 운영 메타데이터와 검색 별칭을 관리합니다. 한 번에 최대 100건만 조회합니다.</Text>
       </View>
 
       <View style={styles.toolbar}>
@@ -177,9 +177,160 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
         <TextInput autoCapitalize="none" value={officialUrl} onChangeText={setOfficialUrl} placeholder="https://" style={adminStyles.input} />
       </View>
 
-      <Pressable disabled={saving} onPress={save} style={[adminStyles.primaryButton, saving && { opacity: 0.5 }]}>
-        <Text style={adminStyles.primaryButtonText}>{saving ? '저장 중' : '저장'}</Text>
+      <Pressable disabled={saving} onPress={save} style={[adminStyles.primaryButton, saving && { opacity: 0.5 }]}> 
+        <Text style={adminStyles.primaryButtonText}>{saving ? '저장 중' : '상품 정보 저장'}</Text>
       </Pressable>
+
+      <AliasManager itemId={item.id} itemName={item.name} />
+    </View>
+  );
+}
+
+function AliasManager({ itemId, itemName }: { itemId: string; itemName: string }) {
+  const [aliases, setAliases] = useState<AdminItemAlias[]>([]);
+  const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    setDraft('');
+    setEditingId(null);
+    getItemAliases(itemId)
+      .then((result) => {
+        if (active) setAliases(result);
+      })
+      .catch((caught) => {
+        if (active) setError(aliasErrorMessage(caught));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [itemId]);
+
+  const addAlias = async () => {
+    const value = draft.trim();
+    if (!value || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const result = await createItemAlias(itemId, value);
+      if (result[0]) setAliases((current) => sortAliases([...current, result[0]]));
+      setDraft('');
+    } catch (caught) {
+      setError(aliasErrorMessage(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveEdit = async (alias: AdminItemAlias) => {
+    const value = editingValue.trim();
+    if (!value || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const result = await updateItemAlias(alias.id, value);
+      if (result[0]) setAliases((current) => sortAliases(current.map((entry) => entry.id === alias.id ? result[0] : entry)));
+      setEditingId(null);
+      setEditingValue('');
+    } catch (caught) {
+      setError(aliasErrorMessage(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeAlias = async (alias: AdminItemAlias) => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await deleteItemAlias(alias.id);
+      setAliases((current) => current.filter((entry) => entry.id !== alias.id));
+      if (editingId === alias.id) {
+        setEditingId(null);
+        setEditingValue('');
+      }
+    } catch (caught) {
+      setError(aliasErrorMessage(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.aliasSection}>
+      <View style={styles.aliasHeader}>
+        <View>
+          <Text style={adminStyles.sectionTitle}>검색 별칭</Text>
+          <Text style={[adminStyles.muted, { marginTop: 4 }]}>사용자가 다른 표기로 검색해도 {itemName}을 찾을 수 있게 합니다.</Text>
+        </View>
+        {loading && <ActivityIndicator size="small" />}
+      </View>
+
+      <View style={styles.aliasComposer}>
+        <TextInput
+          accessibilityLabel={`${itemName} 별칭 추가`}
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={addAlias}
+          placeholder="예: 아이폰16, iPhone 16"
+          maxLength={100}
+          style={[adminStyles.input, styles.aliasInput]}
+        />
+        <Pressable disabled={saving || !draft.trim()} onPress={addAlias} style={[adminStyles.secondaryButton, (saving || !draft.trim()) && styles.disabled]}>
+          <Text style={adminStyles.secondaryButtonText}>추가</Text>
+        </Pressable>
+      </View>
+
+      {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
+      {!loading && aliases.length === 0 && <Text style={styles.aliasEmpty}>등록된 별칭이 없습니다.</Text>}
+
+      <View style={styles.aliasList}>
+        {aliases.map((alias) => (
+          <View key={alias.id} style={styles.aliasRow}>
+            {editingId === alias.id ? (
+              <>
+                <TextInput
+                  accessibilityLabel="별칭 수정"
+                  value={editingValue}
+                  onChangeText={setEditingValue}
+                  onSubmitEditing={() => saveEdit(alias)}
+                  maxLength={100}
+                  autoFocus
+                  style={[adminStyles.input, styles.aliasEditInput]}
+                />
+                <View style={styles.aliasActions}>
+                  <Pressable disabled={saving} onPress={() => saveEdit(alias)}><Text style={styles.aliasAction}>저장</Text></Pressable>
+                  <Pressable disabled={saving} onPress={() => { setEditingId(null); setEditingValue(''); }}><Text style={styles.aliasActionMuted}>취소</Text></Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.aliasBody}>
+                  <Text style={styles.aliasText}>{alias.alias}</Text>
+                  <Text style={styles.aliasNormalized}>{alias.normalized_alias}</Text>
+                </View>
+                <View style={styles.aliasActions}>
+                  <Pressable disabled={saving} onPress={() => { setEditingId(alias.id); setEditingValue(alias.alias); }}><Text style={styles.aliasAction}>수정</Text></Pressable>
+                  <Pressable disabled={saving} onPress={() => removeAlias(alias)}><Text style={styles.aliasDelete}>삭제</Text></Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.aliasHelp}>같은 카테고리의 다른 상품명/별칭과 충돌하거나 현재 상품명과 동일한 별칭은 서버에서 자동 차단됩니다.</Text>
     </View>
   );
 }
@@ -190,6 +341,19 @@ function StatusBadge({ status }: { status: AdminItemStatus }) {
 
 function statusLabel(status: AdminItemStatus) {
   return ({ pending: '대기', active: '활성', discontinued: '단종', hidden: '숨김', merged: '병합', rejected: '반려' } as Record<AdminItemStatus, string>)[status];
+}
+
+function sortAliases(aliases: AdminItemAlias[]) {
+  return [...aliases].sort((a, b) => a.alias.localeCompare(b.alias, 'ko'));
+}
+
+function aliasErrorMessage(caught: unknown) {
+  const message = caught instanceof Error ? caught.message : '';
+  if (message.includes('ALIAS_REDUNDANT')) return '상품명과 동일한 별칭은 추가할 수 없습니다.';
+  if (message.includes('ALIAS_CONFLICT')) return '같은 카테고리의 다른 상품에서 이미 사용 중인 이름입니다.';
+  if (message.includes('ALIAS_INVALID')) return '별칭은 1~100자 사이로 입력해 주세요.';
+  if (message.toLowerCase().includes('duplicate key')) return '이미 등록된 별칭입니다.';
+  return message || '별칭을 처리하지 못했습니다.';
 }
 
 const styles = StyleSheet.create({
@@ -218,4 +382,21 @@ const styles = StyleSheet.create({
   statusChoiceText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
   statusChoiceTextActive: { color: '#FFFFFF' },
   note: { marginTop: 8, color: '#8A5A16', fontSize: 11, lineHeight: 17 },
+  aliasSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
+  aliasHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  aliasComposer: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  aliasInput: { flex: 1, minWidth: 210 },
+  aliasEditInput: { flex: 1, minWidth: 180 },
+  aliasList: { borderTopWidth: 1, borderTopColor: '#F0F1F3' },
+  aliasRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#F0F1F3', paddingVertical: 9 },
+  aliasBody: { flex: 1, minWidth: 0 },
+  aliasText: { color: '#111827', fontSize: 13, fontWeight: '700' },
+  aliasNormalized: { marginTop: 3, color: '#9CA3AF', fontSize: 10 },
+  aliasActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  aliasAction: { color: '#374151', fontSize: 12, fontWeight: '700' },
+  aliasActionMuted: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  aliasDelete: { color: '#B42318', fontSize: 12, fontWeight: '700' },
+  aliasEmpty: { color: '#9CA3AF', fontSize: 12, paddingVertical: 8 },
+  aliasHelp: { color: '#9CA3AF', fontSize: 11, lineHeight: 17 },
+  disabled: { opacity: 0.45 },
 });
