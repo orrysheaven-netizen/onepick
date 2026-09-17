@@ -1,0 +1,44 @@
+name: Database Tests
+
+on:
+  push:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/database-tests.yml'
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/database-tests.yml'
+
+concurrency:
+  group: database-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local database
+        run: supabase db start
+
+      - name: Run database tests
+        run: supabase test db
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check edge functions
+        run: |
+          deno check --config supabase/functions/import-item-image/deno.json supabase/functions/import-item-image/index.ts
+          deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts

@@ -1,17 +1,15 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
-
-import { Colors } from '@/constants/theme';
+import { useRouter } from 'expo-router';
+import { OnePick } from '@/constants/onepick';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
+  const router = useRouter();
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      backgroundColor={OnePick.surface}
+      tintColor={OnePick.accent}
+      indicatorColor={OnePick.accentSoft}
+      labelStyle={{ selected: { color: OnePick.accent } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
@@ -22,12 +20,24 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>탐색</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="grid_view" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/find') }}>
+        <NativeTabs.Trigger.Label>원픽 등록</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
+          sf="plus.circle.fill"
+          md="add_circle"
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="profile">
+        <NativeTabs.Trigger.Label>내 프로필</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'person', selected: 'person.fill' }}
+          md="person"
         />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
-

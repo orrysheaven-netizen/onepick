@@ -4,15 +4,22 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.18",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "2.116.0",
+    "@tanstack/react-query": "^5.102.8",
+    "base64-arraybuffer": "^1.0.2",
     "expo": "~57.0.22",
     "expo-constants": "~57.0.18",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.3",
     "expo-image": "~57.0.5",
+    "expo-image-manipulator": "~57.0.18",
+    "expo-image-picker": "~57.0.18",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.21",
     "expo-splash-screen": "~57.0.9",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
@@ -24,11 +31,13 @@
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "serve": "14.2.6",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -38,8 +47,14 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web",
+    "build:web:release": "node scripts/build-web-release.cjs",
+    "check:web:release-env": "node scripts/build-web-release.cjs --check",
+    "preview:web": "serve dist --single --listen tcp://127.0.0.1:4173 --no-clipboard",
+    "preview:web:release": "serve dist-release --single --listen tcp://127.0.0.1:4174 --no-clipboard",
+    "check:web": "node scripts/check-web-export.cjs",
+    "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "test": "node scripts/run-tests.cjs"
   },
   "private": true
 }

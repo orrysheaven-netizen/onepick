@@ -1,37 +1,69 @@
-# OnePick 개발 시작 메모
+# OnePick development start
 
-## 이번 단계
+## Mobile
 
-- Expo 기본 프로젝트를 mobile 하위 폴더에 생성하고 아이폰에서 실행한다.
-- Expo SDK 57 기본 프로젝트와 의존성 설치 완료. 타입 검사 통과.
-- OnePick 홈과 탐색 화면의 첫 MVP UI 구현 완료. PC 브라우저에서 실행 및 주요 상호작용을 확인했다.
-- 현재 제품과 저장 상태는 화면 확인용 임시 데이터이며, 로그인·데이터베이스 연결 전이다.
-- 생성 명령: npx create-expo-app@latest mobile --template default
-- 생성 후 mobile/package.json과 생성된 안내를 확인하고 SDK 및 아이폰 테스트 앱의 호환성을 확인한다.
-- 실행 확인 후 소스와 잠금 파일을 GitHub 비공개 저장소에 업로드한다. node_modules는 제외한다.
-
-## 이전 대화에서 확인한 설계 방향
-
-아래는 이전 대화의 설계 제안 요약이며 구현 완료 또는 전체 명세 확정을 의미하지 않는다.
-
-- Product는 제품 정보, Pick은 사용자가 선택한 제품과 한줄평 및 선택 이력을 담당한다.
-- 한 사용자에게 같은 카테고리의 현재 활성 Pick은 하나만 허용한다.
-- 제품을 바꾸면 이전 Pick 이력을 보존한다.
-- 주요 흐름: 첫 Pick 만들기, Pick 교체, 제품 URL 제출, 다른 Pick에 댓글 작성.
-- 화면 구성과 MVP 범위는 실제 기능 구현 전에 기존 상세 기획을 추가 확인한다.
-- 기본 앱 실행 단계에서는 인증, 데이터베이스, 실제 제품 수집을 구현하지 않는다.
-
-## 테스트 기기
-
-사용자가 아이폰을 선택했다. Expo 기본 앱 실행 방법은 생성된 SDK와 호환되는 Expo Go 또는 개발 빌드에 맞춰 안내한다.
-
-## 현재 실행 방법
-
-```powershell
-cd "C:\Users\orrys\.codex\.chatgpt-projects\g-p-6aa7ffa4da6c8191a5e88a7f9e4198bf\onepick\mobile"
-npm.cmd run web
+```bash
+cd mobile
+npm ci
+npm run typecheck
+npm test
 ```
 
-PC 브라우저에서는 터미널에서 표시된 주소를 열어 홈과 탐색 화면을 확인한다. 아이폰 테스트는 Expo Go의 SDK 호환 여부를 확인한 뒤 진행한다.
+The app follows:
 
+```text
+Screen → Hook → Service → Repository Interface → Supabase Repository → Supabase/PostgreSQL
+```
 
+Keep Supabase access out of screens and services. Read-heavy social views use `ReadRepository` so related Pick / Item / Category / Profile data can be fetched together.
+
+## Environment
+
+Copy the values represented in `mobile/.env.example` into the local environment. Do not commit secrets.
+
+The mobile client only uses the public Supabase URL / publishable key. Admin secrets and service-role capabilities must stay server-side.
+
+For the web build and deployment workflow, see [MVP web deployment](web-deployment.md).
+
+## Database
+
+From the repository root:
+
+```bash
+supabase db start
+supabase test db
+```
+
+Database CI recreates the project from migrations and runs every pgTAP suite under `supabase/tests`.
+
+Current database coverage includes:
+
+- Pick replacement / review / removal.
+- Comments and RLS.
+- Shared item requests and Admin approval.
+- Category hierarchy validation.
+- Item aliases and search.
+- Account deletion cascade rules.
+- User blocking visibility.
+- Profile / Pick / Comment reporting and Admin moderation.
+
+## Edge Functions
+
+Database CI also runs `deno check` against:
+
+- `supabase/functions/import-item-image`
+- `supabase/functions/delete-account`
+
+`delete-account` uses `@supabase/server` with user authentication inside the function. It preserves item-master images still referenced by approved items, removes the user's storage folder, then deletes the Auth user.
+
+## Safety model
+
+Blocking is enforced in RLS for authenticated Profile, Pick and Comment reads, not only hidden in the UI.
+
+Report inserts are protected by both RLS and database triggers. The client submits only the target type / ID and reason; PostgreSQL derives the target owner so a client cannot forge the reported user.
+
+Account deletion is server-side because deleting an Auth user requires an admin/secret-key capability. The mobile app invokes the authenticated `delete-account` Edge Function and then clears the local session and query cache.
+
+## Pull request workflow
+
+Feature work currently lives on `feature/pick-core` in Draft PR #1. Keep the PR draft until the active milestone has both Mobile CI and Database Tests green and actual-device release checks are complete.

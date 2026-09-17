@@ -1,37 +1,70 @@
 # OnePick
 
-OnePick 앱 개발용 저장소입니다. mobile 폴더에 Expo SDK 57 기본 앱이 생성되어 있습니다. OnePick 전용 기능은 아직 구현하지 않았습니다.
+OnePick is a mobile-first social favorites product where each user keeps exactly one current favorite per category.
 
-## 온라인 저장 원칙
+## OnePick principle
 
-- GitHub 비공개 저장소를 연결한 후 코드와 개발 문서를 보관합니다.
-- 로컬 저장만으로는 온라인 백업이 되지 않습니다. 작업 단위마다 변경 이력을 저장(commit)하고 GitHub로 전송(push)한 뒤 업로드 결과를 확인합니다.
-- 비밀번호, API 비밀키, .env 파일은 업로드하지 않습니다. 필요한 설정 이름은 실제 값 없이 .env.example에 기록합니다.
-- 데이터베이스 데이터와 외부 서비스 설정은 GitHub 코드 저장과 별도로 관리합니다.
+- One current Pick per category.
+- Every Pick has a short one-line reason.
+- Items come from a shared item master whenever possible.
+- Missing items are submitted as pending requests and reviewed by Admin.
+- Old Picks remain history.
+- Comments belong to Picks.
+- Public profiles show a user's current taste collection.
 
-## 새 컴퓨터에서 이어가기
+## Architecture
 
-1. GitHub 계정에 로그인하고 이 비공개 저장소 접근을 확인합니다.
-2. Node.js LTS와 Git을 설치합니다. 앱 개발을 시작한 뒤에는 저장소에 기록된 Node 버전을 사용합니다.
-3. GitHub 저장소를 새 컴퓨터로 복제(clone)합니다.
-4. 앱 코드와 package-lock.json이 생긴 이후에는 npm ci로 의존성을 복원합니다.
-5. 비밀 설정은 별도로 복원합니다. 실제 값은 저장소에 기록하지 않습니다.
-6. 해당 시점의 개발 실행 안내를 따릅니다. 로컬 데이터베이스를 사용하는 경우에만 Docker/WSL 환경도 복원합니다.
+```text
+Screen
+  → Query / Mutation Hook
+  → Service
+  → Repository Interface
+  → Supabase Repository
+  → Supabase / PostgreSQL
+```
 
-## 현재 상태
+Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item + Category + Profile data together and avoid N+1 requests.
 
-- 로컬 저장소 기본 파일 준비 완료.
-- 온라인 저장소: https://github.com/orrysheaven-netizen/onepick (비공개)
-- 이 디렉터리 외부의 ChatGPT 프로젝트 참조 파일은 업로드 대상이 아닙니다.
+## Current MVP capabilities
 
+- Home with real Pick data and logged-in personalization.
+- Explore recent Picks with pagination.
+- Item-first Pick registration.
+- Missing item requests with Admin approval / merge / rejection.
+- Item detail, Pick detail, comments, Pick sharing and profile sharing.
+- My Profile and public profiles.
+- Admin Category / Brand / Item management.
+- Item aliases and trigram-backed search.
+- Account settings, account deletion, user blocking and content reporting.
+- Admin report moderation.
 
-## 아이폰에서 기본 앱 실행
+## Account safety
 
-1. 아이폰에 Expo Go를 설치하고 PC와 같은 Wi-Fi에 연결합니다.
-2. PowerShell에서 mobile 폴더로 이동한 뒤 npm.cmd start를 실행합니다.
-3. PowerShell에 표시된 QR 코드를 아이폰 카메라로 스캔합니다.
-4. 서버가 실행되는 동안 PowerShell 창을 열어 둡니다.
+- Blocking is enforced by PostgreSQL RLS for authenticated profile, Pick and comment reads.
+- Reports support profile, Pick and comment targets.
+- The database derives the real target owner and prevents self / duplicate active reports.
+- Admin report resolution records resolver and resolution time.
+- Account deletion is handled by an authenticated Edge Function.
+- On account deletion, Profile / Picks / Comments / blocks are removed through Auth-linked cascade rules.
+- Approved item master records remain; their `created_by` link is cleared.
+- User-owned item images still referenced by master items are preserved under a catalog-owned storage path before the user's storage folder is removed.
 
-검증: 타입 검사 통과. 실제 아이폰 실행은 아직 확인 전입니다.
+## Search and performance
 
+- `item_aliases` keeps alternate search phrases mapped to one canonical `item_id`.
+- PostgreSQL `pg_trgm` + GIN indexes support scalable fuzzy / contains search.
+- `search_items()` ranks canonical exact, alias exact, prefix, contains and similarity matches.
+- Home / Explore / Profile / Pick Detail / Item Detail / Comments avoid per-item hydration queries.
+- Explore and Comments load 20 items at a time.
 
+## Validation
+
+The project has separate Mobile and Database CI workflows. Current feature work is kept on `feature/pick-core` and reviewed through Draft PR #1 before merge.
+
+See `docs/development-start.md` for local setup and `docs/shared-item-registration.md` for the item-master workflow.
+
+See [MVP web deployment](docs/web-deployment.md) for production web builds,
+SPA routing, hosting environment, OAuth callbacks and release verification.
+
+For the small tester group, use [테스트 호스팅 연결 안내](docs/test-hosting.md)
+and [테스터 안내문](docs/tester-guide.md).

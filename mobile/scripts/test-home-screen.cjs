@@ -1,0 +1,130 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+
+function load(file, imports = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, { exports, require: (name) => {
+    if (name in imports) return imports[name];
+    if (name === 'react/jsx-runtime') return require(name);
+    assert.fail(name);
+  } });
+  return exports;
+}
+
+const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0;
+const component = (tag) => ({ children }) => React.createElement(tag, null, children);
+const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
+const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
+const other = { ...own, pick: { ...own.pick, id: 'other', userId: 'friend', itemId: 'jin', oneLineReview: '다른 사람의 이유' }, item: { name: '진라면' }, profile: { username: 'friend' } };
+const privatePick = { ...own, pick: { ...own.pick, id: 'private', status: 'needs_review', oneLineReview: '비공개 확인 대기 원픽' } };
+const query = { isPending: false, isError: false, isFetching: false, isRefetching: false,
+  hasNextPage: true, isFetchNextPageError: false, fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); pageCalls++; },
+  refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
+  minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
+    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5 },
+    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3 },
+  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
+} };
+const { default: Home } = load('app/(tabs)/index.tsx', {
+  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+  'react-native': {
+    Text: component('span'), View: component('div'), ActivityIndicator: () => null, RefreshControl: () => null,
+    FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
+    Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
+    StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
+  },
+  'react-native-safe-area-context': { SafeAreaView: component('section') },
+  '@/components/onepick-brand': { OnePickBrand: () => null },
+  '@/components/pick-photo': { PickPhoto: () => null },
+  '@/components/item-pick-count': { ItemPickCount: () => null },
+  '@/components/item-search': { ItemSearch: () => null },
+  '@/constants/onepick': load('constants/onepick.ts'),
+  '@/hooks/useAuthSession': { useAuthSession: () => auth },
+  '@/hooks/useHomeData': { useHomeData: () => query },
+});
+const render = () => { presses = []; return renderToStaticMarkup(React.createElement(Home)); };
+const refreshButton = () => presses.find((p) => p.accessibilityLabel === '홈 원픽 새로고침');
+const press = (label) => {
+  const button = presses.find((p) => p.accessibilityLabel === label || textOf(p.children) === label);
+  assert.ok(button, label); button.onPress();
+};
+
+for (width of [390, 800, 1200]) {
+  const page = render();
+  assert.match(page, /현재 5명이 원픽으로 선택/); assert.match(page, /현재 3명이 원픽으로 선택/); assert.match(page, /MY PICK/);
+  assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
+  assert.match(page, /아직 선택하지 않은 카테고리/);
+  assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
+  assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
+  assert.ok(page.indexOf('내 원픽 2개 모아보기') < page.indexOf('아직 선택하지 않은 카테고리'));
+  assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
+  press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+  press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
+  press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
+  press('과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+}
+
+render(); endReached(); assert.equal(pageCalls, 1);
+query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1);
+query.isFetching = false; query.isFetchNextPageError = true;
+assert.match(render(), /다음 제품을 불러오지 못했어요/); endReached(); assert.equal(pageCalls, 1, 'Do not repeatedly retry a failed next page');
+press('다음 제품 다시 불러오기'); assert.equal(pageCalls, 2);
+query.isFetchNextPageError = false; query.hasNextPage = false; render(); endReached(); assert.equal(pageCalls, 2);
+assert.match(render(), /모두 확인했어요/);
+auth.user = null;
+const publicPage = render();
+assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
+assert.match(publicPage, /어떤 취향부터 골라볼까요/);
+press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
+assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|MY PICK|내 원픽 2개 모아보기/, 'Visitors see only the public feed, never the cached private collection');
+press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
+assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
+
+auth.user = { id: 'owner' }; auth.error = new Error('offline');
+assert.doesNotMatch(render(), /신라면|진라면/);
+assert.equal(pullToRefresh, undefined, 'Session errors must not refresh data for an unverified user');
+press('다시 불러오기'); assert.equal(sessionRetries, 1);
+auth.error = null; query.isError = true;
+const stalePage = render();
+assert.match(stalePage, /신라면/); assert.match(stalePage, /진라면/);
+assert.match(stalePage, /마지막으로 불러온 내용/);
+assert.doesNotMatch(stalePage, /원픽을 불러오지 못했어요/);
+press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+press('다시 불러오기'); assert.equal(queryRetries, 1);
+pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 2);
+query.isFetching = true; query.isRefetching = true;
+assert.match(render(), /새로고침 중/);
+assert.equal(refreshButton().disabled, true); assert.equal(pullToRefresh.props.refreshing, true);
+refreshButton().onPress(); pullToRefresh.props.onRefresh();
+assert.equal(queryRetries, 2, 'Repeated refreshes must not cancel an active request');
+query.isFetching = false; query.isRefetching = false; query.isError = false;
+assert.doesNotMatch(render(), /마지막으로 불러온 내용/);
+refreshButton().onPress(); assert.equal(queryRetries, 3);
+const cached = query.data; query.data = undefined; query.isError = true;
+assert.match(render(), /원픽을 불러오지 못했어요/);
+assert.equal(refreshButton(), undefined);
+press('다시 불러오기'); assert.equal(queryRetries, 4);
+query.data = cached;
+auth.isLoading = true;
+assert.doesNotMatch(render(), /신라면|진라면/);
+assert.equal(pullToRefresh, undefined);
+auth.isLoading = false; auth.user = null;
+assert.match(render(), /진라면/);
+assert.doesNotMatch(render(), /비공개 확인 대기 원픽|MY PICK/);
+refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
+query.data = { ...cached, featuredItems: [], currentPicks: [], minimumPickCount: 5 }; query.isError = false;
+assert.match(render(), /사람들의 선택이 모이면/);
+assert.match(render(), /5명 이상/);
+query.isError = false; query.isPending = true;
+assert.match(render(), /원픽을 불러오고 있어요/);
+console.log('Home screen checks passed: qualified product cards, selection counts, product/profile routes, empty states, refresh recovery and session privacy.');
