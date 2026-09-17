@@ -3,6 +3,7 @@ import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { RootErrorBoundary } from '@/components/root-error-boundary';
 import { AppQueryProvider } from '@/lib/query/appQueryProvider';
 import { OnePick } from '@/constants/onepick';
 
@@ -11,24 +12,27 @@ const theme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: O
 
 export default function RootLayout() {
   return (
-    <AppQueryProvider>
-      <Head><title>OnePick</title></Head>
-      <ThemeProvider value={theme}>
-        <AnimatedSplashOverlay />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="settings" options={{ presentation: 'card' }} />
-          <Stack.Screen name="admin/index" options={{ presentation: 'card' }} />
-          <Stack.Screen name="admin/reports" options={{ presentation: 'card' }} />
-          <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
-          <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
-          <Stack.Screen name="pick/choose" options={{ presentation: 'card' }} />
-          <Stack.Screen name="pick/register" options={{ presentation: 'card' }} />
-          <Stack.Screen name="auth/login" options={{ presentation: 'card' }} />
-          <Stack.Screen name="auth/username" options={{ presentation: 'card' }} />
-          <Stack.Screen name="auth/callback" options={{ presentation: 'card' }} />
-        </Stack>
-      </ThemeProvider>
-    </AppQueryProvider>
+    <RootErrorBoundary>
+      <AppQueryProvider>
+        <Head><title>OnePick</title></Head>
+        <ThemeProvider value={theme}>
+          <AnimatedSplashOverlay />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+            <Stack.Screen name="admin/index" options={{ presentation: 'card' }} />
+            <Stack.Screen name="admin/reports" options={{ presentation: 'card' }} />
+            <Stack.Screen name="admin/ops" options={{ presentation: 'card' }} />
+            <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
+            <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
+            <Stack.Screen name="pick/choose" options={{ presentation: 'card' }} />
+            <Stack.Screen name="pick/register" options={{ presentation: 'card' }} />
+            <Stack.Screen name="auth/login" options={{ presentation: 'card' }} />
+            <Stack.Screen name="auth/username" options={{ presentation: 'card' }} />
+            <Stack.Screen name="auth/callback" options={{ presentation: 'card' }} />
+          </Stack>
+        </ThemeProvider>
+      </AppQueryProvider>
+    </RootErrorBoundary>
   );
 }
