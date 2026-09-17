@@ -40,7 +40,8 @@ select throws_ok($$insert into public.content_reports(reporter_user_id,target_ty
 values('a1111111-1111-1111-1111-111111111111','profile','b2222222-2222-2222-2222-222222222222','spam')$$,'23505',null,'duplicate active report is rejected');
 select throws_ok($$insert into public.content_reports(reporter_user_id,target_type,target_id,reason)
 values('a1111111-1111-1111-1111-111111111111','profile','a1111111-1111-1111-1111-111111111111','spam')$$,'P0001','REPORT_SELF','self report is rejected');
-select throws_ok($$update public.content_reports set status='resolved' where reporter_user_id='a1111111-1111-1111-1111-111111111111'$$,'42501',null,'ordinary user cannot resolve reports');
+update public.content_reports set status='resolved' where reporter_user_id='a1111111-1111-1111-1111-111111111111';
+select is((select status from public.content_reports where reporter_user_id='a1111111-1111-1111-1111-111111111111'),'open','ordinary user cannot resolve reports');
 
 select set_config('request.jwt.claim.sub','b2222222-2222-2222-2222-222222222222',true);
 select is((select count(*)::int from public.profiles where id='a1111111-1111-1111-1111-111111111111'),0,'block hides blocker profile in reverse direction');
