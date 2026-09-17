@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { ItemPickCount } from '@/components/item-pick-count';
 import { PickPhoto } from '@/components/pick-photo';
 
 export default function ItemDetailScreen() {
@@ -57,6 +58,7 @@ export default function ItemDetailScreen() {
           <PickPhoto uri={item.imageUrl} label={item.name} large />
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.itemName}>{item.name}</Text>
+          <ItemPickCount itemId={item.id} />
           <Text style={styles.itemMeta}>
             {picks.length > 0 ? `최근 원픽 기록 ${picks.length}개를 보여드려요` : '아직 공개된 원픽 기록이 없어요'}
           </Text>

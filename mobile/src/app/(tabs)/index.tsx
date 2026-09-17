@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
+import { ItemPickCount } from '@/components/item-pick-count';
 import { PickPhoto } from '@/components/pick-photo';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -23,6 +24,7 @@ function CollectionCard({ item, mine, onOpen, onItem }: { item: PickItem; mine?:
         <PickPhoto uri={item.item?.imageUrl ?? item.item?.thumbnailUrl} label={name} large />
         {!mine ? <Text style={styles.byline}>{item.profile ? '@' + item.profile.username : 'OnePick 사용자'}</Text> : null}
         <Text style={styles.itemName}>{name}</Text>
+        {item.item ? <ItemPickCount itemId={item.item.id} /> : null}
         <Text numberOfLines={3} style={styles.review}>“{item.pick.oneLineReview}”</Text>
         {item.pick.status === 'needs_review' ? <Text style={styles.reviewNotice}>확인이 필요한 원픽이에요.</Text> : null}
       </Pressable>
@@ -149,7 +151,7 @@ export default function HomeScreen() {
             <View style={styles.nextSection}><SectionTitle title="원픽 제품 둘러보기" count={data.singleCategoryItems.length} /></View>
             <View style={styles.grid}>{data.singleCategoryItems.map((item) => <View key={item.id} style={cellStyle}>
               <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={() => openItem(item.id)} style={styles.card}>
-                <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl} label={item.name} large /><Text style={styles.itemName}>{item.name}</Text><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
+                <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl} label={item.name} large /><Text style={styles.itemName}>{item.name}</Text><ItemPickCount itemId={item.id} /><Text style={styles.addAction}>제품 상세 보기 ↗</Text>
               </Pressable>
             </View>)}</View>
           </> : null}

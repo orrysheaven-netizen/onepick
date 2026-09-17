@@ -57,7 +57,17 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 }
 
 export class SupabaseReadRepository implements ReadRepository {
-  constructor(private readonly client: AppSupabaseClient) {}
+  constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
+
+  async countActivePicks(itemId: string) {
+    // One current pick per user/category plus the item/category FK prevents duplicate people.
+    // HEAD returns an exact aggregate, independent of the feed's 20-row page size.
+    const { count, error } = await this.countClient.from('picks')
+      .select('id', { count: 'exact', head: true }).eq('item_id', itemId).eq('status', 'active');
+    if (error) throw mapSupabaseError(error);
+    if (count === null) throw new AppError('INTERNAL_ERROR');
+    return count;
+  }
 
   private mapItem(row: ItemRow | null) {
     if (!row) return null;

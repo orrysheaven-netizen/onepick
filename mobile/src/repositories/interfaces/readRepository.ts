@@ -39,6 +39,7 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
+  countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;

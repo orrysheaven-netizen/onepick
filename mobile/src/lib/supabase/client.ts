@@ -18,3 +18,8 @@ export const supabase = createClient<AppDatabase>(url, publishableKey, {
 });
 
 export type AppSupabaseClient = typeof supabase;
+
+// Public aggregate reads use the existing anonymous read policy, without a user session.
+export const publicCountClient = createClient<AppDatabase>(url, publishableKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'onepick-public-counts' },
+});

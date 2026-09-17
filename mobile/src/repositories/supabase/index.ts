@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client';
+import { supabase, publicCountClient } from '@/lib/supabase/client';
 
 import { SupabaseAdminRepository } from './supabaseAdminRepository';
 import { SupabaseAuthRepository } from './supabaseAuthRepository';
@@ -21,7 +21,7 @@ export const itemRepository = new SupabaseItemRepository(supabase);
 export const pickRepository = new SupabasePickRepository(supabase);
 export const profileRepository = new SupabaseProfileRepository(supabase);
 export const photoRepository = new SupabasePhotoRepository(supabase);
-export const readRepository = new SupabaseReadRepository(supabase);
+export const readRepository = new SupabaseReadRepository(supabase, publicCountClient);
 export const safetyRepository = new SupabaseSafetyRepository(supabase);
 
 export {

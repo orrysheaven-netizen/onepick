@@ -53,6 +53,10 @@ export class ItemService {
     };
   }
 
+  getPickCount(itemId: string) {
+    return this.readRepository.countActivePicks(itemId);
+  }
+
   async search(query: string, categoryId?: string) {
     const categories = await this.categoryRepository.getOpenCategories();
     const ids = categories.filter((item) => !categoryId || item.id === categoryId).map((item) => item.id);
