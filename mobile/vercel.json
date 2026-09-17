@@ -3,5 +3,11 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
 }
