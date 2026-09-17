@@ -48,6 +48,7 @@ export interface HomeShowcaseItem {
 export interface HomeShowcase {
   minimumPickCount: number;
   items: HomeShowcaseItem[];
+  nextCursor: ReadCursor | null;
 }
 
 export interface PickReadInput {
@@ -62,7 +63,7 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  getHomeShowcase(): Promise<HomeShowcase>;
+  getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
@@ -38,14 +38,11 @@ function SectionTitle({ title, count, description }: { title: string; count?: nu
 
 export default function HomeScreen() {
   const router = useRouter();
-  const cellStyle = { width: '100%' as const };
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
-  const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
   const ready = !isLoading && !sessionError && Boolean(data);
   const refresh = () => {
     if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
@@ -55,13 +52,26 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
+      <FlatList
+        data={ready ? data?.featuredItems ?? [] : []}
+        keyExtractor={(item) => item.itemId}
+        renderItem={({ item }) => <View style={styles.productCell}>
+          <ProductCard item={item} mine={Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === item.itemId && pick.status === 'active'))}
+            onOpen={() => openItem(item.itemId)} />
+        </View>}
+        onEndReached={() => {
+          if (ready && homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
+            void homeQuery.fetchNextPage({ cancelRefetch: false });
+          }
+        }}
+        onEndReachedThreshold={0.6}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={!isSessionLoading && !sessionError ? (
           <RefreshControl refreshing={homeQuery.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />
-        ) : undefined}>
+        ) : undefined}
+        ListHeaderComponent={<>
         <View style={styles.nativeHeader}>
           <OnePickBrand />
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
@@ -90,7 +100,7 @@ export default function HomeScreen() {
 
         {ready && data ? <>
           <View style={styles.refreshRow}>
-            {homeQuery.isError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text> : null}
+            {homeQuery.isError && !homeQuery.isFetchNextPageError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text> : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="홈 원픽 새로고침"
@@ -100,40 +110,32 @@ export default function HomeScreen() {
               <Text style={styles.actionText}>{homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'}</Text>
             </Pressable>
           </View>
-          {data.featuredItems.length ? <View style={styles.grid}>
-            {data.featuredItems.map((item) => <View key={item.itemId} style={cellStyle}>
-              <ProductCard item={item} mine={Boolean(user && data.currentPicks.some(({ pick }) => pick.itemId === item.itemId && pick.status === 'active'))}
-                onOpen={() => openItem(item.itemId)} />
-            </View>)}
-          </View> : <View style={styles.stateCard}>
+          {!data.featuredItems.length ? <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>사람들의 선택이 모이면 이곳에 소개돼요</Text>
             <Text style={styles.stateText}>현재 원픽으로 선택한 사람이 {data.minimumPickCount}명 이상인 제품을 보여드려요.</Text>
-          </View>}
-          <Pressable accessibilityRole="button" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} style={styles.moreButton}>
-            <Text style={styles.actionText}>원픽 더 둘러보기</Text><Text style={styles.arrow}>↗</Text>
-          </Pressable>
-
-          {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
-            <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
-          </Pressable> : <View style={styles.welcomeCard}>
+          </View> : null}
+        </> : null}
+        </>}
+        ListFooterComponent={ready && data ? <>
+          {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 제품 불러오는 중" color={OnePick.accent} /> : null}
+          {homeQuery.isFetchNextPageError ? <View style={styles.stateCard}>
+            <Text style={styles.stateText}>다음 제품을 불러오지 못했어요.</Text>
+            <Pressable accessibilityRole="button" disabled={homeQuery.isFetching}
+              onPress={() => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); }}
+              style={styles.retryButton}><Text style={styles.actionText}>다음 제품 다시 불러오기</Text></Pressable>
+          </View> : null}
+          {!homeQuery.hasNextPage && data.featuredItems.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 제품을 모두 확인했어요.</Text> : null}
+          {!user ? <View style={styles.welcomeCard}>
               <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
               <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
                 <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
               </Pressable>
-          </View>}
-
-          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
-          {categories.length ? <View style={styles.categoryGrid}>
-            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
-              onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
-            </Pressable>)}
-          </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
+          </View> : null}
 
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
-      </ScrollView>
+      />
     </SafeAreaView>
   );
 }
@@ -155,7 +157,9 @@ const styles = StyleSheet.create({
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
   count: { color: OnePick.accent },
   sectionDescription: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  grid: { gap: 12 },
+  productCell: { marginBottom: 12 },
+  pageLoading: { padding: 20 },
+  endText: { color: OnePick.muted, textAlign: 'center', paddingVertical: 24, fontSize: 12 },
   moreButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 10 },
   profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },
   card: { flex: 1, padding: 16, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },

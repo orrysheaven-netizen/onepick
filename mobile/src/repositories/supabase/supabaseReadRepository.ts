@@ -26,6 +26,7 @@ type HomeShowcaseItemRow = {
   image_path: string | null;
   thumbnail_path: string | null;
   pick_count: number;
+  last_picked_at: string;
 };
 
 type Related<T> = T | T[] | null;
@@ -68,13 +69,18 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
 
-  async getHomeShowcase() {
-    const { data, error } = await this.countClient.rpc('home_showcase').single();
+  async getHomeShowcase(cursor: ReadCursor | null = null) {
+    const { data, error } = await this.countClient.rpc('home_showcase_page', {
+      p_before_time: cursor?.timestamp, p_after_id: cursor?.id,
+    }).single();
     if (error) throw mapSupabaseError(error);
     if (!data || !Array.isArray(data.items)) throw new AppError('INTERNAL_ERROR');
+    const rows = data.items as unknown as HomeShowcaseItemRow[];
+    const last = rows[19];
     return {
       minimumPickCount: data.minimum_pick_count,
-      items: (data.items as unknown as HomeShowcaseItemRow[]).map((row) => {
+      nextCursor: rows.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
+      items: rows.slice(0, 20).map((row) => {
         const photo = row.thumbnail_path ?? row.image_path;
         return {
           itemId: row.item_id, name: row.name,

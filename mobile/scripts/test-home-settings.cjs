@@ -55,7 +55,7 @@ async function main() {
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   const repo = new SupabaseReadRepository({ rpc: () => assert.fail('Use public counts, regardless of viewer'), storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: p } }) }) } },
-    { rpc: (name) => { assert.equal(name, 'home_showcase'); return { single: async () => ({ data: { minimum_pick_count: 3,
+    { rpc: (name) => { assert.equal(name, 'home_showcase_page'); return { single: async () => ({ data: { minimum_pick_count: 3,
       items: [{ item_id: 'one', category_id: 'cat', category_name: '라면', name: '제품', pick_count: 3, image_path: 'full.jpg', thumbnail_path: null }],
     } }) }; } });
   const showcase = await repo.getHomeShowcase();

@@ -559,6 +559,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      home_showcase_page: {
+        Args: { p_before_time?: string; p_after_id?: string }
+        Returns: { items: Json; minimum_pick_count: number }[]
+      }
       home_showcase: {
         Args: never
         Returns: {
