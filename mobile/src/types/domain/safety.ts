@@ -12,9 +12,11 @@ export interface UserBlock {
 export interface ContentReport {
   id: string;
   reporterUserId: string | null;
+  reporterUsername?: string | null;
   targetType: ReportTargetType;
   targetId: string;
   targetUserId: string | null;
+  targetUsername?: string | null;
   reason: ReportReason;
   details: string | null;
   status: ReportStatus;
