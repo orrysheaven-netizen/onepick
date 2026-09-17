@@ -11,11 +11,6 @@ import { mapProductRow } from '@/repositories/mappers/productMapper';
 
 const PUBLIC_PRODUCT_STATUSES = ['active', 'discontinued'] as const;
 type ProductRow = Database['public']['Tables']['products']['Row'];
-type RpcError = { code?: string; message?: string; details?: string; hint?: string } | null;
-type SearchProductsRpc = (
-  fn: 'search_products',
-  args: { p_query: string; p_category_ids?: string[] | null; p_limit?: number },
-) => Promise<{ data: ProductRow[] | null; error: RpcError }>;
 
 export class SupabaseProductRepository implements ProductRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -37,8 +32,10 @@ export class SupabaseProductRepository implements ProductRepository {
 
   async submitProduct(input: SubmitProductInput) {
     const { data, error } = await this.client.rpc('submit_product', {
-      p_category_id: input.categoryId, p_product_name: input.productName,
-      p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
+      p_category_id: input.categoryId,
+      p_product_name: input.productName,
+      p_image_path: input.imagePath,
+      p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,
     });
     if (error) throw mapSupabaseError(error);
@@ -69,12 +66,11 @@ export class SupabaseProductRepository implements ProductRepository {
     const searchText = input.query.trim();
     if (!searchText || input.categoryIds?.length === 0) return [];
 
-    const categoryIds = input.categoryIds ?? (input.categoryId ? [input.categoryId] : null);
+    const categoryIds = input.categoryIds ?? (input.categoryId ? [input.categoryId] : undefined);
     const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
-    const rpc = this.client.rpc as unknown as SearchProductsRpc;
-    const { data, error } = await rpc('search_products', {
+    const { data, error } = await this.client.rpc('search_products', {
       p_query: searchText,
-      p_category_ids: categoryIds,
+      ...(categoryIds ? { p_category_ids: categoryIds } : {}),
       p_limit: limit,
     });
 
