@@ -1,4 +1,4 @@
-import { Slot } from 'expo-router';
+import { Redirect, Slot, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { beginKakaoAdminSignIn, checkAdminSession, signOutAdmin } from '@/lib/ad
 type AuthState = 'checking' | 'signedOut' | 'signedIn';
 
 export default function AdminLayout() {
+  const pathname = usePathname();
   const [authState, setAuthState] = useState<AuthState>('checking');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -77,6 +78,10 @@ export default function AdminLayout() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  if (pathname === '/admin') {
+    return <Redirect href="/admin/dashboard" />;
   }
 
   return (
