@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SubmitReportInput } from '@/repositories/interfaces/safetyRepository';
 import { safetyService } from '@/services';
+import type { ReportStatus } from '@/types/domain/safety';
 
 async function invalidateSafetyVisibility(client: ReturnType<typeof useQueryClient>) {
   await Promise.all([
@@ -44,4 +45,23 @@ export function useSafetyActions() {
   });
 
   return { blockUser, unblockUser, submitReport };
+}
+
+export function useAdminReports(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.safety.reports,
+    queryFn: () => safetyService.getReports(300),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useAdminReportActions() {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ reportId, status }: { reportId: string; status: ReportStatus }) =>
+      safetyService.updateReportStatus(reportId, status),
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.safety.reports }),
+  });
 }
