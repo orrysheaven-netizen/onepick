@@ -19,6 +19,9 @@ function errorText(error: unknown) {
     if (error.code === 'CATEGORY_INVALID') return '이름·식별자·순서를 확인해주세요. 상위 카테고리는 선택 불가여야 하며, 두 단계까지만 만들 수 있습니다.';
     if (error.code === 'PICK_CONFLICT') return '이미 사용 중인 식별자이거나 다른 관리자가 처리한 항목입니다. 새로고침 후 확인해주세요.';
     if (error.code === 'PRODUCT_NAME_INVALID') return '이름을 확인해주세요. 카테고리는 60자, 제품은 100자까지 입력할 수 있습니다.';
+    if (error.code === 'PRODUCT_ALIAS_INVALID') return '검색 별칭은 1~100자로 입력해주세요.';
+    if (error.code === 'PRODUCT_ALIAS_REDUNDANT') return '정식 제품명과 같은 별칭은 추가할 필요가 없습니다.';
+    if (error.code === 'PRODUCT_ALIAS_CONFLICT') return '같은 카테고리의 다른 제품에서 이미 사용하는 검색 이름입니다.';
     if (error.code === 'CATEGORY_NOT_FOUND') return '공개·운영 중인 선택 가능한 카테고리를 골라주세요.';
   }
   return '저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해주세요.';
@@ -42,7 +45,7 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
   const router = useRouter();
   const query = useAdminDashboard(auth.user?.id);
   const actions = useAdminActions();
-  const [tab, setTab] = useState<'categories' | 'products' | 'requests' | 'brands'>('categories');
+  const [tab, setTab] = useState<'categories' | 'products' | 'requests' | 'brands' | 'aliases'>('categories');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [category, setCategory] = useState(emptyCategory);
   const [sortOrder, setSortOrder] = useState('0');
@@ -53,6 +56,9 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [aliasProductQuery, setAliasProductQuery] = useState('');
+  const [aliasProductId, setAliasProductId] = useState<string | null>(null);
+  const [aliasValue, setAliasValue] = useState('');
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
@@ -80,12 +86,20 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
     const input = { name: productName, categoryId: productCategory, brandId: productBrand, officialUrl: productUrl.trim() || null };
     return requestId ? actions.approveProduct.mutateAsync({ productId: requestId, edits: input }) : actions.createProduct.mutateAsync(input);
   }, requestId ? '승인했습니다. 이제 원픽으로 선택할 수 있습니다.' : '정식 제품을 등록했습니다.', clearProduct);
+  const saveAlias = () => {
+    if (!aliasProductId || !aliasValue.trim()) return;
+    void run(
+      () => actions.addProductAlias.mutateAsync({ productId: aliasProductId, alias: aliasValue }),
+      '검색 별칭을 추가했습니다.',
+      () => setAliasValue(''),
+    );
+  };
 
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Button onPress={() => router.replace('/(tabs)/profile')}>‹ 내 프로필</Button>
     <Text style={styles.kicker}>ONEPICK ADMIN</Text><Text style={styles.title}>카테고리와 제품 관리</Text>
     {auth.isLoading ? <ActivityIndicator /> : auth.error ? <Button onPress={auth.retry}>로그인 상태 다시 확인</Button> : !auth.user ? <Text style={styles.notice}>관리자 계정으로 로그인한 후 내 프로필에서 다시 열어주세요.</Text> : query.isPending ? <ActivityIndicator /> : query.isError ? <View style={styles.card}><Text>{errorText(query.error)}</Text><Button onPress={() => void query.refetch()}>다시 확인</Button></View> : data ? <>
-      <View style={styles.row}>{(['categories', 'products', 'requests', 'brands'] as const).map((value) => <Button key={value} disabled={saving} selected={tab === value} onPress={() => { setTab(value); clearProduct(); setError(null); setNotice(''); }}>{value === 'categories' ? '카테고리' : value === 'products' ? '정식 제품' : value === 'brands' ? '브랜드' : `등록 요청 ${data.pending.length}`}</Button>)}</View>
+      <View style={styles.row}>{(['categories', 'products', 'aliases', 'requests', 'brands'] as const).map((value) => <Button key={value} disabled={saving} selected={tab === value} onPress={() => { setTab(value); clearProduct(); setError(null); setNotice(''); }}>{value === 'categories' ? '카테고리' : value === 'products' ? '정식 제품' : value === 'aliases' ? '검색 별칭' : value === 'brands' ? '브랜드' : `등록 요청 ${data.pending.length}`}</Button>)}</View>
       <Button disabled={saving || query.isFetching} onPress={() => void query.refetch()}>새로고침</Button>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}
       {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
@@ -112,7 +126,30 @@ function AdminForm({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
         <TextInput accessibilityLabel="브랜드 식별자" editable={!saving} style={styles.input} value={brandSlug} onChangeText={setBrandSlug} autoCapitalize="none" placeholder="영문 식별자 · 선택" />
         <Button selected disabled={saving || !brandName.trim()} onPress={() => void run(() => actions.createBrand.mutateAsync({ name: brandName, slug: brandSlug.trim() || null, isActive: true }), '브랜드를 추가했습니다.', () => { setBrandName(''); setBrandSlug(''); })}>브랜드 저장</Button>
         {data.brands.map((brand) => <Text key={brand.id}>{brand.name}{brand.isActive ? '' : ' · 비활성'}</Text>)}
-      </View> : <>
+      </View> : tab === 'aliases' ? <>
+        <View style={styles.card}>
+          <Text style={styles.heading}>제품 검색 별칭</Text>
+          <Text style={styles.hint}>사용자가 다른 표현으로 검색해도 같은 정식 제품으로 연결합니다. 정식 제품명 자체와 같은 별칭은 만들지 않습니다.</Text>
+          <TextInput accessibilityLabel="별칭 관리 제품 찾기" editable={!saving} style={styles.input} value={aliasProductQuery} onChangeText={setAliasProductQuery} placeholder="정식 제품명으로 찾기" />
+          {aliasProductQuery.trim() ? <View style={styles.row}>{data.products
+            .filter((product) => ['active', 'discontinued'].includes(product.status) && product.name.toLowerCase().includes(aliasProductQuery.trim().toLowerCase()))
+            .slice(0, 20)
+            .map((product) => <Button key={product.id} disabled={saving} selected={aliasProductId === product.id} onPress={() => { setAliasProductId(product.id); setAliasValue(''); setError(null); setNotice(''); }}>{product.name}</Button>)}</View> : <Text style={styles.hint}>제품명을 입력하면 최대 20개 후보를 보여줍니다.</Text>}
+        </View>
+        {aliasProductId ? (() => {
+          const product = data.products.find((item) => item.id === aliasProductId);
+          const aliases = data.aliases.filter((item) => item.productId === aliasProductId);
+          return product ? <View style={styles.card}>
+            <Text style={styles.heading}>{product.name}</Text>
+            <Text style={styles.hint}>{categoryLabel(categories.find((item) => item.id === product.categoryId) ?? categories[0], categories)}</Text>
+            <Text style={styles.label}>새 검색 별칭</Text>
+            <TextInput accessibilityLabel="새 검색 별칭" editable={!saving} style={styles.input} value={aliasValue} onChangeText={setAliasValue} maxLength={100} placeholder="다르게 검색할 수 있는 이름" />
+            <Button selected disabled={saving || !aliasValue.trim()} onPress={saveAlias}>{saving ? '저장 중…' : '별칭 추가'}</Button>
+            <Text style={styles.label}>등록된 별칭 {aliases.length}개</Text>
+            {aliases.length ? aliases.map((item) => <View key={item.id} style={styles.aliasRow}><Text style={styles.aliasText}>{item.alias}</Text><Button disabled={saving} onPress={() => void run(() => actions.removeProductAlias.mutateAsync(item.id), '검색 별칭을 삭제했습니다.')}>삭제</Button></View>) : <Text style={styles.hint}>아직 별칭이 없습니다.</Text>}
+          </View> : null;
+        })() : null}
+      </> : <>
         {tab === 'products' || requestId ? <View style={styles.card}>
           <Text style={styles.heading}>{requestId ? '요청 확인 후 승인' : '정식 제품 추가'}</Text>
           <Text style={styles.label}>제품명 · 맛과 종류 포함</Text><TextInput accessibilityLabel="관리할 제품명" editable={!saving} style={styles.input} value={productName} maxLength={100} onChangeText={setProductName} placeholder="예: 진라면 매운맛" />
@@ -144,6 +181,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: 'white', borderRadius: 18, padding: 20, gap: 12 },
   input: { borderWidth: 1, borderColor: '#DDD5CD', borderRadius: 12, padding: 14, fontSize: 16, color: '#202124' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  aliasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E9E2DB', paddingTop: 10 },
+  aliasText: { flex: 1, color: '#202124', fontSize: 14 },
   toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 6 },
   button: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#DDD5CD', borderRadius: 12, padding: 12 },
   buttonText: { color: '#625A53', fontWeight: '700' },
