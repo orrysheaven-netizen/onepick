@@ -42,6 +42,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
   },
   'react-native-safe-area-context': { SafeAreaView: component('section') },
+  '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', null, '알림 ' + userId) },
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/item-pick-count': { ItemPickCount: () => null },

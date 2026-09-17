@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { NotificationButton } from '@/components/notification-button';
 import { OnePickBrand } from '@/components/onepick-brand';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
@@ -109,7 +110,10 @@ export default function HomeScreen() {
         ListHeaderComponent={<>
         <View style={styles.nativeHeader}>
           <OnePickBrand />
+          <View style={styles.headerActions}>
+          {user && !isSessionLoading && !sessionError ? <NotificationButton userId={user.id} /> : null}
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
+          </View>
         </View>
 
         <ItemSearch
@@ -201,6 +205,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 28 },
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EAECF1', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, color: OnePick.text, fontWeight: '600' },
   intro: { paddingTop: 8, paddingBottom: 24 },
