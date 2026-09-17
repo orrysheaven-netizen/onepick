@@ -18,6 +18,7 @@ export default function RootLayout() {
         <AnimatedSplashOverlay />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" options={{ presentation: 'card' }} />
           <Stack.Screen name="admin/index" options={{ presentation: 'card' }} />
           <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
           <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
