@@ -19,6 +19,8 @@ export default function ExploreScreen() {
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
   const movieCategory = categories.data?.find((category) => category.slug === 'movie');
+  const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
+  const musicCategory = categories.data?.find((category) => category.slug === 'music');
   const topItems = useCategoryTopItems(selectedCategoryId);
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
@@ -32,7 +34,7 @@ export default function ExploreScreen() {
         refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
         <View style={styles.titleRow}>
           <View><Text style={styles.eyebrow}>EXPLORE</Text><Text style={styles.title}>카테고리 탐색</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '제품 검색 닫기' : '제품 검색 열기'}
+          <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
             {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
@@ -40,10 +42,21 @@ export default function ExploreScreen() {
         </View>
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 제품 검색'}</Text>
+          <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 항목 검색'}</Text>
+          <Text style={styles.searchHint}>
+            {selectedCategory && ['movie', 'drama', 'music'].includes(selectedCategory.slug)
+              ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
+              : !selectedCategory
+                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악 DB에서 계속 검색할 수 있어요.'
+                : 'OnePick에 등록된 항목을 검색합니다.'}
+          </Text>
           <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId}
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+            onSearchDrama={dramaCategory && (!selectedCategoryId || selectedCategoryId === dramaCategory.id)
+              ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
+            onSearchMusic={musicCategory && (!selectedCategoryId || selectedCategoryId === musicCategory.id)
+              ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
             onSelect={openItem} />
         </View> : null}
         <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>
@@ -125,6 +138,7 @@ const styles = StyleSheet.create({
   closeSearch: { color: '#4945ED', fontSize: 28, lineHeight: 30 },
   searchPanel: { marginTop: 18, gap: 8 },
   searchScope: { fontSize: 12, color: '#747985' },
+  searchHint: { color: '#747985', fontSize: 11, lineHeight: 17 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
   levelTitle: { color: '#202124', fontSize: 15, fontWeight: '700', marginTop: 28, marginBottom: 14 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
