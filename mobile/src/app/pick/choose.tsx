@@ -8,6 +8,8 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import type { Item } from '@/types/domain/item';
+import type { Pick } from '@/types/domain/pick';
 
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -23,17 +25,29 @@ function getErrorMessage(error: unknown) {
   }
 }
 
+type Params = { itemId?: string; categoryId?: string };
+type SavedChoice = { pick: Pick; item: Item };
+
 export default function ChoosePickScreen() {
+  const auth = useAuthSession();
+  const params = useLocalSearchParams<Params>();
+  // A saved result and its draft belong to one account/product only. Pending
+  // requests from an unmounted form cannot populate the next account's result.
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}`} auth={auth} params={params} />;
+}
+
+function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
-  const params = useLocalSearchParams<{ itemId?: string; categoryId?: string }>();
-  const { user, isLoading: isSessionLoading } = useAuthSession();
+  const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const itemQuery = useItemDetail(params.itemId, user?.id);
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
-  const [savedReview, setSavedReview] = useState('');
+  const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const reviewInput = useRef<TextInput>(null);
-  const item = itemQuery.data?.item;
+  // Preserve the acknowledged result even if a later detail refresh fails.
+  // Navigation uses the returned Pick IDs, never a potentially stale myPickStatus.
+  const item = savedChoice?.item ?? itemQuery.data?.item;
   const pickStatus = itemQuery.data?.myPickStatus;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
@@ -48,30 +62,39 @@ export default function ChoosePickScreen() {
   }, [pickStatus]);
 
   const handleSubmit = async () => {
-    if (choosePick.isPending) return;
+    if (choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
     try {
       const result = await choosePick.mutateAsync({ categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview });
-      setSavedReview(result.oneLineReview);
-    } catch { /* Mutation state renders the error. */ }
+      setSavedChoice({ pick: result, item });
+    } catch { /* Mutation state renders the error; no success route is exposed. */ }
   };
   const openLogin = () => {
     if (!item) return;
     router.push({ pathname: '/auth/login', params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
   };
-  const isLoading = isSessionLoading || (Boolean(params.itemId) && itemQuery.isPending);
+  const isSuccess = savedChoice !== null;
+  const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
-  const isSuccess = Boolean(savedReview);
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
     itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
+
+  if (sessionError) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.stateCard}>
+        <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
+        <Pressable accessibilityRole="button" onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
+      </View>
+    </SafeAreaView>;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator /><Text style={styles.stateTitle}>제품을 확인하고 있어요</Text></View> : null}
-        {!isLoading && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateCard}>
+        {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text><Text style={styles.stateText}>제품 정보가 바뀌었거나 사용할 수 없는 링크예요.</Text>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>돌아가기</Text></Pressable>
         </View> : null}
@@ -109,12 +132,19 @@ export default function ChoosePickScreen() {
             {choosePick.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
           </Pressable>
         </> : null}
-        {!isLoading && item && user && isSuccess ? <View style={styles.successCard}>
+        {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
           <Text style={styles.kicker}>ONE PICK SAVED</Text><Text style={styles.title}>원픽이 선택됐어요</Text>
-          <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedReview}”</Text>
+          <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
-          <Pressable onPress={() => router.replace('/')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>홈에서 확인하기</Text></Pressable>
+          <Text style={styles.stateText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
+          <View style={styles.successActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="내 원픽 보기"
+              onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>내 원픽 보기</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="다른 사람의 원픽 계속 보기"
+              onPress={() => router.replace('/')} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다른 사람의 원픽 계속 보기</Text></Pressable>
+          </View>
         </View> : null}
       </ScrollView>
     </SafeAreaView>
@@ -161,5 +191,6 @@ const styles = StyleSheet.create({
   successItem: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
   savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
   successPhoto: { marginTop: 16 },
+  successActions: { alignSelf: 'stretch', width: '100%' },
   pressed: { opacity: 0.7 },
 });
