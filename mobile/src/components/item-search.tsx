@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { DramaSearchLink } from '@/components/drama-search-link';
 import { useItemSearch } from '@/hooks/useItemSearch';
 
 export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelect }: {
@@ -43,6 +44,7 @@ export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelec
             accessibilityLabel={`${searchText.trim()} 영화 DB에서 검색`} onPress={() => onSearchMovie(searchText.trim())} style={styles.movieSearchButton}>
             <Text style={styles.movieSearchText}>영화 DB에서 찾아보기</Text>
           </Pressable> : null}
+          {searchText.trim().length >= 2 ? <DramaSearchLink query={searchText} categoryId={categoryId} /> : null}
         </View> : query.data.map((item) => <View key={item.id} style={styles.resultCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name}
             itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />

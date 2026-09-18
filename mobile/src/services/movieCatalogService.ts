@@ -1,15 +1,17 @@
 import type { MovieCatalogRepository } from '@/repositories/interfaces/movieCatalogRepository';
+import type { CatalogMediaType } from '@/types/domain/movieCatalog';
 
 export class MovieCatalogService {
   constructor(private readonly repository: MovieCatalogRepository) {}
 
-  search(query: string, signal?: AbortSignal) {
+  search(query: string, signal?: AbortSignal, mediaType: CatalogMediaType = 'movie') {
     const normalized = query.trim().replace(/\s+/g, ' ');
-    // Match the existing movie-catalog endpoint's 2..60 character contract.
-    return normalized.length >= 2 && normalized.length <= 60 ? this.repository.search(normalized, signal) : Promise.resolve([]);
+    return normalized.length >= 2 && normalized.length <= 60
+      ? mediaType === 'movie' ? this.repository.search(normalized, signal) : this.repository.search(normalized, signal, mediaType)
+      : Promise.resolve([]);
   }
 
-  importMovie(externalId: string) {
-    return this.repository.importMovie(externalId);
+  importMovie(externalId: string, mediaType: CatalogMediaType = 'movie') {
+    return mediaType === 'movie' ? this.repository.importMovie(externalId) : this.repository.importMovie(externalId, mediaType);
   }
 }

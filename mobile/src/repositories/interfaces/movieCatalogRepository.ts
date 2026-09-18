@@ -1,6 +1,6 @@
-import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
+import type { CatalogMediaType, ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
 export interface MovieCatalogRepository {
-  search(query: string, signal?: AbortSignal): Promise<MovieCatalogEntry[]>;
-  importMovie(externalId: string): Promise<ImportedMovieItem>;
+  search(query: string, signal?: AbortSignal, mediaType?: CatalogMediaType): Promise<MovieCatalogEntry[]>;
+  importMovie(externalId: string, mediaType?: CatalogMediaType): Promise<ImportedMovieItem>;
 }
