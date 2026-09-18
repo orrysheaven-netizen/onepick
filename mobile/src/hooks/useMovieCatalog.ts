@@ -17,7 +17,7 @@ export function useMovieCatalogSearch(searchText: string, enabled: boolean) {
   const query = useQuery({
     queryKey: queryKeys.movieCatalog.search(normalizedQuery),
     queryFn: () => movieCatalogService.search(normalizedQuery),
-    enabled: enabled && normalizedQuery.length >= 2 && !isWaiting,
+    enabled: enabled && normalizedQuery.length >= 2 && normalizedQuery.length <= 60 && !isWaiting,
   });
 
   return { ...query, isWaiting };

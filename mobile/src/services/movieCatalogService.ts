@@ -5,7 +5,8 @@ export class MovieCatalogService {
 
   search(query: string) {
     const normalized = query.trim().replace(/\s+/g, ' ');
-    return normalized.length >= 2 ? this.repository.search(normalized) : Promise.resolve([]);
+    // Match the existing movie-catalog endpoint's 2..60 character contract.
+    return normalized.length >= 2 && normalized.length <= 60 ? this.repository.search(normalized) : Promise.resolve([]);
   }
 
   importMovie(externalId: string) {

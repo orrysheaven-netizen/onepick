@@ -7,8 +7,16 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 async function functionError(error: unknown) {
   const context = error && typeof error === 'object' && 'context' in error ? error.context : undefined;
-  const body = context instanceof Response ? await context.json().catch(() => null) : null;
-  if (body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
+  const response = typeof Response !== 'undefined' && context instanceof Response ? context : undefined;
+  // Classify only known server codes. Keep the original response readable for
+  // diagnostics and never display arbitrary backend error text to the user.
+  let body: { error?: unknown } | null = null;
+  try { body = response ? await response.clone().json() : null; } catch { /* Non-JSON/used context. */ }
+  if (response?.status === 401 || body?.error === 'AUTH_REQUIRED') return new AppError('AUTH_REQUIRED');
+  if (response?.status === 429 || body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
+  if (body?.error === 'ITEM_NOT_ELIGIBLE') return new AppError('ITEM_NOT_ELIGIBLE');
+  if (body?.error === 'MOVIE_NOT_FOUND' || body?.error === 'EXTERNAL_ID_INVALID') return new AppError('ITEM_NOT_FOUND');
+  if (body?.error === 'CATEGORY_NOT_FOUND') return new AppError('CATEGORY_NOT_FOUND');
   return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
 }
 

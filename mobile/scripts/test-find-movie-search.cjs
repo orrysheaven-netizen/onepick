@@ -57,6 +57,7 @@ const imports = {
   react: fakeReact,
   'expo-router': {
     useLocalSearchParams: () => params,
+    useFocusEffect: (effect) => { effect(); },
     useRouter: () => ({
       canGoBack: () => true, back() {},
       push: (route) => { destination = route; },
@@ -65,6 +66,7 @@ const imports = {
   },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
+  '@/errors/appError': load('errors/appError.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
