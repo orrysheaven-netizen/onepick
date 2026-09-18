@@ -18,7 +18,7 @@ const raw = { id: 101, name: '테스트 드라마', original_name: 'Test Series'
   genre_ids: [18], poster_path: '/fixture.jpg', adult: false };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 function setup() {
-  const state = { rows: [], writes: [], calls: [], upstream: [], auth: true, suspended: false, race: false,
+  const state = { rows: [], writes: [], calls: [], upstream: [], cache: new Map(), auth: true, suspended: false, race: false,
     categories: [ { id: 'drama', parent_id: 'content', slug: 'drama', status: 'open', is_visible: true, is_pickable: true },
       { id: 'content', parent_id: null, slug: 'content', status: 'open', is_visible: true, is_pickable: false } ],
     remote: raw, results: [raw], remoteError: null };
@@ -45,10 +45,16 @@ function setup() {
       return q;
     },
   };
-  const handle = createDramaHandler({ client: () => client, json, fetchTmdb: async (url) => {
-    state.upstream.push(url);
-    return state.remoteError ? { error: state.remoteError } : { data: url.pathname.endsWith('/search/tv') ? { results: state.results } : state.remote };
-  } });
+  const handle = createDramaHandler({
+    client: () => client,
+    json,
+    readCache: async (_client, key) => state.cache.get(key) ?? null,
+    writeCache: async (_client, key, payload) => { state.cache.set(key, payload); },
+    fetchTmdb: async (url) => {
+      state.upstream.push(url);
+      return state.remoteError ? { error: state.remoteError } : { data: url.pathname.endsWith('/search/tv') ? { results: state.results } : state.remote };
+    },
+  });
   const request = (action, extra = {}, auth = true) => handle({ action, mediaType: 'tv', query: '테스트', externalId: '101', ...extra },
     new Request('https://edge.test', { headers: auth ? { Authorization: 'Bearer test-session' } : {} }));
   return { state, request };
@@ -74,6 +80,7 @@ async function main() {
   assert.equal(s.state.upstream[0].pathname, '/3/search/tv');
   assert.equal(s.state.upstream[0].searchParams.get('language'), 'ko-KR');
   assert.equal(s.state.upstream[0].searchParams.get('include_adult'), 'false');
+  assert.equal(s.state.cache.size, 1, 'First drama search caches the upstream result');
   const saved = await (await s.request('import')).json();
   assert.equal(saved.categoryId, 'drama'); assert.equal(saved.created, true);
   assert.equal(s.state.writes[0].external_source, 'tmdb_tv'); assert.equal(s.state.writes[0].official_url, 'https://www.themoviedb.org/tv/101');
@@ -83,6 +90,7 @@ async function main() {
   assert.equal(again.itemId, saved.itemId); assert.equal(again.created, false); assert.equal(s.state.upstream.length, upstream);
   assert.equal(s.state.writes.length, 1, 'Repeated selection reuses adopted catalog row');
   const known = await (await s.request('search', {}, false)).json(); assert.equal(known.movies[0].existingItemId, saved.itemId);
+  assert.equal(s.state.upstream.length, upstream, 'Repeated drama search reuses the cached TMDB response');
   const hidden = s.state.rows.find((r) => r.external_source === 'tmdb_tv'); hidden.status = 'hidden';
   assert.equal((await s.request('import')).status, 409); assert.equal(hidden.status, 'hidden');
   const race = setup(); race.state.race = true;
