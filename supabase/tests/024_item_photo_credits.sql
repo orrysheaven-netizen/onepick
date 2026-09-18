@@ -11,6 +11,8 @@ declare
   poster_target uuid := gen_random_uuid(); unknown_target uuid := gen_random_uuid();
   full_a text := uploader::text||'/credit-full.jpg'; thumb_a text := uploader::text||'/credit-thumb.jpg';
   full_b text := later_user::text||'/credit-full.jpg'; thumb_b text := later_user::text||'/credit-thumb.jpg';
+  -- Distinct items require distinct object paths; keep the existing unique-image constraint.
+  legacy_full text := uploader::text||'/legacy-full.jpg'; legacy_thumb text := uploader::text||'/legacy-thumb.jpg';
   poster text := 'https://image.tmdb.org/t/p/w342/credit-test.jpg';
   row_item public.items%rowtype; n integer; credited uuid; credited_name text;
 begin
@@ -31,7 +33,9 @@ begin
     ('item-photos',full_a,uploader::text,'{"mimetype":"image/jpeg","size":100}'::jsonb),
     ('item-photos',thumb_a,uploader::text,'{"mimetype":"image/jpeg","size":50}'::jsonb),
     ('item-photos',full_b,later_user::text,'{"mimetype":"image/jpeg","size":100}'::jsonb),
-    ('item-photos',thumb_b,later_user::text,'{"mimetype":"image/jpeg","size":50}'::jsonb);
+    ('item-photos',thumb_b,later_user::text,'{"mimetype":"image/jpeg","size":50}'::jsonb),
+    ('item-photos',legacy_full,uploader::text,'{"mimetype":"image/jpeg","size":100}'::jsonb),
+    ('item-photos',legacy_thumb,uploader::text,'{"mimetype":"image/jpeg","size":50}'::jsonb);
   perform set_config('request.jwt.claim.sub',uploader::text,true);
   set local role authenticated;
   row_item := public.attach_item_photo(target,full_a,thumb_a);
@@ -39,7 +43,7 @@ begin
   assert credited=uploader and credited<>creator, 'Credit belongs to stored-photo owner, not product creator';
   select count(*) into n from public.picks where item_id=target;
   assert n=0, 'Photo contribution alone creates no Pick';
-  perform public.register_pick(category,legacy_target,'Legacy target','My reason',full_a,thumb_a,null);
+  perform public.register_pick(category,legacy_target,'Legacy target','My reason',legacy_full,legacy_thumb,null);
   select c.user_id into credited from public.item_photo_credit(legacy_target) c;
   assert credited=uploader, 'Existing registration also records verified photo ownership';
   begin
@@ -114,7 +118,7 @@ begin
   delete from public.profiles where id=uploader;
   select count(*) into n from public.item_photo_credits where item_id=legacy_target;
   assert n=0, 'Account deletion removes its credit';
-  select count(*) into n from public.items where id=legacy_target and image_path=full_a;
+  select count(*) into n from public.items where id=legacy_target and image_path=legacy_full;
   assert n=1, 'Removing a profile credit does not delete the shared item';
   assert not (select prosecdef from pg_proc where oid='public.item_photo_credit(uuid)'::regprocedure), 'Credit reads retain caller RLS';
   assert not has_table_privilege('authenticated','public.item_photo_credits','INSERT'), 'No direct user credit writes';
