@@ -69,6 +69,7 @@ function setup(overrides = {}) {
       canGoBack: () => false, back: () => routes.push({ action: 'back' }),
     }), useLocalSearchParams: () => params, useFocusEffect: (callback) => hooks.useEffect(() => focused ? callback() : undefined, [focused, callback]) },
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/components/music-search-link': { MusicSearchLink: 'MusicSearchLink' },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
