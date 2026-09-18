@@ -2,17 +2,17 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'); const path=require('node:path'); const vm=require('node:vm'); const ts=require('typescript');
 const React=require('react'); const {renderToStaticMarkup}=require('react-dom/server');
 let route, categories={data:[{id:'music-id',slug:'music'}],isError:false,isPending:false};
-const exports={};
+const moduleExports={};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/components/music-search-link.tsx'),'utf8'),{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}
-}).outputText,{exports,require:(name)=>{
+}).outputText,{exports:moduleExports,require:(name)=>{
   if(name==='react/jsx-runtime')return require(name);
   if(name==='expo-router')return{useRouter:()=>({push:(r)=>{route=r;}})};
   if(name==='react-native')return{Pressable:(p)=>React.createElement('button',{onClick:p.onPress},p.children),Text:({children})=>React.createElement('span',null,children),StyleSheet:{create:x=>x}};
   if(name==='@/hooks/useRegisterPick')return{useRegistrationCategories:()=>categories};
   throw new Error(name);
 }});
-const Link=exports.MusicSearchLink;
+const Link=moduleExports.MusicSearchLink;
 let page=renderToStaticMarkup(React.createElement(Link,{query:' 밤편지 '})); assert.match(page,/음악 DB에서 찾아보기/);
 const button=React.createElement(Link,{query:'밤편지'}); // render once to capture handler through direct component
 const tree=Link({query:'밤편지'}); tree.props.onPress();
