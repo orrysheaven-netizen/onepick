@@ -45,6 +45,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const reviewInput = useRef<TextInput>(null);
+  // Mutation state arrives on a later render. A synchronous phase also guards
+  // same-frame double taps and old event handlers after an acknowledged save.
+  const submitPhase = useRef<'idle' | 'saving' | 'saved'>('idle');
   // Preserve the acknowledged result even if a later detail refresh fails.
   // Navigation uses the returned Pick IDs, never a potentially stale myPickStatus.
   const item = savedChoice?.item ?? itemQuery.data?.item;
@@ -62,13 +65,25 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   }, [pickStatus]);
 
   const handleSubmit = async () => {
-    if (choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
+    if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
+      || choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
+    submitPhase.current = 'saving';
     try {
       const result = await choosePick.mutateAsync({ categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview });
+      submitPhase.current = 'saved';
       setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
+    finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
+  };
+  const goBack = () => {
+    if (submitPhase.current === 'saving' || choosePick.isPending) return;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
+  const retryItem = () => {
+    if (params.itemId && !itemQuery.isFetching) void itemQuery.refetch();
   };
   const openLogin = () => {
     if (!item) return;
@@ -92,11 +107,17 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={choosePick.isPending} onPress={goBack}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator /><Text style={styles.stateTitle}>제품을 확인하고 있어요</Text></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text><Text style={styles.stateText}>제품 정보가 바뀌었거나 사용할 수 없는 링크예요.</Text>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>돌아가기</Text></Pressable>
+          <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text>
+          <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 불러와주세요. 제품이 없거나 사용할 수 없는 링크일 수도 있어요.</Text>
+          {params.itemId && routeMatchesItem ? <Pressable accessibilityRole="button" accessibilityLabel="제품 정보 다시 불러오기"
+            disabled={itemQuery.isFetching} onPress={retryItem} style={[styles.secondaryButton, itemQuery.isFetching && styles.primaryButtonDisabled]}>
+            <Text style={styles.secondaryButtonText}>{itemQuery.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기'}</Text>
+          </Pressable> : null}
+          <Pressable onPress={goBack} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>돌아가기</Text></Pressable>
         </View> : null}
         {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text><Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
@@ -109,7 +130,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           {itemPhoto}<Text style={styles.kicker}>원픽을 고르려면</Text><Text style={styles.title}>로그인이 필요해요</Text>
           <Text style={styles.stateText}>선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
           <Pressable onPress={openLogin} style={({ pressed }) => [styles.primaryButton, styles.loginButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>로그인하고 계속</Text></Pressable>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다음에 고르기</Text></Pressable>
+          <Pressable onPress={goBack} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다음에 고르기</Text></Pressable>
         </View> : null}
         {hasItem && item && canChoose && user && !isSuccess ? <>
           <Text style={styles.kicker}>YOUR ONE PICK</Text><Text style={styles.title}>{item.name}</Text><Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
@@ -121,7 +142,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             </View>
           </View>
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
-          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline onChangeText={setReview}
+          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
+            onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor="#89909C" style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
