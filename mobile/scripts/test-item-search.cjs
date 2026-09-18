@@ -97,6 +97,7 @@ async function main() {
   const { ItemSearch } = loadSource('components/item-search.tsx', {
     '@/components/pick-photo': { PickPhoto: (props) => { photoProps = props; return null; } },
     '@/components/drama-search-link': { DramaSearchLink: () => null },
+    '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },
     'react-native': {
       ActivityIndicator: () => null,
