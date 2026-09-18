@@ -2,8 +2,23 @@ import type { Database } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
 
-// Additive return fields from include_catalog_images_in_card_reads.
-// Keep this overlay until the generated database.types.ts is refreshed.
+export type HomePickFeedRow = {
+  pick_id: string;
+  user_id: string;
+  username: string;
+  profile_image_url: string | null;
+  item_id: string;
+  item_name: string;
+  category_id: string;
+  category_name: string;
+  one_line_review: string;
+  thumbnail_path: string | null;
+  image_path: string | null;
+  image_source_url: string | null;
+  started_at: string;
+};
+
+// Additive RPC fields until the central generated types are refreshed.
 export type AppDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Functions'> & {
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
@@ -12,6 +27,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
           image_path: string | null;
           image_source_url: string | null;
         })[];
+      };
+      home_pick_feed_page: {
+        Args: { p_before_time?: string; p_before_id?: string };
+        Returns: HomePickFeedRow[];
       };
     };
   };

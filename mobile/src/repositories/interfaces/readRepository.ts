@@ -27,6 +27,26 @@ export interface ReadCursor {
   id: string;
 }
 
+/** One person's current choice, not an aggregate product or a follower event. */
+export interface HomeFeedPick {
+  pickId: string;
+  userId: string;
+  username: string;
+  profileImageUrl: string | null;
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  oneLineReview: string;
+  thumbnailUrl: string | null;
+  startedAt: string;
+}
+
+export interface HomePickPage {
+  items: HomeFeedPick[];
+  nextCursor: ReadCursor | null;
+}
+
 export interface CategoryTopItem {
   itemId: string;
   name: string;
@@ -67,6 +87,7 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
+  getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   countActivePicks(itemId: string): Promise<number>;

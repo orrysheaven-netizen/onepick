@@ -83,6 +83,29 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
+  async getHomePicks(cursor: ReadCursor | null = null) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // This is viewer-specific content, NOT a global aggregate. Use the session
+    // client so caller RLS and the server's auth.uid() exclude self/blocked content.
+    const { data, error } = await this.client.rpc('home_pick_feed_page', {
+      p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const last = data[19];
+    return {
+      nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
+      items: data.slice(0, 20).map((row) => ({
+        pickId: row.pick_id, userId: row.user_id, username: row.username,
+        profileImageUrl: row.profile_image_url,
+        itemId: row.item_id, name: row.item_name,
+        categoryId: row.category_id, categoryName: row.category_name,
+        oneLineReview: row.one_line_review,
+        thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+      })),
+    };
+  }
+
   async getHomeShowcase(cursor: ReadCursor | null = null) {
     const { data, error } = await this.countClient.rpc('home_showcase_page', {
       p_before_time: cursor?.timestamp, p_after_id: cursor?.id,
