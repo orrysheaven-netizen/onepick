@@ -3,7 +3,7 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { MusicCatalogRepository } from '@/repositories/interfaces/musicCatalogRepository';
 import type { ImportedMusicItem, MusicCatalogEntry } from '@/types/domain/musicCatalog';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function functionError(error: unknown) {
   const context = error && typeof error === 'object' && 'context' in error ? error.context : undefined;
@@ -27,7 +27,7 @@ function isEntry(value: unknown): value is MusicCatalogEntry {
     && typeof row.artistName === 'string' && row.artistName.length >= 1 && row.artistName.length <= 200
     && (row.releaseTitle === null || (typeof row.releaseTitle === 'string' && row.releaseTitle.length <= 200))
     && (row.releaseGroupId === null || (typeof row.releaseGroupId === 'string' && UUID_PATTERN.test(row.releaseGroupId)))
-    && (row.releaseYear === null || (Number.isInteger(row.releaseYear) && Number(row.releaseYear) >= 1000 && Number(row.releaseYear) <= 2200))
+    && (row.releaseYear === null || (Number.isInteger(row.releaseYear) && Number(row.releaseYear) >= 1888 && Number(row.releaseYear) <= 2200))
     && (row.coverArtUrl === null || (typeof row.coverArtUrl === 'string' && row.coverArtUrl.startsWith('https://coverartarchive.org/')))
     && (row.disambiguation === null || (typeof row.disambiguation === 'string' && row.disambiguation.length <= 120))
     && (row.existingItemId === null || (typeof row.existingItemId === 'string' && UUID_PATTERN.test(row.existingItemId)));
