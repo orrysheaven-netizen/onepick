@@ -9,6 +9,7 @@ import { SupabasePickRepository } from './supabasePickRepository';
 import { SupabaseItemRepository } from './supabaseItemRepository';
 import { SupabaseMovieCatalogRepository } from './supabaseMovieCatalogRepository';
 import { SupabaseMusicCatalogRepository } from './supabaseMusicCatalogRepository';
+import { SupabaseBookCatalogRepository } from './supabaseBookCatalogRepository';
 import { SupabaseProfileRepository } from './supabaseProfileRepository';
 import { SupabasePhotoRepository } from './supabasePhotoRepository';
 import { SupabaseReadRepository } from './supabaseReadRepository';
@@ -22,6 +23,7 @@ export const observabilityRepository = new SupabaseObservabilityRepository(supab
 export const itemRepository = new SupabaseItemRepository(supabase);
 export const movieCatalogRepository = new SupabaseMovieCatalogRepository(supabase);
 export const musicCatalogRepository = new SupabaseMusicCatalogRepository(supabase);
+export const bookCatalogRepository = new SupabaseBookCatalogRepository(supabase);
 export const pickRepository = new SupabasePickRepository(supabase);
 export const profileRepository = new SupabaseProfileRepository(supabase);
 export const photoRepository = new SupabasePhotoRepository(supabase);
@@ -38,6 +40,7 @@ export {
   SupabaseItemRepository,
   SupabaseMovieCatalogRepository,
   SupabaseMusicCatalogRepository,
+  SupabaseBookCatalogRepository,
   SupabaseProfileRepository,
   SupabaseReadRepository,
   SupabaseSafetyRepository,

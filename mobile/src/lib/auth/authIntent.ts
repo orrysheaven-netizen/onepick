@@ -8,6 +8,7 @@ export type AuthReturnParams = {
   pickId?: string | string[];
   externalId?: string | string[];
   externalMusicId?: string | string[];
+  externalBookId?: string | string[];
 };
 
 export type AuthIntent =
@@ -17,6 +18,7 @@ export type AuthIntent =
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
   | { action: 'choose_music'; externalMusicId: string; categoryId: string }
+  | { action: 'choose_book'; externalBookId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
   | { action: 'profile' }
@@ -39,6 +41,14 @@ function getExternalMusicId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
     ? value : null;
 }
+function getExternalBookId(value: string | string[] | undefined) {
+  if (typeof value !== 'string') return null;
+  const isbn = value.replace(/[-\s]/g, '');
+  if (!/^(?:978|979)\d{10}$/.test(isbn)) return null;
+  const sum = isbn.slice(0, 12).split('').reduce((total, digit, index) =>
+    total + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
+  return (10 - (sum % 10)) % 10 === Number(isbn[12]) ? isbn : null;
+}
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'register_pick') return {
@@ -59,6 +69,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalMusicId = getExternalMusicId(params.externalMusicId);
     if (externalMusicId) return { action: 'choose_music', externalMusicId, categoryId: params.categoryId };
   }
+  if (params.action === 'choose_book' && isId(params.categoryId)) {
+    const externalBookId = getExternalBookId(params.externalBookId);
+    if (externalBookId) return { action: 'choose_book', externalBookId, categoryId: params.categoryId };
+  }
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
@@ -73,6 +87,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
     case 'choose_music': return { pathname: '/pick/music', params: { categoryId: intent.categoryId, externalMusicId: intent.externalMusicId } };
+    case 'choose_book': return { pathname: '/pick/book', params: { categoryId: intent.categoryId, externalBookId: intent.externalBookId } };
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'profile': return '/profile';

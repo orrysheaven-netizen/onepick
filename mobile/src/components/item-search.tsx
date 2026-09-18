@@ -10,11 +10,12 @@ type ItemSearchProps = {
   onSearchMovie?: (query: string) => void;
   onSearchDrama?: (query: string) => void;
   onSearchMusic?: (query: string) => void;
+  onSearchBook?: (query: string) => void;
   onSelect: (itemId: string) => void;
 };
 
 type ExternalSearchAction = {
-  key: 'movie' | 'drama' | 'music';
+  key: 'movie' | 'drama' | 'music' | 'book';
   label: string;
   accessibilityLabel: string;
   run: () => void;
@@ -26,6 +27,7 @@ export function ItemSearch({
   onSearchMovie,
   onSearchDrama,
   onSearchMusic,
+  onSearchBook,
   onSelect,
 }: ItemSearchProps) {
   const [searchText, setSearchText] = useState('');
@@ -56,6 +58,14 @@ export function ItemSearch({
       label: '음악 DB에서 검색',
       accessibilityLabel: `${normalizedSearch} 음악 DB에서 검색`,
       run: () => onSearchMusic(normalizedSearch),
+    });
+  }
+  if (onSearchBook && normalizedSearch.length >= 1) {
+    externalActions.push({
+      key: 'book',
+      label: '책 DB에서 검색',
+      accessibilityLabel: `${normalizedSearch} 책 DB에서 검색`,
+      run: () => onSearchBook(normalizedSearch),
     });
   }
 
