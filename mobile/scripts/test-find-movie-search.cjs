@@ -70,6 +70,7 @@ const imports = {
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
+  '@/components/music-search-link': { MusicSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
