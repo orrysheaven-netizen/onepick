@@ -1,7 +1,10 @@
 import type { Database } from '@/lib/supabase/database.types';
 import type { Item, ItemStatus } from '@/types/domain/item';
 
-type ItemRow = Database['public']['Tables']['items']['Row'];
+type ItemRow = Database['public']['Tables']['items']['Row'] & {
+  creator_name?: string | null;
+  collection_name?: string | null;
+};
 
 export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbnailUrl: string | null = null): Item {
   const sourceImageUrl = row.image_source_url ?? null;
@@ -21,6 +24,8 @@ export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbna
     externalId: row.external_id,
     originalName: row.original_name,
     releaseYear: row.release_year,
+    creatorName: row.creator_name ?? null,
+    collectionName: row.collection_name ?? null,
     status: row.status as ItemStatus,
     mergedIntoItemId: row.merged_into_item_id,
     createdBy: row.created_by,

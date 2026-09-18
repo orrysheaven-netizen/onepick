@@ -33,6 +33,10 @@ export function formatItemName(name: string, variant: string) {
   return [name, variant].map((part) => part.trim().replace(/\s+/g, ' ')).filter(Boolean).join(' ');
 }
 
+function hasPhoto(item: Item) {
+  return Boolean(item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl);
+}
+
 export class RegistrationService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
@@ -76,7 +80,8 @@ export class RegistrationService {
     if (current.status !== 'active' && current.status !== 'discontinued') {
       throw new AppError('ITEM_NOT_ELIGIBLE');
     }
-    if (current.imagePath) return current;
+    // A catalog poster is an existing image, not an empty upload slot.
+    if (hasPhoto(current)) return current;
 
     await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
     const uploaded = await this.photoRepository.upload(input.userId, input.photo);
@@ -118,7 +123,7 @@ export class RegistrationService {
       if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
 
       let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
-      if (input.photo && !item.imagePath) {
+      if (input.photo && !hasPhoto(item)) {
         await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
         uploaded = await this.photoRepository.upload(input.userId, input.photo);
       }

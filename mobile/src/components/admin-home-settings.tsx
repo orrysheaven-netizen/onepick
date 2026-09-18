@@ -21,27 +21,27 @@ export function AdminHomeSettings({ userId }: { userId?: string }) {
     try {
       await mutation.mutateAsync(count);
       setDraft(null);
-      setMessage(`홈 노출 기준을 ${count}명 이상으로 저장했습니다.`);
+      setMessage(`구버전 상품 집계 기준을 ${count}명 이상으로 저장했습니다.`);
     } catch {
       setMessage('저장하지 못했습니다. 입력값을 유지했으니 다시 시도해주세요.');
     } finally { busy.current = false; }
   };
   return <View style={styles.card}>
-    <Text style={styles.heading}>홈 노출 설정</Text>
-    <Text style={styles.hint}>현재 원픽 선택자가 기준 이상인 제품을 최근 선택순으로 최대 20개 보여줍니다. 탐색 TOP 3에는 적용하지 않습니다.</Text>
-    {query.isPending ? <ActivityIndicator accessibilityLabel="홈 노출 설정 불러오는 중" /> : null}
+    <Text style={styles.heading}>구버전 상품 집계 설정</Text>
+    <Text style={styles.hint}>새 홈은 사람별 원픽을 보여주며 최소 선택 인원을 적용하지 않습니다. 아래 기준은 구버전 상품 모아보기와의 호환용으로만 유지합니다. 탐색 TOP 3에도 적용하지 않습니다.</Text>
+    {query.isPending ? <ActivityIndicator accessibilityLabel="구버전 상품 집계 설정 불러오는 중" /> : null}
     {query.isError ? <>
-      <Text accessibilityRole="alert" style={styles.message}>홈 노출 설정을 불러오지 못했습니다.</Text>
+      <Text accessibilityRole="alert" style={styles.message}>상품 집계 설정을 불러오지 못했습니다.</Text>
       <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={() => void query.refetch()} style={styles.button}><Text style={styles.buttonText}>설정 다시 불러오기</Text></Pressable>
     </> : null}
     {query.data !== undefined ? <>
-      <Text style={styles.label}>최소 선택 인원 · 현재 {query.data}명</Text>
-      <TextInput accessibilityLabel="홈 최소 선택 인원" keyboardType="number-pad" maxLength={6}
+      <Text style={styles.label}>구버전 최소 선택 인원 · 현재 {query.data}명</Text>
+      <TextInput accessibilityLabel="구버전 상품 집계 최소 선택 인원" keyboardType="number-pad" maxLength={6}
         value={draft ?? String(query.data)} editable={!mutation.isPending}
         onChangeText={(value) => { setDraft(value); setMessage(''); }} style={styles.input} />
       <Pressable accessibilityRole="button" disabled={mutation.isPending} onPress={() => void save()}
         style={[styles.button, mutation.isPending && styles.disabled]}>
-        <Text style={styles.buttonText}>{mutation.isPending ? '저장 중…' : '홈 노출 기준 저장'}</Text>
+        <Text style={styles.buttonText}>{mutation.isPending ? '저장 중…' : '구버전 집계 기준 저장'}</Text>
       </Pressable>
     </> : null}
     {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}

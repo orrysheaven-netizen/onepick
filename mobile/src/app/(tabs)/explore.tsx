@@ -24,17 +24,11 @@ export default function ExploreScreen() {
     if (!categories.isFetching) void categories.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
   };
-
-  const openItem = (itemId: string) => {
-    router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  };
+  const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor="#4945ED" />}>
         <View style={styles.titleRow}>
           <View><Text style={styles.eyebrow}>EXPLORE</Text><Text style={styles.title}>카테고리 탐색</Text></View>
@@ -47,25 +41,18 @@ export default function ExploreScreen() {
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 제품 검색'}</Text>
-          <ItemSearch
-            key={selectedCategoryId ?? 'all'}
-            compact
-            categoryId={selectedCategoryId}
+          <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId}
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
-              ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } })
-              : undefined}
-            onSelect={openItem}
-          />
+              ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+            onSelect={openItem} />
         </View> : null}
-
         <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
         {categories.isError ? <View style={styles.stateCard}><Text style={styles.stateText}>카테고리를 불러오지 못했어요.</Text><Pressable accessibilityRole="button" onPress={refresh}><Text style={styles.refreshText}>다시 불러오기</Text></Pressable></View> : null}
         <View style={styles.categoryGrid}>
           {groups.map(({ category, children, directlySelectable }) => <Pressable key={category.id}
             accessibilityRole="button" accessibilityLabel={`${category.name} 1차 카테고리`}
-            accessibilityState={{ selected: parentId === category.id }}
-            onPress={() => { setParentId(category.id); setChildId(undefined); }}
+            accessibilityState={{ selected: parentId === category.id }} onPress={() => { setParentId(category.id); setChildId(undefined); }}
             style={[styles.parentCard, parentId === category.id && styles.parentActive]}>
             <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{category.name}</Text>
             <Text style={styles.parentHint}>{directlySelectable ? '원픽 둘러보기' : children.length ? `${children.length}개 카테고리` : '준비 중'}</Text>
@@ -82,14 +69,12 @@ export default function ExploreScreen() {
           </Pressable>)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
-
         {selectedCategoryId ? <Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text> : null}
-
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategory?.name} 원픽 TOP 3</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="제품 순위 새로고침"
-              disabled={topItems.isFetching} onPress={() => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); }}
+            <Pressable accessibilityRole="button" accessibilityLabel="제품 순위 새로고침" disabled={topItems.isFetching}
+              onPress={() => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); }}
               style={({ pressed }) => [styles.refreshButton, (pressed || topItems.isFetching) && styles.pressed]}>
               <Text style={styles.refreshText}>{topItems.isFetching ? '불러오는 중…' : '새로고침'}</Text>
             </Pressable>
@@ -99,28 +84,28 @@ export default function ExploreScreen() {
           {topItems.isError ? <Text accessibilityRole="alert" style={styles.refreshError}>
             {topItems.data ? '순위를 갱신하지 못했어요. 마지막으로 불러온 순위예요.' : '제품 순위를 불러오지 못했어요. 새로고침으로 다시 시도해주세요.'}
           </Text> : null}
-          {topItems.data?.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
-            accessibilityLabel={`${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 제품 상세 보기`}
-            onPress={() => openItem(item.itemId)}
-            style={({ pressed }) => [styles.rankCard, item.rank === 1 && styles.rankCardFirst, pressed && styles.pressed]}>
+          {topItems.data?.map((item) => <View key={item.itemId} style={[styles.rankCard, item.rank === 1 && styles.rankCardFirst]}>
             <View style={styles.rankBadge}>
               {item.isTied ? <Text style={styles.rankTie}>공동</Text> : null}
               <Text style={styles.rankNumber}>{item.rank}</Text>
             </View>
-            <PickPhoto uri={item.thumbnailUrl} label={item.name} />
-            <View style={styles.rankCopy}>
-              <Text style={styles.rankName}>{item.name}</Text>
-              <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text>
-            </View>
-            <Text style={styles.arrow}>›</Text>
-          </Pressable>)}
+            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={`${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 제품 상세 보기`}
+              onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
+              <View style={styles.rankCopy}>
+                <Text style={styles.rankName}>{item.name}</Text>
+                <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </Pressable>
+          </View>)}
           {topItems.data?.length === 0 && !topItems.isError ? <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>아직 선택된 제품이 없어요</Text>
             <Text style={styles.emptyText}>첫 원픽이 등록되면 이곳에 제품이 표시돼요.</Text>
           </View> : null}
           {topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개 제품</Text> : null}
         </View> : null}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -161,6 +146,7 @@ const styles = StyleSheet.create({
   rankBadge: { width: 28, alignItems: 'center', marginRight: 10 },
   rankTie: { color: '#747985', fontSize: 10, fontWeight: '600' },
   rankNumber: { color: '#4945ED', fontSize: 25, fontWeight: '800' },
+  rankAction: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center' },
   rankCopy: { flex: 1, paddingLeft: 12 },
   rankName: { color: '#202124', fontSize: 15, lineHeight: 21, fontWeight: '800' },
   rankCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 8 },

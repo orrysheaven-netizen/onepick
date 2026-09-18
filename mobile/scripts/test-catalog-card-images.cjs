@@ -88,6 +88,7 @@ async function main() {
   let renderedImage;
   const part = (tag) => ({ children }) => React.createElement(tag, null, children);
   const { PickPhoto } = load('components/pick-photo.tsx', {
+    'expo-router': { useRouter: () => ({ push: () => assert.fail('No upload route for existing image') }) },
     'react-native': { View: part('div'), Text: part('span'), StyleSheet: { create: (styles) => styles },
       Image: (props) => { renderedImage = props; return React.createElement('img', { src: props.source.uri, alt: props.accessibilityLabel }); } },
   });

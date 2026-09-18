@@ -20,7 +20,7 @@ function load(file, imports = {}) {
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 let state = [], stateIndex = 0, refIndex = 0, refs = [], params = {}, destination, presses = [], inputs = [];
-let itemSearchArgs, movieSearchArgs;
+let itemSearchArgs, movieSearchArgs, mutationMediaType;
 const fakeReact = {
   ...React,
   useEffect: (effect) => { effect(); },
@@ -49,14 +49,17 @@ const movie = {
   source: 'tmdb', externalId: '157336', title: '인터스텔라', originalTitle: 'Interstellar',
   releaseYear: 2014, posterUrl: null, existingItemId: null,
 };
+const drama = { ...movie, source: 'tmdb_tv', externalId: '101', title: '테스트 드라마', originalTitle: 'Test Series', releaseYear: 2020 };
 const categories = [
   { id: 'ramen', slug: 'ramen', label: '먹을 것 › 라면' },
   { id: 'movie', slug: 'movie', label: '콘텐츠 › 영화' },
+  { id: 'drama', slug: 'drama', label: '콘텐츠 › 드라마' },
 ];
 const imports = {
   react: fakeReact,
   'expo-router': {
     useLocalSearchParams: () => params,
+    useFocusEffect: (effect) => { effect(); },
     useRouter: () => ({
       canGoBack: () => true, back() {},
       push: (route) => { destination = route; },
@@ -65,15 +68,17 @@ const imports = {
   },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
+  '@/errors/appError': load('errors/appError.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
+  '@/components/music-search-link': { MusicSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
     useMovieCatalogSearch: (...args) => {
       movieSearchArgs = args;
-      return { data: args[1] && args[0] ? [movie] : [], isWaiting: false, isFetching: false, isError: false };
+      return { data: args[1] && args[0] ? [args[2] === 'tv' ? drama : movie] : [], isWaiting: false, isFetching: false, isError: false };
     },
-    useImportMovieCatalogItem: () => ({ isPending: false, isError: false, mutateAsync: async () => ({}) }),
+    useImportMovieCatalogItem: (mediaType) => { mutationMediaType = mediaType; return { isPending: false, isError: false, mutateAsync: async () => ({}) }; },
   },
   '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: categories, isPending: false, isError: false, refetch() {} }) },
 };
@@ -99,7 +104,8 @@ assert.ok(movieInput);
 assert.equal(movieInput.editable, true);
 movieInput.onChangeText('인터스텔라');
 page = render();
-assert.deepEqual(movieSearchArgs, ['인터스텔라', true]);
+assert.deepEqual(movieSearchArgs, ['인터스텔라', true, 'movie'], 'The existing movie branch keeps its explicit media scope');
+assert.equal(mutationMediaType, 'movie');
 assert.match(page, /인터스텔라/);
 assert.match(page, /Interstellar/);
 
@@ -108,4 +114,16 @@ page = render();
 assert.match(page, /인터스텔라/);
 assert.equal(itemSearchArgs[0], '인터스텔라', 'Global search query is carried into the movie catalog screen');
 
-console.log('Find screen checks passed: category-first search, movie catalog activation and global-query handoff.');
+state = []; refs = []; params = { categoryId: 'drama', query: '테스트' };
+page = render();
+assert.deepEqual(movieSearchArgs, ['테스트', true, 'tv'], 'Drama queries use TV rather than movie IDs');
+assert.equal(mutationMediaType, 'tv');
+assert.equal(itemSearchArgs[1], 'drama');
+assert.match(page, /테스트 드라마/); assert.match(page, /2020/); assert.doesNotMatch(page, /Interstellar/);
+assert.ok(inputs.find((input) => input.accessibilityLabel === '원픽 드라마 검색'));
+presses.find((button) => button.accessibilityLabel === '테스트 드라마 드라마 선택').onPress();
+assert.equal(destination.params.action, 'choose_drama'); assert.equal(destination.params.externalId, '101');
+
+state = []; refs = []; params = { categoryId: 'ramen', query: '라면' };
+render(); assert.equal(movieSearchArgs[1], false, 'Ordinary products do not activate either external media search');
+console.log('Find screen checks passed: category-first search, explicit movie/TV activation and query/login handoff.');
