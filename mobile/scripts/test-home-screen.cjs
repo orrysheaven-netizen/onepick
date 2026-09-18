@@ -29,8 +29,8 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   hasNextPage: true, isFetchNextPageError: false, fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); pageCalls++; },
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
-    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5 },
-    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3 },
+    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
+    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
   ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
@@ -60,6 +60,7 @@ const press = (label) => {
 for (width of [390, 800, 1200]) {
   const page = render();
   assert.match(page, /현재 5명이 원픽으로 선택/); assert.match(page, /현재 3명이 원픽으로 선택/); assert.match(page, /MY PICK/);
+  assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
@@ -68,6 +69,7 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   press('과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
@@ -127,4 +129,4 @@ assert.match(render(), /사람들의 선택이 모이면/);
 assert.match(render(), /5명 이상/);
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: qualified product cards, selection counts, product/profile routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: product counts, latest picker context, product/profile routes, empty states, refresh recovery and session privacy.');

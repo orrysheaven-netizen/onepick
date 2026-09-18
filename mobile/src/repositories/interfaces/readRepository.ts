@@ -43,6 +43,9 @@ export interface HomeShowcaseItem {
   categoryName: string;
   thumbnailUrl: string | null;
   pickCount: number;
+  latestPickId: string | null;
+  latestPickerUsername: string | null;
+  latestPickReview: string | null;
 }
 
 export interface HomeShowcase {

@@ -27,6 +27,9 @@ type HomeShowcaseItemRow = {
   thumbnail_path: string | null;
   pick_count: number;
   last_picked_at: string;
+  latest_pick_id: string | null;
+  latest_picker_username: string | null;
+  latest_pick_review: string | null;
 };
 
 type Related<T> = T | T[] | null;
@@ -87,6 +90,9 @@ export class SupabaseReadRepository implements ReadRepository {
           categoryId: row.category_id, categoryName: row.category_name,
           thumbnailUrl: photo ? this.client.storage.from('item-photos').getPublicUrl(photo).data.publicUrl : null,
           pickCount: row.pick_count,
+          latestPickId: row.latest_pick_id,
+          latestPickerUsername: row.latest_picker_username,
+          latestPickReview: row.latest_pick_review,
         };
       }),
     };

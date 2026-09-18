@@ -20,7 +20,10 @@ const current = [
   { pick: { id: 'p1', categoryId: 'picked', itemId: 'one', userId: 'me', status: 'active' }, category: categories[0], item: { id: 'one' }, profile: null },
   { pick: { id: 'p2', categoryId: 'review', itemId: 'missing', userId: 'me', status: 'needs_review' }, category: categories[1], item: null, profile: null },
 ];
-const showcase = { minimumPickCount: 3, items: [{ itemId: 'qualified', name: '선택이 모인 제품', categoryId: 'new', categoryName: '새 카테고리', pickCount: 3, thumbnailUrl: null }] };
+const showcase = { minimumPickCount: 3, items: [{
+  itemId: 'qualified', name: '선택이 모인 제품', categoryId: 'new', categoryName: '새 카테고리',
+  pickCount: 3, thumbnailUrl: null, latestPickId: 'latest-pick', latestPickerUsername: 'friend', latestPickReview: '친구의 이유',
+}] };
 let calls = [];
 const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
@@ -37,6 +40,7 @@ async function main() {
   assert.equal(home.categoriesToPick[0].category.id, 'new');
   assert.equal(home.minimumPickCount, 3);
   assert.equal(home.featuredItems[0].itemId, 'qualified');
+  assert.equal(home.featuredItems[0].latestPickerUsername, 'friend');
   assert.equal(calls.filter(([kind]) => kind === 'showcase').length, 1, 'Use one aggregate, not per-product count requests');
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
   calls = [];

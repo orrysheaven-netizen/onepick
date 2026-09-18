@@ -12,21 +12,38 @@ import { useHomeData } from '@/hooks/useHomeData';
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type FeaturedItem = HomeData['featuredItems'][number];
 
-function ProductCard({ item, mine, onOpen }: { item: FeaturedItem; mine?: boolean; onOpen: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
-    style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-    <View style={styles.cardTop}>
-      <Text style={styles.cardCategory}>{item.categoryName}</Text>
-      {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
-    </View>
-    <View style={styles.cardBody}>
-      <PickPhoto uri={item.thumbnailUrl} label={item.name} />
-      <View style={styles.cardCopy}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>
+function ProductCard({ item, mine, onOpen, onProfile }: {
+  item: FeaturedItem;
+  mine?: boolean;
+  onOpen: () => void;
+  onProfile?: () => void;
+}) {
+  return <View style={styles.card}>
+    <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
+      style={({ pressed }) => [styles.productAction, pressed && styles.pressed]}>
+      <View style={styles.cardTop}>
+        <Text style={styles.cardCategory}>{item.categoryName}</Text>
+        {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
       </View>
-    </View>
-  </Pressable>;
+      <View style={styles.cardBody}>
+        <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+        <View style={styles.cardCopy}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>
+        </View>
+      </View>
+    </Pressable>
+    {item.latestPickerUsername ? <Pressable accessibilityRole="button"
+      accessibilityLabel={`@${item.latestPickerUsername} 프로필 보기`} onPress={onProfile}
+      style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}>
+      <View style={styles.pickerAvatar}><Text style={styles.pickerInitial}>{item.latestPickerUsername.slice(0, 1).toUpperCase()}</Text></View>
+      <View style={styles.pickerCopy}>
+        <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
+        {item.latestPickReview ? <Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text> : null}
+      </View>
+      <Text style={styles.profileArrow}>›</Text>
+    </Pressable> : null}
+  </View>;
 }
 
 function SectionTitle({ title, count, description }: { title: string; count?: number; description?: string }) {
@@ -59,7 +76,8 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.itemId}
         renderItem={({ item }) => <View style={styles.productCell}>
           <ProductCard item={item} mine={Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === item.itemId && pick.status === 'active'))}
-            onOpen={() => openItem(item.itemId)} />
+            onOpen={() => openItem(item.itemId)}
+            onProfile={item.latestPickerUsername ? () => router.push({ pathname: '/u/[username]', params: { username: item.latestPickerUsername! } }) : undefined} />
         </View>}
         onEndReached={() => {
           if (ready && homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
@@ -85,12 +103,12 @@ export default function HomeScreen() {
           <View style={styles.introCopy}>
             <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
             <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
-            <Text style={styles.introDescription}>여러 사람의 선택이 모인 제품을 만나보세요.</Text>
+            <Text style={styles.introDescription}>사람들이 고른 제품과 그 선택의 이유를 함께 만나보세요.</Text>
           </View>
         </View>
 
         <View style={styles.sectionHeader}>
-          <SectionTitle title="선택이 모인 제품" description={data ? `${data.minimumPickCount}명 이상이 선택한 제품 · 최근 선택순` : undefined} />
+          <SectionTitle title="사람들의 원픽" description={data ? `${data.minimumPickCount}명 이상이 선택한 제품 · 최근 선택순` : undefined} />
         </View>
 
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
@@ -178,7 +196,8 @@ const styles = StyleSheet.create({
   endText: { color: OnePick.muted, textAlign: 'center', paddingVertical: 24, fontSize: 12 },
   moreButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 10 },
   profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },
-  card: { flex: 1, padding: 16, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },
+  card: { flex: 1, overflow: 'hidden', backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },
+  productAction: { padding: 16 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
   cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   cardCopy: { flex: 1, minWidth: 0 },
@@ -187,6 +206,13 @@ const styles = StyleSheet.create({
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
   itemName: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '700', letterSpacing: -0.5 },
   pickCount: { color: OnePick.accent, fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
+  pickerRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
+  pickerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  pickerInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
+  pickerCopy: { flex: 1, minWidth: 0 },
+  pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
   arrow: { color: OnePick.accent, fontSize: 20 },
   welcomeCard: { padding: 20, marginTop: 20, borderRadius: 20, backgroundColor: OnePick.accentSoft },
