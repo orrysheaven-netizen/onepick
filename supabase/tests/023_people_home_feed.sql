@@ -22,10 +22,12 @@ begin
     select id,'authenticated','authenticated',now(),now() from unnest(users) id;
   insert into public.profiles(id,username,onboarding_completed)
     select id,'feed_'||substr(replace(id::text,'-',''),1,12),true from unnest(users) id;
+  -- Register legal Picks first, then simulate categories being hidden later.
+  -- The existing category-write guard must not be disabled to manufacture fixtures.
   insert into public.categories(id,name,slug,status,is_visible,is_pickable) values
     (cat,'People feed','feed-'||cat,'open',true,true),
-    (hidden_cat,'Hidden feed','feed-'||hidden_cat,'open',false,true),
-    (parent_cat,'Hidden parent','feed-'||parent_cat,'open',false,false);
+    (hidden_cat,'Hidden feed','feed-'||hidden_cat,'open',true,true),
+    (parent_cat,'Hidden parent','feed-'||parent_cat,'open',true,false);
   insert into public.categories(id,name,slug,status,is_visible,is_pickable,parent_id)
     values(child_cat,'Child of hidden parent','feed-'||child_cat,'open',true,true,parent_cat);
   insert into public.items(id,category_id,name,normalized_name,status,image_source_url) values
@@ -41,6 +43,7 @@ begin
     (pick_ids[24],users[24],cat,hidden_product,'Hidden item review','active',stamp+interval '1 second'),
     (pick_ids[25],users[25],hidden_cat,closed_product,'Hidden category review','active',stamp+interval '1 second'),
     (pick_ids[26],users[26],child_cat,child_product,'Hidden parent review','active',stamp+interval '1 second');
+  update public.categories set is_visible=false where id in (hidden_cat,parent_cat);
   select array_agg(id order by id desc) into expected from unnest(pick_ids[1:22]) id;
   update public.home_settings set minimum_pick_count=100000 where id;
   perform set_config('request.jwt.claim.sub','',true);
