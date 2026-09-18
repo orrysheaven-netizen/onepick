@@ -124,7 +124,7 @@ async function main() {
   presses[0]();
   assert.equal(selected, 'item-1');
 
-  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery;
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, youtubeQuery;
   const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
@@ -143,6 +143,7 @@ async function main() {
     onSearchDrama: (value) => { dramaQuery = value; },
     onSearchMusic: (value) => { musicQuery = value; },
     onSearchGame: (value) => { gameQuery = value; },
+    onSearchYouTube: (value) => { youtubeQuery = value; },
   };
   let catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, catalogProps));
   assert.match(catalogPage, /OnePick에 아직 등록된 항목이 없어요/);
@@ -150,11 +151,13 @@ async function main() {
   assert.match(catalogPage, /드라마 DB에서 검색/);
   assert.match(catalogPage, /음악 DB에서 검색/);
   assert.match(catalogPage, /게임 DB에서 검색/);
+  assert.match(catalogPage, /YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
   assert.equal(movieQuery, undefined, 'Global search must not guess a provider on Enter');
   assert.equal(dramaQuery, undefined);
   assert.equal(musicQuery, undefined);
   assert.equal(gameQuery, undefined);
+  assert.equal(youtubeQuery, undefined);
   externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 영화 DB에서 검색').onPress();
   assert.equal(movieQuery, '인터스텔라');
 
@@ -165,7 +168,7 @@ async function main() {
     onSearchMovie: (value) => { movieQuery = value; },
   }));
   assert.match(catalogPage, /영화 DB에서 검색/);
-  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색|게임 DB에서 검색/);
+  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색|게임 DB에서 검색|YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
   assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
 
