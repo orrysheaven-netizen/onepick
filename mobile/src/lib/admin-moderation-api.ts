@@ -1,14 +1,4 @@
-type StorageLike = {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
-};
-
-type AdminSession = {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-};
+import { supabase } from '@/lib/supabase/client';
 
 export type UserModerationStatus = 'active' | 'suspended';
 
@@ -32,7 +22,6 @@ export type UserModeration = {
   is_admin: boolean;
 };
 
-const SESSION_KEY = 'onepick.admin.session';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -43,49 +32,15 @@ function config() {
   return { supabaseUrl, publishableKey };
 }
 
-function storage(): StorageLike | null {
-  return (globalThis as unknown as { localStorage?: StorageLike }).localStorage ?? null;
-}
-
-function readSession(): AdminSession | null {
-  const raw = storage()?.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AdminSession;
-  } catch {
-    storage()?.removeItem(SESSION_KEY);
-    return null;
-  }
-}
-
-function saveSession(payload: { access_token: string; refresh_token: string; expires_in: number }) {
-  const session: AdminSession = {
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token,
-    expiresAt: Date.now() + payload.expires_in * 1000,
-  };
-  storage()?.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
-}
-
+// Reuses the shared `supabase` client's session (see admin-api.ts), the same
+// session admin-security.tsx steps up to AAL2. This used to keep its own OAuth
+// tokens in a separate localStorage key that nothing ever populated, so every
+// call here failed immediately with "로그인이 필요합니다." regardless of the
+// admin's real session state.
 async function accessToken() {
-  let session = readSession();
-  if (!session) throw new Error('관리자 로그인이 필요합니다.');
-  if (session.expiresAt > Date.now() + 60_000) return session.accessToken;
-
-  const current = config();
-  const response = await fetch(`${current.supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST',
-    headers: {
-      apikey: current.publishableKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ refresh_token: session.refreshToken }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error('관리자 세션을 갱신하지 못했습니다.');
-  session = saveSession(data as { access_token: string; refresh_token: string; expires_in: number });
-  return session.accessToken;
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw new Error('관리자 로그인이 필요합니다.');
+  return data.session.access_token;
 }
 
 async function adminRpc<T>(name: string, body: Record<string, unknown>): Promise<T> {

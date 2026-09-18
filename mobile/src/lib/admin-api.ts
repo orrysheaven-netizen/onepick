@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { canonicalItemName } from '@/lib/items/itemIdentity';
 
 type BrowserLocationLike = {
   origin: string;
@@ -27,6 +28,7 @@ export type AdminDashboardMetrics = {
 
 export type AdminCategory = {
   id: string;
+  parent_id: string | null;
   name: string;
   slug: string;
   status: 'draft' | 'open' | 'paused' | 'closed';
@@ -35,6 +37,17 @@ export type AdminCategory = {
   sort_order: number;
   ranking_min_sample: number;
   image_url: string | null;
+};
+
+export type AdminBrand = {
+  id: string;
+  name: string;
+  normalized_name: string;
+  slug: string | null;
+  logo_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AdminItemStatus = 'pending' | 'active' | 'discontinued' | 'hidden' | 'merged' | 'rejected';
@@ -86,19 +99,20 @@ export type AdminReport = {
   resolved_at: string | null;
 };
 
-export type AdminUser = {
-  id: string;
-  username: string;
-  onboarding_completed: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
 export type AdminAuditLog = {
   id: string;
   entity_type: string;
   action: string;
   summary: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AdminClientErrorEvent = {
+  id: string;
+  context: string;
+  error_code: string;
+  platform: string | null;
+  app_version: string | null;
   created_at: string;
 };
 
@@ -238,12 +252,16 @@ export function getDashboardMetrics() {
   });
 }
 
-export function getAuditLogs(limit = 8) {
-  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?select=id,entity_type,action,summary,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 100)}`);
+export function getAuditLogs(limit = 8, offset = 0) {
+  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?select=id,entity_type,action,summary,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 100)}&offset=${offset}`);
+}
+
+export function getClientErrorEvents(limit = 30) {
+  return adminRequest<AdminClientErrorEvent[]>(`/rest/v1/client_error_events?select=id,context,error_code,platform,app_version,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 200)}`);
 }
 
 export function getCategories() {
-  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
+  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
 }
 
 export function createCategory(input: { name: string; slug: string }) {
@@ -269,16 +287,61 @@ export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'n
   });
 }
 
-export function getItems(input: { query?: string; status?: AdminItemStatus | 'all' } = {}) {
+export function getBrands() {
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at&order=name.asc');
+}
+
+export function createBrand(input: { name: string; slug?: string | null }) {
+  const name = input.name.trim();
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      name,
+      normalized_name: name.toLowerCase().replace(/\s+/g, ''),
+      slug: input.slug?.trim().toLowerCase() || null,
+      is_active: true,
+    }),
+  });
+}
+
+export function updateBrand(id: string, patch: { is_active?: boolean }) {
+  return adminRequest<AdminBrand[]>(`/rest/v1/brands?id=eq.${encodeURIComponent(id)}&select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(patch),
+  });
+}
+
+export const ADMIN_PAGE_SIZE = 100;
+
+export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
   const params = new URLSearchParams({
     select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
     order: 'updated_at.desc',
-    limit: '100',
+    limit: String(ADMIN_PAGE_SIZE),
+    offset: String(input.offset ?? 0),
   });
   const query = input.query?.trim();
   if (query) params.set('name', `ilike.*${query}*`);
   if (input.status && input.status !== 'all') params.set('status', `eq.${input.status}`);
   return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
+}
+
+export function createItem(input: { categoryId: string; categorySlug: string; name: string; brandId?: string | null; officialUrl?: string | null }) {
+  const name = canonicalItemName(input.name.trim(), input.categorySlug);
+  return adminRequest<AdminItem[]>('/rest/v1/items?select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      category_id: input.categoryId,
+      brand_id: input.brandId ?? null,
+      name,
+      normalized_name: name.toLowerCase().replace(/\s+/g, ''),
+      official_url: input.officialUrl?.trim() || null,
+      status: 'active',
+    }),
+  });
 }
 
 export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' | 'model_code' | 'official_url'>>) {
@@ -316,8 +379,8 @@ export function deleteItemAlias(id: string) {
   });
 }
 
-export function getPendingItems() {
-  return adminRequest<PendingItem[]>('/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc&limit=100');
+export function getPendingItems(offset = 0) {
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function updatePendingItem(id: string, status: 'active' | 'rejected') {
@@ -348,11 +411,12 @@ export function mergePendingItem(sourceItemId: string, targetItemId: string) {
   });
 }
 
-export function getReports(status: AdminReportStatus | 'all' = 'all') {
+export function getReports(status: AdminReportStatus | 'all' = 'all', offset = 0) {
   const params = new URLSearchParams({
     select: 'id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at',
     order: 'created_at.desc',
-    limit: '100',
+    limit: String(ADMIN_PAGE_SIZE),
+    offset: String(offset),
   });
   if (status !== 'all') params.set('status', `eq.${status}`);
   return adminRequest<AdminReport[]>(`/rest/v1/content_reports?${params.toString()}`);
@@ -366,13 +430,3 @@ export function updateReportStatus(id: string, status: AdminReportStatus) {
   });
 }
 
-export function getUsers(query = '') {
-  const params = new URLSearchParams({
-    select: 'id,username,onboarding_completed,created_at,updated_at',
-    order: 'created_at.desc',
-    limit: '100',
-  });
-  const keyword = query.trim();
-  if (keyword) params.set('username', `ilike.*${keyword}*`);
-  return adminRequest<AdminUser[]>(`/rest/v1/profiles?${params.toString()}`);
-}

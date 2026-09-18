@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminItem, PendingItem } from '@/lib/admin-api';
 
 export default function AdminPendingScreen() {
@@ -10,6 +10,8 @@ export default function AdminPendingScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -24,11 +26,27 @@ export default function AdminPendingScreen() {
     try {
       const result = await getPendingItems();
       setItems(result);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '검수 대기 상품을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const result = await getPendingItems(items.length);
+      setItems((current) => [...current, ...result]);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '검수 대기 상품을 더 불러오지 못했습니다.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -59,6 +77,7 @@ export default function AdminPendingScreen() {
 
   const process = async (status: 'active' | 'rejected') => {
     if (!selected || processing) return;
+    if (status === 'rejected' && !window.confirm(`${selected.name} 상품을 반려하시겠습니까?`)) return;
     setProcessing(true);
     setError('');
     setMessage('');
@@ -88,6 +107,7 @@ export default function AdminPendingScreen() {
 
   const mergeInto = async (target: AdminItem) => {
     if (!selected || mergingId) return;
+    if (!window.confirm(`${selected.name} 상품을 ${target.name}에 병합하시겠습니까? 병합은 되돌릴 수 없습니다.`)) return;
     setMergingId(target.id);
     setError('');
     setMessage('');
@@ -148,6 +168,11 @@ export default function AdminPendingScreen() {
               <Text style={styles.pendingBadge}>pending</Text>
             </Pressable>
           ))}
+          {hasMore && (
+            <Pressable disabled={loadingMore} onPress={loadMore} style={[adminStyles.secondaryButton, styles.loadMore]}>
+              <Text style={adminStyles.secondaryButtonText}>{loadingMore ? '불러오는 중' : '더 보기'}</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={[adminStyles.card, styles.detailPanel]}>
@@ -240,6 +265,7 @@ const styles = StyleSheet.create({
   detailPanel: { flexGrow: 1, flexBasis: 390, minWidth: 300 },
   panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 26 },
+  loadMore: { marginTop: 12, alignSelf: 'center' },
   itemRow: { minHeight: 68, borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingVertical: 13, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 8 },
   itemRowSelected: { backgroundColor: '#F7F7F8' },
   itemBody: { flex: 1, minWidth: 0 },

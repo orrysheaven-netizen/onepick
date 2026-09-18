@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { getReports, updateReportStatus } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, getReports, updateReportStatus } from '@/lib/admin-api';
 import { getUserModeration, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { AdminReport, AdminReportStatus } from '@/lib/admin-api';
 import type { UserModeration } from '@/lib/admin-moderation-api';
@@ -22,6 +22,8 @@ export default function AdminReportsScreen() {
   const [moderation, setModeration] = useState<UserModeration | null>(null);
   const [suspensionReason, setSuspensionReason] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [moderationLoading, setModerationLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -33,11 +35,27 @@ export default function AdminReportsScreen() {
     try {
       const result = await getReports(next);
       setReports(result);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((report) => report.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '신고 목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const result = await getReports(filter, reports.length);
+      setReports((current) => [...current, ...result]);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '신고 목록을 더 불러오지 못했습니다.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -89,6 +107,7 @@ export default function AdminReportsScreen() {
       setError('정지 사유를 입력해 주세요.');
       return;
     }
+    if (suspended && !window.confirm('신고 대상 사용자를 정지하시겠습니까?')) return;
     setProcessing(true);
     setError('');
     setMessage('');
@@ -138,6 +157,11 @@ export default function AdminReportsScreen() {
               <Text style={styles.status}>{statusLabel(report.status)}</Text>
             </Pressable>
           ))}
+          {hasMore && (
+            <Pressable disabled={loadingMore} onPress={loadMore} style={[adminStyles.secondaryButton, styles.loadMore]}>
+              <Text style={adminStyles.secondaryButtonText}>{loadingMore ? '불러오는 중' : '더 보기'}</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={[adminStyles.card, styles.detailPanel]}>
@@ -249,6 +273,7 @@ const styles = StyleSheet.create({
   detailPanel: { flexGrow: 1, flexBasis: 380, minWidth: 300 },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
+  loadMore: { marginTop: 12, alignSelf: 'center' },
   reportRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#F0F1F3', borderRadius: 8 },
   reportRowSelected: { backgroundColor: '#F7F7F8' },
   reportBody: { flex: 1, minWidth: 0 },

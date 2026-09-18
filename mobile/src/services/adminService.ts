@@ -62,51 +62,6 @@ export class AdminService {
     }
   }
 
-  async getDashboard() {
-    await this.assertAdmin();
-    const [categories, brands, items, pending, aliases] = await Promise.all([
-      this.adminRepository.getCategories(),
-      this.adminRepository.getBrands(),
-      this.adminRepository.getItems(500),
-      this.adminRepository.getPendingItems(),
-      this.adminRepository.getItemAliases(2000),
-    ]);
-
-    const profiles = await this.profileRepository.getByIds(
-      pending.flatMap((item) => item.createdBy ? [item.createdBy] : []),
-    );
-    const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
-    const submitters = pending.map((item) => ({
-      item,
-      submitter: item.createdBy ? profilesById.get(item.createdBy) ?? null : null,
-    }));
-
-    return { categories, brands, items, aliases, pending: submitters };
-  }
-
-  async getOperationsOverview() {
-    await this.assertAdmin();
-    const [metrics, auditLogs, errorEvents] = await Promise.all([
-      this.adminRepository.getOperationsMetrics(),
-      this.adminRepository.getAuditLogs(80),
-      this.adminRepository.getClientErrorEvents(80),
-    ]);
-
-    const errorCounts = new Map<string, number>();
-    for (const event of errorEvents) {
-      errorCounts.set(event.errorCode, (errorCounts.get(event.errorCode) ?? 0) + 1);
-    }
-
-    return {
-      metrics,
-      auditLogs,
-      errorEvents,
-      errorSummary: [...errorCounts.entries()]
-        .map(([code, count]) => ({ code, count }))
-        .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
-    };
-  }
-
   async createCategory(input: AdminCategoryInput) {
     await this.assertAdmin();
     const name = cleanName(input.name, 60);

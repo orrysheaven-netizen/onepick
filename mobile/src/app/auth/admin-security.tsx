@@ -77,7 +77,7 @@ function SecurityForm({ userId }: { userId: string }) {
     </View> : status.elevated ? <View style={styles.card}>
       <Text style={styles.heading}>추가 인증이 완료됐습니다.</Text>
       <Text style={styles.text}>이번 로그인에서 추가 인증을 확인했습니다.</Text>
-      {button('관리자 화면으로', async () => { await client.invalidateQueries({ queryKey: ['admin'] }); router.replace('/admin'); })}
+      {button('관리자 화면으로', async () => { await client.invalidateQueries({ queryKey: ['admin'] }); router.replace('/admin/dashboard'); })}
     </View> : <View style={styles.card}>
       {enrollment ? <>
         <Text style={styles.heading}>1. 인증 앱에 OnePick 추가</Text>
@@ -107,7 +107,7 @@ function SecurityForm({ userId }: { userId: string }) {
       </> : null}
     </View>}
     <View style={styles.card}><Text style={styles.heading}>인증 기기를 잃어버렸나요?</Text><Text style={styles.text}>인증 앱의 백업을 먼저 확인해주세요. 복원이 안 되면 서비스 운영자가 본인 확인 후 인증 등록을 초기화해야 합니다. 자동 복구나 복구 코드 발급은 아직 지원하지 않습니다.</Text><Text style={styles.text}>인증 앱을 삭제하거나 휴대폰을 바꾸기 전에 백업·복원 방법을 확인해주세요.</Text></View>
-    <Pressable disabled={busy} onPress={() => router.replace('/admin')}><Text style={styles.link}>관리자 화면으로 돌아가기</Text></Pressable>
+    <Pressable disabled={busy} onPress={() => router.replace('/admin/dashboard')}><Text style={styles.link}>관리자 화면으로 돌아가기</Text></Pressable>
   </ScrollView>;
 }
 

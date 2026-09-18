@@ -66,6 +66,7 @@ export default function AdminUsersScreen() {
       setError('정지 사유를 입력해 주세요.');
       return;
     }
+    if (suspended && !window.confirm(`@${selected.username} 계정을 정지하시겠습니까?`)) return;
     setProcessing(true);
     setError('');
     setMessage('');
@@ -157,6 +158,7 @@ export default function AdminUsersScreen() {
               <StatusBadge suspended={user.moderation_status === 'suspended'} />
             </Pressable>
           ))}
+          {users.length >= 100 && <Text style={styles.cap}>결과가 100건으로 제한되어 있습니다. username 검색으로 좁혀 주세요.</Text>}
         </View>
 
         <View style={[adminStyles.card, styles.detailPanel]}>
@@ -244,6 +246,7 @@ const styles = StyleSheet.create({
   detailPanel: { flexGrow: 1, flexBasis: 380, minWidth: 300 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
+  cap: { marginTop: 12, color: '#9CA3AF', fontSize: 11, lineHeight: 17 },
   userRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#F0F1F3', borderRadius: 8 },
   userRowSelected: { backgroundColor: '#F7F7F8' },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
