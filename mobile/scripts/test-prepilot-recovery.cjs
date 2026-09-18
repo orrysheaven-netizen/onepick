@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
+const { QueryClient } = require('@tanstack/react-query');
 
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
 function load(file, imports) {
@@ -87,7 +88,7 @@ function choice() {
   const result = { id: 'saved-pick', itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' };
   const writes = [], pending = [], destinations = [];
   // Deliberately do not flip isPending synchronously: React has not rendered the
-// mutation's pending state when two taps arrive in the same frame.
+  // mutation's pending state when two taps arrive in the same frame.
   const mutation = { isPending: false, isError: false, error: null,
     mutateAsync: (payload) => { writes.push(payload); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
   const router = { canGoBack: () => false, back: () => destinations.push('BACK'), replace: (route) => destinations.push(route), push: (route) => destinations.push(route) };
@@ -162,11 +163,22 @@ async function main() {
     });
     const options = ['first', 'second', undefined].map((viewer) => usePickComments('pick', viewer));
     assert.equal(new Set(options.map((o) => JSON.stringify(o.queryKey))).size, 3, 'Do not share comment visibility between accounts');
-    for (const option of options) assert.equal(JSON.stringify(option.queryKey.slice(0, 3)), JSON.stringify(queryKeys.comments.byPick('pick')));
+    // Preserve the complete existing prefix, including its pagination marker.
+    const prefix = queryKeys.comments.byPick('pick');
+    for (const option of options) assert.equal(JSON.stringify(option.queryKey.slice(0, prefix.length)), JSON.stringify(prefix));
     const row = (id) => ({ comment: { id }, author: null });
     const selected = options[0].select({ pages: [{ items: [row('a'), row('b')] }, { items: [row('b'), row('c')] }] });
     assert.equal(selected.map((entry) => entry.comment.id).join(','), 'a,b,c');
     assert.equal(usePickComments(undefined, 'first').enabled, false);
+    const cache = new QueryClient();
+    try {
+      for (const option of options) cache.setQueryData(option.queryKey, { previous: true });
+      const unrelated = usePickComments('another-pick', 'first').queryKey;
+      cache.setQueryData(unrelated, { previous: true });
+      await cache.invalidateQueries({ queryKey: prefix });
+      for (const option of options) assert.equal(cache.getQueryState(option.queryKey).isInvalidated, true, 'Existing write invalidation must refresh every viewer of this Pick');
+      assert.equal(cache.getQueryState(unrelated).isInvalidated, false, 'Do not invalidate another Pick by accident');
+    } finally { cache.clear(); }
   });
   await check('Comment loading and failed-session states do not expose cached replies or allow posting', async () => {
     const c = replies(); c.view.render({ pickId: 'pick' });
