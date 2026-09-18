@@ -109,11 +109,14 @@ async function main() {
   assert.equal(mapped.slug,'pikachu');
 
   assert.equal(searchSpeciesIndex(index,'피카츄')[0].externalId,'25');
+  assert.equal(searchSpeciesIndex(index,'피캬츄')[0].externalId,'25','one Korean syllable typo should still find Pikachu');
   assert.equal(searchSpeciesIndex(index,'Pikachu')[0].name,'피카츄');
+  assert.equal(searchSpeciesIndex(index,'Pikchu')[0].externalId,'25','one English deletion typo should still find Pikachu');
   assert.equal(searchSpeciesIndex(index,'pika')[0].externalId,'25');
   assert.equal(searchSpeciesIndex(index,'#25')[0].englishName,'Pikachu');
   assert.equal(searchSpeciesIndex(index,'26')[0].name,'라이츄');
   assert.equal(searchSpeciesIndex(index,'없는포켓몬').length,0);
+  assert.equal(searchSpeciesIndex(index,'피').length,0,'one-character fuzzy search stays disabled');
 
   const s=setup();
   const search=await (await s.request('search',{},false)).json();
