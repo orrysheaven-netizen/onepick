@@ -48,10 +48,10 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>정책 및 개인정보 안내</Text>
-          <Text style={styles.body}>YouTube API 사용 안내와 OnePick 약관 초안은 언제든 확인할 수 있습니다.</Text>
+          <Text style={styles.body}>YouTube API 사용 안내와 이용조건은 언제든 확인할 수 있습니다.</Text>
           <View style={styles.actionRow}>
             <Pressable onPress={() => router.push('/legal/privacy')} style={styles.smallButton}><Text style={styles.smallButtonText}>개인정보·YouTube API 안내</Text></Pressable>
-            <Pressable onPress={() => router.push('/legal/terms')} style={styles.smallButton}><Text style={styles.smallButtonText}>이용약관 초안</Text></Pressable>
+            <Pressable onPress={() => router.push('/legal/terms')} style={styles.smallButton}><Text style={styles.smallButtonText}>YouTube API 이용조건</Text></Pressable>
           </View>
         </View>
 
