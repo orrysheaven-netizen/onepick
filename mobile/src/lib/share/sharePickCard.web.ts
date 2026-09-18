@@ -1,7 +1,7 @@
 import { createPickShareUrl } from './shareLinks';
 import type { SharePickInput } from './sharePick';
 
-export type SharePickCardResult = 'shared' | 'downloaded';
+export type SharePickCardResult = 'shared' | 'downloaded' | 'unsupported';
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
@@ -171,6 +171,7 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
           files: [file],
           title: `${item} · OnePick`,
           text: `@${username}의 ${category} 원픽`,
+          url: shareUrl,
         });
         return 'shared';
       }
