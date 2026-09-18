@@ -1,0 +1,49 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+
+function load(file, imports = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, {
+    exports,
+    require: (name) => {
+      if (name in imports) return imports[name];
+      if (name === 'react') return React;
+      if (name === 'react/jsx-runtime') return require(name);
+      assert.fail(name);
+    },
+  });
+  return exports;
+}
+
+const component = (tag) => (props) => React.createElement(tag, props, props.children);
+const { PickPhoto } = load('components/pick-photo.tsx', {
+  'react-native': {
+    View: component('div'),
+    Text: component('span'),
+    Image: ({ source, accessibilityLabel }) => React.createElement('img', { src: source.uri, alt: accessibilityLabel }),
+    StyleSheet: { create: (styles) => styles },
+  },
+});
+
+const missing = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '신라면' }));
+assert.match(missing, /신라면/);
+assert.match(missing, />신</);
+assert.match(missing, /사진 준비 중/);
+assert.doesNotMatch(missing, /사진 없음/);
+
+const remote = renderToStaticMarkup(React.createElement(PickPhoto, { uri: 'https://example.test/ramen.jpg', label: '신라면' }));
+assert.match(remote, /https:\/\/example\.test\/ramen\.jpg/);
+assert.doesNotMatch(remote, /사진 준비 중/);
+
+const large = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '센과 치히로의 행방불명', large: true }));
+assert.match(large, /센과 치히로의 행방불명/);
+assert.match(large, /사진 준비 중/);
+
+console.log('PickPhoto checks passed: real images stay intact and missing images use intentional product placeholders.');
