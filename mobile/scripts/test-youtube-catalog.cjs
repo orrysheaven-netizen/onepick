@@ -236,8 +236,14 @@ async function main() {
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/youtube-catalog/index.ts'),'utf8');
   assert.match(indexSource,/YOUTUBE_API_KEY/);
+  assert.match(indexSource,/provider: 'youtube_diag'/);
+  assert.match(indexSource,/stage: 'youtube'/);
+  assert.match(indexSource,/stage: 'config'/);
   assert.doesNotMatch(indexSource,/EXPO_PUBLIC_YOUTUBE/);
   assert.doesNotMatch(indexSource,/statistics/);
+
+  const termsSource=fs.readFileSync(path.join(root,'mobile/src/app/legal/terms.tsx'),'utf8');
+  assert.match(termsSource,/YouTube 이용약관에 동의하고 그 적용을 받습니다/);
 
   console.log('YouTube catalog passed: channel/handle lookup, safe name search, no search writes/stats, selected-only import, freshness refresh, consent gate and login return.');
 }
