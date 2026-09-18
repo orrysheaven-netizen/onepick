@@ -8,6 +8,7 @@ import {
   itemRepository,
   movieCatalogRepository,
   musicCatalogRepository,
+  gameCatalogRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -25,6 +26,7 @@ import { PickService } from './pickService';
 import { ItemService } from './itemService';
 import { MovieCatalogService } from './movieCatalogService';
 import { MusicCatalogService } from './musicCatalogService';
+import { GameCatalogService } from './gameCatalogService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
@@ -64,6 +66,7 @@ export const itemService = new ItemService(
 );
 export const movieCatalogService = new MovieCatalogService(movieCatalogRepository);
 export const musicCatalogService = new MusicCatalogService(musicCatalogRepository);
+export const gameCatalogService = new GameCatalogService(gameCatalogRepository);
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
@@ -80,6 +83,7 @@ export {
   ItemService,
   MovieCatalogService,
   MusicCatalogService,
+  GameCatalogService,
   ProfileService,
   SafetyService,
 };

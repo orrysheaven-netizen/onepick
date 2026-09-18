@@ -31,6 +31,9 @@ export const queryKeys = {
   musicCatalog: {
     search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const,
   },
+  gameCatalog: {
+    search: (query: string) => ['game-catalog', 'search', query] as const,
+  },
   picks: {
     all: ['picks'] as const,
     detail: (pickId: string, userId?: string) =>
