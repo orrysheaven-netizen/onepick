@@ -1,5 +1,4 @@
-import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps } from 'expo-router/ui';
-import { useRouter } from 'expo-router';
+import { Link, Slot, type Href, usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,23 +6,30 @@ import { OnePick } from '@/constants/onepick';
 
 type TabIcon = 'home' | 'explore' | 'profile';
 
+function isActive(pathname: string, href: '/' | '/explore' | '/profile') {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function AppTabs() {
+  const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
   return (
-    <Tabs style={styles.tabs}>
-      <TabSlot style={styles.slot} />
-      <TabList style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <TabTrigger name="home" href="/" asChild><TabButton icon="home" label="홈" /></TabTrigger>
-        <TabTrigger name="explore" href="/explore" asChild><TabButton icon="explore" label="탐색" /></TabTrigger>
+    <View style={styles.tabs}>
+      <View style={styles.slot}><Slot /></View>
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
+        <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/find')}
           style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
           <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
         </Pressable>
-        <TabTrigger name="profile" href="/profile" asChild><TabButton icon="profile" label="내 프로필" /></TabTrigger>
-      </TabList>
-    </Tabs>
+        <TabLink href="/profile" icon="profile" label="내 프로필" active={isActive(pathname, '/profile')} />
+      </View>
+    </View>
   );
 }
 
@@ -36,12 +42,14 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
   </svg>;
 }
 
-function TabButton({ icon, label, isFocused, ...props }: TabTriggerSlotProps & { icon: TabIcon; label: string }) {
-  return <Pressable {...props} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: isFocused }}
-    style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
-    <View style={[styles.icon, isFocused && styles.active]}><Icon name={icon} active={isFocused} /></View>
-    <Text style={[styles.label, isFocused && styles.activeLabel]}>{label}</Text>
-  </Pressable>;
+function TabLink({ href, icon, label, active }: { href: Href; icon: TabIcon; label: string; active: boolean }) {
+  return <Link href={href} asChild>
+    <Pressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}
+      style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+      <View style={[styles.icon, active && styles.active]}><Icon name={icon} active={active} /></View>
+      <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
+    </Pressable>
+  </Link>;
 }
 
 const styles = StyleSheet.create({
