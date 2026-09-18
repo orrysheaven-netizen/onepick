@@ -199,11 +199,11 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <Text style={styles.stateTitle}>YouTube 검색 전 확인이 필요해요</Text>
         <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용합니다. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
-        <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 이용약관 초안 ›</Text></Pressable>
+        <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
         <Pressable disabled={consentSaving} onPress={() => void acceptConsent()} style={[styles.consentButton, consentSaving && styles.disabled]}>
-          {consentSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.consentButtonText}>안내를 확인했고 YouTube 검색 사용에 동의합니다</Text>}
+          {consentSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다</Text>}
         </Pressable>
       </View> : null}
 
