@@ -28,6 +28,10 @@ begin
 
   set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  -- Real administrator data access now also requires AAL2; model a stepped-up
+  -- session for the whole transaction (harmless once switched to non-admin
+  -- actors below, since the AAL2 gate also requires admin-list membership).
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   assert public.current_user_is_admin(), 'Fixture admin must have explicit allowlist membership';
   insert into public.categories(id,name,slug,status,is_visible,is_pickable)
     values(v_category,'승인 흐름 검증','qa-approval-lifecycle','open',true,true);

@@ -6,7 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdminShell, adminStyles } from '@/components/admin/admin-shell';
 import { beginKakaoAdminSignIn, checkAdminSession, signOutAdmin } from '@/lib/admin-api';
 
-type AuthState = 'checking' | 'signedOut' | 'signedIn';
+type AuthState = 'checking' | 'signedOut' | 'needsMfa' | 'signedIn';
+
+const STATUS_TO_STATE: Record<Awaited<ReturnType<typeof checkAdminSession>>, AuthState> = {
+  'signed-out': 'signedOut',
+  'needs-mfa': 'needsMfa',
+  'signed-in': 'signedIn',
+};
 
 export default function AdminLayout() {
   const pathname = usePathname();
@@ -16,7 +22,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     checkAdminSession()
-      .then((ok) => setAuthState(ok ? 'signedIn' : 'signedOut'))
+      .then((status) => setAuthState(STATUS_TO_STATE[status]))
       .catch((caught) => {
         setError(caught instanceof Error ? caught.message : '관리자 인증에 실패했습니다.');
         setAuthState('signedOut');
@@ -47,12 +53,10 @@ export default function AdminLayout() {
     const submit = () => {
       setSubmitting(true);
       setError('');
-      try {
-        beginKakaoAdminSignIn();
-      } catch (caught) {
+      beginKakaoAdminSignIn().catch((caught) => {
         setError(caught instanceof Error ? caught.message : '카카오 로그인을 시작하지 못했습니다.');
         setSubmitting(false);
-      }
+      });
     };
 
     return (
@@ -80,14 +84,17 @@ export default function AdminLayout() {
     );
   }
 
+  if (authState === 'needsMfa') {
+    return <Redirect href="/auth/admin-security" />;
+  }
+
   if (pathname === '/admin') {
     return <Redirect href="/admin/dashboard" />;
   }
 
   return (
     <AdminShell onSignOut={() => {
-      signOutAdmin();
-      setAuthState('signedOut');
+      void signOutAdmin().finally(() => setAuthState('signedOut'));
     }}>
       <Slot />
     </AdminShell>

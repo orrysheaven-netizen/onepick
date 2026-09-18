@@ -25,6 +25,8 @@ select has_function('public','search_items',array['text','uuid[]','integer'],'se
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','88888888-8888-8888-8888-888888888888',true);
+-- Real administrator data access now also requires AAL2; model a stepped-up session.
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 select lives_ok($$insert into public.item_aliases(item_id,alias,normalized_alias)
 values ('bbbbbbbb-0000-0000-0000-000000000001','  프로 키보드  ','placeholder')$$,'admin can add alias');
 select is((select normalized_alias from public.item_aliases where item_id='bbbbbbbb-0000-0000-0000-000000000001'),'프로키보드','alias is normalized by database');

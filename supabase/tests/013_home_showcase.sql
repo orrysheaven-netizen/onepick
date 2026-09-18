@@ -63,9 +63,11 @@ begin
   reset role;
   insert into private.admin_users(user_id) values(v_users[1]);
   set local role authenticated;
+  -- Real administrator data access now also requires AAL2; model a stepped-up session.
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   update public.home_settings set minimum_pick_count=4 where id;
   get diagnostics v_rows=row_count;
-  assert v_rows=1, 'Allowlisted admin can change the threshold';
+  assert v_rows=1, 'Allowlisted admin with AAL2 can change the threshold';
   begin
     update public.home_settings set minimum_pick_count=0 where id;
     assert false, 'Invalid threshold must be rejected';

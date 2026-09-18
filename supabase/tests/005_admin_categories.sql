@@ -10,6 +10,8 @@ insert into public.profiles(id,username,onboarding_completed) values
 insert into private.admin_users(user_id) values('77777777-7777-7777-7777-777777777777');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
+-- Real administrator data access now also requires AAL2; model a stepped-up session.
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 select ok(public.current_user_is_admin(),'explicit admin membership accepted');
 select lives_ok($$insert into public.categories(name,slug,status,is_visible,is_pickable) values('음식 테스트','qa-food','open',true,false)$$,'admin can create parent');
 select lives_ok($$insert into public.categories(name,slug,parent_id,status,is_visible,is_pickable) values('새 분류','qa-new',(select id from public.categories where slug='qa-food'),'open',true,true)$$,'admin can create a new category beyond initial four');
