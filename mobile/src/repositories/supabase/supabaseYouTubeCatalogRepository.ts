@@ -1,0 +1,57 @@
+import { AppError } from '@/errors/appError';
+import type { AppSupabaseClient } from '@/lib/supabase/client';
+import type { YouTubeCatalogRepository } from '@/repositories/interfaces/youtubeCatalogRepository';
+import type { ImportedYouTubeChannelItem, YouTubeChannelEntry } from '@/types/domain/youtubeCatalog';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CHANNEL_ID_PATTERN = /^UC[A-Za-z0-9_-]{22}$/;
+
+async function functionError(error: unknown) {
+  const context = error && typeof error === 'object' && 'context' in error ? error.context : undefined;
+  const response = typeof Response !== 'undefined' && context instanceof Response ? context : undefined;
+  let body: { error?: unknown } | null = null;
+  try { body = response ? await response.clone().json() : null; } catch { /* Ignore non-JSON context. */ }
+  if (response?.status === 401 || body?.error === 'AUTH_REQUIRED') return new AppError('AUTH_REQUIRED');
+  if (response?.status === 429 || body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
+  if (body?.error === 'CATALOG_NOT_CONFIGURED') return new AppError('CATALOG_NOT_CONFIGURED');
+  if (body?.error === 'ITEM_NOT_ELIGIBLE') return new AppError('ITEM_NOT_ELIGIBLE');
+  if (body?.error === 'CHANNEL_NOT_FOUND' || body?.error === 'EXTERNAL_ID_INVALID') return new AppError('ITEM_NOT_FOUND');
+  if (body?.error === 'CATEGORY_NOT_FOUND') return new AppError('CATEGORY_NOT_FOUND');
+  return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
+}
+
+function isEntry(value: unknown): value is YouTubeChannelEntry {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Partial<YouTubeChannelEntry>;
+  return row.source === 'youtube_channel'
+    && typeof row.externalId === 'string' && CHANNEL_ID_PATTERN.test(row.externalId)
+    && typeof row.title === 'string' && row.title.length >= 1 && row.title.length <= 100
+    && (row.thumbnailUrl === null || (typeof row.thumbnailUrl === 'string' && row.thumbnailUrl.startsWith('https://')))
+    && typeof row.channelUrl === 'string' && row.channelUrl === `https://www.youtube.com/channel/${row.externalId}`
+    && (row.existingItemId === null || (typeof row.existingItemId === 'string' && UUID_PATTERN.test(row.existingItemId)));
+}
+
+export class SupabaseYouTubeCatalogRepository implements YouTubeCatalogRepository {
+  constructor(private readonly client: AppSupabaseClient) {}
+
+  async search(query: string, signal?: AbortSignal) {
+    const { data, error } = await this.client.functions.invoke('youtube-catalog', {
+      body: { action: 'search', query },
+      signal,
+    });
+    if (error) throw await functionError(error);
+    if (!Array.isArray(data?.channels)) throw new AppError('INTERNAL_ERROR');
+    return data.channels.filter(isEntry).slice(0, 10);
+  }
+
+  async importChannel(externalId: string): Promise<ImportedYouTubeChannelItem> {
+    const { data, error } = await this.client.functions.invoke('youtube-catalog', {
+      body: { action: 'import', externalId },
+    });
+    if (error) throw await functionError(error);
+    if (!data || !UUID_PATTERN.test(data.itemId) || !UUID_PATTERN.test(data.categoryId) || typeof data.created !== 'boolean') {
+      throw new AppError('INTERNAL_ERROR');
+    }
+    return { itemId: data.itemId, categoryId: data.categoryId, created: data.created };
+  }
+}
