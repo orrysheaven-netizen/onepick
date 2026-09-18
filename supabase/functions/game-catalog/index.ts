@@ -39,6 +39,17 @@ async function writeCache(client: SupabaseClient, key: string, payload: unknown)
   if (error) console.error('IGDB cache write failed', error.code);
 }
 
+async function writeDiagnostic(client: SupabaseClient, payload: Record<string, unknown>) {
+  const hashed = await sha256('latest');
+  const { error } = await client.from('external_catalog_cache').upsert({
+    provider: 'igdb_diag',
+    cache_key: hashed,
+    payload,
+    fetched_at: new Date().toISOString(),
+  });
+  if (error) console.error('IGDB diagnostic write failed', error.code);
+}
+
 async function waitForProvider(client: SupabaseClient) {
   const { data, error } = await client.rpc('reserve_external_catalog_slot', {
     p_provider: 'igdb', p_interval_ms: 650,
@@ -78,7 +89,15 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
   }
   const clientId = Deno.env.get('IGDB_CLIENT_ID')?.trim();
   const clientSecret = Deno.env.get('IGDB_CLIENT_SECRET')?.trim();
-  if (!clientId || !clientSecret) return null;
+  if (!clientId || !clientSecret) {
+    await writeDiagnostic(client, {
+      stage: 'config',
+      outcome: 'missing',
+      hasClientId: Boolean(clientId),
+      hasClientSecret: Boolean(clientSecret),
+    });
+    return null;
+  }
   const url = new URL('https://id.twitch.tv/oauth2/token');
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('client_secret', clientSecret);
@@ -87,12 +106,16 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
     const response = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(8_000) });
     if (!response.ok) {
       console.error('IGDB Twitch token request failed', response.status);
+      await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'http_error', status: response.status });
       return null;
     }
     const data = await response.json() as Record<string, unknown>;
     const token = typeof data.access_token === 'string' ? data.access_token : '';
     const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 0;
-    if (!token || expiresIn <= 0) return null;
+    if (!token || expiresIn <= 0) {
+      await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'invalid_response' });
+      return null;
+    }
     const hashed = await sha256(tokenKey);
     const { error } = await client.from('external_catalog_cache').upsert({
       provider: 'igdb_oauth',
@@ -101,9 +124,11 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
       fetched_at: new Date().toISOString(),
     });
     if (error) console.error('IGDB token cache write failed', error.code);
+    await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'ok' });
     return token;
   } catch (error) {
     console.error('IGDB Twitch token request error', error instanceof Error ? error.message : 'unknown');
+    await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'network_error' });
     return null;
   }
 }
@@ -112,7 +137,10 @@ async function requestIgdb(query: string, client: SupabaseClient, forceToken = f
   const clientId = Deno.env.get('IGDB_CLIENT_ID')?.trim();
   const token = await fetchAccessToken(client, forceToken);
   if (!clientId || !token) return { error: json({ error: 'CATALOG_NOT_CONFIGURED' }, 503) } as const;
-  if (!await waitForProvider(client)) return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
+  if (!await waitForProvider(client)) {
+    await writeDiagnostic(client, { stage: 'igdb', outcome: 'rate_limited' });
+    return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
+  }
   try {
     const response = await fetch('https://api.igdb.com/v4/games', {
       method: 'POST',
@@ -129,14 +157,21 @@ async function requestIgdb(query: string, client: SupabaseClient, forceToken = f
       await clearAccessToken(client);
       return requestIgdb(query, client, true);
     }
-    if (response.status === 429) return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
+    if (response.status === 429) {
+      await writeDiagnostic(client, { stage: 'igdb', outcome: 'http_error', status: 429 });
+      return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
+    }
     if (!response.ok) {
       console.error('IGDB request failed', response.status);
+      await writeDiagnostic(client, { stage: 'igdb', outcome: 'http_error', status: response.status });
       return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
     }
-    return { data: await response.json() as unknown } as const;
+    const data = await response.json() as unknown;
+    await writeDiagnostic(client, { stage: 'igdb', outcome: 'ok' });
+    return { data } as const;
   } catch (error) {
     console.error('IGDB request error', error instanceof Error ? error.message : 'unknown');
+    await writeDiagnostic(client, { stage: 'igdb', outcome: 'network_error' });
     return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
   }
 }
@@ -146,7 +181,6 @@ const handler = createGameCatalogHandler({
   fetchIgdb: requestIgdb,
   readCache,
   writeCache,
-  configured: () => Boolean(Deno.env.get('IGDB_CLIENT_ID')?.trim() && Deno.env.get('IGDB_CLIENT_SECRET')?.trim()),
   json,
 });
 
