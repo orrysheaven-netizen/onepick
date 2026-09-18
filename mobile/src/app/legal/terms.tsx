@@ -10,8 +10,8 @@ export default function TermsScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <Pressable onPress={() => router.back()}><Text style={styles.back}>‹</Text></Pressable>
       <Text style={styles.kicker}>TERMS</Text>
-      <Text style={styles.title}>OnePick 이용약관 초안</Text>
-      <Text style={styles.note}>MVP 검토용 초안이며 정식 약관 확정 전 법률·운영 검토가 필요합니다.</Text>
+      <Text style={styles.title}>OnePick YouTube API 이용조건</Text>
+      <Text style={styles.note}>시행일 · 2026-09-19</Text>
 
       <View style={styles.card}>
         <Text style={styles.heading}>원픽 서비스</Text>
@@ -19,7 +19,7 @@ export default function TermsScreen() {
       </View>
       <View style={styles.card}>
         <Text style={styles.heading}>YouTube 기능</Text>
-        <Text style={styles.body}>OnePick의 YouTube 채널 검색 기능을 사용하는 경우 사용자는 YouTube 이용약관에 동의하고 그 적용을 받습니다. OnePick은 YouTube를 복제하거나 영상 콘텐츠를 저장·오프라인 제공하지 않습니다.</Text>
+        <Text style={styles.body}>OnePick의 YouTube 채널 검색 기능을 사용하는 경우 사용자는 YouTube 이용약관에 동의하고 그 적용을 받습니다. YouTube 채널 검색 결과는 원픽 대상을 찾기 위한 보조 정보이며, OnePick은 YouTube를 복제하거나 영상 콘텐츠를 저장·오프라인 제공하지 않습니다.</Text>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.link}>YouTube 이용약관 보기</ExternalLink>
       </View>
       <View style={styles.card}>
