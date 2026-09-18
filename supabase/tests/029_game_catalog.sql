@@ -26,11 +26,11 @@ select is((select creator_name from public.search_items('테스트 스튜디오'
 select is((select collection_name from public.search_items('Nintendo',array[(select id from public.categories where slug='game')],20) limit 1),
   'PC · Nintendo Switch','game search can find adopted platform text');
 
-select like((select image_source_url::text from public.items where external_source='igdb_game' and external_id='1942'),
-  'https://images.igdb.com/igdb/image/upload/%','selected game stores IGDB remote cover URL');
+select ok((select image_source_url::text from public.items where external_source='igdb_game' and external_id='1942')
+  like 'https://images.igdb.com/igdb/image/upload/%','selected game stores IGDB remote cover URL');
 
-select like((select official_url::text from public.items where external_source='igdb_game' and external_id='1942'),
-  'https://www.igdb.com/games/%','selected game stores IGDB official URL');
+select ok((select official_url::text from public.items where external_source='igdb_game' and external_id='1942')
+  like 'https://www.igdb.com/games/%','selected game stores IGDB official URL');
 
 select ok(exists(select 1 from public.search_items('테스트 게임',null,20) where external_source='igdb_game'),
   'global OnePick search can find adopted games');
