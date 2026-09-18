@@ -35,3 +35,7 @@ verify_jwt = false
 [functions.game-catalog]
 # Search is public. Import verifies a real user JWT inside the function.
 verify_jwt = false
+
+[functions.youtube-catalog]
+# Public channel search; selected-channel import verifies a real user JWT internally.
+verify_jwt = false

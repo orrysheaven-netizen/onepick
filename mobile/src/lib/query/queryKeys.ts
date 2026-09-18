@@ -34,6 +34,9 @@ export const queryKeys = {
   gameCatalog: {
     search: (query: string) => ['game-catalog', 'search', query] as const,
   },
+  youtubeCatalog: {
+    search: (query: string) => ['youtube-catalog', 'search', query] as const,
+  },
   picks: {
     all: ['picks'] as const,
     detail: (pickId: string, userId?: string) =>

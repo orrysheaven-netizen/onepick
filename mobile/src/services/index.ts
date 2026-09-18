@@ -9,6 +9,7 @@ import {
   movieCatalogRepository,
   musicCatalogRepository,
   gameCatalogRepository,
+  youtubeCatalogRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -27,6 +28,7 @@ import { ItemService } from './itemService';
 import { MovieCatalogService } from './movieCatalogService';
 import { MusicCatalogService } from './musicCatalogService';
 import { GameCatalogService } from './gameCatalogService';
+import { YouTubeCatalogService } from './youtubeCatalogService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
@@ -67,6 +69,7 @@ export const itemService = new ItemService(
 export const movieCatalogService = new MovieCatalogService(movieCatalogRepository);
 export const musicCatalogService = new MusicCatalogService(musicCatalogRepository);
 export const gameCatalogService = new GameCatalogService(gameCatalogRepository);
+export const youtubeCatalogService = new YouTubeCatalogService(youtubeCatalogRepository);
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
@@ -84,6 +87,7 @@ export {
   MovieCatalogService,
   MusicCatalogService,
   GameCatalogService,
+  YouTubeCatalogService,
   ProfileService,
   SafetyService,
 };

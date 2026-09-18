@@ -4,6 +4,7 @@
     "deploymentEnabled": {
       "feature/shared-item-photo-actions": false,
       "feature/game-catalog": false,
+      "feature/youtube-channel-catalog": false,
       "main": false
     }
   },
