@@ -356,13 +356,12 @@ $$;
 revoke all on function public.admin_set_user_suspension(uuid,boolean,text) from public, anon;
 grant execute on function public.admin_set_user_suspension(uuid,boolean,text) to authenticated;
 
--- admin_merge_pending_item exists on the live onepick-dev database (added by
--- migration 20260917105500_add_admin_pending_item_merge, which is missing from
--- this repo's migration history -- a pre-existing gap, not something this
--- migration attempts to backfill) but was never committed here, so the AAL2
--- pass above could not reach its actor check. Definition and behavior below
--- are reproduced verbatim from the live database; only the actor-authorization
--- guard is swapped, exactly as for every other admin RPC in this file.
+-- admin_merge_pending_item was introduced by
+-- 20260917105500_add_admin_pending_item_merge.sql (restored to this repo from
+-- the live onepick-dev migration history, which had it but this repo did not).
+-- That file is intentionally left with its original private.is_admin(...)
+-- actor check -- it is history, not something to rewrite -- and this later
+-- migration replaces just that guard, exactly as for every other admin RPC.
 create or replace function public.admin_merge_pending_item(
   p_source_item_id uuid,
   p_target_item_id uuid
