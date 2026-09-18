@@ -109,10 +109,10 @@ async function main() {
   const render = () => { presses.length = 0; return renderToStaticMarkup(React.createElement(ItemSearch, { onSelect: (id) => { selected = id; } })); };
   assert.doesNotMatch(render(), /제품을 찾고 있어요|검색 결과/);
   state = { hasSearchText: true, isWaiting: true, data: [{ id: 'stale', name: '이전 결과' }] };
-  assert.match(render(), /제품을 찾고 있어요/);
+  assert.match(render(), /검색하고 있어요/);
   assert.doesNotMatch(render(), /이전 결과/);
   state = { hasSearchText: true, data: [] };
-  assert.match(render(), /일치하는 제품이 없어요/);
+  assert.match(render(), /일치하는 항목이 없어요/);
   state = { hasSearchText: true, isError: true, refetch: () => { retried = true; } };
   assert.match(render(), /다시 검색하기/);
   presses[0]();
@@ -123,6 +123,49 @@ async function main() {
   assert.equal(photoProps.itemStatus, 'active');
   presses[0]();
   assert.equal(selected, 'item-1');
-  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation and search states/actions.');
+
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery;
+  const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
+    react: { useState: () => ['인터스텔라', () => {}] },
+    '@/components/pick-photo': { PickPhoto: () => null },
+    '@/hooks/useItemSearch': { useItemSearch: () => ({ hasSearchText: true, isWaiting: false, isPending: false, isError: false, data: [] }) },
+    'react-native': {
+      ActivityIndicator: () => null,
+      Pressable: (props) => { externalPresses.push(props); return React.createElement('button', null, props.children); },
+      Text: nativeComponent('span'), View: nativeComponent('section'),
+      TextInput: (props) => { externalInput = props; return null; },
+      StyleSheet: { create: (styles) => styles },
+    },
+  });
+  const catalogProps = {
+    onSelect: () => {},
+    onSearchMovie: (value) => { movieQuery = value; },
+    onSearchDrama: (value) => { dramaQuery = value; },
+    onSearchMusic: (value) => { musicQuery = value; },
+  };
+  let catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, catalogProps));
+  assert.match(catalogPage, /OnePick에 아직 등록된 항목이 없어요/);
+  assert.match(catalogPage, /영화 DB에서 검색/);
+  assert.match(catalogPage, /드라마 DB에서 검색/);
+  assert.match(catalogPage, /음악 DB에서 검색/);
+  externalInput.onSubmitEditing();
+  assert.equal(movieQuery, undefined, 'Global search must not guess a provider on Enter');
+  assert.equal(dramaQuery, undefined);
+  assert.equal(musicQuery, undefined);
+  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 영화 DB에서 검색').onPress();
+  assert.equal(movieQuery, '인터스텔라');
+
+  externalPresses = []; externalInput = undefined; movieQuery = undefined;
+  catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, {
+    categoryId: 'movie-category',
+    onSelect: () => {},
+    onSearchMovie: (value) => { movieQuery = value; },
+  }));
+  assert.match(catalogPage, /영화 DB에서 검색/);
+  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색/);
+  externalInput.onSubmitEditing();
+  assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
+
+  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, explicit catalog continuation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
