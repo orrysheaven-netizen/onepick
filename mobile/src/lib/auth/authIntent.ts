@@ -15,6 +15,7 @@ export type AuthIntent =
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
+  | { action: 'add_item_photo'; itemId: string }
   | { action: 'profile' }
   | { action: 'home' };
 
@@ -63,6 +64,9 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'comment_pick' && isId(params.pickId)) {
     return { action: 'comment_pick', pickId: params.pickId };
   }
+  if (params.action === 'add_item_photo' && isId(params.itemId)) {
+    return { action: 'add_item_photo', itemId: params.itemId };
+  }
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
 
@@ -87,6 +91,8 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
       return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'comment_pick':
       return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
+    case 'add_item_photo':
+      return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'profile':
       return '/profile';
     default:

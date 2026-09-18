@@ -1,14 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
@@ -18,26 +10,16 @@ import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 
 function getErrorMessage(error: unknown) {
-  if (!(error instanceof AppError)) {
-    return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
-  }
-
+  if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   switch (error.code) {
-    case 'AUTH_REQUIRED':
-      return '원픽을 고르려면 로그인이 필요해요.';
-    case 'CATEGORY_NOT_PICKABLE':
-      return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
+    case 'AUTH_REQUIRED': return '원픽을 고르려면 로그인이 필요해요.';
+    case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
     case 'ITEM_NOT_ELIGIBLE':
-    case 'ITEM_NOT_FOUND':
-      return '지금은 이 제품을 원픽으로 고를 수 없어요.';
-    case 'ITEM_CATEGORY_MISMATCH':
-      return '제품과 카테고리 정보가 맞지 않아요.';
-    case 'REVIEW_INVALID':
-      return '한줄평을 1~100자로 입력해주세요.';
-    case 'PICK_CONFLICT':
-      return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
-    default:
-      return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+    case 'ITEM_NOT_FOUND': return '지금은 이 제품을 원픽으로 고를 수 없어요.';
+    case 'ITEM_CATEGORY_MISMATCH': return '제품과 카테고리 정보가 맞지 않아요.';
+    case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
+    case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
+    default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
 }
 
@@ -51,7 +33,6 @@ export default function ChoosePickScreen() {
   const [savedReview, setSavedReview] = useState('');
   const [showReviewError, setShowReviewError] = useState(false);
   const reviewInput = useRef<TextInput>(null);
-
   const item = itemQuery.data?.item;
   const pickStatus = itemQuery.data?.myPickStatus;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
@@ -60,7 +41,6 @@ export default function ChoosePickScreen() {
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-
   const submitLabel = useMemo(() => {
     if (pickStatus?.type === 'selected_other') return '이 제품으로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
@@ -69,174 +49,73 @@ export default function ChoosePickScreen() {
 
   const handleSubmit = async () => {
     if (choosePick.isPending) return;
-    if (!isValidReview) {
-      setShowReviewError(true);
-      reviewInput.current?.focus();
-      return;
-    }
+    if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
-
     try {
-      const result = await choosePick.mutateAsync({
-        categoryId: item.categoryId,
-        itemId: item.id,
-        oneLineReview: trimmedReview,
-      });
-
+      const result = await choosePick.mutateAsync({ categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview });
       setSavedReview(result.oneLineReview);
-    } catch {
-      // Mutation state renders the error.
-    }
+    } catch { /* Mutation state renders the error. */ }
   };
-
   const openLogin = () => {
     if (!item) return;
-
-    router.push({
-      pathname: '/auth/login',
-      params: {
-        action: 'choose_pick',
-        itemId: item.id,
-        categoryId: item.categoryId,
-      },
-    });
+    router.push({ pathname: '/auth/login', params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
   };
-
   const isLoading = isSessionLoading || (Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   const isSuccess = Boolean(savedReview);
+  const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
+    itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-
-        {isLoading ? (
-          <View style={styles.stateCard}>
-            <ActivityIndicator />
-            <Text style={styles.stateTitle}>제품을 확인하고 있어요</Text>
-          </View>
-        ) : null}
-
-        {!isLoading && (itemQuery.isError || !item || !routeMatchesItem) ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text>
-            <Text style={styles.stateText}>제품 정보가 바뀌었거나 사용할 수 없는 링크예요.</Text>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <Text style={styles.secondaryButtonText}>돌아가기</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {hasItem && item && !canChoose && !isSuccess ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text>
-            <Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.replace(pickStatus?.type === 'selected_this'
-                ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } }
-                : { pathname: '/item/[itemId]', params: { itemId: item.id } })}
-              style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>{pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기'}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {hasItem && item && canChoose && !user ? (
-          <View style={styles.stateCard}>
-            <PickPhoto uri={item.thumbnailUrl} label={`${item.name} 대표 이미지`} />
-            <Text style={styles.kicker}>원픽을 고르려면</Text>
-            <Text style={styles.title}>로그인이 필요해요</Text>
-            <Text style={styles.stateText}>
-              선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.
-            </Text>
-            <Pressable onPress={openLogin} style={({ pressed }) => [styles.primaryButton, styles.loginButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>로그인하고 계속</Text>
-            </Pressable>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
-              <Text style={styles.textButtonText}>다음에 고르기</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {hasItem && item && canChoose && user && !isSuccess ? (
-          <>
-            <Text style={styles.kicker}>YOUR ONE PICK</Text>
-            <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
-
-            <View style={styles.itemCard}>
-              <PickPhoto uri={item.thumbnailUrl} label={`${item.name} 대표 이미지`} />
-              <View style={styles.itemCopy}>
-                <Text style={styles.itemLabel}>선택한 제품</Text>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemState}>
-                  {pickStatus?.type === 'selected_other'
-                    ? '현재 원픽을 이 제품으로 변경합니다.'
-                    : pickStatus?.type === 'selected_this'
-                      ? '현재 원픽의 한줄평을 수정합니다.'
-                      : '이 제품을 새 원픽으로 선택합니다.'}
-                </Text>
-              </View>
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        {isLoading ? <View style={styles.stateCard}><ActivityIndicator /><Text style={styles.stateTitle}>제품을 확인하고 있어요</Text></View> : null}
+        {!isLoading && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text><Text style={styles.stateText}>제품 정보가 바뀌었거나 사용할 수 없는 링크예요.</Text>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>돌아가기</Text></Pressable>
+        </View> : null}
+        {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text><Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.replace(pickStatus?.type === 'selected_this'
+            ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } })} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>{pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기'}</Text>
+          </Pressable>
+        </View> : null}
+        {hasItem && item && canChoose && !user ? <View style={styles.stateCard}>
+          {itemPhoto}<Text style={styles.kicker}>원픽을 고르려면</Text><Text style={styles.title}>로그인이 필요해요</Text>
+          <Text style={styles.stateText}>선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
+          <Pressable onPress={openLogin} style={({ pressed }) => [styles.primaryButton, styles.loginButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>로그인하고 계속</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다음에 고르기</Text></Pressable>
+        </View> : null}
+        {hasItem && item && canChoose && user && !isSuccess ? <>
+          <Text style={styles.kicker}>YOUR ONE PICK</Text><Text style={styles.title}>{item.name}</Text><Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
+          <View style={styles.itemCard}>
+            {itemPhoto}
+            <View style={styles.itemCopy}>
+              <Text style={styles.itemLabel}>선택한 제품</Text><Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이 제품으로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이 제품을 새 원픽으로 선택합니다.'}</Text>
             </View>
-
-            <View style={styles.inputHeader}>
-              <Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text>
-              <Text style={styles.counter}>{review.length}/100</Text>
-            </View>
-            <TextInput
-              ref={reviewInput}
-              accessibilityLabel="원픽 한줄평"
-              maxLength={100}
-              multiline
-              onChangeText={setReview}
-              placeholder="예: 결국 기본으로 돌아오게 되는 맛"
-              placeholderTextColor="#89909C"
-              style={[styles.reviewInput, hasReviewError && styles.reviewInputError]}
-              value={review}
-            />
-            <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
-            {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>
-              {trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}
-            </Text> : null}
-
-            {choosePick.isError ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
-              </View>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={submitLabel}
-              accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
-              disabled={choosePick.isPending}
-              onPress={() => void handleSubmit()}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                choosePick.isPending && styles.primaryButtonDisabled,
-                pressed && !choosePick.isPending && styles.pressed,
-              ]}>
-              {choosePick.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
-            </Pressable>
-          </>
-        ) : null}
-
-        {!isLoading && item && user && isSuccess ? (
-          <View style={styles.successCard}>
-            <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
-            <Text style={styles.kicker}>ONE PICK SAVED</Text>
-            <Text style={styles.title}>원픽이 선택됐어요</Text>
-            <Text style={styles.successItem}>{item.name}</Text>
-            <Text style={styles.savedReview}>“{savedReview}”</Text>
-            <Pressable onPress={() => router.replace('/')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>홈에서 확인하기</Text>
-            </Pressable>
           </View>
-        ) : null}
+          <View style={styles.inputHeader}><Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
+          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline onChangeText={setReview}
+            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor="#89909C" style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
+          <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
+          {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
+          {choosePick.isError ? <View style={styles.errorBox}><Text style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text></View> : null}
+          <Pressable accessibilityRole="button" accessibilityLabel={submitLabel} accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
+            disabled={choosePick.isPending} onPress={() => void handleSubmit()}
+            style={({ pressed }) => [styles.primaryButton, choosePick.isPending && styles.primaryButtonDisabled, pressed && !choosePick.isPending && styles.pressed]}>
+            {choosePick.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
+          </Pressable>
+        </> : null}
+        {!isLoading && item && user && isSuccess ? <View style={styles.successCard}>
+          <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
+          <Text style={styles.kicker}>ONE PICK SAVED</Text><Text style={styles.title}>원픽이 선택됐어요</Text>
+          <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedReview}”</Text>
+          <View style={styles.successPhoto}>{itemPhoto}</View>
+          <Pressable onPress={() => router.replace('/')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>홈에서 확인하기</Text></Pressable>
+        </View> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,5 +160,6 @@ const styles = StyleSheet.create({
   successIconText: { color: '#4945ED', fontSize: 34, fontWeight: '900' },
   successItem: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
   savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
+  successPhoto: { marginTop: 16 },
   pressed: { opacity: 0.7 },
 });

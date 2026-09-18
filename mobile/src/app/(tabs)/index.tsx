@@ -13,32 +13,26 @@ import { useHomeData } from '@/hooks/useHomeData';
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type FeaturedItem = HomeData['featuredItems'][number];
 
-function ProductCard({
-  item, mine, onOpen, onOpenProfile,
-}: {
-  item: FeaturedItem;
-  mine?: boolean;
-  onOpen: () => void;
-  onOpenProfile?: () => void;
+function ProductCard({ item, mine, onOpen, onOpenProfile }: {
+  item: FeaturedItem; mine?: boolean; onOpen: () => void; onOpenProfile?: () => void;
 }) {
   const username = item.latestPickerUsername;
   const initial = username?.trim().slice(0, 1).toUpperCase() || '1';
-
   return <View style={styles.card}>
-    <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
-      style={({ pressed }) => [styles.productLink, pressed && styles.pressed]}>
+    <View style={styles.productLink}>
       <View style={styles.cardTop}>
         <Text style={styles.cardCategory}>{item.categoryName}</Text>
         {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
       </View>
       <View style={styles.cardBody}>
-        <PickPhoto uri={item.thumbnailUrl} label={item.name} />
-        <View style={styles.cardCopy}>
+        <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+        <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
+          style={({ pressed }) => [styles.cardCopy, pressed && styles.pressed]}>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>
-        </View>
+        </Pressable>
       </View>
-    </Pressable>
+    </View>
     <Pressable
       accessibilityRole={onOpenProfile ? 'button' : undefined}
       accessibilityLabel={username ? `@${username} 프로필 보기` : '최근 원픽 등록자'}
@@ -88,8 +82,7 @@ export default function HomeScreen() {
         data={ready ? data?.featuredItems ?? [] : []}
         keyExtractor={(item) => item.itemId}
         renderItem={({ item }) => <View style={styles.productCell}>
-          <ProductCard
-            item={item}
+          <ProductCard item={item}
             mine={Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === item.itemId && pick.status === 'active'))}
             onOpen={() => openItem(item.itemId)}
             onOpenProfile={item.latestPickerUsername ? () => router.push({ pathname: '/u/[username]', params: { username: item.latestPickerUsername! } }) : undefined}
@@ -115,16 +108,9 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
           </View>
         </View>
-
-        <ItemSearch
-          compact
-          onSearchMovie={movieCategory ? (query) => router.push({
-            pathname: '/pick/find',
-            params: { categoryId: movieCategory.id, query },
-          }) : undefined}
-          onSelect={openItem}
-        />
-
+        <ItemSearch compact onSearchMovie={movieCategory ? (query) => router.push({
+            pathname: '/pick/find', params: { categoryId: movieCategory.id, query },
+          }) : undefined} onSelect={openItem} />
         <View style={styles.intro}>
           <View style={styles.introCopy}>
             <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
@@ -133,26 +119,19 @@ export default function HomeScreen() {
             <Text style={styles.photoGuide}>원픽 사진은 직접 등록해주세요. 내가 쓰는 제품의 사진을 올려주세요.</Text>
           </View>
         </View>
-
         <View style={styles.sectionHeader}>
           <SectionTitle title="선택이 모인 제품" description={data ? `${data.minimumPickCount}명 이상이 선택한 제품 · 최근 선택순` : undefined} />
         </View>
-
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
         {sessionError || (!isSessionLoading && homeQuery.isError && !data) ? <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '원픽을 불러오지 못했어요'}</Text>
           <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
           <Pressable accessibilityRole="button" disabled={!sessionError && homeQuery.isFetching} onPress={sessionError ? retrySession : refresh} style={styles.retryButton}><Text style={styles.actionText}>다시 불러오기</Text></Pressable>
         </View> : null}
-
         {ready && data ? <>
           <View style={styles.refreshRow}>
             {homeQuery.isError && !homeQuery.isFetchNextPageError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="홈 원픽 새로고침"
-              disabled={homeQuery.isFetching}
-              onPress={refresh}
+            <Pressable accessibilityRole="button" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               style={({ pressed }) => [styles.refreshButton, (pressed || homeQuery.isFetching) && styles.pressed]}>
               <Text style={styles.actionText}>{homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'}</Text>
             </Pressable>
@@ -175,7 +154,6 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} style={styles.moreButton}>
             <Text style={styles.actionText}>원픽 더 둘러보기</Text><Text style={styles.arrow}>↗</Text>
           </Pressable>
-
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
           </Pressable> : <View style={styles.welcomeCard}>
@@ -185,7 +163,6 @@ export default function HomeScreen() {
                 <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
               </Pressable>
           </View>}
-
           <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
           {categories.length ? <View style={styles.categoryGrid}>
             {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
@@ -193,7 +170,6 @@ export default function HomeScreen() {
               <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
             </Pressable>)}
           </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
-
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
       />
@@ -229,7 +205,7 @@ const styles = StyleSheet.create({
   productLink: { padding: 16 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
   cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  cardCopy: { flex: 1, minWidth: 0 },
+  cardCopy: { flex: 1, minWidth: 0, minHeight: 86, justifyContent: 'center' },
   cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
   badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },

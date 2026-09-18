@@ -29,249 +29,110 @@ export default function FindPickItemScreen() {
     !(search.data ?? []).some((item) => item.externalSource === movie.source && item.externalId === movie.externalId));
   const isSearching = search.isWaiting || search.isFetching
     || (isMovieCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching));
-  const noResults = hasQuery
-    && Boolean(selectedCategory)
-    && (!isMovieCategory || canSearchMovieCatalog)
-    && !isSearching
-    && !search.isError
-    && (!isMovieCategory || !movieCatalog.isError)
-    && search.data?.length === 0
-    && (!isMovieCategory || externalMovies.length === 0);
+  const noResults = hasQuery && Boolean(selectedCategory) && (!isMovieCategory || canSearchMovieCatalog)
+    && !isSearching && !search.isError && (!isMovieCategory || !movieCatalog.isError)
+    && search.data?.length === 0 && (!isMovieCategory || externalMovies.length === 0);
 
-  const chooseItem = (itemId: string, categoryId: string) => {
-    router.push({
-      pathname: '/pick/choose',
-      params: { itemId, categoryId },
-    });
-  };
-
-  const selectCategory = (categoryId: string) => {
-    router.replace({
-      pathname: '/pick/find',
-      params: { categoryId, ...(query.trim() ? { query: query.trim() } : {}) },
-    });
-  };
-
-  const requestItem = () => {
-    router.push({
-      pathname: '/pick/request',
-      params: {
-        itemName: query.trim(),
-        ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
-      },
-    });
-  };
+  const chooseItem = (itemId: string, categoryId: string) => router.push({ pathname: '/pick/choose', params: { itemId, categoryId } });
+  const selectCategory = (categoryId: string) => router.replace({ pathname: '/pick/find', params: { categoryId, ...(query.trim() ? { query: query.trim() } : {}) } });
+  const requestItem = () => router.push({ pathname: '/pick/request', params: { itemName: query.trim(), ...(selectedCategory ? { categoryId: selectedCategory.id } : {}) } });
 
   const chooseMovie = async (movie: MovieCatalogEntry) => {
     if (!selectedCategory || importMovie.isPending) return;
-    if (movie.existingItemId) {
-      chooseItem(movie.existingItemId, selectedCategory.id);
-      return;
-    }
+    if (movie.existingItemId) { chooseItem(movie.existingItemId, selectedCategory.id); return; }
     if (!user) {
-      router.push({
-        pathname: '/auth/login',
-        params: { action: 'choose_movie', externalId: movie.externalId, categoryId: selectedCategory.id },
-      });
+      router.push({ pathname: '/auth/login', params: { action: 'choose_movie', externalId: movie.externalId, categoryId: selectedCategory.id } });
       return;
     }
-
     setImportingMovieId(movie.externalId);
     try {
       const imported = await importMovie.mutateAsync(movie.externalId);
       chooseItem(imported.itemId, imported.categoryId);
-    } catch {
-      // Mutation state renders the error.
-    } finally {
-      setImportingMovieId(null);
-    }
+    } catch { /* Mutation state renders the error. */ }
+    finally { setImportingMovieId(null); }
   };
 
   useEffect(() => {
     const externalId = params.externalMovieId;
     if (!user || !selectedCategory || !externalId || !/^\d{1,12}$/.test(externalId)
       || attemptedMovieId.current === externalId || importMovie.isPending) return;
-
     attemptedMovieId.current = externalId;
     setImportingMovieId(externalId);
     void importMovie.mutateAsync(externalId)
-      .then((imported) => {
-        router.replace({ pathname: '/pick/choose', params: { itemId: imported.itemId, categoryId: imported.categoryId } });
-      })
-      .catch(() => {})
-      .finally(() => setImportingMovieId(null));
+      .then((imported) => { router.replace({ pathname: '/pick/choose', params: { itemId: imported.itemId, categoryId: imported.categoryId } }); })
+      .catch(() => {}).finally(() => setImportingMovieId(null));
   }, [importMovie, params.externalMovieId, router, selectedCategory, user]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="돌아가기"
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-
-        <Text style={styles.kicker}>FIND YOUR ONE PICK</Text>
-        <Text style={styles.title}>나의 원픽 찾기</Text>
-        <Text style={styles.subtitle}>
-          {isMovieCategory ? '좋아하는 영화 제목을 검색하고, 나만의 하나를 골라보세요.' : '좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.'}
-        </Text>
-
-        {selectedCategory ? (
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text>
-          </View>
-        ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        <Text style={styles.kicker}>FIND YOUR ONE PICK</Text><Text style={styles.title}>나의 원픽 찾기</Text>
+        <Text style={styles.subtitle}>{isMovieCategory ? '좋아하는 영화 제목을 검색하고, 나만의 하나를 골라보세요.' : '좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.'}</Text>
+        {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View> : (
           <View style={styles.categorySection}>
             <Text style={styles.categoryTitle}>먼저 카테고리를 선택해주세요</Text>
-            <View style={styles.categoryList}>
-              {categories.data?.map((category) => (
-                <Pressable
-                  key={category.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${category.label} 카테고리 선택`}
-                  onPress={() => selectCategory(category.id)}
-                  style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}>
-                  <Text style={styles.categoryChipText}>{category.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <View style={styles.categoryList}>{categories.data?.map((category) => (
+              <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={`${category.label} 카테고리 선택`} onPress={() => selectCategory(category.id)}
+                style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}><Text style={styles.categoryChipText}>{category.label}</Text></Pressable>
+            ))}</View>
             {categories.isPending ? <ActivityIndicator style={styles.categoryLoading} /> : null}
-            {categories.isError ? (
-              <Pressable onPress={() => void categories.refetch()} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text>
-              </Pressable>
-            ) : null}
+            {categories.isError ? <Pressable onPress={() => void categories.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text></Pressable> : null}
           </View>
         )}
-
-        <TextInput
-          autoFocus={Boolean(selectedCategory)}
-          accessibilityLabel={isMovieCategory ? '원픽 영화 검색' : '원픽 제품 검색'}
-          autoCapitalize="none"
-          editable={Boolean(selectedCategory)}
-          onChangeText={setQuery}
+        <TextInput autoFocus={Boolean(selectedCategory)} accessibilityLabel={isMovieCategory ? '원픽 영화 검색' : '원픽 제품 검색'} autoCapitalize="none"
+          editable={Boolean(selectedCategory)} onChangeText={setQuery}
           placeholder={!selectedCategory ? '카테고리를 먼저 선택해주세요' : isMovieCategory ? '영화 제목 검색' : '제품명 검색'}
-          placeholderTextColor="#89909C"
-          returnKeyType="search"
-          style={styles.input}
-          value={query}
-        />
-
-        {isSearching ? (
-          <View style={styles.inlineState}>
-            <ActivityIndicator />
-            <Text style={styles.stateText}>{isMovieCategory ? '등록된 영화와 TMDB를 함께 찾고 있어요' : '등록된 제품을 찾고 있어요'}</Text>
-          </View>
-        ) : null}
-
-        {search.isError ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>제품 검색을 불러오지 못했어요</Text>
-            <Pressable onPress={() => void search.refetch()} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>다시 검색</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {isMovieCategory && canSearchMovieCatalog && movieCatalog.isError ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>외부 영화 검색을 불러오지 못했어요</Text>
-            <Text style={styles.stateText}>등록된 영화 검색은 계속 사용할 수 있어요.</Text>
-            <Pressable onPress={() => void movieCatalog.refetch()} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>TMDB 다시 검색</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {selectedCategory && !hasQuery ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>{isMovieCategory ? '영화 제목만 입력하면 됩니다' : '제품명만 입력하면 됩니다'}</Text>
-            <Text style={styles.stateText}>검색 결과를 선택하면 원픽을 남길 수 있어요.</Text>
-          </View>
-        ) : null}
-
-        {isMovieCategory && hasQuery && !canSearchMovieCatalog ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>두 글자 이상 입력해주세요</Text>
-            <Text style={styles.stateText}>한국어 제목과 원제를 함께 검색합니다.</Text>
-          </View>
-        ) : null}
-
-        {params.externalMovieId && importingMovieId ? (
-          <View style={styles.inlineState}>
-            <ActivityIndicator />
-            <Text style={styles.stateText}>선택한 영화 정보를 저장하고 있어요</Text>
-          </View>
-        ) : null}
-
+          placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} value={query} />
+        {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isMovieCategory ? '등록된 영화와 TMDB를 함께 찾고 있어요' : '등록된 제품을 찾고 있어요'}</Text></View> : null}
+        {search.isError ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>제품 검색을 불러오지 못했어요</Text><Pressable onPress={() => void search.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable>
+        </View> : null}
+        {isMovieCategory && canSearchMovieCatalog && movieCatalog.isError ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>외부 영화 검색을 불러오지 못했어요</Text><Text style={styles.stateText}>등록된 영화 검색은 계속 사용할 수 있어요.</Text>
+          <Pressable onPress={() => void movieCatalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>TMDB 다시 검색</Text></Pressable>
+        </View> : null}
+        {selectedCategory && !hasQuery ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>{isMovieCategory ? '영화 제목만 입력하면 됩니다' : '제품명만 입력하면 됩니다'}</Text><Text style={styles.stateText}>검색 결과를 선택하면 원픽을 남길 수 있어요.</Text>
+        </View> : null}
+        {isMovieCategory && hasQuery && !canSearchMovieCatalog ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>두 글자 이상 입력해주세요</Text><Text style={styles.stateText}>한국어 제목과 원제를 함께 검색합니다.</Text>
+        </View> : null}
+        {params.externalMovieId && importingMovieId ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 영화 정보를 저장하고 있어요</Text></View> : null}
         {!search.isWaiting && hasQuery && search.data?.map((item) => {
           const category = categories.data?.find((category) => category.id === item.categoryId);
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              onPress={() => chooseItem(item.id, item.categoryId)}
-              style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]}>
-              <PickPhoto uri={item.thumbnailUrl} label={item.name} />
-              <View style={styles.itemCopy}>
-                <Text style={styles.itemCategory}>{category?.label ?? '등록된 카테고리'}</Text>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemAction}>이 제품을 원픽으로 선택 ›</Text>
-              </View>
+          return <View key={item.id} style={styles.itemCard}>
+            <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name}
+              itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
+            <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`}
+              onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
+              <Text style={styles.itemCategory}>{category?.label ?? '등록된 카테고리'}</Text>
+              <Text style={styles.itemName}>{item.name}</Text><Text style={styles.itemAction}>이 제품을 원픽으로 선택 ›</Text>
             </Pressable>
-          );
+          </View>;
         })}
-
         {!movieCatalog.isWaiting && isMovieCategory && canSearchMovieCatalog && externalMovies.map((movie) => (
-          <Pressable
-            key={`${movie.source}:${movie.externalId}`}
-            accessibilityRole="button"
-            accessibilityLabel={`${movie.title} 영화 선택`}
-            accessibilityState={{ disabled: importMovie.isPending }}
-            disabled={importMovie.isPending}
-            onPress={() => void chooseMovie(movie)}
+          <Pressable key={`${movie.source}:${movie.externalId}`} accessibilityRole="button" accessibilityLabel={`${movie.title} 영화 선택`}
+            accessibilityState={{ disabled: importMovie.isPending }} disabled={importMovie.isPending} onPress={() => void chooseMovie(movie)}
             style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importMovie.isPending && styles.disabled]}>
             <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
             <View style={styles.itemCopy}>
-              <Text style={styles.itemCategory}>콘텐츠 › 영화 · TMDB</Text>
-              <Text style={styles.itemName}>{movie.title}</Text>
-              <Text style={styles.movieMeta}>
-                {[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || '개봉 정보 없음'}
-              </Text>
-              <Text style={styles.itemAction}>
-                {importingMovieId === movie.externalId ? '영화 정보를 저장하고 있어요…' : '이 영화를 원픽으로 선택 ›'}
-              </Text>
+              <Text style={styles.itemCategory}>콘텐츠 › 영화 · TMDB</Text><Text style={styles.itemName}>{movie.title}</Text>
+              <Text style={styles.movieMeta}>{[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || '개봉 정보 없음'}</Text>
+              <Text style={styles.itemAction}>{importingMovieId === movie.externalId ? '영화 정보를 저장하고 있어요…' : '이 영화를 원픽으로 선택 ›'}</Text>
             </View>
           </Pressable>
         ))}
-
-        {importMovie.isError ? (
-          <Text accessibilityRole="alert" style={styles.errorText}>영화 정보를 저장하지 못했어요. 잠시 후 다시 선택해주세요.</Text>
-        ) : null}
-
-        {noResults && !isMovieCategory ? (
-          <View style={styles.requestCard}>
-            <Text style={styles.stateTitle}>찾는 제품이 없나요?</Text>
-            <Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text>
-            <Pressable onPress={requestItem} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>제품 등록 요청하기</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {noResults && isMovieCategory ? (
-          <View style={styles.requestCard}>
-            <Text style={styles.stateTitle}>일치하는 영화를 찾지 못했어요</Text>
-            <Text style={styles.stateText}>띄어쓰기나 한국어·원제 제목을 바꿔서 검색해보세요.</Text>
-          </View>
-        ) : null}
-
-        {isMovieCategory ? (
-          <Text style={styles.attribution}>This product uses the TMDB API but is not endorsed or certified by TMDB.</Text>
-        ) : null}
+        {importMovie.isError ? <Text accessibilityRole="alert" style={styles.errorText}>영화 정보를 저장하지 못했어요. 잠시 후 다시 선택해주세요.</Text> : null}
+        {noResults && !isMovieCategory ? <View style={styles.requestCard}>
+          <Text style={styles.stateTitle}>찾는 제품이 없나요?</Text><Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text>
+          <Pressable onPress={requestItem} style={styles.primaryButton}><Text style={styles.primaryButtonText}>제품 등록 요청하기</Text></Pressable>
+        </View> : null}
+        {noResults && isMovieCategory ? <View style={styles.requestCard}>
+          <Text style={styles.stateTitle}>일치하는 영화를 찾지 못했어요</Text><Text style={styles.stateText}>띄어쓰기나 한국어·원제 제목을 바꿔서 검색해보세요.</Text>
+        </View> : null}
+        {isMovieCategory ? <Text style={styles.attribution}>This product uses the TMDB API but is not endorsed or certified by TMDB.</Text> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -301,6 +162,7 @@ const styles = StyleSheet.create({
   stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
   itemCopy: { flex: 1, paddingLeft: 14 },
+  itemActionArea: { minHeight: 86, justifyContent: 'center' },
   itemCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
   itemName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
   itemAction: { color: '#747985', fontSize: 12, marginTop: 7 },
