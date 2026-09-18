@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const MUSICBRAINZ_SOURCE = 'musicbrainz_recording' as const;
-const MBID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MBID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const clean = (value: unknown, max: number) => typeof value === 'string'
   ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
 
@@ -21,7 +21,7 @@ export type MusicEntry = {
 function year(value: unknown) {
   if (typeof value !== 'string' || !/^\d{4}(?:-|$)/.test(value)) return null;
   const y = Number(value.slice(0, 4));
-  return y >= 1000 && y <= 2200 ? y : null;
+  return y >= 1888 && y <= 2200 ? y : null;
 }
 
 function artistName(value: unknown) {
@@ -54,7 +54,7 @@ function releaseCandidate(value: unknown) {
   });
   if (!releases.length) return null;
   releases.sort((a, b) => Number(b.official) - Number(a.official)
-    || (a.date || '9999').localeCompare(b.date || '9999') || a.title!.localeCompare(b.title!));
+    || (a.date || '9999').localeCompare(b.date || '9999') || (a.title ?? '').localeCompare(b.title ?? ''));
   return releases[0];
 }
 
