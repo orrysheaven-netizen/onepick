@@ -22,6 +22,14 @@ insert into public.profiles(id,username,onboarding_completed) values
 ('aa000001-0000-4000-8000-000000000003','mfa_target',true);
 insert into private.admin_users(user_id) values ('aa000001-0000-4000-8000-000000000001');
 
+-- Fixture for admin_merge_pending_item: a pending source item and an eligible
+-- active target item in the same category.
+insert into public.categories(id,name,slug,status,is_visible,is_pickable) values
+('aa000003-0000-4000-8000-000000000001','MFA 병합 테스트','mfa-merge-test','open',true,true);
+insert into public.items(id,category_id,name,normalized_name,status) values
+('aa000004-0000-4000-8000-000000000001','aa000003-0000-4000-8000-000000000001','MFA 병합 원본','mfa병합원본','pending'),
+('aa000004-0000-4000-8000-000000000002','aa000003-0000-4000-8000-000000000001','MFA 병합 대상','mfa병합대상','active');
+
 set local role authenticated;
 
 -- Admin identity, no aal claim at all (an AAL1 session looks exactly like this).
@@ -42,6 +50,10 @@ select throws_ok(
 select throws_ok(
   $$select public.admin_set_user_suspension('aa000001-0000-4000-8000-000000000003',true,'test')$$,
   '42501', null, 'AAL1 admin (no aal claim) cannot suspend a user'
+);
+select throws_ok(
+  $$select public.admin_merge_pending_item('aa000004-0000-4000-8000-000000000001','aa000004-0000-4000-8000-000000000002')$$,
+  '42501', null, 'AAL1 admin (no aal claim) cannot merge a pending item'
 );
 
 -- Explicit aal1 (as opposed to simply absent) must behave identically.
@@ -69,6 +81,20 @@ select ok(public.user_is_suspended('aa000001-0000-4000-8000-000000000003'),'susp
 
 -- Un-suspend so later assertions in this file are not affected.
 select public.admin_set_user_suspension('aa000001-0000-4000-8000-000000000003',false,null);
+
+select lives_ok(
+  $$select public.admin_merge_pending_item('aa000004-0000-4000-8000-000000000001','aa000004-0000-4000-8000-000000000002')$$,
+  'AAL2 admin can merge a pending item into an active item in the same category'
+);
+select is(
+  (select status from public.items where id='aa000004-0000-4000-8000-000000000001'),
+  'merged','merged source item status is updated'
+);
+select is(
+  (select merged_into_item_id from public.items where id='aa000004-0000-4000-8000-000000000001'),
+  'aa000004-0000-4000-8000-000000000002'::uuid,
+  'merged source item points at the target item'
+);
 
 -- A non-admin cannot bypass the gate by simply claiming aal2: membership is
 -- still required, so forging the claim must not grant any extra access.
