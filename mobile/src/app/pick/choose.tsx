@@ -45,6 +45,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [draftReview, setReview] = useState<string | null>(null);
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
+  const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
+  const photoOfferClosed = useRef(false);
   const reviewInput = useRef<TextInput>(null);
   // Mutation state arrives on a later render. A synchronous phase also guards
   // same-frame double taps and old event handlers after an acknowledged save.
@@ -97,7 +99,20 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
-    itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
+    itemId={savedChoice ? undefined : item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
+  // The receipt keeps its save snapshot, but the OPTIONAL photo invitation uses
+  // current, successfully refreshed item data. Unknown/failed reads are not empty photos.
+  const photoCandidate = itemQuery.data?.item;
+  const canOfferPhoto = Boolean(savedChoice && user?.id === savedChoice.pick.userId && !photoOfferSkipped
+    && !isSessionLoading && !sessionError && !itemQuery.isPending && !itemQuery.isError && !itemQuery.isFetching
+    && photoCandidate?.id === savedChoice.pick.itemId && ['active', 'discontinued'].includes(photoCandidate.status)
+    && !photoCandidate.imagePath && !photoCandidate.imageUrl && !photoCandidate.thumbnailUrl && !photoCandidate.imageSourceUrl);
+  const openPhoto = () => {
+    if (!canOfferPhoto || !savedChoice || photoOfferClosed.current) return;
+    photoOfferClosed.current = true;
+    router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id, photo: '1' } });
+  };
+  const skipPhoto = () => { photoOfferClosed.current = true; setPhotoOfferSkipped(true); };
 
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -181,6 +196,15 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Pressable accessibilityRole="button" accessibilityLabel="다른 사람의 원픽 계속 보기"
               onPress={() => router.replace('/')} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다른 사람의 원픽 계속 보기</Text></Pressable>
           </View>
+          {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
+            <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
+            <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 상품을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
+            <Text style={styles.offerText}>상품 이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>사진 등록</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={skipPhoto} style={styles.textButton}><Text style={styles.textButtonText}>지금은 넘어가기</Text></Pressable>
+          </View> : null}
         </View> : null}
       </ScrollView>
     </SafeAreaView>
@@ -228,5 +252,8 @@ const styles = StyleSheet.create({
   savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
   successPhoto: { marginTop: 16 },
   successActions: { alignSelf: 'stretch', width: '100%' },
+  photoOffer: { alignSelf: 'stretch', borderRadius: 18, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', padding: 18, marginTop: 20 },
+  offerTitle: { color: '#202124', fontSize: 15, lineHeight: 23, fontWeight: '800' },
+  offerText: { color: '#747985', fontSize: 12, lineHeight: 19, marginTop: 8 },
   pressed: { opacity: 0.7 },
 });

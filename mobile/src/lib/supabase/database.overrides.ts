@@ -32,6 +32,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_before_time?: string; p_before_id?: string };
         Returns: HomePickFeedRow[];
       };
+      item_photo_credit: {
+        Args: { p_item_id: string };
+        Returns: { item_id: string; user_id: string; username: string; image_path: string; image_source_url: string | null }[];
+      };
     };
   };
 };

@@ -40,7 +40,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const itemId = typeof params.itemId === 'string' ? params.itemId : undefined;
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const query = useItemDetail(itemId, user?.id, focusPickId);
+  const query = useItemDetail(itemId, user?.id, focusPickId, !isSessionLoading && !sessionError);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -56,11 +56,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   }, []);
   useEffect(() => {
     scrolledTo.current = undefined;
-    if (focusPickId && reviewPositions.current[focusPickId] !== undefined) {
+    // A photo invitation opens the uploader, not a review far below it.
+    if (params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
       focusReview(focusPickId);
       scrolledTo.current = focusPickId;
     }
-  }, [focusPickId, focusReview, user?.id]);
+  }, [focusPickId, focusReview, user?.id, params.photo]);
   useEffect(() => {
     if (!highlightedId) return;
     const timer = setTimeout(() => setHighlightedId(undefined), 4000);
@@ -159,6 +160,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   const { category, myPickStatus, picks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
+  const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
+    && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
     if (myPickStatus.type === 'selected_this') {
       focusReview(myPickStatus.pickId);
@@ -177,10 +180,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.heroCard}>
           <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto || params.photo !== '1'} />
+          {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username } })} style={styles.creditLink}>
+            <Text style={styles.creditText}>사진 등록 · @{credit.username}</Text>
+          </Pressable> : null}
+          {photoAcknowledged.current && credit && credit.userId === user?.id ?
+            <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>사진을 보태주셨어요. 같은 상품을 고른 사람들도 이 사진을 함께 사용해요.</Text> : null}
           {canContribute ? (
             <View style={styles.photoContribution}>
               <Text style={styles.photoContributionTitle}>{item.name} 사진 등록</Text>
-              <Text style={styles.photoContributionHint}>직접 찍었거나 사용 권한이 있는 제품 사진을 첫 대표 이미지로 공유할 수 있어요.</Text>
+              <Text style={styles.photoContributionHint}>상품 이름이 잘 보이는 사진이면 충분해요. 직접 찍었거나 공유할 권한이 있는 사진을 골라주세요.</Text>
+              <Text style={styles.photoContributionHint}>채택된 사진은 같은 상품의 원픽 카드에 함께 표시돼요. 상품 상세에 사진 등록자로 내 사용자명이 표시되고 프로필이 연결돼요. 사진 없이도 원픽을 이용할 수 있어요.</Text>
               {!user ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })}
                 style={[styles.photoPrimaryButton, styles.photoChooseButton]}><Text style={styles.photoPrimaryText}>로그인하고 사진 등록</Text></Pressable> : <>
               {photo ? (
@@ -247,13 +257,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
               reviewPositions.current[pick.id] = event.nativeEvent.layout.y;
-              if (pick.id === focusPickId && scrolledTo.current !== focusPickId) {
+              if (params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
                 focusReview(pick.id);
                 scrolledTo.current = pick.id;
               }
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
-                itemName={item.name} focused={pick.id === focusPickId} highlighted={pick.id === highlightedId}
+                itemName={item.name} focused={params.photo !== '1' && pick.id === focusPickId} highlighted={pick.id === highlightedId}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
@@ -274,6 +284,8 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, marginTop: 8 },
+  creditLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  creditText: { color: '#747985', fontSize: 12, lineHeight: 18 },
   photoContribution: { width: '100%', borderWidth: 1, borderColor: '#DDDDF5', backgroundColor: '#F7F7FF', borderRadius: 18, padding: 16, marginTop: 18 },
   photoContributionTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   photoContributionHint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
