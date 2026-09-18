@@ -124,10 +124,10 @@ async function main() {
   assert.equal(mapYouTubeChannel(channelRaw).externalId,channelId);
   assert.equal(mapYouTubeSearchResult({id:{channelId:'bad'},snippet:{title:'x'}}),null);
 
-  assert.deepEqual(directLookup('@GoogleDevelopers'),{type:'handle',value:'@GoogleDevelopers'});
-  assert.deepEqual(directLookup(channelId),{type:'id',value:channelId});
-  assert.deepEqual(directLookup('https://www.youtube.com/@GoogleDevelopers'),{type:'handle',value:'@GoogleDevelopers'});
-  assert.deepEqual(directLookup('https://www.youtube.com/channel/'+channelId),{type:'id',value:channelId});
+  assert.equal(JSON.stringify(directLookup('@GoogleDevelopers')),JSON.stringify({type:'handle',value:'@GoogleDevelopers'}));
+  assert.equal(JSON.stringify(directLookup(channelId)),JSON.stringify({type:'id',value:channelId}));
+  assert.equal(JSON.stringify(directLookup('https://www.youtube.com/@GoogleDevelopers')),JSON.stringify({type:'handle',value:'@GoogleDevelopers'}));
+  assert.equal(JSON.stringify(directLookup('https://www.youtube.com/channel/'+channelId)),JSON.stringify({type:'id',value:channelId}));
   assert.equal(directLookup('https://example.com/@GoogleDevelopers'),null);
 
   const s=setup();
