@@ -227,16 +227,27 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       return json({ pokemon: pokemon.map((entry) => ({ ...entry, existingItemId: ids.get(entry.externalId) ?? null })) });
     }
 
-    const findExisting = () => client.from('items').select('id,category_id,status')
+    const findExisting = () => client.from('items').select('id,category_id,status,image_source_url')
       .eq('external_source', POKEAPI_SOURCE).eq('external_id', id).maybeSingle();
+    const eligible = (item: { category_id: string; status: string }) =>
+      item.category_id === category.id && ['active', 'discontinued'].includes(item.status);
     const receipt = (item: { id: string; category_id: string; status: string }) =>
-      item.category_id === category.id && ['active', 'discontinued'].includes(item.status)
+      eligible(item)
         ? json({ itemId: item.id, categoryId: item.category_id, created: false })
         : json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
 
     const existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (existing.data) return receipt(existing.data);
+    if (existing.data) {
+      if (!eligible(existing.data)) return receipt(existing.data);
+      const artwork = pokemonArtworkUrl(id);
+      if (artwork && existing.data.image_source_url !== artwork) {
+        const refreshed = await client.from('items').update({ image_source_url: artwork })
+          .eq('id', existing.data.id);
+        if (refreshed.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      return receipt(existing.data);
+    }
 
     const remote = await loadSpecies(client, id);
     if (remote.error) return remote.error;
