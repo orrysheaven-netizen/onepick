@@ -58,12 +58,45 @@ function displayNames(entry: IndexEntry) {
   return { korean: korean ?? english, english };
 }
 
+function editDistanceAtMostOne(left: string, right: string) {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.abs(a.length - b.length) > 1) return false;
+
+  if (a.length === b.length) {
+    let differences = 0;
+    for (let index = 0; index < a.length; index++) {
+      if (a[index] !== b[index] && ++differences > 1) return false;
+    }
+    return differences <= 1;
+  }
+
+  const shorter = a.length < b.length ? a : b;
+  const longer = a.length < b.length ? b : a;
+  let shortIndex = 0;
+  let longIndex = 0;
+  let skipped = false;
+  while (shortIndex < shorter.length && longIndex < longer.length) {
+    if (shorter[shortIndex] === longer[longIndex]) {
+      shortIndex++;
+      longIndex++;
+      continue;
+    }
+    if (skipped) return false;
+    skipped = true;
+    longIndex++;
+  }
+  return true;
+}
+
 function searchRank(entry: IndexEntry, query: string) {
   const { korean, english } = displayNames(entry);
   const values = [korean, english, entry.slug].map(normalizedSearch);
   if (values.some((value) => value === query)) return 0;
   if (values.some((value) => value.startsWith(query))) return 1;
   if (values.some((value) => value.includes(query))) return 2;
+  if (Array.from(query).length >= 3
+    && values.some((value) => Array.from(value).length >= 3 && editDistanceAtMostOne(value, query))) return 3;
   return 99;
 }
 
