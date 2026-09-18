@@ -70,17 +70,19 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const photoPicker = useChoosePhoto();
   const photoAttachment = useAttachItemPhoto();
   const busy = useRef(false);
+  const photoAcknowledged = useRef(false);
+  const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [photoApproved, setPhotoApproved] = useState(false);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
-  const canContribute = Boolean(currentItem && ['active', 'discontinued'].includes(currentItem.status) && !hasPhoto);
+  const canContribute = Boolean(itemId && !query.isError && currentItem && ['active', 'discontinued'].includes(currentItem.status) && !hasPhoto);
   const photoBusy = photoPicker.isPending || photoAttachment.isPending;
   const photoIntent = { action: 'add_item_photo', itemId: itemId ?? '' };
 
   const choosePhoto = async () => {
-    if (!user || isSessionLoading || sessionError || !canContribute || busy.current || photoBusy) return;
+    if (!user || isSessionLoading || sessionError || !canContribute || busy.current || photoBusy || photoAcknowledged.current) return;
     busy.current = true;
     try {
       const selected = await photoPicker.mutateAsync();
@@ -94,19 +96,37 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   };
 
   const attachPhoto = async () => {
-    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || !photoApproved || busy.current) return;
+    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || !photoApproved || busy.current || photoAcknowledged.current) return;
     busy.current = true;
     try {
       const saved = await photoAttachment.mutateAsync({ userId: user.id, itemId, photo });
+      // A later read failure must not authorize another write from an old handler.
+      photoAcknowledged.current = true;
       setSavedItem(saved);
       setPhoto(null);
       setPhotoApproved(false);
-      await query.refetch();
-    } catch { /* Keep the selected image for retry. */ }
+      // Refresh is a separate operation. Preserve the acknowledged response and
+      // keep all stale product/review content hidden if the fresh read fails.
+      await query.refetch().catch(() => {});
+    } catch { /* A failed attachment keeps the selected image for retry. */ }
     finally { busy.current = false; }
   };
+  const retryItem = async () => {
+    if (!itemId || isSessionLoading || sessionError || query.isFetching || busy.current || refreshing.current) return;
+    refreshing.current = true;
+    try { await query.refetch({ cancelRefetch: false }); }
+    catch { /* Query state keeps the error and retry visible. */ }
+    finally { refreshing.current = false; }
+  };
 
-  if (isSessionLoading || query.isPending) {
+  if (!isSessionLoading && sessionError) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
+      <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
+      <Pressable accessibilityRole="button" onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
+    </View></SafeAreaView>;
+  }
+
+  if (isSessionLoading || (Boolean(itemId) && query.isPending && !savedItem)) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
@@ -117,18 +137,18 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  if (sessionError) {
-    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
-      <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-      <Pressable accessibilityRole="button" onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
-    </View></SafeAreaView>;
-  }
-
-  if (query.isError || !query.data) {
+  if (!itemId || query.isError || !query.data) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <Text style={styles.stateTitle}>제품을 볼 수 없어요</Text>
+          <Text style={styles.stateTitle}>{savedItem ? '사진 등록 요청은 처리됐어요' : '제품을 볼 수 없어요'}</Text>
+          <Text style={styles.stateText}>{savedItem
+            ? '서버의 처리 응답은 받았지만 최신 상품 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
+            : '연결 상태를 확인한 뒤 다시 시도해주세요. 제품이 없거나 공개되지 않은 링크일 수도 있어요.'}</Text>
+          {itemId ? <Pressable accessibilityRole="button" accessibilityLabel="제품 정보 다시 불러오기" disabled={query.isFetching}
+            onPress={() => void retryItem()} style={[styles.secondaryButton, query.isFetching && styles.disabled]}>
+            <Text style={styles.secondaryButtonText}>{query.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기'}</Text>
+          </Pressable> : null}
           <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Text style={styles.secondaryButtonText}>돌아가기</Text>
           </Pressable>
@@ -198,6 +218,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               {photoAttachment.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoAttachment.error)}</Text> : null}
               {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'PROFILE_NOT_FOUND' ?
                 <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/username', params: photoIntent })} style={styles.photoConsent}><Text style={styles.photoSecondaryText}>사용자명 만들고 계속하기</Text></Pressable> : null}
+              {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'AUTH_REQUIRED' ?
+                <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoConsent}><Text style={styles.photoSecondaryText}>다시 로그인하고 계속</Text></Pressable> : null}
               </>}
             </View>
           ) : null}

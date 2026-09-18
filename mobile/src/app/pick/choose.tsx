@@ -14,7 +14,8 @@ import type { Pick } from '@/types/domain/pick';
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   switch (error.code) {
-    case 'AUTH_REQUIRED': return '원픽을 고르려면 로그인이 필요해요.';
+    case 'AUTH_REQUIRED': return '로그인이 만료되었거나 확인되지 않았어요. 다시 로그인한 뒤 선택을 이어가주세요.';
+    case 'PROFILE_NOT_FOUND': return '원픽을 남기려면 사용자명을 먼저 정해주세요.';
     case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
     case 'ITEM_NOT_ELIGIBLE':
     case 'ITEM_NOT_FOUND': return '지금은 이 제품을 원픽으로 고를 수 없어요.';
@@ -85,10 +86,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const retryItem = () => {
     if (params.itemId && !itemQuery.isFetching) void itemQuery.refetch();
   };
-  const openLogin = () => {
-    if (!item) return;
-    router.push({ pathname: '/auth/login', params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
+  const openRecovery = (needsUsername: boolean) => {
+    if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || choosePick.isPending) return;
+    // Pass only the existing validated navigation intent. No drafts or tokens in URLs.
+    router.push({ pathname: needsUsername ? '/auth/username' : '/auth/login',
+      params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
   };
+  const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null;
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
@@ -147,7 +151,17 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor="#89909C" style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
-          {choosePick.isError ? <View style={styles.errorBox}><Text style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text></View> : null}
+          {choosePick.isError ? <View style={styles.errorBox}>
+            <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
+            {choosePick.error instanceof AppError && choosePick.error.code === 'PROFILE_NOT_FOUND' ?
+              <Pressable accessibilityRole="button" onPress={() => openRecovery(true)} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>사용자명 만들고 계속</Text>
+              </Pressable> : null}
+            {choosePick.error instanceof AppError && choosePick.error.code === 'AUTH_REQUIRED' ?
+              <Pressable accessibilityRole="button" onPress={openLogin} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>다시 로그인하고 계속</Text>
+              </Pressable> : null}
+          </View> : null}
           <Pressable accessibilityRole="button" accessibilityLabel={submitLabel} accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
             disabled={choosePick.isPending} onPress={() => void handleSubmit()}
             style={({ pressed }) => [styles.primaryButton, choosePick.isPending && styles.primaryButtonDisabled, pressed && !choosePick.isPending && styles.pressed]}>

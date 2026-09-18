@@ -71,7 +71,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       throw mapSupabaseError(authError);
     }
 
-    if (!user) {
+    if (!user || (input.expectedUserId && input.expectedUserId !== user.id)) {
       throw new AppError('AUTH_REQUIRED');
     }
 
@@ -88,6 +88,10 @@ export class SupabaseProfileRepository implements ProfileRepository {
       .single();
 
     if (error?.code === '23505') {
+      // A concurrent/lost-response own-profile insert is not a taken username.
+      // Read through normal RLS and return only this authenticated user's row.
+      const own = await this.getById(user.id);
+      if (own) return own;
       throw new AppError('USERNAME_TAKEN', 'USERNAME_TAKEN', error);
     }
 
