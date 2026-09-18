@@ -122,7 +122,6 @@ type Dependencies = {
   fetchIgdb: (query: string, client: SupabaseClient) => Promise<Remote>;
   readCache: (client: SupabaseClient, key: string, maxAgeMs: number) => Promise<unknown | null>;
   writeCache: (client: SupabaseClient, key: string, payload: unknown) => Promise<void>;
-  configured: () => boolean;
   json: (body: unknown, status?: number) => Response;
 };
 
@@ -142,7 +141,7 @@ async function catalogCategory(client: SupabaseClient) {
 }
 
 export function createGameCatalogHandler(deps: Dependencies) {
-  const { client: makeClient, fetchIgdb, readCache, writeCache, configured, json } = deps;
+  const { client: makeClient, fetchIgdb, readCache, writeCache, json } = deps;
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
     if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
     const query = clean(body.query, 1000);
@@ -151,7 +150,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
     if (body.action === 'import' && !EXTERNAL_ID.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
 
     const client = makeClient();
-    if (!client || !configured()) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';

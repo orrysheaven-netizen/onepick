@@ -89,6 +89,7 @@ function setup() {
     readCache:async(_client,key)=>state.cache.get(key)??null,
     writeCache:async(_client,key,payload)=>{state.cache.set(key,payload);},
     fetchIgdb:async(query)=>{
+      if (!state.configured) return { error: json({ error: 'CATALOG_NOT_CONFIGURED' }, 503) };
       state.upstream.push(query);
       return { data: query.includes('where id =') ? state.detailRows : state.searchRows };
     },
@@ -211,6 +212,10 @@ async function main() {
   assert.match(indexSource,/IGDB_CLIENT_ID/);
   assert.match(indexSource,/IGDB_CLIENT_SECRET/);
   assert.match(indexSource,/provider: 'igdb_oauth'/);
+  assert.match(indexSource,/provider: 'igdb_diag'/);
+  assert.match(indexSource,/stage: 'twitch_oauth'/);
+  assert.match(indexSource,/stage: 'igdb'/);
+  assert.doesNotMatch(indexSource,/payload: \{ clientId|payload: \{ clientSecret/);
   assert.match(indexSource,/p_interval_ms: 650/);
   assert.match(indexSource,/AbortSignal\.timeout\(5_000\)/);
   assert.doesNotMatch(indexSource,/EXPO_PUBLIC_IGDB/);
