@@ -11,15 +11,15 @@ export default function PrivacyScreen() {
       <Pressable onPress={() => router.back()}><Text style={styles.back}>‹</Text></Pressable>
       <Text style={styles.kicker}>PRIVACY</Text>
       <Text style={styles.title}>개인정보 및 YouTube API 안내</Text>
-      <Text style={styles.note}>MVP 검토용 초안입니다. 공개 확장 전 서비스 운영자 검토가 필요합니다.</Text>
+      <Text style={styles.note}>시행일 · 2026-09-19</Text>
 
       <View style={styles.card}>
         <Text style={styles.heading}>YouTube API 사용</Text>
-        <Text style={styles.body}>OnePick의 유튜브 채널 검색은 YouTube Data API Services를 사용합니다. 검색·선택에 필요한 채널 ID, 채널 제목, 채널 썸네일 URL만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 요청하지 않습니다.</Text>
+        <Text style={styles.body}>OnePick의 유튜브 채널 검색은 YouTube Data API Services를 사용합니다. 사용자가 입력한 검색어 또는 @handle/채널 주소는 OnePick 서버를 거쳐 YouTube Data API로 전달됩니다. 검색·선택에 필요한 채널 ID, 채널 제목, 채널 썸네일 URL만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 요청하지 않습니다.</Text>
       </View>
       <View style={styles.card}>
         <Text style={styles.heading}>저장 및 갱신</Text>
-        <Text style={styles.body}>YouTube API에서 받은 비인가 데이터는 30일보다 짧은 주기로 재검증하거나 제거하도록 설계합니다. 검색 캐시와 오래된 채널 메타데이터도 같은 원칙으로 정리합니다. YouTube 영상 파일이나 썸네일 파일 자체를 OnePick Storage에 복제하지 않습니다.</Text>
+        <Text style={styles.body}>사용자가 원픽으로 선택한 채널의 ID·제목·채널 URL·썸네일 URL은 OnePick 항목과 연결되어 저장될 수 있습니다. YouTube API에서 받은 비인가 데이터는 30일보다 짧은 25일 기준으로 재검증하거나 제거합니다. 검색 캐시도 같은 원칙으로 정리하며, YouTube 영상 파일이나 썸네일 파일 자체를 OnePick Storage에 복제하지 않습니다.</Text>
       </View>
       <View style={styles.card}>
         <Text style={styles.heading}>계정 연결</Text>
