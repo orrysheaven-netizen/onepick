@@ -28,6 +28,9 @@ export const queryKeys = {
   movieCatalog: {
     search: (query: string) => ['movie-catalog', 'search', query] as const,
   },
+  musicCatalog: {
+    search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const,
+  },
   picks: {
     all: ['picks'] as const,
     detail: (pickId: string, userId?: string) =>

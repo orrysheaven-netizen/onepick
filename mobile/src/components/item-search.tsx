@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { PickPhoto } from '@/components/pick-photo';
 import { DramaSearchLink } from '@/components/drama-search-link';
+import { MusicSearchLink } from '@/components/music-search-link';
 import { useItemSearch } from '@/hooks/useItemSearch';
 
 export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelect }: {
@@ -45,6 +46,7 @@ export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelec
             <Text style={styles.movieSearchText}>영화 DB에서 찾아보기</Text>
           </Pressable> : null}
           {searchText.trim().length >= 2 ? <DramaSearchLink query={searchText} categoryId={categoryId} /> : null}
+          {searchText.trim().length >= 1 ? <MusicSearchLink query={searchText} categoryId={categoryId} /> : null}
         </View> : query.data.map((item) => <View key={item.id} style={styles.resultCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name}
             itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />

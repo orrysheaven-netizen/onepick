@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { MusicSearchLink } from '@/components/music-search-link';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemSearch } from '@/hooks/useItemSearch';
@@ -47,6 +48,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const search = useItemSearch(authReady && selectedCategory ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const isDramaCategory = selectedCategory?.slug === 'drama';
+  const isMusicCategory = selectedCategory?.slug === 'music';
   const isCatalogCategory = isMovieCategory || isDramaCategory;
   const label = isDramaCategory ? '드라마' : '영화';
   const mediaType = isDramaCategory ? 'tv' : 'movie';
@@ -94,7 +96,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     router.replace({ pathname: '/pick/find', params: { categoryId, ...(query.trim() ? { query: query.trim() } : {}) } });
   };
   const requestItem = () => {
-    if (!canAct() || !selectedCategory || !hasQuery || isCatalogCategory) return;
+    if (!canAct() || !selectedCategory || !hasQuery || isCatalogCategory || isMusicCategory) return;
     navigating.current = true;
     router.push({ pathname: '/pick/request', params: { itemName: query.trim(), categoryId: selectedCategory.id } });
   };
@@ -213,7 +215,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
           <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && importing ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
         </View>
       </Pressable>)}
-      {noResults && !isCatalogCategory ? <View style={styles.requestCard}><Text style={styles.stateTitle}>찾는 제품이 없나요?</Text><Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text><Pressable onPress={requestItem} style={styles.primaryButton}><Text style={styles.primaryButtonText}>제품 등록 요청하기</Text></Pressable></View> : null}
+      {noResults && !isCatalogCategory && !isMusicCategory ? <View style={styles.requestCard}><Text style={styles.stateTitle}>찾는 제품이 없나요?</Text><Text style={styles.stateText}>검색한 제품명을 그대로 가져가 등록 요청을 보낼 수 있어요.</Text><Pressable onPress={requestItem} style={styles.primaryButton}><Text style={styles.primaryButtonText}>제품 등록 요청하기</Text></Pressable></View> : null}
+      {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
+        <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>
+        <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
+      </View> : null}
       {noResults && isCatalogCategory ? <View style={styles.requestCard}><Text style={styles.stateTitle}>일치하는 {label}를 찾지 못했어요</Text><Text style={styles.stateText}>띄어쓰기나 한국어·원제 제목을 바꿔서 검색해보세요.</Text></View> : null}
       {isCatalogCategory ? <Text style={styles.attribution}>This product uses the TMDB API but is not endorsed or certified by TMDB.</Text> : null}
     </ScrollView>

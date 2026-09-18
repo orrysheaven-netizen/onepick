@@ -7,6 +7,7 @@ export type AuthReturnParams = {
   categoryId?: string | string[];
   pickId?: string | string[];
   externalId?: string | string[];
+  externalMusicId?: string | string[];
 };
 
 export type AuthIntent =
@@ -15,6 +16,7 @@ export type AuthIntent =
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
+  | { action: 'choose_music'; externalMusicId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
   | { action: 'profile' }
@@ -33,6 +35,10 @@ function getItemName(value: string | string[] | undefined) {
 function getExternalId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^\d{1,12}$/.test(value) ? value : null;
 }
+function getExternalMusicId(value: string | string[] | undefined) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value : null;
+}
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'register_pick') return {
@@ -49,6 +55,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalId = getExternalId(params.externalId);
     if (externalId) return { action: params.action, externalId, categoryId: params.categoryId };
   }
+  if (params.action === 'choose_music' && isId(params.categoryId)) {
+    const externalMusicId = getExternalMusicId(params.externalMusicId);
+    if (externalMusicId) return { action: 'choose_music', externalMusicId, categoryId: params.categoryId };
+  }
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
@@ -62,6 +72,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
+    case 'choose_music': return { pathname: '/pick/music', params: { categoryId: intent.categoryId, externalMusicId: intent.externalMusicId } };
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'profile': return '/profile';
