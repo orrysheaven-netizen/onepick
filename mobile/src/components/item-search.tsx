@@ -2,35 +2,87 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { DramaSearchLink } from '@/components/drama-search-link';
-import { MusicSearchLink } from '@/components/music-search-link';
 import { useItemSearch } from '@/hooks/useItemSearch';
 
-export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelect }: {
+type ItemSearchProps = {
   categoryId?: string;
   compact?: boolean;
   onSearchMovie?: (query: string) => void;
+  onSearchDrama?: (query: string) => void;
+  onSearchMusic?: (query: string) => void;
   onSelect: (itemId: string) => void;
-}) {
+};
+
+type ExternalSearchAction = {
+  key: 'movie' | 'drama' | 'music';
+  label: string;
+  accessibilityLabel: string;
+  run: () => void;
+};
+
+export function ItemSearch({
+  categoryId,
+  compact = false,
+  onSearchMovie,
+  onSearchDrama,
+  onSearchMusic,
+  onSelect,
+}: ItemSearchProps) {
   const [searchText, setSearchText] = useState('');
   const query = useItemSearch(searchText, categoryId);
+  const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
+  const externalActions: ExternalSearchAction[] = [];
+
+  if (onSearchMovie && normalizedSearch.length >= 2) {
+    externalActions.push({
+      key: 'movie',
+      label: '영화 DB에서 검색',
+      accessibilityLabel: `${normalizedSearch} 영화 DB에서 검색`,
+      run: () => onSearchMovie(normalizedSearch),
+    });
+  }
+  if (onSearchDrama && normalizedSearch.length >= 2) {
+    externalActions.push({
+      key: 'drama',
+      label: '드라마 DB에서 검색',
+      accessibilityLabel: `${normalizedSearch} 드라마 DB에서 검색`,
+      run: () => onSearchDrama(normalizedSearch),
+    });
+  }
+  if (onSearchMusic && normalizedSearch.length >= 1) {
+    externalActions.push({
+      key: 'music',
+      label: '음악 DB에서 검색',
+      accessibilityLabel: `${normalizedSearch} 음악 DB에서 검색`,
+      run: () => onSearchMusic(normalizedSearch),
+    });
+  }
+
+  const submitSearch = () => {
+    // A category-scoped catalog search has exactly one destination. Global
+    // search intentionally keeps the provider choice visible instead of
+    // guessing whether a title is a movie, drama, or song.
+    if (categoryId && externalActions.length === 1) externalActions[0].run();
+  };
+
   return (
     <View style={compact ? styles.compactContainer : styles.container}>
       {!compact ? <>
-        <Text style={styles.title}>제품 찾기</Text>
-        <Text style={styles.description}>{categoryId ? '선택한 카테고리에서 제품명으로 검색해보세요.' : '모든 카테고리에서 제품명으로 검색해보세요.'}</Text>
+        <Text style={styles.title}>항목 찾기</Text>
+        <Text style={styles.description}>{categoryId ? '선택한 카테고리에서 이름으로 검색해보세요.' : '모든 카테고리에서 이름으로 검색해보세요.'}</Text>
       </> : null}
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
-        <TextInput accessibilityLabel="제품명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
-          onChangeText={setSearchText} placeholder="어떤 제품을 찾으세요?" placeholderTextColor="#89909C"
+        <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
+          onChangeText={setSearchText} onSubmitEditing={submitSearch}
+          placeholder="어떤 원픽을 찾으세요?" placeholderTextColor="#89909C"
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
         </Pressable> : null}
       </View>
-      {!compact && !query.hasSearchText ? <Text style={styles.description}>제품을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
-      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>제품을 찾고 있어요</Text></View> : null}
+      {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
+      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요</Text></View> : null}
       {query.hasSearchText && !isLoading && query.isError ? <View style={styles.state}>
         <Text style={styles.description}>검색 결과를 불러오지 못했어요.</Text>
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>
@@ -40,19 +92,22 @@ export function ItemSearch({ categoryId, compact = false, onSearchMovie, onSelec
           {query.data.length === 20 ? '검색 결과 · 최대 20개 표시' : `검색 결과 ${query.data.length}개`}
         </Text>
         {query.data.length === 0 ? <View style={styles.emptyState}>
-          <Text style={styles.description}>일치하는 제품이 없어요. 다른 제품명이나 카테고리로 찾아보세요.</Text>
-          {onSearchMovie && searchText.trim().length >= 2 ? <Pressable accessibilityRole="button"
-            accessibilityLabel={`${searchText.trim()} 영화 DB에서 검색`} onPress={() => onSearchMovie(searchText.trim())} style={styles.movieSearchButton}>
-            <Text style={styles.movieSearchText}>영화 DB에서 찾아보기</Text>
-          </Pressable> : null}
-          {searchText.trim().length >= 2 ? <DramaSearchLink query={searchText} categoryId={categoryId} /> : null}
-          {searchText.trim().length >= 1 ? <MusicSearchLink query={searchText} categoryId={categoryId} /> : null}
+          <Text style={styles.description}>
+            {externalActions.length
+              ? 'OnePick에 아직 등록된 항목이 없어요. 아래 외부 DB에서 계속 찾아보세요.'
+              : '일치하는 항목이 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
+          </Text>
+          {externalActions.map((action) => <Pressable key={action.key} accessibilityRole="button"
+            accessibilityLabel={action.accessibilityLabel} onPress={action.run}
+            style={({ pressed }) => [styles.externalSearchButton, pressed && styles.pressed]}>
+            <Text style={styles.externalSearchText}>{action.label}</Text>
+          </Pressable>)}
         </View> : query.data.map((item) => <View key={item.id} style={styles.resultCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name}
             itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
-          <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 제품 상세 보기`} onPress={() => onSelect(item.id)}
+          <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 상세 보기`} onPress={() => onSelect(item.id)}
             style={({ pressed }) => [styles.resultAction, pressed && styles.pressed]}>
-            <View style={styles.resultCopy}><Text style={styles.itemName}>{item.name}</Text><Text style={styles.description}>제품 상세 보기</Text></View>
+            <View style={styles.resultCopy}><Text style={styles.itemName}>{item.name}</Text><Text style={styles.description}>상세 보기</Text></View>
             <Text style={styles.arrow}>›</Text>
           </Pressable>
         </View>)}
@@ -76,8 +131,8 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   resultCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginVertical: 14 },
   emptyState: { alignItems: 'flex-start' },
-  movieSearchButton: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: '#EFEEFF', paddingHorizontal: 15, marginTop: 12 },
-  movieSearchText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  externalSearchButton: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: '#EFEEFF', paddingHorizontal: 15, marginTop: 10 },
+  externalSearchText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
   resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 12, marginBottom: 10 },
   resultAction: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center', paddingLeft: 12 },
   resultCopy: { flex: 1 },
