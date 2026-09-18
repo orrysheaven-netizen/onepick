@@ -64,6 +64,7 @@ async function main() {
   assert.equal(await sharedCase.exports.sharePickCardImage(input), 'shared');
   assert.equal(shared.files.length, 1);
   assert.equal(shared.files[0].type, 'image/png');
+  assert.equal(shared.url, 'https://onepick.example/pick/pick-1');
   assert.match(shared.files[0].name, /^onepick-/);
   assert.match(sharedCase.drawn.join('|'), /ONE PICK/);
   assert.match(sharedCase.drawn.join('|'), /얼큰한 너구리/);
