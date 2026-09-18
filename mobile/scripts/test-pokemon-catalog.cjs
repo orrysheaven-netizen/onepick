@@ -17,7 +17,7 @@ function load(file, imports = {}) {
 }
 
 const {
-  mapGraphqlSpecies, searchSpeciesIndex, createPokemonCatalogHandler,
+  mapGraphqlSpecies, searchSpeciesIndex, createPokemonCatalogHandler, pokemonArtworkUrl,
 } = load('supabase/functions/pokemon-catalog/pokemonCatalog.ts', { '@supabase/supabase-js': {} });
 
 const index = [
@@ -109,16 +109,21 @@ async function main() {
   assert.equal(mapped.slug,'pikachu');
 
   assert.equal(searchSpeciesIndex(index,'피카츄')[0].externalId,'25');
+  assert.equal(searchSpeciesIndex(index,'피캬츄')[0].externalId,'25');
   assert.equal(searchSpeciesIndex(index,'Pikachu')[0].name,'피카츄');
+  assert.equal(searchSpeciesIndex(index,'Pikchu')[0].externalId,'25');
   assert.equal(searchSpeciesIndex(index,'pika')[0].externalId,'25');
   assert.equal(searchSpeciesIndex(index,'#25')[0].englishName,'Pikachu');
   assert.equal(searchSpeciesIndex(index,'26')[0].name,'라이츄');
   assert.equal(searchSpeciesIndex(index,'없는포켓몬').length,0);
+  assert.equal(pokemonArtworkUrl('25'),'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
+  assert.equal(pokemonArtworkUrl('bad'),null);
 
   const s=setup();
   const search=await (await s.request('search',{},false)).json();
   assert.equal(search.pokemon[0].name,'피카츄');
   assert.equal(search.pokemon[0].dexNumber,25);
+  assert.equal(search.pokemon[0].imageUrl,'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
   assert.equal(s.state.writes.length,0,'search must never create OnePick items');
   assert.equal(s.state.detailLoads,0,'search uses cached species-name index only');
 
@@ -129,7 +134,7 @@ async function main() {
   assert.equal(s.state.writes[0].external_id,'25');
   assert.equal(s.state.writes[0].name,'피카츄');
   assert.equal(s.state.writes[0].original_name,'Pikachu');
-  assert.equal(s.state.writes[0].image_source_url,null);
+  assert.equal(s.state.writes[0].image_source_url,'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
   assert.equal(s.state.writes[0].official_url,null);
 
   const again=await (await s.request('import')).json();
@@ -161,7 +166,7 @@ async function main() {
   const repo=new SupabasePokemonCatalogRepository({functions:{invoke:async(name,options)=>{
     calls.push(options); assert.equal(name,'pokemon-catalog');
     return { data: options.body.action==='search'
-      ? {pokemon:[{source:'pokeapi_species',externalId:'25',name:'피카츄',englishName:'Pikachu',dexNumber:25,existingItemId:null}]}
+      ? {pokemon:[{source:'pokeapi_species',externalId:'25',name:'피카츄',englishName:'Pikachu',dexNumber:25,imageUrl:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png',existingItemId:null}]}
       : {itemId:'c3333333-3333-4333-8333-333333333333',categoryId:'d4444444-4444-4444-8444-444444444444',created:false}, error:failure };
   }}});
   const signal=new AbortController().signal;
@@ -190,13 +195,17 @@ async function main() {
 
   const screen=fs.readFileSync(path.join(root,'mobile/src/app/pick/pokemon.tsx'),'utf8');
   assert.match(screen,/피카츄, Pikachu, #25/);
-  assert.match(screen,/공식 아트·스프라이트를 자동으로 복사하지 않습니다/);
+  assert.match(screen,/이미지 파일을 OnePick Storage에 복사하지 않습니다/);
+  assert.match(screen,/uri=\{entry\.imageUrl\}/);
+  assert.match(screen,/상업화 전에 다시 검토합니다/);
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/pokemon-catalog/index.ts'),'utf8');
   assert.match(indexSource,/graphql\.pokeapi\.co\/v1beta2/);
   assert.match(indexSource,/24 \* 60 \* 60_000/);
   assert.match(indexSource,/30 \* 24 \* 60 \* 60_000/);
-  assert.doesNotMatch(indexSource,/sprites|official-artwork/);
+  const coreSource=fs.readFileSync(path.join(root,'supabase/functions/pokemon-catalog/pokemonCatalog.ts'),'utf8');
+  assert.match(coreSource,/raw\.githubusercontent\.com\/PokeAPI\/sprites\/master\/sprites\/pokemon\/other\/official-artwork/);
+  assert.match(coreSource,/image_source_url: pokemonArtworkUrl\(id\)/);
 
   const itemSearchSource=fs.readFileSync(path.join(root,'mobile/src/components/item-search.tsx'),'utf8');
   assert.match(itemSearchSource,/onSearchPokemon/);
@@ -204,6 +213,10 @@ async function main() {
   const exploreSource=fs.readFileSync(path.join(root,'mobile/src/app/(tabs)/explore.tsx'),'utf8');
   assert.match(exploreSource,/pathname: '\/pick\/pokemon'/);
 
-  console.log('Pokémon catalog passed: Korean/English/dex search, daily cached index, no search writes, selected-only import, no automatic artwork, category/auth gates and login return.');
+  const migrationSource=fs.readFileSync(path.join(root,'supabase/migrations/20260918152100_backfill_pokemon_artwork_urls.sql'),'utf8');
+  assert.match(migrationSource,/external_source='pokeapi_species'/);
+  assert.match(migrationSource,/official-artwork/);
+
+  console.log('Pokémon catalog passed: Korean/English/dex/typo search, daily cached index, no search writes, selected-only import, remote artwork, existing-item backfill, category/auth gates and login return.');
 }
 main().catch((error)=>{console.error(error);process.exitCode=1;});
