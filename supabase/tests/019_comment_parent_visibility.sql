@@ -44,8 +44,10 @@ begin
   reset role;
   perform set_config('request.jwt.claim.sub',admin_id::text,true);
   set local role authenticated;
+  -- Real administrator data access now also requires AAL2; model a stepped-up session.
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   select count(*) into n from public.comments c where c.id=comment_id;
-  assert n=1, 'Moderators retain access to reported comments';
+  assert n=1, 'Moderators with AAL2 retain access to reported comments';
   reset role;
   perform set_config('request.jwt.claim.sub',owner_id::text,true);
   set local role authenticated;

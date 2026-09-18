@@ -21,6 +21,10 @@ insert into public.picks(id,user_id,category_id,item_id,one_line_review,status) 
 -- Seed the comment as its author so the community quota trigger sees the
 -- same authenticated identity and RLS checks as a real comment submission.
 set local role authenticated;
+-- Real administrator data access now also requires AAL2; model a stepped-up
+-- session for the whole transaction (harmless for the non-admin actors below,
+-- since the AAL2 gate also requires admin-list membership).
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 select set_config('request.jwt.claim.sub','a1111111-1111-1111-1111-111111111111',true);
 insert into public.comments(id,pick_id,user_id,body) values
 ('f7777777-7777-7777-7777-777777777777','f6666666-6666-6666-6666-666666666666','a1111111-1111-1111-1111-111111111111','A comment');
