@@ -5,6 +5,7 @@ import type { ImportedPokemonItem, PokemonCatalogEntry } from '@/types/domain/po
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXTERNAL_ID_PATTERN = /^\d{1,6}$/;
+const ARTWORK_URL_PATTERN = /^https:\/\/raw\.githubusercontent\.com\/PokeAPI\/sprites\/master\/sprites\/pokemon\/other\/official-artwork\/\d{1,6}\.png$/;
 
 async function functionError(error: unknown) {
   const context = error && typeof error === 'object' && 'context' in error ? error.context : undefined;
@@ -27,6 +28,7 @@ function isEntry(value: unknown): value is PokemonCatalogEntry {
     && typeof row.name === 'string' && row.name.length >= 1 && row.name.length <= 100
     && typeof row.englishName === 'string' && row.englishName.length >= 1 && row.englishName.length <= 100
     && Number.isInteger(row.dexNumber) && Number(row.dexNumber) >= 1
+    && typeof row.imageUrl === 'string' && ARTWORK_URL_PATTERN.test(row.imageUrl)
     && (row.existingItemId === null || (typeof row.existingItemId === 'string' && UUID_PATTERN.test(row.existingItemId)));
 }
 

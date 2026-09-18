@@ -4,6 +4,7 @@ export interface PokemonCatalogEntry {
   name: string;
   englishName: string;
   dexNumber: number;
+  imageUrl: string;
   existingItemId: string | null;
 }
 

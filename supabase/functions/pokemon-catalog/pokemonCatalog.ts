@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const POKEAPI_SOURCE = 'pokeapi_species' as const;
 const EXTERNAL_ID = /^\d{1,6}$/;
+const ARTWORK_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/';
 const clean = (value: unknown, max: number) => typeof value === 'string'
   ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
 
@@ -11,6 +12,7 @@ export type PokemonEntry = {
   name: string;
   englishName: string;
   dexNumber: number;
+  imageUrl: string;
   existingItemId: string | null;
 };
 
@@ -26,6 +28,42 @@ function formatSlug(value: string) {
 function normalizedSearch(value: string) {
   return value.normalize('NFKC').toLocaleLowerCase('ko-KR')
     .replace(/[\s._'’\-]+/g, '');
+}
+
+export function pokemonArtworkUrl(id: number | string) {
+  const value = String(id).trim();
+  return EXTERNAL_ID.test(value) ? `${ARTWORK_BASE}${Number(value)}.png` : null;
+}
+
+function editDistanceAtMostOne(left: string, right: string) {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.abs(a.length - b.length) > 1) return false;
+
+  if (a.length === b.length) {
+    let differences = 0;
+    for (let index = 0; index < a.length; index++) {
+      if (a[index] !== b[index] && ++differences > 1) return false;
+    }
+    return differences <= 1;
+  }
+
+  const shorter = a.length < b.length ? a : b;
+  const longer = a.length < b.length ? b : a;
+  let shortIndex = 0;
+  let longIndex = 0;
+  let skipped = false;
+  while (shortIndex < shorter.length && longIndex < longer.length) {
+    if (shorter[shortIndex] === longer[longIndex]) {
+      shortIndex++;
+      longIndex++;
+      continue;
+    }
+    if (skipped) return false;
+    skipped = true;
+    longIndex++;
+  }
+  return true;
 }
 
 function localizedNames(value: unknown): IndexName[] {
@@ -64,6 +102,8 @@ function searchRank(entry: IndexEntry, query: string) {
   if (values.some((value) => value === query)) return 0;
   if (values.some((value) => value.startsWith(query))) return 1;
   if (values.some((value) => value.includes(query))) return 2;
+  if (Array.from(query).length >= 3
+    && values.some((value) => Array.from(value).length >= 3 && editDistanceAtMostOne(value, query))) return 3;
   return 99;
 }
 
@@ -82,6 +122,7 @@ export function searchSpeciesIndex(index: unknown, queryText: string): PokemonEn
       name: names.korean,
       englishName: names.english,
       dexNumber: match.id,
+      imageUrl: pokemonArtworkUrl(match.id)!,
       existingItemId: null,
     }];
   }
@@ -101,6 +142,7 @@ export function searchSpeciesIndex(index: unknown, queryText: string): PokemonEn
         name: names.korean,
         englishName: names.english,
         dexNumber: entry.id,
+        imageUrl: pokemonArtworkUrl(entry.id)!,
         existingItemId: null,
       };
     });
@@ -185,16 +227,27 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       return json({ pokemon: pokemon.map((entry) => ({ ...entry, existingItemId: ids.get(entry.externalId) ?? null })) });
     }
 
-    const findExisting = () => client.from('items').select('id,category_id,status')
+    const findExisting = () => client.from('items').select('id,category_id,status,image_source_url')
       .eq('external_source', POKEAPI_SOURCE).eq('external_id', id).maybeSingle();
+    const eligible = (item: { category_id: string; status: string }) =>
+      item.category_id === category.id && ['active', 'discontinued'].includes(item.status);
     const receipt = (item: { id: string; category_id: string; status: string }) =>
-      item.category_id === category.id && ['active', 'discontinued'].includes(item.status)
+      eligible(item)
         ? json({ itemId: item.id, categoryId: item.category_id, created: false })
         : json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
 
     const existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (existing.data) return receipt(existing.data);
+    if (existing.data) {
+      if (!eligible(existing.data)) return receipt(existing.data);
+      const artwork = pokemonArtworkUrl(id);
+      if (artwork && existing.data.image_source_url !== artwork) {
+        const refreshed = await client.from('items').update({ image_source_url: artwork })
+          .eq('id', existing.data.id);
+        if (refreshed.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      return receipt(existing.data);
+    }
 
     const remote = await loadSpecies(client, id);
     if (remote.error) return remote.error;
@@ -206,7 +259,7 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       name: species.korean,
       normalized_name: normalizeItemName([species.korean, species.english].join(' ')),
       official_url: null,
-      image_source_url: null,
+      image_source_url: pokemonArtworkUrl(id),
       external_source: POKEAPI_SOURCE,
       external_id: id,
       original_name: species.english,
