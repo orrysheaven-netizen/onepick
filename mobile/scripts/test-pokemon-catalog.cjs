@@ -64,10 +64,10 @@ function setup() {
     },
     from(table) {
       assert.ok(['categories','items'].includes(table));
-      const filters=[]; let insert=null; let limit=Infinity;
+      const filters=[]; let insert=null; let update=null; let limit=Infinity;
       const run=async(single)=>{
         if (insert) {
-          state.writes.push(insert);
+          state.writes.push({type:'insert',row:insert});
           if (state.rows.some((r)=>r.external_source===insert.external_source && r.external_id===insert.external_id))
             return { data:null,error:{code:'23505'} };
           const saved={...insert,id:'saved-'+state.rows.length,category_id:insert.category_id};
@@ -76,6 +76,11 @@ function setup() {
         }
         const source=table==='categories'?state.categories:state.rows;
         const rows=source.filter((r)=>filters.every((f)=>f(r))).slice(0,limit);
+        if (update) {
+          state.writes.push({type:'update',row:update});
+          for (const row of rows) Object.assign(row,update);
+          return { data:rows,error:null };
+        }
         return { data:single?(rows[0]??null):rows,error:null };
       };
       const q={
@@ -84,6 +89,7 @@ function setup() {
         in:(k,vs)=>{filters.push((r)=>vs.includes(r[k]));return q;},
         limit:(n)=>{limit=n;return q;},
         insert:(row)=>{assert.equal(table,'items');insert=row;return q;},
+        update:(row)=>{assert.equal(table,'items');update=row;return q;},
         maybeSingle:()=>run(true),
         then:(resolve,reject)=>run(false).then(resolve,reject),
       };
@@ -130,12 +136,13 @@ async function main() {
   const saved=await (await s.request('import')).json();
   assert.equal(saved.created,true);
   assert.equal(s.state.detailLoads,1);
-  assert.equal(s.state.writes[0].external_source,'pokeapi_species');
-  assert.equal(s.state.writes[0].external_id,'25');
-  assert.equal(s.state.writes[0].name,'피카츄');
-  assert.equal(s.state.writes[0].original_name,'Pikachu');
-  assert.equal(s.state.writes[0].image_source_url,'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
-  assert.equal(s.state.writes[0].official_url,null);
+  assert.equal(s.state.writes[0].type,'insert');
+  assert.equal(s.state.writes[0].row.external_source,'pokeapi_species');
+  assert.equal(s.state.writes[0].row.external_id,'25');
+  assert.equal(s.state.writes[0].row.name,'피카츄');
+  assert.equal(s.state.writes[0].row.original_name,'Pikachu');
+  assert.equal(s.state.writes[0].row.image_source_url,'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
+  assert.equal(s.state.writes[0].row.official_url,null);
 
   const again=await (await s.request('import')).json();
   assert.equal(again.created,false);
@@ -143,6 +150,17 @@ async function main() {
 
   const known=await (await s.request('search',{},false)).json();
   assert.equal(known.pokemon[0].existingItemId,saved.itemId);
+
+  const stale=setup();
+  stale.state.rows.push({
+    id:'existing',category_id:'pokemon',status:'active',
+    external_source:'pokeapi_species',external_id:'25',image_source_url:null,
+  });
+  const reused=await (await stale.request('import')).json();
+  assert.equal(reused.created,false);
+  assert.equal(stale.state.detailLoads,0,'existing species should not require provider detail fetch');
+  assert.equal(stale.state.rows[0].image_source_url,'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png');
+  assert.equal(stale.state.writes[0].type,'update');
 
   for(const mode of ['no-auth','expired','suspended','hidden-category','hidden-parent','non-leaf','bad-id','bad-query']){
     const t=setup();
@@ -213,10 +231,10 @@ async function main() {
   const exploreSource=fs.readFileSync(path.join(root,'mobile/src/app/(tabs)/explore.tsx'),'utf8');
   assert.match(exploreSource,/pathname: '\/pick\/pokemon'/);
 
-  const migrationSource=fs.readFileSync(path.join(root,'supabase/migrations/20260918152100_backfill_pokemon_artwork_urls.sql'),'utf8');
-  assert.match(migrationSource,/external_source='pokeapi_species'/);
-  assert.match(migrationSource,/official-artwork/);
+  const docsSource=fs.readFileSync(path.join(root,'docs/pokemon-catalog.md'),'utf8');
+  assert.match(docsSource,/Commercialization gate/);
+  assert.match(docsSource,/release blocker for commercialization/);
 
-  console.log('Pokémon catalog passed: Korean/English/dex/typo search, daily cached index, no search writes, selected-only import, remote artwork, existing-item backfill, category/auth gates and login return.');
+  console.log('Pokémon catalog passed: Korean/English/dex/typo search, daily cached index, no search-created items, selected-only import, remote artwork, existing-item backfill, category/auth gates and login return.');
 }
 main().catch((error)=>{console.error(error);process.exitCode=1;});
