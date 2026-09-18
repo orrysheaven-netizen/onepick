@@ -81,10 +81,12 @@ export class ItemService {
     return this.readRepository.countActivePicks(itemId);
   }
 
-  async search(query: string, categoryId?: string) {
-    const categories = await this.categoryRepository.getOpenCategories();
-    const ids = categories.filter((item) => !categoryId || item.id === categoryId).map((item) => item.id);
-    if (!ids.length || !query.trim()) return [];
-    return this.itemRepository.search({ query, categoryId, categoryIds: ids, limit: 20 });
+  async search(query: string, categoryId?: string, signal?: AbortSignal) {
+    const searchText = query.trim();
+    if (!searchText) return [];
+    // search_items already checks public item status, selectable leaf categories
+    // AND their parents before ranking/limit. Do not pay for the same category
+    // read on every keystroke. The existing RPC and its visibility rules stay unchanged.
+    return this.itemRepository.search({ query: searchText, categoryId, limit: 20, signal });
   }
 }

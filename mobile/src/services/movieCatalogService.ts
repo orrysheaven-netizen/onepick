@@ -3,10 +3,10 @@ import type { MovieCatalogRepository } from '@/repositories/interfaces/movieCata
 export class MovieCatalogService {
   constructor(private readonly repository: MovieCatalogRepository) {}
 
-  search(query: string) {
+  search(query: string, signal?: AbortSignal) {
     const normalized = query.trim().replace(/\s+/g, ' ');
     // Match the existing movie-catalog endpoint's 2..60 character contract.
-    return normalized.length >= 2 && normalized.length <= 60 ? this.repository.search(normalized) : Promise.resolve([]);
+    return normalized.length >= 2 && normalized.length <= 60 ? this.repository.search(normalized, signal) : Promise.resolve([]);
   }
 
   importMovie(externalId: string) {

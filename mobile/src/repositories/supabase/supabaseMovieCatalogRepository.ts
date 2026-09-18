@@ -3,7 +3,7 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { MovieCatalogRepository } from '@/repositories/interfaces/movieCatalogRepository';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function functionError(error: unknown) {
   const context = error && typeof error === 'object' && 'context' in error ? error.context : undefined;
@@ -38,9 +38,10 @@ function isMovie(value: unknown): value is MovieCatalogEntry {
 export class SupabaseMovieCatalogRepository implements MovieCatalogRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  async search(query: string) {
+  async search(query: string, signal?: AbortSignal) {
     const { data, error } = await this.client.functions.invoke('movie-catalog', {
       body: { action: 'search', query },
+      signal,
     });
     if (error) throw await functionError(error);
     if (!Array.isArray(data?.movies)) throw new AppError('INTERNAL_ERROR');

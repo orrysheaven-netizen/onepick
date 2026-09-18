@@ -205,7 +205,8 @@ async function main() {
     let settled = 'a'.repeat(61);
     const { useMovieCatalogSearch } = load('hooks/useMovieCatalog.ts', {
       react: { useState: () => [settled, () => {}], useEffect() {} },
-      '@tanstack/react-query': { useQuery: (options) => options, useMutation: (options) => options },
+      '@tanstack/react-query': { useQuery: (options) => options, useMutation: (options) => options,
+        useQueryClient: () => ({ getQueryState: () => undefined }) },
       '@/lib/query/queryKeys': { queryKeys: { movieCatalog: { search: (q) => ['movie-catalog', 'search', q] } } },
       '@/services': { movieCatalogService: service },
     });

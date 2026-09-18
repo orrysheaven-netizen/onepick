@@ -28,11 +28,11 @@ async function main() {
   const calls = [];
   const { useItemSearch } = loadSource('hooks/useItemSearch.ts', {
     react: { useState: () => [settled, (value) => { settled = value; }], useEffect: (effect) => { cleanup?.(); cleanup = effect(); } },
-    '@tanstack/react-query': { useQuery: (options) => options },
+    '@tanstack/react-query': { useQuery: (options) => options, useQueryClient: () => ({ getQueryState: () => undefined }) },
     '@/lib/query/queryKeys': { queryKeys },
     '@/services': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
   }, {
-    setTimeout: (callback, delay) => { assert.equal(delay, 300); timer = callback; return 1; },
+    setTimeout: (callback, delay) => { assert.equal(delay, 150); timer = callback; return 1; },
     clearTimeout: () => { timer = undefined; },
   });
   assert.equal(useItemSearch('   ').enabled, false);
@@ -42,8 +42,10 @@ async function main() {
   timer();
   query = useItemSearch('라면', 'ramen');
   assert.equal(query.enabled, true);
-  await query.queryFn();
-  assert.equal(calls[0].join(','), '라면,ramen');
+  const controller = new AbortController();
+  await query.queryFn({ signal: controller.signal });
+  assert.equal(calls[0].slice(0, 2).join(','), '라면,ramen');
+  assert.equal(calls[0][2], controller.signal, 'The query cancellation signal reaches the service');
   const firstKey = JSON.stringify(query.queryKey);
   assert.notEqual(JSON.stringify(useItemSearch('라면', 'other').queryKey), firstKey);
   assert.equal(useItemSearch('다른 제품').isWaiting, true);
@@ -74,12 +76,14 @@ async function main() {
 
   const { ItemService } = loadSource('services/itemService.ts', { '@/errors/appError': { AppError: Error } });
   let categoryStatus = 'open';
+  // Match the existing search_items contract: the server filters categories
+  // before limit. The real SQL contract is also tested in 025_search_visibility.
   const itemRepository = {
-    search: async () => [{ id: 'item-1', name: '라면', categoryId: 'ramen', status: 'active' }],
+    search: async () => categoryStatus === 'open' ? [{ id: 'item-1', name: '라면', categoryId: 'ramen', status: 'active' }] : [],
   };
   const categoryRepository = {
-    getById: async () => ({ id: 'ramen', status: categoryStatus, isVisible: true, isPickable: true }),
-    getOpenCategories: async () => categoryStatus === 'open' ? [{ id: 'ramen' }] : [],
+    getById: () => assert.fail('Search must not issue a category preflight'),
+    getOpenCategories: () => assert.fail('Search must not issue a category preflight'),
   };
   const service = new ItemService(itemRepository, {}, categoryRepository, { getPicks: async () => [] });
   assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'item-1');
@@ -117,6 +121,6 @@ async function main() {
   assert.equal(photoProps.itemStatus, 'active');
   presses[0]();
   assert.equal(selected, 'item-1');
-  console.log('Item search checks passed: debounce, alias-aware RPC, category isolation and search states/actions.');
+  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

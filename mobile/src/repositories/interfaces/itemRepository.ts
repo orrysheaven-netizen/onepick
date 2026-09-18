@@ -5,6 +5,7 @@ export interface ItemSearchInput {
   categoryId?: string;
   categoryIds?: string[];
   limit?: number;
+  signal?: AbortSignal;
 }
 
 export interface ItemRepository {
@@ -13,6 +14,10 @@ export interface ItemRepository {
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
   getById(itemId: string): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;
+  /** Public active/discontinued items in currently selectable leaf categories.
+   * The data source enforces category/parent visibility BEFORE ranking/limit.
+   * Callers need no separate category preflight. Preserve caller RLS and aliases.
+   */
   search(input: ItemSearchInput): Promise<Item[]>;
 }
 
