@@ -1,26 +1,17 @@
-type StorageLike = {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
-};
+import { supabase } from '@/lib/supabase/client';
 
 type BrowserLocationLike = {
   origin: string;
   pathname: string;
   search: string;
   hash: string;
-  assign: (url: string) => void;
 };
 
 type BrowserHistoryLike = {
   replaceState: (data: unknown, unused: string, url?: string | URL | null) => void;
 };
 
-type AdminSession = {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-};
+export type AdminSessionStatus = 'signed-out' | 'needs-mfa' | 'signed-in';
 
 export type AdminDashboardMetrics = {
   users_total: number;
@@ -111,7 +102,6 @@ export type AdminAuditLog = {
   created_at: string;
 };
 
-const SESSION_KEY = 'onepick.admin.session';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -120,11 +110,6 @@ function config() {
     throw new Error('Supabase 환경변수가 없습니다. EXPO_PUBLIC_SUPABASE_URL과 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY를 설정해 주세요.');
   }
   return { supabaseUrl, publishableKey };
-}
-
-function storage(): StorageLike | null {
-  const candidate = (globalThis as unknown as { localStorage?: StorageLike }).localStorage;
-  return candidate ?? null;
 }
 
 function browserLocation(): BrowserLocationLike | null {
@@ -137,80 +122,47 @@ function browserHistory(): BrowserHistoryLike | null {
   return candidate ?? null;
 }
 
-function readSession(): AdminSession | null {
-  const value = storage()?.getItem(SESSION_KEY);
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as AdminSession;
-  } catch {
-    storage()?.removeItem(SESSION_KEY);
-    return null;
-  }
-}
-
-function saveSession(payload: { access_token: string; refresh_token: string; expires_in: number }) {
-  const session: AdminSession = {
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token,
-    expiresAt: Date.now() + payload.expires_in * 1000,
-  };
-  storage()?.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
-}
-
-function consumeAdminOAuthRedirect() {
+// The admin panel used to keep its own OAuth tokens in localStorage, separate
+// from the shared `supabase` client's session. That split meant a step-up MFA
+// check on one session said nothing about the other -- an admin could clear
+// AAL2 on the shared client (via admin-security.tsx) while this panel kept
+// using an old, never-elevated access token, or vice versa. The shared
+// `supabase` client is now the only session: OAuth completion, the allowlist
+// check, the AAL check and every admin request all read from it.
+async function completeAdminOAuthRedirect() {
   const location = browserLocation();
-  if (!location?.hash) return false;
+  if (!location || (!location.hash && !location.search)) return;
 
-  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
-  const oauthError = params.get('error_description') ?? params.get('error');
+  const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const queryParams = new URLSearchParams(location.search.replace(/^\?/, ''));
+  const oauthError = hashParams.get('error_description') ?? hashParams.get('error')
+    ?? queryParams.get('error_description') ?? queryParams.get('error');
   if (oauthError) {
-    browserHistory()?.replaceState(null, '', `${location.pathname}${location.search}`);
+    browserHistory()?.replaceState(null, '', location.pathname);
     throw new Error(oauthError);
   }
 
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-  const expiresIn = Number.parseInt(params.get('expires_in') ?? '3600', 10);
-  if (!accessToken || !refreshToken) return false;
-
-  saveSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-    expires_in: Number.isFinite(expiresIn) ? expiresIn : 3600,
-  });
-  browserHistory()?.replaceState(null, '', `${location.pathname}${location.search}`);
-  return true;
-}
-
-async function authRequest(path: string, body: Record<string, unknown>) {
-  const current = config();
-  const response = await fetch(`${current.supabaseUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      apikey: current.publishableKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = typeof data?.msg === 'string' ? data.msg : typeof data?.message === 'string' ? data.message : '인증 요청에 실패했습니다.';
-    throw new Error(message);
+  const code = queryParams.get('code');
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    browserHistory()?.replaceState(null, '', location.pathname);
+    if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
+    return;
   }
-  return data as { access_token: string; refresh_token: string; expires_in: number };
+
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+  if (!accessToken || !refreshToken) return;
+
+  const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+  browserHistory()?.replaceState(null, '', location.pathname);
+  if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
 }
 
 async function accessToken() {
-  let session = readSession();
-  if (!session) throw new Error('관리자 로그인이 필요합니다.');
-  if (session.expiresAt > Date.now() + 60_000) return session.accessToken;
-
-  const refreshed = await authRequest('/auth/v1/token?grant_type=refresh_token', {
-    refresh_token: session.refreshToken,
-  });
-  session = saveSession(refreshed);
-  return session.accessToken;
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw new Error('관리자 로그인이 필요합니다.');
+  return data.session.access_token;
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -235,40 +187,48 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
   return data as T;
 }
 
-export function beginKakaoAdminSignIn() {
-  const current = config();
+export async function beginKakaoAdminSignIn() {
   const location = browserLocation();
   if (!location) throw new Error('카카오 로그인은 웹 브라우저에서 사용할 수 있습니다.');
 
   const redirectTo = `${location.origin}/admin`;
-  const authorizeUrl = new URL(`${current.supabaseUrl}/auth/v1/authorize`);
-  authorizeUrl.searchParams.set('provider', 'kakao');
-  authorizeUrl.searchParams.set('redirect_to', redirectTo);
-  location.assign(authorizeUrl.toString());
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'kakao',
+    options: {
+      redirectTo,
+      // `scopes` adds to Supabase's Kakao defaults; the provider's `scope`
+      // parameter replaces them so email and profile photos are not requested.
+      queryParams: { scope: 'profile_nickname' },
+    },
+  });
+  if (error) throw new Error(error.message || '카카오 로그인을 시작하지 못했습니다.');
 }
 
-export function signOutAdmin() {
-  storage()?.removeItem(SESSION_KEY);
+export async function signOutAdmin() {
+  await supabase.auth.signOut({ scope: 'local' });
 }
 
-export async function checkAdminSession() {
-  consumeAdminOAuthRedirect();
-  if (!readSession()) return false;
+export async function checkAdminSession(): Promise<AdminSessionStatus> {
+  await completeAdminOAuthRedirect();
 
-  try {
-    const isAdmin = await adminRequest<boolean>('/rest/v1/rpc/current_user_is_admin', {
-      method: 'POST',
-      body: '{}',
-    });
-    if (!isAdmin) {
-      signOutAdmin();
-      throw new Error('관리자 권한이 없는 카카오 계정입니다.');
-    }
-    return true;
-  } catch (error) {
-    signOutAdmin();
-    throw error;
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return 'signed-out';
+
+  const { data: isAdmin, error: adminError } = await supabase.rpc('current_user_is_admin');
+  if (adminError || isAdmin !== true) {
+    await signOutAdmin();
+    throw new Error(adminError ? '관리자 권한을 확인하지 못했습니다.' : '관리자 권한이 없는 카카오 계정입니다.');
   }
+
+  // Membership alone does not open the dashboard: a stepped-up (AAL2) session
+  // is required for real admin data access (see the AAL2 RLS/RPC gate), so an
+  // allowlisted admin who has not completed MFA is sent to the challenge
+  // screen instead of being signed out -- they need the session alive to get
+  // there.
+  const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assuranceError) throw new Error('추가 인증 상태를 확인하지 못했습니다.');
+
+  return assurance.currentLevel === 'aal2' ? 'signed-in' : 'needs-mfa';
 }
 
 export function getDashboardMetrics() {

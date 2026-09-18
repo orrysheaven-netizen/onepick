@@ -60,7 +60,7 @@ function SecurityForm({ userId }: { userId: string }) {
   return <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
     <Text style={styles.title}>관리자 추가 인증</Text>
     <Text style={styles.text}>인증 앱에 표시되는 번호로 관리자 계정을 한 번 더 확인합니다.</Text>
-    <Text style={styles.note}>현재는 등록 단계입니다. 관리자 추가 인증의 필수 적용은 아직 완료되지 않았습니다.</Text>
+    <Text style={styles.note}>모든 관리자 화면과 데이터 접근에 추가 인증(AAL2)이 필수로 적용되어 있습니다. 아래 인증을 완료해야 관리자 화면을 사용할 수 있습니다.</Text>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {busy ? <ActivityIndicator /> : null}
     {!status ? button('상태 다시 확인', refresh) : !status.emailReady ? <View style={styles.card}>
