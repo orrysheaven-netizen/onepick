@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -181,9 +182,9 @@ export default function ProfileScreen() {
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{profile.username.slice(0, 1).toUpperCase()}</Text></View>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>MY ONEPICK</Text><Text style={styles.username}>@{profile.username}</Text>
-            {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
           </View>
         </View>
+        <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
         <ProfileSocialLinks profileUserId={profile.id} editable />
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         <Pressable accessibilityRole="button" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침" disabled={isFetching} onPress={refreshAll}
