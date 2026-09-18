@@ -39,7 +39,19 @@ async function writeCache(client: SupabaseClient, key: string, payload: unknown)
   if (error) console.error('YouTube cache write failed', error.code);
 }
 
+async function writeDiagnostic(client: SupabaseClient, payload: Record<string, unknown>) {
+  const hashed = await sha256('latest');
+  const { error } = await client.from('external_catalog_cache').upsert({
+    provider: 'youtube_diag',
+    cache_key: hashed,
+    payload,
+    fetched_at: new Date().toISOString(),
+  });
+  if (error) console.error('YouTube diagnostic write failed', error.code);
+}
+
 async function fetchYouTube(url: URL) {
+  const client = adminClient();
   try {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
@@ -54,15 +66,19 @@ async function fetchYouTube(url: URL) {
         const first = errors[0] && typeof errors[0] === 'object' ? errors[0] as Record<string, unknown> : {};
         reason = typeof first.reason === 'string' ? first.reason : '';
       } catch { /* Ignore error-body parse failures. */ }
+      if (client) await writeDiagnostic(client, { stage: 'youtube', outcome: 'http_error', status: response.status, reason: reason || null });
       if (response.status === 429 || ['quotaExceeded','dailyLimitExceeded','rateLimitExceeded'].includes(reason)) {
         return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
       }
       console.error('YouTube Data API request failed', response.status, reason || 'unknown');
       return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
     }
-    return { data: await response.json() as Record<string, unknown> } as const;
+    const data = await response.json() as Record<string, unknown>;
+    if (client) await writeDiagnostic(client, { stage: 'youtube', outcome: 'ok' });
+    return { data } as const;
   } catch (error) {
     console.error('YouTube Data API request error', error instanceof Error ? error.message : 'unknown');
+    if (client) await writeDiagnostic(client, { stage: 'youtube', outcome: 'network_error' });
     return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
   }
 }
@@ -72,7 +88,12 @@ const handler = createYouTubeCatalogHandler({
   fetchYouTube,
   readCache,
   writeCache,
-  apiKey: () => Deno.env.get('YOUTUBE_API_KEY')?.trim() || null,
+  apiKey: () => {
+    const key = Deno.env.get('YOUTUBE_API_KEY')?.trim() || null;
+    const client = adminClient();
+    if (!key && client) void writeDiagnostic(client, { stage: 'config', outcome: 'missing', hasApiKey: false });
+    return key;
+  },
   json,
 });
 
