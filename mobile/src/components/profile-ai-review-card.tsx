@@ -9,6 +9,7 @@ import {
   useSetProfileAiReviewVisibility,
 } from '@/hooks/useProfileAiReview';
 import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
+import { PROFILE_AI_PICK_GUIDANCE } from '@/lib/profileAiCopy';
 import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
 import { MIN_PROFILE_AI_PICKS } from '@/services/profileAiReviewService';
 
@@ -147,6 +148,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     return <View style={styles.card}>
       <Text style={styles.eyebrow}>ONEPICK AI</Text><Text style={styles.title}>AI가 본 나</Text>
       <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
+      <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
       <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
       <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
@@ -178,6 +180,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       <View key={`${index}:${keyword}`} style={styles.keyword}><Text style={styles.keywordText}>#{keyword}</Text></View>)}</View>
     <Text style={styles.disclaimer}>생성 당시의 취향에 대한 AI 해석이며, 사람의 가치·성격·능력이나 민감한 개인 특성을 진단하지 않습니다.</Text>
     {isMine ? <View style={styles.actions}>
+      <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
       <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여줘요. 새로 생성된 평가는 본인 확인 후 다시 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
@@ -200,6 +203,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#4945ED', fontSize: 11, fontWeight: '900', letterSpacing: 1.8 },
   title: { color: '#202124', fontSize: 18, fontWeight: '900', marginTop: 5 },
   tagline: { color: '#4945ED', fontSize: 13, fontWeight: '800', marginTop: 10 },
+  guidance: { color: '#5F6470', fontSize: 12, lineHeight: 19, marginTop: 10 },
   description: { color: '#747985', fontSize: 12, lineHeight: 19, marginTop: 7 },
   hint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 10 },
   connectionNotice: { marginVertical: 6 },

@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 import { inspectRequest, reply } from './request.ts';
-import { buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
+import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = TASTE_PROMPT_VERSION;
@@ -123,10 +123,8 @@ Deno.serve(async (req: Request) => {
     if (snapshot.length < MIN_PICKS) return reply({ error: 'AI_NOT_ENOUGH_PICKS', minimum: MIN_PICKS }, 409);
     if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
     const tasteInput = buildTasteInput(snapshot);
-    // A dated age cue must not be evaluated against a permanently cached year.
-    // Existing published text remains marked by its generation date; it is not
-    // silently rewritten or republished at a year boundary.
-    const sourceFingerprint = await fingerprint({ referenceYear: tasteInput.referenceYear, picks: snapshot });
+    // Age-reference time is no longer part of the input or cache fingerprint.
+    const sourceFingerprint = await fingerprint(snapshot);
 
     const { data: existing, error: existingError } = await admin.from('profile_ai_reviews')
       .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
@@ -142,11 +140,12 @@ Deno.serve(async (req: Request) => {
       if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
       const { source_fingerprint: _fingerprint, source_version: _version,
         model_name: _model, prompt_version: _prompt, ...review } = existing;
+      assertNoAgeComment(review);
       return reply({ review, actor, reused: true });
     }
     if (existing?.generated_at) {
-      const age = Date.now() - new Date(existing.generated_at).getTime();
-      if (Number.isFinite(age) && age >= 0 && age < COOLDOWN_MS) return reply({ error: 'RATE_LIMITED' }, 429);
+      const elapsedMs = Date.now() - new Date(existing.generated_at).getTime();
+      if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < COOLDOWN_MS) return reply({ error: 'RATE_LIMITED' }, 429);
     }
     const { data: reserved, error: reservationError } = await admin
       .rpc('reserve_profile_ai_generation', { p_profile_id: user.id });
@@ -188,9 +187,11 @@ Deno.serve(async (req: Request) => {
     const output = outputText(await modelResponse.json());
     if (!output) throw new Error('AI_REVIEW_EMPTY_OR_REFUSED');
     const generated = cleanResult(JSON.parse(output));
+    // Limited wording check, not complete semantic or tone moderation.
+    assertNoAgeComment(generated);
 
     const latestSnapshot = await readSnapshot();
-    if (await fingerprint({ referenceYear: tasteInput.referenceYear, picks: latestSnapshot }) !== sourceFingerprint) {
+    if (await fingerprint(latestSnapshot) !== sourceFingerprint) {
       return reply({ error: 'AI_REVIEW_STALE' }, 409);
     }
     // The DB compares source versions while holding the same row lock used by
