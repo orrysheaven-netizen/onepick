@@ -7,6 +7,7 @@ import { PickShareCard } from '@/components/pick-share-card';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
+import { isDemoUsername } from '@/lib/demoProfile';
 
 export function ItemReviewCard({ pick, profile, categoryName, itemName, focused, highlighted, onRemoved }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
@@ -26,6 +27,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
         <View style={styles.avatar}><Text style={styles.avatarText}>{(profile?.username ?? '?').slice(0, 1).toUpperCase()}</Text></View>
         <View style={styles.author}>
           {isMine ? <Text style={styles.badge}>{isCurrent ? '내 원픽' : '내 이전 원픽'}</Text> : null}
+          {profile && isDemoUsername(profile.username) ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
           {profile ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
               onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username } })} style={styles.profileLink}>
@@ -73,6 +75,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   author: { flex: 1 },
   badge: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  demoBadge: { alignSelf: 'flex-start', color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3, fontSize: 9, lineHeight: 12, fontWeight: '900', marginBottom: 2 },
   username: { color: '#202124', fontSize: 13, fontWeight: '700' },
   profileLink: { minHeight: 44, justifyContent: 'center' },
   review: { color: '#3E4350', fontSize: 16, lineHeight: 25, marginVertical: 12 },
