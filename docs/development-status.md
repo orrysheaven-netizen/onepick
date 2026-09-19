@@ -1,12 +1,17 @@
 # Shared development status
 
-Last updated: 2026-09-17.
+Last updated: 2026-09-19.
 
-The shared code baseline is `feature/pick-core` in Draft PR #1. Work from the
-`onepick_main` conversation and the local Home/UI conversation is integrated on
-that branch. Conversation messages are not automatically synchronized; check the
-latest available conversation context and GitHub branch before starting work,
-and reconcile intervening commits before updating the branch without force.
+The shared code baseline is now the repository's `main` branch. The former long-lived
+`feature/pick-core` Draft PR #1 is no longer the active integration baseline. Before
+starting work, fetch the latest `main`, check open PRs, and avoid relying on older
+conversation or documentation snapshots as if they described the current database.
+
+Current security/release work is tracked in [security-review.md](security-review.md).
+Notable current state: administrator MFA is enforced server-side at AAL2; TMDB
+movie/drama search guardrails are merged and deployed; PR #37 for encrypted native
+auth-session storage is intentionally open pending native/CI verification; and
+GitHub-hosted Actions are presently failing before runner assignment.
 
 ## Integrated work
 
@@ -114,15 +119,15 @@ errors omit configuration values. The preflight is offline and does not establis
 OAuth readiness or the validity of credentials. Hosting/domain selection remains
 pending by the user's choice; no site or Auth configuration was published.
 
-The user subsequently selected preparation for a small-group Cloudflare Pages
-test host and confirmed no Cloudflare account exists yet. The Git integration
-settings and tester instructions are in [test-hosting.md](test-hosting.md) and
-[tester-guide.md](tester-guide.md). Pages will use its native SPA fallback rather
-than an asset-intercepting catch-all rewrite. Pages-domain noindex headers and
-the Node version are tracked with the code. An actual URL, account connection,
-OAuth allowlist updates and external/device verification remain pending.
+A small-group Cloudflare Pages test host now exists and the repository contains
+Pages `_headers` rules plus SPA fallback preparation. The current CSP is deliberately
+partial; live response-header verification and staged CSP tightening remain release
+checks. The Git integration and tester instructions remain in
+[test-hosting.md](test-hosting.md) and [tester-guide.md](tester-guide.md).
 
-The user deferred Kakao login until the evening. Authenticated browser verification
-of request → Admin approval → Pick selection remains pending, as does physical
-iOS/Android device testing. Database role tests and mocked UI tests do not replace
-those checks.
+Kakao configuration work has progressed, but a real HTTPS browser callback check is
+still required. Authenticated browser verification of request → Admin approval → Pick
+selection and physical iOS/Android testing also remain pending. Database role tests
+and mocked UI tests do not replace those checks. Native session hardening is prepared
+in PR #37 but should not be merged until Mobile CI/typecheck can execute again or an
+equivalent real-device verification is completed.
