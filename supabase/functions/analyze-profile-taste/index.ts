@@ -137,6 +137,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: MODEL,
+        store: false,
         reasoning: { effort: 'low' },
         max_output_tokens: 600,
         instructions: [
