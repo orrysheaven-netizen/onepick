@@ -1,4 +1,4 @@
-import type { Database } from './database.types';
+import type { Database, Json } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
 
@@ -123,6 +123,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
       complete_profile_onboarding: {
         Args: never;
         Returns: OnboardingStateRow;
+      };
+      profile_taste_composition: {
+        Args: { p_profile_id: string };
+        Returns: Json;
       };
     };
   };
