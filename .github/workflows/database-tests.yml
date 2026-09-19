@@ -2,6 +2,7 @@ name: Database Tests
 
 on:
   push:
+    branches: [main]
     paths:
       - 'supabase/**'
       - '.github/workflows/database-tests.yml'
