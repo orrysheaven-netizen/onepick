@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppError } from '@/errors/appError';
@@ -69,17 +70,19 @@ export function ProfileAiToneButtons({ disabled, activeTone, status, onRequest }
 }
 
 export function ProfileAiReviewCard(props: Props) {
+  const screenFocused = useIsFocused();
   const auth = useAuthSession();
   if (auth.isLoading || auth.error) return null;
   const viewerId = auth.user?.id;
   return <ProfileAiReviewContent key={`${props.profileUserId}:${viewerId ?? 'public'}`}
-    {...props} viewerId={viewerId} isMine={props.isMine && viewerId === props.profileUserId} />;
+    {...props} viewerId={viewerId} active={screenFocused}
+    isMine={props.isMine && viewerId === props.profileUserId} />;
 }
 
-function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: Props & { viewerId?: string }) {
-  const query = useProfileAiReview(profileUserId, viewerId);
-  const connection = useProfileAiStatus(isMine);
-  const eligibility = useProfileAiEligibility(profileUserId, isMine, pickCount);
+function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId, active }: Props & { viewerId?: string; active: boolean }) {
+  const query = useProfileAiReview(profileUserId, viewerId, active);
+  const connection = useProfileAiStatus(isMine && active);
+  const eligibility = useProfileAiEligibility(profileUserId, isMine && active, pickCount);
   const generate = useGenerateProfileAiReview(profileUserId, viewerId);
   const visibility = useSetProfileAiReviewVisibility(profileUserId, viewerId);
   const [message, setMessage] = useState('');
@@ -100,13 +103,15 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     isOwner: isMine && viewerId === profileUserId, publicPickCount: displayPickCount, minimumPickCount: MIN_PROFILE_AI_PICKS,
     configured: connection.data?.configured, compatible: connection.data?.compatible,
     statusError: connection.isError || eligibility.isError,
-    statusPending: connection.isPending || connection.isFetching || eligibility.isPending || eligibility.isFetching,
+    // Existing data remains usable during a background refresh. The click path
+    // refetches status and eligibility before any model request.
+    statusPending: connection.isPending || eligibility.isPending,
   });
   const busy = generate.isPending || visibility.isPending || preflighting;
   const generationLabel = (normal: string) => eligibility.isError ? '원픽 수 확인 필요'
-    : eligibility.isPending || eligibility.isFetching ? '원픽 수 확인 중…'
+    : eligibility.isPending ? '원픽 수 확인 중…'
       : missingCount > 0 ? `원픽 ${MIN_PROFILE_AI_PICKS}개부터 요청 가능`
-        : connection.isPending || connection.isFetching ? '연결 상태 확인 중…'
+        : connection.isPending ? '연결 상태 확인 중…'
           : connection.isError ? '연결 상태 확인 필요' : connection.data?.configured !== true ? 'AI 연결 준비 중'
             : connection.data?.compatible !== true ? 'AI 서버 업데이트 중' : normal;
 
