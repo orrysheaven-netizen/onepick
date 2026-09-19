@@ -46,10 +46,10 @@ begin
 
   set local role anon;
   perform set_config('request.jwt.claim.sub','',true);
-  select count(*) into n from public.system_actors where id=actor_id;
+  select count(id) into n from public.system_actors where id=actor_id;
   assert n=1, 'Anonymous viewers can read the active AI author';
 
-  select count(*) into n
+  select count(id) into n
   from public.profile_ai_reviews
   where profile_id=owner_id and is_visible;
   assert n=1, 'Anonymous viewers can read a visible AI review';
@@ -102,13 +102,13 @@ begin
 
   set local role anon;
   perform set_config('request.jwt.claim.sub','',true);
-  select count(*) into n from public.profile_ai_reviews where profile_id=owner_id;
+  select count(id) into n from public.profile_ai_reviews where profile_id=owner_id;
   assert n=0, 'Anonymous viewers cannot read a hidden AI review';
   reset role;
 
   perform set_config('request.jwt.claim.sub',viewer_id::text,true);
   set local role authenticated;
-  select count(*) into n from public.profile_ai_reviews where profile_id=owner_id;
+  select count(id) into n from public.profile_ai_reviews where profile_id=owner_id;
   assert n=0, 'Another authenticated user cannot read a hidden AI review';
 
   update public.profile_ai_reviews
