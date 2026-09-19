@@ -9,6 +9,7 @@ import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
+import { isDemoUsername } from '@/lib/demoProfile';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function PublicProfileScreen() {
   const query = usePublicProfile(username, user?.id);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -63,7 +65,10 @@ export default function PublicProfileScreen() {
                 <Text style={styles.avatarText}>{query.data.profile.username.slice(0, 1).toUpperCase()}</Text>
               </View>
               <View style={styles.headerCopy}>
-                <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
+                <View style={styles.profileLabels}>
+                  <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
+                  {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
+                </View>
                 <Text style={styles.username}>@{query.data.profile.username}</Text>
                 {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
               </View>
@@ -74,7 +79,7 @@ export default function PublicProfileScreen() {
               <Text style={styles.summaryLabel}>현재 원픽</Text>
             </View>
 
-            {!query.data.isMine && user ? (
+            {!query.data.isMine && user && !isDemo ? (
               <View style={styles.safetyCard}>
                 <Text style={styles.safetyTitle}>사용자 관리</Text>
                 <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
@@ -163,7 +168,9 @@ const styles = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
+  profileLabels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
+  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
   summaryCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 18 },
