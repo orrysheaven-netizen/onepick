@@ -101,8 +101,8 @@ function card({ listCount = 10, eligibleCount = 10, nextCount = eligibleCount,
       return { data: eligibleCount, isError: error, isPending: pending, isFetching: false,
         refetch: async () => { recounts++; return { data: nextCount, isError: nextError }; } };
     } },
-    '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured }, isError: false,
-      isPending: false, isFetching: false, refetch: async () => ({ data: { configured }, isError: false }) }) },
+    '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured, compatible: true }, isError: false,
+      isPending: false, isFetching: false, refetch: async () => ({ data: { configured, compatible: true }, isError: false }) }) },
   });
   const tree = read(path.join(root, 'components/profile-ai-review-card.tsx')).ProfileAiReviewCard({ profileUserId: A, pickCount: listCount, isMine });
   const text = (node) => node == null || typeof node === 'boolean' ? '' : typeof node === 'string' || typeof node === 'number' ? String(node)

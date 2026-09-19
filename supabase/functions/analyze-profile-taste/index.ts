@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { PROFILE_AI_COOLDOWN_SECONDS, PROFILE_AI_PROFILE_AI_MIN_PICKS } from './contract.ts';
+import { PROFILE_AI_COOLDOWN_SECONDS, PROFILE_AI_MIN_PICKS } from './contract.ts';
 import { inspectRequest, reply } from './request.ts';
 import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
 
