@@ -78,7 +78,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
     const values: ProfileInsert = {
       id: user.id,
       username: input.username.trim().toLowerCase(),
-      onboarding_completed: true,
+      onboarding_completed: false,
     };
 
     const { data, error } = await this.client

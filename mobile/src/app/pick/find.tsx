@@ -12,7 +12,7 @@ import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMov
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
-type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[] };
+type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
 type Selection = { externalId: string; replace: boolean } & (
   | { phase: 'loading' | 'paused' }
   | { phase: 'failed'; error: unknown }
@@ -33,7 +33,7 @@ function movieErrorMessage(error: unknown, label: string) {
 export default function FindPickItemScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <FindPickItemContent key={key} auth={auth} params={params} />;
 }
 
@@ -88,7 +88,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const chooseItem = (itemId: string, categoryId: string) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    router.push({ pathname: '/pick/choose', params: { itemId, categoryId } });
+    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
   };
   const selectCategory = (categoryId: string) => {
     if (!canAct()) return;
@@ -108,7 +108,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const continueMovie = (item: ImportedMovieItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId } };
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
     if (replace) router.replace(route); else router.push(route);
   };
   const loadMovie = async (externalId: string, replace = false) => {

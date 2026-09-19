@@ -12,6 +12,7 @@ function load(file, imports = {}) {
   }).outputText, { exports, setTimeout, clearTimeout, require(name) {
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
+    if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     assert.fail(`Unexpected import: ${name}`);
   } });
   return exports;

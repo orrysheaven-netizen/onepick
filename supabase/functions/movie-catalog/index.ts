@@ -63,7 +63,9 @@ async function waitForTmdb(client: SupabaseClient) {
   return true;
 }
 
-async function fetchTmdb(url: URL, client: SupabaseClient) {
+type TmdbFetchResult = { data: Record<string, unknown> } | { error: Response };
+
+async function fetchTmdb(url: URL, client: SupabaseClient): Promise<TmdbFetchResult> {
   const headers = tmdbHeaders();
   if (!headers) return { error: json({ error: 'CATALOG_NOT_CONFIGURED' }, 503) } as const;
   if (!(await waitForTmdb(client))) return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
@@ -89,7 +91,7 @@ function adminClient() {
   });
 }
 
-async function searchMovies(query: unknown) {
+async function searchMovies(query: unknown): Promise<Response> {
   const searchText = typeof query === 'string' ? query.trim().replace(/\s+/g, ' ') : '';
   if (searchText.length < 2 || searchText.length > 60) return json({ error: 'QUERY_INVALID' }, 400);
   const client = adminClient();
@@ -124,7 +126,7 @@ async function searchMovies(query: unknown) {
   return json({ movies: movies.map((movie) => ({ ...movie, existingItemId: existing.get(movie.externalId) ?? null })) });
 }
 
-async function importMovie(externalId: unknown, req: Request) {
+async function importMovie(externalId: unknown, req: Request): Promise<Response> {
   const id = typeof externalId === 'string' ? externalId.trim() : '';
   if (!/^\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
   const client = adminClient();
@@ -169,7 +171,7 @@ async function importMovie(externalId: unknown, req: Request) {
 
 // Same deployed function, same server-side token; no second site or client secret.
 const handleDrama = createDramaHandler({ client: adminClient, fetchTmdb, readCache, writeCache, json });
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
   let body: Record<string, unknown>;
