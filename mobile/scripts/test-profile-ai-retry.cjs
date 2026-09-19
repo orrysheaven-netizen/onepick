@@ -33,10 +33,12 @@ test('formats seconds without false precision', () => {
   assert.equal(helper.formatRetryDelay(600), '10분');
 });
 const server=readFileSync(path.join(__dirname, '../../supabase/functions/analyze-profile-taste/index.ts'),'utf8');
-test('server returns retry metadata for throttling and post-reservation failures', () => {
+test('server returns retry metadata without rereading a successful reservation', () => {
   assert.match(server,/retryAfterSeconds: Math\.max/);
   assert.match(server,/reserved !== true[\s\S]*retryAfterSeconds: await readRetryAfterSeconds/);
-  assert.match(server,/AI_PROVIDER_FAILED[\s\S]*retryAfterSeconds: retryAfterReservation/);
-  assert.match(server,/AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation/);
+  assert.match(server,/reservationGrantedAt = Date\.now\(\)/);
+  assert.match(server,/AI_PROVIDER_FAILED[\s\S]*reservedRetryAfterSeconds\(\)/);
+  assert.match(server,/AI_REVIEW_STALE[\s\S]*reservedRetryAfterSeconds\(\)/);
+  assert.doesNotMatch(server,/retryAfterReservation = await readRetryAfterSeconds/);
 });
 console.log(`${passed} AI retry metadata tests passed. No network or model calls.`);

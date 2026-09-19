@@ -55,7 +55,7 @@ function server({ count = 10, cachedTone = null, limited = false, recent = false
     source_fingerprint: sourceFingerprint, model_name: 'gpt-5.6-terra',
     prompt_version: tones.tastePromptVersion(quality.TASTE_PROMPT_VERSION, cachedTone),
     generated_at: new Date(Date.now() - (recent ? 1000 : 900000)).toISOString() } : null;
-  const state = { requests: [], saves: [], reservations: [], reads: 0 };
+  const state = { requests: [], saves: [], reservations: [], reads: 0, retryReads: 0 };
   let handler;
   const createClient = () => ({
     auth: { getUser: async () => ({ data: { user: { id: A, is_anonymous: false } }, error: null }) },
@@ -66,8 +66,11 @@ function server({ count = 10, cachedTone = null, limited = false, recent = false
         async maybeSingle() {
           if (table === 'profiles') return { data: { id: A }, error: null };
           if (table === 'profile_ai_reviews') return { data: existing, error: null };
-          if (table === 'profile_ai_generation_limits') return { data: columns === 'source_version'
-            ? { source_version: 0 } : { next_allowed_at: new Date(Date.now() + 590000).toISOString() }, error: null };
+          if (table === 'profile_ai_generation_limits') {
+            if (columns === 'source_version') return { data: { source_version: 0 }, error: null };
+            state.retryReads++;
+            return { data: { next_allowed_at: new Date(Date.now() + 590000).toISOString() }, error: null };
+          }
           throw new Error('Unexpected table');
         },
         async single() { assert.equal(table, 'system_actors'); return { data: actor, error: null }; },
@@ -161,6 +164,8 @@ async function test(name, fn) { await fn(); passed++; console.log('PASS ' + name
       assert.equal(f.state.requests[0].instructions, tones.tasteInstructions(quality.TASTE_INSTRUCTIONS, tone));
       assert.ok(!JSON.stringify(f.state.requests).includes('UNTRUSTED_OVERRIDE'));
       assert.equal(f.state.saves[0].p_prompt_version, tones.tastePromptVersion(quality.TASTE_PROMPT_VERSION, tone));
+      assert.equal(f.state.reads, 1, 'Successful generation must read the public snapshot only once');
+      assert.equal(f.state.retryReads, 0, 'Successful reservation must not reread its deadline');
     });
     await test(`${tone} cannot generate below ten`, async () => {
       const f = server({ count: 9 }); const response = await f.request(tone);
@@ -190,6 +195,7 @@ async function test(name, fn) { await fn(); passed++; console.log('PASS ' + name
   await test('tone changes share the existing cooldown', async () => {
     for (const setup of [{ cachedTone: 'direct', recent: true }, { limited: true }]) {
       const f = server(setup); assert.equal((await f.request('warm')).status, 429); assert.equal(f.state.requests.length, 0);
+      if (setup.limited) assert.equal(f.state.retryReads, 1, 'A rejected reservation may read the existing deadline once');
     }
   });
   for (const tone of [undefined, null, 'T', 'F', 'roast', {}]) {

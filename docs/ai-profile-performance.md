@@ -51,3 +51,16 @@ AI 프로필 기능의 반복 조회와 생성 완료 대기를 줄인다. 기�
 - Supabase 자체 Edge Function invocation report의 전체 실행시간과 위 서버 단계 로그를 함께 보면 provider와 DB 전후 시간을 구분할 수 있다.
 
 현재 API 키가 없어 실제 providerMs 분포나 사용자 기기의 end-to-end 시간은 아직 측정하지 않았다. 로그 형식과 개인정보 비포함 여부만 자동 검사한다.
+
+
+## Edge Function DB 왕복 최적화
+
+API 연결 전 서버의 DB 호출 순서를 정리했다.
+
+- 공개 프로필 확인과 최초 source_version 읽기는 병렬 실행한다.
+- 공개 원픽 snapshot을 읽은 뒤, 최신 source_version·기존 AI 댓글·OnePick AI actor를 한 번의 Promise.all 단계로 병렬 실행한다.
+- 공개 원픽이 10개 미만이면 기존 AI 댓글/actor 조회까지 진행하지 않는다.
+- 성공한 생성 슬롯 예약은 항상 고정 10분을 설정하므로 예약 직후 next_allowed_at을 다시 읽지 않고 함수 내부 경과시간으로 남은 시간을 계산한다. 이미 제한에 걸린 요청만 기존 next_allowed_at을 읽는다.
+- 모델 응답 뒤에는 공개 원픽 50개를 다시 읽어 fingerprint를 비교하지 않는다. 모든 모델 입력에 영향을 주는 pick/item/category 변경은 source_version을 증가시키고, save_profile_ai_review가 그 행을 FOR UPDATE로 잠근 뒤 예상 version과 비교하므로 최종 저장 시점의 검증을 그대로 유지한다.
+
+정상 신규 생성 경로에서 DB HTTP/RPC 호출 수는 코드 기준 약 10회에서 약 8회로 줄고, 모델 호출 전 직렬 대기 단계는 여러 독립 조회를 병렬화해 더 크게 줄어든다. 이는 네트워크 실측치가 아니라 코드 경로 계산이며 실제 개선폭은 배포 후 performance 로그로 측정한다.

@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
   let providerFinishedAt: number | null = null;
   let saveStartedAt: number | null = null;
   let saveFinishedAt: number | null = null;
-  let retryAfterReservation: number | null = null;
+  let reservationGrantedAt: number | null = null;
   const finish = (outcome: ProfileAiServerOutcome, response: Response) => {
     const now = performance.now();
     const preflightEnd = providerStartedAt ?? saveStartedAt ?? now;
@@ -113,10 +113,6 @@ Deno.serve(async (req: Request) => {
 
     const publicClient = createClient(url, anonKey, options);
     const admin = createClient(url, serviceRole, options);
-    const { data: profile, error: profileError } = await publicClient
-      .from('profiles').select('id').eq('id', user.id).maybeSingle();
-    if (profileError) throw new Error('AI_PROFILE_READ_FAILED');
-    if (!profile) return finish('forbidden', reply({ error: 'FORBIDDEN' }, 403));
 
     const readSourceVersion = async () => {
       const { data, error } = await admin.from('profile_ai_generation_limits')
@@ -144,22 +140,42 @@ Deno.serve(async (req: Request) => {
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
       return buildSnapshot(data ?? []);
     };
-    const sourceVersion = await readSourceVersion();
+    // Read the public-profile gate and the initial source version together.
+    // The snapshot still follows the initial version read so a second version
+    // read can detect changes that committed while the snapshot was being read.
+    const [profileResult, sourceVersion] = await Promise.all([
+      publicClient.from('profiles').select('id').eq('id', user.id).maybeSingle(),
+      readSourceVersion(),
+    ]);
+    const { data: profile, error: profileError } = profileResult;
+    if (profileError) throw new Error('AI_PROFILE_READ_FAILED');
+    if (!profile) return finish('forbidden', reply({ error: 'FORBIDDEN' }, 403));
+
     const snapshot = await readSnapshot();
     if (snapshot.length < PROFILE_AI_MIN_PICKS) return finish('not_enough_picks', reply({
       error: 'AI_NOT_ENOUGH_PICKS', minimum: PROFILE_AI_MIN_PICKS,
       count: snapshot.length, remaining: PROFILE_AI_MIN_PICKS - snapshot.length,
     }, 409));
-    if (await readSourceVersion() !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
+
+    // These reads are independent once a valid public snapshot exists. Running
+    // them together removes two serial PostgREST round trips without weakening
+    // the source-version check or public snapshot RLS.
+    const [latestSourceVersion, existingResult, actorResult] = await Promise.all([
+      readSourceVersion(),
+      admin.from('profile_ai_reviews')
+        .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
+        .eq('profile_id', user.id).maybeSingle(),
+      admin.from('system_actors')
+        .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single(),
+    ]);
+    if (latestSourceVersion !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
+    const { data: existing, error: existingError } = existingResult;
+    if (existingError) throw new Error('AI_REVIEW_READ_FAILED');
+    const { data: actor, error: actorError } = actorResult;
+    if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
+
     const tasteInput = buildTasteInput(snapshot);
     const sourceFingerprint = await fingerprint(snapshot);
-    const { data: existing, error: existingError } = await admin.from('profile_ai_reviews')
-      .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
-      .eq('profile_id', user.id).maybeSingle();
-    if (existingError) throw new Error('AI_REVIEW_READ_FAILED');
-    const { data: actor, error: actorError } = await admin.from('system_actors')
-      .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single();
-    if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
 
     // Same source but a DIFFERENT tone is not a cache hit. Only the latest
     // comment is stored, and both modes share the existing per-profile limit.
@@ -181,8 +197,16 @@ Deno.serve(async (req: Request) => {
     const { data: reserved, error: reservationError } = await admin
       .rpc('reserve_profile_ai_generation', { p_profile_id: user.id });
     if (reservationError) throw new Error('AI_RESERVATION_FAILED');
-    if (reserved !== true) return finish('rate_limited', reply({ error: 'RATE_LIMITED', retryAfterSeconds: await readRetryAfterSeconds() }, 429));
-    retryAfterReservation = await readRetryAfterSeconds();
+    if (reserved !== true) return finish('rate_limited', reply({
+      error: 'RATE_LIMITED', retryAfterSeconds: await readRetryAfterSeconds(),
+    }, 429));
+    // A successful reservation always writes now + the fixed cooldown. Track
+    // elapsed function time locally instead of issuing another DB read.
+    reservationGrantedAt = Date.now();
+    const reservedRetryAfterSeconds = () => Math.max(1, Math.min(
+      PROFILE_AI_COOLDOWN_SECONDS,
+      Math.ceil((COOLDOWN_MS - Math.max(0, Date.now() - reservationGrantedAt!)) / 1000),
+    ));
 
     providerStartedAt = performance.now();
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {
@@ -210,7 +234,9 @@ Deno.serve(async (req: Request) => {
       providerFinishedAt = performance.now();
       console.error('AI_PROVIDER_FAILED', modelResponse.status);
       await modelResponse.body?.cancel();
-      return finish('provider_failed', reply({ error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }, 502));
+      return finish('provider_failed', reply({
+        error: 'AI_REVIEW_FAILED', retryAfterSeconds: reservedRetryAfterSeconds(),
+      }, 502));
     }
     const output = outputText(await modelResponse.json());
     if (!output) throw new Error('AI_REVIEW_EMPTY_OR_REFUSED');
@@ -218,13 +244,9 @@ Deno.serve(async (req: Request) => {
     assertNoAgeComment(generated);
     providerFinishedAt = performance.now();
     saveStartedAt = performance.now();
-    const latestSnapshot = await readSnapshot();
-    if (await fingerprint(latestSnapshot) !== sourceFingerprint) {
-      saveFinishedAt = performance.now();
-      return finish('stale', reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409));
-    }
-    // Existing DB function keeps its source-version lock, one latest row and
-    // private default. The generated tone column follows its server-only version.
+    // save_profile_ai_review locks the same source-version row updated by every
+    // relevant pick/item/category invalidation. That authoritative check makes a
+    // second full public snapshot read after the model call redundant.
     const { data: saved, error: saveError } = await admin.rpc('save_profile_ai_review', {
       p_profile_id: user.id, p_source_version: sourceVersion, p_actor_id: actor.id,
       p_summary: generated.summary, p_body: generated.body, p_keywords: generated.keywords,
@@ -232,13 +254,19 @@ Deno.serve(async (req: Request) => {
       p_model_name: MODEL, p_prompt_version: promptVersion,
     });
     saveFinishedAt = performance.now();
-    if (saveError?.message === 'AI_REVIEW_STALE') return finish('stale', reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409));
+    if (saveError?.message === 'AI_REVIEW_STALE') return finish('stale', reply({
+      error: 'AI_REVIEW_STALE', retryAfterSeconds: reservedRetryAfterSeconds(),
+    }, 409));
     if (saveError || !saved || saved.tone !== tone) throw new Error('AI_REVIEW_SAVE_FAILED');
     return finish('generated', reply({ review: saved, actor, reused: false }));
   } catch {
     console.error('AI_REVIEW_FAILED');
-    return finish('failed', reply(retryAfterReservation
-      ? { error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }
+    const retryAfterSeconds = reservationGrantedAt === null ? null : Math.max(1, Math.min(
+      PROFILE_AI_COOLDOWN_SECONDS,
+      Math.ceil((COOLDOWN_MS - Math.max(0, Date.now() - reservationGrantedAt)) / 1000),
+    ));
+    return finish('failed', reply(retryAfterSeconds
+      ? { error: 'AI_REVIEW_FAILED', retryAfterSeconds }
       : { error: 'AI_REVIEW_FAILED' }, 500));
   }
 });
