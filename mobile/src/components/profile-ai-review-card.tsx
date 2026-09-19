@@ -19,7 +19,7 @@ function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'AI_NOT_CONFIGURED') return 'AI 분석 서버 연결이 아직 준비되지 않았어요.';
     if (error.code === 'AI_NOT_ENOUGH_PICKS') return `공개된 원픽이 최소 ${MIN_PROFILE_AI_PICKS}개 필요해요.`;
-    if (error.code === 'AI_REVIEW_STALE') return '원픽이 변경되었어요. 현재 원픽으로 다시 평가한 뒤 공개해주세요.';
+    if (error.code === 'AI_REVIEW_STALE') return '원픽이나 AI 댓글이 바뀌었어요. 최신 내용을 확인한 뒤 공개해주세요.';
     if (error.code === 'RATE_LIMITED') return '생성 요청은 10분에 한 번 가능해요. 잠시 후 다시 시도해주세요.';
   }
   return 'AI 취향평가를 완료하지 못했어요. 로그인과 연결 상태를 확인해주세요.';
@@ -90,8 +90,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     setPreflighting(true);
     setMessage('');
     try {
-      // Revalidate on click: a cached "configured" flag is not permission to
-      // send a generation request after the server configuration has changed.
+      // Revalidate on click: cached readiness is not permission to generate.
       const checked = await connection.refetch({ cancelRefetch: false });
       if (!mounted.current) return;
       if (checked.isError || !checked.data) {
@@ -119,13 +118,14 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     }
   };
   const changeVisibility = async () => {
-    // Configuration readiness affects generation, never the owner's ability
-    // to hide an existing result. Existing RLS remains the authorization gate.
-    if (!review || review.isStale || !isMine || busy || inFlight.current) return;
+    // An old screen may hide the latest result, but cannot publish unseen text.
+    if (!review || (!review.isVisible && review.isStale) || !isMine || busy || inFlight.current) return;
     inFlight.current = true;
     setMessage('');
     try {
-      const saved = await visibility.mutateAsync(!review.isVisible);
+      const saved = await visibility.mutateAsync(review.isVisible
+        ? { isVisible: false }
+        : { isVisible: true, expectedReview: { id: review.id, generatedAt: review.generatedAt } });
       if (mounted.current) setMessage(saved.isVisible ? 'AI 취향평가를 공개했어요.' : 'AI 취향평가를 공개 프로필에서 숨겼어요.');
     } catch (error) {
       if (mounted.current) setMessage(error instanceof AppError && error.code === 'AI_REVIEW_STALE'
@@ -194,9 +194,9 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
         {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
           : <Text style={styles.primaryButtonText}>{generationLabel('현재 원픽으로 다시 평가')}</Text>}
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy || review.isStale} onPress={() => void changeVisibility()}
-        style={({ pressed }) => [styles.secondaryButton, styles.actionButton, (busy || review.isStale) && styles.disabled, pressed && styles.pressed]}>
-        <Text style={styles.secondaryButtonText}>{review.isStale ? '재평가 후 공개할 수 있어요' : review.isVisible ? '프로필에서 숨기기' : '프로필에 공개하기'}</Text>
+      <Pressable accessibilityRole="button" disabled={busy || (review.isStale && !review.isVisible)} onPress={() => void changeVisibility()}
+        style={({ pressed }) => [styles.secondaryButton, styles.actionButton, (busy || (review.isStale && !review.isVisible)) && styles.disabled, pressed && styles.pressed]}>
+        <Text style={styles.secondaryButtonText}>{review.isVisible ? '프로필에서 숨기기' : review.isStale ? '재평가 후 공개할 수 있어요' : '프로필에 공개하기'}</Text>
       </Pressable>
     </View> : null}
     {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}

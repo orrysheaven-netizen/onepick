@@ -1,5 +1,4 @@
-// No API key or network access: execute the actual service/repository with
-// deterministic Auth/transport doubles. This is not a live RLS or browser test.
+// Execute actual service/repository code with transport doubles, never real credentials.
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -10,8 +9,7 @@ function load(filename) {
   filename = path.resolve(filename);
   if (modules.has(filename)) return modules.get(filename).exports;
   const local = { exports: {} }; modules.set(filename, local);
-  const source = readFileSync(filename, 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: {
+  const compiled = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
   } }).outputText;
   const resolve = (name) => {
@@ -26,12 +24,15 @@ const { AppError } = load(path.join(root, 'errors/appError.ts'));
 const { ProfileAiReviewService } = load(path.join(root, 'services/profileAiReviewService.ts'));
 const { SupabaseProfileAiReviewRepository: Repository } = load(path.join(root, 'repositories/supabase/supabaseProfileAiReviewRepository.ts'));
 const { parseProfileAiReview } = load(path.join(root, 'lib/profileAiReviewResponse.ts'));
+const { requireProfileAiReviewVersion } = load(path.join(root, 'lib/profileAiPublication.ts'));
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const ACTOR = '33333333-3333-4333-8333-333333333333';
+const REVIEW = '44444444-4444-4444-8444-444444444444';
 const date = '2026-09-19T00:00:00.000Z';
+const seen = () => ({ id: REVIEW, generatedAt: date });
 const fixture = () => ({
-  review: { id: '44444444-4444-4444-8444-444444444444', profile_id: A, actor_id: ACTOR,
+  review: { id: REVIEW, profile_id: A, actor_id: ACTOR,
     summary: '테스트용 취향 요약', body: '등록한 선택의 이유를 정리한 테스트 본문입니다.',
     keywords: ['선택', '취향', '기록'], is_visible: false, is_stale: false,
     generated_at: date, created_at: date, updated_at: date },
@@ -82,8 +83,13 @@ function fake() {
           if (query.values) f.writes.push(query); else f.reads.push(query);
           if (f.onQuery) await f.onQuery(query);
           if (table === 'system_actors') return { data: f.payload.actor, error: f.actorError ?? null };
-          if (query.values && f.row && !f.queryError) f.row = { ...f.row, ...query.values };
-          return { data: f.row, error: f.queryError ?? null };
+          if (f.queryError) return { data: null, error: f.queryError };
+          // Model filtering, not just call syntax. A late replacement must not match.
+          if (!f.row || !query.filters.every(([column, value]) => f.row[column] === value)) {
+            return { data: null, error: null };
+          }
+          if (query.values) f.row = { ...f.row, ...query.values };
+          return { data: f.row, error: null };
         },
       };
       return builder;
@@ -99,9 +105,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
 (async () => {
   await test('service binds originating profile BEFORE generation', async () => {
     let received;
-    const service = new ProfileAiReviewService({ generate: async (id) => {
-      received = id; return { profileId: A };
-    } });
+    const service = new ProfileAiReviewService({ generate: async (id) => { received = id; return { profileId: A }; } });
     await service.generate(A, 10); assert.equal(received, A);
   });
   await test('invalid/insufficient pick counts never reach the repository', async () => {
@@ -131,8 +135,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
   });
   await test('Auth returning a different user cannot start generation', async () => {
     const f = fake(); f.verifiedUser = { id: B };
-    await assert.rejects(f.repository.generate(A), expectCode('AUTH_REQUIRED'));
-    assert.equal(f.calls.length, 0);
+    await assert.rejects(f.repository.generate(A), expectCode('AUTH_REQUIRED')); assert.equal(f.calls.length, 0);
   });
   await test('account switch during token verification is caught before POST', async () => {
     const f = fake(); f.onVerify = () => f.emit('SIGNED_IN', sessionFor(B));
@@ -144,8 +147,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
     const result = await f.repository.generate(A);
     assert.equal(result.profileId, A); assert.equal(result.isVisible, false);
     assert.equal(f.calls.length, 1); assert.deepEqual(f.verifyTokens, [token]);
-    assert.deepEqual(f.calls[0], { name: 'analyze-profile-taste',
-      options: { body: {}, headers: { Authorization: `Bearer ${token}` } } });
+    assert.deepEqual(f.calls[0], { name: 'analyze-profile-taste', options: { body: {}, headers: { Authorization: `Bearer ${token}` } } });
     assert.equal(f.subscriptions, 0); assert.equal(f.unsubscribed, 1);
   });
   await test('token refresh for the same user does not cancel a valid request', async () => {
@@ -169,8 +171,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
   }
   await test('transport rejection always removes Auth observer', async () => {
     const f = fake(); f.onInvoke = () => { throw new Error('offline'); };
-    await assert.rejects(f.repository.generate(A), /offline/);
-    assert.equal(f.subscriptions, 0);
+    await assert.rejects(f.repository.generate(A), /offline/); assert.equal(f.subscriptions, 0);
   });
   for (const code of ['AUTH_REQUIRED', 'FORBIDDEN', 'AI_NOT_CONFIGURED', 'AI_NOT_ENOUGH_PICKS', 'AI_REVIEW_STALE', 'RATE_LIMITED']) {
     await test(`${code} remains a distinct recoverable UI error`, async () => {
@@ -180,8 +181,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
   }
   await test('malformed provider error is not shown as a successful evaluation', async () => {
     const f = fake(); f.invokeError = { context: new Response('<html>failure</html>') };
-    await assert.rejects(f.repository.generate(A), expectCode('AI_REVIEW_FAILED'));
-    assert.equal(f.subscriptions, 0);
+    await assert.rejects(f.repository.generate(A), expectCode('AI_REVIEW_FAILED')); assert.equal(f.subscriptions, 0);
   });
   const rejected = [
     ['another profile', (p) => { p.review.profile_id = B; }],
@@ -205,8 +205,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
   for (const [name, alter] of rejected) {
     await test(`invalid response: ${name}`, async () => {
       const f = fake(); alter(f.payload);
-      await assert.rejects(f.repository.generate(A), expectCode('AI_REVIEW_FAILED'));
-      assert.equal(f.subscriptions, 0);
+      await assert.rejects(f.repository.generate(A), expectCode('AI_REVIEW_FAILED')); assert.equal(f.subscriptions, 0);
     });
   }
   await test('internal server fields never enter the returned UI object', () => {
@@ -224,8 +223,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
   });
   await test('no accessible review returns null and skips author lookup', async () => {
     const f = fake(); f.row = null;
-    assert.equal(await f.repository.getByProfileId(A), null);
-    assert.equal(f.reads.length, 1);
+    assert.equal(await f.repository.getByProfileId(A), null); assert.equal(f.reads.length, 1);
   });
   await test('private stale owner result remains private/stale after mapping', async () => {
     const f = fake(); f.row.is_stale = true;
@@ -233,36 +231,102 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
     assert.equal(result.isVisible, false); assert.equal(result.isStale, true);
   });
   for (const visible of [false, true]) {
-    await test(`owner can ${visible ? 'publish' : 'hide'} without an AI call or status dependency`, async () => {
-      const f = fake(); const result = await f.repository.setVisibility(A, visible);
+    await test(`owner can ${visible ? 'publish the seen version' : 'hide'} without an AI call`, async () => {
+      const f = fake(); const result = await f.repository.setVisibility(A, visible, seen());
       assert.equal(result.isVisible, visible); assert.equal(f.calls.length, 0);
       assert.deepEqual(f.writes[0].values, { is_visible: visible });
-      assert.deepEqual(f.writes[0].filters, [['profile_id', A]]);
+      assert.deepEqual(f.writes[0].filters, visible
+        ? [['profile_id', A], ['id', REVIEW], ['generated_at', date], ['is_stale', false]] : [['profile_id', A]]);
       assert.equal(f.subscriptions, 0);
     });
   }
   await test('another account cannot start a visibility write', async () => {
     const f = fake(); f.session = sessionFor(B);
-    await assert.rejects(f.repository.setVisibility(A, true), expectCode('AUTH_REQUIRED'));
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AUTH_REQUIRED'));
     assert.equal(f.writes.length, 0);
   });
   await test('stale publication constraint becomes the correct UI error', async () => {
     const f = fake(); f.queryError = { code: '23514', message: 'profile_ai_reviews_no_stale_publication' };
-    await assert.rejects(f.repository.setVisibility(A, true), expectCode('AI_REVIEW_STALE'));
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
     assert.equal(f.subscriptions, 0);
   });
-  await test('RLS zero-row visibility result is not reported as success', async () => {
+  await test('zero-row publication is never reported as success', async () => {
     const f = fake(); f.row = null;
-    await assert.rejects(f.repository.setVisibility(A, true), expectCode('FORBIDDEN'));
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
     assert.equal(f.subscriptions, 0);
   });
   await test('account switch while visibility response loads discards late result', async () => {
-    const f = fake(); f.onQuery = (query) => {
-      if (query.table === 'system_actors') f.emit('SIGNED_IN', sessionFor(B));
-    };
-    await assert.rejects(f.repository.setVisibility(A, false), expectCode('AUTH_REQUIRED'));
-    assert.equal(f.subscriptions, 0);
+    const f = fake(); f.onQuery = (query) => { if (query.table === 'system_actors') f.emit('SIGNED_IN', sessionFor(B)); };
+    await assert.rejects(f.repository.setVisibility(A, false), expectCode('AUTH_REQUIRED')); assert.equal(f.subscriptions, 0);
   });
-  console.log(`${passed} AI account/response regression scenarios passed; no network or API key used.`);
-})().catch((error) => { console.error(error); process.exitCode = 1; })
-  .finally(() => { global.fetch = originalFetch; });
+  await test('publishing without a displayed version fails before a database request', async () => {
+    const f = fake(); await assert.rejects(f.repository.setVisibility(A, true), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.writes.length, 0); assert.equal(f.authCalls, 0);
+  });
+  await test('malformed publication versions fail closed', () => {
+    for (const value of [undefined, null, {}, { ...seen(), id: 'not-a-uuid' },
+      { ...seen(), generatedAt: '' }, { ...seen(), generatedAt: 'yesterday' },
+      { ...seen(), generatedAt: '2026-09-19T00:00:00.1234567Z' }]) {
+      assert.throws(() => requireProfileAiReviewVersion(value), expectCode('AI_REVIEW_STALE'));
+    }
+  });
+  await test('service passes the displayed version unchanged', async () => {
+    let received;
+    const service = new ProfileAiReviewService({ setVisibility: async (...args) => { received = args; return {}; } });
+    const version = seen(); await service.setVisibility(A, true, version);
+    assert.deepEqual(received, [A, true, version]);
+  });
+  await test('previous screen cannot publish a regenerated body in the same row', async () => {
+    const f = fake(); f.row.body = '새로 생성되어 아직 읽지 않은 본문'; f.row.generated_at = '2026-09-19T01:00:00.000Z';
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false); assert.equal(f.writes.length, 1);
+  });
+  await test('row deletion/recreation cannot reuse consent even with the same timestamp', async () => {
+    const f = fake(); f.row.id = B;
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false);
+  });
+  await test('source invalidation without regeneration blocks publication', async () => {
+    const f = fake(); f.row.is_stale = true;
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false);
+  });
+  await test('microseconds are preserved, not rounded into an unrelated version', async () => {
+    const f = fake(); f.row.generated_at = '2026-09-19T00:00:00.123002+00:00';
+    await assert.rejects(f.repository.setVisibility(A, true, { id: REVIEW, generatedAt: '2026-09-19T00:00:00.123001+00:00' }), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false);
+    const result = await f.repository.setVisibility(A, true, { id: REVIEW, generatedAt: f.row.generated_at });
+    assert.equal(result.isVisible, true);
+    assert.equal(f.writes.at(-1).filters[2][1], '2026-09-19T00:00:00.123002+00:00');
+  });
+  await test('replacement after Auth validation is checked by the UPDATE itself', async () => {
+    const f = fake(); f.onQuery = (query) => {
+      if (query.values) f.row.generated_at = '2026-09-19T02:00:00.000Z';
+    };
+    await assert.rejects(f.repository.setVisibility(A, true, seen()), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false); assert.equal(f.writes.length, 1);
+    assert.equal(f.reads.length, 0, 'No fetch-latest-and-publish fallback');
+  });
+  await test('caller mutation during Auth does not replace the captured consent', async () => {
+    const f = fake(); const version = seen();
+    f.row.generated_at = '2026-09-19T03:00:00.000Z';
+    f.onVerify = () => { version.generatedAt = f.row.generated_at; };
+    await assert.rejects(f.repository.setVisibility(A, true, version), expectCode('AI_REVIEW_STALE'));
+    assert.equal(f.row.is_visible, false);
+  });
+  await test('old screen can still hide a newer public result', async () => {
+    const f = fake(); f.row.generated_at = '2026-09-19T03:00:00.000Z'; f.row.is_visible = true;
+    const result = await f.repository.setVisibility(A, false, seen());
+    assert.equal(result.isVisible, false); assert.deepEqual(f.writes[0].filters, [['profile_id', A]]);
+  });
+  await test('hiding needs neither a valid version nor a model connection', async () => {
+    const f = fake(); f.row.is_stale = true;
+    assert.equal((await f.repository.setVisibility(A, false, { id: 'old', generatedAt: 'invalid' })).isVisible, false);
+    assert.equal(f.calls.length, 0);
+  });
+  await test('zero-row hide is not reported as success', async () => {
+    const f = fake(); f.row = null;
+    await assert.rejects(f.repository.setVisibility(A, false), expectCode('FORBIDDEN'));
+  });
+  console.log(`${passed} AI account/response/publication regression scenarios passed; no network or API key used.`);
+})().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => { global.fetch = originalFetch; });

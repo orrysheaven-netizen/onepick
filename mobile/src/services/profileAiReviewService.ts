@@ -1,4 +1,5 @@
 import { AppError } from '@/errors/appError';
+import type { ProfileAiReviewVersion } from '@/lib/profileAiPublication';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
 
 // Product requirement: ten current public picks, not historical selections.
@@ -22,7 +23,7 @@ export class ProfileAiReviewService {
     return review;
   }
 
-  setVisibility(profileId: string, isVisible: boolean) {
-    return this.repository.setVisibility(profileId, isVisible);
+  setVisibility(profileId: string, isVisible: boolean, expectedReview?: ProfileAiReviewVersion) {
+    return this.repository.setVisibility(profileId, isVisible, expectedReview);
   }
 }

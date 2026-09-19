@@ -1,5 +1,6 @@
 import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
+import { requireProfileAiReviewVersion, type ProfileAiReviewVersion } from '@/lib/profileAiPublication';
 import { parseProfileAiReview } from '@/lib/profileAiReviewResponse';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
@@ -20,9 +21,7 @@ async function responseCode(error: unknown) {
 export class SupabaseProfileAiReviewRepository implements ProfileAiReviewRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  /** A local session is a request snapshot, never the authorization authority.
-   * getUser verifies the captured token; the server/RLS still authorizes writes.
-   * Keep callbacks synchronous to avoid an Auth lock/deadlock. */
+  /** Local sessions only supply tokens; getUser/server/RLS remain the authority. */
   private async withOwner<T>(profileId: string, action: (token: string) => Promise<T>): Promise<T> {
     if (!profileId) throw new AppError('AUTH_REQUIRED');
     let changed = false;
@@ -42,9 +41,8 @@ export class SupabaseProfileAiReviewRepository implements ProfileAiReviewReposit
       if (error || !user || user.id !== profileId || user.is_anonymous) throw new AppError('AUTH_REQUIRED');
       await currentSession();
       const result = await action(session.access_token);
-      // A->B->A is also rejected: once the observer sees a change it stays dirty.
-      // A request already accepted by the server may finish for the original
-      // account; this guard does not pretend to roll that server work back.
+      // Do not return a late result after A->B->A or logout. Server work already
+      // accepted for the original account is not claimed to be rolled back.
       await currentSession();
       return result;
     } finally { subscription.unsubscribe(); }
@@ -68,8 +66,6 @@ export class SupabaseProfileAiReviewRepository implements ProfileAiReviewReposit
 
   async generate(expectedProfileId: string) {
     return this.withOwner(expectedProfileId, async (token) => {
-      // Explicit token prevents the shared client from substituting account B's
-      // session after account A pressed the button. Do not mutate global auth.
       const { data, error } = await this.client.functions.invoke<{
         review?: unknown; actor?: unknown;
       }>('analyze-profile-taste', { body: {}, headers: { Authorization: `Bearer ${token}` } });
@@ -85,18 +81,24 @@ export class SupabaseProfileAiReviewRepository implements ProfileAiReviewReposit
     });
   }
 
-  async setVisibility(profileId: string, isVisible: boolean) {
+  async setVisibility(profileId: string, isVisible: boolean, expectedReview?: ProfileAiReviewVersion) {
+    if (typeof isVisible !== 'boolean') throw new AppError('AI_REVIEW_FAILED');
+    const expected = isVisible ? requireProfileAiReviewVersion(expectedReview) : null;
     return this.withOwner(profileId, async () => {
-      // RLS plus the explicit profile filter prevents any other profile write.
-      // This path does not call the model or depend on OpenAI configuration.
-      const { data, error } = await this.client.from('profile_ai_reviews')
-        .update({ is_visible: isVisible }).eq('profile_id', profileId)
-        .select(REVIEW_COLUMNS).maybeSingle();
+      let write = this.client.from('profile_ai_reviews')
+        .update({ is_visible: isVisible }).eq('profile_id', profileId);
+      if (expected) {
+        // One conditional UPDATE in PostgreSQL, not SELECT-then-unconditional-UPDATE.
+        // id also catches deletion/recreation; generated_at changes on every save.
+        write = write.eq('id', expected.id).eq('generated_at', expected.generatedAt).eq('is_stale', false);
+      }
+      // Hiding intentionally ignores the old version and keeps existing owner RLS.
+      const { data, error } = await write.select(REVIEW_COLUMNS).maybeSingle();
       if (error?.code === '23514' && error.message.includes('profile_ai_reviews_no_stale_publication')) {
         throw new AppError('AI_REVIEW_STALE');
       }
       if (error) throw mapSupabaseError(error);
-      if (!data) throw new AppError('FORBIDDEN');
+      if (!data) throw new AppError(isVisible ? 'AI_REVIEW_STALE' : 'FORBIDDEN');
       return parseProfileAiReview(data, await this.actor(data.actor_id), profileId);
     });
   }

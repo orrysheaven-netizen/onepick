@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { ProfileAiReviewVersion } from '@/lib/profileAiPublication';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { profileAiReviewService } from '@/services';
 import type { ProfileAiReview } from '@/types/domain/profileAiReview';
@@ -28,20 +29,27 @@ export function useGenerateProfileAiReview(profileId: string, pickCount: number,
         queryKeys.profiles.aiReview(profileId, viewerId), review,
       );
     },
-    // A rejected stale generation must refresh the old card too.
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }),
   });
 }
 
+type VisibilityChange =
+  | { isVisible: false; expectedReview?: ProfileAiReviewVersion }
+  | { isVisible: true; expectedReview: ProfileAiReviewVersion };
+
 export function useSetProfileAiReviewVisibility(profileId: string, viewerId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (isVisible: boolean) => profileAiReviewService.setVisibility(profileId, isVisible),
+    // Variables are captured by the click, not replaced with a newer query result.
+    mutationFn: ({ isVisible, expectedReview }: VisibilityChange) =>
+      profileAiReviewService.setVisibility(profileId, isVisible, expectedReview),
+    retry: false,
     onSuccess: (review) => {
       queryClient.setQueryData<ProfileAiReview | null>(
         queryKeys.profiles.aiReview(profileId, viewerId), review,
       );
     },
+    // Refresh on a version conflict, but never automatically publish the new text.
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }),
   });
 }

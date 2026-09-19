@@ -76,11 +76,30 @@ export function buildTasteInput(snapshot: readonly unknown[]) {
   return { picks };
 }
 
-/** Narrow fail-closed check for obvious age wording, NOT full semantic moderation.
- * Only inspect generated output; preserve original one-line reviews unchanged.
- * Catalog years (1968년), model names and lengths (30분) remain valid. */
+// Unicode word boundaries and Korean suffixes avoid matching arbitrary prefixes
+// in catalog names. This is a lexical guard, NOT complete semantic moderation.
+const AGE_LEFT = String.raw`(?<![\p{L}\p{N}_])`;
+const AGE_RIGHT = String.raw`(?=$|[^\p{L}\p{N}_]|(?:은|는|이|가|을|를|의|에|도|만|쯤|정도|로|부터|까지|처럼|보다|답|스럽|입|였|인|예요|초반|중반|후반|감성|취향|든|값))`;
+const AGE_UNITS = '(?:한|두|세|네|다섯|여섯|일곱|여덟|아홉)';
+const AGE_NATIVE = `(?:(?:열|스물|서른|마흔|쉰|예순|일흔|여든|아흔)(?:\\s*${AGE_UNITS})?|스무|${AGE_UNITS})`;
+const AGE_SINO = '(?:(?:이|삼|사|오|육|칠|팔|구)?십(?:[일이삼사오육칠팔구])?)';
+const AGE_PATTERNS = [
+  `${AGE_LEFT}(?:나이|나잇값|연령(?:대)?|연세|출생\\s*연도|생년|정신\\s*연령|취향\\s*나이)${AGE_RIGHT}`,
+  `${AGE_LEFT}(?:만\\s*)?(?:\\d{1,3}|${AGE_NATIVE}|${AGE_SINO})\\s*(?:살|세)${AGE_RIGHT}`,
+  `${AGE_LEFT}(?:(?:10|20|30|40|50|60|70|80|90)|(?:십|이십|삼십|사십|오십|육십|칠십|팔십|구십))\\s*대${AGE_RIGHT}`,
+  `${AGE_LEFT}(?:스무|서른|마흔|쉰|예순|일흔|여든|아흔)\\s*(?:쯤|정도)${AGE_RIGHT}`,
+  `${AGE_LEFT}\\d{2,4}\\s*(?:년생|년\\s*태어)`,
+  `${AGE_LEFT}(?:MZ|Gen\\s*[XYZ]|[XYZ]\\s*세대|베이비\\s*붐\\s*세대|밀레니얼(?:\\s*세대)?|알파\\s*세대|아재)${AGE_RIGHT}`,
+  `${AGE_LEFT}어른\\s*(?:입맛|취향)`,
+  String.raw`(?:당신|사용자|유저|회원님)[^.!?\n]{0,24}세대`,
+  String.raw`\b(?:\d+[-\s]*(?:years?[-\s]*old)|born\s+in\s+\d{4}|in\s+your\s+(?:teens|twenties|thirties|forties|fifties)|aged?\s*[:=]?\s*\d+)\b`,
+].map((pattern) => new RegExp(pattern, 'iu'));
+
+/** Inspect output fields separately; never rewrite source reviews or exempt an
+ * entire sentence just because it contains an allowed product/movie name. */
 export function assertNoAgeComment(comment: { summary: string; body: string; keywords: readonly string[] }): void {
-  const text = [comment.summary, comment.body, ...comment.keywords].join('\n').normalize('NFKC');
-  const ageMarkers = /나이|나잇|연령|연세|세대|\bMZ\b|\bGen\s*[XYZ]\b|아재|어른\s*(?:입맛|취향)|나이에\s*비해|\d{1,3}\s*(?:살|세)|\d{2}\s*대|\d{4}\s*년생|(?:스무|서른|마흔|쉰|예순|일흔|여든|아흔)\s*(?:살|세|쯤|정도)|\d+\s*(?:years?\s*old|year-old)|born\s+in\s+\d{4}|in\s+your\s+(?:teens|twenties|thirties|forties|fifties)/iu;
-  if (ageMarkers.test(text)) throw new Error('AI_REVIEW_AGE_EXCLUDED');
+  for (const field of [comment.summary, comment.body, ...comment.keywords]) {
+    const text = field.normalize('NFKC').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '');
+    if (AGE_PATTERNS.some((pattern) => pattern.test(text))) throw new Error('AI_REVIEW_AGE_EXCLUDED');
+  }
 }
