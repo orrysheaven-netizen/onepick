@@ -28,6 +28,7 @@ async function main() {
     configured = body.configured;
     contractCompatible = body.contractVersion === 'profile-ai-v3-tones' && body.minimumPicks === 10 &&
       body.promptVersion === 'taste-v5-no-age' && body.cooldownSeconds === 600;
+    assert.equal(contractCompatible, true, 'Deployed OnePick AI server is not on the release contract');
   });
   await check('root GET cannot trigger generation', () => expectError('', {}, 405, 'METHOD_NOT_ALLOWED'));
   await check('CORS preflight is handled without authentication', async () => {
