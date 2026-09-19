@@ -1,14 +1,15 @@
 export interface BookCatalogEntry {
-  source: 'nlk_isbn';
+  source: 'google_books_volume';
   externalId: string;
   title: string;
+  subtitle: string | null;
   authorName: string | null;
   publisherName: string | null;
-  editionStatement: string | null;
-  formatName: string | null;
-  publishYear: number | null;
-  isEbook: boolean | null;
-  coverUrl: null;
+  releaseYear: number | null;
+  isbn: string | null;
+  coverUrl: string | null;
+  infoUrl: string | null;
+  language: string | null;
   existingItemId: string | null;
 }
 
