@@ -1,4 +1,4 @@
-import type { Database, Json } from './database.types';
+import type { Database } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
 
@@ -117,16 +117,12 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Returns: OnboardingStateRow;
       };
       pause_profile_onboarding: {
-        Args: Record<PropertyKey, never>;
+        Args: never;
         Returns: OnboardingStateRow;
       };
       complete_profile_onboarding: {
-        Args: Record<PropertyKey, never>;
+        Args: never;
         Returns: OnboardingStateRow;
-      };
-      profile_ai_status: {
-        Args: Record<PropertyKey, never>;
-        Returns: Json;
       };
     };
   };
