@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 import { PROFILE_AI_COOLDOWN_SECONDS, PROFILE_AI_MIN_PICKS } from './contract.ts';
 import { inspectRequest, reply } from './request.ts';
+import { logProfileAiServerPerformance, type ProfileAiServerOutcome } from './performance.ts';
 import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
 import { readTasteTone, tasteInstructions, tastePromptVersion } from './tone.ts';
 
@@ -67,32 +68,55 @@ Deno.serve(async (req: Request) => {
   const request = inspectRequest(req, (name) => Deno.env.get(name));
   if (request instanceof Response) return request;
   const { authorization } = request;
+  const perfStartedAt = performance.now();
+  let perfTone: 'direct' | 'warm' | null = null;
+  let authFinishedAt: number | null = null;
+  let providerStartedAt: number | null = null;
+  let providerFinishedAt: number | null = null;
+  let saveStartedAt: number | null = null;
+  let saveFinishedAt: number | null = null;
   let retryAfterReservation: number | null = null;
+  const finish = (outcome: ProfileAiServerOutcome, response: Response) => {
+    const now = performance.now();
+    const preflightEnd = providerStartedAt ?? saveStartedAt ?? now;
+    logProfileAiServerPerformance({
+      outcome,
+      tone: perfTone,
+      authMs: authFinishedAt === null ? null : authFinishedAt - perfStartedAt,
+      preflightMs: authFinishedAt === null ? null : Math.max(0, preflightEnd - authFinishedAt),
+      providerMs: providerStartedAt === null ? null : (providerFinishedAt ?? now) - providerStartedAt,
+      saveMs: saveStartedAt === null ? null : (saveFinishedAt ?? now) - saveStartedAt,
+      totalMs: now - perfStartedAt,
+    });
+    return response;
+  };
   try {
     const url = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const openAiKey = Deno.env.get('OPENAI_API_KEY')?.trim();
-    if (!url || !anonKey) return reply({ error: 'AI_REVIEW_FAILED' }, 500);
+    if (!url || !anonKey) return finish('failed', reply({ error: 'AI_REVIEW_FAILED' }, 500));
     const options = { auth: { persistSession: false, autoRefreshToken: false } };
     const userClient = createClient(url, anonKey, {
       ...options, global: { headers: { Authorization: authorization } },
     });
     const { data: { user }, error: authError } = await userClient.auth.getUser(authorization.slice(7));
-    if (authError || !user || user.is_anonymous) return reply({ error: 'AUTH_REQUIRED' }, 401);
+    authFinishedAt = performance.now();
+    if (authError || !user || user.is_anonymous) return finish('auth_required', reply({ error: 'AUTH_REQUIRED' }, 401));
     // Read only a bounded fixed enum. Never accept a caller-supplied instruction.
     const tone = await readTasteTone(req).catch(() => null);
-    if (!tone) return reply({ error: 'AI_TONE_INVALID' }, 400);
+    if (!tone) return finish('invalid_tone', reply({ error: 'AI_TONE_INVALID' }, 400));
+    perfTone = tone;
     const toneInstructions = tasteInstructions(TASTE_INSTRUCTIONS, tone);
     const promptVersion = tastePromptVersion(PROMPT_VERSION, tone);
-    if (!serviceRole || !openAiKey) return reply({ error: 'AI_NOT_CONFIGURED' }, 503);
+    if (!serviceRole || !openAiKey) return finish('not_configured', reply({ error: 'AI_NOT_CONFIGURED' }, 503));
 
     const publicClient = createClient(url, anonKey, options);
     const admin = createClient(url, serviceRole, options);
     const { data: profile, error: profileError } = await publicClient
       .from('profiles').select('id').eq('id', user.id).maybeSingle();
     if (profileError) throw new Error('AI_PROFILE_READ_FAILED');
-    if (!profile) return reply({ error: 'FORBIDDEN' }, 403);
+    if (!profile) return finish('forbidden', reply({ error: 'FORBIDDEN' }, 403));
 
     const readSourceVersion = async () => {
       const { data, error } = await admin.from('profile_ai_generation_limits')
@@ -122,11 +146,11 @@ Deno.serve(async (req: Request) => {
     };
     const sourceVersion = await readSourceVersion();
     const snapshot = await readSnapshot();
-    if (snapshot.length < PROFILE_AI_MIN_PICKS) return reply({
+    if (snapshot.length < PROFILE_AI_MIN_PICKS) return finish('not_enough_picks', reply({
       error: 'AI_NOT_ENOUGH_PICKS', minimum: PROFILE_AI_MIN_PICKS,
       count: snapshot.length, remaining: PROFILE_AI_MIN_PICKS - snapshot.length,
-    }, 409);
-    if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
+    }, 409));
+    if (await readSourceVersion() !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
     const tasteInput = buildTasteInput(snapshot);
     const sourceFingerprint = await fingerprint(snapshot);
     const { data: existing, error: existingError } = await admin.from('profile_ai_reviews')
@@ -142,24 +166,25 @@ Deno.serve(async (req: Request) => {
     if (existing && !existing.is_stale && Number(existing.source_version) === sourceVersion &&
       existing.source_fingerprint === sourceFingerprint && existing.tone === tone &&
       existing.model_name === MODEL && existing.prompt_version === promptVersion) {
-      if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
+      if (await readSourceVersion() !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
       const { source_fingerprint: _fingerprint, source_version: _version,
         model_name: _model, prompt_version: _prompt, ...review } = existing;
       assertNoAgeComment(review);
-      return reply({ review, actor, reused: true });
+      return finish('reused', reply({ review, actor, reused: true }));
     }
     if (existing?.generated_at) {
       const elapsedMs = Date.now() - new Date(existing.generated_at).getTime();
-      if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < COOLDOWN_MS) return reply({
+      if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < COOLDOWN_MS) return finish('rate_limited', reply({
         error: 'RATE_LIMITED', retryAfterSeconds: Math.max(1, Math.ceil((COOLDOWN_MS - elapsedMs) / 1000)),
-      }, 429);
+      }, 429));
     }
     const { data: reserved, error: reservationError } = await admin
       .rpc('reserve_profile_ai_generation', { p_profile_id: user.id });
     if (reservationError) throw new Error('AI_RESERVATION_FAILED');
-    if (reserved !== true) return reply({ error: 'RATE_LIMITED', retryAfterSeconds: await readRetryAfterSeconds() }, 429);
+    if (reserved !== true) return finish('rate_limited', reply({ error: 'RATE_LIMITED', retryAfterSeconds: await readRetryAfterSeconds() }, 429));
     retryAfterReservation = await readRetryAfterSeconds();
 
+    providerStartedAt = performance.now();
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
@@ -182,17 +207,21 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(20_000),
     });
     if (!modelResponse.ok) {
+      providerFinishedAt = performance.now();
       console.error('AI_PROVIDER_FAILED', modelResponse.status);
       await modelResponse.body?.cancel();
-      return reply({ error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }, 502);
+      return finish('provider_failed', reply({ error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }, 502));
     }
     const output = outputText(await modelResponse.json());
     if (!output) throw new Error('AI_REVIEW_EMPTY_OR_REFUSED');
     const generated = cleanResult(JSON.parse(output));
     assertNoAgeComment(generated);
+    providerFinishedAt = performance.now();
+    saveStartedAt = performance.now();
     const latestSnapshot = await readSnapshot();
     if (await fingerprint(latestSnapshot) !== sourceFingerprint) {
-      return reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409);
+      saveFinishedAt = performance.now();
+      return finish('stale', reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409));
     }
     // Existing DB function keeps its source-version lock, one latest row and
     // private default. The generated tone column follows its server-only version.
@@ -202,13 +231,14 @@ Deno.serve(async (req: Request) => {
       p_pick_snapshot: snapshot, p_source_fingerprint: sourceFingerprint,
       p_model_name: MODEL, p_prompt_version: promptVersion,
     });
-    if (saveError?.message === 'AI_REVIEW_STALE') return reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409);
+    saveFinishedAt = performance.now();
+    if (saveError?.message === 'AI_REVIEW_STALE') return finish('stale', reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409));
     if (saveError || !saved || saved.tone !== tone) throw new Error('AI_REVIEW_SAVE_FAILED');
-    return reply({ review: saved, actor, reused: false });
+    return finish('generated', reply({ review: saved, actor, reused: false }));
   } catch {
     console.error('AI_REVIEW_FAILED');
-    return reply(retryAfterReservation
+    return finish('failed', reply(retryAfterReservation
       ? { error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }
-      : { error: 'AI_REVIEW_FAILED' }, 500);
+      : { error: 'AI_REVIEW_FAILED' }, 500));
   }
 });

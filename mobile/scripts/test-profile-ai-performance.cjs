@@ -33,6 +33,22 @@ let passed = 0;
 async function test(name, fn) { await fn(); passed++; console.log('PASS ' + name); }
 
 (async () => {
+  await test('client performance events keep only bounded non-content fields', () => {
+    const read = loader({ '@/lib/profileAiTone': {} });
+    const perf = read(path.join(root, 'lib/profileAiPerformance.ts'));
+    const secret = 'PRIVATE_REVIEW_TEXT_MUST_NOT_APPEAR';
+    let line = '';
+    const event = perf.logProfileAiClientPerformance({
+      tone: 'warm', outcome: 'success', preflightMs: 12.6, generationMs: 20001.2, totalMs: 20020.9,
+      userId: secret, review: secret,
+    }, (message) => { line = message; });
+    assert.deepEqual(Object.keys(event).sort(), ['event','generationMs','outcome','preflightMs','tone','totalMs']);
+    assert.equal(event.preflightMs, 13); assert.equal(event.generationMs, 20001); assert.equal(event.totalMs, 20021);
+    assert.ok(!line.includes(secret));
+    assert.equal(perf.profileAiClientOutcomeFromCode('RATE_LIMITED'), 'rate_limited');
+    assert.equal(perf.profileAiClientOutcomeFromCode('SOMETHING_ELSE'), 'failed');
+  });
+
   await test('review polling runs only while the route is active', () => {
     let options;
     const read = loader({

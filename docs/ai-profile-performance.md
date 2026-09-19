@@ -37,3 +37,17 @@ AI 프로필 기능의 반복 조회와 생성 완료 대기를 줄인다. 기�
 근거 문서:
 - https://tanstack.com/query/latest/docs/framework/react/react-native
 - https://docs.expo.dev/versions/latest/sdk/router/
+
+
+## 단계별 성능 계측
+
+실제 모델 연결 뒤 병목을 분리할 수 있도록 코드만 먼저 준비했다.
+
+- Edge Function은 생성 POST 한 건당 `AI_PROFILE_PERF` 구조화 로그를 최대 한 줄 남긴다.
+- 필드는 outcome, direct/warm, authMs, preflightMs, providerMs, saveMs, totalMs뿐이다.
+- 사용자 ID, 프로필 ID, 원픽/제품명, 한줄평, AI summary/body/keywords, API 키와 오류 원문은 넣지 않는다.
+- 앱은 T/F 버튼 실행 한 건당 `[OnePick:ai_profile_perf]` 로컬 로그 한 줄에 preflightMs, generationMs, totalMs와 정규화된 결과 코드만 기록한다.
+- 앱 로컬 로그를 새 DB 테이블로 전송하지 않는다. 성능 측정 때문에 추가 DB write를 만들지 않는다.
+- Supabase 자체 Edge Function invocation report의 전체 실행시간과 위 서버 단계 로그를 함께 보면 provider와 DB 전후 시간을 구분할 수 있다.
+
+현재 API 키가 없어 실제 providerMs 분포나 사용자 기기의 end-to-end 시간은 아직 측정하지 않았다. 로그 형식과 개인정보 비포함 여부만 자동 검사한다.

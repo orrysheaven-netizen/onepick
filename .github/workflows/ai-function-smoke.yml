@@ -29,8 +29,11 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Test public status and request gate
-        run: deno test --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/request.test.ts
+      - name: Test public status, request gate and safe performance logs
+        run: |
+          deno test --config supabase/functions/analyze-profile-taste/deno.json \
+            supabase/functions/analyze-profile-taste/request.test.ts \
+            supabase/functions/analyze-profile-taste/performance.test.ts
       - name: Test writing contract and editorial fixtures without model calls
         run: deno test --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/quality.test.ts
       - name: Render offline editorial card preview

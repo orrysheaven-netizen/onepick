@@ -7,6 +7,7 @@ import { useGenerateProfileAiReview, useProfileAiReview, useSetProfileAiReviewVi
 import { useProfileAiEligibility } from '@/hooks/useProfileAiEligibility';
 import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
 import { PROFILE_AI_PICK_GUIDANCE } from '@/lib/profileAiCopy';
+import { logProfileAiClientPerformance, profileAiClientOutcomeFromCode, type ProfileAiClientOutcome } from '@/lib/profileAiPerformance';
 import { formatRetryDelay, retryAfterSecondsFromCause } from '@/lib/profileAiRetry';
 import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
 import { PROFILE_AI_TONES, profileAiToneLabel, type ProfileAiTone } from '@/lib/profileAiTone';
@@ -118,6 +119,10 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId, ac
   const run = async (tone: ProfileAiTone) => {
     if ((tone !== 'direct' && tone !== 'warm') || !canGenerate || busy || inFlight.current || visibilityNeedsCheck) return;
     inFlight.current = true;
+    const perfStartedAt = Date.now();
+    let perfPreflightFinishedAt: number | null = null;
+    let perfGenerationStartedAt: number | null = null;
+    let perfOutcome: ProfileAiClientOutcome = 'failed';
     setActiveTone(tone);
     setPreflighting(true);
     setMessage('');
@@ -125,29 +130,53 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId, ac
       const [checked, counted] = await Promise.all([
         connection.refetch({ cancelRefetch: false }), eligibility.refetch({ cancelRefetch: false }),
       ]);
-      if (!mounted.current) return;
-      if (checked.isError || !checked.data) { setMessage('AI 연결 상태를 확인하지 못했어요. 연결 상태를 다시 확인해주세요.'); return; }
-      if (!checked.data.configured) { setMessage(errorMessage(new AppError('AI_NOT_CONFIGURED'))); return; }
-      if (!checked.data.compatible) { setMessage('AI 분석 서버가 앱과 같은 규격으로 업데이트된 뒤 요청할 수 있어요.'); return; }
+      perfPreflightFinishedAt = Date.now();
+      if (!mounted.current) { perfOutcome = 'cancelled'; return; }
+      if (checked.isError || !checked.data) {
+        perfOutcome = 'status_unavailable';
+        setMessage('AI 연결 상태를 확인하지 못했어요. 연결 상태를 다시 확인해주세요.'); return;
+      }
+      if (!checked.data.configured) {
+        perfOutcome = 'not_configured';
+        setMessage(errorMessage(new AppError('AI_NOT_CONFIGURED'))); return;
+      }
+      if (!checked.data.compatible) {
+        perfOutcome = 'incompatible';
+        setMessage('AI 분석 서버가 앱과 같은 규격으로 업데이트된 뒤 요청할 수 있어요.'); return;
+      }
       if (counted.isError || typeof counted.data !== 'number' || !Number.isSafeInteger(counted.data) || counted.data < 0) {
+        perfOutcome = 'eligibility_failed';
         setMessage('분석 가능한 원픽 수를 확인하지 못했어요. 다시 확인해주세요.'); return;
       }
       if (counted.data < MIN_PROFILE_AI_PICKS) {
+        perfOutcome = 'not_enough_picks';
         setMessage(`분석 가능한 공개 원픽이 ${counted.data}개예요. ${MIN_PROFILE_AI_PICKS - counted.data}개 더 등록하면 요청할 수 있어요.`); return;
       }
       // Captured at click time; changing screens or pressing the other button
       // cannot replace this request's tone. The repository also verifies it.
+      perfGenerationStartedAt = Date.now();
       const saved = await generate.mutateAsync({ count: counted.data, tone });
+      perfOutcome = 'success';
       if (!mounted.current) return;
       setMessage(saved.isVisible ? '현재 원픽과 말투에 맞는 기존 평가를 확인했어요.'
         : `${profileAiToneLabel(saved.tone)}을 확인했어요. 지금은 나에게만 보이며, 공개 여부를 선택할 수 있어요.`);
     } catch (error) {
+      perfOutcome = profileAiClientOutcomeFromCode(error instanceof AppError ? error.code : null);
       if (mounted.current) {
         setMessage(errorMessage(error));
         if (error instanceof AppError && (error.code === 'AI_NOT_ENOUGH_PICKS' || error.code === 'AI_REVIEW_STALE')) void eligibility.refetch({ cancelRefetch: false });
         if (error instanceof AppError && error.code === 'AI_NOT_CONFIGURED') void connection.refetch({ cancelRefetch: false });
       }
     } finally {
+      const perfFinishedAt = Date.now();
+      const perfPreflightEnd = perfPreflightFinishedAt ?? perfGenerationStartedAt ?? perfFinishedAt;
+      logProfileAiClientPerformance({
+        tone,
+        outcome: perfOutcome,
+        preflightMs: perfPreflightEnd - perfStartedAt,
+        generationMs: perfGenerationStartedAt === null ? null : perfFinishedAt - perfGenerationStartedAt,
+        totalMs: perfFinishedAt - perfStartedAt,
+      });
       inFlight.current = false;
       if (mounted.current) { setPreflighting(false); setActiveTone(null); }
     }
