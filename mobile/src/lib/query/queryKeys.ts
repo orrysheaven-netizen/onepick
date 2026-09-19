@@ -56,6 +56,8 @@ export const queryKeys = {
     requests: (userId?: string) => ['profiles', 'requests', userId ?? 'anonymous', 'cursor'] as const,
     byUsername: (username: string, userId?: string) =>
       ['profiles', 'username', username, userId ?? 'public'] as const,
+    aiReview: (profileId: string, viewerId?: string) =>
+      ['profiles', 'ai-review', profileId, viewerId ?? 'public'] as const,
   },
   safety: {
     all: ['safety'] as const,
