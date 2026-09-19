@@ -11,6 +11,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
+import { observabilityService } from '@/services';
 
 function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -33,6 +34,21 @@ export default function ItemDetailScreen() {
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const { user } = useAuthSession();
   const query = useItemDetail(itemId, user?.id, focusPickId);
+  const trackedItemId = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const viewedItemId = query.data?.item.id;
+    if (!viewedItemId || trackedItemId.current === viewedItemId) return;
+    trackedItemId.current = viewedItemId;
+    void observabilityService.captureProductEvent({
+      eventName: 'item_detail_viewed',
+      itemId: viewedItemId,
+      categoryId: query.data.item.categoryId,
+      pickId: focusPickId ?? null,
+      source: focusPickId ? 'pick_route' : 'direct_or_browse',
+      path: '/item/[itemId]',
+    });
+  }, [focusPickId, query.data?.item.categoryId, query.data?.item.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});

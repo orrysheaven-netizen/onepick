@@ -7,6 +7,7 @@ import { createPickShareUrl } from '@/lib/share/shareLinks';
 import { sharePick } from '@/lib/share/sharePick';
 import { sharePickCardImage } from '@/lib/share/sharePickCard';
 import { isDemoUsername } from '@/lib/demoProfile';
+import { observabilityService } from '@/services';
 
 interface PickShareCardProps {
   pickId: string;
@@ -33,6 +34,12 @@ export function PickShareCard(props: PickShareCardProps) {
 
     setIsSharing(true);
     setShareError(false);
+    void observabilityService.captureProductEvent({
+      eventName: 'pick_share_clicked',
+      pickId: props.pickId,
+      source: 'link',
+      path: '/pick/[pickId]',
+    });
 
     try {
       await sharePick(props);
@@ -49,6 +56,12 @@ export function PickShareCard(props: PickShareCardProps) {
     setIsCardSharing(true);
     setCardError(false);
     setCardSaved(false);
+    void observabilityService.captureProductEvent({
+      eventName: 'pick_share_clicked',
+      pickId: props.pickId,
+      source: 'image_card',
+      path: '/pick/[pickId]',
+    });
 
     try {
       const result = await sharePickCardImage(props);

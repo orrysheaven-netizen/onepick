@@ -16,11 +16,12 @@ const imports = {
   'react-native-safe-area-context': { SafeAreaView: component },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/usePickDetail': { usePickDetail: () => query },
+  '@/services': { observabilityService: { captureProductEvent: async () => {} } },
 };
 const exportsObject = {};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-}).outputText, { exports: exportsObject, require: (name) => name === 'react/jsx-runtime' ? require(name) : imports[name] });
+}).outputText, { exports: exportsObject, require: (name) => name === 'react' || name === 'react/jsx-runtime' ? require(name) : imports[name] });
 const render = () => { destination = null; return renderToStaticMarkup(React.createElement(exportsObject.default)); };
 query = { isPending: true };
 assert.match(render(), /원픽을 불러오고 있어요/);

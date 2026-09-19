@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppError } from '@/errors/appError';
 import { useKakaoSignIn } from '@/hooks/useKakaoSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { observabilityService } from '@/services';
 
 function getMessage(error: unknown) {
   if (error instanceof AppError && error.code === 'AUTH_FAILED') {
@@ -23,6 +24,11 @@ export default function LoginScreen() {
 
   const handleKakao = async () => {
     if (kakaoSignIn.isPending) return;
+    void observabilityService.captureProductEvent({
+      eventName: 'auth_started',
+      source: intent.action,
+      path: '/auth/login',
+    });
     const redirectTo = Linking.createURL('auth/callback', {
       queryParams: { ...intent },
     });
