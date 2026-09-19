@@ -8,7 +8,7 @@
 
 최신 개발 브랜치의 `GET /functions/v1/analyze-profile-taste/status`는 비밀값 없이 다음 항목을 반환한다.
 
-- `contractVersion = profile-ai-v2`
+- `contractVersion = profile-ai-v3-tones`
 - `minimumPicks = 10`
 - `promptVersion = taste-v5-no-age`
 - `cooldownSeconds = 600`
@@ -30,14 +30,14 @@ Supabase Edge Functions는 네트워크/중계/함수 HTTP 오류가 서로 다�
 
 ## 배포 상태
 
-이 문서는 개발 브랜치 규격이다. 기존 배포 서버가 이 규격을 반환하지 않으면 최신 앱은 생성 요청을 막고 'AI 서버 업데이트 중'으로 표시한다. 서버와 앱을 같은 릴리스 단위로 검증한 뒤 실제 생성 QA를 진행해야 한다.
+현재 onepick-dev 배포 서버는 이 규격을 반환한다. OpenAI secret이 없으면 `configured=false`이므로 최신 앱은 생성 요청을 막는다. 서버와 앱을 같은 릴리스 단위로 검증한 뒤 실제 생성 QA를 진행해야 한다.
 
 ## 검증
 
 - `test-profile-ai-status.cjs`: 현재 규격, 구버전 서버, 부분/잘못된 규격, 생성 버튼 호환성 조건.
 - `test-profile-ai-retry.cjs`: 남은 시간 입력 검증·표시와 서버 응답 경로.
 - `test-profile-ai-minimum.cjs`: 최소 10개 규칙이 서버 계약 상수와 일치하는지 유지.
-- `scripts/check-ai-function.mjs`: 실제 배포 서버가 구버전이어도 접속/인증 검사는 수행하되 보고서에 `contractCompatible`을 별도로 기록한다.
+- `scripts/check-ai-function.mjs`: 실제 배포 서버가 release contract와 다르면 실패하고, 보고서에 `contractCompatible`을 기록한다.
 
 참고:
 - https://supabase.com/docs/guides/functions/error-handling
