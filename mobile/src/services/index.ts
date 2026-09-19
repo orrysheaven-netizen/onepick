@@ -12,6 +12,7 @@ import {
   youtubeCatalogRepository,
   pokemonCatalogRepository,
   profileRepository,
+  profileAiReviewRepository,
   photoRepository,
   readRepository,
   safetyRepository,
@@ -32,6 +33,7 @@ import { GameCatalogService } from './gameCatalogService';
 import { YouTubeCatalogService } from './youtubeCatalogService';
 import { PokemonCatalogService } from './pokemonCatalogService';
 import { ProfileService } from './profileService';
+import { ProfileAiReviewService } from './profileAiReviewService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
 
@@ -77,6 +79,7 @@ export const profileService = new ProfileService(
   profileRepository,
   readRepository,
 );
+export const profileAiReviewService = new ProfileAiReviewService(profileAiReviewRepository);
 
 export {
   AdminService,
@@ -93,5 +96,6 @@ export {
   YouTubeCatalogService,
   PokemonCatalogService,
   ProfileService,
+  ProfileAiReviewService,
   SafetyService,
 };
