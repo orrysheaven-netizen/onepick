@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      comment_notifications: {
-        Row: { comment_id: string; recipient_id: string; created_at: string; read_at: string | null }
-        Insert: { comment_id: string; recipient_id: string; created_at?: string; read_at?: string | null }
-        Update: { read_at?: string | null }
-        Relationships: []
-      }
-      home_settings: {
-        Row: {
-          id: boolean
-          minimum_pick_count: number
-          updated_at: string
-        }
-        Insert: {
-          id?: boolean
-          minimum_pick_count?: number
-          updated_at?: string
-        }
-        Update: {
-          id?: boolean
-          minimum_pick_count?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -184,6 +160,42 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_notifications: {
+        Row: {
+          comment_id: string
+          created_at: string
+          read_at: string | null
+          recipient_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          read_at?: string | null
+          recipient_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          read_at?: string | null
+          recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_notifications_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: true
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           body: string
@@ -293,6 +305,60 @@ export type Database = {
           },
         ]
       }
+      external_catalog_cache: {
+        Row: {
+          cache_key: string
+          fetched_at: string
+          payload: Json
+          provider: string
+        }
+        Insert: {
+          cache_key: string
+          fetched_at?: string
+          payload: Json
+          provider: string
+        }
+        Update: {
+          cache_key?: string
+          fetched_at?: string
+          payload?: Json
+          provider?: string
+        }
+        Relationships: []
+      }
+      external_catalog_request_limits: {
+        Row: {
+          next_allowed_at: string
+          provider: string
+        }
+        Insert: {
+          next_allowed_at?: string
+          provider: string
+        }
+        Update: {
+          next_allowed_at?: string
+          provider?: string
+        }
+        Relationships: []
+      }
+      home_settings: {
+        Row: {
+          id: boolean
+          minimum_pick_count: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          minimum_pick_count?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          minimum_pick_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       item_aliases: {
         Row: {
           alias: string
@@ -328,13 +394,58 @@ export type Database = {
           },
         ]
       }
+      item_photo_credits: {
+        Row: {
+          created_at: string
+          image_path: string
+          image_source_url: string | null
+          item_id: string
+          thumbnail_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          image_path: string
+          image_source_url?: string | null
+          item_id: string
+          thumbnail_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          image_path?: string
+          image_source_url?: string | null
+          item_id?: string
+          thumbnail_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_photo_credits_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_photo_credits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           brand_id: string | null
           category_id: string
+          collection_name: string | null
           created_at: string
           created_by: string | null
+          creator_name: string | null
           external_id: string | null
+          external_refreshed_at: string | null
           external_source: string | null
           id: string
           image_path: string | null
@@ -353,9 +464,12 @@ export type Database = {
         Insert: {
           brand_id?: string | null
           category_id: string
+          collection_name?: string | null
           created_at?: string
           created_by?: string | null
+          creator_name?: string | null
           external_id?: string | null
+          external_refreshed_at?: string | null
           external_source?: string | null
           id?: string
           image_path?: string | null
@@ -374,9 +488,12 @@ export type Database = {
         Update: {
           brand_id?: string | null
           category_id?: string
+          collection_name?: string | null
           created_at?: string
           created_by?: string | null
+          creator_name?: string | null
           external_id?: string | null
+          external_refreshed_at?: string | null
           external_source?: string | null
           id?: string
           image_path?: string | null
@@ -494,6 +611,168 @@ export type Database = {
           },
         ]
       }
+      product_analytics_events: {
+        Row: {
+          app_version: string | null
+          category_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          item_id: string | null
+          path: string | null
+          pick_id: string | null
+          platform: string | null
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          category_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          item_id?: string | null
+          path?: string | null
+          pick_id?: string | null
+          platform?: string | null
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          category_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          item_id?: string | null
+          path?: string | null
+          pick_id?: string | null
+          platform?: string | null
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_analytics_events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_analytics_events_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_analytics_events_pick_id_fkey"
+            columns: ["pick_id"]
+            isOneToOne: false
+            referencedRelation: "picks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_ai_reviews: {
+        Row: {
+          actor_id: string
+          body: string
+          created_at: string
+          generated_at: string
+          id: string
+          is_visible: boolean
+          keywords: string[]
+          model_name: string
+          pick_snapshot: Json
+          profile_id: string
+          prompt_version: string
+          source_fingerprint: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id: string
+          body: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          is_visible?: boolean
+          keywords?: string[]
+          model_name: string
+          pick_snapshot?: Json
+          profile_id: string
+          prompt_version: string
+          source_fingerprint: string
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string
+          body?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          is_visible?: boolean
+          keywords?: string[]
+          model_name?: string
+          pick_snapshot?: Json
+          profile_id?: string
+          prompt_version?: string
+          source_fingerprint?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_ai_reviews_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "system_actors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_ai_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_social_links: {
+        Row: {
+          created_at: string
+          platform: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          platform: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          platform?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_social_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           bio: string | null
@@ -521,6 +800,45 @@ export type Database = {
           profile_image_url?: string | null
           updated_at?: string
           username?: string
+        }
+        Relationships: []
+      }
+      system_actors: {
+        Row: {
+          actor_type: string
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          is_verified: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          actor_type?: string
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          actor_type?: string
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -565,31 +883,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      comment_notification_count: { Args: { p_recipient_id: string }; Returns: number }
-      comment_notification_page: {
-        Args: { p_recipient_id: string; p_before_time?: string; p_before_id?: string }
-        Returns: { comment_id: string; pick_id: string; username: string; body: string; item_name: string; created_at: string; read_at: string | null }[]
-      }
-      home_showcase_page: {
-        Args: { p_before_time?: string; p_after_id?: string }
-        Returns: { items: Json; minimum_pick_count: number }[]
-      }
-      home_showcase: {
-        Args: never
-        Returns: {
-          items: Json
-          minimum_pick_count: number
-        }[]
-      }
       admin_dashboard_metrics: { Args: never; Returns: Json }
       admin_merge_pending_item: {
         Args: { p_source_item_id: string; p_target_item_id: string }
         Returns: {
           brand_id: string | null
           category_id: string
+          collection_name: string | null
           created_at: string
           created_by: string | null
+          creator_name: string | null
           external_id: string | null
+          external_refreshed_at: string | null
           external_source: string | null
           id: string
           image_path: string | null
@@ -612,6 +917,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_operations_snapshot: { Args: { p_days?: number }; Returns: Json }
+      admin_set_user_suspension: {
+        Args: { p_reason?: string; p_suspended: boolean; p_user_id: string }
+        Returns: Json
+      }
+      admin_user_moderation: { Args: { p_user_id: string }; Returns: Json }
+      admin_users: {
+        Args: { p_query?: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_admin: boolean
+          moderation_status: string
+          onboarding_completed: boolean
+          suspended_at: string
+          suspension_reason: string
+          updated_at: string
+          username: string
+        }[]
+      }
       attach_item_photo: {
         Args: {
           p_image_path: string
@@ -622,9 +947,12 @@ export type Database = {
         Returns: {
           brand_id: string | null
           category_id: string
+          collection_name: string | null
           created_at: string
           created_by: string | null
+          creator_name: string | null
           external_id: string | null
+          external_refreshed_at: string | null
           external_source: string | null
           id: string
           image_path: string | null
@@ -650,6 +978,8 @@ export type Database = {
       category_top_items: {
         Args: { p_category_id: string }
         Returns: {
+          image_path: string
+          image_source_url: string
           is_tied: boolean
           item_id: string
           name: string
@@ -684,8 +1014,70 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      comment_notification_count: {
+        Args: { p_recipient_id: string }
+        Returns: number
+      }
+      comment_notification_page: {
+        Args: {
+          p_before_id?: string
+          p_before_time?: string
+          p_recipient_id: string
+        }
+        Returns: {
+          body: string
+          comment_id: string
+          created_at: string
+          item_name: string
+          pick_id: string
+          read_at: string
+          username: string
+        }[]
+      }
       consume_image_import: { Args: never; Returns: undefined }
       current_user_is_admin: { Args: never; Returns: boolean }
+      home_pick_feed_page: {
+        Args: { p_before_id?: string; p_before_time?: string }
+        Returns: {
+          category_id: string
+          category_name: string
+          image_path: string
+          image_source_url: string
+          item_id: string
+          item_name: string
+          one_line_review: string
+          pick_id: string
+          profile_image_url: string
+          started_at: string
+          thumbnail_path: string
+          user_id: string
+          username: string
+        }[]
+      }
+      home_showcase: {
+        Args: never
+        Returns: {
+          items: Json
+          minimum_pick_count: number
+        }[]
+      }
+      home_showcase_page: {
+        Args: { p_after_id?: string; p_before_time?: string }
+        Returns: {
+          items: Json
+          minimum_pick_count: number
+        }[]
+      }
+      item_photo_credit: {
+        Args: { p_item_id: string }
+        Returns: {
+          image_path: string
+          image_source_url: string
+          item_id: string
+          user_id: string
+          username: string
+        }[]
+      }
       register_pick: {
         Args: {
           p_category_id: string
@@ -717,14 +1109,21 @@ export type Database = {
         }
       }
       remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      reserve_external_catalog_slot: {
+        Args: { p_interval_ms: number; p_provider: string }
+        Returns: number
+      }
       search_items: {
         Args: { p_category_ids?: string[]; p_limit?: number; p_query: string }
         Returns: {
           brand_id: string | null
           category_id: string
+          collection_name: string | null
           created_at: string
           created_by: string | null
+          creator_name: string | null
           external_id: string | null
+          external_refreshed_at: string | null
           external_source: string | null
           id: string
           image_path: string | null
@@ -758,9 +1157,12 @@ export type Database = {
         Returns: {
           brand_id: string | null
           category_id: string
+          collection_name: string | null
           created_at: string
           created_by: string | null
+          creator_name: string | null
           external_id: string | null
+          external_refreshed_at: string | null
           external_source: string | null
           id: string
           image_path: string | null
