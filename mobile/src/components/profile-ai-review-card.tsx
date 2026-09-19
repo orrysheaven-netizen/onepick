@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -8,6 +8,8 @@ import {
   useProfileAiReview,
   useSetProfileAiReviewVisibility,
 } from '@/hooks/useProfileAiReview';
+import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
+import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
 import { MIN_PROFILE_AI_PICKS } from '@/services/profileAiReviewService';
 
 type Props = { profileUserId: string; pickCount: number; isMine: boolean };
@@ -22,6 +24,24 @@ function errorMessage(error: unknown) {
   return 'AI 취향평가를 완료하지 못했어요. 로그인과 연결 상태를 확인해주세요.';
 }
 
+function ConnectionNotice({ query }: { query: ReturnType<typeof useProfileAiStatus> }) {
+  if (!query.isError && query.data?.configured) return null;
+  const checking = query.isPending || query.isFetching;
+  return <View style={styles.connectionNotice}>
+    <Text accessibilityLiveRegion="polite" style={styles.hint}>
+      {checking ? 'AI 분석 서버의 연결 설정을 확인하고 있어요.' : query.isError
+        ? 'AI 연결 상태를 확인하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해주세요.'
+        : 'AI 분석 연결을 준비하고 있어요. 등록한 원픽과 기존 평가는 그대로 유지돼요.'}
+    </Text>
+    <Pressable accessibilityRole="button" disabled={query.isFetching}
+      accessibilityLabel="AI 연결 상태 다시 확인"
+      onPress={() => void query.refetch({ cancelRefetch: false })}
+      style={({ pressed }) => [styles.statusButton, (pressed || query.isFetching) && styles.disabled]}>
+      <Text style={styles.statusButtonText}>{query.isFetching ? '연결 확인 중…' : '연결 상태 다시 확인'}</Text>
+    </Pressable>
+  </View>;
+}
+
 export function ProfileAiReviewCard(props: Props) {
   const auth = useAuthSession();
   if (auth.isLoading || auth.error) return null;
@@ -32,36 +52,77 @@ export function ProfileAiReviewCard(props: Props) {
 
 function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: Props & { viewerId?: string }) {
   const query = useProfileAiReview(profileUserId, viewerId);
+  const connection = useProfileAiStatus(isMine);
   const generate = useGenerateProfileAiReview(profileUserId, pickCount, viewerId);
   const visibility = useSetProfileAiReviewVisibility(profileUserId, viewerId);
   const [message, setMessage] = useState('');
+  const [preflighting, setPreflighting] = useState(false);
   const inFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const review = query.data ?? null;
   const missingCount = Math.max(MIN_PROFILE_AI_PICKS - pickCount, 0);
-  const canGenerate = isMine && viewerId === profileUserId && missingCount === 0;
-  const busy = generate.isPending || visibility.isPending;
+  const canGenerate = canRequestProfileAiGeneration({
+    isOwner: isMine && viewerId === profileUserId,
+    publicPickCount: pickCount,
+    minimumPickCount: MIN_PROFILE_AI_PICKS,
+    configured: connection.data?.configured,
+    statusError: connection.isError,
+    statusPending: connection.isPending || connection.isFetching,
+  });
+  const busy = generate.isPending || visibility.isPending || preflighting;
+  const generationLabel = (normal: string) => connection.isPending || connection.isFetching
+    ? '연결 상태 확인 중…' : connection.isError ? '연결 상태 확인 필요'
+      : connection.data?.configured !== true ? 'AI 연결 준비 중' : normal;
 
   const run = async () => {
     if (!canGenerate || busy || inFlight.current) return;
     inFlight.current = true;
+    setPreflighting(true);
     setMessage('');
     try {
+      // Revalidate on click: a cached "configured" flag is not permission to
+      // send a generation request after the server configuration has changed.
+      const checked = await connection.refetch({ cancelRefetch: false });
+      if (!mounted.current) return;
+      if (checked.isError || !checked.data) {
+        setMessage('AI 연결 상태를 확인하지 못했어요. 연결 상태를 다시 확인해주세요.');
+        return;
+      }
+      if (!checked.data.configured) {
+        setMessage(errorMessage(new AppError('AI_NOT_CONFIGURED')));
+        return;
+      }
       const saved = await generate.mutateAsync();
+      if (!mounted.current) return;
       setMessage(saved.isVisible ? '현재 원픽에 맞는 기존 평가를 확인했어요.'
         : '평가를 확인했어요. 지금은 나에게만 보이며, 공개 여부를 선택할 수 있어요.');
     } catch (error) {
-      setMessage(errorMessage(error));
-    } finally { inFlight.current = false; }
+      if (mounted.current) {
+        setMessage(errorMessage(error));
+        if (error instanceof AppError && error.code === 'AI_NOT_CONFIGURED') {
+          void connection.refetch({ cancelRefetch: false });
+        }
+      }
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setPreflighting(false);
+    }
   };
   const changeVisibility = async () => {
+    // Configuration readiness affects generation, never the owner's ability
+    // to hide an existing result. Existing RLS remains the authorization gate.
     if (!review || review.isStale || !isMine || busy || inFlight.current) return;
     inFlight.current = true;
     setMessage('');
     try {
       const saved = await visibility.mutateAsync(!review.isVisible);
-      setMessage(saved.isVisible ? 'AI 취향평가를 공개했어요.' : 'AI 취향평가를 공개 프로필에서 숨겼어요.');
+      if (mounted.current) setMessage(saved.isVisible ? 'AI 취향평가를 공개했어요.' : 'AI 취향평가를 공개 프로필에서 숨겼어요.');
     } catch (error) {
-      setMessage(error instanceof AppError && error.code === 'AI_REVIEW_STALE'
+      if (mounted.current) setMessage(error instanceof AppError && error.code === 'AI_REVIEW_STALE'
         ? errorMessage(error) : '공개 설정을 바꾸지 못했어요.');
     } finally { inFlight.current = false; }
   };
@@ -88,10 +149,12 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
       <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
       <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
+      <ConnectionNotice query={connection} />
       {missingCount > 0 ? <Text style={styles.hint}>공개된 원픽을 {missingCount}개 더 고르면 평가를 받을 수 있어요.</Text> : null}
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
         style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
-        {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>AI에게 내 취향 보여주기</Text>}
+        {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
+          : <Text style={styles.primaryButtonText}>{generationLabel('AI에게 내 취향 보여주기')}</Text>}
       </Pressable>
       {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
     </View>;
@@ -116,9 +179,11 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     <Text style={styles.disclaimer}>생성 당시의 취향에 대한 AI 해석이며, 사람의 가치·성격·능력이나 민감한 개인 특성을 진단하지 않습니다.</Text>
     {isMine ? <View style={styles.actions}>
       <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여줘요. 새로 생성된 평가는 본인 확인 후 다시 공개할 수 있어요.</Text>
+      <ConnectionNotice query={connection} />
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
         style={({ pressed }) => [styles.primaryButton, styles.actionButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
-        {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>현재 원픽으로 다시 평가</Text>}
+        {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
+          : <Text style={styles.primaryButtonText}>{generationLabel('현재 원픽으로 다시 평가')}</Text>}
       </Pressable>
       <Pressable accessibilityRole="button" disabled={busy || review.isStale} onPress={() => void changeVisibility()}
         style={({ pressed }) => [styles.secondaryButton, styles.actionButton, (busy || review.isStale) && styles.disabled, pressed && styles.pressed]}>
@@ -137,6 +202,9 @@ const styles = StyleSheet.create({
   tagline: { color: '#4945ED', fontSize: 13, fontWeight: '800', marginTop: 10 },
   description: { color: '#747985', fontSize: 12, lineHeight: 19, marginTop: 7 },
   hint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 10 },
+  connectionNotice: { marginVertical: 6 },
+  statusButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 2 },
+  statusButtonText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
   authorRow: { flexDirection: 'row', alignItems: 'center' },
   aiAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: '#EFEEFF', alignItems: 'center', justifyContent: 'center' },
   aiAvatarText: { color: '#4945ED', fontSize: 13, fontWeight: '900' },
