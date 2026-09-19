@@ -5,6 +5,7 @@ const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const { loadProduction, sha256 } = require('./profile-ai-runtime.cjs');
 const dataset = require('./profile-ai-quality-cases.cjs');
+const { planFingerprint } = require('./profile-ai-plan-identity.cjs');
 const ENDPOINT = 'https://api.openai.com/v1/responses';
 const MAX_CALLS = 24;
 const MAX_RESPONSE_BYTES = 262144;
@@ -37,14 +38,18 @@ function createPlan(runtime, repeats = 3) {
   });
   // Input comparability must survive prompt/model/schema changes.
   const datasetHash = sha256(JSON.stringify(cases.map(({ requestHash, ...entry }) => entry)));
-  const fingerprint = sha256(JSON.stringify({ datasetHash, repeats, sources: runtime.sourceHashes }));
-  return { schemaVersion: 1, synthetic: true, fingerprint, datasetHash, repeats,
+  // Same source files can produce two different tone requests. Bind identity
+  // to the selected tone AND exact request recipe, not source files alone.
+  const plan = { schemaVersion: 1, identityVersion: 2, tone: runtime.tone,
+    synthetic: true, datasetHash, repeats,
     createdAt: new Date().toISOString(), model: runtime.model, promptVersion: runtime.promptVersion,
     promptHash: runtime.promptHash, schemaHash: runtime.schemaHash,
     sourceHashes: runtime.sourceHashes, contractVersion: runtime.contractVersion,
     maximumCalls: cases.length * repeats, maximumOutputTokensPerCall: runtime.maxOutputTokens,
     maximumOutputTokensTotal: cases.length * repeats * runtime.maxOutputTokens,
     inputTokensAndPrice: 'not_estimated', cases };
+  plan.fingerprint = planFingerprint(plan);
+  return plan;
 }
 function emptyRun(plan, mode = 'plan') {
   return { schemaVersion: 1, mode, plan: clone(plan), providerCallsAttempted: 0,
@@ -178,6 +183,7 @@ function pairing(run) {
 }
 function reviewTemplate(run) {
   return { schemaVersion: 1, runFingerprint: run.plan.fingerprint, mode: run.mode,
+    tone: run.plan.tone ?? null, identityVersion: run.plan.identityVersion ?? 1,
     meaningQualityNotAutomaticallyGraded: true,
     rows: run.rows.map((row) => ({ key: row.key,
       outputHash: row.comment ? sha256(JSON.stringify(row.comment)) : null,
@@ -196,6 +202,7 @@ function compareRuns(baseline, candidate) {
   return { schemaVersion: 1, mode: candidate.mode, humanMeaningVerdict: 'not_automatically_graded',
     baseline: baseline.plan.fingerprint, candidate: candidate.plan.fingerprint,
     baselineModel: baseline.plan.model, candidateModel: candidate.plan.model,
+    baselineTone: baseline.plan.tone ?? null, candidateTone: candidate.plan.tone ?? null,
     rows: candidate.rows.map((row) => {
       const prior = baseline.rows.find((x) => x.key === row.key);
       assert(prior && prior.inputHash === row.inputHash, 'QA_COMPARE_INPUTS_MUST_MATCH');
@@ -214,7 +221,7 @@ function renderReport(run) {
 <title>OnePick AI 품질 검토</title><style>body{font:15px/1.65 system-ui,sans-serif;max-width:1050px;margin:40px auto;padding:0 20px}h1{font-size:28px}section{border:1px solid;border-radius:12px;margin:28px 0;padding:24px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid;padding:8px;text-align:left;vertical-align:top}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block}summary{cursor:pointer}@media(max-width:600px){section{padding:14px}th,td{padding:5px}}</style>
 <h1>OnePick AI · 원픽 10개 품질 검토</h1><p><strong>${banner}</strong></p>
 <p>예정 ${run.plan.maximumCalls}회 / ${run.mode === 'mock' ? '모의 전송' : '실제 요청 시도'} ${run.providerCallsAttempted}회. 자동 형식·나이 검사 통과는 의미 품질 합격이 아닙니다.</p>
-<p>${escape(run.plan.model)} · ${escape(run.plan.promptVersion)} · 입력 원본 및 작성 규칙의 SHA-256을 results.json에 기록합니다.</p>
+<p>말투: ${escape(run.plan.tone ?? '기록 없음')} · ${escape(run.plan.model)} · ${escape(run.plan.promptVersion)} · 입력 원본 및 작성 규칙의 SHA-256을 results.json에 기록합니다.</p>
 <p>검토 기준: 한줄평의 근거, 전체 선택과의 일관성, 이유에 따른 개인화, 존중하는 말투, 읽기 쉬움, 선택에 근거한 위트. 위트 생략은 실패가 아닙니다.</p>
 ${run.plan.cases.map((entry) => `<section><h2>${escape(entry.label)}</h2><small>${escape(entry.id)}</small>
 <details><summary>입력 원픽 10개와 한줄평</summary><table><tr><th>번호</th><th>원픽</th><th>선택 이유</th></tr>${entry.picks.map((p, i) => `<tr><td>${i + 1}</td><td>${escape(p.category)} · ${escape(p.item)}</td><td>${escape(p.review)}</td></tr>`).join('')}</table></details>
@@ -245,12 +252,13 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   const [command = 'plan', ...args] = argv; const options = {};
   assert(['plan', 'run', 'compare'].includes(command), 'QA_COMMAND_INVALID');
   for (const arg of args) {
-    const match = /^--(repeats|out|confirm-live-calls|baseline|candidate)=(.+)$/.exec(arg);
+    const match = /^--(repeats|out|confirm-live-calls|baseline|candidate|tone)=(.+)$/.exec(arg);
     assert(match && options[match[1]] === undefined, 'QA_ARGUMENT_INVALID'); options[match[1]] = match[2];
   }
   assert(options.out, 'QA_OUTPUT_DIRECTORY_REQUIRED');
+  assert(options.tone === undefined || ['direct', 'warm'].includes(options.tone), 'QA_TONE_INVALID');
   if (command === 'compare') {
-    assert(options.baseline && options.candidate && !options.repeats && !options['confirm-live-calls'], 'QA_ARGUMENT_INVALID');
+    assert(options.baseline && options.candidate && !options.repeats && !options['confirm-live-calls'] && !options.tone, 'QA_ARGUMENT_INVALID');
     const readRun = (file) => { assert(fs.statSync(file).size <= 4000000, 'QA_REPORT_TOO_LARGE'); return JSON.parse(fs.readFileSync(file, 'utf8')); };
     const comparison = compareRuns(readRun(options.baseline), readRun(options.candidate));
     const directory = prepareDirectory(options.out);
@@ -258,7 +266,9 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     console.log('Comparison written; semantic quality is not automatically graded.'); return;
   }
   assert(!options.baseline && !options.candidate && (command === 'run' || !options['confirm-live-calls']), 'QA_ARGUMENT_INVALID');
-  const runtime = loadProduction(); const plan = createPlan(runtime, options.repeats === undefined ? 3 : Number(options.repeats));
+  // An explicit flag wins over the legacy ONEPICK_QA_TONE environment setting.
+  const runtime = options.tone ? loadProduction(undefined, options.tone) : loadProduction();
+  const plan = createPlan(runtime, options.repeats === undefined ? 3 : Number(options.repeats));
   if (command === 'plan') {
     const directory = prepareDirectory(options.out); saveRun(directory, emptyRun(plan), true);
     console.log(`Plan only: ${plan.maximumCalls} planned, 0 provider calls, quality NOT measured.`); return;
