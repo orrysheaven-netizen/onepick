@@ -76,7 +76,7 @@ async function main() {
   assert.equal(overview.metrics.profiles, 2);
   assert.equal(overview.funnel.days, 7);
   assert.equal(overview.funnel.itemDetailViewed, 9);
-  assert.deepEqual(overview.errorSummary, []);
+  assert.equal(overview.errorSummary.length, 0);
 
   const source = fs.readFileSync(path.join(__dirname, '../src/app/admin/ops.tsx'), 'utf8');
   assert.match(source, /최근 \{query\.data\.funnel\.days\}일 퍼널/);
