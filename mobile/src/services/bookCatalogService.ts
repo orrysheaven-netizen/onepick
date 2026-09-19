@@ -12,7 +12,7 @@ export class BookCatalogService {
     return valid ? this.repository.search(cleanTitle, cleanAuthor, signal) : Promise.resolve([]);
   }
 
-  importBook(isbn13: string) {
-    return this.repository.importBook(isbn13.replace(/[-\s]/g, ''));
+  importBook(externalId: string) {
+    return this.repository.importBook(externalId.trim());
   }
 }
