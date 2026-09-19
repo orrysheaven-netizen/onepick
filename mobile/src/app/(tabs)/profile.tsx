@@ -197,7 +197,7 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
-        <ProfileAiReviewCard profileUserId={profile.id} pickCount={currentPicks.length} isMine />
+        <ProfileAiReviewCard profileUserId={profile.id} pickCount={currentPicks.filter(({ pick }) => pick.status === 'active').length} isMine />
         <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>공개 프로필 보기</Text><Text style={styles.publicProfileText}>다른 사람에게 보이는 현재 원픽 컬렉션을 확인하고 공유할 수 있어요.</Text></View>
           <Text style={styles.chevron}>›</Text>
