@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
+import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -196,6 +197,11 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
+        <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
+        <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.onboardingButton, pressed && styles.pressed]}>
+          <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>취향 고르기 이어가기</Text><Text style={styles.publicProfileText}>카테고리를 넘기거나 선택하면서 내 원픽을 더 채워보세요.</Text></View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
         <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>공개 프로필 보기</Text><Text style={styles.publicProfileText}>다른 사람에게 보이는 현재 원픽 컬렉션을 확인하고 공유할 수 있어요.</Text></View>
           <Text style={styles.chevron}>›</Text>
@@ -242,6 +248,7 @@ const styles = StyleSheet.create({
   summaryLabel: { color: '#747985', fontSize: 12, marginTop: 4, textAlign: 'center' },
   summaryDivider: { width: 1, height: 34, backgroundColor: '#E3E5EA' },
   actionCopy: { flex: 1 },
+  onboardingButton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 12 },
   publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 12 },
   publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
   publicProfileText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },

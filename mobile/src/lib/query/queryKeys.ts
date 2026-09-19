@@ -25,24 +25,15 @@ export const queryKeys = {
     search: (query: string, categoryId?: string) =>
       ['items', 'search', query, categoryId ?? 'all'] as const,
   },
-  movieCatalog: {
-    search: (query: string) => ['movie-catalog', 'search', query] as const,
-  },
-  musicCatalog: {
-    search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const,
-  },
-  gameCatalog: {
-    search: (query: string) => ['game-catalog', 'search', query] as const,
-  },
-  youtubeCatalog: {
-    search: (query: string) => ['youtube-catalog', 'search', query] as const,
-  },
+  movieCatalog: { search: (query: string) => ['movie-catalog', 'search', query] as const },
+  musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },
+  gameCatalog: { search: (query: string) => ['game-catalog', 'search', query] as const },
+  youtubeCatalog: { search: (query: string) => ['youtube-catalog', 'search', query] as const },
+  pokemonCatalog: { search: (query: string) => ['pokemon-catalog', 'search', query] as const },
   picks: {
     all: ['picks'] as const,
-    detail: (pickId: string, userId?: string) =>
-      ['picks', 'detail', pickId, userId ?? 'public'] as const,
-    current: (userId: string, categoryId: string) =>
-      ['picks', 'current', userId, categoryId] as const,
+    detail: (pickId: string, userId?: string) => ['picks', 'detail', pickId, userId ?? 'public'] as const,
+    current: (userId: string, categoryId: string) => ['picks', 'current', userId, categoryId] as const,
     byUser: (userId: string) => ['picks', 'user', userId] as const,
     byCategory: (categoryId: string) => ['picks', 'category', categoryId] as const,
   },
@@ -51,8 +42,16 @@ export const queryKeys = {
     mine: (userId: string) => ['profiles', 'mine', userId] as const,
     history: (userId?: string) => ['profiles', 'history', userId ?? 'anonymous', 'cursor'] as const,
     requests: (userId?: string) => ['profiles', 'requests', userId ?? 'anonymous', 'cursor'] as const,
-    byUsername: (username: string, userId?: string) =>
-      ['profiles', 'username', username, userId ?? 'public'] as const,
+    byUsername: (username: string, userId?: string) => ['profiles', 'username', username, userId ?? 'public'] as const,
+  },
+  onboarding: {
+    all: ['onboarding'] as const,
+    progress: (userId: string) => ['onboarding', 'progress', userId] as const,
+  },
+  profileAi: {
+    all: ['profile-ai'] as const,
+    status: (userId: string) => ['profile-ai', 'status', userId] as const,
+    comment: (profileId: string) => ['profile-ai', 'comment', profileId] as const,
   },
   safety: {
     all: ['safety'] as const,

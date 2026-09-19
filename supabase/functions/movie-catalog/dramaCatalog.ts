@@ -30,13 +30,17 @@ export function mapTmdbDrama(value: unknown): DramaEntry | null {
     releaseYear: releaseYear(row.first_air_date), posterUrl: tmdbPosterUrl(row.poster_path), existingItemId: null };
 }
 
+const SEARCH_CACHE_MS = 10 * 60_000;
+
 type Dependencies = {
   client: () => SupabaseClient | null;
-  fetchTmdb: (url: URL) => Promise<{ data: Record<string, unknown>; error?: never } | { error: Response; data?: never }>;
+  fetchTmdb: (url: URL, client: SupabaseClient) => Promise<{ data: Record<string, unknown> } | { error: Response }>;
+  readCache: (client: SupabaseClient, key: string, maxAgeMs: number) => Promise<unknown | null>;
+  writeCache: (client: SupabaseClient, key: string, payload: unknown) => Promise<void>;
   json: (body: unknown, status?: number) => Response;
 };
 
-export function createDramaHandler({ client: makeClient, fetchTmdb, json }: Dependencies) {
+export function createDramaHandler({ client: makeClient, fetchTmdb, readCache, writeCache, json }: Dependencies) {
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
     if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
     const text = clean(body.query, 1000);
@@ -71,16 +75,23 @@ export function createDramaHandler({ client: makeClient, fetchTmdb, json }: Depe
     }
 
     if (body.action === 'search') {
-      const url = new URL('https://api.themoviedb.org/3/search/tv');
-      url.searchParams.set('query', text);
-      url.searchParams.set('language', 'ko-KR');
-      url.searchParams.set('include_adult', 'false');
-      url.searchParams.set('page', '1');
-      const remote = await fetchTmdb(url);
-      if (remote.error) return remote.error;
-      if (!Array.isArray(remote.data.results)) return json({ error: 'CATALOG_UNAVAILABLE' }, 502);
+      const cacheKey = `search:tv:\n${text.toLocaleLowerCase('ko-KR')}`;
+      const cached = await readCache(client, cacheKey, SEARCH_CACHE_MS);
+      let sourceResults: unknown[] | null = Array.isArray(cached) ? cached : null;
+      if (!sourceResults) {
+        const url = new URL('https://api.themoviedb.org/3/search/tv');
+        url.searchParams.set('query', text);
+        url.searchParams.set('language', 'ko-KR');
+        url.searchParams.set('include_adult', 'false');
+        url.searchParams.set('page', '1');
+        const remote = await fetchTmdb(url, client);
+        if ('error' in remote) return remote.error;
+        if (!Array.isArray(remote.data.results)) return json({ error: 'CATALOG_UNAVAILABLE' }, 502);
+        sourceResults = remote.data.results.slice(0, 40);
+        await writeCache(client, cacheKey, sourceResults);
+      }
       const seen = new Set<string>();
-      const dramas = remote.data.results.map(mapTmdbDrama).filter((entry): entry is DramaEntry => {
+      const dramas = sourceResults.map(mapTmdbDrama).filter((entry): entry is DramaEntry => {
         if (!entry || seen.has(entry.externalId)) return false;
         seen.add(entry.externalId); return true;
       }).slice(0, 20);
@@ -105,8 +116,8 @@ export function createDramaHandler({ client: makeClient, fetchTmdb, json }: Depe
     if (existing.data) return receipt(existing.data); // Idempotent reselect; never resurrect hidden/merged rows.
     const url = new URL(`https://api.themoviedb.org/3/tv/${id}`);
     url.searchParams.set('language', 'ko-KR');
-    const remote = await fetchTmdb(url);
-    if (remote.error) return remote.error;
+    const remote = await fetchTmdb(url, client);
+    if ('error' in remote) return remote.error;
     const drama = mapTmdbDrama(remote.data);
     if (!drama || drama.externalId !== id) return json({ error: 'DRAMA_NOT_FOUND' }, 404);
     const inserted = await client.from('items').insert({

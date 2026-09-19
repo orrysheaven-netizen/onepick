@@ -28,6 +28,16 @@ async function main() {
   assert.match(edgeFunction, /body\.action === 'import'/);
   assert.match(edgeFunction, /client\.auth\.getUser\(accessToken\)/,
     'Movie imports must validate the caller even when platform JWT verification is disabled');
+  assert.match(edgeFunction, /reserve_external_catalog_slot/,
+    'TMDB requests must use the shared provider rate limiter');
+  assert.match(edgeFunction, /external_catalog_cache/,
+    'Repeated public searches should reuse the server-side catalog cache');
+  assert.match(edgeFunction, /p_interval_ms:\s*TMDB_PROVIDER_INTERVAL_MS/);
+  assert.match(edgeFunction, /user_is_suspended/,
+    'Suspended users must not create catalog items through the service-role client');
+  const importBody = edgeFunction.slice(edgeFunction.indexOf('async function importMovie'), edgeFunction.indexOf('// Same deployed function'));
+  assert.ok(importBody.indexOf('client.auth.getUser(accessToken)') < importBody.indexOf('fetchTmdb(url, client)'),
+    'Movie import authentication must happen before any TMDB request');
 
   const catalog = load(path.join(__dirname, '../../supabase/functions/movie-catalog/movieCatalog.ts'));
   const interstellar = catalog.mapTmdbMovie({

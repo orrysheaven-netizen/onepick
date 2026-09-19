@@ -5,6 +5,7 @@
       "feature/shared-item-photo-actions": false,
       "feature/game-catalog": false,
       "feature/youtube-channel-catalog": false,
+      "feature/pokemon-catalog": false,
       "main": false
     }
   },

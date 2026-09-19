@@ -12,11 +12,12 @@ type ItemSearchProps = {
   onSearchMusic?: (query: string) => void;
   onSearchGame?: (query: string) => void;
   onSearchYouTube?: (query: string) => void;
+  onSearchPokemon?: (query: string) => void;
   onSelect: (itemId: string) => void;
 };
 
 type ExternalSearchAction = {
-  key: 'movie' | 'drama' | 'music' | 'game' | 'youtube';
+  key: 'movie' | 'drama' | 'music' | 'game' | 'youtube' | 'pokemon';
   label: string;
   accessibilityLabel: string;
   run: () => void;
@@ -30,6 +31,7 @@ export function ItemSearch({
   onSearchMusic,
   onSearchGame,
   onSearchYouTube,
+  onSearchPokemon,
   onSelect,
 }: ItemSearchProps) {
   const [searchText, setSearchText] = useState('');
@@ -76,6 +78,14 @@ export function ItemSearch({
       label: 'YouTube 채널에서 검색',
       accessibilityLabel: `${normalizedSearch} YouTube 채널에서 검색`,
       run: () => onSearchYouTube(normalizedSearch),
+    });
+  }
+  if (onSearchPokemon && normalizedSearch.length >= 1) {
+    externalActions.push({
+      key: 'pokemon',
+      label: 'PokéAPI에서 포켓몬 검색',
+      accessibilityLabel: `${normalizedSearch} PokéAPI에서 포켓몬 검색`,
+      run: () => onSearchPokemon(normalizedSearch),
     });
   }
 

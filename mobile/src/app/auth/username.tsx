@@ -49,7 +49,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   const continueToIntent = () => {
     if (!available() || phase.current !== 'saved' || navigated.current) return;
     navigated.current = true;
-    router.replace(getPostAuthRoute(intent));
+    router.replace(intent.action === 'home' ? '/onboarding' : getPostAuthRoute(intent));
   };
 
   const handleSave = async () => {
