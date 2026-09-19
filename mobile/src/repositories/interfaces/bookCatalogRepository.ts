@@ -2,5 +2,5 @@ import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCata
 
 export interface BookCatalogRepository {
   search(title: string, author: string, signal?: AbortSignal): Promise<BookCatalogEntry[]>;
-  importBook(isbn13: string): Promise<ImportedBookItem>;
+  importBook(externalId: string): Promise<ImportedBookItem>;
 }
