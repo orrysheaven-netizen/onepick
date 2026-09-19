@@ -6,6 +6,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
+import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
@@ -197,7 +198,13 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
+        <ProfileTasteComposition profileId={profile.id} />
         <ProfileAiPanel profileId={profile.id} />
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
+        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
+          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
+        )}
+        <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />
         <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.onboardingButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>취향 고르기 이어가기</Text><Text style={styles.publicProfileText}>카테고리를 넘기거나 선택하면서 내 원픽을 더 채워보세요.</Text></View>
           <Text style={styles.chevron}>›</Text>
@@ -209,11 +216,6 @@ export default function ProfileScreen() {
         {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
         </Pressable> : null}
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
-        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
-          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
-        )}
-        <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />
         <View style={[styles.sectionHeader, styles.requestHeader]}>
           <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
         </View>
@@ -252,7 +254,7 @@ const styles = StyleSheet.create({
   publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 12 },
   publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
   publicProfileText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
-  adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#252B38', borderRadius: 18, padding: 16, marginBottom: 30 },
+  adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#252B38', borderRadius: 18, padding: 16, marginBottom: 0 },
   adminTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   adminText: { color: '#C9CDD5', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminChevron: { color: '#FFFFFF', fontSize: 26, paddingHorizontal: 4 },
