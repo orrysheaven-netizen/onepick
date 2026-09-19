@@ -11,7 +11,11 @@ export function useProfileAiReview(profileId?: string, viewerId?: string) {
       : ['profiles', 'ai-review', 'missing'],
     queryFn: () => profileAiReviewService.get(profileId!),
     enabled: Boolean(profileId),
-    staleTime: 60_000,
+    staleTime: 0,
+    // An open foreground profile also notices server-side automatic hiding.
+    // This does not retract content a visitor has already viewed or copied.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -19,13 +23,13 @@ export function useGenerateProfileAiReview(profileId: string, pickCount: number,
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => profileAiReviewService.generate(profileId, pickCount),
-    onSuccess: async (review) => {
+    onSuccess: (review) => {
       queryClient.setQueryData<ProfileAiReview | null>(
-        queryKeys.profiles.aiReview(profileId, viewerId),
-        review,
+        queryKeys.profiles.aiReview(profileId, viewerId), review,
       );
-      await queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] });
     },
+    // A rejected stale generation must refresh the old card too.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }),
   });
 }
 
@@ -33,12 +37,11 @@ export function useSetProfileAiReviewVisibility(profileId: string, viewerId?: st
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (isVisible: boolean) => profileAiReviewService.setVisibility(profileId, isVisible),
-    onSuccess: async (review) => {
+    onSuccess: (review) => {
       queryClient.setQueryData<ProfileAiReview | null>(
-        queryKeys.profiles.aiReview(profileId, viewerId),
-        review,
+        queryKeys.profiles.aiReview(profileId, viewerId), review,
       );
-      await queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] });
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }),
   });
 }

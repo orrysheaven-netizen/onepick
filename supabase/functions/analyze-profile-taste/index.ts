@@ -1,10 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 
 const MODEL = 'gpt-5.6-terra';
-const PROMPT_VERSION = 'taste-v2';
+const PROMPT_VERSION = 'taste-v3';
 const MIN_PICKS = 3;
 const COOLDOWN_MS = 10 * 60 * 1000;
-const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,generated_at,created_at,updated_at';
+const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,created_at,updated_at';
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at';
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -98,8 +98,7 @@ Deno.serve(async (req: Request) => {
     if (authError || !user || user.is_anonymous) return reply({ error: 'AUTH_REQUIRED' }, 401);
     if (!serviceRole || !openAiKey) return reply({ error: 'AI_NOT_CONFIGURED' }, 503);
 
-    // No user session and no service key: source reads obey PUBLIC visibility,
-    // even when the requesting owner could read hidden or pending content.
+    // Source reads obey public visibility, not the owner's elevated visibility.
     const publicClient = createClient(url, anonKey, options);
     const admin = createClient(url, serviceRole, options);
     const { data: profile, error: profileError } = await publicClient
@@ -107,6 +106,14 @@ Deno.serve(async (req: Request) => {
     if (profileError) throw new Error('AI_PROFILE_READ_FAILED');
     if (!profile) return reply({ error: 'FORBIDDEN' }, 403);
 
+    const readSourceVersion = async () => {
+      const { data, error } = await admin.from('profile_ai_generation_limits')
+        .select('source_version').eq('profile_id', user.id).maybeSingle();
+      if (error) throw new Error('AI_SOURCE_VERSION_FAILED');
+      const version = Number(data?.source_version ?? 0);
+      if (!Number.isSafeInteger(version) || version < 0) throw new Error('AI_SOURCE_VERSION_FAILED');
+      return version;
+    };
     const readSnapshot = async () => {
       const { data, error } = await publicClient.from('picks')
         .select('id,one_line_review,updated_at,categories!picks_category_id_fkey!inner(name),items!picks_item_category_fk!inner(name,original_name,release_year,creator_name,collection_name)')
@@ -117,35 +124,38 @@ Deno.serve(async (req: Request) => {
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
       return buildSnapshot(data ?? []);
     };
+    const sourceVersion = await readSourceVersion();
     const snapshot = await readSnapshot();
     if (snapshot.length < MIN_PICKS) return reply({ error: 'AI_NOT_ENOUGH_PICKS', minimum: MIN_PICKS }, 409);
+    if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
     const sourceFingerprint = await fingerprint(snapshot);
 
     const { data: existing, error: existingError } = await admin.from('profile_ai_reviews')
-      .select(`${REVIEW_COLUMNS},source_fingerprint,model_name,prompt_version`)
+      .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
       .eq('profile_id', user.id).maybeSingle();
     if (existingError) throw new Error('AI_REVIEW_READ_FAILED');
     const { data: actor, error: actorError } = await admin.from('system_actors')
       .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single();
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
 
-    if (existing?.source_fingerprint === sourceFingerprint &&
+    if (existing && !existing.is_stale && Number(existing.source_version) === sourceVersion &&
+      existing.source_fingerprint === sourceFingerprint &&
       existing.model_name === MODEL && existing.prompt_version === PROMPT_VERSION) {
-      const { source_fingerprint: _fingerprint, model_name: _model, prompt_version: _prompt, ...review } = existing;
+      if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
+      const { source_fingerprint: _fingerprint, source_version: _version,
+        model_name: _model, prompt_version: _prompt, ...review } = existing;
       return reply({ review, actor, reused: true });
     }
     if (existing?.generated_at) {
       const age = Date.now() - new Date(existing.generated_at).getTime();
       if (Number.isFinite(age) && age >= 0 && age < COOLDOWN_MS) return reply({ error: 'RATE_LIMITED' }, 429);
     }
-    // Database-level reservation protects the first generation and concurrent
-    // clicks too; a successful previous review is not needed for rate limiting.
     const { data: reserved, error: reservationError } = await admin
       .rpc('reserve_profile_ai_generation', { p_profile_id: user.id });
     if (reservationError) throw new Error('AI_RESERVATION_FAILED');
     if (reserved !== true) return reply({ error: 'RATE_LIMITED', retryAfterSeconds: 600 }, 429);
 
-    // Exclude account identifiers, photos, SNS links, pick IDs and timestamps.
+    // Never send account identifiers, photos, SNS links, pick IDs or timestamps.
     const modelPicks = snapshot.map(({ pickId: _id, updatedAt: _date, ...pick }) => pick);
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -182,7 +192,6 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(20_000),
     });
     if (!modelResponse.ok) {
-      // Never log provider response bodies, keys, selections or generated text.
       console.error('AI_PROVIDER_FAILED', modelResponse.status);
       await modelResponse.body?.cancel();
       return reply({ error: 'AI_REVIEW_FAILED' }, 502);
@@ -191,24 +200,25 @@ Deno.serve(async (req: Request) => {
     if (!output) throw new Error('AI_REVIEW_EMPTY_OR_REFUSED');
     const generated = cleanResult(JSON.parse(output));
 
-    // Do not save an evaluation based on choices removed/hidden mid-request.
     const latestSnapshot = await readSnapshot();
     if (await fingerprint(latestSnapshot) !== sourceFingerprint) {
-      return reply({ error: 'AI_REVIEW_FAILED' }, 409);
+      return reply({ error: 'AI_REVIEW_STALE' }, 409);
     }
-    const values = {
-      actor_id: actor.id,
-      summary: generated.summary, body: generated.body, keywords: generated.keywords,
-      pick_snapshot: snapshot, source_fingerprint: sourceFingerprint,
-      model_name: MODEL, prompt_version: PROMPT_VERSION,
-      generated_at: new Date().toISOString(),
-    };
-    // An UPDATE intentionally omits visibility, preserving a concurrent hide.
-    // First results always remain private until the owner explicitly publishes.
-    const write = existing
-      ? admin.from('profile_ai_reviews').update(values).eq('profile_id', user.id).eq('id', existing.id)
-      : admin.from('profile_ai_reviews').insert({ ...values, profile_id: user.id, is_visible: false });
-    const { data: saved, error: saveError } = await write.select(REVIEW_COLUMNS).single();
+    // The DB compares source versions while holding the same row lock used by
+    // source-change triggers. This closes the final read-to-write race window.
+    const { data: saved, error: saveError } = await admin.rpc('save_profile_ai_review', {
+      p_profile_id: user.id,
+      p_source_version: sourceVersion,
+      p_actor_id: actor.id,
+      p_summary: generated.summary,
+      p_body: generated.body,
+      p_keywords: generated.keywords,
+      p_pick_snapshot: snapshot,
+      p_source_fingerprint: sourceFingerprint,
+      p_model_name: MODEL,
+      p_prompt_version: PROMPT_VERSION,
+    });
+    if (saveError?.message === 'AI_REVIEW_STALE') return reply({ error: 'AI_REVIEW_STALE' }, 409);
     if (saveError || !saved) throw new Error('AI_REVIEW_SAVE_FAILED');
     return reply({ review: saved, actor, reused: false });
   } catch {

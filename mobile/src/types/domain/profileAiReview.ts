@@ -19,6 +19,7 @@ export interface ProfileAiReview {
   body: string;
   keywords: string[];
   isVisible: boolean;
+  isStale: boolean;
   generatedAt: string;
   createdAt: string;
   updatedAt: string;

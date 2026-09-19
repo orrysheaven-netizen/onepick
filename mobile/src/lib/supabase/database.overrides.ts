@@ -10,6 +10,8 @@ type ProfileAiReviewTable = {
     generated_at: string;
     id: string;
     is_visible: boolean;
+    is_stale: boolean;
+    source_version: number;
     keywords: string[];
     model_name: string;
     pick_snapshot: Json;
@@ -26,6 +28,8 @@ type ProfileAiReviewTable = {
     generated_at?: string;
     id?: string;
     is_visible?: boolean;
+    is_stale?: boolean;
+    source_version?: number;
     keywords?: string[];
     model_name: string;
     pick_snapshot?: Json;
@@ -42,6 +46,8 @@ type ProfileAiReviewTable = {
     generated_at?: string;
     id?: string;
     is_visible?: boolean;
+    is_stale?: boolean;
+    source_version?: number;
     keywords?: string[];
     model_name?: string;
     pick_snapshot?: Json;
@@ -109,7 +115,6 @@ type SystemActorTable = {
   Relationships: [];
 };
 
-
 export type HomePickFeedRow = {
   pick_id: string;
   user_id: string;
@@ -126,7 +131,7 @@ export type HomePickFeedRow = {
   started_at: string;
 };
 
-// Additive RPC fields until the central generated types are refreshed.
+// Additive fields until the central generated types are refreshed.
 export type AppDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Functions' | 'Tables'> & {
     Tables: Database['public']['Tables'] & {
