@@ -29,16 +29,21 @@ async function expectError(path, options, status, code) {
 
 async function main() {
   let configured = null;
-  await check('status returns only public liveness and configuration presence', async () => {
+  let contractCompatible = false;
+  await check('status returns public liveness, configuration presence and optional compatibility contract', async () => {
     const response = await request('/status');
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const body = await response.json();
-    assert.deepEqual(Object.keys(body).sort(), ['configured', 'service', 'status']);
+    const allowed = new Set(['configured','service','status','contractVersion','minimumPicks','promptVersion','cooldownSeconds']);
+    for (const key of Object.keys(body)) assert.ok(allowed.has(key), `Unexpected status field: ${key}`);
     assert.equal(body.service, 'analyze-profile-taste');
     assert.equal(body.status, 'ok');
     assert.equal(typeof body.configured, 'boolean');
     configured = body.configured;
+    contractCompatible = body.contractVersion === 'profile-ai-v2' &&
+      body.minimumPicks === 10 && body.promptVersion === 'taste-v5-no-age' &&
+      body.cooldownSeconds === 600;
   });
   await check('root GET cannot trigger generation', () => expectError('', {}, 405, 'METHOD_NOT_ALLOWED'));
   await check('CORS preflight is handled without authentication', async () => {
@@ -66,6 +71,7 @@ async function main() {
   const report = {
     checkedAt: new Date().toISOString(), target,
     configurationPresent: configured,
+    contractCompatible,
     providerConnectionTested: false,
     authenticatedGenerationTested: false,
     results,

@@ -2,6 +2,7 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { requireProfileAiReviewVersion, type ProfileAiReviewVersion } from '@/lib/profileAiPublication';
 import { parseProfileAiReview } from '@/lib/profileAiReviewResponse';
+import { parseRetryAfterSeconds } from '@/lib/profileAiRetry';
 import { parseProfileAiVisibilityReceipt, ProfileAiVisibilityUnconfirmedError } from '@/lib/profileAiVisibility';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
@@ -10,14 +11,20 @@ const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,
 const VISIBILITY_COLUMNS = 'id,profile_id,is_visible,is_stale,generated_at,updated_at' as const;
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at' as const;
 
-async function responseCode(error: unknown) {
+async function responseDetail(error: unknown) {
   const context = (error as { context?: Response } | null)?.context;
-  if (!context) return null;
+  if (!context) return { code: null, retryAfterSeconds: null };
   try {
     const payload: unknown = await context.clone().json();
-    if (!payload || typeof payload !== 'object' || !('error' in payload)) return null;
-    return typeof payload.error === 'string' ? payload.error : null;
-  } catch { return null; }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return { code: null, retryAfterSeconds: null };
+    }
+    const row = payload as Record<string, unknown>;
+    return {
+      code: typeof row.error === 'string' ? row.error : null,
+      retryAfterSeconds: parseRetryAfterSeconds(row.retryAfterSeconds),
+    };
+  } catch { return { code: null, retryAfterSeconds: null }; }
 }
 
 export class SupabaseProfileAiReviewRepository implements ProfileAiReviewRepository {
@@ -72,12 +79,13 @@ export class SupabaseProfileAiReviewRepository implements ProfileAiReviewReposit
         review?: unknown; actor?: unknown;
       }>('analyze-profile-taste', { body: {}, headers: { Authorization: `Bearer ${token}` } });
       if (error) {
-        const code = await responseCode(error);
-        if (code === 'AUTH_REQUIRED' || code === 'FORBIDDEN' || code === 'AI_NOT_CONFIGURED' ||
-          code === 'AI_NOT_ENOUGH_PICKS' || code === 'AI_REVIEW_STALE' || code === 'RATE_LIMITED') {
-          throw new AppError(code);
+        const detail = await responseDetail(error);
+        const cause = detail.retryAfterSeconds ? { retryAfterSeconds: detail.retryAfterSeconds } : undefined;
+        if (detail.code === 'AUTH_REQUIRED' || detail.code === 'FORBIDDEN' || detail.code === 'AI_NOT_CONFIGURED' ||
+          detail.code === 'AI_NOT_ENOUGH_PICKS' || detail.code === 'AI_REVIEW_STALE' || detail.code === 'RATE_LIMITED') {
+          throw new AppError(detail.code, detail.code, cause);
         }
-        throw new AppError('AI_REVIEW_FAILED');
+        throw new AppError('AI_REVIEW_FAILED', 'AI_REVIEW_FAILED', cause);
       }
       return parseProfileAiReview(data?.review, data?.actor, expectedProfileId);
     });

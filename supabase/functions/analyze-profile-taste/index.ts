@@ -1,11 +1,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { PROFILE_AI_COOLDOWN_SECONDS, PROFILE_AI_PROFILE_AI_MIN_PICKS } from './contract.ts';
 import { inspectRequest, reply } from './request.ts';
 import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = TASTE_PROMPT_VERSION;
-const MIN_PICKS = 10;
-const COOLDOWN_MS = 10 * 60 * 1000;
+const COOLDOWN_MS = PROFILE_AI_COOLDOWN_SECONDS * 1000;
 const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,created_at,updated_at';
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at';
 
@@ -78,6 +78,7 @@ Deno.serve(async (req: Request) => {
   if (request instanceof Response) return request;
   const { authorization } = request;
 
+  let retryAfterReservation: number | null = null;
   try {
     const url = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -108,6 +109,18 @@ Deno.serve(async (req: Request) => {
       if (!Number.isSafeInteger(version) || version < 0) throw new Error('AI_SOURCE_VERSION_FAILED');
       return version;
     };
+    const readRetryAfterSeconds = async () => {
+      try {
+        const { data, error } = await admin.from('profile_ai_generation_limits')
+          .select('next_allowed_at').eq('profile_id', user.id).maybeSingle();
+        if (error || typeof data?.next_allowed_at !== 'string') return PROFILE_AI_COOLDOWN_SECONDS;
+        const remainingMs = new Date(data.next_allowed_at).getTime() - Date.now();
+        if (!Number.isFinite(remainingMs)) return PROFILE_AI_COOLDOWN_SECONDS;
+        return Math.max(1, Math.min(PROFILE_AI_COOLDOWN_SECONDS, Math.ceil(remainingMs / 1000)));
+      } catch {
+        return PROFILE_AI_COOLDOWN_SECONDS;
+      }
+    };
     const readSnapshot = async () => {
       const { data, error } = await publicClient.from('picks')
         .select('id,one_line_review,updated_at,categories!picks_category_id_fkey!inner(name),items!picks_item_category_fk!inner(name,original_name,release_year,creator_name,collection_name)')
@@ -122,9 +135,9 @@ Deno.serve(async (req: Request) => {
     const snapshot = await readSnapshot();
     // Check before cached results, quota reservation and any paid model call.
     // Never trust a count supplied by the requesting client.
-    if (snapshot.length < MIN_PICKS) return reply({
-      error: 'AI_NOT_ENOUGH_PICKS', minimum: MIN_PICKS,
-      count: snapshot.length, remaining: MIN_PICKS - snapshot.length,
+    if (snapshot.length < PROFILE_AI_MIN_PICKS) return reply({
+      error: 'AI_NOT_ENOUGH_PICKS', minimum: PROFILE_AI_MIN_PICKS,
+      count: snapshot.length, remaining: PROFILE_AI_MIN_PICKS - snapshot.length,
     }, 409);
     if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
     const tasteInput = buildTasteInput(snapshot);
@@ -150,12 +163,16 @@ Deno.serve(async (req: Request) => {
     }
     if (existing?.generated_at) {
       const elapsedMs = Date.now() - new Date(existing.generated_at).getTime();
-      if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < COOLDOWN_MS) return reply({ error: 'RATE_LIMITED' }, 429);
+      if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < COOLDOWN_MS) return reply({
+        error: 'RATE_LIMITED',
+        retryAfterSeconds: Math.max(1, Math.ceil((COOLDOWN_MS - elapsedMs) / 1000)),
+      }, 429);
     }
     const { data: reserved, error: reservationError } = await admin
       .rpc('reserve_profile_ai_generation', { p_profile_id: user.id });
     if (reservationError) throw new Error('AI_RESERVATION_FAILED');
-    if (reserved !== true) return reply({ error: 'RATE_LIMITED', retryAfterSeconds: 600 }, 429);
+    if (reserved !== true) return reply({ error: 'RATE_LIMITED', retryAfterSeconds: await readRetryAfterSeconds() }, 429);
+    retryAfterReservation = await readRetryAfterSeconds();
 
     // Input is allowlisted in quality.ts. Editorial references are never loaded
     // here, and generated comments never use examples as the user's biography.
@@ -187,7 +204,7 @@ Deno.serve(async (req: Request) => {
     if (!modelResponse.ok) {
       console.error('AI_PROVIDER_FAILED', modelResponse.status);
       await modelResponse.body?.cancel();
-      return reply({ error: 'AI_REVIEW_FAILED' }, 502);
+      return reply({ error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }, 502);
     }
     const output = outputText(await modelResponse.json());
     if (!output) throw new Error('AI_REVIEW_EMPTY_OR_REFUSED');
@@ -197,7 +214,7 @@ Deno.serve(async (req: Request) => {
 
     const latestSnapshot = await readSnapshot();
     if (await fingerprint(latestSnapshot) !== sourceFingerprint) {
-      return reply({ error: 'AI_REVIEW_STALE' }, 409);
+      return reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409);
     }
     // The DB compares source versions while holding the same row lock used by
     // source-change triggers. This closes the final read-to-write race window.
@@ -213,11 +230,13 @@ Deno.serve(async (req: Request) => {
       p_model_name: MODEL,
       p_prompt_version: PROMPT_VERSION,
     });
-    if (saveError?.message === 'AI_REVIEW_STALE') return reply({ error: 'AI_REVIEW_STALE' }, 409);
+    if (saveError?.message === 'AI_REVIEW_STALE') return reply({ error: 'AI_REVIEW_STALE', retryAfterSeconds: retryAfterReservation }, 409);
     if (saveError || !saved) throw new Error('AI_REVIEW_SAVE_FAILED');
     return reply({ review: saved, actor, reused: false });
   } catch {
     console.error('AI_REVIEW_FAILED');
-    return reply({ error: 'AI_REVIEW_FAILED' }, 500);
+    return reply(retryAfterReservation
+      ? { error: 'AI_REVIEW_FAILED', retryAfterSeconds: retryAfterReservation }
+      : { error: 'AI_REVIEW_FAILED' }, 500);
   }
 });

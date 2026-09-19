@@ -11,6 +11,7 @@ import {
 import { useProfileAiEligibility } from '@/hooks/useProfileAiEligibility';
 import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
 import { PROFILE_AI_PICK_GUIDANCE } from '@/lib/profileAiCopy';
+import { formatRetryDelay, retryAfterSecondsFromCause } from '@/lib/profileAiRetry';
 import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
 import { profileAiVisibilityErrorMessage } from '@/lib/profileAiVisibility';
 import { MIN_PROFILE_AI_PICKS } from '@/services/profileAiReviewService';
@@ -19,22 +20,31 @@ type Props = { profileUserId: string; pickCount: number; isMine: boolean };
 
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
+    const retryAfter = retryAfterSecondsFromCause(error.cause);
+    const retryDelay = retryAfter ? formatRetryDelay(retryAfter) : null;
     if (error.code === 'AI_NOT_CONFIGURED') return 'AI 분석 서버 연결이 아직 준비되지 않았어요.';
     if (error.code === 'AI_NOT_ENOUGH_PICKS') return `공개된 원픽이 최소 ${MIN_PROFILE_AI_PICKS}개 필요해요.`;
-    if (error.code === 'AI_REVIEW_STALE') return '원픽이나 AI 댓글이 바뀌었어요. 최신 내용을 확인한 뒤 공개해주세요.';
-    if (error.code === 'RATE_LIMITED') return '생성 요청은 10분에 한 번 가능해요. 잠시 후 다시 시도해주세요.';
+    if (error.code === 'AI_REVIEW_STALE') return retryDelay
+      ? `원픽이 바뀌어 이번 평가를 저장하지 않았어요. 약 ${retryDelay} 후 다시 요청할 수 있어요.`
+      : '원픽이나 AI 댓글이 바뀌었어요. 최신 내용을 확인한 뒤 공개해주세요.';
+    if (error.code === 'RATE_LIMITED') return retryDelay
+      ? `아직 다시 요청할 수 없어요. 약 ${retryDelay} 후 다시 시도해주세요.`
+      : '생성 요청은 10분에 한 번 가능해요. 잠시 후 다시 시도해주세요.';
+    if (error.code === 'AI_REVIEW_FAILED' && retryDelay) return `평가를 만들지 못했어요. 약 ${retryDelay} 후 다시 요청할 수 있어요.`;
   }
   return 'AI 취향평가를 완료하지 못했어요. 로그인과 연결 상태를 확인해주세요.';
 }
 
 function ConnectionNotice({ query }: { query: ReturnType<typeof useProfileAiStatus> }) {
-  if (!query.isError && query.data?.configured) return null;
+  if (!query.isError && query.data?.configured && query.data.compatible) return null;
   const checking = query.isPending || query.isFetching;
   return <View style={styles.connectionNotice}>
     <Text accessibilityLiveRegion="polite" style={styles.hint}>
       {checking ? 'AI 분석 서버의 연결 설정을 확인하고 있어요.' : query.isError
         ? 'AI 연결 상태를 확인하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해주세요.'
-        : 'AI 분석 연결을 준비하고 있어요. 등록한 원픽과 기존 평가는 그대로 유지돼요.'}
+        : !query.data?.configured
+          ? 'AI 분석 연결을 준비하고 있어요. 등록한 원픽과 기존 평가는 그대로 유지돼요.'
+          : 'AI 분석 서버를 최신 규격으로 맞추고 있어요. 등록한 원픽과 기존 평가는 그대로 유지돼요.'}
     </Text>
     <Pressable accessibilityRole="button" disabled={query.isFetching}
       accessibilityLabel="AI 연결 상태 다시 확인"
@@ -81,6 +91,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     publicPickCount: displayPickCount,
     minimumPickCount: MIN_PROFILE_AI_PICKS,
     configured: connection.data?.configured,
+    compatible: connection.data?.compatible,
     statusError: connection.isError || eligibility.isError,
     statusPending: connection.isPending || connection.isFetching || eligibility.isPending || eligibility.isFetching,
   });
@@ -91,7 +102,8 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     ? `원픽 ${MIN_PROFILE_AI_PICKS}개부터 요청 가능`
     : connection.isPending || connection.isFetching
       ? '연결 상태 확인 중…' : connection.isError ? '연결 상태 확인 필요'
-        : connection.data?.configured !== true ? 'AI 연결 준비 중' : normal;
+        : connection.data?.configured !== true ? 'AI 연결 준비 중'
+          : connection.data?.compatible !== true ? 'AI 서버 업데이트 중' : normal;
 
   const run = async () => {
     if (!canGenerate || busy || inFlight.current || visibilityNeedsCheck) return;
@@ -110,6 +122,10 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       }
       if (!checked.data.configured) {
         setMessage(errorMessage(new AppError('AI_NOT_CONFIGURED')));
+        return;
+      }
+      if (!checked.data.compatible) {
+        setMessage('AI 분석 서버가 앱과 같은 규격으로 업데이트된 뒤 요청할 수 있어요.');
         return;
       }
       if (counted.isError || typeof counted.data !== 'number' || !Number.isSafeInteger(counted.data) || counted.data < 0) {

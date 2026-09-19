@@ -7,6 +7,7 @@ const { webcrypto } = require('node:crypto');
 const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const serverPath = path.resolve(root, '../supabase/functions/analyze-profile-taste/index.ts');
+const contractPath = path.resolve(root, '../supabase/functions/analyze-profile-taste/contract.ts');
 const A = '11111111-1111-4111-8111-111111111111';
 const originalFetch = global.fetch;
 global.fetch = async () => { throw new Error('External network forbidden'); };
@@ -61,8 +62,8 @@ function card(count, existing = false, configured = true) {
     },
     '@/hooks/useProfileAiEligibility': { useProfileAiEligibility: () => ({ data: count, isError: false,
       isPending: false, isFetching: false, refetch: async () => ({ data: count, isError: false }) }) },
-    '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured }, isError: false,
-      isPending: false, isFetching: false, refetch: async () => ({ data: { configured }, isError: false }) }) },
+    '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured, compatible: true }, isError: false,
+      isPending: false, isFetching: false, refetch: async () => ({ data: { configured, compatible: true }, isError: false }) }) },
   });
   const { ProfileAiReviewCard } = read(path.join(root, 'src/components/profile-ai-review-card.tsx'));
   const tree = ProfileAiReviewCard({ profileUserId: A, pickCount: count, isMine: true });
@@ -143,7 +144,7 @@ const rowsFor = (count) => Array.from({ length: count }, (_, i) => ({
 (async () => {
   await test('client and server both require exactly ten as the minimum', () => {
     assert.equal(MIN_PROFILE_AI_PICKS, 10);
-    assert.match(readFileSync(serverPath, 'utf8'), /const MIN_PICKS = 10;/);
+    assert.match(readFileSync(contractPath, 'utf8'), /PROFILE_AI_MIN_PICKS = 10;/);
   });
   await test('client refuses every count below ten without invoking the repository', async () => {
     let calls = 0; const service = new ProfileAiReviewService({ generate: async () => { calls++; } });
@@ -176,7 +177,7 @@ const rowsFor = (count) => Array.from({ length: count }, (_, i) => ({
   });
   await test('generic button gate still requires owner and configured service', () => {
     const ready = { isOwner: true, publicPickCount: 10, minimumPickCount: MIN_PROFILE_AI_PICKS,
-      configured: true, statusError: false, statusPending: false };
+      configured: true, compatible: true, statusError: false, statusPending: false };
     assert.equal(canRequestProfileAiGeneration(ready), true);
     for (const change of [{ publicPickCount: 9 }, { isOwner: false }, { configured: false }, { statusError: true }]) {
       assert.equal(canRequestProfileAiGeneration({ ...ready, ...change }), false);

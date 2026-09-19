@@ -9,45 +9,65 @@ const compiled = ts.transpileModule(source, { compilerOptions: {
 } }).outputText;
 const local = { exports: {} };
 new Function('module', 'exports', 'require', compiled)(local, local.exports, require);
-const { parseProfileAiStatus, readProfileAiStatus, canRequestProfileAiGeneration } = local.exports;
+const {
+  parseProfileAiStatus, readProfileAiStatus, canRequestProfileAiGeneration,
+  EXPECTED_PROFILE_AI_CONTRACT_VERSION, EXPECTED_PROFILE_AI_MIN_PICKS,
+  EXPECTED_PROFILE_AI_PROMPT_VERSION, EXPECTED_PROFILE_AI_COOLDOWN_SECONDS,
+} = local.exports;
 const base = 'https://example.supabase.co';
-const payload = { service: 'analyze-profile-taste', status: 'ok', configured: true };
+const payload = {
+  service: 'analyze-profile-taste', status: 'ok', configured: true,
+  contractVersion: EXPECTED_PROFILE_AI_CONTRACT_VERSION,
+  minimumPicks: EXPECTED_PROFILE_AI_MIN_PICKS,
+  promptVersion: EXPECTED_PROFILE_AI_PROMPT_VERSION,
+  cooldownSeconds: EXPECTED_PROFILE_AI_COOLDOWN_SECONDS,
+};
 let passed = 0;
 async function test(name, action) { await action(); passed++; console.log(`PASS ${name}`); }
 
 (async () => {
-  await test('accepts configured and unconfigured responses', () => {
-    assert.deepEqual(parseProfileAiStatus(payload), { configured: true });
-    assert.deepEqual(parseProfileAiStatus({ ...payload, configured: false }), { configured: false });
+  await test('current contract is compatible whether configured or not', () => {
+    assert.equal(parseProfileAiStatus(payload).compatible, true);
+    const unconfigured = parseProfileAiStatus({ ...payload, configured: false });
+    assert.equal(unconfigured.compatible, true); assert.equal(unconfigured.configured, false);
   });
-  await test('drops unexpected fields rather than storing them', () => {
-    assert.deepEqual(parseProfileAiStatus({ ...payload, unexpected: 'not-retained' }), { configured: true });
+  await test('legacy deployed payload stays reachable but incompatible', () => {
+    assert.deepEqual(parseProfileAiStatus({ service: 'analyze-profile-taste', status: 'ok', configured: true }), {
+      configured: true, compatible: false, contractVersion: null,
+      minimumPicks: null, promptVersion: null, cooldownSeconds: null,
+    });
   });
-  await test('malformed payloads fail closed', () => {
-    for (const value of [null, [], {}, 'ok', { ...payload, service: 'other' },
-      { ...payload, status: 'error' }, { ...payload, configured: 'true' }, { ...payload, configured: 1 }]) {
-      assert.throws(() => parseProfileAiStatus(value), /AI_STATUS_INVALID/);
-    }
+  await test('any contract mismatch disables generation', () => {
+    for (const changed of [
+      { contractVersion: 'profile-ai-v1' }, { minimumPicks: 3 },
+      { promptVersion: 'taste-v3' }, { cooldownSeconds: 300 },
+    ]) assert.equal(parseProfileAiStatus({ ...payload, ...changed }).compatible, false);
   });
-  await test('uses public GET without any credentials or body', async () => {
+  await test('partial or malformed contract fields fail closed', () => {
+    for (const value of [
+      null, [], {}, 'ok', { ...payload, service: 'other' }, { ...payload, status: 'error' },
+      { ...payload, configured: 'true' }, { ...payload, minimumPicks: '10' },
+      { service: 'analyze-profile-taste', status: 'ok', configured: true, contractVersion: 'profile-ai-v2' },
+    ]) assert.throws(() => parseProfileAiStatus(value), /AI_STATUS_INVALID/);
+  });
+  await test('unexpected fields are not retained', () => {
+    const result = parseProfileAiStatus({ ...payload, secret: 'never-cache-me' });
+    assert.equal(result.secret, undefined); assert.equal(result.compatible, true);
+  });
+  await test('uses public GET without credentials or body', async () => {
     let calls = 0;
     const result = await readProfileAiStatus(base, { fetcher: async (url, options) => {
-      calls++;
-      assert.equal(url, base + '/functions/v1/analyze-profile-taste/status');
+      calls++; assert.equal(url, base + '/functions/v1/analyze-profile-taste/status');
       assert.equal(options.method, 'GET'); assert.equal(options.credentials, 'omit');
       assert.equal(options.cache, 'no-store'); assert.equal(options.body, undefined);
       assert.deepEqual(options.headers, { Accept: 'application/json' });
       return Response.json(payload);
     } });
-    assert.equal(calls, 1); assert.deepEqual(result, { configured: true });
+    assert.equal(calls, 1); assert.equal(result.compatible, true);
   });
-  await test('HTTP failure cannot enable generation', async () => {
+  await test('HTTP, JSON and network failures cannot enable generation', async () => {
     await assert.rejects(readProfileAiStatus(base, { fetcher: async () => Response.json(payload, { status: 503 }) }), /AI_STATUS_UNAVAILABLE/);
-  });
-  await test('invalid JSON cannot enable generation', async () => {
     await assert.rejects(readProfileAiStatus(base, { fetcher: async () => new Response('<html>error</html>') }));
-  });
-  await test('network failure is not mistaken for missing configuration', async () => {
     await assert.rejects(readProfileAiStatus(base, { fetcher: async () => { throw new Error('OFFLINE'); } }), /OFFLINE/);
   });
   await test('aborted request never contacts the server', async () => {
@@ -55,14 +75,12 @@ async function test(name, action) { await action(); passed++; console.log(`PASS 
     await assert.rejects(readProfileAiStatus(base, { signal: controller.signal,
       fetcher: async () => { assert.fail('must not fetch'); } }), /AI_STATUS_CANCELLED/);
   });
-  await test('timeout bounds even a fetch that ignores abort', async () => {
+  await test('timeout bounds fetch and response body', async () => {
     let requestSignal;
     await assert.rejects(readProfileAiStatus(base, { timeoutMs: 10, fetcher: async (_url, opts) => {
       requestSignal = opts.signal; return new Promise(() => {});
     } }), /AI_STATUS_TIMEOUT/);
     assert.equal(requestSignal.aborted, true);
-  });
-  await test('timeout also bounds a stalled response body', async () => {
     await assert.rejects(readProfileAiStatus(base, { timeoutMs: 10,
       fetcher: async () => ({ ok: true, json: () => new Promise(() => {}) }) }), /AI_STATUS_TIMEOUT/);
   });
@@ -71,23 +89,31 @@ async function test(name, action) { await action(); passed++; console.log(`PASS 
     const pending = readProfileAiStatus(base, { signal: controller.signal, fetcher: async (_url, opts) => {
       requestSignal = opts.signal; return new Promise(() => {});
     } });
-    controller.abort();
-    await assert.rejects(pending, /AI_STATUS_CANCELLED/);
+    controller.abort(); await assert.rejects(pending, /AI_STATUS_CANCELLED/);
     assert.equal(requestSignal.aborted, true);
   });
-  await test('configuration true is necessary but not enough to allow a request', () => {
-    const ready = { isOwner: true, publicPickCount: 3, minimumPickCount: 3,
-      configured: true, statusError: false, statusPending: false };
+  await test('owner, count, configuration and compatibility are all required', () => {
+    const ready = { isOwner: true, publicPickCount: 10, minimumPickCount: 10,
+      configured: true, compatible: true, statusError: false, statusPending: false };
     assert.equal(canRequestProfileAiGeneration(ready), true);
-    for (const change of [{ isOwner: false }, { publicPickCount: 2 }, { publicPickCount: NaN },
-      { configured: undefined }, { configured: false }, { statusError: true }, { statusPending: true }]) {
-      assert.equal(canRequestProfileAiGeneration({ ...ready, ...change }), false);
-    }
+    for (const change of [
+      { isOwner: false }, { publicPickCount: 9 }, { publicPickCount: NaN },
+      { configured: undefined }, { configured: false }, { compatible: undefined },
+      { compatible: false }, { statusError: true }, { statusPending: true },
+    ]) assert.equal(canRequestProfileAiGeneration({ ...ready, ...change }), false);
   });
   await test('rejects invalid timeout instead of leaving a request running', async () => {
     for (const timeoutMs of [0, -1, Infinity, NaN]) {
       await assert.rejects(readProfileAiStatus(base, { timeoutMs }), /AI_STATUS_TIMEOUT_INVALID/);
     }
   });
-  console.log(`${passed} AI readiness tests passed.`);
+  const serverContract = readFileSync(path.join(__dirname, '../../supabase/functions/analyze-profile-taste/contract.ts'), 'utf8');
+  const quality = readFileSync(path.join(__dirname, '../../supabase/functions/analyze-profile-taste/quality.ts'), 'utf8');
+  await test('client expectations match server source constants', () => {
+    assert.match(serverContract, new RegExp(`PROFILE_AI_CONTRACT_VERSION = '${EXPECTED_PROFILE_AI_CONTRACT_VERSION}'`));
+    assert.match(serverContract, new RegExp(`PROFILE_AI_MIN_PICKS = ${EXPECTED_PROFILE_AI_MIN_PICKS}`));
+    assert.match(serverContract, /PROFILE_AI_COOLDOWN_SECONDS = 10 \* 60/);
+    assert.ok(quality.includes(`TASTE_PROMPT_VERSION = '${EXPECTED_PROFILE_AI_PROMPT_VERSION}'`));
+  });
+  console.log(`${passed} AI readiness/contract tests passed.`);
 })().catch((error) => { console.error(error); process.exitCode = 1; });
