@@ -73,6 +73,7 @@ function card({ listCount = 10, eligibleCount = 10, nextCount = eligibleCount,
   const jsx = (type, props) => typeof type === 'function' ? type(props) : { type, props: props ?? {} };
   const read = loader({
     react: { useEffect: (fn) => fn(), useRef: (current) => ({ current }), useState: (value) => [value, (next) => messages.push(next)] },
+    'expo-router': { useIsFocused: () => true },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'view', Text: 'text', Pressable: 'button', ActivityIndicator: 'loading', StyleSheet: { create: (x) => x } },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: isMine ? A : B }, isLoading: false, error: null }) },

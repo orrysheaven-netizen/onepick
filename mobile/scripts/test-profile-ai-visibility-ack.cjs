@@ -89,6 +89,7 @@ function screen({ writeError = false, refreshError = false } = {}) {
       useRef(current) { const i = cursor++; return refs[i] ?? (refs[i] = { current }); },
       useEffect(fn) { const i = cursor++; if (!effects[i]) effects[i] = fn() || true; },
     },
+    'expo-router': { useIsFocused: () => true },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'view', Text: 'text', Pressable: 'button', ActivityIndicator: 'loading', StyleSheet: { create: (v) => v } },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: A }, isLoading: false }) },

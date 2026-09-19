@@ -111,6 +111,7 @@ function card({ count = 10, compatible = true, visible = false, isMine = true, t
   const jsx = (type, props) => typeof type === 'function' ? type(props) : { type, props: props ?? {} };
   const load = loader({
     react: { useEffect: (fn) => fn(), useState: (value) => [value, () => {}], useRef: (current) => ({ current }) },
+    'expo-router': { useIsFocused: () => true },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'view', Text: 'text', Pressable: 'button', ActivityIndicator: 'loading', StyleSheet: { create: (x) => x } },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: isMine ? A : 'visitor' }, isLoading: false }) },

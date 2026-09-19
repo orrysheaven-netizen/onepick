@@ -47,6 +47,7 @@ function card(count, existing = false, configured = true) {
   const jsx = (type, props) => typeof type === 'function' ? type(props) : { type, props: props ?? {} };
   const read = loader({
     react: { useEffect: (fn) => { fn(); }, useRef: (current) => ({ current }), useState: (value) => [value, () => {}] },
+    'expo-router': { useIsFocused: () => true },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'view', Text: 'text', Pressable: 'button', ActivityIndicator: 'loading', StyleSheet: { create: (value) => value } },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: A }, isLoading: false, error: null }) },
