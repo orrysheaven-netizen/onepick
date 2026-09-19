@@ -115,7 +115,10 @@ select throws_ok(
 reset role;
 select set_config('request.jwt.claim.sub','',true);
 set local role anon;
-select ok(not has_schema_privilege('anon','private','usage'),'anonymous has no usage grant on the private schema at all, let alone the AAL2 gate inside it');
+-- anon holds schema usage only because public.user_is_suspended now lives in
+-- private (needed by the anon-facing read policies that call it); it still
+-- has no execute grant on the actual AAL2 gate function.
+select ok(not has_function_privilege('anon','private.is_admin_mfa()','execute'),'anonymous cannot execute the private AAL2 gate function');
 select ok(not has_function_privilege('anon','public.admin_dashboard_metrics()','execute'),'anonymous cannot execute admin_dashboard_metrics');
 reset role;
 
