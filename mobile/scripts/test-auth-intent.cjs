@@ -30,7 +30,7 @@ const same = (a, b) => assert.equal(JSON.stringify(a), JSON.stringify(b));
 async function main() {
   const choose = { action: 'choose_pick', itemId: ids[0], categoryId: ids[1] };
   const chooseMovie = { action: 'choose_movie', externalId: '157336', categoryId: ids[1] };
-  const chooseBook = { action: 'choose_book', externalBookId: '978-89-364-3412-0', categoryId: ids[1] };
+  const chooseBook = { action: 'choose_book', externalBookId: 'h433zQEACAAJ', categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
@@ -40,8 +40,8 @@ async function main() {
   same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { itemId: ids[0], categoryId: ids[1] } });
   same(getPostAuthRoute(getAuthIntent(chooseMovie)), { pathname: '/pick/find', params: { categoryId: ids[1], externalMovieId: '157336' } });
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseMovie, externalId: '../../bad' })), '/');
-  same(getPostAuthRoute(getAuthIntent(chooseBook)), { pathname: '/pick/book', params: { categoryId: ids[1], externalBookId: '9788936434120' } });
-  assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseBook, externalBookId: 'bad' })), '/');
+  same(getPostAuthRoute(getAuthIntent(chooseBook)), { pathname: '/pick/book', params: { categoryId: ids[1], externalBookId: 'h433zQEACAAJ' } });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseBook, externalBookId: 'bad/id' })), '/');
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
   same(getAuthIntent(request), { action: 'request_item', itemName: '신라면 더 레드', categoryId: ids[0] });
   same(getPostAuthRoute(getAuthIntent(request)), {
