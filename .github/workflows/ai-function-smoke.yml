@@ -29,6 +29,8 @@ jobs:
           deno-version: v2.x
       - name: Test public status and request gate
         run: deno test --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/request.test.ts
+      - name: Test writing contract and editorial fixtures without model calls
+        run: deno test --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/quality.test.ts
       - name: Probe deployed endpoint without user credentials
         run: node scripts/check-ai-function.mjs
       - name: Retain non-sensitive smoke report
