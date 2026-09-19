@@ -96,7 +96,7 @@ export function ProfileAiReviewCard({ profileUserId, pickCount, isMine }: Props)
         <Text style={styles.title}>AI가 본 나</Text>
         <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
         <Text style={styles.description}>
-          공개한 원픽과 한줄평에서 반복되는 취향의 패턴을 AI가 짧게 해석합니다.
+          버튼을 누르면 공개한 원픽과 한줄평을 AI가 읽고, 반복되는 취향의 패턴을 짧게 해석합니다.
         </Text>
         {missingCount > 0 ? (
           <Text style={styles.hint}>원픽을 {missingCount}개 더 고르면 평가를 받을 수 있어요.</Text>
