@@ -1,219 +1,459 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export const NLK_BOOK_SOURCE = 'nlk_isbn' as const;
-const ISBN13 = /^(?:978|979)\d{10}$/;
-const clean = (value: unknown, max: number) => typeof value === 'string'
-  ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
+export const GOOGLE_BOOKS_SOURCE = 'google_books_volume' as const;
+const VOLUME_ID = /^[A-Za-z0-9_-]{1,100}$/;
+
+const clean = (value: unknown, max: number) =>
+  typeof value === 'string'
+    ? value.trim().replace(/\s+/g, ' ').slice(0, max)
+    : '';
 
 export type BookEntry = {
-  source: typeof NLK_BOOK_SOURCE;
+  source: typeof GOOGLE_BOOKS_SOURCE;
   externalId: string;
   title: string;
+  subtitle: string | null;
   authorName: string | null;
   publisherName: string | null;
-  editionStatement: string | null;
-  formatName: string | null;
-  publishYear: number | null;
-  isEbook: boolean | null;
-  coverUrl: null;
+  releaseYear: number | null;
+  isbn: string | null;
+  coverUrl: string | null;
+  infoUrl: string | null;
+  language: string | null;
   existingItemId: string | null;
 };
 
-export function normalizeIsbn13(value: unknown) {
-  const digits = typeof value === 'string' ? value.replace(/[-\s]/g, '') : '';
-  if (!ISBN13.test(digits)) return null;
-  const sum = digits.slice(0, 12).split('').reduce((total, digit, index) =>
-    total + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
-  return (10 - (sum % 10)) % 10 === Number(digits[12]) ? digits : null;
+function releaseYear(value: unknown) {
+  const date = clean(value, 30);
+  const match = /^(\d{4})/.exec(date);
+  if (!match) return null;
+  const year = Number(match[1]);
+  return year >= 1888 && year <= 2200 ? year : null;
 }
 
-function publishYear(value: unknown) {
-  const text = clean(value, 30);
-  const match = text.match(/(1[4-9]\d{2}|20\d{2}|21\d{2}|2200)/);
-  return match ? Number(match[1]) : null;
+function authorName(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  const authors = value
+    .map((author) => clean(author, 120))
+    .filter(Boolean);
+  if (!authors.length) return null;
+  return authors.join(' · ').slice(0, 300);
 }
 
-function ebook(value: unknown): boolean | null {
-  const text = clean(value, 10).toUpperCase();
-  return text === 'Y' ? true : text === 'N' ? false : null;
+function isbn(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  const rows = value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const row = entry as Record<string, unknown>;
+    const type = clean(row.type, 20);
+    const identifier = clean(row.identifier, 40);
+    return identifier ? [{ type, identifier }] : [];
+  });
+  return (
+    rows.find((row) => row.type === 'ISBN_13')
+    ?? rows.find((row) => row.type === 'ISBN_10')
+    ?? rows[0]
+  )?.identifier ?? null;
 }
 
-export function mapNlkBook(value: unknown): BookEntry | null {
+function googleUrl(value: unknown) {
+  const raw = clean(value, 2048);
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === 'http:') parsed.protocol = 'https:';
+    if (parsed.protocol !== 'https:') return null;
+    const host = parsed.hostname.toLowerCase();
+    if (!(host === 'books.google.com' || host.startsWith('books.google.'))) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function coverUrl(value: unknown) {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  const candidate = ['extraLarge', 'large', 'medium', 'small', 'thumbnail', 'smallThumbnail']
+    .map((key) => clean(row[key], 2048))
+    .find(Boolean);
+  if (!candidate) return null;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === 'http:') parsed.protocol = 'https:';
+    if (parsed.protocol !== 'https:') return null;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === 'books.google.com'
+      || host.startsWith('books.google.')
+      || host === 'books.googleusercontent.com'
+      || host.endsWith('.googleusercontent.com')
+    ) {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function mapGoogleBookVolume(value: unknown): BookEntry | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  const isbn = normalizeIsbn13(row.EA_ISBN ?? row.ea_isbn ?? row.ISBN ?? row.isbn);
-  const title = clean(row.TITLE ?? row.title, 100);
-  if (!isbn || !title) return null;
+  const id = clean(row.id, 100);
+  const volumeInfo = row.volumeInfo;
+  if (!VOLUME_ID.test(id) || !volumeInfo || typeof volumeInfo !== 'object') return null;
+
+  const info = volumeInfo as Record<string, unknown>;
+  const title = clean(info.title, 100);
+  if (!title) return null;
+
+  const printType = clean(info.printType, 20).toUpperCase();
+  if (printType && printType !== 'BOOK') return null;
+
   return {
-    source: NLK_BOOK_SOURCE,
-    externalId: isbn,
+    source: GOOGLE_BOOKS_SOURCE,
+    externalId: id,
     title,
-    authorName: clean(row.AUTHOR ?? row.author, 200) || null,
-    publisherName: clean(row.PUBLISHER ?? row.publisher, 200) || null,
-    editionStatement: clean(row.EDITION_STMT ?? row.edition_stmt, 120) || null,
-    formatName: clean(row.FORM ?? row.form, 80) || null,
-    publishYear: publishYear(row.PUBLISH_PREDATE ?? row.publish_predate),
-    isEbook: ebook(row.EBOOK_YN ?? row.ebook_yn),
-    // TITLE_URL exists in the provider response, but OnePick does not display or
-    // persist it until per-image reuse rights can be verified.
-    coverUrl: null,
+    subtitle: clean(info.subtitle, 160) || null,
+    authorName: authorName(info.authors),
+    publisherName: clean(info.publisher, 300) || null,
+    releaseYear: releaseYear(info.publishedDate),
+    isbn: isbn(info.industryIdentifiers),
+    coverUrl: coverUrl(info.imageLinks),
+    infoUrl: googleUrl(info.canonicalVolumeLink) ?? googleUrl(info.infoLink),
+    language: clean(info.language, 12) || null,
     existingItemId: null,
   };
-}
-
-export function extractNlkRows(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (!data || typeof data !== 'object') return [];
-  const row = data as Record<string, unknown>;
-  if (Array.isArray(row.docs)) return row.docs;
-  if (row.docs && typeof row.docs === 'object') {
-    const docs = row.docs as Record<string, unknown>;
-    if (Array.isArray(docs.e)) return docs.e;
-    if (Array.isArray(docs.item)) return docs.item;
-  }
-  if (Array.isArray(row.items)) return row.items;
-  return [];
 }
 
 export function normalizeItemName(value: string) {
   return value.toLocaleLowerCase('ko-KR').replace(/\s+/g, '');
 }
 
-export function bookItemName(entry: Pick<BookEntry, 'title' | 'authorName'>) {
-  if (!entry.authorName) return entry.title;
-  const combined = `${entry.title} · ${entry.authorName}`;
-  return combined.length <= 100 ? combined : `${entry.title.slice(0, 70)} · ${entry.authorName}`.slice(0, 100);
-}
+type Remote =
+  | { data: Record<string, unknown>; error?: never }
+  | { error: Response; data?: never };
 
-type Remote = { data: unknown; error?: never } | { error: Response; data?: never };
 type Dependencies = {
   client: () => SupabaseClient | null;
-  fetchNlk: (url: URL) => Promise<Remote>;
-  readCache: (client: SupabaseClient, key: string, maxAgeMs: number) => Promise<unknown | null>;
-  writeCache: (client: SupabaseClient, key: string, payload: unknown) => Promise<void>;
+  fetchGoogleBooks: (url: URL, client: SupabaseClient) => Promise<Remote>;
+  readCache: (
+    client: SupabaseClient,
+    key: string,
+    maxAgeMs: number,
+  ) => Promise<unknown | null>;
+  writeCache: (
+    client: SupabaseClient,
+    key: string,
+    payload: unknown,
+  ) => Promise<void>;
+  waitForProvider: (client: SupabaseClient) => Promise<boolean>;
   json: (body: unknown, status?: number) => Response;
-  apiKey: () => string | null;
 };
 
 async function catalogCategory(client: SupabaseClient) {
-  const categoryResult = await client.from('categories').select('id,parent_id')
-    .eq('slug', 'book').eq('status', 'open').eq('is_visible', true).eq('is_pickable', true).maybeSingle();
+  const categoryResult = await client
+    .from('categories')
+    .select('id,parent_id')
+    .eq('slug', 'book')
+    .eq('status', 'open')
+    .eq('is_visible', true)
+    .eq('is_pickable', true)
+    .maybeSingle();
+
   const category = categoryResult.data;
   if (categoryResult.error || !category) return null;
-  const children = await client.from('categories').select('id').eq('parent_id', category.id).limit(1);
+
+  const children = await client
+    .from('categories')
+    .select('id')
+    .eq('parent_id', category.id)
+    .limit(1);
   if (children.error || children.data?.length) return null;
+
   if (category.parent_id) {
-    const parent = await client.from('categories').select('id,parent_id')
-      .eq('id', category.parent_id).eq('status', 'open').eq('is_visible', true).eq('is_pickable', false).maybeSingle();
+    const parent = await client
+      .from('categories')
+      .select('id,parent_id')
+      .eq('id', category.parent_id)
+      .eq('status', 'open')
+      .eq('is_visible', true)
+      .eq('is_pickable', false)
+      .maybeSingle();
+
     if (parent.error || !parent.data || parent.data.parent_id) return null;
   }
+
   return category;
 }
 
-function providerUrl(apiKey: string, params: Record<string, string>) {
-  const url = new URL('https://www.nl.go.kr/seoji/SearchApi.do');
-  url.searchParams.set('cert_key', apiKey);
-  url.searchParams.set('result_style', 'json');
-  url.searchParams.set('page_no', '1');
-  url.searchParams.set('page_size', '20');
-  for (const [key, value] of Object.entries(params)) if (value) url.searchParams.set(key, value);
-  return url;
-}
-
 export function createBookCatalogHandler(deps: Dependencies) {
-  const { client: makeClient, fetchNlk, readCache, writeCache, json, apiKey } = deps;
-  return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
-    if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
-    const title = clean(body.title, 1000);
-    const author = clean(body.author, 1000);
-    const id = normalizeIsbn13(body.externalId);
-    if (body.action === 'search' && (title.length < 1 || title.length > 100 || author.length > 100
-      || (title.length < 2 && author.length < 2))) return json({ error: 'QUERY_INVALID' }, 400);
-    if (body.action === 'import' && !id) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
+  const {
+    client: makeClient,
+    fetchGoogleBooks,
+    readCache,
+    writeCache,
+    waitForProvider,
+    json,
+  } = deps;
+
+  return async (
+    body: Record<string, unknown>,
+    req: Request,
+  ): Promise<Response> => {
+    if (body.action !== 'search' && body.action !== 'import') {
+      return json({ error: 'ACTION_INVALID' }, 400);
+    }
+
+    const query = clean(body.query, 1000);
+    const id = typeof body.externalId === 'string' ? body.externalId.trim() : '';
+
+    if (
+      body.action === 'search'
+      && (query.length < 2 || query.length > 100)
+    ) {
+      return json({ error: 'QUERY_INVALID' }, 400);
+    }
+
+    if (body.action === 'import' && !VOLUME_ID.test(id)) {
+      return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
+    }
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
-      const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+      const token = authorization.startsWith('Bearer ')
+        ? authorization.slice(7).trim()
+        : '';
+
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
+
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
-      const suspended = await client.rpc('user_is_suspended', { p_user_id: data.user.id });
+
+      const suspended = await client.rpc('user_is_suspended', {
+        p_user_id: data.user.id,
+      });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+      if (suspended.data === true) {
+        return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+      }
     }
 
     const category = await catalogCategory(client);
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
-    const key = apiKey();
-    if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
     if (body.action === 'search') {
-      const cacheKey = `search:\n${title}\n${author}`;
+      const cacheKey = `search:\n${query}`;
       const cached = await readCache(client, cacheKey, 6 * 60 * 60_000);
-      let rawRows = Array.isArray(cached) ? cached : null;
-      if (!rawRows) {
-        const remote = await fetchNlk(providerUrl(key, { title, author }));
+
+      let books = Array.isArray(cached)
+        ? cached
+            .map(mapGoogleBookVolume)
+            .filter((entry): entry is BookEntry => Boolean(entry))
+        : [];
+
+      if (!books.length) {
+        if (!await waitForProvider(client)) {
+          return json({ error: 'RATE_LIMITED' }, 429);
+        }
+
+        const url = new URL('https://www.googleapis.com/books/v1/volumes');
+        url.searchParams.set('q', query);
+        url.searchParams.set('printType', 'books');
+        url.searchParams.set('orderBy', 'relevance');
+        url.searchParams.set('projection', 'full');
+        url.searchParams.set('maxResults', '20');
+
+        const remote = await fetchGoogleBooks(url, client);
         if (remote.error) return remote.error;
-        rawRows = extractNlkRows(remote.data).slice(0, 40);
-        await writeCache(client, cacheKey, rawRows);
+
+        const source = Array.isArray(remote.data.items) ? remote.data.items : [];
+        const seen = new Set<string>();
+
+        books = source
+          .map(mapGoogleBookVolume)
+          .filter((entry): entry is BookEntry => {
+            if (!entry || seen.has(entry.externalId)) return false;
+            seen.add(entry.externalId);
+            return true;
+          })
+          .slice(0, 20);
+
+        await writeCache(client, cacheKey, source.slice(0, 40));
       }
-      const seen = new Set<string>();
-      const books = rawRows.map(mapNlkBook).filter((entry): entry is BookEntry => {
-        if (!entry || seen.has(entry.externalId)) return false;
-        seen.add(entry.externalId); return true;
-      }).slice(0, 20);
+
       if (!books.length) return json({ books: [] });
-      const known = await client.from('items').select('id,external_id')
-        .eq('category_id', category.id).eq('external_source', NLK_BOOK_SOURCE)
-        .in('external_id', books.map((entry) => entry.externalId)).in('status', ['active', 'discontinued']);
-      if (known.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      const ids = new Map((known.data ?? []).map((item) => [item.external_id, item.id]));
-      return json({ books: books.map((entry) => ({ ...entry, existingItemId: ids.get(entry.externalId) ?? null })) });
+
+      const externalIds = books.map((entry) => entry.externalId);
+      const isbns = Array.from(
+        new Set(books.map((entry) => entry.isbn).filter((value): value is string => Boolean(value))),
+      );
+
+      const knownByExternal = await client
+        .from('items')
+        .select('id,external_id')
+        .eq('category_id', category.id)
+        .eq('external_source', GOOGLE_BOOKS_SOURCE)
+        .in('external_id', externalIds)
+        .in('status', ['active', 'discontinued']);
+
+      if (knownByExternal.error) {
+        return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+
+      const knownByIsbn = isbns.length
+        ? await client
+            .from('items')
+            .select('id,model_code')
+            .eq('category_id', category.id)
+            .in('model_code', isbns)
+            .in('status', ['active', 'discontinued'])
+        : { data: [], error: null };
+
+      if (knownByIsbn.error) {
+        return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+
+      const idsByExternal = new Map(
+        (knownByExternal.data ?? []).map((item) => [item.external_id, item.id]),
+      );
+      const idsByIsbn = new Map(
+        (knownByIsbn.data ?? []).map((item) => [item.model_code, item.id]),
+      );
+
+      return json({
+        books: books.map((entry) => ({
+          ...entry,
+          existingItemId:
+            idsByExternal.get(entry.externalId)
+            ?? (entry.isbn ? idsByIsbn.get(entry.isbn) : null)
+            ?? null,
+        })),
+      });
     }
 
-    const findExisting = () => client.from('items').select('id,category_id,status')
-      .eq('external_source', NLK_BOOK_SOURCE).eq('external_id', id!).maybeSingle();
-    const receipt = (item: { id: string; category_id: string; status: string }) =>
-      item.category_id === category.id && ['active', 'discontinued'].includes(item.status)
-        ? json({ itemId: item.id, categoryId: item.category_id, created: false })
+    const findExisting = () =>
+      client
+        .from('items')
+        .select('id,category_id,status')
+        .eq('external_source', GOOGLE_BOOKS_SOURCE)
+        .eq('external_id', id)
+        .maybeSingle();
+
+    const findExistingByIsbn = (isbn: string | null) =>
+      isbn
+        ? client
+            .from('items')
+            .select('id,category_id,status')
+            .eq('category_id', category.id)
+            .eq('model_code', isbn)
+            .in('status', ['active', 'discontinued'])
+            .limit(1)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null });
+
+    const receipt = (item: {
+      id: string;
+      category_id: string;
+      status: string;
+    }) =>
+      item.category_id === category.id
+        && ['active', 'discontinued'].includes(item.status)
+        ? json({
+            itemId: item.id,
+            categoryId: item.category_id,
+            created: false,
+          })
         : json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+
     const existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     if (existing.data) return receipt(existing.data);
 
-    const cacheKey = `isbn:\n${id}`;
+    const cacheKey = `volume:\n${id}`;
     const cached = await readCache(client, cacheKey, 24 * 60 * 60_000);
-    let rawRows = Array.isArray(cached) ? cached : null;
-    if (!rawRows) {
-      const remote = await fetchNlk(providerUrl(key, { isbn: id! }));
-      if (remote.error) return remote.error;
-      rawRows = extractNlkRows(remote.data).slice(0, 20);
-      await writeCache(client, cacheKey, rawRows);
-    }
-    const book = rawRows.map(mapNlkBook).find((entry) => entry?.externalId === id) ?? null;
-    if (!book) return json({ error: 'BOOK_NOT_FOUND' }, 404);
 
-    const itemName = bookItemName(book);
-    const inserted = await client.from('items').insert({
-      category_id: category.id,
-      name: itemName,
-      normalized_name: normalizeItemName(`${book.title} ${book.authorName ?? ''}`),
-      official_url: null,
-      image_source_url: null,
-      external_source: NLK_BOOK_SOURCE,
-      external_id: book.externalId,
-      original_name: book.title,
-      release_year: book.publishYear,
-      creator_name: book.authorName,
-      collection_name: book.publisherName,
-      status: 'active',
-    }).select('id,category_id').maybeSingle();
-    if (!inserted.error && inserted.data) return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
-    if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    let raw =
+      cached && typeof cached === 'object' && !Array.isArray(cached)
+        ? cached as Record<string, unknown>
+        : null;
+
+    if (!raw) {
+      if (!await waitForProvider(client)) {
+        return json({ error: 'RATE_LIMITED' }, 429);
+      }
+
+      const url = new URL(
+        `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(id)}`,
+      );
+      url.searchParams.set('projection', 'full');
+
+      const remote = await fetchGoogleBooks(url, client);
+      if (remote.error) return remote.error;
+
+      raw = remote.data;
+      await writeCache(client, cacheKey, raw);
+    }
+
+    const book = mapGoogleBookVolume(raw);
+    if (!book || book.externalId !== id) {
+      return json({ error: 'BOOK_NOT_FOUND' }, 404);
+    }
+
+    const isbnMatch = await findExistingByIsbn(book.isbn);
+    if (isbnMatch.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (isbnMatch.data) return receipt(isbnMatch.data);
+
+    const inserted = await client
+      .from('items')
+      .insert({
+        category_id: category.id,
+        name: book.title,
+        normalized_name: normalizeItemName(
+          [
+            book.title,
+            book.subtitle,
+            book.authorName,
+            book.publisherName,
+            book.isbn,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        ),
+        model_code: book.isbn,
+        official_url: book.infoUrl,
+        image_source_url: book.coverUrl,
+        external_source: GOOGLE_BOOKS_SOURCE,
+        external_id: id,
+        original_name: book.title,
+        release_year: book.releaseYear,
+        creator_name: book.authorName,
+        collection_name: book.publisherName,
+        status: 'active',
+      })
+      .select('id,category_id')
+      .maybeSingle();
+
+    if (!inserted.error && inserted.data) {
+      return json({
+        itemId: inserted.data.id,
+        categoryId: inserted.data.category_id,
+        created: true,
+      });
+    }
+
+    if (inserted.error?.code !== '23505') {
+      console.error('Google Books item insert failed', inserted.error?.code);
+      return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    }
+
     const winner = await findExisting();
-    return !winner.error && winner.data ? receipt(winner.data) : json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    return !winner.error && winner.data
+      ? receipt(winner.data)
+      : json({ error: 'CATALOG_UNAVAILABLE' }, 503);
   };
 }
