@@ -86,8 +86,8 @@ export class AdminService {
 
   async getOperationsOverview() {
     await this.assertAdmin();
-    const [metrics, auditLogs, errorEvents] = await Promise.all([
-      this.adminRepository.getOperationsMetrics(),
+    const [snapshot, auditLogs, errorEvents] = await Promise.all([
+      this.adminRepository.getOperationsSnapshot(7),
       this.adminRepository.getAuditLogs(80),
       this.adminRepository.getClientErrorEvents(80),
     ]);
@@ -98,7 +98,9 @@ export class AdminService {
     }
 
     return {
-      metrics,
+      metrics: snapshot.metrics,
+      funnel: snapshot.funnel,
+      generatedAt: snapshot.generatedAt,
       auditLogs,
       errorEvents,
       errorSummary: [...errorCounts.entries()]
