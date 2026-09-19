@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileAiReviewCard } from '@/components/profile-ai-review-card';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -47,6 +48,7 @@ export default function PublicProfileScreen() {
           </View>
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
+          <ProfileAiReviewCard profileUserId={query.data.profile.id} pickCount={query.data.currentPicks.length} isMine={query.data.isMine} />
           {!query.data.isMine && user ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
