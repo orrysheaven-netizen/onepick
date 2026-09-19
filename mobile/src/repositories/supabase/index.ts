@@ -13,6 +13,7 @@ import { SupabaseGameCatalogRepository } from './supabaseGameCatalogRepository';
 import { SupabaseYouTubeCatalogRepository } from './supabaseYouTubeCatalogRepository';
 import { SupabasePokemonCatalogRepository } from './supabasePokemonCatalogRepository';
 import { SupabaseProfileRepository } from './supabaseProfileRepository';
+import { SupabaseProfileAiReviewRepository } from './supabaseProfileAiReviewRepository';
 import { SupabasePhotoRepository } from './supabasePhotoRepository';
 import { SupabaseReadRepository } from './supabaseReadRepository';
 import { SupabaseSafetyRepository } from './supabaseSafetyRepository';
@@ -30,6 +31,7 @@ export const youtubeCatalogRepository = new SupabaseYouTubeCatalogRepository(sup
 export const pokemonCatalogRepository = new SupabasePokemonCatalogRepository(supabase);
 export const pickRepository = new SupabasePickRepository(supabase);
 export const profileRepository = new SupabaseProfileRepository(supabase);
+export const profileAiReviewRepository = new SupabaseProfileAiReviewRepository(supabase);
 export const photoRepository = new SupabasePhotoRepository(supabase);
 export const readRepository = new SupabaseReadRepository(supabase, publicCountClient);
 export const safetyRepository = new SupabaseSafetyRepository(supabase);
@@ -48,6 +50,7 @@ export {
   SupabaseYouTubeCatalogRepository,
   SupabasePokemonCatalogRepository,
   SupabaseProfileRepository,
+  SupabaseProfileAiReviewRepository,
   SupabaseReadRepository,
   SupabaseSafetyRepository,
 };
