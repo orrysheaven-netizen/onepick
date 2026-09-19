@@ -25,6 +25,8 @@ const allowed = [
 const denied = [
   '당신은 32살 같아요.', '만 14세였다', '서른 살', '서른두살 같아요.',
   '스물다섯 살', '열두 살', '스무살', '삼십대 취향', '이십 대 중반',
+  '마흔쯤으로 보여요.', '서른 쯤으로 보여요.', '서른정도로 보여요.',
+  '나이키를 고른 취향은 서른쯤으로 보여요.',
   '삼십이 세', '서른쯤으로 보여요.', '나이는 모르겠지만', '정신연령',
   '취향 나이', '1994년생', 'MZ감성', 'Gen Z', '당신은 새로운 세대군요.',
   '나이키를 고른 당신은 스물두 살 같아요.',
@@ -34,12 +36,12 @@ const denied = [
 let passed = 0;
 for (const phrase of allowed) {
   for (const comment of [{ ...base, summary: phrase }, { ...base, body: phrase }, { ...base, keywords: ['선택', '기록', phrase] }]) {
-    assert.doesNotThrow(() => assertNoAgeComment(comment)); passed++;
+    assert.doesNotThrow(() => assertNoAgeComment(comment), `Normal text was rejected: ${phrase}`); passed++;
   }
 }
 for (const phrase of denied) {
   for (const comment of [{ ...base, summary: phrase }, { ...base, body: phrase }, { ...base, keywords: ['선택', '기록', phrase] }]) {
-    assert.throws(() => assertNoAgeComment(comment), /AI_REVIEW_AGE_EXCLUDED/); passed++;
+    assert.throws(() => assertNoAgeComment(comment), /AI_REVIEW_AGE_EXCLUDED/, `Age wording escaped: ${phrase}`); passed++;
   }
 }
 // Allowing a product in one field must not exempt a separate demographic keyword.

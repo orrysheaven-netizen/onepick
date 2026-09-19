@@ -79,7 +79,7 @@ export function buildTasteInput(snapshot: readonly unknown[]) {
 // Unicode word boundaries and Korean suffixes avoid matching arbitrary prefixes
 // in catalog names. This is a lexical guard, NOT complete semantic moderation.
 const AGE_LEFT = String.raw`(?<![\p{L}\p{N}_])`;
-const AGE_RIGHT = String.raw`(?=$|[^\p{L}\p{N}_]|(?:은|는|이|가|을|를|의|에|도|만|쯤|정도|로|부터|까지|처럼|보다|답|스럽|입|였|인|예요|초반|중반|후반|감성|취향|든|값))`;
+const AGE_RIGHT = String.raw`(?=$|[^\p{L}\p{N}_]|(?:은|는|이|가|을|를|의|에|도|만|쯤|정도|으로|로|부터|까지|처럼|보다|답|스럽|입|였|인|예요|초반|중반|후반|감성|취향|든|값))`;
 const AGE_UNITS = '(?:한|두|세|네|다섯|여섯|일곱|여덟|아홉)';
 const AGE_NATIVE = `(?:(?:열|스물|서른|마흔|쉰|예순|일흔|여든|아흔)(?:\\s*${AGE_UNITS})?|스무|${AGE_UNITS})`;
 const AGE_SINO = '(?:(?:이|삼|사|오|육|칠|팔|구)?십(?:[일이삼사오육칠팔구])?)';
