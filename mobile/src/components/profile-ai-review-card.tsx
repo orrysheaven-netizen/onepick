@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -10,146 +10,119 @@ import {
 } from '@/hooks/useProfileAiReview';
 import { MIN_PROFILE_AI_PICKS } from '@/services/profileAiReviewService';
 
-type Props = {
-  profileUserId: string;
-  pickCount: number;
-  isMine: boolean;
-};
+type Props = { profileUserId: string; pickCount: number; isMine: boolean };
 
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'AI_NOT_CONFIGURED') return 'AI 분석 서버 연결이 아직 준비되지 않았어요.';
-    if (error.code === 'AI_NOT_ENOUGH_PICKS') return `원픽이 최소 ${MIN_PROFILE_AI_PICKS}개 필요해요.`;
-    if (error.code === 'RATE_LIMITED') return '조금 전에 분석했어요. 잠시 뒤 다시 시도해주세요.';
+    if (error.code === 'AI_NOT_ENOUGH_PICKS') return `공개된 원픽이 최소 ${MIN_PROFILE_AI_PICKS}개 필요해요.`;
+    if (error.code === 'RATE_LIMITED') return '생성 요청은 10분에 한 번 가능해요. 잠시 후 다시 시도해주세요.';
   }
-  return 'AI 취향평가를 완료하지 못했어요. 다시 시도해주세요.';
+  return 'AI 취향평가를 완료하지 못했어요. 로그인과 연결 상태를 확인해주세요.';
 }
 
-export function ProfileAiReviewCard({ profileUserId, pickCount, isMine }: Props) {
+export function ProfileAiReviewCard(props: Props) {
   const auth = useAuthSession();
+  if (auth.isLoading || auth.error) return null;
   const viewerId = auth.user?.id;
+  return <ProfileAiReviewContent key={`${props.profileUserId}:${viewerId ?? 'public'}`}
+    {...props} viewerId={viewerId} isMine={props.isMine && viewerId === props.profileUserId} />;
+}
+
+function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: Props & { viewerId?: string }) {
   const query = useProfileAiReview(profileUserId, viewerId);
   const generate = useGenerateProfileAiReview(profileUserId, pickCount, viewerId);
   const visibility = useSetProfileAiReviewVisibility(profileUserId, viewerId);
   const [message, setMessage] = useState('');
+  const inFlight = useRef(false);
   const review = query.data ?? null;
   const missingCount = Math.max(MIN_PROFILE_AI_PICKS - pickCount, 0);
-  const canGenerate = isMine && auth.user?.id === profileUserId && missingCount === 0;
+  const canGenerate = isMine && viewerId === profileUserId && missingCount === 0;
   const busy = generate.isPending || visibility.isPending;
 
   const run = async () => {
-    if (!canGenerate || busy) return;
+    if (!canGenerate || busy || inFlight.current) return;
+    inFlight.current = true;
     setMessage('');
     try {
-      await generate.mutateAsync();
-      setMessage('현재 원픽을 바탕으로 AI 취향평가를 업데이트했어요.');
+      const saved = await generate.mutateAsync();
+      setMessage(saved.isVisible ? '현재 원픽 기준으로 평가를 확인했어요. 기존 공개 설정을 유지했어요.'
+        : '평가를 확인했어요. 지금은 나에게만 보이며, 공개 여부를 선택할 수 있어요.');
     } catch (error) {
       setMessage(errorMessage(error));
-    }
+    } finally { inFlight.current = false; }
   };
-
   const changeVisibility = async () => {
-    if (!review || !isMine || busy) return;
+    if (!review || !isMine || busy || inFlight.current) return;
+    inFlight.current = true;
     setMessage('');
     try {
-      await visibility.mutateAsync(!review.isVisible);
-      setMessage(review.isVisible ? 'AI 취향평가를 공개 프로필에서 숨겼어요.' : 'AI 취향평가를 공개했어요.');
+      const saved = await visibility.mutateAsync(!review.isVisible);
+      setMessage(saved.isVisible ? 'AI 취향평가를 공개했어요.' : 'AI 취향평가를 공개 프로필에서 숨겼어요.');
     } catch {
       setMessage('공개 설정을 바꾸지 못했어요.');
-    }
+    } finally { inFlight.current = false; }
   };
 
-  if (query.isPending) {
-    return (
-      <View style={styles.card}>
-        <View style={styles.headingRow}>
-          <View>
-            <Text style={styles.eyebrow}>ONEPICK AI</Text>
-            <Text style={styles.title}>AI가 본 나</Text>
-          </View>
-          <ActivityIndicator accessibilityLabel="AI 취향평가 불러오는 중" />
-        </View>
-      </View>
-    );
-  }
-
+  if (query.isPending) return <View style={styles.card}>
+    <View style={styles.headingRow}><View><Text style={styles.eyebrow}>ONEPICK AI</Text>
+      <Text style={styles.title}>AI가 본 나</Text></View>
+      <ActivityIndicator accessibilityLabel="AI 취향평가 불러오는 중" /></View>
+  </View>;
   if (query.isError) {
     if (!isMine) return null;
-    return (
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>ONEPICK AI</Text>
-        <Text style={styles.title}>AI가 본 나</Text>
-        <Text accessibilityRole="alert" style={styles.error}>AI 취향평가를 불러오지 못했어요.</Text>
-        <Pressable accessibilityRole="button" onPress={() => void query.refetch()}
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-          <Text style={styles.secondaryButtonText}>다시 불러오기</Text>
-        </Pressable>
-      </View>
-    );
+    return <View style={styles.card}><Text style={styles.eyebrow}>ONEPICK AI</Text>
+      <Text style={styles.title}>AI가 본 나</Text>
+      <Text accessibilityRole="alert" style={styles.error}>AI 취향평가를 불러오지 못했어요.</Text>
+      <Pressable accessibilityRole="button" onPress={() => void query.refetch()}
+        style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+        <Text style={styles.secondaryButtonText}>다시 불러오기</Text></Pressable>
+    </View>;
   }
-
   if (!review) {
     if (!isMine) return null;
-    return (
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>ONEPICK AI</Text>
-        <Text style={styles.title}>AI가 본 나</Text>
-        <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
-        <Text style={styles.description}>
-          버튼을 누르면 공개한 원픽과 한줄평을 AI가 읽고, 반복되는 취향의 패턴을 짧게 해석합니다.
-        </Text>
-        {missingCount > 0 ? (
-          <Text style={styles.hint}>원픽을 {missingCount}개 더 고르면 평가를 받을 수 있어요.</Text>
-        ) : null}
-        <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
-          style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
-          {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>AI에게 내 취향 보여주기</Text>}
-        </Pressable>
-        {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.authorRow}>
-        <View style={styles.aiAvatar}><Text style={styles.aiAvatarText}>AI</Text></View>
-        <View style={styles.authorCopy}>
-          <View style={styles.nameRow}>
-            <Text style={styles.authorName}>{review.actor.displayName}</Text>
-            <View style={styles.badge}><Text style={styles.badgeText}>AI</Text></View>
-          </View>
-          <Text style={styles.authorMeta}>공개된 원픽을 바탕으로 한 취향 해석</Text>
-        </View>
-      </View>
-
-      {!review.isVisible && isMine ? <Text style={styles.hiddenNotice}>현재 공개 프로필에서는 숨김 상태예요.</Text> : null}
-      <Text style={styles.summary}>{review.summary}</Text>
-      <Text style={styles.body}>{review.body}</Text>
-      <View style={styles.keywords}>
-        {review.keywords.map((keyword) => (
-          <View key={keyword} style={styles.keyword}><Text style={styles.keywordText}>#{keyword}</Text></View>
-        ))}
-      </View>
-      <Text style={styles.disclaimer}>
-        이 내용은 취향 패턴에 대한 AI 해석이며 성격·능력·민감한 개인 특성을 진단하지 않습니다.
-      </Text>
-
-      {isMine ? (
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
-            style={({ pressed }) => [styles.primaryButton, styles.actionButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
-            {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>현재 원픽으로 다시 평가</Text>}
-          </Pressable>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={() => void changeVisibility()}
-            style={({ pressed }) => [styles.secondaryButton, styles.actionButton, busy && styles.disabled, pressed && styles.pressed]}>
-            <Text style={styles.secondaryButtonText}>{review.isVisible ? '프로필에서 숨기기' : '프로필에 공개하기'}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+    return <View style={styles.card}>
+      <Text style={styles.eyebrow}>ONEPICK AI</Text><Text style={styles.title}>AI가 본 나</Text>
+      <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
+      <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
+      <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
+      {missingCount > 0 ? <Text style={styles.hint}>공개된 원픽을 {missingCount}개 더 고르면 평가를 받을 수 있어요.</Text> : null}
+      <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
+        style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
+        {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>AI에게 내 취향 보여주기</Text>}
+      </Pressable>
       {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
+    </View>;
+  }
+  if (!isMine && !review.isVisible) return null;
+  const date = new Date(review.generatedAt);
+  const dateLabel = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('ko-KR');
+  return <View style={styles.card}>
+    <View style={styles.authorRow}>
+      <View style={styles.aiAvatar}><Text style={styles.aiAvatarText}>AI</Text></View>
+      <View style={styles.authorCopy}><View style={styles.nameRow}>
+        <Text style={styles.authorName}>{review.actor.displayName}</Text>
+        <View style={styles.badge}><Text style={styles.badgeText}>AI</Text></View>
+      </View><Text style={styles.authorMeta}>공개 원픽의 취향 해석{dateLabel ? ` · ${dateLabel}` : ''}</Text></View>
     </View>
-  );
+    {!review.isVisible && isMine ? <Text style={styles.hiddenNotice}>나에게만 보이는 평가예요. 공개 여부를 직접 선택해주세요.</Text> : null}
+    <Text style={styles.summary}>{review.summary}</Text><Text style={styles.body}>{review.body}</Text>
+    <View style={styles.keywords}>{review.keywords.map((keyword, index) =>
+      <View key={`${index}:${keyword}`} style={styles.keyword}><Text style={styles.keywordText}>#{keyword}</Text></View>)}</View>
+    <Text style={styles.disclaimer}>생성 당시의 취향에 대한 AI 해석이며, 사람의 가치·성격·능력이나 민감한 개인 특성을 진단하지 않습니다.</Text>
+    {isMine ? <View style={styles.actions}>
+      <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여주며, 공개 설정은 유지해요.</Text>
+      <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
+        style={({ pressed }) => [styles.primaryButton, styles.actionButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
+        {generate.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>현재 원픽으로 다시 평가</Text>}
+      </Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => void changeVisibility()}
+        style={({ pressed }) => [styles.secondaryButton, styles.actionButton, busy && styles.disabled, pressed && styles.pressed]}>
+        <Text style={styles.secondaryButtonText}>{review.isVisible ? '프로필에서 숨기기' : '프로필에 공개하기'}</Text>
+      </Pressable>
+    </View> : null}
+    {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
+  </View>;
 }
 
 const styles = StyleSheet.create({
