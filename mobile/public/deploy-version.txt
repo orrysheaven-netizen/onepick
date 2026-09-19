@@ -1,1 +1,1 @@
-onepick-demo-data-labels
+onepick-product-analytics
