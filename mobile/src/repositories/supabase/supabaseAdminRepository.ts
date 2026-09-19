@@ -2,7 +2,7 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { AppError } from '@/errors/appError';
 import type { ItemStatus } from '@/types/domain/item';
 import type { ItemAlias } from '@/types/domain/itemAlias';
-import type { AdminAuditLog, ClientErrorEvent } from '@/types/domain/operations';
+import type { AdminAuditLog, AdminOperationsSnapshot, ClientErrorEvent } from '@/types/domain/operations';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
@@ -79,27 +79,33 @@ export class SupabaseAdminRepository implements AdminRepository {
     return data === true;
   }
 
-  async getOperationsMetrics() {
-    const results = await Promise.all([
-      this.client.from('profiles').select('id', { count: 'exact', head: true }),
-      this.client.from('picks').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      this.client.from('comments').select('id', { count: 'exact', head: true }),
-      this.client.from('items').select('id', { count: 'exact', head: true }).in('status', ['active', 'discontinued']),
-      this.client.from('items').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      this.client.from('content_reports').select('id', { count: 'exact', head: true }).in('status', ['open', 'reviewing']),
-    ]);
+  async getOperationsSnapshot(days = 7): Promise<AdminOperationsSnapshot> {
+    const rpc = this.client.rpc as unknown as (name: string, params?: Record<string, unknown>) => Promise<{ data: any; error: any }>;
+    const { data, error } = await rpc('admin_operations_snapshot', { p_days: days });
+    if (error) throw mapSupabaseError(error);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
 
-    for (const result of results) {
-      if (result.error) throw mapSupabaseError(result.error);
-    }
-
+    const metrics = data.metrics ?? {};
+    const funnel = data.funnel ?? {};
     return {
-      profiles: results[0].count ?? 0,
-      activePicks: results[1].count ?? 0,
-      comments: results[2].count ?? 0,
-      activeItems: results[3].count ?? 0,
-      pendingItems: results[4].count ?? 0,
-      openReports: results[5].count ?? 0,
+      metrics: {
+        profiles: Number(metrics.profiles ?? 0),
+        activePicks: Number(metrics.active_picks ?? 0),
+        comments: Number(metrics.comments ?? 0),
+        activeItems: Number(metrics.active_items ?? 0),
+        pendingItems: Number(metrics.pending_items ?? 0),
+        openReports: Number(metrics.open_reports ?? 0),
+      },
+      funnel: {
+        days: Number(funnel.days ?? days),
+        pickCreated: Number(funnel.pick_created ?? 0),
+        pickShareClicked: Number(funnel.pick_share_clicked ?? 0),
+        pickLinkOpened: Number(funnel.pick_link_opened ?? 0),
+        itemDetailViewed: Number(funnel.item_detail_viewed ?? 0),
+        authStarted: Number(funnel.auth_started ?? 0),
+        authCompleted: Number(funnel.auth_completed ?? 0),
+      },
+      generatedAt: typeof data.generated_at === 'string' ? data.generated_at : new Date(0).toISOString(),
     };
   }
 

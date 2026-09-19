@@ -7,6 +7,22 @@ export interface AdminOperationsMetrics {
   openReports: number;
 }
 
+export interface AdminProductFunnel {
+  days: number;
+  pickCreated: number;
+  pickShareClicked: number;
+  pickLinkOpened: number;
+  itemDetailViewed: number;
+  authStarted: number;
+  authCompleted: number;
+}
+
+export interface AdminOperationsSnapshot {
+  metrics: AdminOperationsMetrics;
+  funnel: AdminProductFunnel;
+  generatedAt: string;
+}
+
 export interface AdminAuditLog {
   id: string;
   actorUserId: string | null;
