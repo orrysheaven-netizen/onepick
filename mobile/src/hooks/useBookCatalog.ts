@@ -37,5 +37,5 @@ export function useBookCatalogSearch(title: string, author: string, enabled: boo
 }
 
 export function useImportBookCatalogItem() {
-  return useMutation({ mutationFn: (isbn13: string) => bookCatalogService.importBook(isbn13) });
+  return useMutation({ mutationFn: (externalId: string) => bookCatalogService.importBook(externalId) });
 }
