@@ -76,7 +76,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     submitPhase.current = 'saving';
     try {
       const result = await choosePick.mutateAsync({ categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview });
-      if (params.onboarding === '1') await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
+      // A later normal pick overrides an earlier onboarding skip signal too.
+      await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
       submitPhase.current = 'saved';
       setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
