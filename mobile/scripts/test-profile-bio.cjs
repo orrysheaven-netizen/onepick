@@ -162,6 +162,7 @@ async function main() {
     'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-ai-review-card': { ProfileAiReviewCard: () => null },
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
