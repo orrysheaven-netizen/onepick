@@ -27,7 +27,7 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
         {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
       </View>
       <View style={styles.cardBody}>
-        <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+        <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
         <View style={styles.cardCopy}>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>

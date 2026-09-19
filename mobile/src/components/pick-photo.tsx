@@ -29,12 +29,14 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
   const canAdd = Boolean(itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
+  const failed = Boolean(uri && failedUri === uri);
   return <View style={[styles.frame, large && styles.large]}>
-    {uri && failedUri !== uri ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
+    {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
         <Text style={styles.emptyText}>사진 없음</Text>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
+      : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
       : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.placeholder}>
           <View style={styles.placeholderMark}><Text style={styles.placeholderInitial}>{initial}</Text></View>
           <Text numberOfLines={large ? 2 : 1} style={[styles.placeholderName, large && styles.placeholderNameLarge]}>{label}</Text>

@@ -41,7 +41,8 @@ function harness(file, imports) {
   const Screen = load(file, { react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/errors/appError': { AppError },
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' },
-    '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' }, ...imports }).default;
+    '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
+    '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;
     if (Array.isArray(v)) return v.map((c, i) => walk(c, `${location}/${i}`));
