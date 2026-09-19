@@ -17,7 +17,11 @@ class LargeSecureStore {
 
   private async decrypt(key: string, value: string) {
     const encryptionKeyHex = await SecureStore.getItemAsync(key);
-    if (!encryptionKeyHex) return encryptionKeyHex;
+    if (!encryptionKeyHex) {
+      // Pre-release builds stored the session in plaintext AsyncStorage. Never leave that legacy value behind.
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
 
     const cipher = new aesjs.ModeOfOperation.ctr(
       aesjs.utils.hex.toBytes(encryptionKeyHex),
