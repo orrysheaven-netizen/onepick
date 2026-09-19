@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles } from '@/components/admin/admin-shell';
+import { adminStyles, nextSelectedId } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
 import { selectableCategories } from '@/lib/categories/categoryTree';
 import { canonicalItemName, normalizeItemName, similarItems } from '@/lib/items/itemIdentity';
+import { useAdminPagination } from '@/hooks/useAdminPagination';
 import type { Category } from '@/types/domain/category';
 
 function toDomainCategory(category: AdminCategory): Category {
@@ -38,49 +39,26 @@ const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
 const EDITABLE_STATUSES: AdminItemStatus[] = ['active', 'discontinued', 'hidden', 'rejected'];
 
 export default function AdminItemsScreen() {
-  const [items, setItems] = useState<AdminItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<AdminItemStatus | 'all'>('all');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
-  const load = async (nextStatus = status) => {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await getItems({ query, status: nextStatus });
-      setItems(result);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-      setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '상품을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    items, setItems, loading, loadingMore, hasMore, error, setError, load, loadMore,
+  } = useAdminPagination<AdminItem>(
+    ADMIN_PAGE_SIZE,
+    useCallback((offset) => getItems({ query, status, offset }), [query, status]),
+    { load: '상품을 불러오지 못했습니다.', loadMore: '상품을 더 불러오지 못했습니다.' },
+  );
 
-  const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setError('');
-    try {
-      const result = await getItems({ query, status, offset: items.length });
-      setItems((current) => [...current, ...result]);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '상품을 더 불러오지 못했습니다.');
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const loadAndSelect = useCallback((override?: (offset: number) => Promise<AdminItem[]>) => {
+    return load(override).then((result) => result && setSelectedId((current) => nextSelectedId(current, result)));
+  }, [load]);
 
   useEffect(() => {
-    load('all');
+    loadAndSelect();
   }, []);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
@@ -104,6 +82,9 @@ export default function AdminItemsScreen() {
             setShowCreate(false);
             setMessage(`${item.name} 상품을 등록했습니다.`);
             setError('');
+            // A full reload (rather than patching `items` locally with the created row) is
+            // deliberate: whether the new item belongs in the current list depends on the
+            // server's `query`/`status` filtering, which this screen doesn't reimplement client-side.
             void load();
             setSelectedId(item.id);
           }}
@@ -116,11 +97,11 @@ export default function AdminItemsScreen() {
           accessibilityLabel="상품 검색"
           value={query}
           onChangeText={setQuery}
-          onSubmitEditing={() => load()}
+          onSubmitEditing={() => loadAndSelect()}
           placeholder="상품명 검색"
           style={[adminStyles.input, styles.search]}
         />
-        <Pressable onPress={() => load()} style={adminStyles.secondaryButton}>
+        <Pressable onPress={() => loadAndSelect()} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>검색</Text>
         </Pressable>
       </View>
@@ -131,7 +112,7 @@ export default function AdminItemsScreen() {
             key={filter.value}
             onPress={() => {
               setStatus(filter.value);
-              load(filter.value);
+              loadAndSelect((offset) => getItems({ query, status: filter.value, offset }));
             }}
             style={[styles.filter, status === filter.value && styles.filterActive]}
           >

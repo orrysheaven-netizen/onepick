@@ -1,49 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { getAuditLogs, getClientErrorEvents } from '@/lib/admin-api';
 import type { AdminAuditLog, AdminClientErrorEvent } from '@/lib/admin-api';
+import { useAdminPagination } from '@/hooks/useAdminPagination';
 
 const LOG_PAGE_SIZE = 100;
 
 export default function AdminAuditScreen() {
-  const [logs, setLogs] = useState<AdminAuditLog[]>([]);
   const [errorEvents, setErrorEvents] = useState<AdminClientErrorEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [nextLogs, nextErrorEvents] = await Promise.all([getAuditLogs(LOG_PAGE_SIZE), getClientErrorEvents(50)]);
-      setLogs(nextLogs);
-      setHasMore(nextLogs.length === LOG_PAGE_SIZE);
-      setErrorEvents(nextErrorEvents);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '운영 기록을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    items: logs, loading, loadingMore, hasMore, error, setError, load: loadLogs, loadMore: loadMoreLogs,
+  } = useAdminPagination<AdminAuditLog>(
+    LOG_PAGE_SIZE,
+    useCallback((offset) => getAuditLogs(LOG_PAGE_SIZE, offset), []),
+    { load: '운영 기록을 불러오지 못했습니다.', loadMore: '운영 기록을 더 불러오지 못했습니다.' },
+  );
 
-  const loadMoreLogs = async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setError('');
+  // getClientErrorEvents has no "load more" of its own (a fixed, non-paginated recent-50
+  // read), so it isn't a second useAdminPagination instance -- it just rides along with the
+  // logs load below. A failure here surfaces through the same error banner as a logs failure,
+  // and its own small spinner in the "앱 오류" section header follows the logs `loading` flag
+  // too, rather than tracking a separate loading flag just for this one non-paginated read.
+  const loadErrorEvents = useCallback(async () => {
     try {
-      const result = await getAuditLogs(LOG_PAGE_SIZE, logs.length);
-      setLogs((current) => [...current, ...result]);
-      setHasMore(result.length === LOG_PAGE_SIZE);
+      setErrorEvents(await getClientErrorEvents(50));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '운영 기록을 더 불러오지 못했습니다.');
-    } finally {
-      setLoadingMore(false);
+      setError(caught instanceof Error ? caught.message : '앱 오류 기록을 불러오지 못했습니다.');
     }
-  };
+  }, [setError]);
+
+  const load = useCallback(() => Promise.all([loadLogs(), loadErrorEvents()]), [loadLogs, loadErrorEvents]);
 
   useEffect(() => {
     load();

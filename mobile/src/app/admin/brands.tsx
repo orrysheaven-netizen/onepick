@@ -41,11 +41,14 @@ export default function AdminBrandsScreen() {
     setError('');
     setMessage('');
     try {
-      await createBrand({ name, slug: newSlug.trim() || null });
+      const result = await createBrand({ name, slug: newSlug.trim() || null });
+      if (result[0]) {
+        const created = result[0];
+        setBrands((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name, 'ko')));
+      }
       setNewName('');
       setNewSlug('');
       setMessage(`${name} 브랜드를 추가했습니다.`);
-      await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '브랜드를 추가하지 못했습니다.');
     } finally {

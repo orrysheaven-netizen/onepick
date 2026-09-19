@@ -17,6 +17,13 @@ export function confirmAction(message: string): Promise<boolean> {
   });
 }
 
+// Keeps the current selection if it still exists in a freshly loaded list, otherwise falls
+// back to the list's first row. Shared by the admin list/detail screens (items, pending,
+// reports) so a search, filter change or refresh doesn't need its own copy of this rule.
+export function nextSelectedId<T extends { id: string }>(current: string | null, result: T[]): string | null {
+  return current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null;
+}
+
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: '대시보드' },
   { href: '/admin/categories', label: '카테고리' },

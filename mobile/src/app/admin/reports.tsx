@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles, confirmAction } from '@/components/admin/admin-shell';
+import { adminStyles, confirmAction, nextSelectedId } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getReports, updateReportStatus } from '@/lib/admin-api';
 import { getUserModeration, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { AdminReport, AdminReportStatus } from '@/lib/admin-api';
 import type { UserModeration } from '@/lib/admin-moderation-api';
+import { useAdminPagination } from '@/hooks/useAdminPagination';
 
 const FILTERS: Array<{ value: AdminReportStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
@@ -16,51 +17,28 @@ const FILTERS: Array<{ value: AdminReportStatus | 'all'; label: string }> = [
 ];
 
 export default function AdminReportsScreen() {
-  const [reports, setReports] = useState<AdminReport[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<AdminReportStatus | 'all'>('all');
   const [moderation, setModeration] = useState<UserModeration | null>(null);
   const [suspensionReason, setSuspensionReason] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [moderationLoading, setModerationLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const load = async (next = filter) => {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await getReports(next);
-      setReports(result);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-      setSelectedId((current) => current && result.some((report) => report.id === current) ? current : result[0]?.id ?? null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '신고 목록을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    items: reports, setItems: setReports, loading, loadingMore, hasMore, error, setError, load, loadMore,
+  } = useAdminPagination<AdminReport>(
+    ADMIN_PAGE_SIZE,
+    useCallback((offset) => getReports(filter, offset), [filter]),
+    { load: '신고 목록을 불러오지 못했습니다.', loadMore: '신고 목록을 더 불러오지 못했습니다.' },
+  );
 
-  const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setError('');
-    try {
-      const result = await getReports(filter, reports.length);
-      setReports((current) => [...current, ...result]);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '신고 목록을 더 불러오지 못했습니다.');
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const loadAndSelect = useCallback((next: AdminReportStatus | 'all') => {
+    return load((offset) => getReports(next, offset)).then((result) => result && setSelectedId((current) => nextSelectedId(current, result)));
+  }, [load]);
 
   useEffect(() => {
-    load('all');
+    loadAndSelect('all');
   }, []);
 
   const selected = reports.find((report) => report.id === selectedId) ?? null;
@@ -132,7 +110,7 @@ export default function AdminReportsScreen() {
 
       <View style={adminStyles.row}>
         {FILTERS.map((item) => (
-          <Pressable key={item.value} onPress={() => { setFilter(item.value); load(item.value); }} style={[styles.filter, filter === item.value && styles.filterActive]}>
+          <Pressable key={item.value} onPress={() => { setFilter(item.value); loadAndSelect(item.value); }} style={[styles.filter, filter === item.value && styles.filterActive]}>
             <Text style={[styles.filterText, filter === item.value && styles.filterTextActive]}>{item.label}</Text>
           </Pressable>
         ))}

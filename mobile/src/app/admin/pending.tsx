@@ -1,66 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles, confirmAction } from '@/components/admin/admin-shell';
+import { adminStyles, confirmAction, nextSelectedId } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminItem, PendingItem } from '@/lib/admin-api';
+import { useAdminPagination } from '@/hooks/useAdminPagination';
 
 export default function AdminPendingScreen() {
-  const [items, setItems] = useState<PendingItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [mergeQuery, setMergeQuery] = useState('');
   const [mergeCandidates, setMergeCandidates] = useState<AdminItem[]>([]);
   const [mergeSearching, setMergeSearching] = useState(false);
   const [mergingId, setMergingId] = useState<string | null>(null);
-  // Bumped on every change to `items` that isn't a loadMore append (a fresh load, or an
-  // approve/reject/merge removing the selected row). loadMore's offset is `items.length`
-  // captured at call time; if the list changes for any other reason while that request is
-  // still in flight, the offset no longer lines up with the current list, so the page is
-  // discarded instead of being appended -- the next "더 보기" tap retries with a fresh offset.
-  const listVersion = useRef(0);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    listVersion.current += 1;
-    try {
-      const result = await getPendingItems();
-      setItems(result);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-      setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '검수 대기 상품을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    items, loading, loadingMore, hasMore, error, setError, load, loadMore, removeWhere,
+  } = useAdminPagination<PendingItem>(
+    ADMIN_PAGE_SIZE,
+    getPendingItems,
+    { load: '검수 대기 상품을 불러오지 못했습니다.', loadMore: '검수 대기 상품을 더 불러오지 못했습니다.' },
+  );
 
-  const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setError('');
-    const versionAtRequest = listVersion.current;
-    try {
-      const result = await getPendingItems(items.length);
-      if (listVersion.current !== versionAtRequest) return;
-      setItems((current) => [...current, ...result]);
-      setHasMore(result.length === ADMIN_PAGE_SIZE);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '검수 대기 상품을 더 불러오지 못했습니다.');
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const loadAndSelect = useCallback(() => {
+    return load().then((result) => result && setSelectedId((current) => nextSelectedId(current, result)));
+  }, [load]);
 
   useEffect(() => {
-    load();
+    loadAndSelect();
   }, []);
 
   const visible = useMemo(() => {
@@ -79,8 +48,7 @@ export default function AdminPendingScreen() {
   const removeSelected = (name: string, resultMessage: string) => {
     if (!selected) return;
     const remaining = items.filter((item) => item.id !== selected.id);
-    setItems(remaining);
-    listVersion.current += 1;
+    removeWhere((item) => item.id === selected.id);
     setSelectedId(remaining[0]?.id ?? null);
     setMessage(`${name} ${resultMessage}`);
   };
@@ -140,7 +108,7 @@ export default function AdminPendingScreen() {
           <Text style={adminStyles.pageTitle}>검수 대기</Text>
           <Text style={adminStyles.pageDescription}>사용자가 추가한 pending 상품을 승인, 반려하거나 기존 상품과 병합합니다.</Text>
         </View>
-        <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
+        <Pressable disabled={loading} onPress={() => loadAndSelect()} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>새로고침</Text>
         </Pressable>
       </View>
