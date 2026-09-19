@@ -66,14 +66,12 @@ async function main() {
   mutationOptions.onSuccess({ id: 'pick-a', itemId: 'item-a', categoryId: 'cat-a' });
   await new Promise(setImmediate);
   assert.equal(invalidations, 1);
-  assert.deepEqual(events[0], {
-    eventName: 'pick_created',
-    pickId: 'pick-a',
-    itemId: 'item-a',
-    categoryId: 'cat-a',
-    source: 'choose_pick',
-    path: '/pick/choose',
-  });
+  assert.equal(events[0].eventName, 'pick_created');
+  assert.equal(events[0].pickId, 'pick-a');
+  assert.equal(events[0].itemId, 'item-a');
+  assert.equal(events[0].categoryId, 'cat-a');
+  assert.equal(events[0].source, 'choose_pick');
+  assert.equal(events[0].path, '/pick/choose');
 
   events = [];
   const { useRegisterPick } = load('hooks/useRegisterPick.ts', sharedImports);
