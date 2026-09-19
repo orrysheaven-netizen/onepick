@@ -1,5 +1,6 @@
 import { createPickShareUrl } from './shareLinks';
 import type { SharePickInput } from './sharePick';
+import { isDemoUsername } from '../demoProfile';
 
 export type SharePickCardResult = 'shared' | 'downloaded' | 'unsupported';
 
@@ -121,6 +122,11 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
   ctx.fillStyle = '#4945ED';
   ctx.font = '800 34px system-ui, sans-serif';
   ctx.fillText('ONE PICK', 130, 160);
+  if (isDemoUsername(username)) {
+    ctx.fillStyle = '#8A5A00';
+    ctx.font = '800 24px system-ui, sans-serif';
+    ctx.fillText('DEMO DATA', 800, 160);
+  }
 
   ctx.fillStyle = '#747985';
   ctx.font = '700 28px system-ui, sans-serif';
@@ -170,7 +176,7 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
         await nav.share({
           files: [file],
           title: `${item} · OnePick`,
-          text: `@${username}의 ${category} 원픽`,
+          text: `${isDemoUsername(username) ? '[DEMO DATA] ' : ''}@${username}의 ${category} 원픽`,
           url: shareUrl,
         });
         return 'shared';

@@ -8,6 +8,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useHomeData } from '@/hooks/useHomeData';
+import { isDemoUsername } from '@/lib/demoProfile';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type FeaturedItem = HomeData['featuredItems'][number];
@@ -38,7 +39,10 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
       style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}>
       <View style={styles.pickerAvatar}><Text style={styles.pickerInitial}>{item.latestPickerUsername.slice(0, 1).toUpperCase()}</Text></View>
       <View style={styles.pickerCopy}>
-        <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
+        <View style={styles.pickerNameRow}>
+          <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
+          {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
+        </View>
         {item.latestPickReview ? <Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text> : null}
       </View>
       <Text style={styles.profileArrow}>›</Text>
@@ -210,7 +214,9 @@ const styles = StyleSheet.create({
   pickerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   pickerInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
   pickerCopy: { flex: 1, minWidth: 0 },
+  pickerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
   profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },

@@ -6,6 +6,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { createPickShareUrl } from '@/lib/share/shareLinks';
 import { sharePick } from '@/lib/share/sharePick';
 import { sharePickCardImage } from '@/lib/share/sharePickCard';
+import { isDemoUsername } from '@/lib/demoProfile';
 
 interface PickShareCardProps {
   pickId: string;
@@ -24,7 +25,8 @@ export function PickShareCard(props: PickShareCardProps) {
   const [cardError, setCardError] = useState(false);
   const [cardSaved, setCardSaved] = useState(false);
   const shareUrl = createPickShareUrl(props.pickId);
-  const canReport = Boolean(user && user.id !== props.authorUserId);
+  const isDemo = isDemoUsername(props.username);
+  const canReport = Boolean(user && user.id !== props.authorUserId && !isDemo);
 
   const handleShare = async () => {
     if (isSharing || isCardSharing) return;
@@ -69,7 +71,10 @@ export function PickShareCard(props: PickShareCardProps) {
       </Text>
 
       {Platform.OS === 'web' ? <View style={styles.preview}>
-        <Text style={styles.previewBrand}>ONE PICK</Text>
+        <View style={styles.previewTop}>
+          <Text style={styles.previewBrand}>ONE PICK</Text>
+          {isDemo ? <Text style={styles.previewDemo}>DEMO DATA</Text> : null}
+        </View>
         <Text style={styles.previewCategory}>{props.categoryName}</Text>
         <Text numberOfLines={2} style={styles.previewItem}>{props.itemName}</Text>
         <View style={styles.previewDivider} />
@@ -116,7 +121,9 @@ const styles = StyleSheet.create({
   title: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 6 },
   description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   preview: { borderRadius: 18, backgroundColor: '#F7F7FF', borderWidth: 1, borderColor: '#DDDDF5', padding: 18, marginTop: 16 },
+  previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   previewBrand: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 1.7 },
+  previewDemo: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   previewCategory: { color: '#747985', fontSize: 11, fontWeight: '700', marginTop: 14 },
   previewItem: { color: '#202124', fontSize: 24, lineHeight: 31, fontWeight: '900', marginTop: 6 },
   previewDivider: { height: 1, backgroundColor: '#E3E5EA', marginVertical: 16 },

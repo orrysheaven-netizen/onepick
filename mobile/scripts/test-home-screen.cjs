@@ -49,6 +49,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/constants/onepick': load('constants/onepick.ts'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useHomeData': { useHomeData: () => query },
+  '@/lib/demoProfile': load('lib/demoProfile.ts'),
 });
 const render = () => { presses = []; return renderToStaticMarkup(React.createElement(Home)); };
 const refreshButton = () => presses.find((p) => p.accessibilityLabel === '홈 원픽 새로고침');
