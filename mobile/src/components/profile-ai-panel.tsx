@@ -58,7 +58,7 @@ export function ProfileAiPanel({ profileId }: { profileId: string }) {
       <Pressable
         accessibilityRole="button"
         disabled={!value.canGenerate || generate.isPending}
-        onPress={() => void generate.mutateAsync()}
+        onPress={() => generate.mutate()}
         style={({ pressed }) => [styles.primaryButton, (!value.canGenerate || generate.isPending) && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : value.hasReview ? 'AI가 다시 본 나' : '평가 보기'}</Text>
       </Pressable>
