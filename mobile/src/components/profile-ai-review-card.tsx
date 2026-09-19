@@ -8,6 +8,7 @@ import {
   useProfileAiReview,
   useSetProfileAiReviewVisibility,
 } from '@/hooks/useProfileAiReview';
+import { useProfileAiEligibility } from '@/hooks/useProfileAiEligibility';
 import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
 import { PROFILE_AI_PICK_GUIDANCE } from '@/lib/profileAiCopy';
 import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
@@ -54,7 +55,8 @@ export function ProfileAiReviewCard(props: Props) {
 function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: Props & { viewerId?: string }) {
   const query = useProfileAiReview(profileUserId, viewerId);
   const connection = useProfileAiStatus(isMine);
-  const generate = useGenerateProfileAiReview(profileUserId, pickCount, viewerId);
+  const eligibility = useProfileAiEligibility(profileUserId, isMine, pickCount);
+  const generate = useGenerateProfileAiReview(profileUserId, viewerId);
   const visibility = useSetProfileAiReviewVisibility(profileUserId, viewerId);
   const [message, setMessage] = useState('');
   const [preflighting, setPreflighting] = useState(false);
@@ -65,20 +67,25 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     return () => { mounted.current = false; };
   }, []);
   const review = query.data ?? null;
-  const displayPickCount = Number.isSafeInteger(pickCount) && pickCount >= 0 ? pickCount : 0;
+  const displayPickCount = eligibility.data ?? 0;
   const missingCount = Math.max(MIN_PROFILE_AI_PICKS - displayPickCount, 0);
-  const pickProgress = `공개 원픽 ${displayPickCount}/${MIN_PROFILE_AI_PICKS}개 · ${missingCount > 0
+  const pickProgress = eligibility.isError
+    ? '분석 가능한 원픽 수를 확인하지 못했어요. 다시 확인해주세요.'
+    : eligibility.isPending ? '분석 가능한 공개 원픽을 확인하고 있어요.'
+    : `분석 가능한 공개 원픽 ${displayPickCount}/${MIN_PROFILE_AI_PICKS}개 · ${missingCount > 0
     ? `${missingCount}개 더 등록하면 요청할 수 있어요.` : '등록 조건을 충족했어요.'}`;
   const canGenerate = canRequestProfileAiGeneration({
     isOwner: isMine && viewerId === profileUserId,
-    publicPickCount: pickCount,
+    publicPickCount: displayPickCount,
     minimumPickCount: MIN_PROFILE_AI_PICKS,
     configured: connection.data?.configured,
-    statusError: connection.isError,
-    statusPending: connection.isPending || connection.isFetching,
+    statusError: connection.isError || eligibility.isError,
+    statusPending: connection.isPending || connection.isFetching || eligibility.isPending || eligibility.isFetching,
   });
   const busy = generate.isPending || visibility.isPending || preflighting;
-  const generationLabel = (normal: string) => missingCount > 0
+  const generationLabel = (normal: string) => eligibility.isError ? '원픽 수 확인 필요'
+    : eligibility.isPending || eligibility.isFetching ? '원픽 수 확인 중…'
+    : missingCount > 0
     ? `원픽 ${MIN_PROFILE_AI_PICKS}개부터 요청 가능`
     : connection.isPending || connection.isFetching
       ? '연결 상태 확인 중…' : connection.isError ? '연결 상태 확인 필요'
@@ -91,7 +98,10 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     setMessage('');
     try {
       // Revalidate on click: cached readiness is not permission to generate.
-      const checked = await connection.refetch({ cancelRefetch: false });
+      const [checked, counted] = await Promise.all([
+        connection.refetch({ cancelRefetch: false }),
+        eligibility.refetch({ cancelRefetch: false }),
+      ]);
       if (!mounted.current) return;
       if (checked.isError || !checked.data) {
         setMessage('AI 연결 상태를 확인하지 못했어요. 연결 상태를 다시 확인해주세요.');
@@ -101,13 +111,24 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
         setMessage(errorMessage(new AppError('AI_NOT_CONFIGURED')));
         return;
       }
-      const saved = await generate.mutateAsync();
+      if (counted.isError || typeof counted.data !== 'number' || !Number.isSafeInteger(counted.data) || counted.data < 0) {
+        setMessage('분석 가능한 원픽 수를 확인하지 못했어요. 다시 확인해주세요.');
+        return;
+      }
+      if (counted.data < MIN_PROFILE_AI_PICKS) {
+        setMessage(`분석 가능한 공개 원픽이 ${counted.data}개예요. ${MIN_PROFILE_AI_PICKS - counted.data}개 더 등록하면 요청할 수 있어요.`);
+        return;
+      }
+      const saved = await generate.mutateAsync(counted.data);
       if (!mounted.current) return;
       setMessage(saved.isVisible ? '현재 원픽에 맞는 기존 평가를 확인했어요.'
         : '평가를 확인했어요. 지금은 나에게만 보이며, 공개 여부를 선택할 수 있어요.');
     } catch (error) {
       if (mounted.current) {
         setMessage(errorMessage(error));
+        if (error instanceof AppError && (error.code === 'AI_NOT_ENOUGH_PICKS' || error.code === 'AI_REVIEW_STALE')) {
+          void eligibility.refetch({ cancelRefetch: false });
+        }
         if (error instanceof AppError && error.code === 'AI_NOT_CONFIGURED') {
           void connection.refetch({ cancelRefetch: false });
         }
@@ -155,6 +176,11 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
       <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.hint}>{pickProgress}</Text>
+      {eligibility.isError ? <Pressable accessibilityRole="button" disabled={eligibility.isFetching}
+        onPress={() => void eligibility.refetch({ cancelRefetch: false })}
+        style={({ pressed }) => [styles.statusButton, pressed && styles.pressed]}>
+        <Text style={styles.statusButtonText}>원픽 수 다시 확인</Text>
+      </Pressable> : null}
       <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
       <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
@@ -187,6 +213,11 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     {isMine ? <View style={styles.actions}>
       <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.hint}>{pickProgress}</Text>
+      {eligibility.isError ? <Pressable accessibilityRole="button" disabled={eligibility.isFetching}
+        onPress={() => void eligibility.refetch({ cancelRefetch: false })}
+        style={({ pressed }) => [styles.statusButton, pressed && styles.pressed]}>
+        <Text style={styles.statusButtonText}>원픽 수 다시 확인</Text>
+      </Pressable> : null}
       <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여줘요. 새로 생성된 평가는 본인 확인 후 다시 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}

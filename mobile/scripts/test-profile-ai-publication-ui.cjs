@@ -49,6 +49,8 @@ function card({ visible = false, stale = false, count = 10, configured = true, c
         return { ...review, isVisible: change.isVisible };
       } }),
     },
+    '@/hooks/useProfileAiEligibility': { useProfileAiEligibility: () => ({ data: count, isError: false,
+      isPending: false, isFetching: false, refetch: async () => ({ data: count, isError: false }) }) },
     '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured }, isError: false,
       isPending: false, isFetching: false, refetch: async () => { statusReads++; return { data: { configured }, isError: false }; } }) },
   });

@@ -59,6 +59,8 @@ function card(count, existing = false, configured = true) {
       useGenerateProfileAiReview: () => ({ isPending: false, mutateAsync: async () => { generated++; return review; } }),
       useSetProfileAiReviewVisibility: () => ({ isPending: false, mutateAsync: async () => review }),
     },
+    '@/hooks/useProfileAiEligibility': { useProfileAiEligibility: () => ({ data: count, isError: false,
+      isPending: false, isFetching: false, refetch: async () => ({ data: count, isError: false }) }) },
     '@/hooks/useProfileAiStatus': { useProfileAiStatus: () => ({ data: { configured }, isError: false,
       isPending: false, isFetching: false, refetch: async () => ({ data: { configured }, isError: false }) }) },
   });

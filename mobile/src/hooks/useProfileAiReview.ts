@@ -20,10 +20,10 @@ export function useProfileAiReview(profileId?: string, viewerId?: string) {
   });
 }
 
-export function useGenerateProfileAiReview(profileId: string, pickCount: number, viewerId?: string) {
+export function useGenerateProfileAiReview(profileId: string, viewerId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => profileAiReviewService.generate(profileId, pickCount),
+    mutationFn: (confirmedPickCount: number) => profileAiReviewService.generate(profileId, confirmedPickCount),
     onSuccess: (review) => {
       queryClient.setQueryData<ProfileAiReview | null>(
         queryKeys.profiles.aiReview(profileId, viewerId), review,
