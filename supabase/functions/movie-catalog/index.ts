@@ -63,7 +63,9 @@ async function waitForTmdb(client: SupabaseClient) {
   return true;
 }
 
-async function fetchTmdb(url: URL, client: SupabaseClient) {
+type TmdbFetchResult = { data: Record<string, unknown> } | { error: Response };
+
+async function fetchTmdb(url: URL, client: SupabaseClient): Promise<TmdbFetchResult> {
   const headers = tmdbHeaders();
   if (!headers) return { error: json({ error: 'CATALOG_NOT_CONFIGURED' }, 503) } as const;
   if (!(await waitForTmdb(client))) return { error: json({ error: 'RATE_LIMITED' }, 429) } as const;
