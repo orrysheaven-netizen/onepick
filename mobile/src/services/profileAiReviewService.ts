@@ -1,7 +1,9 @@
 import { AppError } from '@/errors/appError';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
 
-export const MIN_PROFILE_AI_PICKS = 3;
+// Product requirement: ten current public picks, not historical selections.
+// A regression check also verifies the server uses this same minimum.
+export const MIN_PROFILE_AI_PICKS = 10;
 
 export class ProfileAiReviewService {
   constructor(private readonly repository: ProfileAiReviewRepository) {}

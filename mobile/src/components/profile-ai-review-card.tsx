@@ -65,7 +65,10 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     return () => { mounted.current = false; };
   }, []);
   const review = query.data ?? null;
-  const missingCount = Math.max(MIN_PROFILE_AI_PICKS - pickCount, 0);
+  const displayPickCount = Number.isSafeInteger(pickCount) && pickCount >= 0 ? pickCount : 0;
+  const missingCount = Math.max(MIN_PROFILE_AI_PICKS - displayPickCount, 0);
+  const pickProgress = `공개 원픽 ${displayPickCount}/${MIN_PROFILE_AI_PICKS}개 · ${missingCount > 0
+    ? `${missingCount}개 더 등록하면 요청할 수 있어요.` : '등록 조건을 충족했어요.'}`;
   const canGenerate = canRequestProfileAiGeneration({
     isOwner: isMine && viewerId === profileUserId,
     publicPickCount: pickCount,
@@ -75,9 +78,11 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     statusPending: connection.isPending || connection.isFetching,
   });
   const busy = generate.isPending || visibility.isPending || preflighting;
-  const generationLabel = (normal: string) => connection.isPending || connection.isFetching
-    ? '연결 상태 확인 중…' : connection.isError ? '연결 상태 확인 필요'
-      : connection.data?.configured !== true ? 'AI 연결 준비 중' : normal;
+  const generationLabel = (normal: string) => missingCount > 0
+    ? `원픽 ${MIN_PROFILE_AI_PICKS}개부터 요청 가능`
+    : connection.isPending || connection.isFetching
+      ? '연결 상태 확인 중…' : connection.isError ? '연결 상태 확인 필요'
+        : connection.data?.configured !== true ? 'AI 연결 준비 중' : normal;
 
   const run = async () => {
     if (!canGenerate || busy || inFlight.current) return;
@@ -149,10 +154,10 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       <Text style={styles.eyebrow}>ONEPICK AI</Text><Text style={styles.title}>AI가 본 나</Text>
       <Text style={styles.tagline}>내 취향이 곧 나이다.</Text>
       <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.hint}>{pickProgress}</Text>
       <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
       <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
-      {missingCount > 0 ? <Text style={styles.hint}>공개된 원픽을 {missingCount}개 더 고르면 평가를 받을 수 있어요.</Text> : null}
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
         style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
         {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
@@ -181,6 +186,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     <Text style={styles.disclaimer}>생성 당시의 취향에 대한 AI 해석이며, 사람의 가치·성격·능력이나 민감한 개인 특성을 진단하지 않습니다.</Text>
     {isMine ? <View style={styles.actions}>
       <Text style={styles.guidance}>{PROFILE_AI_PICK_GUIDANCE}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.hint}>{pickProgress}</Text>
       <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여줘요. 새로 생성된 평가는 본인 확인 후 다시 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
       <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}

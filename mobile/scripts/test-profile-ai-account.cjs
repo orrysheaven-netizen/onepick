@@ -102,19 +102,19 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
     const service = new ProfileAiReviewService({ generate: async (id) => {
       received = id; return { profileId: A };
     } });
-    await service.generate(A, 3); assert.equal(received, A);
+    await service.generate(A, 10); assert.equal(received, A);
   });
   await test('invalid/insufficient pick counts never reach the repository', async () => {
     let calls = 0;
     const service = new ProfileAiReviewService({ generate: async () => { calls++; } });
-    for (const count of [0, 2, -1, 3.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    for (const count of [0, 2, 3, 9, -1, 10.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
       await assert.rejects(service.generate(A, count), expectCode('AI_NOT_ENOUGH_PICKS'));
     }
     assert.equal(calls, 0);
   });
   await test('service retains defense against a mismatched returned profile', async () => {
     const service = new ProfileAiReviewService({ generate: async () => ({ profileId: B }) });
-    await assert.rejects(service.generate(A, 3), expectCode('FORBIDDEN'));
+    await assert.rejects(service.generate(A, 10), expectCode('FORBIDDEN'));
   });
   for (const [name, session] of [['logged out', null], ['other account', sessionFor(B)],
     ['anonymous account', { ...sessionFor(), user: { id: A, is_anonymous: true } }]]) {

@@ -4,7 +4,7 @@ import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_V
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = TASTE_PROMPT_VERSION;
-const MIN_PICKS = 3;
+const MIN_PICKS = 10;
 const COOLDOWN_MS = 10 * 60 * 1000;
 const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,created_at,updated_at';
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at';
@@ -120,7 +120,12 @@ Deno.serve(async (req: Request) => {
     };
     const sourceVersion = await readSourceVersion();
     const snapshot = await readSnapshot();
-    if (snapshot.length < MIN_PICKS) return reply({ error: 'AI_NOT_ENOUGH_PICKS', minimum: MIN_PICKS }, 409);
+    // Check before cached results, quota reservation and any paid model call.
+    // Never trust a count supplied by the requesting client.
+    if (snapshot.length < MIN_PICKS) return reply({
+      error: 'AI_NOT_ENOUGH_PICKS', minimum: MIN_PICKS,
+      count: snapshot.length, remaining: MIN_PICKS - snapshot.length,
+    }, 409);
     if (await readSourceVersion() !== sourceVersion) return reply({ error: 'AI_REVIEW_STALE' }, 409);
     const tasteInput = buildTasteInput(snapshot);
     // Age-reference time is no longer part of the input or cache fingerprint.
