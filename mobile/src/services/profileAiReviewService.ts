@@ -11,14 +11,12 @@ export class ProfileAiReviewService {
   }
 
   async generate(expectedProfileId: string, pickCount: number) {
-    if (pickCount < MIN_PROFILE_AI_PICKS) {
+    if (!Number.isSafeInteger(pickCount) || pickCount < MIN_PROFILE_AI_PICKS) {
       throw new AppError('AI_NOT_ENOUGH_PICKS');
     }
-
-    const review = await this.repository.generate();
-    if (review.profileId !== expectedProfileId) {
-      throw new AppError('FORBIDDEN');
-    }
+    if (!expectedProfileId) throw new AppError('AUTH_REQUIRED');
+    const review = await this.repository.generate(expectedProfileId);
+    if (review.profileId !== expectedProfileId) throw new AppError('FORBIDDEN');
     return review;
   }
 
