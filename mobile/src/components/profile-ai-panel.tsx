@@ -44,7 +44,7 @@ export function ProfileAiPanel({ profileId }: { profileId: string }) {
     <View style={styles.headingRow}>
       <View>
         <Text style={styles.eyebrow}>AI TASTE COMMENT</Text>
-        <Text style={styles.title}>AI가 본 나</Text>
+        <Text style={styles.title}>AI 취향평가</Text>
       </View>
       <Text style={styles.concept}>내 취향이 곧 나이다.</Text>
     </View>
