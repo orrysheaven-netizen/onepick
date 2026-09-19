@@ -16,6 +16,7 @@ export type OnboardingSequenceInput = {
 // Keep the first choices universal and age-neutral. Alcohol categories remain
 // available in the normal catalog but are not promoted as onboarding defaults.
 const STARTER_SLUGS = ['ramen', 'movie'] as const;
+const ONBOARDING_EXCLUDED_SLUGS = new Set(['alcohol', 'beer', 'soju']);
 
 function stableHash(value: string) {
   let hash = 2166136261;
@@ -29,7 +30,11 @@ function stableHash(value: string) {
 export function chooseOnboardingCategory(input: OnboardingSequenceInput) {
   const handled = new Set(input.handledCategoryIds);
   const available = input.categories.filter((category) =>
-    category.isVisible && category.isPickable && category.status === 'open' && !handled.has(category.id));
+    category.isVisible
+    && category.isPickable
+    && category.status === 'open'
+    && !ONBOARDING_EXCLUDED_SLUGS.has(category.slug)
+    && !handled.has(category.id));
 
   if (input.currentCategoryId) {
     const current = available.find((category) => category.id === input.currentCategoryId);
