@@ -1,4 +1,26 @@
-# Security review — 2026-09-17
+# Security review — current status (2026-09-19)
+
+## Current verified state
+
+- **Administrator MFA is server-enforced.** The live `onepick-dev` database has `20260918155548_require_admin_mfa` applied. `private.is_admin_mfa()` requires both the private administrator allowlist and JWT `aal2`. Administrator RLS policies use that gate, and the exposed administrator `SECURITY DEFINER` RPCs re-check it internally. A rollback-only request-context check returned `false` for an allowlisted administrator at AAL1 and `true` at AAL2. The earlier 2026-09-17 note that MFA was not enforced is superseded.
+- **TMDB movie/drama search abuse protection is deployed.** PR #31 added a 10-minute server cache and the shared provider request-slot limiter while keeping search public. Movie import now authenticates before any TMDB request and rejects suspended users consistently with drama import. The deployed `movie-catalog` v13 matches `main`; live smoke checks returned 200 for movie/drama search, reused cache on repeat search, and returned 401 for unauthenticated import without consuming a TMDB request slot.
+- **Leaked-password protection remains disabled because the current Supabase organization is on the Free plan.** Supabase exposes this feature on paid plans; enable it when the project moves to a plan that supports it rather than treating it as a currently available dashboard toggle.
+- **Native session hardening is prepared but not merged.** PR #37 replaces plaintext native Supabase session storage with the Supabase-recommended large encrypted storage pattern: a random AES-256 key in Expo SecureStore and encrypted session bytes in AsyncStorage. The PR also clears legacy plaintext values when no SecureStore key exists. It remains open until Mobile CI/typecheck can execute or a real-device check is completed.
+- **The CSP is intentionally partial.** `_headers` currently enforces frame denial, `base-uri 'self'`, `object-src 'none'`, nosniff and a strict referrer policy. `script-src`, `style-src`, `connect-src` and a narrowed image policy are not yet enforced because the exported Expo web bundle and all catalog/image origins need live validation before tightening them.
+- **GitHub-hosted Actions are currently blocked before runner assignment.** Recent unrelated `main` and PR jobs end with `runner_id=0` and no steps. PR #35 reduced duplicate Actions usage without reducing substantive checks, but it does not resolve the account-level runner block. Check GitHub Actions usage/budget or other account-level runner restrictions before relying on CI results.
+
+## Remaining release checks
+
+- Restore GitHub-hosted CI execution, then run Mobile CI, Web build and Database Tests on the current `main` and PR #37.
+- Verify Kakao OAuth callback behavior in a real HTTPS browser session.
+- Perform physical iOS/Android login/session persistence testing before native release; merge PR #37 only after that or equivalent CI/typecheck verification.
+- Perform a backup/restore rehearsal appropriate to the final Supabase production plan.
+- Verify actual HTTPS response headers on the Cloudflare Pages test host, then tighten CSP incrementally with an allowlist for the Supabase project and catalog image origins.
+- Run high-concurrency tests for community/item quota paths before treating the rate limits as load-tested.
+
+---
+
+# Historical security review — 2026-09-17
 
 ## Verified in this pass
 
@@ -35,4 +57,4 @@ Rollback-only SQL assertions passed before and after deployment: the 11th commen
 
 The report UI now guards rapid repeated taps synchronously and prevents resetting an in-flight submission. Comments/reports display a specific wait-and-retry message when the server returns RATE_LIMITED. Type checking, safety and interaction regression scripts, and web export passed.
 
-Read-only inspection confirms the deployed administrator check uses the private allowlist, but does not require MFA assurance. MFA enrollment/recovery and enforcement remain a separate release task; no administrator login settings were changed. Leaked-password protection remains disabled. The unrelated uncategorized-request migration remains unapplied.
+At the time of this 2026-09-17 pass, read-only inspection found an administrator check that used only the private allowlist and did not yet require MFA assurance. This observation is **historical and superseded** by the current-status verification above after `require_admin_mfa` was applied. Leaked-password protection was also disabled at this time.
