@@ -1,3 +1,4 @@
+// QA build verification: verifies the production branch AI panel compiles without changing runtime behavior.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProfileAiComment } from '@/components/profile-ai-comment';
