@@ -76,6 +76,27 @@ export default function AdminOperationsScreen() {
             </View>
 
             <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>최근 {query.data.funnel.days}일 퍼널</Text>
+              <Text style={styles.sectionHint}>DEMO 제외 · 이벤트 수</Text>
+            </View>
+            <View style={styles.funnelGrid}>
+              {[
+                ['원픽 등록', query.data.funnel.pickCreated],
+                ['공유 클릭', query.data.funnel.pickShareClicked],
+                ['공유 링크 방문', query.data.funnel.pickLinkOpened],
+                ['제품 상세', query.data.funnel.itemDetailViewed],
+                ['로그인 시작', query.data.funnel.authStarted],
+                ['로그인 완료', query.data.funnel.authCompleted],
+              ].map(([label, value]) => (
+                <View key={String(label)} style={styles.funnelCard}>
+                  <Text style={styles.funnelValue}>{value}</Text>
+                  <Text style={styles.funnelLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.analyticsHint}>사용자·활성 원픽·댓글 지표도 demo_* 계정을 제외합니다.</Text>
+
+            <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>최근 오류 코드</Text>
               <Text style={styles.sectionHint}>{query.data.errorEvents.length}건</Text>
             </View>
@@ -135,6 +156,11 @@ const styles = StyleSheet.create({
   metricCard: { minWidth: 135, flexGrow: 1, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16 },
   metricValue: { color: '#202124', fontSize: 25, fontWeight: '900' },
   metricLabel: { color: '#747985', fontSize: 12, marginTop: 5 },
+  funnelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  funnelCard: { width: '31%', minWidth: 120, flexGrow: 1, borderWidth: 1, borderColor: '#DDDDF5', backgroundColor: '#F7F7FF', borderRadius: 15, padding: 14 },
+  funnelValue: { color: '#4945ED', fontSize: 22, fontWeight: '900' },
+  funnelLabel: { color: '#5F6470', fontSize: 11, marginTop: 4 },
+  analyticsHint: { color: '#89909C', fontSize: 11, lineHeight: 17, marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16, marginBottom: 10 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '900' },
   sectionHint: { color: '#89909C', fontSize: 12 },
