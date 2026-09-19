@@ -1,4 +1,5 @@
 import { AppError } from '@/errors/appError';
+import { requireProfileAiTone } from '@/lib/profileAiTone';
 import type { ProfileAiReview } from '@/types/domain/profileAiReview';
 
 const invalid = (): never => { throw new AppError('AI_REVIEW_FAILED'); };
@@ -20,7 +21,6 @@ function optionalText(value: unknown, maximum: number): string | null {
   return value === null ? null : text(value, maximum);
 }
 
-/** Runtime validation: a TypeScript annotation cannot validate a server response. */
 export function parseProfileAiReview(reviewValue: unknown, actorValue: unknown, profileId: string): ProfileAiReview {
   const row = object(reviewValue);
   const actor = object(actorValue);
@@ -33,13 +33,14 @@ export function parseProfileAiReview(reviewValue: unknown, actorValue: unknown, 
   if (!Array.isArray(row.keywords) || row.keywords.length !== 3) invalid();
   const keywords = (row.keywords as unknown[]).map((value) => text(value, 24).trim());
   if (new Set(keywords).size !== 3) invalid();
+  const tone = row.tone == null ? null : requireProfileAiTone(row.tone);
 
-  // Copy an allowlist only; raw responses and internal model/source fields are
-  // never added to the UI/query cache. Preserve all server privacy flags.
+  // Copy only public fields, including the server-authored tone. Never infer
+  // tone from UI state or put internal prompt/source metadata in the cache.
   return {
     id: text(row.id, 36), profileId: text(row.profile_id, 36), actorId: text(row.actor_id, 36),
     summary: text(row.summary, 180), body: text(row.body, 1200), keywords,
-    isVisible, isStale,
+    tone, isVisible, isStale,
     generatedAt: date(row.generated_at), createdAt: date(row.created_at), updatedAt: date(row.updated_at),
     actor: {
       id: text(actor.id, 36), slug: 'onepick_ai', displayName: text(actor.display_name, 40), actorType: 'ai',
