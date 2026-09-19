@@ -60,6 +60,7 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-ai-review-card': { ProfileAiReviewCard: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
     '@/components/unselected-categories': { UnselectedCategories: () => null },
