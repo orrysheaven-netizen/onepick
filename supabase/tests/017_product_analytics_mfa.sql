@@ -3,12 +3,14 @@ create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(4);
 
-select like(
-  (select qual from pg_policies
-   where schemaname='public'
-     and tablename='product_analytics_events'
-     and policyname='product_analytics_events_select_admin'),
-  '%private.is_admin_mfa%',
+select ok(
+  coalesce((
+    select qual like '%private.is_admin_mfa%'
+    from pg_policies
+    where schemaname='public'
+      and tablename='product_analytics_events'
+      and policyname='product_analytics_events_select_admin'
+  ), false),
   'Analytics SELECT policy delegates to the MFA-aware admin check'
 );
 
