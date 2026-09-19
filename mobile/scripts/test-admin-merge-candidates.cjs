@@ -3,12 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
-const source = fs.readFileSync(path.join(__dirname, '../src/app/admin/index.tsx'), 'utf8');
-const start = source.indexOf('function similarItems(');
-const end = source.indexOf('\nexport default function', start);
-assert.ok(start >= 0 && end > start);
+const source = fs.readFileSync(path.join(__dirname, '../src/lib/items/itemIdentity.ts'), 'utf8');
 const exportsObject = {};
-vm.runInNewContext(ts.transpileModule('export ' + source.slice(start, end), {
+vm.runInNewContext(ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, { exports: exportsObject });
 const request = { id: 'request', categoryId: 'ramen', normalizedName: '신라면', name: '신라면', status: 'pending' };

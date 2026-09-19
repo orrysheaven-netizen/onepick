@@ -11,7 +11,6 @@ import { adminService } from '@/services';
 const adminKeys = {
   all: ['admin'] as const,
   dashboard: (userId?: string) => ['admin', 'dashboard', userId] as const,
-  operations: (userId?: string) => ['admin', 'operations', userId] as const,
 };
 
 async function invalidateAdminData(client: ReturnType<typeof useQueryClient>) {
@@ -36,16 +35,6 @@ export function useAdminDashboard(userId?: string) {
     queryFn: () => adminService.getDashboard(),
     enabled: Boolean(userId),
     retry: false,
-  });
-}
-
-export function useAdminOperations(userId?: string) {
-  return useQuery({
-    queryKey: adminKeys.operations(userId),
-    queryFn: () => adminService.getOperationsOverview(),
-    enabled: Boolean(userId),
-    retry: false,
-    staleTime: 15_000,
   });
 }
 

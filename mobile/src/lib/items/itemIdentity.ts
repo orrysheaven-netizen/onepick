@@ -1,3 +1,5 @@
+import type { Item } from '@/types/domain/item';
+
 // These categories have packaging normalization rules, not exclusive registration permission.
 const PACKAGING_NORMALIZED_SLUGS = ['ramen', 'beer', 'soju', 'snacks'] as const;
 
@@ -8,6 +10,13 @@ export function canonicalItemName(value: string, slug: string) {
   if (slug === 'ramen') name = name.replace(/\s*(?:봉지면|컵라면|큰사발면|작은사발면|사발면|컵면|큰사발|작은사발|봉지|큰컵|작은컵|컵|용기)(?=\s|$)/g, ' ');
   if (slug === 'beer' || slug === 'soju') name = name.replace(/\s*(?:페트병|페트|캔|병)(?=\s|$)/g, ' ');
   return name.trim().replace(/\s+/g, ' ');
+}
+
+export function similarItems(request: Item, items: Item[]) {
+  const score = (item: Item) => item.normalizedName === request.normalizedName ? 0
+    : item.normalizedName.includes(request.normalizedName) || request.normalizedName.includes(item.normalizedName) ? 1 : 2;
+  return items.filter((item) => item.id !== request.id && item.categoryId === request.categoryId && ['active', 'discontinued'].includes(item.status))
+    .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name)).slice(0, 3);
 }
 
 export function categoryRegistrationHint(slug?: string) {
