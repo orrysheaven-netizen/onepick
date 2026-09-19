@@ -6,6 +6,7 @@ import { createCategory, getCategories, updateCategory } from '@/lib/admin-api';
 import type { AdminCategory } from '@/lib/admin-api';
 
 const STATUSES: AdminCategory['status'][] = ['draft', 'open', 'paused', 'closed'];
+const STATUS_LABELS: Record<AdminCategory['status'], string> = { draft: '준비', open: '운영', paused: '중지', closed: '종료' };
 
 export default function AdminCategoriesScreen() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
@@ -117,11 +118,6 @@ function CategoryRow({ category, onSaved, onError }: { category: AdminCategory; 
   const [sortOrder, setSortOrder] = useState(String(category.sort_order));
   const [saving, setSaving] = useState(false);
 
-  const cycleStatus = () => {
-    const index = STATUSES.indexOf(status);
-    setStatus(STATUSES[(index + 1) % STATUSES.length]);
-  };
-
   const save = async () => {
     const order = Number.parseInt(sortOrder, 10);
     if (!name.trim()) {
@@ -158,9 +154,7 @@ function CategoryRow({ category, onSaved, onError }: { category: AdminCategory; 
         <Text style={styles.slug}>{category.slug}</Text>
       </View>
 
-      <Pressable onPress={cycleStatus} style={styles.pill}>
-        <Text style={styles.pillText}>{status}</Text>
-      </Pressable>
+      <StatusPicker value={status} onChange={setStatus} />
 
       <Toggle label="노출" value={visible} onPress={() => setVisible((value) => !value)} />
       <Toggle label="Pick" value={pickable} onPress={() => setPickable((value) => !value)} />
@@ -173,6 +167,18 @@ function CategoryRow({ category, onSaved, onError }: { category: AdminCategory; 
       <Pressable disabled={saving} onPress={save} style={[adminStyles.secondaryButton, saving && { opacity: 0.5 }]}>
         <Text style={adminStyles.secondaryButtonText}>{saving ? '저장 중' : '저장'}</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function StatusPicker({ value, onChange }: { value: AdminCategory['status']; onChange: (status: AdminCategory['status']) => void }) {
+  return (
+    <View style={styles.statusPicker}>
+      {STATUSES.map((status) => (
+        <Pressable key={status} accessibilityRole="button" accessibilityState={{ selected: value === status }} onPress={() => onChange(status)} style={[styles.statusChoice, value === status && styles.statusChoiceActive]}>
+          <Text style={[styles.statusChoiceText, value === status && styles.statusChoiceTextActive]}>{STATUS_LABELS[status]}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -199,8 +205,11 @@ const styles = StyleSheet.create({
   nameArea: { flexGrow: 1, flexBasis: 230, minWidth: 210 },
   nameInput: { width: '100%' },
   slug: { marginTop: 5, color: '#9CA3AF', fontSize: 11 },
-  pill: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 11, borderRadius: 18, backgroundColor: '#F3F4F6' },
-  pillText: { color: '#374151', fontSize: 12, fontWeight: '700' },
+  statusPicker: { flexDirection: 'row', gap: 6 },
+  statusChoice: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
+  statusChoiceActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  statusChoiceText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
+  statusChoiceTextActive: { color: '#FFFFFF' },
   toggleWrap: { alignItems: 'center', gap: 5 },
   smallLabel: { color: '#6B7280', fontSize: 10, fontWeight: '700' },
   toggle: { width: 38, height: 22, borderRadius: 11, backgroundColor: '#D1D5DB', padding: 3 },

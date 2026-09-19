@@ -23,7 +23,7 @@ export function SignOutButton() {
         <>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/admin/ops')}
+            onPress={() => router.push('/admin/audit')}
             style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
             <Text style={styles.adminLabel}>운영 현황 · 감사 로그</Text>
           </Pressable>

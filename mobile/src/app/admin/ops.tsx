@@ -1,6 +1,4 @@
-import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
 import { useAdminOperations } from '@/hooks/useAdmin';
@@ -28,23 +26,22 @@ function auditDetail(item: AdminAuditLog) {
 }
 
 export default function AdminOperationsScreen() {
-  const router = useRouter();
   const auth = useAuthSession();
   const query = useAdminOperations(auth.user?.id);
   const forbidden = query.error instanceof AppError && query.error.code === 'FORBIDDEN';
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={auth.user ? <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} /> : undefined}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹ 관리자</Text>
-        </Pressable>
-
-        <Text style={styles.kicker}>ONEPICK OPERATIONS</Text>
-        <Text style={styles.title}>운영 현황</Text>
-        <Text style={styles.description}>서비스 원본 데이터에서 집계한 핵심 지표와 관리자 변경 이력을 확인합니다.</Text>
+    <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.kicker}>ONEPICK OPERATIONS</Text>
+            <Text style={styles.title}>운영 지표</Text>
+            <Text style={styles.description}>서비스 원본 데이터에서 집계한 핵심 지표, 퍼널과 관리자 변경 이력을 확인합니다.</Text>
+          </View>
+          <Pressable disabled={query.isFetching} onPress={() => void query.refetch()} style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}>
+            {query.isFetching ? <ActivityIndicator size="small" /> : <Text style={styles.refreshButtonText}>새로고침</Text>}
+          </Pressable>
+        </View>
 
         {auth.isLoading || query.isPending ? (
           <View style={styles.state}><ActivityIndicator /><Text style={styles.stateText}>운영 상태를 확인하고 있어요</Text></View>
@@ -139,16 +136,15 @@ export default function AdminOperationsScreen() {
             )}
           </>
         )}
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
-  content: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 22, paddingBottom: 64 },
-  back: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingRight: 12 },
-  backText: { color: '#4945ED', fontSize: 14, fontWeight: '800' },
+  content: { gap: 4 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
+  refreshButton: { minHeight: 40, borderRadius: 9, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D1D5DB', backgroundColor: '#FFFFFF' },
+  refreshButtonText: { color: '#374151', fontSize: 13, fontWeight: '700' },
   kicker: { color: '#4945ED', fontSize: 11, fontWeight: '900', letterSpacing: 1.8, marginTop: 16 },
   title: { color: '#202124', fontSize: 28, fontWeight: '900', marginTop: 7 },
   description: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8, marginBottom: 24 },

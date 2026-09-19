@@ -28,11 +28,11 @@ async function main() {
   const calls = [];
   const { useItemSearch } = loadSource('hooks/useItemSearch.ts', {
     react: { useState: () => [settled, (value) => { settled = value; }], useEffect: (effect) => { cleanup?.(); cleanup = effect(); } },
-    '@tanstack/react-query': { useQuery: (options) => options },
+    '@tanstack/react-query': { useQuery: (options) => options, useQueryClient: () => ({ getQueryState: () => undefined }) },
     '@/lib/query/queryKeys': { queryKeys },
     '@/services': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
   }, {
-    setTimeout: (callback, delay) => { assert.equal(delay, 300); timer = callback; return 1; },
+    setTimeout: (callback, delay) => { assert.equal(delay, 150); timer = callback; return 1; },
     clearTimeout: () => { timer = undefined; },
   });
   assert.equal(useItemSearch('   ').enabled, false);
@@ -42,8 +42,10 @@ async function main() {
   timer();
   query = useItemSearch('라면', 'ramen');
   assert.equal(query.enabled, true);
-  await query.queryFn();
-  assert.equal(calls[0].join(','), '라면,ramen');
+  const controller = new AbortController();
+  await query.queryFn({ signal: controller.signal });
+  assert.equal(calls[0].slice(0, 2).join(','), '라면,ramen');
+  assert.equal(calls[0][2], controller.signal, 'The query cancellation signal reaches the service');
   const firstKey = JSON.stringify(query.queryKey);
   assert.notEqual(JSON.stringify(useItemSearch('라면', 'other').queryKey), firstKey);
   assert.equal(useItemSearch('다른 제품').isWaiting, true);
@@ -74,12 +76,14 @@ async function main() {
 
   const { ItemService } = loadSource('services/itemService.ts', { '@/errors/appError': { AppError: Error } });
   let categoryStatus = 'open';
+  // Match the existing search_items contract: the server filters categories
+  // before limit. The real SQL contract is also tested in 025_search_visibility.
   const itemRepository = {
-    search: async () => [{ id: 'item-1', name: '라면', categoryId: 'ramen', status: 'active' }],
+    search: async () => categoryStatus === 'open' ? [{ id: 'item-1', name: '라면', categoryId: 'ramen', status: 'active' }] : [],
   };
   const categoryRepository = {
-    getById: async () => ({ id: 'ramen', status: categoryStatus, isVisible: true, isPickable: true }),
-    getOpenCategories: async () => categoryStatus === 'open' ? [{ id: 'ramen' }] : [],
+    getById: () => assert.fail('Search must not issue a category preflight'),
+    getOpenCategories: () => assert.fail('Search must not issue a category preflight'),
   };
   const service = new ItemService(itemRepository, {}, categoryRepository, { getPicks: async () => [] });
   assert.equal((await service.search(' 라면 ', 'ramen'))[0].id, 'item-1');
@@ -87,10 +91,13 @@ async function main() {
   assert.equal((await service.search('라면', 'ramen')).length, 0, 'Closed categories are hidden from OnePick item search');
 
   let state = { hasSearchText: false, isPending: true };
-  let selected, retried = false;
+  let selected, retried = false, photoProps;
   const presses = [];
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const { ItemSearch } = loadSource('components/item-search.tsx', {
+    '@/components/pick-photo': { PickPhoto: (props) => { photoProps = props; return null; } },
+    '@/components/drama-search-link': { DramaSearchLink: () => null },
+    '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },
     'react-native': {
       ActivityIndicator: () => null,
@@ -102,18 +109,69 @@ async function main() {
   const render = () => { presses.length = 0; return renderToStaticMarkup(React.createElement(ItemSearch, { onSelect: (id) => { selected = id; } })); };
   assert.doesNotMatch(render(), /제품을 찾고 있어요|검색 결과/);
   state = { hasSearchText: true, isWaiting: true, data: [{ id: 'stale', name: '이전 결과' }] };
-  assert.match(render(), /제품을 찾고 있어요/);
+  assert.match(render(), /검색하고 있어요/);
   assert.doesNotMatch(render(), /이전 결과/);
   state = { hasSearchText: true, data: [] };
-  assert.match(render(), /일치하는 제품이 없어요/);
+  assert.match(render(), /일치하는 항목이 없어요/);
   state = { hasSearchText: true, isError: true, refetch: () => { retried = true; } };
   assert.match(render(), /다시 검색하기/);
   presses[0]();
   assert.equal(retried, true);
-  state = { hasSearchText: true, data: [{ id: 'item-1', name: '찾은 제품' }] };
+  state = { hasSearchText: true, data: [{ id: 'item-1', name: '찾은 제품', status: 'active' }] };
   assert.match(render(), /찾은 제품/);
+  assert.equal(photoProps.itemId, 'item-1');
+  assert.equal(photoProps.itemStatus, 'active');
   presses[0]();
   assert.equal(selected, 'item-1');
-  console.log('Item search checks passed: debounce, alias-aware RPC, category isolation and search states/actions.');
+
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, youtubeQuery;
+  const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
+    react: { useState: () => ['인터스텔라', () => {}] },
+    '@/components/pick-photo': { PickPhoto: () => null },
+    '@/hooks/useItemSearch': { useItemSearch: () => ({ hasSearchText: true, isWaiting: false, isPending: false, isError: false, data: [] }) },
+    'react-native': {
+      ActivityIndicator: () => null,
+      Pressable: (props) => { externalPresses.push(props); return React.createElement('button', null, props.children); },
+      Text: nativeComponent('span'), View: nativeComponent('section'),
+      TextInput: (props) => { externalInput = props; return null; },
+      StyleSheet: { create: (styles) => styles },
+    },
+  });
+  const catalogProps = {
+    onSelect: () => {},
+    onSearchMovie: (value) => { movieQuery = value; },
+    onSearchDrama: (value) => { dramaQuery = value; },
+    onSearchMusic: (value) => { musicQuery = value; },
+    onSearchGame: (value) => { gameQuery = value; },
+    onSearchYouTube: (value) => { youtubeQuery = value; },
+  };
+  let catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, catalogProps));
+  assert.match(catalogPage, /OnePick에 아직 등록된 항목이 없어요/);
+  assert.match(catalogPage, /영화 DB에서 검색/);
+  assert.match(catalogPage, /드라마 DB에서 검색/);
+  assert.match(catalogPage, /음악 DB에서 검색/);
+  assert.match(catalogPage, /게임 DB에서 검색/);
+  assert.match(catalogPage, /YouTube 채널에서 검색/);
+  externalInput.onSubmitEditing();
+  assert.equal(movieQuery, undefined, 'Global search must not guess a provider on Enter');
+  assert.equal(dramaQuery, undefined);
+  assert.equal(musicQuery, undefined);
+  assert.equal(gameQuery, undefined);
+  assert.equal(youtubeQuery, undefined);
+  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 영화 DB에서 검색').onPress();
+  assert.equal(movieQuery, '인터스텔라');
+
+  externalPresses = []; externalInput = undefined; movieQuery = undefined;
+  catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, {
+    categoryId: 'movie-category',
+    onSelect: () => {},
+    onSearchMovie: (value) => { movieQuery = value; },
+  }));
+  assert.match(catalogPage, /영화 DB에서 검색/);
+  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색|게임 DB에서 검색|YouTube 채널에서 검색/);
+  externalInput.onSubmitEditing();
+  assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
+
+  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, explicit catalog continuation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

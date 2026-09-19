@@ -25,4 +25,22 @@ additional_redirect_urls = ["http://localhost:8081"]
 verify_jwt = true
 
 [functions.movie-catalog]
-verify_jwt = true
+# Search is public. The function verifies a real user JWT itself before imports.
+verify_jwt = false
+
+[functions.music-catalog]
+# Search is public. Import verifies a real user JWT inside the function.
+verify_jwt = false
+
+[functions.game-catalog]
+# Search is public. Import verifies a real user JWT inside the function.
+verify_jwt = false
+
+[functions.youtube-catalog]
+# Public channel search; selected-channel import verifies a real user JWT internally.
+verify_jwt = false
+
+
+[functions.pokemon-catalog]
+# Public species search; selected-species import verifies a real user JWT internally.
+verify_jwt = false

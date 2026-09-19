@@ -81,11 +81,13 @@ export class SupabaseItemRepository implements ItemRepository {
 
     const categoryIds = input.categoryIds ?? (input.categoryId ? [input.categoryId] : undefined);
     const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
-    const { data, error } = await this.client.rpc('search_items', {
+    let request = this.client.rpc('search_items', {
       p_query: searchText,
       ...(categoryIds ? { p_category_ids: categoryIds } : {}),
       p_limit: limit,
     });
+    if (input.signal) request = request.abortSignal(input.signal);
+    const { data, error } = await request;
 
     if (error) throw mapSupabaseError(error);
     return (data ?? []).map(this.mapRow);

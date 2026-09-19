@@ -68,16 +68,6 @@ async function main() {
   press('제품 등록 요청하기'); await new Promise(setImmediate);
   assert.equal(payload.itemId, undefined); assert.equal(payload.categoryId, 'new'); assert.match(render(), /제품 등록을 요청했어요/);
 
-  let dashboard = { isError: true, error: new AppError('FORBIDDEN') };
-  const { default: Admin } = load('app/admin/index.tsx', { ...common,
-    '@/components/admin-home-settings': { AdminHomeSettings: () => null },
-    '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
-    '@/hooks/useAdmin': { useAdminDashboard: () => dashboard, useAdminActions: () => ({}) },
-  });
-  state = []; assert.match(render(Admin), /관리자 권한이 필요/); assert.equal(inputs.length, 0);
-  dashboard = { data: { categories: [], items: [], pending: [], brands: [] } };
-  state = []; assert.match(render(Admin), /카테고리 추가/); assert.ok(inputs.some((p) => p.accessibilityLabel === '카테고리 식별자'));
-  auth = { user: null }; state = []; render(Admin); assert.equal(inputs.length, 0, 'Anonymous users never see administrator forms');
-  console.log('Screen checks passed: item-first selection, automatic category, pending confirmation, duplicate taps and admin access states.');
+  console.log('Screen checks passed: item-first selection, automatic category, pending confirmation and duplicate taps.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

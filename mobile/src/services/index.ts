@@ -7,6 +7,10 @@ import {
   pickRepository,
   itemRepository,
   movieCatalogRepository,
+  musicCatalogRepository,
+  gameCatalogRepository,
+  youtubeCatalogRepository,
+  pokemonCatalogRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -23,6 +27,10 @@ import { ObservabilityService } from './observabilityService';
 import { PickService } from './pickService';
 import { ItemService } from './itemService';
 import { MovieCatalogService } from './movieCatalogService';
+import { MusicCatalogService } from './musicCatalogService';
+import { GameCatalogService } from './gameCatalogService';
+import { YouTubeCatalogService } from './youtubeCatalogService';
+import { PokemonCatalogService } from './pokemonCatalogService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
@@ -61,6 +69,10 @@ export const itemService = new ItemService(
   readRepository,
 );
 export const movieCatalogService = new MovieCatalogService(movieCatalogRepository);
+export const musicCatalogService = new MusicCatalogService(musicCatalogRepository);
+export const gameCatalogService = new GameCatalogService(gameCatalogRepository);
+export const youtubeCatalogService = new YouTubeCatalogService(youtubeCatalogRepository);
+export const pokemonCatalogService = new PokemonCatalogService(pokemonCatalogRepository);
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
@@ -76,6 +88,10 @@ export {
   PickService,
   ItemService,
   MovieCatalogService,
+  MusicCatalogService,
+  GameCatalogService,
+  YouTubeCatalogService,
+  PokemonCatalogService,
   ProfileService,
   SafetyService,
 };

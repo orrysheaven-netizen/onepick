@@ -22,6 +22,8 @@ export interface Item {
   externalId: string | null;
   originalName: string | null;
   releaseYear: number | null;
+  creatorName?: string | null;
+  collectionName?: string | null;
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

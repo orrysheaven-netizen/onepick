@@ -1,12 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
-import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { getAuthIntent, getPostAuthRoute, type AuthIntent, type AuthReturnParams } from '@/lib/auth/authIntent';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -21,32 +21,63 @@ function getMessage(error: unknown) {
 }
 
 export default function UsernameScreen() {
-  const router = useRouter();
+  const auth = useAuthSession();
   const params = useLocalSearchParams<AuthReturnParams>();
   const intent = getAuthIntent(params);
-  const { user, isLoading, error: sessionError, retry: retrySession } = useAuthSession();
-  const createProfile = useCreateProfile();
+  return <UsernameForm key={`${auth.user?.id ?? 'anonymous'}:${JSON.stringify(intent)}`} auth={auth} intent={intent} />;
+}
+
+function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession>; intent: AuthIntent }) {
+  const router = useRouter();
+  const { user, isLoading, error: sessionError, retry: retrySession } = auth;
+  const createProfile = useCreateProfile(user?.id);
   const [username, setUsername] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  const phase = useRef<'idle' | 'saving' | 'saved'>('idle');
+  const mounted = useRef(true);
+  const navigated = useRef(false);
+  const latestSession = useRef({ userId: user?.id, ready: !isLoading && !sessionError });
+  latestSession.current = { userId: user?.id, ready: !isLoading && !sessionError };
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const normalized = username.trim().toLowerCase();
   const valid = USERNAME_PATTERN.test(normalized);
+  const available = () => mounted.current && Boolean(user) && latestSession.current.ready && latestSession.current.userId === user?.id;
+  const continueToIntent = () => {
+    if (!available() || phase.current !== 'saved' || navigated.current) return;
+    navigated.current = true;
+    router.replace(intent.action === 'home' ? '/onboarding' : getPostAuthRoute(intent));
+  };
 
   const handleSave = async () => {
-    if (!user || !valid || createProfile.isPending) return;
-
+    if (!available() || !user || !valid || phase.current !== 'idle' || createProfile.isPending) return;
+    phase.current = 'saving';
+    setSaveError(null);
     try {
-      await createProfile.mutateAsync(normalized);
-      router.replace(getPostAuthRoute(intent));
-    } catch {
-      // Mutation state renders the error.
+      const result = await createProfile.mutateAsync(normalized);
+      if (result.id !== user.id) throw new AppError('AUTH_REQUIRED');
+      phase.current = 'saved';
+      if (!mounted.current) return;
+      setSaved(true);
+      // Never let the old account/intent's completion redirect the current screen.
+      continueToIntent();
+    } catch (error) {
+      if (mounted.current) setSaveError(error);
+    } finally {
+      if (phase.current === 'saving') phase.current = 'idle';
     }
   };
+  const error = saveError ?? createProfile.error;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
         <Text style={styles.eyebrow}>ONEPICK</Text>
         <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
-        <Text style={styles.subtitle}>프로필에서 보일 고유한 이름입니다. 나중에 수정할 수 있어요.</Text>
+        <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
 
         {isLoading ? <Text style={styles.statusText}>로그인 상태 확인 중...</Text> : null}
         {!isLoading && (sessionError || !user) ? (
@@ -61,17 +92,28 @@ export default function UsernameScreen() {
           </>
         ) : null}
 
-        {!isLoading && user ? (
+        {!isLoading && !sessionError && user && saved ? <>
+          <Text accessibilityLiveRegion="polite" style={styles.statusText}>사용자명 설정을 확인했어요.</Text>
+          <Pressable accessibilityRole="button" onPress={continueToIntent} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>원래 작업으로 계속</Text>
+          </Pressable>
+        </> : null}
+        {!isLoading && !sessionError && user && !saved ? (
           <>
             <View style={styles.inputHeader}>
               <Text style={styles.label}>사용자명</Text>
               <Text style={styles.counter}>{normalized.length}/20</Text>
             </View>
             <TextInput
+              accessibilityLabel="사용자명"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!createProfile.isPending && phase.current !== 'saving'}
               maxLength={20}
-              onChangeText={setUsername}
+              onChangeText={(value) => {
+                if (phase.current !== 'idle') return;
+                setUsername(value); setSaveError(null);
+              }}
               placeholder="onepick_user"
               placeholderTextColor="#89909C"
               style={styles.input}
@@ -79,17 +121,17 @@ export default function UsernameScreen() {
             />
             <Text style={styles.helper}>영문 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.</Text>
 
-            {createProfile.isError ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{getMessage(createProfile.error)}</Text>
-              </View>
-            ) : null}
-
+            {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" style={styles.errorText}>{getMessage(error)}</Text></View> : null}
+            {error instanceof AppError && error.code === 'AUTH_REQUIRED' ? <Pressable accessibilityRole="button"
+              onPress={() => router.replace({ pathname: '/auth/login', params: { ...intent } })} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>다시 로그인하고 계속</Text>
+            </Pressable> : null}
             <Pressable
-              disabled={!valid || createProfile.isPending}
+              accessibilityRole="button"
+              disabled={!valid || createProfile.isPending || phase.current !== 'idle'}
               onPress={() => void handleSave()}
-              style={({ pressed }) => [styles.primaryButton, (!valid || createProfile.isPending) && styles.disabled, pressed && valid && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>{createProfile.isPending ? '사용자명 저장 중...' : '이 사용자명으로 시작'}</Text>
+              style={({ pressed }) => [styles.primaryButton, (!valid || createProfile.isPending || phase.current !== 'idle') && styles.disabled, pressed && valid && styles.pressed]}>
+              <Text style={styles.primaryButtonText}>{createProfile.isPending || phase.current === 'saving' ? '사용자명 저장 중...' : '이 사용자명으로 시작'}</Text>
             </Pressable>
           </>
         ) : null}

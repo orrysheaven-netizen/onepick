@@ -4,13 +4,15 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const NAV_ITEMS = [
-  { href: '/admin', label: '대시보드' },
+  { href: '/admin/dashboard', label: '대시보드' },
   { href: '/admin/categories', label: '카테고리' },
+  { href: '/admin/brands', label: '브랜드' },
   { href: '/admin/items', label: '상품' },
   { href: '/admin/pending', label: '검수 대기' },
   { href: '/admin/users', label: '사용자' },
   { href: '/admin/reports', label: '신고' },
   { href: '/admin/audit', label: '운영 기록' },
+  { href: '/admin/ops', label: '운영 지표' },
 ] as const;
 
 export function AdminShell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
@@ -29,7 +31,7 @@ export function AdminShell({ children, onSignOut }: { children: ReactNode; onSig
 
           <View style={[styles.navList, !wide && styles.navListCompact]}>
             {NAV_ITEMS.map((item) => {
-              const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link key={item.href} href={item.href} asChild>
                   <Pressable style={[styles.navItem, active && styles.navItemActive]}>
