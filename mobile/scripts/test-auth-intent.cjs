@@ -66,7 +66,7 @@ async function main() {
   assert.equal(Object.hasOwn(getAuthIntent({ ...comment, access_token: 'not-forwarded' }), 'access_token'), false);
 
   let params = {}, destination, callbackParams, mutationResult;
-  const presses = [];
+  const presses = [], analytics = [];
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
     View: nativeComponent('div'), Text: nativeComponent('span'), ActivityIndicator: () => null,
@@ -78,6 +78,7 @@ async function main() {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
     '@/lib/auth/authIntent': intents,
+    '@/services': { observabilityService: { captureProductEvent: async (event) => { analytics.push(event); } } },
   };
   const { default: Login } = loadSource('app/auth/login.tsx', {
     ...baseImports,
@@ -93,6 +94,8 @@ async function main() {
   };
   await login({}, { profile: {} });
   assert.equal(destination, '/');
+  assert.equal(analytics.at(-1).eventName, 'auth_started');
+  assert.equal(analytics.at(-1).path, '/auth/login');
   await login({ action: 'profile' }, { profile: {} });
   assert.equal(destination, '/profile');
   await login(comment, { profile: null });
@@ -120,6 +123,8 @@ async function main() {
   renderToStaticMarkup(React.createElement(Callback));
   await flush();
   same(destination, getPostAuthRoute(getAuthIntent(request)));
+  assert.equal(analytics.at(-1).eventName, 'auth_completed');
+  assert.equal(analytics.at(-1).source, 'request_item');
   mutationResult = { profile: null };
   renderToStaticMarkup(React.createElement(Callback));
   await flush();
