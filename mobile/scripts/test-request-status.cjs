@@ -60,6 +60,7 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/unselected-categories': { UnselectedCategories: () => null },
     '@/components/sign-out-button': { SignOutButton: () => null },
     '@/errors/appError': { AppError },

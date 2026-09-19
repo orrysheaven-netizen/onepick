@@ -37,13 +37,15 @@ export default function ItemDetailScreen() {
   const trackedItemId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const viewedItemId = query.data?.item.id;
-    if (!viewedItemId || trackedItemId.current === viewedItemId) return;
+    const data = query.data;
+    if (!data) return;
+    const viewedItemId = data.item.id;
+    if (trackedItemId.current === viewedItemId) return;
     trackedItemId.current = viewedItemId;
     void observabilityService.captureProductEvent({
       eventName: 'item_detail_viewed',
       itemId: viewedItemId,
-      categoryId: query.data.item.categoryId,
+      categoryId: data.item.categoryId,
       pickId: focusPickId ?? null,
       source: focusPickId ? 'pick_route' : 'direct_or_browse',
       path: '/item/[itemId]',
