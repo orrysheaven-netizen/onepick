@@ -197,7 +197,7 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
-        <ProfileAiPanel profileId={profile.id} />
+        <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.onboardingButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>취향 고르기 이어가기</Text><Text style={styles.publicProfileText}>카테고리를 넘기거나 선택하면서 내 원픽을 더 채워보세요.</Text></View>
           <Text style={styles.chevron}>›</Text>
