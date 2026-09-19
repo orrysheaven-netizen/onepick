@@ -13,7 +13,10 @@ Deno.test('status reports missing configuration without returning secrets', asyn
   assert(result.headers.get('Cache-Control') === 'no-store', 'Readiness must not be cached');
   const body = await result.json();
   assert(body.configured === false && body.service === 'analyze-profile-taste', 'Expected missing config');
-  assert(Object.keys(body).sort().join(',') === 'configured,service,status', 'Unexpected public data');
+  assert(Object.keys(body).sort().join(',') ===
+    'configured,contractVersion,cooldownSeconds,minimumPicks,promptVersion,service,status', 'Unexpected public data');
+  assert(body.contractVersion === 'profile-ai-v2' && body.minimumPicks === 10 &&
+    body.promptVersion === 'taste-v5-no-age' && body.cooldownSeconds === 600, 'Expected public contract');
 });
 Deno.test('status reports presence only and never echoes supplied secrets', async () => {
   const secret = 'private-test-value-do-not-echo';
@@ -21,7 +24,9 @@ Deno.test('status reports presence only and never echoes supplied secrets', asyn
   assert(result instanceof Response, 'Expected response');
   const text = await result.text();
   assert(!text.includes(secret), 'Secret leaked');
-  assert(JSON.parse(text).configured === true, 'Expected configured');
+  const body = JSON.parse(text);
+  assert(body.configured === true, 'Expected configured');
+  assert(body.contractVersion === 'profile-ai-v2', 'Expected public contract version');
 });
 Deno.test('empty and whitespace secrets are not configured', async () => {
   const result = inspectRequest(new Request(`${url}/status/`), (name) => name === 'OPENAI_API_KEY' ? '   ' : 'present');
