@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
       .from('picks')
       .select('id,category_id,item_id,one_line_review,updated_at,categories(name),items(name,original_name,release_year,creator_name,collection_name)')
       .eq('user_id', user.id)
-      .in('status', ['active', 'needs_review'])
+      .eq('status', 'active')
       .order('updated_at', { ascending: true })
       .limit(50);
     if (picksError) throw picksError;
