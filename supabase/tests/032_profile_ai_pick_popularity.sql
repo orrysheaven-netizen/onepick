@@ -31,7 +31,7 @@ begin
     insert into auth.users(id,aud,role,created_at,updated_at)
       values(v_user,'authenticated','authenticated',now(),now());
     insert into public.profiles(id,username,onboarding_completed)
-      values(v_user,'pop_a_'||substr(replace(v_user::text,'-',''),1,15),true);
+      values(v_user,'pop_a_'||substr(replace(v_user::text,'-',''),1,14),true);
     insert into public.picks(user_id,category_id,item_id,one_line_review,status,started_at)
       values(v_user,v_category_a,case when i<=3 then v_item_a1 else v_item_a2 end,
         'Popularity fixture','active',now());

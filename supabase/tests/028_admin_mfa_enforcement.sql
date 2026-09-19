@@ -77,7 +77,7 @@ select lives_ok(
   $$select public.admin_set_user_suspension('aa000001-0000-4000-8000-000000000003',true,'AAL2 검증')$$,
   'AAL2 admin can suspend a user'
 );
-select ok(public.user_is_suspended('aa000001-0000-4000-8000-000000000003'),'suspension actually took effect under AAL2');
+select ok(private.user_is_suspended('aa000001-0000-4000-8000-000000000003'),'suspension actually took effect under AAL2');
 
 -- Un-suspend so later assertions in this file are not affected.
 select public.admin_set_user_suspension('aa000001-0000-4000-8000-000000000003',false,null);
