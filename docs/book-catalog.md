@@ -1,31 +1,45 @@
 # Book catalog MVP
 
-Status: source/CI preparation only. Do not deploy until the National Library of Korea Open API key is approved and stored as the server-side Supabase secret `NLK_OPEN_API_KEY`.
+Status: Google Books catalog is the active provider.
 
 ## Scope
-- Category: 콘텐츠 → 책.
-- Selectable unit: one ISBN-13 edition/format, not an abstract work.
-- Search: title plus optional author.
-- Identity: `external_source='nlk_isbn'` + normalized valid ISBN-13.
-- Same ISBN is reused. Different ISBNs are never merged merely because title/author match.
-- Imported fields: title, author, publisher, publication year and ISBN identity. Edition/form/e-book flags are shown in provider search results but not needed for the shared item card.
-- Search never writes item rows. Only a user-selected ISBN is imported; import alone never creates a Pick.
-- The normal /pick/choose flow collects the user's own one-line reason and saves the Pick.
+- Category: 책.
+- Search UI keeps title + optional author fields, while the client sends one combined `query` to the Edge Function.
+- Provider identity: `external_source='google_books_volume'` + Google Books volume ID.
+- ISBN is stored as `model_code` when available and is used as a secondary deduplication key.
+- Search never writes item rows. Only a user-selected volume is imported; import alone never creates a Pick.
+- The normal `/pick/choose` flow collects the user's one-line reason and saves the Pick.
 
 ## Provider
-Official endpoint: `https://www.nl.go.kr/seoji/SearchApi.do`.
-Required server parameter: `cert_key`; response mode is JSON. Search sends the official `title` and `author` fields. Import re-fetches the exact `isbn` before writing.
+Official endpoint: `https://www.googleapis.com/books/v1/volumes`.
 
-The API key must never be exposed through Expo public variables or client URLs. The Edge Function reads `NLK_OPEN_API_KEY` only.
+Search uses:
+- `q=<title + optional author>`
+- `printType=books`
+- `orderBy=relevance`
+- `projection=full`
+- `maxResults=20`
 
-## Covers and copyrighted fields
-The provider documents `TITLE_URL`, book introduction, contents and summary fields. OnePick deliberately ignores all of them in this MVP. The National Library copyright policy requires checking whether a work is actually released for free use; API presence alone is not treated as a blanket image/content license. Book covers therefore remain user-contributed until a reusable rights rule is verified.
+`GOOGLE_BOOKS_API_KEY` is optional and, when configured, is read only inside the Edge Function.
 
-## Release gate
-Before deployment:
-1. Get the National Library Open API key approved.
-2. Store it as Supabase secret `NLK_OPEN_API_KEY`; do not paste it into source or chat.
-3. Verify real Korean samples (title-only, title+author, multiple editions, e-book/print, older books).
-4. Confirm response JSON shape against the live API and measure latency/errors.
-5. Re-run TypeScript, full regression suite, web export, DB tests and Edge Function checks.
-6. Deploy migration + book-catalog function + app together.
+## Images and links
+- Google Books cover URLs are accepted only from Google Books / Google-hosted image domains and normalized to HTTPS.
+- Google Books info links are accepted only from Google Books domains and normalized to HTTPS.
+- OnePick stores the provider cover URL as `image_source_url` when a user imports a selected book.
+
+## Contract
+The deployed Edge Function and the app must agree on:
+- search request: `{ action: 'search', query }`
+- import request: `{ action: 'import', externalId }`
+- result source: `google_books_volume`
+- result identifier: Google Books volume ID, not ISBN
+
+A mismatch here causes valid search results to be filtered out by the client.
+
+## Release checks
+1. Search Korean titles such as `아리랑` and `소년이 온다`.
+2. Search title + author combinations.
+3. Confirm covers render when Google Books provides them.
+4. Confirm anonymous search works and authenticated import works.
+5. Confirm login return preserves Google Books volume IDs.
+6. Run the book catalog regression test and the full app test suite.
