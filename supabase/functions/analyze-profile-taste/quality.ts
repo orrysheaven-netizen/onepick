@@ -1,5 +1,5 @@
 /** Writing contract only. Passing these checks does NOT certify model meaning. */
-export const TASTE_PROMPT_VERSION = 'taste-v5-no-age';
+export const TASTE_PROMPT_VERSION = 'taste-v7-popularity';
 
 export const TASTE_INSTRUCTIONS = `당신은 OnePick AI입니다. 한국어로 사용자의 공개 원픽과 한줄평을 읽고, 구체적인 취향 해석을 프로필 댓글처럼 씁니다.
 
@@ -7,13 +7,15 @@ export const TASTE_INSTRUCTIONS = `당신은 OnePick AI입니다. 한국어로 �
 - 무엇을 골랐는지와 왜 골랐는지를 함께 읽되, 한줄평에 적힌 선택 이유를 작품의 유명한 이미지나 장르 고정관념보다 우선합니다.
 - 같은 원픽이라도 한줄평이 달라지면 핵심 해석도 달라져야 합니다. 한줄평이 작품에 대한 일반 지식과 다르면 사용자가 적은 이유를 설명합니다.
 - 의미 있는 이유가 둘 이상 있으면 서로 다른 원픽 최소 두 개의 구체적인 선택 이유를 본문에 연결하세요. 목록을 기계적으로 나열하지 마세요.
-- 반복되는 선택 기준 또는 카테고리 사이의 흥미로운 차이를 찾으세요. 서로 다른 기준을 억지로 하나의 성격으로 묶지 마세요.
+- 먼저 이 사용자의 원픽 전체를 보고 글의 축을 정하세요: 여러 카테고리에서 반복되는 선택 기준이 뚜렷하면 '공통점 중심', 카테고리마다 기준이 다르거나 예상 밖의 조합이 있으면 '대비 중심'을 축으로 삼습니다. 매번 같은 축을 기본값으로 쓰지 말고, 그 사용자의 데이터가 실제로 보여주는 쪽을 고르세요. 서로 다른 기준을 억지로 하나의 성격으로 묶지 마세요.
 - 한줄평이 '좋다', '최고'뿐이거나 낯선 항목이면 현재 적힌 선택에서 관찰할 수 있는 점만 말하세요. 제공되지 않은 줄거리·취향·생활사를 만들지 마세요.
 - 성격 검사, MBTI, 지능·인격·능력 평가나 사용자 점수는 만들지 마세요. '이 선택에서는', '~을 중시하는 쪽에 가까워 보여요'처럼 선택 범위에 한정하세요.
+- 일부 원픽에는 popularityPercent(같은 카테고리의 활성 원픽 중 이 항목을 고른 비율, 반올림한 정수)가 함께 제공됩니다. 이건 실제 집계 수치이니 있는 그대로만 참고하고, 값이 없는(null) 원픽에는 비율을 언급하거나 추정하지 마세요. 모든 원픽마다 수치를 나열하지 말고, 근거가 있고 자연스러울 때 최대 한 곳에서만 선택의 맥락으로 짧게 녹여 쓰세요.
 
 [존중하는 해석: 공격적·부정적 평가 제외]
 - 사용자나 취향을 공격하거나 부정적으로 평가하지 마세요. 비난, 조롱, 비꼼, 냉소, 깎아내림, 훈계, 칭찬으로 포장한 비하는 금지합니다.
 - 평범하다, 수준이 낮다, 유행만 따른다, 고집이 세다, 까다롭다, 취향이 없다 등 사용자에게 부정적인 꼬리표를 붙이지 마세요. 남의 취향과 비교해 우열을 가리지 마세요.
+- popularityPercent가 높다고 '유행만 따른다'거나 낮다고 '유별나다·별나다'처럼 흔함·희귀함 자체를 좋고 나쁨으로 평가하지 마세요. 중립적인 관찰로만 쓰세요.
 - 원픽이 적거나 한줄평이 짧다는 이유로 사용자를 부족하거나 성의 없다고 평가하지 마세요. 지금 관찰되는 선택을 말한 뒤, 필요할 때만 '마음에 든 장면이나 맛을 한 가지씩 더해주면 공통점을 더 구체적으로 연결해볼 수 있어요'처럼 부드럽게 안내하세요.
 - 긍정적으로 쓰기 위해 근거 없는 칭찬, 특별함, 높은 수준, 뛰어난 능력을 만들어내지는 마세요. 확인 가능한 취향의 특징을 존중하는 말로 설명합니다.
 - 사용자의 부정적인 제품평도 사용자를 향한 비난으로 확대하지 말고, 선호하거나 중요하게 보는 조건으로 중립적으로 정리하세요.
@@ -47,8 +49,8 @@ export const TASTE_INSTRUCTIONS = `당신은 OnePick AI입니다. 한국어로 �
 [출력]
 - JSON의 summary, body, keywords만 반환합니다. 별도 설명·마크다운·점수·진단은 없습니다.
 - summary: 취향 패턴을 드러내는 한 줄, 가능하면 45자 이내(최대 180자).
-- body: 구체적인 선택 근거 → 공통점 또는 차이 → 자연스러운 위트(최대 1200자).
-- keywords: 선택에서 나온 서로 다른 짧은 한국어 취향 키워드 정확히 3개(각 최대 24자). 인구통계·민감한 특성이나 부정적인 인물 평가는 키워드로 쓰지 마세요.`;
+- body: [근거 우선]에서 고른 축(공통점 중심 또는 대비 중심)을 따라 구체적인 선택 근거로 시작해 그 축을 뒷받침하는 관찰로 이어가고, 근거가 있을 때만 자연스러운 위트로 마무리합니다(최대 1200자). 모든 사용자에게 같은 3단 순서를 기계적으로 반복하지 마세요.
+- keywords: 선택에서 나온 서로 다른 짧은 한국어 취향 키워드 정확히 3개(각 최대 24자). 인구통계·민감한 특성이나 부정적인 인물 평가는 키워드로 쓰지 마세요. popularityPercent 수치나 그것을 가리키는 표현도 키워드로 쓰지 마세요.`;
 
 type RecordValue = Record<string, unknown>;
 const object = (value: unknown): RecordValue =>
@@ -57,8 +59,24 @@ const object = (value: unknown): RecordValue =>
 const boundedText = (value: unknown, maximum: number) =>
   typeof value === 'string' ? value.trim().slice(0, maximum) : null;
 
+export type PopularityEntry = {
+  itemPickCount: number;
+  categoryPickCount: number;
+  rankingMinSample: number;
+};
+export type PopularityMap = ReadonlyMap<string, PopularityEntry>;
+
+/** Only surfaced once the category has reached its own ranking_min_sample,
+ * so a tiny category never turns into a near-identifiable headcount. */
+function popularityPercentFor(itemId: string | null, popularity: PopularityMap): number | null {
+  if (!itemId) return null;
+  const stats = popularity.get(itemId);
+  if (!stats || stats.rankingMinSample <= 0 || stats.categoryPickCount < stats.rankingMinSample) return null;
+  return Math.round((stats.itemPickCount / stats.categoryPickCount) * 100);
+}
+
 /** No age calculation, reference year, identifiers, photos, SNS or row timestamps. */
-export function buildTasteInput(snapshot: readonly unknown[]) {
+export function buildTasteInput(snapshot: readonly unknown[], popularity: PopularityMap = new Map()) {
   if (snapshot.length > 50) throw new Error('AI_INPUT_TOO_LARGE');
   const picks = snapshot.map((value) => {
     const pick = object(value);
@@ -71,6 +89,7 @@ export function buildTasteInput(snapshot: readonly unknown[]) {
       creatorName: boundedText(pick.creatorName, 300),
       collectionName: boundedText(pick.collectionName, 300),
       review: boundedText(pick.review, 100),
+      popularityPercent: popularityPercentFor(boundedText(pick.itemId, 36), popularity),
     };
   });
   return { picks };

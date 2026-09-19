@@ -8,7 +8,10 @@ import {
 } from './contract.ts';
 import { inspectRequest, reply } from './request.ts';
 import { logProfileAiServerPerformance, type ProfileAiServerOutcome } from './performance.ts';
-import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
+import {
+  assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION,
+  type PopularityEntry, type PopularityMap,
+} from './quality.ts';
 import { readTasteTone, tasteInstructions, tastePromptVersion } from './tone.ts';
 
 const MODEL = 'gpt-5.6-terra';
@@ -185,6 +188,26 @@ Deno.serve(async (req: Request) => {
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
       return buildSnapshot(data ?? []);
     };
+    // Community-wide, not scoped to this user; safe on the anon-keyed client
+    // since picks_public_active_read already makes every active pick public.
+    const readPopularity = async (rows: ReturnType<typeof buildSnapshot>): Promise<PopularityMap> => {
+      const itemIds = [...new Set(rows.map((row) => row.itemId).filter((id): id is string => !!id))];
+      if (itemIds.length === 0) return new Map();
+      const { data, error } = await publicClient.rpc('profile_ai_pick_popularity', { p_item_ids: itemIds });
+      if (error) throw new Error('AI_POPULARITY_READ_FAILED');
+      const map = new Map<string, PopularityEntry>();
+      for (const value of (data ?? [])) {
+        const row = record(value);
+        const itemId = textOrNull(row.item_id, 36);
+        if (!itemId) continue;
+        map.set(itemId, {
+          itemPickCount: Number(row.item_pick_count) || 0,
+          categoryPickCount: Number(row.category_pick_count) || 0,
+          rankingMinSample: Number(row.ranking_min_sample) || 0,
+        });
+      }
+      return map;
+    };
     // Read the public-profile gate and the initial source version together.
     // The snapshot still follows the initial version read so a second version
     // read can detect changes that committed while the snapshot was being read.
@@ -219,7 +242,6 @@ Deno.serve(async (req: Request) => {
     const { data: actor, error: actorError } = actorResult;
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
 
-    const tasteInput = buildTasteInput(snapshot);
     const sourceFingerprint = await fingerprint(snapshot);
 
     // Same source but a DIFFERENT tone is not a cache hit. Only the latest
@@ -286,6 +308,9 @@ Deno.serve(async (req: Request) => {
       PROFILE_AI_COOLDOWN_SECONDS,
       Math.ceil((COOLDOWN_MS - Math.max(0, Date.now() - reservationGrantedAt!)) / 1000),
     ));
+
+    const popularity = await readPopularity(snapshot);
+    const tasteInput = buildTasteInput(snapshot, popularity);
 
     providerStartedAt = performance.now();
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {
