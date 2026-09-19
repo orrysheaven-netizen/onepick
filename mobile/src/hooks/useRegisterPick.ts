@@ -21,6 +21,14 @@ export function useAttachItemPhoto() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: AttachItemPhotoInput) => registrationService.attachItemPhoto(input),
+    onSuccess: () => invalidatePickData(client),
+  });
+}
+
+export function useRegisterPick() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RegisterPickInput) => registrationService.register(input),
     onSuccess: (result) => {
       invalidatePickData(client);
       if (result.type === 'pick') {
@@ -34,13 +42,5 @@ export function useAttachItemPhoto() {
         });
       }
     },
-  });
-}
-
-export function useRegisterPick() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: (input: RegisterPickInput) => registrationService.register(input),
-    onSuccess: () => invalidatePickData(client),
   });
 }
