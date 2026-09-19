@@ -256,7 +256,7 @@ global.fetch = async () => { throw new Error('Network forbidden in AI account re
     assert.equal(f.subscriptions, 0);
   });
   await test('account switch while visibility response loads discards late result', async () => {
-    const f = fake(); f.onQuery = (query) => { if (query.table === 'system_actors') f.emit('SIGNED_IN', sessionFor(B)); };
+    const f = fake(); f.onQuery = (query) => { if (query.table === 'profile_ai_reviews' && query.values) f.emit('SIGNED_IN', sessionFor(B)); };
     await assert.rejects(f.repository.setVisibility(A, false), expectCode('AUTH_REQUIRED')); assert.equal(f.subscriptions, 0);
   });
   await test('publishing without a displayed version fails before a database request', async () => {

@@ -37,19 +37,18 @@ type VisibilityChange =
   | { isVisible: false; expectedReview?: ProfileAiReviewVersion }
   | { isVisible: true; expectedReview: ProfileAiReviewVersion };
 
-export function useSetProfileAiReviewVisibility(profileId: string, viewerId?: string) {
+export function useSetProfileAiReviewVisibility(profileId: string, _viewerId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    // Variables are captured by the click, not replaced with a newer query result.
     mutationFn: ({ isVisible, expectedReview }: VisibilityChange) =>
       profileAiReviewService.setVisibility(profileId, isVisible, expectedReview),
     retry: false,
-    onSuccess: (review) => {
-      queryClient.setQueryData<ProfileAiReview | null>(
-        queryKeys.profiles.aiReview(profileId, viewerId), review,
-      );
+    // Never put a receipt into the full-comment cache or overwrite a newer read.
+    // A display refetch is read-only and cannot reverse an acknowledged write.
+    onSettled: () => {
+      try {
+        void queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }).catch(() => {});
+      } catch { /* Read failure remains in query state, not the write result. */ }
     },
-    // Refresh on a version conflict, but never automatically publish the new text.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'ai-review', profileId] }),
   });
 }

@@ -12,6 +12,7 @@ import { useProfileAiEligibility } from '@/hooks/useProfileAiEligibility';
 import { useProfileAiStatus } from '@/hooks/useProfileAiStatus';
 import { PROFILE_AI_PICK_GUIDANCE } from '@/lib/profileAiCopy';
 import { canRequestProfileAiGeneration } from '@/lib/profileAiStatus';
+import { profileAiVisibilityErrorMessage } from '@/lib/profileAiVisibility';
 import { MIN_PROFILE_AI_PICKS } from '@/services/profileAiReviewService';
 
 type Props = { profileUserId: string; pickCount: number; isMine: boolean };
@@ -60,6 +61,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
   const visibility = useSetProfileAiReviewVisibility(profileUserId, viewerId);
   const [message, setMessage] = useState('');
   const [preflighting, setPreflighting] = useState(false);
+  const [visibilityNeedsCheck, setVisibilityNeedsCheck] = useState(false);
   const inFlight = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -92,12 +94,11 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
         : connection.data?.configured !== true ? 'AI 연결 준비 중' : normal;
 
   const run = async () => {
-    if (!canGenerate || busy || inFlight.current) return;
+    if (!canGenerate || busy || inFlight.current || visibilityNeedsCheck) return;
     inFlight.current = true;
     setPreflighting(true);
     setMessage('');
     try {
-      // Revalidate on click: cached readiness is not permission to generate.
       const [checked, counted] = await Promise.all([
         connection.refetch({ cancelRefetch: false }),
         eligibility.refetch({ cancelRefetch: false }),
@@ -139,8 +140,7 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
     }
   };
   const changeVisibility = async () => {
-    // An old screen may hide the latest result, but cannot publish unseen text.
-    if (!review || (!review.isVisible && review.isStale) || !isMine || busy || inFlight.current) return;
+    if (!review || (!review.isVisible && review.isStale) || !isMine || busy || inFlight.current || visibilityNeedsCheck || query.isFetching) return;
     inFlight.current = true;
     setMessage('');
     try {
@@ -149,24 +149,51 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
         : { isVisible: true, expectedReview: { id: review.id, generatedAt: review.generatedAt } });
       if (mounted.current) setMessage(saved.isVisible ? 'AI 취향평가를 공개했어요.' : 'AI 취향평가를 공개 프로필에서 숨겼어요.');
     } catch (error) {
-      if (mounted.current) setMessage(error instanceof AppError && error.code === 'AI_REVIEW_STALE'
-        ? errorMessage(error) : '공개 설정을 바꾸지 못했어요.');
+      if (mounted.current) {
+        setMessage(profileAiVisibilityErrorMessage(error));
+        // Recover with a READ, not a second write with a substituted version.
+        setVisibilityNeedsCheck(true);
+      }
     } finally { inFlight.current = false; }
   };
+  const checkVisibility = async () => {
+    if (!isMine || inFlight.current || query.isFetching) return;
+    inFlight.current = true;
+    try {
+      const checked = await query.refetch({ cancelRefetch: false });
+      if (!mounted.current) return;
+      if (checked.isError) {
+        setMessage('현재 공개 상태를 확인하지 못했어요. 저장되지 않았다고 단정할 수 없어요. 다시 확인해주세요.');
+        return;
+      }
+      setVisibilityNeedsCheck(false);
+      setMessage(!checked.data ? '현재 표시할 수 있는 AI 댓글이 없어요.'
+        : checked.data.isVisible ? '현재 AI 댓글은 공개된 상태예요.' : '현재 AI 댓글은 비공개 상태예요.');
+    } catch {
+      if (mounted.current) setMessage('현재 공개 상태를 확인하지 못했어요. 다시 확인해주세요.');
+    } finally { inFlight.current = false; }
+  };
+  const statusCheckButton = isMine && visibilityNeedsCheck ? <Pressable accessibilityRole="button"
+    disabled={query.isFetching} onPress={() => void checkVisibility()}
+    style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+    <Text style={styles.secondaryButtonText}>현재 공개 상태 확인</Text>
+  </Pressable> : null;
 
   if (query.isPending) return <View style={styles.card}>
     <View style={styles.headingRow}><View><Text style={styles.eyebrow}>ONEPICK AI</Text>
       <Text style={styles.title}>AI가 본 나</Text></View>
       <ActivityIndicator accessibilityLabel="AI 취향평가 불러오는 중" /></View>
+    {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
   </View>;
   if (query.isError) {
     if (!isMine) return null;
     return <View style={styles.card}><Text style={styles.eyebrow}>ONEPICK AI</Text>
       <Text style={styles.title}>AI가 본 나</Text>
       <Text accessibilityRole="alert" style={styles.error}>AI 취향평가를 불러오지 못했어요.</Text>
-      <Pressable accessibilityRole="button" onPress={() => void query.refetch()}
+      {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
+      {statusCheckButton ?? <Pressable accessibilityRole="button" onPress={() => void query.refetch()}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-        <Text style={styles.secondaryButtonText}>다시 불러오기</Text></Pressable>
+        <Text style={styles.secondaryButtonText}>다시 불러오기</Text></Pressable>}
     </View>;
   }
   if (!review) {
@@ -184,11 +211,12 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       <Text style={styles.description}>버튼을 누르면 공개된 원픽의 제품·콘텐츠 정보와 한줄평이 OpenAI로 전달되어 취향의 패턴을 해석합니다. 사진과 SNS 정보는 보내지 않아요.</Text>
       <Text style={styles.hint}>결과는 먼저 나에게만 보여요. 확인한 뒤 프로필에 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
-      <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
-        style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" disabled={!canGenerate || busy || visibilityNeedsCheck} onPress={() => void run()}
+        style={({ pressed }) => [styles.primaryButton, (!canGenerate || busy || visibilityNeedsCheck) && styles.disabled, pressed && styles.pressed]}>
         {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
           : <Text style={styles.primaryButtonText}>{generationLabel('AI에게 내 취향 보여주기')}</Text>}
       </Pressable>
+      {statusCheckButton}
       {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
     </View>;
   }
@@ -220,15 +248,16 @@ function ProfileAiReviewContent({ profileUserId, pickCount, isMine, viewerId }: 
       </Pressable> : null}
       <Text style={styles.hint}>다시 평가하면 공개 원픽 정보와 한줄평이 OpenAI로 전달됩니다. 선택이 같으면 기존 결과를 보여줘요. 새로 생성된 평가는 본인 확인 후 다시 공개할 수 있어요.</Text>
       <ConnectionNotice query={connection} />
-      <Pressable accessibilityRole="button" disabled={!canGenerate || busy} onPress={() => void run()}
-        style={({ pressed }) => [styles.primaryButton, styles.actionButton, (!canGenerate || busy) && styles.disabled, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" disabled={!canGenerate || busy || visibilityNeedsCheck} onPress={() => void run()}
+        style={({ pressed }) => [styles.primaryButton, styles.actionButton, (!canGenerate || busy || visibilityNeedsCheck) && styles.disabled, pressed && styles.pressed]}>
         {generate.isPending || preflighting ? <ActivityIndicator accessibilityLabel={preflighting ? 'AI 연결 확인 중' : 'AI 취향평가 생성 중'} color="#FFFFFF" />
           : <Text style={styles.primaryButtonText}>{generationLabel('현재 원픽으로 다시 평가')}</Text>}
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy || (review.isStale && !review.isVisible)} onPress={() => void changeVisibility()}
-        style={({ pressed }) => [styles.secondaryButton, styles.actionButton, (busy || (review.isStale && !review.isVisible)) && styles.disabled, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" disabled={busy || visibilityNeedsCheck || query.isFetching || (review.isStale && !review.isVisible)} onPress={() => void changeVisibility()}
+        style={({ pressed }) => [styles.secondaryButton, styles.actionButton, (busy || visibilityNeedsCheck || query.isFetching || (review.isStale && !review.isVisible)) && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.secondaryButtonText}>{review.isVisible ? '프로필에서 숨기기' : review.isStale ? '재평가 후 공개할 수 있어요' : '프로필에 공개하기'}</Text>
       </Pressable>
+      {statusCheckButton}
     </View> : null}
     {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
   </View>;

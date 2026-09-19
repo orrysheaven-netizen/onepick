@@ -2,10 +2,12 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { requireProfileAiReviewVersion, type ProfileAiReviewVersion } from '@/lib/profileAiPublication';
 import { parseProfileAiReview } from '@/lib/profileAiReviewResponse';
+import { parseProfileAiVisibilityReceipt, ProfileAiVisibilityUnconfirmedError } from '@/lib/profileAiVisibility';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
 
 const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,created_at,updated_at' as const;
+const VISIBILITY_COLUMNS = 'id,profile_id,is_visible,is_stale,generated_at,updated_at' as const;
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at' as const;
 
 async function responseCode(error: unknown) {
@@ -88,18 +90,23 @@ export class SupabaseProfileAiReviewRepository implements ProfileAiReviewReposit
       let write = this.client.from('profile_ai_reviews')
         .update({ is_visible: isVisible }).eq('profile_id', profileId);
       if (expected) {
-        // One conditional UPDATE in PostgreSQL, not SELECT-then-unconditional-UPDATE.
-        // id also catches deletion/recreation; generated_at changes on every save.
+        // One conditional UPDATE; preserve consent to the displayed version.
         write = write.eq('id', expected.id).eq('generated_at', expected.generatedAt).eq('is_stale', false);
       }
       // Hiding intentionally ignores the old version and keeps existing owner RLS.
-      const { data, error } = await write.select(REVIEW_COLUMNS).maybeSingle();
+      const result = await Promise.resolve(write.select(VISIBILITY_COLUMNS).maybeSingle())
+        .catch(() => { throw new ProfileAiVisibilityUnconfirmedError(); });
+      const { data, error } = result;
       if (error?.code === '23514' && error.message.includes('profile_ai_reviews_no_stale_publication')) {
         throw new AppError('AI_REVIEW_STALE');
       }
-      if (error) throw mapSupabaseError(error);
+      if (error?.code === '42501') throw new AppError('FORBIDDEN');
+      // Gateways, timeouts and missing/invalid responses do not prove rollback.
+      if (error) throw new ProfileAiVisibilityUnconfirmedError();
       if (!data) throw new AppError(isVisible ? 'AI_REVIEW_STALE' : 'FORBIDDEN');
-      return parseProfileAiReview(data, await this.actor(data.actor_id), profileId);
+      // The UPDATE response is the receipt. Author/display loading is independent
+      // and must never turn a committed visibility change into a failure.
+      return parseProfileAiVisibilityReceipt(data, profileId, isVisible);
     });
   }
 }
