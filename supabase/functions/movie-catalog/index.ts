@@ -105,7 +105,7 @@ async function searchMovies(query: unknown): Promise<Response> {
     url.searchParams.set('include_adult', 'false');
     url.searchParams.set('page', '1');
     const result = await fetchTmdb(url, client);
-    if ('error' in result) return result.error;
+    if (result.error) return result.error;
     sourceMovies = Array.isArray(result.data.results) ? result.data.results.slice(0, 40) : [];
     await writeCache(client, cacheKey, sourceMovies);
   }
@@ -140,7 +140,7 @@ async function importMovie(externalId: unknown, req: Request): Promise<Response>
   const url = new URL(`https://api.themoviedb.org/3/movie/${id}`);
   url.searchParams.set('language', 'ko-KR');
   const result = await fetchTmdb(url, client);
-  if ('error' in result) return result.error;
+  if (result.error) return result.error;
   const movie = mapTmdbMovie(result.data);
   if (!movie || movie.externalId !== id) return json({ error: 'MOVIE_NOT_FOUND' }, 404);
   const { data: category, error: categoryError } = await client.from('categories').select('id')
