@@ -2,7 +2,7 @@ import { Share } from 'react-native';
 
 import { createPickShareUrl } from './shareLinks';
 
-interface SharePickInput {
+export interface SharePickInput {
   pickId: string;
   username: string;
   categoryName: string;
