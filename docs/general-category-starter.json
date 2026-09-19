@@ -1,0 +1,76 @@
+{
+  "checked_on": "2026-09-19",
+  "items": [
+    {
+      "key": "ice-cream-melona",
+      "category": "ice-cream",
+      "name": "메로나",
+      "creator": "빙그레",
+      "url": "https://www.bing.co.kr/product/list?type=1",
+      "evidence": "https://www.bing.co.kr/company/business"
+    },
+    {
+      "key": "ice-cream-together",
+      "category": "ice-cream",
+      "name": "투게더",
+      "creator": "빙그레",
+      "url": "https://www.bing.co.kr/product/list?type=1",
+      "evidence": "https://www.bing.co.kr/company/business"
+    },
+    {
+      "key": "book-isbn-9788937460449",
+      "category": "book",
+      "name": "데미안 (민음사 세계문학전집 44)",
+      "creator": "헤르만 헤세",
+      "model": "9788937460449",
+      "original": "Demian",
+      "year": 2000,
+      "collection": "민음사 · 전영애 옮김",
+      "url": "https://minumsa.minumsa.com/book/1713/"
+    },
+    {
+      "key": "book-isbn-9788949140865",
+      "category": "book",
+      "name": "어린 왕자 (비룡소 클래식 14)",
+      "creator": "생텍쥐페리",
+      "model": "9788949140865",
+      "original": "Le petit prince",
+      "year": 2005,
+      "collection": "비룡소 · 박성창 옮김",
+      "url": "https://bir.co.kr/book/11741/"
+    },
+    {
+      "key": "pen-monami-153-black-white",
+      "category": "ballpoint-pen",
+      "name": "모나미 153 블랙 & 화이트",
+      "creator": "모나미",
+      "url": "https://www.monami.com/product/product_view_20240612.php?ccode=005&idx=19"
+    },
+    {
+      "key": "pen-monami-153-respect-refine",
+      "category": "ballpoint-pen",
+      "name": "모나미 153 리스펙트 리파인",
+      "creator": "모나미",
+      "original": "153 Respect Refine",
+      "url": "https://www.monami.com/en/m/product/product_view.php?ccode=005001&idx=153"
+    },
+    {
+      "key": "notebook-muji-4550002185053",
+      "category": "notebook",
+      "name": "무인양품 미표백 노트 A5",
+      "creator": "MUJI",
+      "model": "4550002185053",
+      "original": "UNBLEACHED PAPER NOTEBOOK",
+      "url": "https://www.muji.com/sg/products/cmdty/detail/4550002185053"
+    },
+    {
+      "key": "notebook-md-15384006",
+      "category": "notebook",
+      "name": "MD 노트 A5 무지",
+      "creator": "MD PRODUCT",
+      "model": "15384006",
+      "original": "MD Notebook A5 Blank",
+      "url": "https://md-product.com/en/products/md-notebook-a5"
+    }
+  ]
+}
