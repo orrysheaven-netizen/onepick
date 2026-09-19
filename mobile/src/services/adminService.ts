@@ -62,6 +62,28 @@ export class AdminService {
     }
   }
 
+  async getDashboard() {
+    await this.assertAdmin();
+    const [categories, brands, items, pending, aliases] = await Promise.all([
+      this.adminRepository.getCategories(),
+      this.adminRepository.getBrands(),
+      this.adminRepository.getItems(500),
+      this.adminRepository.getPendingItems(),
+      this.adminRepository.getItemAliases(2000),
+    ]);
+
+    const profiles = await this.profileRepository.getByIds(
+      pending.flatMap((item) => item.createdBy ? [item.createdBy] : []),
+    );
+    const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+    const submitters = pending.map((item) => ({
+      item,
+      submitter: item.createdBy ? profilesById.get(item.createdBy) ?? null : null,
+    }));
+
+    return { categories, brands, items, aliases, pending: submitters };
+  }
+
   async createCategory(input: AdminCategoryInput) {
     await this.assertAdmin();
     const name = cleanName(input.name, 60);

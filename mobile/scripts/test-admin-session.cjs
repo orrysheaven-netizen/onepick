@@ -54,8 +54,11 @@ function load(supabase, fetchFn, browser = {}) {
     location: browser.location,
     history: browser.history,
     require: (name) => {
-      assert.equal(name, '@/lib/supabase/client', 'Unexpected runtime dependency: ' + name);
-      return { supabase };
+      if (name === '@/lib/supabase/client') return { supabase };
+      // Pure, dependency-free formatting helper (no session/storage of its own) -- admin-api.ts's
+      // manual item creation uses it, so it is allowed alongside the shared-session guard above.
+      if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (value) => value };
+      assert.fail('Unexpected runtime dependency: ' + name);
     },
   };
   vm.runInNewContext(outputText, context);
