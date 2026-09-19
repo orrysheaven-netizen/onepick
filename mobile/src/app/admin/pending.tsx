@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles } from '@/components/admin/admin-shell';
+import { adminStyles, confirmAction } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminItem, PendingItem } from '@/lib/admin-api';
 
@@ -19,10 +19,17 @@ export default function AdminPendingScreen() {
   const [mergeCandidates, setMergeCandidates] = useState<AdminItem[]>([]);
   const [mergeSearching, setMergeSearching] = useState(false);
   const [mergingId, setMergingId] = useState<string | null>(null);
+  // Bumped on every change to `items` that isn't a loadMore append (a fresh load, or an
+  // approve/reject/merge removing the selected row). loadMore's offset is `items.length`
+  // captured at call time; if the list changes for any other reason while that request is
+  // still in flight, the offset no longer lines up with the current list, so the page is
+  // discarded instead of being appended -- the next "더 보기" tap retries with a fresh offset.
+  const listVersion = useRef(0);
 
   const load = async () => {
     setLoading(true);
     setError('');
+    listVersion.current += 1;
     try {
       const result = await getPendingItems();
       setItems(result);
@@ -39,8 +46,10 @@ export default function AdminPendingScreen() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     setError('');
+    const versionAtRequest = listVersion.current;
     try {
       const result = await getPendingItems(items.length);
+      if (listVersion.current !== versionAtRequest) return;
       setItems((current) => [...current, ...result]);
       setHasMore(result.length === ADMIN_PAGE_SIZE);
     } catch (caught) {
@@ -71,13 +80,14 @@ export default function AdminPendingScreen() {
     if (!selected) return;
     const remaining = items.filter((item) => item.id !== selected.id);
     setItems(remaining);
+    listVersion.current += 1;
     setSelectedId(remaining[0]?.id ?? null);
     setMessage(`${name} ${resultMessage}`);
   };
 
   const process = async (status: 'active' | 'rejected') => {
     if (!selected || processing) return;
-    if (status === 'rejected' && !window.confirm(`${selected.name} 상품을 반려하시겠습니까?`)) return;
+    if (status === 'rejected' && !(await confirmAction(`${selected.name} 상품을 반려하시겠습니까?`))) return;
     setProcessing(true);
     setError('');
     setMessage('');
@@ -107,7 +117,7 @@ export default function AdminPendingScreen() {
 
   const mergeInto = async (target: AdminItem) => {
     if (!selected || mergingId) return;
-    if (!window.confirm(`${selected.name} 상품을 ${target.name}에 병합하시겠습니까? 병합은 되돌릴 수 없습니다.`)) return;
+    if (!(await confirmAction(`${selected.name} 상품을 ${target.name}에 병합하시겠습니까? 병합은 되돌릴 수 없습니다.`))) return;
     setMergingId(target.id);
     setError('');
     setMessage('');

@@ -5,6 +5,7 @@ import { adminStyles } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
 import { selectableCategories } from '@/lib/categories/categoryTree';
+import { canonicalItemName, normalizeItemName, similarItems } from '@/lib/items/itemIdentity';
 import type { Category } from '@/types/domain/category';
 
 function toDomainCategory(category: AdminCategory): Category {
@@ -187,6 +188,7 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
   const [brandId, setBrandId] = useState<string | null>(null);
   const [officialUrl, setOfficialUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [similar, setSimilar] = useState<AdminItem[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -204,6 +206,40 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
   const eligible = selectableCategories(categories.map(toDomainCategory));
   const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
   const ready = Boolean(name.trim() && selectedCategory);
+
+  // Best-effort duplicate warning: looks only at the currently selected category's items, so it
+  // cannot see a match if the admin picks the category after already having a matching draft
+  // name -- this effect re-runs on every categoryId change too, so that case is still covered.
+  useEffect(() => {
+    if (!selectedCategory || !name.trim()) {
+      setSimilar([]);
+      return;
+    }
+    let active = true;
+    const draftName = canonicalItemName(name.trim(), selectedCategory.slug);
+    const timer = setTimeout(() => {
+      getItems({ categoryId: selectedCategory.id })
+        .then((candidates) => {
+          if (!active) return;
+          const request = {
+            id: '',
+            categoryId: selectedCategory.id,
+            name: draftName,
+            normalizedName: normalizeItemName(draftName),
+            status: 'pending',
+          };
+          setSimilar(similarItems(request, candidates.map((item) => ({
+            id: item.id,
+            categoryId: item.category_id,
+            name: item.name,
+            normalizedName: item.normalized_name,
+            status: item.status,
+          }))).map((match) => candidates.find((item) => item.id === match.id)!));
+        })
+        .catch(() => { if (active) setSimilar([]); });
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [name, selectedCategory]);
 
   const submit = async () => {
     if (!selectedCategory || saving) return;
@@ -233,6 +269,16 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
           <Text style={adminStyles.label}>상품명</Text>
           <TextInput accessibilityLabel="새 상품명" value={name} onChangeText={setName} maxLength={100} placeholder="예: 진라면 매운맛" style={adminStyles.input} />
         </View>
+
+        {similar.length > 0 && (
+          <View style={styles.similarBox}>
+            <Text style={styles.similarTitle}>비슷한 상품이 이미 있어요</Text>
+            {similar.map((item) => (
+              <Text key={item.id} style={styles.similarItem}>· {item.name} ({statusLabel(item.status)})</Text>
+            ))}
+            <Text style={styles.similarHint}>중복이면 등록을 취소하고 위 상품을 사용해 주세요.</Text>
+          </View>
+        )}
 
         <View>
           <Text style={adminStyles.label}>카테고리</Text>
@@ -547,6 +593,10 @@ const styles = StyleSheet.create({
   statusChoiceText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
   statusChoiceTextActive: { color: '#FFFFFF' },
   note: { marginTop: 8, color: '#8A5A16', fontSize: 11, lineHeight: 17 },
+  similarBox: { gap: 4, padding: 12, borderRadius: 8, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' },
+  similarTitle: { color: '#92400E', fontSize: 12, fontWeight: '700' },
+  similarItem: { color: '#8A5A16', fontSize: 12 },
+  similarHint: { marginTop: 4, color: '#92400E', fontSize: 11, lineHeight: 16 },
   aliasSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
   aliasHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   aliasComposer: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

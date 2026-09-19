@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles } from '@/components/admin/admin-shell';
+import { adminStyles, confirmAction } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getReports, updateReportStatus } from '@/lib/admin-api';
 import { getUserModeration, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { AdminReport, AdminReportStatus } from '@/lib/admin-api';
@@ -107,7 +107,7 @@ export default function AdminReportsScreen() {
       setError('정지 사유를 입력해 주세요.');
       return;
     }
-    if (suspended && !window.confirm('신고 대상 사용자를 정지하시겠습니까?')) return;
+    if (suspended && !(await confirmAction('신고 대상 사용자를 정지하시겠습니까?'))) return;
     setProcessing(true);
     setError('');
     setMessage('');

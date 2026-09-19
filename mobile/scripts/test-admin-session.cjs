@@ -55,9 +55,14 @@ function load(supabase, fetchFn, browser = {}) {
     history: browser.history,
     require: (name) => {
       if (name === '@/lib/supabase/client') return { supabase };
-      // Pure, dependency-free formatting helper (no session/storage of its own) -- admin-api.ts's
-      // manual item creation uses it, so it is allowed alongside the shared-session guard above.
-      if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (value) => value };
+      // Pure, dependency-free formatting helpers (no session/storage of their own) -- admin-api.ts's
+      // manual item creation uses them, so they are allowed alongside the shared-session guard above.
+      if (name === '@/lib/items/itemIdentity') {
+        return {
+          canonicalItemName: (value) => value,
+          normalizeItemName: (value) => value.toLowerCase().replace(/\s+/g, ''),
+        };
+      }
       // The single shared access-token helper admin-api.ts and admin-moderation-api.ts both use.
       // Mirrors the real implementation exactly, against this same mocked `supabase` client, so
       // the assertions below still exercise real getSession()/error behavior, not a stub.

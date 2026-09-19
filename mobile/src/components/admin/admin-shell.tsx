@@ -1,7 +1,21 @@
 import { Link, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// window.confirm only exists on web. Admin screens are currently web-only (see
+// admin/_layout.tsx), but every destructive action here goes through this
+// instead of calling window.confirm directly, so that gate is not the only
+// thing standing between these screens and a crash on native.
+export function confirmAction(message: string): Promise<boolean> {
+  if (Platform.OS === 'web') return Promise.resolve(window.confirm(message));
+  return new Promise((resolve) => {
+    Alert.alert('확인', message, [
+      { text: '취소', style: 'cancel', onPress: () => resolve(false) },
+      { text: '확인', style: 'destructive', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) });
+  });
+}
 
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: '대시보드' },

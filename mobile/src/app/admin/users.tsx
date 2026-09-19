@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { adminStyles } from '@/components/admin/admin-shell';
+import { adminStyles, confirmAction } from '@/components/admin/admin-shell';
 import { getModeratedUsers, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { ModeratedAdminUser } from '@/lib/admin-moderation-api';
 
@@ -66,7 +66,7 @@ export default function AdminUsersScreen() {
       setError('정지 사유를 입력해 주세요.');
       return;
     }
-    if (suspended && !window.confirm(`@${selected.username} 계정을 정지하시겠습니까?`)) return;
+    if (suspended && !(await confirmAction(`@${selected.username} 계정을 정지하시겠습니까?`))) return;
     setProcessing(true);
     setError('');
     setMessage('');

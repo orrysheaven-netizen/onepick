@@ -3,6 +3,10 @@ import type { Item } from '@/types/domain/item';
 // These categories have packaging normalization rules, not exclusive registration permission.
 const PACKAGING_NORMALIZED_SLUGS = ['ramen', 'beer', 'soju', 'snacks'] as const;
 
+export function normalizeItemName(value: string) {
+  return value.toLowerCase().replace(/\s+/g, '');
+}
+
 export function canonicalItemName(value: string, slug: string) {
   let name = value.trim().replace(/\s+/g, ' ');
   if (!PACKAGING_NORMALIZED_SLUGS.includes(slug as typeof PACKAGING_NORMALIZED_SLUGS[number])) return name;
@@ -12,8 +16,13 @@ export function canonicalItemName(value: string, slug: string) {
   return name.trim().replace(/\s+/g, ' ');
 }
 
-export function similarItems(request: Item, items: Item[]) {
-  const score = (item: Item) => item.normalizedName === request.normalizedName ? 0
+type SimilarItemCandidate = { id: string; categoryId: string; name: string; normalizedName: string; status: string };
+
+// Generic over T (rather than fixed to the domain Item type) so callers that only have a
+// lighter shape -- e.g. AdminItem from the admin REST client -- can reuse the same ranking
+// instead of re-deriving it or fabricating a full Item just to call this function.
+export function similarItems<T extends SimilarItemCandidate>(request: T, items: T[]): T[] {
+  const score = (item: T) => item.normalizedName === request.normalizedName ? 0
     : item.normalizedName.includes(request.normalizedName) || request.normalizedName.includes(item.normalizedName) ? 1 : 2;
   return items.filter((item) => item.id !== request.id && item.categoryId === request.categoryId && ['active', 'discontinued'].includes(item.status))
     .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name)).slice(0, 3);

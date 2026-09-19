@@ -100,7 +100,7 @@ export default function AdminAuditScreen() {
             <Text style={styles.errorCount}>{item.count}건</Text>
           </View>
         ))}
-        {errorEvents.slice(0, 20).map((event) => (
+        {errorEvents.map((event) => (
           <View key={event.id} style={styles.logRow}>
             <View style={styles.logBody}>
               <Text style={styles.logTitle}>{event.error_code}</Text>

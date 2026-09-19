@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
-import { canonicalItemName } from '@/lib/items/itemIdentity';
+import { canonicalItemName, normalizeItemName } from '@/lib/items/itemIdentity';
 import { getAdminAccessToken } from '@/lib/admin/adminSession';
 
 type BrowserLocationLike = {
@@ -57,6 +57,7 @@ export type AdminItem = {
   id: string;
   category_id: string;
   name: string;
+  normalized_name: string;
   model_code: string | null;
   official_url: string | null;
   status: AdminItemStatus;
@@ -299,7 +300,7 @@ export function createBrand(input: { name: string; slug?: string | null }) {
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
       name,
-      normalized_name: name.toLowerCase().replace(/\s+/g, ''),
+      normalized_name: normalizeItemName(name),
       slug: input.slug?.trim().toLowerCase() || null,
       is_active: true,
     }),
@@ -316,9 +317,9 @@ export function updateBrand(id: string, patch: { is_active?: boolean }) {
 
 export const ADMIN_PAGE_SIZE = 100;
 
-export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
+export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; categoryId?: string; offset?: number } = {}) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    select: 'id,category_id,name,normalized_name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
     order: 'updated_at.desc',
     limit: String(ADMIN_PAGE_SIZE),
     offset: String(input.offset ?? 0),
@@ -326,6 +327,7 @@ export function getItems(input: { query?: string; status?: AdminItemStatus | 'al
   const query = input.query?.trim();
   if (query) params.set('name', `ilike.*${query}*`);
   if (input.status && input.status !== 'all') params.set('status', `eq.${input.status}`);
+  if (input.categoryId) params.set('category_id', `eq.${input.categoryId}`);
   return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
 }
 
@@ -338,7 +340,7 @@ export function createItem(input: { categoryId: string; categorySlug: string; na
       category_id: input.categoryId,
       brand_id: input.brandId ?? null,
       name,
-      normalized_name: name.toLowerCase().replace(/\s+/g, ''),
+      normalized_name: normalizeItemName(name),
       official_url: input.officialUrl?.trim() || null,
       status: 'active',
     }),

@@ -2,7 +2,7 @@ import { AppError } from '@/errors/appError';
 import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import type { ItemStatus } from '@/types/domain/item';
-import { canonicalItemName } from '@/lib/items/itemIdentity';
+import { canonicalItemName, normalizeItemName } from '@/lib/items/itemIdentity';
 import type {
   AdminBrandInput,
   AdminCategoryInput,
@@ -18,10 +18,6 @@ function cleanName(value: string, max = 100) {
   const name = value.trim().replace(/\s+/g, ' ');
   if (!name || name.length > max) throw new AppError('ITEM_NAME_INVALID');
   return name;
-}
-
-function normalizeItemName(value: string) {
-  return value.toLowerCase().replace(/\s+/g, '');
 }
 
 function cleanAlias(value: string) {
