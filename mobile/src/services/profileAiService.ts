@@ -56,7 +56,7 @@ function stringValue(value: unknown) {
 
 class ProfileAiService {
   async getStatus(): Promise<ProfileAiStatus> {
-    const { data, error } = await supabase.rpc('profile_ai_status');
+    const { data, error } = await supabase.functions.invoke('profile-ai-status', { body: {} });
     if (error) throw error;
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('AI_STATUS_INVALID');
     const value = data as Record<string, unknown>;
