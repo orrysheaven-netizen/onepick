@@ -44,3 +44,5 @@ jobs:
           deno check --config supabase/functions/import-item-image/deno.json supabase/functions/import-item-image/index.ts
           deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts
           deno check --config supabase/functions/movie-catalog/deno.json supabase/functions/movie-catalog/index.ts
+          deno check --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/index.ts
+          deno check --config supabase/functions/profile-ai-status/deno.json supabase/functions/profile-ai-status/index.ts
