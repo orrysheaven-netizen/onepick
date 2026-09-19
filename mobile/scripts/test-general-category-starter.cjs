@@ -6,6 +6,10 @@ const root=path.resolve(__dirname,'../..');
 const manifest=JSON.parse(readFileSync(path.join(root,'docs/general-category-starter.json'),'utf8'));
 const sql=readFileSync(path.join(root,'supabase/operations/seed-general-categories.sql'),'utf8');
 const payload=JSON.parse(sql.split('$catalog$')[1]);
+const databaseTest=readFileSync(path.join(root,'supabase/tests/general_category_starter.sql'),'utf8');
+assert.equal(databaseTest.split('$inline_starter_operation$')[1].trim(),sql.trim(),
+  'The self-contained SQL regression must execute the exact operator statement');
+assert.ok(!databaseTest.includes('\\ir '),'No sibling-file dependency in pg_prove');
 assert.equal(manifest.checked_on,'2026-09-19');
 assert.deepEqual(payload,manifest.items.map(({evidence,...item})=>item));
 assert.equal(payload.length,8);
