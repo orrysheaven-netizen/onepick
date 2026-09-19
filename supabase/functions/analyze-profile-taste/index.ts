@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { inspectRequest, reply } from './request.ts';
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = 'taste-v3';
@@ -6,15 +7,6 @@ const MIN_PICKS = 3;
 const COOLDOWN_MS = 10 * 60 * 1000;
 const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,created_at,updated_at';
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at';
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization,x-client-info,apikey,content-type',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS',
-  'Content-Type': 'application/json',
-  'Cache-Control': 'no-store',
-};
-const reply = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers });
 
 function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -79,16 +71,17 @@ function cleanResult(value: unknown) {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-  if (req.method !== 'POST') return reply({ error: 'METHOD_NOT_ALLOWED' }, 405);
-  const authorization = req.headers.get('Authorization');
-  if (!authorization?.startsWith('Bearer ')) return reply({ error: 'AUTH_REQUIRED' }, 401);
+  // Only GET /status and OPTIONS are public. Every generation request below
+  // requires Auth.getUser validation; an apikey/bearer-shaped string is not a user.
+  const request = inspectRequest(req, (name) => Deno.env.get(name));
+  if (request instanceof Response) return request;
+  const { authorization } = request;
 
   try {
     const url = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const openAiKey = Deno.env.get('OPENAI_API_KEY');
+    const openAiKey = Deno.env.get('OPENAI_API_KEY')?.trim();
     if (!url || !anonKey) return reply({ error: 'AI_REVIEW_FAILED' }, 500);
     const options = { auth: { persistSession: false, autoRefreshToken: false } };
     const userClient = createClient(url, anonKey, {

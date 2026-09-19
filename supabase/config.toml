@@ -44,3 +44,9 @@ verify_jwt = false
 [functions.pokemon-catalog]
 # Public species search; selected-species import verifies a real user JWT internally.
 verify_jwt = false
+
+[functions.analyze-profile-taste]
+# GET /status exposes only liveness/configuration presence; OPTIONS handles CORS.
+# EVERY generation POST validates the user JWT through auth.getUser in index.ts.
+# No generation route accepts an API key alone or trusts a caller-supplied user ID.
+verify_jwt = false

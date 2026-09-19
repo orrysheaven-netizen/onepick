@@ -1,0 +1,41 @@
+name: AI function smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/functions/analyze-profile-taste/**'
+      - 'supabase/config.toml'
+      - 'scripts/check-ai-function.mjs'
+      - '.github/workflows/ai-function-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-function-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-ai-endpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test public status and request gate
+        run: deno test --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/request.test.ts
+      - name: Probe deployed endpoint without user credentials
+        run: node scripts/check-ai-function.mjs
+      - name: Retain non-sensitive smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-function-smoke
+          path: ai-function-smoke.json
+          if-no-files-found: ignore
+          retention-days: 7
