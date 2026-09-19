@@ -58,6 +58,18 @@ function load(supabase, fetchFn, browser = {}) {
       // Pure, dependency-free formatting helper (no session/storage of its own) -- admin-api.ts's
       // manual item creation uses it, so it is allowed alongside the shared-session guard above.
       if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (value) => value };
+      // The single shared access-token helper admin-api.ts and admin-moderation-api.ts both use.
+      // Mirrors the real implementation exactly, against this same mocked `supabase` client, so
+      // the assertions below still exercise real getSession()/error behavior, not a stub.
+      if (name === '@/lib/admin/adminSession') {
+        return {
+          getAdminAccessToken: async () => {
+            const { data, error } = await supabase.auth.getSession();
+            if (error || !data.session) throw new Error('관리자 로그인이 필요합니다.');
+            return data.session.access_token;
+          },
+        };
+      }
       assert.fail('Unexpected runtime dependency: ' + name);
     },
   };
@@ -150,6 +162,37 @@ async function main() {
     token = 'token-b, refreshed';
     await mergePendingItem('source2', 'target2');
     assert.equal(calls[1].init.headers.Authorization, 'Bearer token-b, refreshed', 'A refreshed shared-client token must be picked up without any admin-api-local refresh logic');
+  }
+
+  // --- createBrand/createItem reject empty or overlong names locally, before any request ---
+  {
+    const supabase = createSupabase({ isAdmin: true });
+    const { fetch: fetchFn, calls } = createFetch(() => assert.fail('an invalid name must never reach the network'));
+    const { createBrand, createItem } = load(supabase, fetchFn);
+
+    // createBrand/createItem validate synchronously (before returning any promise), so the
+    // check must itself be async -- assert.rejects only applies its error/regex match when the
+    // function it calls returns a promise, not when it throws before ever returning one.
+    await assert.rejects(async () => createBrand({ name: '   ' }), /1자 이상/, 'A blank brand name must be rejected');
+    await assert.rejects(async () => createBrand({ name: '가'.repeat(81) }), /80자 이하/, 'A brand name over 80 chars must be rejected');
+    await assert.rejects(
+      async () => createItem({ categoryId: 'c1', categorySlug: 'ramen', name: '가'.repeat(101) }),
+      /100자 이하/,
+      'An item name over 100 chars must be rejected',
+    );
+    assert.equal(calls.length, 0, 'No request should have been sent for any rejected name');
+  }
+
+  // --- createBrand collapses internal whitespace into the stored name and its derived normalized_name ---
+  {
+    const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' }, isAdmin: true });
+    const { fetch: fetchFn, calls } = createFetch(() => ({ status: 200, body: [{ id: 'b1' }] }));
+    const { createBrand } = load(supabase, fetchFn);
+
+    await createBrand({ name: '  농심   라면  ' });
+    const body = JSON.parse(calls[0].init.body);
+    assert.equal(body.name, '농심 라면', 'Internal whitespace runs must collapse to a single space');
+    assert.equal(body.normalized_name, '농심라면');
   }
 
   // --- After sign-out, admin requests fail locally without ever reaching the network ---

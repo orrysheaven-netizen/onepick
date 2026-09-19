@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { canonicalItemName } from '@/lib/items/itemIdentity';
+import { getAdminAccessToken } from '@/lib/admin/adminSession';
 
 type BrowserLocationLike = {
   origin: string;
@@ -173,15 +174,9 @@ async function completeAdminOAuthRedirect() {
   if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
 }
 
-async function accessToken() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) throw new Error('관리자 로그인이 필요합니다.');
-  return data.session.access_token;
-}
-
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const current = config();
-  const token = await accessToken();
+  const token = await getAdminAccessToken();
   const response = await fetch(`${current.supabaseUrl}${path}`, {
     ...init,
     headers: {
@@ -291,8 +286,14 @@ export function getBrands() {
   return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at&order=name.asc');
 }
 
+function cleanName(value: string, max: number) {
+  const name = value.trim().replace(/\s+/g, ' ');
+  if (!name || name.length > max) throw new Error(`이름을 1자 이상 ${max}자 이하로 입력해 주세요.`);
+  return name;
+}
+
 export function createBrand(input: { name: string; slug?: string | null }) {
-  const name = input.name.trim();
+  const name = cleanName(input.name, 80);
   return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
@@ -329,7 +330,7 @@ export function getItems(input: { query?: string; status?: AdminItemStatus | 'al
 }
 
 export function createItem(input: { categoryId: string; categorySlug: string; name: string; brandId?: string | null; officialUrl?: string | null }) {
-  const name = canonicalItemName(input.name.trim(), input.categorySlug);
+  const name = canonicalItemName(cleanName(input.name, 100), input.categorySlug);
   return adminRequest<AdminItem[]>('/rest/v1/items?select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client';
+import { getAdminAccessToken } from '@/lib/admin/adminSession';
 
 export type UserModerationStatus = 'active' | 'suspended';
 
@@ -32,20 +32,14 @@ function config() {
   return { supabaseUrl, publishableKey };
 }
 
-// Reuses the shared `supabase` client's session (see admin-api.ts), the same
-// session admin-security.tsx steps up to AAL2. This used to keep its own OAuth
-// tokens in a separate localStorage key that nothing ever populated, so every
-// call here failed immediately with "로그인이 필요합니다." regardless of the
-// admin's real session state.
-async function accessToken() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) throw new Error('관리자 로그인이 필요합니다.');
-  return data.session.access_token;
-}
-
 async function adminRpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const current = config();
-  const token = await accessToken();
+  // getAdminAccessToken() reads the shared `supabase` client's session (see
+  // lib/admin/adminSession.ts), the same session admin-security.tsx steps up
+  // to AAL2. This used to keep its own OAuth tokens in a separate localStorage
+  // key that nothing ever populated, so every call here failed immediately
+  // with "로그인이 필요합니다." regardless of the admin's real session state.
+  const token = await getAdminAccessToken();
   const response = await fetch(`${current.supabaseUrl}/rest/v1/rpc/${name}`, {
     method: 'POST',
     headers: {
