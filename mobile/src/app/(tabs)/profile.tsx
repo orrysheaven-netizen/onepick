@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
@@ -267,6 +268,8 @@ export default function ProfileScreen() {
           <View style={styles.summaryDivider} />
           <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
         </View>
+
+        <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
 
         <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
           <View style={styles.actionCopy}>
