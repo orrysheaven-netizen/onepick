@@ -43,11 +43,8 @@ function getExternalMusicId(value: string | string[] | undefined) {
 }
 function getExternalBookId(value: string | string[] | undefined) {
   if (typeof value !== 'string') return null;
-  const isbn = value.replace(/[-\s]/g, '');
-  if (!/^(?:978|979)\d{10}$/.test(isbn)) return null;
-  const sum = isbn.slice(0, 12).split('').reduce((total, digit, index) =>
-    total + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
-  return (10 - (sum % 10)) % 10 === Number(isbn[12]) ? isbn : null;
+  const externalId = value.trim();
+  return /^[A-Za-z0-9_-]{1,100}$/.test(externalId) ? externalId : null;
 }
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
