@@ -26,11 +26,11 @@ type Selection = { externalId: string; replace: boolean } & (
 
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ');
-const validIsbn13 = (value: string) => /^(?:978|979)\d{10}$/.test(value);
+const validExternalBookId = (value: string) => /^[A-Za-z0-9_-]{1,100}$/.test(value);
 
 function bookErrorMessage(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'CATALOG_NOT_CONFIGURED') return '책 DB 인증키가 아직 연결되지 않았어요. 기존 OnePick 책 검색은 계속 사용할 수 있어요.';
+    if (error.code === 'CATALOG_NOT_CONFIGURED') return '외부 책 DB 연결을 확인하지 못했어요. 기존 OnePick 책 검색은 계속 사용할 수 있어요.';
     if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인한 뒤 선택한 책을 이어가주세요.';
     if (error.code === 'ITEM_NOT_FOUND' || error.code === 'ITEM_NOT_ELIGIBLE') return '지금은 이 책을 선택할 수 없어요. 다른 판본을 찾아주세요.';
     if (error.code === 'CATEGORY_NOT_FOUND' || error.code === 'ITEM_CATEGORY_MISMATCH') return '책 카테고리 정보를 확인하지 못했어요.';
@@ -102,7 +102,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   };
 
   const loginForBook = (externalBookId: string) => {
-    if (!canAct() || !category || !validIsbn13(externalBookId)) return;
+    if (!canAct() || !category || !validExternalBookId(externalBookId)) return;
     navigating.current = true;
     router.push({ pathname: '/auth/login', params: { action: 'choose_book', externalBookId, categoryId: category.id } });
   };
@@ -113,7 +113,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   };
 
   const loadBook = async (externalId: string, replace = false) => {
-    if (!canAct() || !category || !validIsbn13(externalId)) return;
+    if (!canAct() || !category || !validExternalBookId(externalId)) return;
     if (!user) { loginForBook(externalId); return; }
     busy.current = true;
     const token = ++generation.current;
@@ -142,8 +142,8 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
     void loadBook(entry.externalId);
   };
 
-  const externalId = scalar(params.externalBookId)?.replace(/[-\s]/g, '');
-  const validReturn = Boolean(externalId && validIsbn13(externalId));
+  const externalId = scalar(params.externalBookId)?.trim();
+  const validReturn = Boolean(externalId && validExternalBookId(externalId));
   useEffect(() => {
     if (!authReady || !user || !category || !validReturn || !externalId
       || attemptedReturn.current === externalId || !canAct()) return;
@@ -173,7 +173,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <Text style={styles.kicker}>YOUR BOOK ONE PICK</Text>
       <Text style={styles.title}>나의 책 원픽 찾기</Text>
       <Text style={styles.subtitle}>책 제목과 저자명으로 찾고, 내가 좋아하는 판본 한 권을 골라보세요.</Text>
-      <Text style={styles.notice}>ISBN이 다른 개정판·번역판·전자책은 별도 판본으로 구분해요. 표지는 권리 확인 전까지 자동으로 가져오지 않습니다.</Text>
+      <Text style={styles.notice}>Google Books의 도서 항목을 기준으로 검색하며, 같은 제목도 판본에 따라 별도 결과로 표시될 수 있어요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요</Text>
@@ -194,7 +194,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         placeholder="예: 한강" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
       {cleanTitle.length === 1 && cleanAuthor.length < 2 ? <Text style={styles.stateText}>한 글자 제목은 저자명을 함께 입력해주세요.</Text> : null}
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 책과 국립중앙도서관 서지정보를 함께 찾고 있어요</Text></View> : null}
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 책과 Google Books 도서정보를 함께 찾고 있어요</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 책 검색을 불러오지 못했어요</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
@@ -237,13 +237,14 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         key={entry.externalId} accessibilityRole="button" accessibilityLabel={`${entry.title} ${entry.authorName ?? ''} 책 선택`}
         accessibilityState={{ disabled: importing }} disabled={importing} onPress={() => chooseBook(entry)}
         style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
-        <PickPhoto uri={null} label={`${entry.title} 표지 미등록`} />
+        <PickPhoto uri={entry.coverUrl} label={`${entry.title} 표지`} />
         <View style={styles.itemCopy}>
-          <Text style={styles.itemCategory}>콘텐츠 › 책 · 국립중앙도서관</Text>
+          <Text style={styles.itemCategory}>콘텐츠 › 책 · Google Books</Text>
           <Text style={styles.itemName}>{entry.title}</Text>
+          {entry.subtitle ? <Text style={styles.meta}>{entry.subtitle}</Text> : null}
           <Text style={styles.author}>{entry.authorName ?? '저자 정보 없음'}</Text>
-          <Text style={styles.meta}>{[entry.publisherName, entry.publishYear, entry.editionStatement, entry.isEbook === true ? '전자책' : entry.isEbook === false ? '인쇄책' : entry.formatName].filter(Boolean).join(' · ') || '판본 정보 없음'}</Text>
-          <Text style={styles.isbn}>ISBN {entry.externalId}</Text>
+          <Text style={styles.meta}>{[entry.publisherName, entry.releaseYear, entry.language?.toUpperCase()].filter(Boolean).join(' · ') || '출판 정보 없음'}</Text>
+          {entry.isbn ? <Text style={styles.isbn}>ISBN {entry.isbn}</Text> : null}
           <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '책 정보를 준비하고 있어요…' : '이 책을 원픽으로 선택 ›'}</Text>
         </View>
       </Pressable>)}
@@ -251,7 +252,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요</Text>
         <Text style={styles.stateText}>제목 철자나 저자명을 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>서지정보: 국립중앙도서관 ISBN 서지정보 Open API · 표지는 권리 확인 전까지 OnePick에서 자동 사용하지 않습니다.</Text>
+      <Text style={styles.attribution}>도서정보·표지: Google Books · OnePick에는 사용자가 선택한 도서만 등록합니다.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
