@@ -1,6 +1,6 @@
 import type { Brand } from '@/types/domain/brand';
 import type { Category, CategoryStatus } from '@/types/domain/category';
-import type { AdminAuditLog, AdminOperationsMetrics, ClientErrorEvent } from '@/types/domain/operations';
+import type { AdminAuditLog, AdminOperationsSnapshot, ClientErrorEvent } from '@/types/domain/operations';
 import type { Item, ItemStatus } from '@/types/domain/item';
 import type { ItemAlias } from '@/types/domain/itemAlias';
 
@@ -39,7 +39,7 @@ export interface AdminRepository {
   getHomeMinimumPickCount(): Promise<number>;
   setHomeMinimumPickCount(count: number): Promise<number>;
   isAdmin(): Promise<boolean>;
-  getOperationsMetrics(): Promise<AdminOperationsMetrics>;
+  getOperationsSnapshot(days?: number): Promise<AdminOperationsSnapshot>;
   getAuditLogs(limit?: number): Promise<AdminAuditLog[]>;
   getClientErrorEvents(limit?: number): Promise<ClientErrorEvent[]>;
   getCategories(): Promise<Category[]>;
