@@ -13,10 +13,12 @@ function progressCopy(status: ProfileAiStatus) {
     if (status.currentPickCount < status.minimumPicks) {
       return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
     }
-    if (status.currentPickCount < status.recommendedPicks) {
-      return `${status.currentPickCount}/${status.recommendedPicks} · 지금 평가할 수 있어요. 더 고르면 해석이 더 풍부해져요.`;
+    if (status.currentPickCount >= status.minimumPicks) {
+      const extra = status.currentPickCount > status.minimumPicks
+        ? ` 현재 원픽 ${status.currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
+        : ' 10개까지 채우면 해석이 더 풍부해져요.';
+      return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${extra}`;
     }
-    return `${status.currentPickCount}개 · AI 평가를 시작할 수 있어요.`;
   }
   if (status.reviewPickCount < status.recommendedPicks) {
     if (status.currentPickCount < status.recommendedPicks) {
@@ -33,12 +35,18 @@ function progressCopy(status: ProfileAiStatus) {
     : `${changeText} · 원픽을 더 추가하거나 바꾸면 AI가 다시 읽어요.`;
 }
 
-export function ProfileAiPanel({ profileId }: { profileId: string }) {
+export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: string; currentPickCount: number }) {
   const status = useProfileAiStatus(profileId);
   const comment = useProfileAiComment(profileId);
   const generate = useGenerateProfileAi(profileId);
   const visibility = useSetProfileAiVisibility(profileId);
   const value = status.data;
+  const fallbackReadyForFirstReview =
+    !value &&
+    !status.isPending &&
+    !comment.isPending &&
+    comment.data === null &&
+    currentPickCount >= 5;
 
   return <View style={styles.section}>
     <View style={styles.headingRow}>
@@ -60,7 +68,21 @@ export function ProfileAiPanel({ profileId }: { profileId: string }) {
         disabled={!value.canGenerate || generate.isPending}
         onPress={() => generate.mutate()}
         style={({ pressed }) => [styles.primaryButton, (!value.canGenerate || generate.isPending) && styles.disabled, pressed && styles.pressed]}>
-        <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : value.hasReview ? 'AI가 다시 본 나' : '평가 보기'}</Text>
+        <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : value.hasReview ? 'AI가 다시 본 나' : 'AI 평가 보기'}</Text>
+      </Pressable>
+      {generate.isError ? <Text accessibilityRole="alert" style={styles.error}>AI 평가를 만들지 못했어요. 잠시 후 다시 시도해주세요.</Text> : null}
+    </View> : fallbackReadyForFirstReview ? <View style={styles.progressCard}>
+      <Text style={styles.progressText}>5/5개를 채웠으니 AI 평가가 가능합니다.{currentPickCount > 5 ? ` 현재 원픽 ${currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.` : ' 10개까지 채우면 해석이 더 풍부해져요.'}</Text>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
+      </View>
+      <Text style={styles.helper}>5개부터 평가 가능 · 10개는 권장 목표</Text>
+      <Pressable
+        accessibilityRole="button"
+        disabled={generate.isPending}
+        onPress={() => generate.mutate()}
+        style={({ pressed }) => [styles.primaryButton, generate.isPending && styles.disabled, pressed && styles.pressed]}>
+        <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : 'AI 평가 보기'}</Text>
       </Pressable>
       {generate.isError ? <Text accessibilityRole="alert" style={styles.error}>AI 평가를 만들지 못했어요. 잠시 후 다시 시도해주세요.</Text> : null}
     </View> : status.isPending ? <Text style={styles.helper}>AI 평가 가능 여부를 확인하고 있어요.</Text>
