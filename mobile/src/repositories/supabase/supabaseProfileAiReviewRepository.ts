@@ -1,12 +1,12 @@
 import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/database.types';
+import type { AppDatabase } from '@/lib/supabase/database.overrides';
 import type { ProfileAiReviewRepository } from '@/repositories/interfaces/profileAiReviewRepository';
 import type { ProfileAiReview, SystemActor } from '@/types/domain/profileAiReview';
 
-type ReviewRow = Database['public']['Tables']['profile_ai_reviews']['Row'];
-type ActorRow = Database['public']['Tables']['system_actors']['Row'];
+type ReviewRow = AppDatabase['public']['Tables']['profile_ai_reviews']['Row'];
+type ActorRow = AppDatabase['public']['Tables']['system_actors']['Row'];
 
 const REVIEW_COLUMNS = 'id,profile_id,actor_id,summary,body,keywords,is_visible,generated_at,created_at,updated_at' as const;
 const ACTOR_COLUMNS = 'id,slug,display_name,actor_type,bio,avatar_url,is_verified,is_active,created_at,updated_at' as const;
