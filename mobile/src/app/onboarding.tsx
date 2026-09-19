@@ -58,9 +58,9 @@ export default function OnboardingScreen() {
   const reachedRecommended = pickCount >= 10;
 
   const skip = async () => {
-    if (!current || recordAction.isPending) return;
+    if (!current || setCurrent.isPending || recordAction.isPending) return;
     persisted.current = null;
-    await recordAction.mutateAsync({ categoryId: current.id, action: 'skipped' });
+    await recordAction.mutateAsync({ categoryId: current.id, action: 'skipped' }).catch(() => {});
   };
   const exit = async () => {
     if (!pause.isPending) await pause.mutateAsync().catch(() => {});
@@ -103,13 +103,14 @@ export default function OnboardingScreen() {
         <Text style={styles.cardText}>여기서 지금 가장 좋아하는 하나가 떠오르나요?</Text>
         <Pressable
           accessibilityRole="button"
+          disabled={setCurrent.isPending}
           onPress={() => router.push({ pathname: '/pick/find', params: { categoryId: current.id, onboarding: '1' } })}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          style={({ pressed }) => [styles.primary, setCurrent.isPending && styles.disabled, pressed && styles.pressed]}>
           <Text style={styles.primaryText}>이 카테고리에서 원픽 고르기</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" disabled={recordAction.isPending} onPress={() => void skip()}
-          style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
-          <Text style={styles.skipText}>{recordAction.isPending ? '넘기는 중…' : '넘기기'}</Text>
+        <Pressable accessibilityRole="button" disabled={setCurrent.isPending || recordAction.isPending} onPress={() => void skip()}
+          style={({ pressed }) => [styles.skip, (setCurrent.isPending || recordAction.isPending) && styles.disabled, pressed && styles.pressed]}>
+          <Text style={styles.skipText}>{setCurrent.isPending ? '준비 중…' : recordAction.isPending ? '넘기는 중…' : '넘기기'}</Text>
         </Pressable>
       </View> : <View style={styles.categoryCard}>
         <Text style={styles.categoryName}>지금 보여드릴 카테고리를 모두 봤어요</Text>
@@ -152,5 +153,6 @@ const styles = StyleSheet.create({
   skip: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   skipText: { color: '#747985', fontSize: 12, fontWeight: '800' },
   footer: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: 18 },
+  disabled: { opacity: 0.45 },
   pressed: { opacity: 0.72 },
 });
