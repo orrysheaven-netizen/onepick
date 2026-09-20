@@ -54,11 +54,48 @@ export class AdminService {
     if (!input.name.trim() || input.name.trim().length > 60 || !SLUG_PATTERN.test(input.slug) || input.slug.length > 80) invalid();
     if (input.sortOrder !== undefined && (!Number.isInteger(input.sortOrder) || Math.abs(input.sortOrder) > 100000)) invalid();
     if (input.rankingMinSample !== undefined && (!Number.isInteger(input.rankingMinSample) || input.rankingMinSample < 1)) invalid();
-    const children = id ? categories.filter((item) => item.parentId === id) : [];
+
+    const childrenByParent = new Map<string, Category[]>();
+    for (const category of categories) {
+      if (!category.parentId) continue;
+      const siblings = childrenByParent.get(category.parentId) ?? [];
+      siblings.push(category);
+      childrenByParent.set(category.parentId, siblings);
+    }
+    const children = id ? childrenByParent.get(id) ?? [] : [];
     if (input.isPickable && children.length) invalid();
+
+    let parentDepth = 0;
     if (input.parentId) {
-      const parent = categories.find((item) => item.id === input.parentId);
-      if (!parent || parent.id === id || parent.parentId || parent.isPickable || children.length) invalid();
+      const byId = new Map(categories.map((category) => [category.id, category]));
+      let parent = byId.get(input.parentId);
+      const seen = new Set<string>();
+      while (parent) {
+        if (parent.id === id || seen.has(parent.id) || parent.isPickable) invalid();
+        seen.add(parent.id);
+        parentDepth += 1;
+        if (parentDepth >= 3) invalid();
+        if (!parent.parentId) break;
+        parent = byId.get(parent.parentId);
+        if (!parent) invalid();
+      }
+      if (!parent) invalid();
+    }
+
+    if (id && children.length) {
+      let descendantSpan = 0;
+      const queue = children.map((child) => ({ child, depth: 1 }));
+      const seen = new Set<string>();
+      while (queue.length) {
+        const current = queue.shift()!;
+        if (seen.has(current.child.id)) invalid();
+        seen.add(current.child.id);
+        descendantSpan = Math.max(descendantSpan, current.depth);
+        for (const child of childrenByParent.get(current.child.id) ?? []) {
+          queue.push({ child, depth: current.depth + 1 });
+        }
+      }
+      if (parentDepth + 1 + descendantSpan > 3) invalid();
     }
   }
 
