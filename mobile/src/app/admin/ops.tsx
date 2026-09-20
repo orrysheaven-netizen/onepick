@@ -74,7 +74,7 @@ export default function AdminOperationsScreen() {
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>최근 {query.data.funnel.days}일 퍼널</Text>
-              <Text style={styles.sectionHint}>DEMO 제외 · 이벤트 수</Text>
+              <Text style={styles.sectionHint}>시드 계정 제외 · 이벤트 수</Text>
             </View>
             <View style={styles.funnelGrid}>
               {[
@@ -91,7 +91,7 @@ export default function AdminOperationsScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.analyticsHint}>사용자·활성 원픽·댓글 지표도 demo_* 계정을 제외합니다.</Text>
+            <Text style={styles.analyticsHint}>사용자·활성 원픽·댓글 지표도 시드 계정을 제외합니다.</Text>
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>최근 오류 코드</Text>

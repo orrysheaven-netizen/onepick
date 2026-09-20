@@ -80,11 +80,11 @@ async function main() {
 
   const source = fs.readFileSync(path.join(__dirname, '../src/app/admin/ops.tsx'), 'utf8');
   assert.match(source, /최근 \{query\.data\.funnel\.days\}일 퍼널/);
-  assert.match(source, /DEMO 제외/);
+  assert.match(source, /시드 계정 제외/);
   assert.match(source, /원픽 등록/);
   assert.match(source, /공유 링크 방문/);
   assert.match(source, /로그인 완료/);
 
-  console.log('Admin operations funnel checks passed: RPC mapping, service overview and demo-filtered UI copy.');
+  console.log('Admin operations funnel checks passed: RPC mapping, service overview and seed-filtered UI copy.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
