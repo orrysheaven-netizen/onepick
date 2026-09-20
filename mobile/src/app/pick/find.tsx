@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,9 +8,11 @@ import { GameSearchLink } from '@/components/game-search-link';
 import { MusicSearchLink } from '@/components/music-search-link';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { categoryLabel, selectionCategoryGroups } from '@/lib/categories/categoryTree';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 
 type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
@@ -44,8 +46,19 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const authReady = !sessionLoading && !sessionError;
   const [query, setQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [parentCategoryId, setParentCategoryId] = useState<string | null>(null);
   const categories = useRegistrationCategories();
-  const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === scalar(params.categoryId)) : undefined;
+  const categoryCatalog = useExploreCategories(Boolean(categories.data));
+  const selectableCategories = categories.data ?? [];
+  const categoryGroups = useMemo(
+    () => selectionCategoryGroups(categoryCatalog.data ?? [], selectableCategories),
+    [categoryCatalog.data, selectableCategories],
+  );
+  const selectedParentGroup = categoryGroups.find((group) => group.category.id === parentCategoryId) ?? null;
+  const selectedCategory = !categories.isError ? selectableCategories.find((category) => category.id === scalar(params.categoryId)) : undefined;
+  const selectedCategoryLabel = selectedCategory
+    ? (categoryCatalog.data?.length ? categoryLabel(selectedCategory, categoryCatalog.data) : selectedCategory.label ?? selectedCategory.name)
+    : null;
   const search = useItemSearch(authReady && selectedCategory ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const isDramaCategory = selectedCategory?.slug === 'drama';
@@ -143,6 +156,12 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const wrongReturn = isDramaCategory ? params.externalMovieId !== undefined : params.externalDramaId !== undefined;
   const validReturn = Boolean(isCatalogCategory && !wrongReturn && externalId && /^\d{1,12}$/.test(externalId));
   useEffect(() => {
+    if (parentCategoryId && !categoryGroups.some((group) => group.category.id === parentCategoryId)) {
+      setParentCategoryId(null);
+    }
+  }, [categoryGroups, parentCategoryId]);
+
+  useEffect(() => {
     if (!authReady || !user || !isCatalogCategory || !selectedCategory || !validReturn || !externalId
       || attemptedReturn.current === externalId || !canAct()) return;
     attemptedReturn.current = externalId;
@@ -169,10 +188,33 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       <Text style={styles.kicker}>FIND YOUR ONE PICK</Text><Text style={styles.title}>나의 원픽 찾기</Text>
       <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : '좋아하는 제품을 검색하고, 나만의 하나를 골라보세요.'}</Text>
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
-      {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View> : <View style={styles.categorySection}>
+      {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategoryLabel} 안에서 찾는 중</Text></View> : <View style={styles.categorySection}>
         <Text style={styles.categoryTitle}>먼저 카테고리를 선택해주세요</Text>
-        <View style={styles.categoryList}>{!categories.isError && categories.data?.map((category) => <Pressable key={category.id} accessibilityRole="button"
-          accessibilityLabel={`${category.label} 카테고리 선택`} onPress={() => selectCategory(category.id)} style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}><Text style={styles.categoryChipText}>{category.label}</Text></Pressable>)}</View>
+        <Text style={styles.categoryStep}>상위 카테고리</Text>
+        {!categories.isError ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.parentCategoryRow}>
+          {categoryGroups.map((group) => {
+            const selected = parentCategoryId === group.category.id;
+            return <Pressable key={group.category.id} accessibilityRole="button"
+              accessibilityLabel={`${group.category.name} 상위 카테고리 선택`}
+              accessibilityState={{ selected }}
+              onPress={() => group.directlySelectable ? selectCategory(group.category.id) : setParentCategoryId(group.category.id)}
+              style={({ pressed }) => [styles.parentCategoryChip, selected && styles.parentCategoryChipActive, pressed && styles.pressed]}>
+              <Text style={[styles.parentCategoryText, selected && styles.parentCategoryTextActive]}>{group.category.name}</Text>
+            </Pressable>;
+          })}
+        </ScrollView> : null}
+        {selectedParentGroup && !selectedParentGroup.directlySelectable ? <View style={styles.childCategoryPanel}>
+          <View style={styles.childCategoryHeader}>
+            <Text style={styles.categoryStep}>{selectedParentGroup.category.name} 카테고리</Text>
+            <Text style={styles.childCategoryCount}>{selectedParentGroup.children.length}개</Text>
+          </View>
+          <View style={styles.categoryList}>{selectedParentGroup.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
+            accessibilityLabel={`${selectedParentGroup.category.name} › ${category.name} 카테고리 선택`}
+            onPress={() => selectCategory(category.id)}
+            style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}>
+            <Text style={styles.categoryChipText}>{category.name}</Text>
+          </Pressable>)}</View>
+        </View> : null}
         {categories.isPending ? <ActivityIndicator style={styles.categoryLoading} /> : null}
         {categories.isError ? <Pressable accessibilityRole="button" disabled={categories.isFetching} onPress={() => { if (!categories.isFetching) void categories.refetch(); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text></Pressable> : null}
       </View>}
@@ -203,7 +245,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         return <View key={item.id} style={styles.itemCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name} itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing} onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
-            <Text style={styles.itemCategory}>{category?.label ?? '등록된 카테고리'}</Text><Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.itemCategory}>{category ? (categoryCatalog.data?.length ? categoryLabel(category, categoryCatalog.data) : category.label ?? category.name) : '등록된 카테고리'}</Text><Text style={styles.itemName}>{item.name}</Text>
             {isCatalogCategory ? <Text style={styles.movieMeta}>{[item.releaseYear, item.originalName !== item.name ? item.originalName : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text> : null}
             <Text style={styles.itemAction}>이 제품을 원픽으로 선택 ›</Text>
           </Pressable>
@@ -243,8 +285,17 @@ const styles = StyleSheet.create({
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   categoryBadgeText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
   categorySection: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginTop: 18 },
-  categoryTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  categoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  categoryTitle: { color: '#202124', fontSize: 14, fontWeight: '900' },
+  categoryStep: { color: '#747985', fontSize: 11, fontWeight: '800', marginTop: 12 },
+  parentCategoryRow: { gap: 8, paddingVertical: 8, paddingRight: 4 },
+  parentCategoryChip: { minHeight: 36, justifyContent: 'center', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 13 },
+  parentCategoryChipActive: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
+  parentCategoryText: { color: '#747985', fontSize: 12, fontWeight: '700' },
+  parentCategoryTextActive: { color: '#4945ED', fontWeight: '900' },
+  childCategoryPanel: { marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#ECEEF3' },
+  childCategoryHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  childCategoryCount: { color: '#89909C', fontSize: 10, fontWeight: '700' },
+  categoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   categoryChip: { minHeight: 42, justifyContent: 'center', borderRadius: 999, backgroundColor: '#EFEEFF', paddingHorizontal: 14, paddingVertical: 9 },
   categoryChipText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
   categoryLoading: { marginTop: 14 },
