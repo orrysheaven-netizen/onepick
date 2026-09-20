@@ -8,7 +8,7 @@ export type ProfileAiReason =
   | 'READY_TEN_PICK_UPGRADE'
   | 'NEED_TEN_PICKS'
   | 'NEED_CHANGES'
-  | 'WAIT_WEEK'
+  | 'WAIT_DAY'
   | 'READY_REANALYSIS';
 
 export type ProfileAiStatus = {

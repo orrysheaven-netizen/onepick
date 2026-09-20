@@ -226,21 +226,26 @@ Deno.serve(async (req: Request) => {
     }, 409));
 
     // These reads are independent once a valid public snapshot exists. Running
-    // them together removes two serial PostgREST round trips without weakening
-    // the source-version check or public snapshot RLS.
-    const [latestSourceVersion, existingResult, actorResult] = await Promise.all([
+    // them together removes serial PostgREST round trips without weakening
+    // the source-version check or public snapshot RLS. current_user_is_admin
+    // reads auth.uid() from the caller's own JWT, so it must run on userClient
+    // (publicClient/admin carry no real end-user identity).
+    const [latestSourceVersion, existingResult, actorResult, adminResult] = await Promise.all([
       readSourceVersion(),
       admin.from('profile_ai_reviews')
         .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
         .eq('profile_id', user.id).maybeSingle(),
       admin.from('system_actors')
         .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single(),
+      userClient.rpc('current_user_is_admin'),
     ]);
     if (latestSourceVersion !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
     const { data: existing, error: existingError } = existingResult;
     if (existingError) throw new Error('AI_REVIEW_READ_FAILED');
     const { data: actor, error: actorError } = actorResult;
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
+    if (adminResult.error) throw new Error('AI_ADMIN_CHECK_FAILED');
+    const isAdmin = adminResult.data === true;
 
     const sourceFingerprint = await fingerprint(snapshot);
 
@@ -260,7 +265,7 @@ Deno.serve(async (req: Request) => {
 
       // The first result is intentionally available early at five picks. Once the
       // profile reaches ten, allow one immediate quality upgrade without making
-      // the user wait seven days. Until then, keep showing the existing result.
+      // the user wait out the daily cooldown. Until then, keep showing the existing result.
       if (previousPickCount < PROFILE_AI_RECOMMENDED_PICKS) {
         if (snapshot.length < PROFILE_AI_RECOMMENDED_PICKS) {
           return finish('waiting_for_ten', reply({
@@ -281,12 +286,14 @@ Deno.serve(async (req: Request) => {
           }, 409));
         }
 
-        if (existing.generated_at) {
+        // Admins skip the elapsed-time cooldown only — they still need the
+        // pick-count and changed-picks gates above like everyone else.
+        if (!isAdmin && existing.generated_at) {
           const elapsedMs = Date.now() - new Date(existing.generated_at).getTime();
           if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < REANALYSIS_INTERVAL_MS) {
             return finish('rate_limited', reply({
               error: 'RATE_LIMITED',
-              reason: 'WEEKLY_REANALYSIS_LIMIT',
+              reason: 'DAILY_REANALYSIS_LIMIT',
               retryAfterSeconds: Math.max(1, Math.ceil((REANALYSIS_INTERVAL_MS - elapsedMs) / 1000)),
               minimumChanges: PROFILE_AI_MIN_CHANGES,
               changedCount,

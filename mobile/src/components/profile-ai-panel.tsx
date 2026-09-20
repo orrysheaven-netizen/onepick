@@ -4,8 +4,10 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { useGenerateProfileAi, useProfileAiComment, useProfileAiStatus, useSetProfileAiVisibility } from '@/hooks/useProfileAi';
 import type { ProfileAiStatus } from '@/services/profileAiService';
 
-function daysFromSeconds(seconds: number) {
-  return Math.max(1, Math.ceil(seconds / 86400));
+// The cooldown is at most 24h, so day-granularity would read as "약 1일" for
+// anything from 1 minute to 24 hours remaining. Hours stay meaningful throughout.
+function hoursFromSeconds(seconds: number) {
+  return Math.max(1, Math.ceil(seconds / 3600));
 }
 
 function progressCopy(status: ProfileAiStatus) {
@@ -26,7 +28,7 @@ function progressCopy(status: ProfileAiStatus) {
   }
   const changeText = `새로운 취향 변화 ${Math.min(status.changedCount, status.minimumChanges)}/${status.minimumChanges}`;
   if (status.retryAfterSeconds > 0) {
-    return `${changeText} · 다음 재평가까지 약 ${daysFromSeconds(status.retryAfterSeconds)}일`;
+    return `${changeText} · 다음 재평가까지 약 ${hoursFromSeconds(status.retryAfterSeconds)}시간`;
   }
   return status.changedCount >= status.minimumChanges
     ? `${changeText} · 다시 평가할 수 있어요.`
