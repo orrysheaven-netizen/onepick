@@ -95,10 +95,7 @@ export default function ExploreScreen() {
         <Text style={styles.levelTitle}>상위 카테고리</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
         {categories.isError ? <View style={styles.stateCard}><Text style={styles.stateText}>카테고리를 불러오지 못했어요.</Text><Pressable accessibilityRole="button" onPress={refresh}><Text style={styles.refreshText}>다시 불러오기</Text></Pressable></View> : null}
-        {!categories.isPending && !categories.isError && groups.length ? <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.parentRow}>
+        {!categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="전체 카테고리 보기"
@@ -118,7 +115,7 @@ export default function ExploreScreen() {
               <Text style={[styles.parentChipText, selected && styles.parentChipTextActive]}>{category.name}</Text>
             </Pressable>;
           })}
-        </ScrollView> : null}
+        </View> : null}
         {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
 
         {group && !group.directlySelectable ? <View style={styles.childPanel}>
@@ -192,7 +189,7 @@ const styles = StyleSheet.create({
   searchHint: { color: '#747985', fontSize: 11, lineHeight: 17 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
   levelTitle: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 28, marginBottom: 10 },
-  parentRow: { gap: 8, paddingVertical: 5, paddingRight: 4 },
+  parentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 5 },
   parentChip: { minHeight: 36, justifyContent: 'center', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
   parentChipActive: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
   parentChipText: { color: '#747985', fontSize: 12, fontWeight: '700' },
