@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import {
   useCompleteOnboarding,
@@ -13,6 +14,7 @@ import {
   useRecordOnboardingAction,
   useSetOnboardingCurrent,
 } from '@/hooks/useOnboarding';
+import { categoryPath } from '@/lib/categories/categoryTree';
 import { chooseOnboardingCategory } from '@/lib/onboarding/categorySequence';
 
 export default function OnboardingScreen() {
@@ -20,6 +22,7 @@ export default function OnboardingScreen() {
   const { user, isLoading: sessionLoading } = useAuthSession();
   const profile = useMyProfile(user?.id);
   const categories = useRegistrationCategories();
+  const categoryCatalog = useExploreCategories(Boolean(categories.data));
   const progress = useOnboardingProgress(user?.id);
   const setCurrent = useSetOnboardingCurrent(user?.id);
   const recordAction = useRecordOnboardingAction(user?.id);
@@ -51,6 +54,11 @@ export default function OnboardingScreen() {
     persisted.current = current.id;
     void setCurrent.mutateAsync(current.id).catch(() => { persisted.current = null; });
   }, [current, progress.data?.state?.currentCategoryId, setCurrent, user]);
+
+  const currentPath = current ? categoryPath(current, categoryCatalog.data ?? []) : null;
+  const fallbackParts = current ? (current.label ?? current.name).split(' › ') : [];
+  const currentParentName = currentPath?.parent?.name ?? (fallbackParts.length > 1 ? fallbackParts[0] : null);
+  const currentCategoryName = current?.name ?? fallbackParts.at(-1) ?? '';
 
   const pickCount = profile.data?.currentPicks.length ?? 0;
   const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending;
@@ -99,7 +107,8 @@ export default function OnboardingScreen() {
 
       {current ? <View style={styles.categoryCard}>
         <Text style={styles.cardKicker}>이번 카테고리</Text>
-        <Text style={styles.categoryName}>{current.label ?? current.name}</Text>
+        {currentParentName ? <View style={styles.parentPill}><Text style={styles.parentPillText}>{currentParentName}</Text></View> : null}
+        <Text style={styles.categoryName}>{currentCategoryName}</Text>
         <Text style={styles.cardText}>여기서 지금 가장 좋아하는 하나가 떠오르나요?</Text>
         <Pressable
           accessibilityRole="button"
@@ -146,6 +155,8 @@ const styles = StyleSheet.create({
   aiButtonText: { color: '#4945ED', fontSize: 12, fontWeight: '900' },
   categoryCard: { backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E3E5EA', padding: 22, marginTop: 18 },
   cardKicker: { color: '#4945ED', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  parentPill: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: '#EFEEFF', paddingHorizontal: 10, paddingVertical: 5, marginTop: 12 },
+  parentPillText: { color: '#4945ED', fontSize: 10, fontWeight: '900' },
   categoryName: { color: '#202124', fontSize: 25, lineHeight: 32, fontWeight: '900', marginTop: 8 },
   cardText: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 9 },
   primary: { minHeight: 52, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 22, paddingHorizontal: 16 },
