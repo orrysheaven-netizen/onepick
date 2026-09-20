@@ -66,4 +66,4 @@ Account deletion is server-side because deleting an Auth user requires an admin/
 
 ## Pull request workflow
 
-Feature work currently lives on `feature/pick-core` in Draft PR #1. Keep the PR draft until the active milestone has both Mobile CI and Database Tests green and actual-device release checks are complete.
+`main` is the single trunk (see `CLAUDE.md`). Branch from `main`, open a PR against `main`, and merge once Mobile CI and Database Tests are green. `main` is also what the Cloudflare Pages tester site and Supabase Edge Function deploys build from, so there is no separate integration branch to keep in sync.

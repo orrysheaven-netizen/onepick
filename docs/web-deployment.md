@@ -1,26 +1,23 @@
 # MVP web deployment
 
 Cloudflare Pages serves the tester site at https://onepick-5cl.pages.dev.
-Project: `onepick`; preview branch builds disabled.
+Project: `onepick`; production branch `main`; preview branch builds enabled.
 Supabase Site URL and the two app callback patterns point to this origin.
 See [배포 설정과 확인 기록](test-hosting.md) for the verified configuration and remaining device checks.
 
 ## Which branch the tester site is built from
 
-The Cloudflare Pages production branch is still `feature/pick-core`, so `main` can be
-green while the tester site shows something else entirely. That split is the drift
-`CLAUDE.md` warns about. It is being closed, not kept:
+`main`. The Cloudflare Pages production branch was switched to `main` on 2026-09-20,
+after `feature/pick-core` was merged back into `main` (PR #128) and retired. Preview
+branch builds are enabled, so every pull request gets its own URL.
 
-1. Merge `feature/pick-core` into `main`, so nothing the tester site shows today is lost.
-2. Switch the Cloudflare Pages production branch to `main`
-   (Workers & Pages → `onepick` → Settings → Builds & deployments), and enable preview
-   branch builds so every pull request gets a URL someone can actually look at.
-3. Update this section and retire `feature/pick-core`.
+A change is on the tester site once it is merged into `main` and the resulting Pages
+build finishes. `https://onepick-5cl.pages.dev/deployment.json` shows which commit
+and branch the site is currently serving; `branch` must be `main`.
 
-Until step 2 lands: `main` is the branch you merge into (`CLAUDE.md`), and
-`feature/pick-core` is what testers see. A change is not on the tester site until it
-reaches `feature/pick-core`. Do not call any branch other than `main` the source of
-truth — that wording is what let these two drift apart.
+Do not point Cloudflare at any branch other than `main`, and do not call another
+branch the source of truth — that wording is what let `main` and the tester site
+drift apart by 100+ commits before.
 
 ## Build and preview
 
