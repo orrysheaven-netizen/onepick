@@ -38,6 +38,7 @@ export default function AdminDashboardScreen() {
   const [data, setData] = useState<AdminOnePickDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showEmptyCategories, setShowEmptyCategories] = useState(false);
 
   const load = useCallback(async (window: AdminOnePickDashboardWindow) => {
     setLoading(true);
@@ -65,6 +66,15 @@ export default function AdminDashboardScreen() {
     () => (data ? Math.max(1, ...data.categories.map((category) => category.active_picks)) : 1),
     [data],
   );
+  // Most pickable categories have no real Picks yet; keep them behind a toggle
+  // so the breakdown reads as a ranking instead of a wall of zeros.
+  const { activeCategories, emptyCategories } = useMemo(() => {
+    const categories = data?.categories ?? [];
+    return {
+      activeCategories: categories.filter((category) => category.active_picks > 0 || category.picks_in_window > 0),
+      emptyCategories: categories.filter((category) => category.active_picks === 0 && category.picks_in_window === 0),
+    };
+  }, [data]);
 
   return (
     <View style={styles.page}>
@@ -176,18 +186,28 @@ export default function AdminDashboardScreen() {
               </View>
               {data.categories.length === 0 ? (
                 <Text style={styles.empty}>운영 중인 카테고리가 없습니다.</Text>
-              ) : data.categories.map((category) => (
-                <View key={category.id} style={styles.categoryRow}>
-                  <View style={styles.categoryLabel}>
-                    <Text numberOfLines={1} style={styles.categoryName}>{category.name}</Text>
-                    <Text style={styles.categoryMeta}>{fmt(category.pickers)}명 · 최근 {data.days}일 +{fmt(category.picks_in_window)}</Text>
-                  </View>
-                  <View style={styles.categoryBarTrack}>
-                    <View style={[styles.categoryBar, { width: `${Math.round((category.active_picks / categoryMax) * 100)}%` }]} />
-                  </View>
-                  <Text style={styles.categoryValue}>{fmt(category.active_picks)}</Text>
-                </View>
+              ) : activeCategories.length === 0 ? (
+                <Text style={styles.empty}>아직 실제 사용자의 원픽이 있는 카테고리가 없습니다.</Text>
+              ) : activeCategories.map((category) => (
+                <CategoryRow key={category.id} category={category} days={data.days} max={categoryMax} />
               ))}
+              {emptyCategories.length > 0 && (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showEmptyCategories }}
+                    onPress={() => setShowEmptyCategories((value) => !value)}
+                    style={styles.collapseToggle}
+                  >
+                    <Text style={styles.collapseToggleText}>
+                      {showEmptyCategories ? '원픽 없는 카테고리 접기' : `원픽 없는 카테고리 ${emptyCategories.length}개 보기`}
+                    </Text>
+                  </Pressable>
+                  {showEmptyCategories && emptyCategories.map((category) => (
+                    <CategoryRow key={category.id} category={category} days={data.days} max={categoryMax} />
+                  ))}
+                </>
+              )}
             </View>
 
             <View style={[adminStyles.card, styles.column]}>
@@ -246,6 +266,21 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
         {!!hint && <Text style={styles.eyebrowHint}>{hint}</Text>}
       </View>
       {children}
+    </View>
+  );
+}
+
+function CategoryRow({ category, days, max }: { category: AdminOnePickDashboard['categories'][number]; days: number; max: number }) {
+  return (
+    <View style={styles.categoryRow}>
+      <View style={styles.categoryLabel}>
+        <Text numberOfLines={1} style={styles.categoryName}>{category.name}</Text>
+        <Text style={styles.categoryMeta}>{fmt(category.pickers)}명 · 최근 {days}일 +{fmt(category.picks_in_window)}</Text>
+      </View>
+      <View style={styles.categoryBarTrack}>
+        <View style={[styles.categoryBar, { width: `${Math.round((category.active_picks / max) * 100)}%` }]} />
+      </View>
+      <Text style={styles.categoryValue}>{fmt(category.active_picks)}</Text>
     </View>
   );
 }
@@ -370,6 +405,8 @@ const styles = StyleSheet.create({
   categoryBarTrack: { flex: 1, height: 10, borderRadius: 5, backgroundColor: '#F3F4F6', overflow: 'hidden' },
   categoryBar: { height: '100%', borderRadius: 5, backgroundColor: '#111827' },
   categoryValue: { width: 44, textAlign: 'right', color: '#111827', fontSize: 13, fontWeight: '800' },
+  collapseToggle: { alignSelf: 'flex-start', marginTop: 10, minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
+  collapseToggleText: { color: '#374151', fontSize: 12, fontWeight: '700' },
   topItemRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#F0F1F3' },
   rank: { width: 24, color: '#9CA3AF', fontSize: 13, fontWeight: '800', textAlign: 'center' },
   topItemBody: { flex: 1, minWidth: 0 },
