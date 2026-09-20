@@ -132,11 +132,16 @@ async function main() {
   let options = [], index = 0;
   const { useItemDetail } = load('hooks/useItemDetail.ts', {
     '@tanstack/react-query': { useQuery: (o) => { options.push(o); return index++ % 2 === 0 ? detail : creditQuery; } },
+    '@/errors/appError': { AppError },
     '@/lib/query/queryKeys': { queryKeys }, '@/services': { itemService: { getItemDetail: async () => detail.data } },
     '@/services/itemPhotoCreditService': { itemPhotoCreditService: service },
   });
   const read = (user = 'viewer', include = true) => { options = []; index = 0; return useItemDetail(itemId, user, pickId, include); };
   assert.equal(read().photoCredit, credit); assert.equal(options[1].enabled, true);
+  assert.equal(typeof options[0].retry, 'function');
+  assert.equal(options[0].retry(0, new AppError('ITEM_NOT_FOUND')), false, 'Missing item links must fail immediately instead of staying pending through a retry');
+  assert.equal(options[0].retry(0, new AppError('NETWORK_ERROR')), true, 'Transient detail failures keep the existing single retry');
+  assert.equal(options[0].retry(1, new AppError('NETWORK_ERROR')), false, 'Item detail must not retry transient failures more than once');
   const firstKey = JSON.stringify(options[1].queryKey);
   read('other'); assert.notEqual(JSON.stringify(options[1].queryKey), firstKey, 'Credit caches are viewer-specific');
   read(undefined, false); assert.equal(options[1].enabled, false, 'Non-detail callers do not fetch attribution');
