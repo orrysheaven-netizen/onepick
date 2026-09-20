@@ -11,7 +11,6 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel } from '@/lib/categories/categoryTree';
-import { isDemoUsername } from '@/lib/demoProfile';
 import { buildHomeCategoryFilters, filterHomeShowcaseItems } from '@/lib/home/homeCategoryFilters';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
@@ -45,7 +44,6 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
       <View style={styles.pickerCopy}>
         <View style={styles.pickerNameRow}>
           <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
-          {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
         </View>
         {item.latestPickReview ? <Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text> : null}
       </View>
@@ -317,7 +315,6 @@ const styles = StyleSheet.create({
   pickerCopy: { flex: 1, minWidth: 0 },
   pickerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
   profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
