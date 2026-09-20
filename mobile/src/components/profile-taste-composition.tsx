@@ -4,7 +4,7 @@ import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
 
 const MINIMUM_PICKS = 5;
 
-function progressWidth(current: number) {
+function progressWidth(current: number): `${number}%` {
   return `${Math.min(100, Math.max(0, (current / MINIMUM_PICKS) * 100))}%`;
 }
 
