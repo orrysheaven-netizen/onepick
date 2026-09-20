@@ -22,8 +22,8 @@ export const queryKeys = {
     detail: (itemId: string, userId?: string) =>
       ['items', 'detail', itemId, userId ?? 'public'] as const,
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
-    search: (query: string, categoryId?: string) =>
-      ['items', 'search', query, categoryId ?? 'all'] as const,
+    search: (query: string, categoryId?: string, categoryIds?: string[]) =>
+      ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,
   },
   movieCatalog: { search: (query: string) => ['movie-catalog', 'search', query] as const },
   musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },

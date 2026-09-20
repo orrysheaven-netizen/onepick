@@ -81,12 +81,17 @@ export class ItemService {
     return this.readRepository.countActivePicks(itemId);
   }
 
-  async search(query: string, categoryId?: string, signal?: AbortSignal) {
+  async search(query: string, categoryId?: string, signal?: AbortSignal, categoryIds?: string[]) {
     const searchText = query.trim();
-    if (!searchText) return [];
+    if (!searchText || categoryIds?.length === 0) return [];
     // search_items already checks public item status, selectable leaf categories
-    // AND their parents before ranking/limit. Do not pay for the same category
-    // read on every keystroke. The existing RPC and its visibility rules stay unchanged.
-    return this.itemRepository.search({ query: searchText, categoryId, limit: 20, signal });
+    // AND their parents before ranking/limit. A category set lets the registration
+    // entry search ordinary products without mixing in content catalogs.
+    return this.itemRepository.search({
+      query: searchText,
+      ...(categoryIds ? { categoryIds } : categoryId ? { categoryId } : {}),
+      limit: 20,
+      signal,
+    });
   }
 }

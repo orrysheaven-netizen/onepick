@@ -108,7 +108,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
-  categories: { name: string } | null;
+  categories: { name: string; slug: string } | null;
 };
 
 export type AdminReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
@@ -500,14 +500,17 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
-export function updatePendingItem(id: string, status: 'active' | 'rejected') {
-  return adminRequest(`/rest/v1/items?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({ status }),
+export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_review_pending_item', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: id,
+      p_status: status,
+      p_category_id: status === 'active' ? categoryId ?? null : null,
+    }),
   });
 }
 

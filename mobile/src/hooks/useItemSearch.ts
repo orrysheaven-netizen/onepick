@@ -7,11 +7,11 @@ import { itemService } from '@/services';
 const SEARCH_DELAY_MS = 150;
 const FRESH_RESULT_MS = 30_000;
 
-export function useItemSearch(searchText: string, categoryId?: string) {
+export function useItemSearch(searchText: string, categoryId?: string, categoryIds?: string[]) {
   const normalizedQuery = searchText.trim().replace(/\s+/g, ' ');
   const [settledQuery, setSettledQuery] = useState('');
   const queryClient = useQueryClient();
-  const key = queryKeys.items.search(normalizedQuery, categoryId);
+  const key = queryKeys.items.search(normalizedQuery, categoryId, categoryIds);
   const cached = queryClient.getQueryState(key);
   const age = cached ? Date.now() - cached.dataUpdatedAt : Infinity;
   // Only an exact-key, recent successful result may bypass the typing delay.
@@ -28,8 +28,10 @@ export function useItemSearch(searchText: string, categoryId?: string) {
   const isWaiting = hasSearchText && normalizedQuery !== settledQuery && !fresh;
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => itemService.search(normalizedQuery, categoryId, signal),
-    enabled: hasSearchText && !isWaiting,
+    queryFn: ({ signal }) => categoryIds === undefined
+      ? itemService.search(normalizedQuery, categoryId, signal)
+      : itemService.search(normalizedQuery, undefined, signal, categoryIds),
+    enabled: hasSearchText && !isWaiting && (categoryIds === undefined || categoryIds.length > 0),
     staleTime: FRESH_RESULT_MS,
   });
 

@@ -521,6 +521,57 @@ export type Database = {
           },
         ]
       }
+      item_category_ai_suggestions: {
+        Row: {
+          category_fingerprint: string
+          created_at: string
+          item_id: string
+          item_name: string
+          model_name: string
+          payload: Json
+          prompt_version: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_fingerprint: string
+          created_at?: string
+          item_id: string
+          item_name: string
+          model_name: string
+          payload: Json
+          prompt_version: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_fingerprint?: string
+          created_at?: string
+          item_id?: string
+          item_name?: string
+          model_name?: string
+          payload?: Json
+          prompt_version?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_category_ai_suggestions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_category_ai_suggestions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_editorial_features: {
         Row: {
           created_at: string
@@ -1243,6 +1294,40 @@ export type Database = {
         }
       }
       admin_operations_snapshot: { Args: { p_days?: number }; Returns: Json }
+      admin_review_pending_item: {
+        Args: { p_category_id?: string; p_item_id: string; p_status: string }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          collection_name: string | null
+          created_at: string
+          created_by: string | null
+          creator_name: string | null
+          external_id: string | null
+          external_refreshed_at: string | null
+          external_source: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          market_availability_status: string
+          merged_into_item_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          original_name: string | null
+          release_year: number | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_set_item_editorial_feature: {
         Args: {
           p_ends_at?: string
@@ -1389,6 +1474,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      classify_pending_item: {
+        Args: { p_category_id: string; p_item_id: string }
+        Returns: Json
       }
       comment_notification_count: {
         Args: { p_recipient_id: string }
@@ -1667,6 +1756,45 @@ export type Database = {
       submit_item: {
         Args: {
           p_category_id: string
+          p_image_path?: string
+          p_image_source_url?: string
+          p_item_name: string
+          p_thumbnail_path?: string
+        }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          collection_name: string | null
+          created_at: string
+          created_by: string | null
+          creator_name: string | null
+          external_id: string | null
+          external_refreshed_at: string | null
+          external_source: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          market_availability_status: string
+          merged_into_item_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          original_name: string | null
+          release_year: number | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      submit_unclassified_item: {
+        Args: {
           p_image_path?: string
           p_image_source_url?: string
           p_item_name: string

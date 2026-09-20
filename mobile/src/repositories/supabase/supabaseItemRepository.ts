@@ -7,6 +7,7 @@ import type {
   ItemRepository,
   ItemSearchInput,
   SubmitItemInput,
+  SubmitUnclassifiedItemInput,
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 
@@ -46,6 +47,18 @@ export class SupabaseItemRepository implements ItemRepository {
   async submitItem(input: SubmitItemInput) {
     const { data, error } = await this.client.rpc('submit_item', {
       p_category_id: input.categoryId,
+      p_item_name: input.itemName,
+      p_image_path: input.imagePath,
+      p_thumbnail_path: input.thumbnailPath,
+      p_image_source_url: input.imageSourceUrl,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data) throw new AppError('INTERNAL_ERROR');
+    return this.mapRow(data);
+  }
+
+  async submitUnclassifiedItem(input: SubmitUnclassifiedItemInput) {
+    const { data, error } = await this.client.rpc('submit_unclassified_item', {
       p_item_name: input.itemName,
       p_image_path: input.imagePath,
       p_thumbnail_path: input.thumbnailPath,
