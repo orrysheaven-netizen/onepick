@@ -24,7 +24,7 @@ function setup() {
     remote: raw, results: [raw], remoteError: null };
   const client = {
     auth: { getUser: async () => { state.calls.push('auth'); return { data: { user: state.auth ? { id: 'user' } : null }, error: null }; } },
-    rpc: async (name) => { assert.equal(name, 'user_is_suspended'); return { data: state.suspended, error: null }; },
+    rpc: async (name) => { assert.equal(name, 'catalog_user_is_suspended'); return { data: state.suspended, error: null }; },
     from(table) {
       assert.ok(['categories','items'].includes(table), 'No Pick, profile or unrelated write');
       const filters = []; let insert = null, limit = Infinity;

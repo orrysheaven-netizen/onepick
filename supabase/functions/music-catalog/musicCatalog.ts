@@ -151,7 +151,7 @@ export function createMusicCatalogHandler(deps: Dependencies) {
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
-      const suspended = await client.rpc('user_is_suspended', { p_user_id: data.user.id });
+      const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }
