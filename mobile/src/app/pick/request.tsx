@@ -41,7 +41,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const imageImport = useImportItemPhoto();
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
-  const [categoryId, setCategoryId] = useState(typeof params.categoryId === 'string' ? params.categoryId : '');
+  const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
   const [submittedName, setSubmittedName] = useState<string | null>(null);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [photoApproved, approvePhoto] = useState(false);
@@ -50,8 +50,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
-  const isValid = normalizedName.length >= 1 && normalizedName.length <= 100 && Boolean(selectedCategory);
-  const canSubmit = isValid && !categories.isPending && !categories.isError && !auth.isLoading && !auth.error
+  const isValid = normalizedName.length >= 1 && normalizedName.length <= 100
+    && (!categoryId || Boolean(selectedCategory));
+  const canSubmit = isValid && (!categoryId || (!categories.isPending && !categories.isError)) && !auth.isLoading && !auth.error
     && !submitting && (!photo || photoApproved) && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
   const intent = useMemo(() => ({
     action: 'request_item' as const,
@@ -173,7 +174,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         </Pressable>
         <Text style={styles.kicker}>새로운 원픽의 시작</Text>
         <Text style={styles.title}>제품 등록 요청</Text>
-        <Text style={styles.subtitle}>제품명과 카테고리를 확인하고, 제품을 알아볼 수 있는 대표 사진을 함께 보내주세요. 사진 없이도 요청할 수 있어요.</Text>
+        <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 등록 요청합니다. 일반 상품의 카테고리는 운영자가 검수하면서 정리하고, 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
 
         <Text style={styles.label}>제품명</Text>
         <TextInput
@@ -187,33 +188,20 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           value={name}
         />
 
-        <Text style={styles.label}>카테고리</Text>
-        {selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label}</Text> : null}
-        {categories.isPending ? <ActivityIndicator /> : categories.isError ? (
-          <View>
-            <Text style={styles.error}>카테고리를 불러오지 못했어요. 입력한 내용은 그대로 있어요.</Text>
-            <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categories.refetch()}>
-              <Text style={styles.retryText}>카테고리 다시 불러오기</Text>
-            </Pressable>
-          </View>
-        ) : !categories.data?.length ? (
-          <Text style={styles.helper}>지금은 요청할 수 있는 카테고리가 없어요. 나중에 다시 확인해주세요.</Text>
-        ) : (
-          <View style={styles.chips}>
-            {categories.data?.map((category) => (
-              <Pressable
-                key={category.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: category.id === categoryId, disabled: submitting }}
-                disabled={submitting}
-                onPress={() => { setCategoryId(category.id); approvePhoto(false); }}
-                style={[styles.chip, category.id === categoryId && styles.chipActive]}>
-                <Text style={[styles.chipText, category.id === categoryId && styles.chipTextActive]}>{category.label}</Text>
+        {categoryId ? <>
+          <Text style={styles.label}>선택한 콘텐츠 종류</Text>
+          {categories.isPending ? <ActivityIndicator /> : categories.isError ? (
+            <View>
+              <Text style={styles.error}>선택한 종류를 확인하지 못했어요. 입력한 내용은 그대로 있어요.</Text>
+              <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categories.refetch()}>
+                <Text style={styles.retryText}>종류 다시 확인하기</Text>
               </Pressable>
-            ))}
-          </View>
-        )}
-        <Text style={styles.helper}>기존 정식 제품은 제품을 선택할 때 카테고리가 자동 연결됩니다. 이 단계는 미등록 제품 요청에만 필요합니다.</Text>
+            </View>
+          ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
+            : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
+        </> : <View style={styles.notice}>
+          <Text style={styles.noticeText}>카테고리를 직접 고를 필요가 없어요. 운영자가 등록 요청을 확인하면서 실제 상품 카테고리로 분류합니다.</Text>
+        </View>}
 
         <View style={styles.photoCard}>
           <Text style={styles.photoTitle}>제품 대표 이미지 · 선택</Text>
