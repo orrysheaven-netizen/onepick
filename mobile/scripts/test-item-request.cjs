@@ -42,7 +42,7 @@ async function main() {
   };
   const { AppError } = load('errors/appError.ts');
   const category = { id: 'ramen', label: '먹을것 › 라면' };
-  const params = { categoryId: category.id, itemName: '새 라면' };
+  let params = { categoryId: category.id, itemName: '새 라면' };
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => { sessionRetries++; } };
   const categories = { data: [category], isPending: false, isError: false, refetch: () => { categoryRetries++; } };
   const profile = { data: { currentPicks: [] }, isPending: false, isError: false, error: null, refetch: () => { profileRetries++; } };
@@ -111,7 +111,6 @@ async function main() {
   assert.equal(payload.photo, null);
   mutation.isPending = true; render();
   assert.equal(nameInput().editable, false);
-  assert.equal(button(category.label).disabled, true);
   assert.equal(presses.find((p) => p.accessibilityLabel === '돌아가기').disabled, true);
   rejectRequest(new Error('offline')); await settle();
   mutation.isPending = false; mutation.isError = true; mutation.error = new Error('offline');
@@ -178,6 +177,19 @@ async function main() {
   assert.equal(destination.params.action, 'request_item');
   assert.equal(destination.params.itemName, params.itemName);
   assert.equal(destination.params.categoryId, category.id);
-  console.log('Item request checks passed: prerequisites, photo selection/import/confirmation, retry preservation, duplicate taps and login/approval routes.');
+
+  // Ordinary products do not ask the user for a category. Even if the category
+  // list is temporarily unavailable, the product-name request can still proceed.
+  state = []; auth.user = { id: 'owner' }; profile.data = { currentPicks: [] }; profile.isPending = false; profile.isError = false; profile.error = null;
+  categories.isError = true; params = { itemName: '새 텀블러' }; mutation.isError = false; mutation.error = null;
+  outcome = async () => ({ type: 'pending_item', item: { name: '새 텀블러' } });
+  const generalPage = render();
+  assert.match(generalPage, /카테고리를 직접 고를 필요가 없어요/);
+  assert.doesNotMatch(generalPage, /카테고리를 불러오지 못했어요|선택한 종류를 확인하지 못했어요/);
+  press('제품 등록 요청 보내기'); await settle();
+  assert.equal(payload.itemName, '새 텀블러');
+  assert.equal(payload.categoryId, undefined, 'General product requests are staged without a user-selected category');
+
+  console.log('Item request checks passed: fixed content categories, category-free product requests, photos, retry preservation and login/approval routes.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
