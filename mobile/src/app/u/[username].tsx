@@ -4,12 +4,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
-import { ProfilePickCard } from '@/components/profile-pick-card';
+import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { isDemoUsername } from '@/lib/demoProfile';
@@ -19,6 +20,7 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
+  const categoriesQuery = useExploreCategories(Boolean(query.data));
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
@@ -63,20 +65,14 @@ export default function PublicProfileScreen() {
             sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
           />
           <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
-          {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
-            <ProfilePickCard
-              key={item.pick.id}
-              categoryName={item.category?.name ?? '카테고리'}
-              itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
-              review={item.pick.oneLineReview}
-              imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
-              itemId={item.item?.id}
-              itemStatus={item.item?.status}
-              hasPhoto={Boolean(item.item?.imagePath)}
-              onPressPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })}
-              onPressItem={item.item ? () => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } }) : undefined}
+          {query.data.currentPicks.length > 0 ? (
+            <ProfilePickGroups
+              picks={query.data.currentPicks}
+              categories={categoriesQuery.data ?? []}
+              onPressPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
+              onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
             />
-          )) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
+          ) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
           {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>

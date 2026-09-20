@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
+import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
@@ -13,6 +14,7 @@ import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 
@@ -101,6 +103,7 @@ export default function ProfileScreen() {
   const historyQuery = useMyPickHistory(listUserId);
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
+  const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -184,18 +187,14 @@ export default function ProfileScreen() {
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
-        {currentPicks.length > 0 ? currentPicks.map((item) => <ProfilePickCard
-          key={item.pick.id}
-          categoryName={item.category?.name ?? '카테고리'}
-          itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
-          review={item.pick.oneLineReview}
-          imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
-          itemId={item.item?.id}
-          itemStatus={item.item?.status}
-          hasPhoto={Boolean(item.item?.imagePath)}
-          onPressPick={() => openPick(item.pick.id)}
-          onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
-        />) : (
+        {currentPicks.length > 0 ? (
+          <ProfilePickGroups
+            picks={currentPicks}
+            categories={categoriesQuery.data ?? []}
+            onPressPick={openPick}
+            onPressItem={openItem}
+          />
+        ) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
         <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />

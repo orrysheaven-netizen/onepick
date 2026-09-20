@@ -69,6 +69,7 @@ async function main() {
         React.createElement(native.Text, null, props.itemName),
       ),
     },
+    '@/components/profile-pick-groups': { ProfilePickGroups: () => null },
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
@@ -77,6 +78,7 @@ async function main() {
     '@/errors/appError': { AppError },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },

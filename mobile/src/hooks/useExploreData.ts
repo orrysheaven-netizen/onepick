@@ -4,8 +4,8 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { exploreService } from '@/services';
 
-export function useExploreCategories() {
-  return useQuery({ queryKey: ['categories', 'browse'], queryFn: () => exploreService.getCategories() });
+export function useExploreCategories(enabled = true) {
+  return useQuery({ queryKey: queryKeys.categories.browse, queryFn: () => exploreService.getCategories(), enabled });
 }
 
 export function useCategoryTopItems(categoryId?: string) {
