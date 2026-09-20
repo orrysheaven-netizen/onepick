@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import { AppError } from '@/errors/appError';
 import { observabilityService } from '@/services';
@@ -42,7 +42,15 @@ export function isPhotoFailure(error: unknown) {
   ].includes(error.code);
 }
 
+const PHOTO_FAILURE_TITLE = '사진을 업로드하지 못했어요';
+
 export function showPhotoFailure(error: unknown, context: string) {
   void observabilityService.captureError(error, context);
-  Alert.alert('사진을 업로드하지 못했어요', photoFailureMessage(error), [{ text: '확인' }]);
+  const message = photoFailureMessage(error);
+  // react-native-web implements Alert.alert as a no-op, so browsers get the native dialog instead.
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(`${PHOTO_FAILURE_TITLE}\n\n${message}`);
+    return;
+  }
+  Alert.alert(PHOTO_FAILURE_TITLE, message, [{ text: '확인' }]);
 }
