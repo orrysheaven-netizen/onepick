@@ -154,7 +154,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {ready && data?.editorialItems.length ? <View style={styles.editorialSection}>
+        {ready && data?.editorialItems?.length ? <View style={styles.editorialSection}>
           <SectionTitle title="먼저 소개하는 원픽" description="초기 추천 큐레이션 · 인기 순위와는 별도로 운영해요." />
           <View style={styles.editorialList}>
             {data.editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
