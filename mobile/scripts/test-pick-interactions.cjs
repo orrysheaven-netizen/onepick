@@ -219,11 +219,11 @@ async function main() {
   let rankRefreshes = 0;
   const rankingQuery = { data: [{ itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 }],
     isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
-  const { browseCategoryGroups } = loadSource('lib/categories/categoryTree.ts');
+  const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
-    '@/lib/categories/categoryTree': { browseCategoryGroups },
+    '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/components/item-search': { ItemSearch: () => null },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
   });
