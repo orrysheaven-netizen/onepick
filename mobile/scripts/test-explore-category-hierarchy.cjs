@@ -15,12 +15,12 @@ assert.match(explore, /scalar\(params\.search\) === '1' \|\| incomingQuery\.leng
 assert.match(explore, /initialQuery=\{incomingQuery\}/);
 assert.match(explore, /const selectedCategoryLabel = selectedCategory \? categoryLabel\(selectedCategory, categoryCatalog\) : null/);
 assert.match(explore, /accessibilityLabel="전체 카테고리 보기"/);
-assert.match(explore, /accessibilityState=\{\{ selected: !parentId \}\}/);
+assert.match(explore, /<Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected=\{!parentId\}/, 'top-level filter is a kit Chip that exposes its selected state');
 assert.match(explore, /상위 카테고리 보기/);
 assert.match(explore, /카테고리 보기/);
 assert.match(explore, /\$\{group\.category\.name\} › \$\{leafLabel\(category\)\}/);
 assert.match(explore, /\$\{selectedCategoryLabel\}에서 검색/);
-assert.match(explore, />\{selectedCategoryLabel\} 원픽 TOP 3</);
+assert.match(explore, /<SectionHeader title=\{`\$\{selectedCategoryLabel\} 원픽 TOP 3`\}/, 'ranking header is the kit SectionHeader with the full category label');
 assert.match(explore, /setParentId\(undefined\);\s*setChildId\(undefined\)/);
 assert.match(explore, /if \(childId && group && !group\.children\.some/);
 
@@ -29,7 +29,8 @@ assert.doesNotMatch(explore, /2\. \{group\.category\.name\}에서 골라주세�
 assert.doesNotMatch(explore, /parentCard:/);
 assert.doesNotMatch(explore, /categoryGrid:/);
 
-assert.match(explore, /parentChipActive/);
+assert.match(explore, /<Chip key=\{category\.id\} label=\{category\.name\} accessibilityLabel=\{`\$\{category\.name\} 상위 카테고리 보기`\} selected=\{selected\}/);
+assert.doesNotMatch(explore, /parentChipActive|chipActive/, 'chip styling belongs to the kit, not the screen');
 assert.doesNotMatch(explore, /<ScrollView\s+horizontal[\s\S]*contentContainerStyle=\{styles\.parentRow\}/,
   'Explore must not nest a horizontal ScrollView for top-level category chips on web');
 assert.match(explore, /parentRow:\s*\{[^}]*flexDirection: 'row'[^}]*flexWrap: 'wrap'/,
