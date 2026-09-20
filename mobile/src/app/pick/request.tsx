@@ -12,8 +12,8 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'PHOTO_INVALID') return '사진을 읽지 못했어요. JPG·PNG 사진을 다시 선택해주세요.';
-    if (error.code === 'PHOTO_TOO_LARGE') return '사진이 너무 커요. 더 작은 사진을 선택해주세요.';
-    if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진을 저장하지 못했어요. 선택한 사진은 유지됩니다. 다시 시도해주세요.';
+    if (error.code === 'PHOTO_TOO_LARGE') return '사진 용량이 너무 커 자동 최적화할 수 없어요. 다른 사진을 선택해주세요.';
+    if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 선택한 사진은 유지됩니다. 다시 시도해주세요.';
     if (error.code === 'IMAGE_SOURCE_UNSUPPORTED') return '지원하는 제조사 사이트의 HTTPS 링크를 넣어주세요. 다른 링크는 직접 사진 선택을 이용해주세요.';
     if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 직접 사진 선택을 이용해주세요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';

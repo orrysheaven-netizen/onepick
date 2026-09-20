@@ -17,8 +17,8 @@ function message(error: unknown) {
   if (error instanceof AppError) {
     switch (error.code) {
       case 'PHOTO_INVALID': return '이미지를 읽지 못했어요. JPG·PNG 사진을 선택하거나 사진 없이 등록할 수 있어요.';
-      case 'PHOTO_TOO_LARGE': return '사진이 너무 커요. 더 작은 사진을 선택해주세요.';
-      case 'PHOTO_UPLOAD_FAILED': return '사진을 저장하지 못했어요. 다시 시도하거나 사진 없이 등록해주세요.';
+      case 'PHOTO_TOO_LARGE': return '사진 용량이 너무 커 자동 최적화할 수 없어요. 다른 사진을 선택해주세요.';
+      case 'PHOTO_UPLOAD_FAILED': return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 다시 시도하거나 사진 없이 등록해주세요.';
       case 'IMAGE_SOURCE_UNSUPPORTED': return '지원하는 제조사 사이트의 HTTPS 상품·이미지 링크를 넣어주세요. 다른 링크는 직접 업로드를 이용해주세요.';
       case 'IMAGE_IMPORT_FAILED': return '이 링크에서 사진을 가져오지 못했어요. 이미지 직접 링크·직접 업로드를 이용하거나 사진 없이 등록해주세요.';
       case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에 등록할 수 없어요.';
