@@ -9,6 +9,8 @@ const service = read('src/services/profileTasteCompositionService.ts');
 const component = read('src/components/profile-taste-composition.tsx');
 const profile = read('src/app/(tabs)/profile.tsx');
 const publicProfile = read('src/app/u/[username].tsx');
+const aiPanel = read('src/components/profile-ai-panel.tsx');
+const aiComment = read('src/components/profile-ai-comment.tsx');
 const queryKeys = read('src/lib/query/queryKeys.ts');
 const invalidation = read('src/lib/query/invalidatePickData.ts');
 const overrides = read('src/lib/supabase/database.overrides.ts');
@@ -19,6 +21,11 @@ assert.match(component, /const MINIMUM_PICKS = 5;/);
 assert.match(component, /취향을 모으는 중 · 원픽/);
 assert.match(component, /dimension\.percentage\.toFixed\(1\)/);
 assert.match(component, /variant\?: 'self' \| 'public'/);
+assert.match(aiPanel, /구성 → 해석/);
+assert.match(aiPanel, /그 비율을 점수처럼 쓰지 않고/);
+assert.match(aiPanel, /실제 원픽과 한줄평을 직접 읽어/);
+assert.match(aiComment, /sectionDescription\?: string/);
+assert.match(aiComment, /구성 → 해석/);
 assert.match(queryKeys, /profileTaste:\s*\{/);
 assert.match(queryKeys, /composition: \(profileId: string, viewerId\?: string\)/);
 assert.match(invalidation, /queryKeys\.profileTaste\.all/);
@@ -48,5 +55,6 @@ assert.ok(publicSafetyIndex > publicPicksIndex, 'public safety controls must not
 assert.match(publicProfile, /viewerId=\{user\?\.id\}/);
 assert.match(publicProfile, /variant="public"/);
 assert.match(publicProfile, /sectionTitle="AI 취향평가"/);
+assert.match(publicProfile, /sectionDescription="위 취향 구성은 선택의 큰 틀입니다\. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요\."/);
 
 console.log('Profile taste composition regression checks passed for owner and public profiles.');
