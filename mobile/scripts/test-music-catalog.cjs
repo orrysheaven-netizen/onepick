@@ -27,7 +27,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 
 function setup() {
   const state = {
-    rows: [], writes: [], upstream: [], cache: new Map(), waits: 0, auth: true, suspended: false, cover: 'https://coverartarchive.org/release-group/'+groupId+'/front-500',
+    rows: [], writes: [], upstream: [], cache: new Map(), waits: 0, auth: true, suspended: false, coverLookups: 0,
+    cover: 'https://coverartarchive.org/release/bbbbbbbb-cccc-4ddd-8eee-ffffffffffff/12345-500.jpg',
     categories: [{ id:'music',parent_id:'content',slug:'music',status:'open',is_visible:true,is_pickable:true },
       { id:'content',parent_id:null,slug:'content',status:'open',is_visible:true,is_pickable:false }],
   };
@@ -61,7 +62,8 @@ function setup() {
   const handler=createMusicCatalogHandler({
     client:()=>client, json,
     fetchMusicBrainz:async(url)=>{state.upstream.push(url); return {data:url.pathname.endsWith(recordingId)?raw:{recordings:[raw]}};},
-    fetchCoverArt:async()=>state.cover,
+    // Mirrors index.ts: { url } is a definitive Cover Art Archive answer, null means the lookup did not complete.
+    fetchCoverArt:async()=>{state.coverLookups++; return state.cover===undefined?null:{url:state.cover};},
     readCache:async(_client,key)=>state.cache.get(key)??null,
     writeCache:async(_client,key,payload)=>{state.cache.set(key,payload);},
     waitForProvider:async()=>{state.waits++;return true;},
@@ -102,11 +104,23 @@ async function main(){
   const known=await (await s.request('search',{},false)).json();
   assert.equal(known.recordings[0].existingItemId,saved.itemId);
 
+  assert.equal(s.state.coverLookups,1,'A confirmed cover is looked up once and then served from cache');
+
   const miss=setup(); miss.state.cover=null;
   const missed=await (await miss.request('search',{},false)).json();
   assert.equal(missed.recordings[0].coverArtUrl,null,'An unconfirmed cover is omitted instead of guessed');
   const missImport=await (await miss.request('import')).json();
   assert.equal(missImport.created,true); assert.equal(miss.state.writes[0].image_source_url,null,'Imports never store an unverified cover URL');
+  assert.equal(miss.state.coverLookups,1,'A definitive miss is cached too');
+
+  const unknown=setup(); unknown.state.cover=undefined;
+  const pending=await (await unknown.request('search',{},false)).json();
+  assert.equal(pending.recordings[0].coverArtUrl,null,'A lookup that did not complete yields no cover for this response');
+  assert.equal([...unknown.state.cache.keys()].some((key)=>key.startsWith('cover:')),false,'A timed-out lookup is never cached as a miss');
+  unknown.state.cover='https://coverartarchive.org/release/bbbbbbbb-cccc-4ddd-8eee-ffffffffffff/12345-500.jpg';
+  const retried=await (await unknown.request('search',{},false)).json();
+  assert.equal(retried.recordings[0].coverArtUrl,unknown.state.cover,'The next search retries the lookup and serves the confirmed cover');
+  assert.equal(unknown.state.coverLookups,2);
 
   for(const mode of ['no-auth','expired','suspended','hidden-category','hidden-parent','non-leaf','bad-id','bad-query']){
     const t=setup();
