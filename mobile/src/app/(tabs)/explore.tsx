@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,11 +8,16 @@ import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
 
+type ExploreParams = { search?: string | string[]; query?: string | string[] };
+const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
+
 export default function ExploreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<ExploreParams>();
+  const incomingQuery = (scalar(params.query) ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
   const [parentId, setParentId] = useState<string | undefined>();
   const [childId, setChildId] = useState<string | undefined>();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
   const categories = useExploreCategories();
   const categoryCatalog = categories.data ?? [];
   const groups = useMemo(() => browseCategoryGroups(categoryCatalog), [categoryCatalog]);
@@ -27,6 +32,10 @@ export default function ExploreScreen() {
   const youtubeCategory = categories.data?.find((category) => category.slug === 'youtube');
   const pokemonCategory = categories.data?.find((category) => category.slug === 'pokemon');
   const topItems = useCategoryTopItems(selectedCategoryId);
+
+  useEffect(() => {
+    if (scalar(params.search) === '1' || incomingQuery.length > 0) setSearchOpen(true);
+  }, [incomingQuery, params.search]);
 
   useEffect(() => {
     if (parentId && !groups.some((entry) => entry.category.id === parentId)) {
@@ -67,7 +76,8 @@ export default function ExploreScreen() {
                 ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
                 : 'OnePick에 등록된 항목을 검색합니다.'}
           </Text>
-          <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId}
+          <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
+            initialQuery={incomingQuery}
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
             onSearchDrama={dramaCategory && (!selectedCategoryId || selectedCategoryId === dramaCategory.id)
