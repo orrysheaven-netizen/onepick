@@ -45,8 +45,10 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const [query, setQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const [selection, setSelection] = useState<Selection | null>(null);
   const categories = useRegistrationCategories();
-  const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === scalar(params.categoryId)) : undefined;
-  const search = useItemSearch(authReady ? query : '', selectedCategory?.id);
+  const requestedCategoryId = scalar(params.categoryId);
+  const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
+  const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
+  const search = useItemSearch(authReady && categoryScopeReady ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const isDramaCategory = selectedCategory?.slug === 'drama';
   const isMusicCategory = selectedCategory?.slug === 'music';
@@ -63,13 +65,13 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const normalizedQuery = query.trim().replace(/\s+/g, ' ');
   const hasQuery = normalizedQuery.length > 0;
   const canSearchMovieCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 60;
-  const localItems = authReady && !search.isWaiting && !search.isError
+  const localItems = authReady && categoryScopeReady && !search.isWaiting && !search.isError
     ? (search.data ?? []).filter((item) => !selectedCategory || item.categoryId === selectedCategory.id) : [];
   const externalMovies = (movieCatalog.data ?? []).filter((movie) => movie.source === source &&
     !localItems.some((item) => item.externalSource === movie.source && item.externalId === movie.externalId));
   const isSearching = search.isWaiting || search.isFetching
     || (isCatalogCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching));
-  const hasSearchScope = authReady;
+  const hasSearchScope = authReady && categoryScopeReady;
   const noResults = hasQuery && hasSearchScope && (!isCatalogCategory || canSearchMovieCatalog)
     && !isSearching && !search.isError && (!isCatalogCategory || !movieCatalog.isError)
     && localItems.length === 0 && (!isCatalogCategory || externalMovies.length === 0);
@@ -171,10 +173,15 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.kicker}>FIND YOUR ONE PICK</Text><Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
+      <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View>
-        : <Text style={styles.stateText}>카테고리는 비워두고 상품 등록만 진행합니다.</Text>}
+        : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 상품 등록만 진행합니다.</Text> : null}
+      {requestedCategoryId && categories.isError ? <View style={styles.stateCard}>
+        <Text style={styles.stateTitle}>선택한 카테고리를 확인하지 못했어요</Text>
+        <Text style={styles.stateText}>전체 상품 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다.</Text>
+        <Pressable accessibilityRole="button" disabled={categories.isFetching} onPress={() => { if (!categories.isFetching) void categories.refetch(); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text></Pressable>
+      </View> : null}
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
       <TextInput autoFocus={!validReturn} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
         maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); } }}
