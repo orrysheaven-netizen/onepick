@@ -146,11 +146,16 @@ async function main() {
   const repoSearch = await repo.search(' 아리랑 ', ' 조정래 ', signal);
   assert.equal(repoSearch[0].title, '아리랑');
   assert.equal(calls[0].name, 'book-catalog');
-  assert.deepEqual(calls[0].options.body, { action: 'search', query: '아리랑 조정래' });
+  // calls[0].options.body was built inside the vm.runInNewContext() realm `load()` uses, so its
+  // plain-object literal carries that realm's own Object.prototype -- a different reference from
+  // this file's Object.prototype even with identical own keys/values. deepEqual reports that
+  // ("same structure but not reference-equal") as a failure, so round-trip through JSON first to
+  // compare plain data instead of realm-specific object identity.
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0].options.body)), { action: 'search', query: '아리랑 조정래' });
   assert.equal(calls[0].options.signal, signal);
 
   await repo.importBook('h433zQEACAAJ');
-  assert.deepEqual(calls.at(-1).options.body, { action: 'import', externalId: 'h433zQEACAAJ' });
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).options.body)), { action: 'import', externalId: 'h433zQEACAAJ' });
   await assert.rejects(() => repo.importBook('bad/id'), (error) => error.code === 'ITEM_NOT_FOUND');
 
   const { BookCatalogService } = load('mobile/src/services/bookCatalogService.ts');
