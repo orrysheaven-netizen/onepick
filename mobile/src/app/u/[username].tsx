@@ -50,7 +50,12 @@ export default function PublicProfileScreen() {
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
           <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
-          <ProfileAiComment profileId={query.data.profile.id} showPrivate={query.data.isMine} sectionTitle="AI 취향평가" />
+          <ProfileAiComment
+            profileId={query.data.profile.id}
+            showPrivate={query.data.isMine}
+            sectionTitle="AI 취향평가"
+            sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
+          />
           <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
           {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
             <View key={item.pick.id} style={styles.pickCard}>
