@@ -44,14 +44,13 @@ begin
 
   select count(*)::int into v_expected
   from public.profiles p
-  where p.username not like 'demo\_%' escape '\';
+  where p.id <> v_demo;
   assert (v_before->'metrics'->>'profiles')::int = v_expected,
     'Operations profile metric excludes seed profiles';
 
   select count(*)::int into v_expected
   from public.picks p
-  join public.profiles pr on pr.id=p.user_id
-  where p.status='active' and pr.username not like 'demo\_%' escape '\';
+  where p.status='active' and p.user_id <> v_demo;
   assert (v_before->'metrics'->>'active_picks')::int = v_expected,
     'Operations Pick metric excludes seed profiles';
 
