@@ -21,7 +21,7 @@ async function main() {
   assert.equal(tree.selectableCategories(categories).map((c) => c.id).join(','), 'new');
   assert.equal(tree.categoryLabel(child, categories), '음식 › 쇼핑몰 › 새 분류');
   for (const patch of [{ status: 'paused' }, { isVisible: false }, { isPickable: true }]) {
-    assert.equal(tree.selectableCategories([{ ...parent, ...patch }, child]).length, 0);
+    assert.equal(tree.selectableCategories([{ ...parent, ...patch }, middle, child]).length, 0);
   }
   assert.equal(tree.selectableCategories([child]).length, 0, 'Missing or inaccessible parent blocks eligibility');
   let admin = true, writes = [], aliases = [], itemWrites = [];
