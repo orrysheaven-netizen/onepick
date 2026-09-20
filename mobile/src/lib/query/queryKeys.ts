@@ -53,6 +53,10 @@ export const queryKeys = {
     status: (userId: string) => ['profile-ai', 'status', userId] as const,
     comment: (profileId: string) => ['profile-ai', 'comment', profileId] as const,
   },
+  profileTaste: {
+    all: ['profile-taste'] as const,
+    composition: (profileId: string, viewerId?: string) => ['profile-taste', 'composition', profileId, viewerId ?? 'public'] as const,
+  },
   safety: {
     all: ['safety'] as const,
     blocks: (userId: string) => ['safety', 'blocks', userId] as const,
