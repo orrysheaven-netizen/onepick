@@ -17,7 +17,6 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
-type ProfilePickItem = MyProfileData['currentPicks'][number];
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
 
 function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyItemRequests>; label: string }) {
