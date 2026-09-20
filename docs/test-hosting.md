@@ -73,6 +73,22 @@ Kakao Developers의 OAuth Redirect URI는 원픽 화면 주소와 다르다. 기
 닉네임만 요청하는 현재 동의 항목을 유지한다. 실제 다른 테스터 계정의 로그인까지
 확인한 뒤 링크를 전달한다.
 
+## 배포 커밋 확인
+
+Release build는 Cloudflare Pages가 자동 주입하는 `CF_PAGES_COMMIT_SHA`,
+`CF_PAGES_BRANCH`, `CF_PAGES_URL`을 사용해 배포 결과물 루트에
+`deployment.json`을 생성한다. Cloudflare Pages는 이 세 값을 기본 시스템
+환경변수로 제공한다.
+
+배포 후 아래 주소를 열어 현재 테스트 사이트가 어떤 커밋을 서비스하는지 확인한다.
+
+- `https://onepick-5cl.pages.dev/deployment.json`
+
+Production branch가 `feature/pick-core`이므로 `branch`는
+`feature/pick-core`이어야 하고, `commitSha`는 GitHub의 해당 브랜치 HEAD와
+일치해야 한다. 이 파일에는 공개 가능한 배포 식별자만 기록하며 Supabase 키나
+기타 비밀값은 포함하지 않는다.
+
 ## 4. 주소를 전달하기 전 확인
 
 - 홈, 탐색, 아이템 상세, 원픽 상세, 공개 프로필을 직접 열고 새로고침한다.
