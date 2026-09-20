@@ -43,10 +43,14 @@ The protected `/admin` route is backed by a private administrator allowlist. Adm
 
 The MVP Admin dashboard provides:
 
-1. **Pending item review**
-   - requester username
-   - category
-   - likely duplicate items
+1. **Pending item review** (데이터 관리 → 검수 대기)
+   - the category the item will be approved into. Requests submitted without a
+     category sit in the hidden `pending-product` staging category; the review
+     screen defaults to the strongest AI suggestion (`admin_item_category_suggestion`,
+     admin + MFA only) and otherwise requires the admin to pick an open, visible
+     leaf category before **Approve** is enabled. `admin_review_pending_item`
+     refuses `pending-product` and non-leaf categories server-side.
+   - likely duplicate items, searched in the chosen category
    - approve as a new official item
    - merge into an existing item
    - reject
