@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
@@ -220,7 +220,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
       {consent ? <>
         <Text style={styles.label}>채널명 · @handle · YouTube 링크</Text>
-        <TextInput autoFocus accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
+        <TextInput autoFocus={Platform.OS !== 'web'} accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
           editable={Boolean(category) && !importing} maxLength={1000} value={searchText}
           onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
           placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
