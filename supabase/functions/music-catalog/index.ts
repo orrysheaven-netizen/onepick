@@ -101,8 +101,16 @@ async function fetchCoverArt(releaseGroupId: string): Promise<CoverLookup> {
   }
 }
 
+// Supabase Edge Runtime keeps the worker alive for promises handed to
+// EdgeRuntime.waitUntil; without it the isolate may stop once the response is sent.
+declare const EdgeRuntime: { waitUntil?: (work: Promise<unknown>) => void } | undefined;
+function keepAlive(work: Promise<unknown>) {
+  if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') EdgeRuntime.waitUntil(work);
+  else void work;
+}
+
 const handler = createMusicCatalogHandler({
-  client: adminClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, json,
+  client: adminClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, keepAlive, json,
 });
 
 Deno.serve(async (req: Request) => {
