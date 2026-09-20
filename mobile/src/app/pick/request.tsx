@@ -88,7 +88,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     try {
       const result = await registration.mutateAsync({
         userId: auth.user.id,
-        categoryId,
+        categoryId: categoryId || undefined,
         itemName: normalizedName,
         variant: '',
         oneLineReview: '',
