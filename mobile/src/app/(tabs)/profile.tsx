@@ -185,18 +185,21 @@ export default function ProfileScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>MY ONEPICK</Text><Text style={styles.username}>@{profile.username}</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+            disabled={isFetching}
+            onPress={refreshAll}
+            style={({ pressed }) => [styles.refreshAction, (pressed || isFetching) && styles.pressed]}>
+            <Text style={styles.refreshText}>{isFetching ? '확인 중…' : '새로고침'}</Text>
+          </Pressable>
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
         <ProfileSocialLinks profileUserId={profile.id} editable />
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침" disabled={isFetching} onPress={refreshAll}
-          style={({ pressed }) => [styles.refreshButton, (pressed || isFetching) && styles.pressed]}>
-          <Text style={styles.refreshText}>{isFetching ? '최신 상태 확인 중…' : '상태 새로고침'}</Text>
-        </Pressable>
         <View style={styles.summaryCard}>
-          <View><Text style={styles.summaryNumber}>{currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
-          <View style={styles.summaryDivider} />
-          <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
+          <Text style={styles.summaryLabel}>현재 원픽</Text>
+          <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
         </View>
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
@@ -235,20 +238,19 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 18 },
   profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center' },
   profileAvatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
-  refreshButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
-  refreshText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  refreshAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8, marginLeft: 8 },
+  refreshText: { color: '#747985', fontSize: 11, fontWeight: '800' },
   refreshError: { color: '#A9482D', fontSize: 13, lineHeight: 20, marginBottom: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   username: { color: '#202124', fontSize: 24, fontWeight: '800', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 12 },
-  summaryNumber: { color: '#202124', fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  summaryLabel: { color: '#747985', fontSize: 12, marginTop: 4, textAlign: 'center' },
-  summaryDivider: { width: 1, height: 34, backgroundColor: '#E3E5EA' },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
+  summaryNumber: { color: '#202124', fontSize: 17, fontWeight: '900' },
+  summaryLabel: { color: '#747985', fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
   onboardingButton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 12 },
   publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 12 },
@@ -258,10 +260,10 @@ const styles = StyleSheet.create({
   adminTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   adminText: { color: '#C9CDD5', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminChevron: { color: '#FFFFFF', fontSize: 26, paddingHorizontal: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
   requestHeader: { marginTop: 28 },
   historyHeader: { marginTop: 28 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
+  sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
   sectionHint: { color: '#747985', fontSize: 12 },
   pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   pickCardMuted: { opacity: 0.7 },
