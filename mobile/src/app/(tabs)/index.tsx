@@ -23,15 +23,17 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
   return <View style={styles.card}>
     <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
       style={({ pressed }) => [styles.productAction, pressed && styles.pressed]}>
-      <View style={styles.cardTop}>
-        <Text style={styles.cardCategory}>{item.categoryName}</Text>
-        {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
-      </View>
       <View style={styles.cardBody}>
-        <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+        <PickPhoto tall uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
         <View style={styles.cardCopy}>
+          <View style={styles.cardTop}>
+            <Text numberOfLines={1} style={styles.cardCategory}>{item.categoryName}</Text>
+            {mine ? <View style={styles.badge}><Text style={styles.badgeText}>MY PICK</Text></View> : null}
+          </View>
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 이 원픽을 추천</Text>
+          {item.latestPickReview
+            ? <><Text style={styles.reasonLabel}>추천 이유</Text><Text numberOfLines={3} style={styles.review}>{`“${item.latestPickReview}”`}</Text></>
+            : <Text style={styles.pickCount}>{item.pickCount.toLocaleString()}명이 추천</Text>}
         </View>
       </View>
     </Pressable>
@@ -39,13 +41,8 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
       accessibilityLabel={`@${item.latestPickerUsername} 프로필 보기`} onPress={onProfile}
       style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}>
       <View style={styles.pickerAvatar}><Text style={styles.pickerInitial}>{item.latestPickerUsername.slice(0, 1).toUpperCase()}</Text></View>
-      <View style={styles.pickerCopy}>
-        <View style={styles.pickerNameRow}>
-          <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
-          {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
-        </View>
-        {item.latestPickReview ? <><Text style={styles.reasonLabel}>추천 이유</Text><Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text></> : null}
-      </View>
+      <Text numberOfLines={1} style={styles.pickerMeta}>@{item.latestPickerUsername}{item.pickCount > 1 ? ` 외 ${(item.pickCount - 1).toLocaleString()}명` : ''}이 추천</Text>
+      {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
       <Text style={styles.profileArrow}>›</Text>
     </Pressable> : null}
   </View>;
@@ -146,18 +143,33 @@ export default function HomeScreen() {
           onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
           onSelect={openItem} />
 
-        <View style={styles.intro}>
-          <View style={styles.introCopy}>
-            <Text style={styles.eyebrow}>카테고리마다 단 하나</Text>
-            <Text style={styles.headline}>내가 추천하는 <Text style={styles.accent}>원픽.</Text></Text>
-            <Text style={styles.introDescription}>수많은 선택지 중 하나만 고르고, 왜 추천하는지 남겨보세요.</Text>
+        {user ? null : <View style={styles.signinStrip}>
+          <View style={styles.signinMark}><Text style={styles.signinMarkText}>1</Text></View>
+          <View style={styles.signinCopy}>
+            <Text style={styles.signinTitle}>하나만 추천한다면 무엇인가요?</Text>
+            <Text style={styles.signinText}>카테고리마다 하나를 고르고 이유를 남겨보세요</Text>
           </View>
-        </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="로그인하고 내 추천 원픽 만들기"
+            onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })}
+            style={({ pressed }) => [styles.signinButton, pressed && styles.pressed]}>
+            <Text style={styles.signinButtonText}>시작하기</Text>
+          </Pressable>
+        </View>}
 
         {ready && data?.editorialItems?.length ? <View style={styles.editorialSection}>
           <SectionTitle title="먼저 소개하는 원픽" description="초기 추천 큐레이션 · 인기 순위와는 별도로 운영해요." />
           <View style={styles.editorialList}>
             {data.editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
+          </View>
+        </View> : null}
+
+        {ready && data && categories.length ? <View style={styles.categorySection}>
+          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
+          <View style={styles.categoryGrid}>
+            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
+              onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
+            </Pressable>)}
           </View>
         </View> : null}
 
@@ -205,21 +217,7 @@ export default function HomeScreen() {
 
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
-          </Pressable> : <View style={styles.welcomeCard}>
-              <Text style={styles.welcomeTitle}>하나만 추천한다면 무엇인가요?</Text>
-              <Text style={styles.welcomeText}>카테고리마다 하나를 고르고{ '\n' }내가 추천하는 이유를 남겨보세요.</Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
-                <Text style={styles.actionText}>로그인하고 내 추천 원픽 만들기</Text><Text style={styles.arrow}>↗</Text>
-              </Pressable>
-          </View>}
-
-          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
-          {categories.length ? <View style={styles.categoryGrid}>
-            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
-              onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
-            </Pressable>)}
-          </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
+          </Pressable> : null}
 
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
@@ -234,12 +232,15 @@ const styles = StyleSheet.create({
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EAECF1', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, color: OnePick.text, fontWeight: '600' },
-  intro: { paddingTop: 8, paddingBottom: 24 },
-  introCopy: { flex: 1 },
-  eyebrow: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
-  headline: { color: OnePick.text, fontSize: 30, lineHeight: 40, letterSpacing: -1.2, fontWeight: '800', marginTop: 8 },
-  accent: { color: OnePick.accent },
-  introDescription: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginTop: 8, marginBottom: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
+  signinMark: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  signinMarkText: { color: OnePick.accent, fontSize: 16, fontWeight: '800' },
+  signinCopy: { flex: 1, minWidth: 0 },
+  signinTitle: { color: OnePick.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
+  signinText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  signinButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 22, backgroundColor: OnePick.accent },
+  signinButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  categorySection: { marginBottom: 26 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
   editorialSection: { marginBottom: 26 },
   editorialList: { gap: 10, marginTop: 12 },
@@ -262,36 +263,29 @@ const styles = StyleSheet.create({
   profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },
   card: { flex: 1, overflow: 'hidden', backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },
   productAction: { padding: 16 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
-  cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 5 },
+  cardBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   cardCopy: { flex: 1, minWidth: 0 },
-  cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
+  cardCategory: { flexShrink: 1, color: OnePick.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
   itemName: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '700', letterSpacing: -0.5 },
-  pickCount: { color: OnePick.accent, fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
-  pickerRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
-  pickerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
-  pickerInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
-  pickerCopy: { flex: 1, minWidth: 0 },
-  pickerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '900' },
-  reasonLabel: { color: OnePick.accent, fontSize: 10, fontWeight: '700', marginTop: 3 },
-  pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  review: { color: OnePick.text, fontSize: 14, lineHeight: 21, marginTop: 2 },
+  pickCount: { color: OnePick.muted, fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 6 },
+  pickerRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: OnePick.hairline },
+  pickerAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  pickerInitial: { color: OnePick.accent, fontSize: 11, fontWeight: '800' },
+  pickerMeta: { flex: 1, minWidth: 0, color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  demoBadge: { color: OnePick.muted, backgroundColor: OnePick.image, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '700' },
+  reasonLabel: { color: OnePick.accent, fontSize: 11, fontWeight: '700', marginTop: 7 },
   profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
   arrow: { color: OnePick.accent, fontSize: 20 },
-  welcomeCard: { padding: 20, marginTop: 20, borderRadius: 20, backgroundColor: OnePick.accentSoft },
-  welcomeTitle: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.8 },
-  welcomeText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, marginTop: 8 },
-  loginButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 44, marginTop: 12 },
-  nextSection: { marginTop: 30, marginBottom: 16 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  categoryCard: { width: '46%', flexGrow: 1, padding: 16, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, backgroundColor: OnePick.surface },
-  categoryName: { color: OnePick.text, fontSize: 17, fontWeight: '700' },
-  categoryAction: { color: OnePick.muted, fontSize: 13, marginTop: 14 },
-  emptyText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, paddingVertical: 16 },
+  nextSection: { marginBottom: 12 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  categoryCard: { width: '46%', flexGrow: 1, minHeight: 88, justifyContent: 'space-between', padding: 14, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
+  categoryName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700' },
+  categoryAction: { color: OnePick.muted, fontSize: 12, marginTop: 10 },
   stateCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 24, padding: 32, alignItems: 'center' },
   stateTitle: { color: OnePick.text, fontSize: 16, fontWeight: '600', marginTop: 10, textAlign: 'center' },
   stateText: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: 'center' },
