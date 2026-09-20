@@ -31,7 +31,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
     { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
     { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
-  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
+  ], categoriesToPick: [{ category: { id: 'snacks', parentId: 'food', name: '과자' } }], openCategories: [{ id: 'ramen', parentId: 'food', name: '라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
