@@ -207,11 +207,12 @@ export function createBookCatalogHandler(deps: Dependencies) {
     }
 
     const query = clean(body.query, 1000);
+    const author = clean(body.author, 1000);
     const id = typeof body.externalId === 'string' ? body.externalId.trim() : '';
 
     if (
       body.action === 'search'
-      && (query.length < 2 || query.length > 100)
+      && (query.length < 2 || query.length > 100 || author.length > 100)
     ) {
       return json({ error: 'QUERY_INVALID' }, 400);
     }
@@ -247,7 +248,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
 
     if (body.action === 'search') {
-      const cacheKey = `search:\n${query}`;
+      const cacheKey = `search:\n${query}\nauthor:\n${author}`;
       const cached = await readCache(client, cacheKey, 6 * 60 * 60_000);
 
       let books = Array.isArray(cached)
@@ -262,7 +263,10 @@ export function createBookCatalogHandler(deps: Dependencies) {
         }
 
         const url = new URL('https://www.googleapis.com/books/v1/volumes');
-        url.searchParams.set('q', query);
+        const searchTerms = [`intitle:${query}`, author ? `inauthor:${author}` : null]
+          .filter((value): value is string => Boolean(value))
+          .join(' ');
+        url.searchParams.set('q', searchTerms);
         url.searchParams.set('printType', 'books');
         url.searchParams.set('orderBy', 'relevance');
         url.searchParams.set('projection', 'full');
