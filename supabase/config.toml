@@ -49,7 +49,6 @@ verify_jwt = false
 # Public book search; selected-book import verifies a real user JWT internally.
 verify_jwt = false
 
-
 [functions.suggest-item-categories]
 # Authenticated users only; the handler validates the caller JWT and item ownership.
 verify_jwt = false

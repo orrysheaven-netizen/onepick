@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
@@ -17,6 +17,7 @@ type Params = {
   categoryId?: string | string[];
   externalYouTubeId?: string | string[];
   query?: string | string[];
+  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -43,7 +44,7 @@ function youtubeErrorMessage(error: unknown) {
 export default function YouTubePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <YouTubePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -51,7 +52,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const router = useRouter();
   const { user, isLoading: sessionLoading, error: sessionError, retry: retrySession } = auth;
   const authReady = !sessionLoading && !sessionError;
-  const [searchText, setSearchText] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
+  const [searchText, setSearchText] = useState(() => (scalar(params.query) ?? '').slice(0, 1000));
   const [consent, setConsent] = useState<boolean | null>(null);
   const [consentSaving, setConsentSaving] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -117,7 +118,10 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
+    const route = {
+      pathname: '/pick/choose' as const,
+      params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) },
+    };
     if (replace) router.replace(route); else router.push(route);
   };
 
@@ -215,12 +219,12 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       {params.externalYouTubeId !== undefined && !validReturn ? <Text accessibilityRole="alert" style={styles.errorText}>YouTube 채널 선택 링크를 확인해주세요. 다시 검색할 수 있어요.</Text> : null}
 
       {consent ? <>
-        <Text style={styles.label}>채널명 또는 @handle</Text>
-        <TextInput autoFocus accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
-          editable={Boolean(category) && !importing} maxLength={100} value={searchText}
+        <Text style={styles.label}>채널명 · @handle · YouTube 링크</Text>
+        <TextInput autoFocus={Platform.OS !== 'web'} accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
+          editable={Boolean(category) && !importing} maxLength={1000} value={searchText}
           onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-          placeholder="예: @GoogleDevelopers 또는 채널명" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
-        <Text style={styles.hint}>@handle이나 youtube.com 채널 주소를 입력하면 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용합니다.</Text>
+          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
+        <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줍니다. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용합니다.</Text>
         {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
         {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 채널과 YouTube를 함께 찾고 있어요</Text></View> : null}
@@ -273,7 +277,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         </Pressable>)}
 
         {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 채널을 찾지 못했어요</Text>
-          <Text style={styles.stateText}>채널명, @handle 또는 YouTube 채널 주소를 바꿔서 검색해보세요.</Text></View> : null}
+          <Text style={styles.stateText}>채널명을 다시 입력하거나, 해당 채널의 YouTube 영상/채널 링크를 붙여넣어보세요.</Text></View> : null}
       </> : null}
 
       <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>

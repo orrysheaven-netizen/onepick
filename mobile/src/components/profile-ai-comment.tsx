@@ -53,12 +53,12 @@ export function ProfileAiComment({
 }
 
 const styles = StyleSheet.create({
-  sectionHeading: { marginBottom: 12 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 },
+  sectionHeading: { marginBottom: 10 },
+  sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 11, paddingVertical: 9, marginTop: 9 },
   bridgeBadge: { color: '#4945ED', fontSize: 10, fontWeight: '900', paddingTop: 1 },
-  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 17 },
-  card: { borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 18 },
+  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 16 },
+  card: { borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 18, padding: 16, marginBottom: 18 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   loadingText: { color: '#747985', fontSize: 12 },
   header: { flexDirection: 'row', alignItems: 'center' },

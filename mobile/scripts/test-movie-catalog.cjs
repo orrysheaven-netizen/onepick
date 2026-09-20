@@ -34,7 +34,7 @@ async function main() {
     'Repeated public searches should reuse the server-side catalog cache');
   assert.match(edgeFunction, /p_interval_ms:\s*TMDB_PROVIDER_INTERVAL_MS/);
   assert.match(edgeFunction, /catalog_user_is_suspended/,
-    'Suspended users must not create catalog items through the service-role client');
+    'Suspended users must be checked through the service-role-only catalog RPC');
   const importBody = edgeFunction.slice(edgeFunction.indexOf('async function importMovie'), edgeFunction.indexOf('// Same deployed function'));
   assert.ok(importBody.indexOf('client.auth.getUser(accessToken)') < importBody.indexOf('fetchTmdb(url, client)'),
     'Movie import authentication must happen before any TMDB request');

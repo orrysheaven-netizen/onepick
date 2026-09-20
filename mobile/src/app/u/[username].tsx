@@ -4,27 +4,26 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
-import { PickPhoto } from '@/components/pick-photo';
+import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
-import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { shareProfile } from '@/lib/share/shareProfile';
-import { isDemoUsername } from '@/lib/demoProfile';
+import { isSeedProfileId } from '@/lib/seedProfiles';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
   const { username } = useLocalSearchParams<{ username?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
-  const categoryOptions = useRegistrationCategories();
+  const categoriesQuery = useExploreCategories(Boolean(query.data));
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
-  const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
-  const categoryLabels = new Map((categoryOptions.data ?? []).map((category) => [category.id, category.label ?? category.name]));
+  const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -50,14 +49,13 @@ export default function PublicProfileScreen() {
             <View style={styles.headerCopy}>
               <View style={styles.profileLabels}>
                 <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
-                {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
               </View>
               <Text style={styles.username}>@{query.data.profile.username}</Text>
               {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
             </View>
           </View>
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
-          <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{query.data.currentPicks.length}개</Text></View>
           <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
           <ProfileAiComment
             profileId={query.data.profile.id}
@@ -66,25 +64,15 @@ export default function PublicProfileScreen() {
             sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
           />
           <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
-          {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
-            <View key={item.pick.id} style={styles.pickCard}>
-              <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={item.item?.name ?? '제품 대표 이미지'}
-                itemId={item.item?.id} itemStatus={item.item?.status} hasPhoto={Boolean(item.item?.imagePath)} />
-              <View style={styles.pickCopy}>
-                <Pressable accessibilityRole="button" accessibilityLabel="원픽 상세 보기"
-                  onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })} style={({ pressed }) => pressed && styles.pressed}>
-                  <Text style={styles.pickCategory}>{categoryLabels.get(item.pick.categoryId) ?? item.category?.name ?? '카테고리'}</Text>
-                  <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
-                  <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text><Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
-                </Pressable>
-                {item.item ? <Pressable accessibilityRole="button" accessibilityLabel={`${item.item.name} 제품 상세 보기`}
-                  onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } })} style={({ pressed }) => [styles.itemLink, pressed && styles.pressed]}>
-                  <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
-                </Pressable> : null}
-              </View>
-            </View>
-          )) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
-          {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
+          {query.data.currentPicks.length > 0 ? (
+            <ProfilePickGroups
+              picks={query.data.currentPicks}
+              categories={categoriesQuery.data ?? []}
+              onPressPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
+              onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
+            />
+          ) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
+          {!query.data.isMine && user && !isSeed ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
             <View style={styles.safetyActions}>
@@ -118,26 +106,18 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, marginLeft: 16 },
   profileLabels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
-  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 18 },
-  summaryNumber: { color: '#202124', fontSize: 24, fontWeight: '900' },
-  summaryLabel: { color: '#747985', fontSize: 12, marginTop: 4 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
+  summaryNumber: { color: '#202124', fontSize: 17, fontWeight: '900' },
+  summaryLabel: { color: '#747985', fontSize: 12, fontWeight: '700' },
   safetyCard: { backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 28 },
   safetyTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
   safetyText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 5 },
   safetyActions: { gap: 10, marginTop: 12 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
   sectionHint: { color: '#747985', fontSize: 12 },
-  pickCard: { flexDirection: 'row', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
-  pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  pickAction: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 7 },
-  itemLink: { minHeight: 44, justifyContent: 'center', marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA' },
   emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },

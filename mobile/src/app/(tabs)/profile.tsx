@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
+import { ProfilePickCard } from '@/components/profile-pick-card';
+import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
@@ -11,12 +13,13 @@ import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { categoryLabel } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
-type ProfilePickItem = MyProfileData['currentPicks'][number];
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
 
 function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyItemRequests>; label: string }) {
@@ -45,26 +48,6 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
         </Pressable>
       ) : null}
     </>
-  );
-}
-
-function PickCard({ item, categoryLabel, muted = false, onPress }: { item: ProfilePickItem; categoryLabel?: string; muted?: boolean; onPress: () => void }) {
-  const title = item.item?.name ?? '제품 정보를 확인할 수 없어요';
-  const category = categoryLabel ?? item.category?.name ?? '카테고리';
-  return (
-    <View style={[styles.pickCard, muted && styles.pickCardMuted]}>
-      <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={title}
-        itemId={item.item?.id} itemStatus={item.item?.status} hasPhoto={Boolean(item.item?.imagePath)} />
-      <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.pickActionArea, pressed && styles.pressed]}>
-        <View style={styles.pickCopy}>
-          <Text style={styles.pickCategory}>{category}</Text>
-          <Text style={styles.pickName}>{title}</Text>
-          <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
-          {muted ? <Text style={styles.pickMeta}>{item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}</Text> : null}
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -121,7 +104,7 @@ export default function ProfileScreen() {
   const historyQuery = useMyPickHistory(listUserId);
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
-  const categoryOptions = useRegistrationCategories();
+  const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -167,7 +150,11 @@ export default function ProfileScreen() {
   const { profile, currentPicks } = profileQuery.data;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
-  const categoryLabels = new Map((categoryOptions.data ?? []).map((category) => [category.id, category.label ?? category.name]));
+  const categoryCatalog = categoriesQuery.data ?? [];
+  // Full path (e.g. 먹을것 › 면류 › 라면) once the taxonomy is loaded; the leaf name until then.
+  const labelFor = (category: Category | null | undefined) => category
+    ? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name)
+    : undefined;
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
@@ -187,47 +174,86 @@ export default function ProfileScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>MY ONEPICK</Text><Text style={styles.username}>@{profile.username}</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+            disabled={isFetching}
+            onPress={refreshAll}
+            style={({ pressed }) => [styles.refreshAction, (pressed || isFetching) && styles.pressed]}>
+            <Text style={styles.refreshText}>{isFetching ? '확인 중…' : '새로고침'}</Text>
+          </Pressable>
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
         <ProfileSocialLinks profileUserId={profile.id} editable />
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침" disabled={isFetching} onPress={refreshAll}
-          style={({ pressed }) => [styles.refreshButton, (pressed || isFetching) && styles.pressed]}>
-          <Text style={styles.refreshText}>{isFetching ? '최신 상태 확인 중…' : '상태 새로고침'}</Text>
-        </Pressable>
         <View style={styles.summaryCard}>
-          <View><Text style={styles.summaryNumber}>{currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
-          <View style={styles.summaryDivider} />
-          <View><Text style={styles.summaryNumber}>{historyQuery.data ? `${history.length}${historyQuery.hasNextPage ? '+' : ''}` : '—'}</Text><Text style={styles.summaryLabel}>불러온 이전 선택</Text></View>
+          <Text style={styles.summaryLabel}>현재 원픽</Text>
+          <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
         </View>
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
-        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} categoryLabel={categoryLabels.get(item.pick.categoryId)} onPress={() => openPick(item.pick.id)} />) : (
+        {currentPicks.length > 0 ? (
+          <ProfilePickGroups
+            picks={currentPicks}
+            categories={categoriesQuery.data ?? []}
+            onPressPick={openPick}
+            onPressItem={openItem}
+          />
+        ) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
-        <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.onboardingButton, pressed && styles.pressed]}>
-          <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>취향 고르기 이어가기</Text><Text style={styles.publicProfileText}>카테고리를 넘기거나 선택하면서 내 원픽을 더 채워보세요.</Text></View>
-          <Text style={styles.chevron}>›</Text>
-        </Pressable>
-        <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.publicProfileButton, pressed && styles.pressed]}>
-          <View style={styles.actionCopy}><Text style={styles.publicProfileTitle}>공개 프로필 보기</Text><Text style={styles.publicProfileText}>다른 사람에게 보이는 현재 원픽 컬렉션을 확인하고 공유할 수 있어요.</Text></View>
-          <Text style={styles.chevron}>›</Text>
-        </Pressable>
-        {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
-          <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
-        </Pressable> : null}
-        <View style={[styles.sectionHeader, styles.requestHeader]}>
-          <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
+
+        <View style={styles.managementSection}>
+          <Text style={styles.secondaryEyebrow}>PROFILE TOOLS</Text>
+          <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
+          <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필과 운영 도구를 확인합니다.</Text>
+
+          <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.managementRow, styles.managementRowAccent, pressed && styles.pressed]}>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>취향 고르기 이어가기</Text><Text style={styles.managementText}>아직 고르지 않은 카테고리의 원픽을 더 채워보세요.</Text></View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
+            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
+          </Pressable> : null}
         </View>
-        {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={categoryLabels.get(item.item.categoryId)} onOpenItem={openItem} />)}
-        {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
-        <ListControls query={requestsQuery} label="등록 요청" />
-        <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
-        {history.map((item) => <PickCard key={item.pick.id} item={item} categoryLabel={categoryLabels.get(item.pick.categoryId)} muted onPress={() => openPick(item.pick.id)} />)}
-        {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
-        <ListControls query={historyQuery} label="이전 기록" />
-        <SignOutButton />
+
+        <View style={styles.activitySection}>
+          <Text style={styles.secondaryEyebrow}>ACTIVITY</Text>
+          <Text style={styles.secondaryTitle}>활동 기록</Text>
+          <Text style={styles.secondaryDescription}>제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.</Text>
+
+          <View style={[styles.sectionHeader, styles.requestHeader]}>
+            <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
+          </View>
+          {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
+          {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
+          <ListControls query={requestsQuery} label="등록 요청" />
+
+          <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
+          {history.map((item) => <ProfilePickCard
+            key={item.pick.id}
+            categoryName={labelFor(item.category) ?? '카테고리'}
+            itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+            review={item.pick.oneLineReview}
+            imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
+            itemId={item.item?.id}
+            itemStatus={item.item?.status}
+            hasPhoto={Boolean(item.item?.imagePath)}
+            muted
+            statusText={item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}
+            onPressPick={() => openPick(item.pick.id)}
+            onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
+          />)}
+          {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
+          <ListControls query={historyQuery} label="이전 기록" />
+        </View>
+
+        <View style={styles.signOutArea}><SignOutButton /></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -236,42 +262,39 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 18 },
   profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center' },
   profileAvatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
-  refreshButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
-  refreshText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  refreshAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8, marginLeft: 8 },
+  refreshText: { color: '#747985', fontSize: 11, fontWeight: '800' },
   refreshError: { color: '#A9482D', fontSize: 13, lineHeight: 20, marginBottom: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   username: { color: '#202124', fontSize: 24, fontWeight: '800', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 12 },
-  summaryNumber: { color: '#202124', fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  summaryLabel: { color: '#747985', fontSize: 12, marginTop: 4, textAlign: 'center' },
-  summaryDivider: { width: 1, height: 34, backgroundColor: '#E3E5EA' },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
+  summaryNumber: { color: '#202124', fontSize: 17, fontWeight: '900' },
+  summaryLabel: { color: '#747985', fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
-  onboardingButton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 12 },
-  publicProfileButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 12 },
-  publicProfileTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  publicProfileText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
+  managementSection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: '#DDDFe5' },
+  activitySection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: '#DDDFe5' },
+  secondaryEyebrow: { color: '#89909C', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  secondaryTitle: { color: '#202124', fontSize: 16, fontWeight: '900', marginTop: 4 },
+  secondaryDescription: { color: '#89909C', fontSize: 11, lineHeight: 16, marginTop: 5, marginBottom: 14 },
+  managementRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 15, paddingVertical: 13, marginBottom: 9 },
+  managementRowAccent: { borderColor: '#DDDDF7', backgroundColor: '#FAFAFF' },
+  managementTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
+  managementText: { color: '#747985', fontSize: 11, lineHeight: 16, marginTop: 3, paddingRight: 12 },
   adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#252B38', borderRadius: 18, padding: 16, marginBottom: 0 },
   adminTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   adminText: { color: '#C9CDD5', fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminChevron: { color: '#FFFFFF', fontSize: 26, paddingHorizontal: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
-  requestHeader: { marginTop: 28 },
-  historyHeader: { marginTop: 28 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  requestHeader: { marginTop: 2 },
+  historyHeader: { marginTop: 24 },
+  sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
+  activitySectionTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   sectionHint: { color: '#747985', fontSize: 12 },
-  pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickCardMuted: { opacity: 0.7 },
-  pickActionArea: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center' },
-  pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
-  pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  pickMeta: { color: '#89909C', fontSize: 12, marginTop: 6 },
   requestCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   requestActionArea: { flex: 1, minHeight: 86, justifyContent: 'center' },
   requestCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
@@ -289,6 +312,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   noHistory: { color: '#747985', fontSize: 12, lineHeight: 19, paddingVertical: 10 },
+  signOutArea: { marginTop: 26, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#E3E5EA' },
   centerState: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   stateTitle: { color: '#202124', fontSize: 21, fontWeight: '800', marginTop: 18 },
   stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },

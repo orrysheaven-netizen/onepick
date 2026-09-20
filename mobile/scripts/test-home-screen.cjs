@@ -12,14 +12,14 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
-    if (name === 'react/jsx-runtime') return require(name);
+    if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
   } });
   return exports;
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -29,14 +29,19 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   hasNextPage: true, isFetchNextPageError: false, fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); pageCalls++; },
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
-    { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
-    { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
-  ], openCategories: [{ id: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면' }], singleCategoryItems: [],
+    { itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
+    { itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
+  ], openCategories: [
+    { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을것 › 면류 › 라면' },
+    { id: 'book', parentId: 'culture', name: '책', slug: 'book', label: '문화 › 책' },
+    { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', label: '문화 › 유튜브' },
+  ], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': {
     Text: component('span'), View: component('div'), ActivityIndicator: () => null, RefreshControl: () => null,
+    ScrollView: component('nav'),
     FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
@@ -45,11 +50,23 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/item-pick-count': { ItemPickCount: () => null },
-  '@/components/item-search': { ItemSearch: () => null },
+  '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': load('constants/onepick.ts'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
+  '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
+    { id: 'food', parentId: null, name: '음식', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+    { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+    { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'snacks', parentId: 'food', name: '과자', slug: 'snacks', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+    { id: 'movie', parentId: 'culture', name: '영화', slug: 'movie', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
+    { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
+  ] }) },
   '@/hooks/useHomeData': { useHomeData: () => query },
-  '@/lib/demoProfile': load('lib/demoProfile.ts'),
+  '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
+  '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
+    '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
+  }),
 });
 const render = () => { presses = []; return renderToStaticMarkup(React.createElement(Home)); };
 const refreshButton = () => presses.find((p) => p.accessibilityLabel === '홈 원픽 새로고침');
@@ -64,6 +81,10 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
+  assert.match(page, /전체/); assert.match(page, /음식/); assert.match(page, /문화/);
+  assert.equal(typeof itemSearchProps.onSearchBook, 'function');
+  assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
+  assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
@@ -73,6 +94,17 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');
+  itemSearchProps.onSearchBook('아리랑');
+  assert.equal(destination.pathname, '/pick/book');
+  assert.equal(destination.params.categoryId, 'book');
+  assert.equal(destination.params.query, '아리랑');
+  itemSearchProps.onSearchYouTube('최재천의 아마존');
+  assert.equal(destination.pathname, '/pick/youtube');
+  assert.equal(destination.params.categoryId, 'youtube');
+  itemSearchProps.onSubmitSearch('최재천의 아마존');
+  assert.equal(destination.pathname, '/explore');
+  assert.equal(destination.params.search, '1');
+  assert.equal(destination.params.query, '최재천의 아마존');
 }
 
 render(); endReached(); assert.equal(pageCalls, 1);

@@ -35,12 +35,21 @@ function progressCopy(status: ProfileAiStatus) {
     : `${changeText} · 원픽을 더 추가하거나 바꾸면 AI가 다시 읽어요.`;
 }
 
-export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: string; currentPickCount: number }) {
-  const status = useProfileAiStatus(profileId);
-  const comment = useProfileAiComment(profileId);
-  const generate = useGenerateProfileAi(profileId);
-  const visibility = useSetProfileAiVisibility(profileId);
-  const value = status.data;
+export function ProfileAiPanel({
+  profileId,
+  currentPickCount,
+  previewStatus,
+}: {
+  profileId: string;
+  currentPickCount: number;
+  previewStatus?: ProfileAiStatus;
+}) {
+  const preview = Boolean(previewStatus);
+  const status = useProfileAiStatus(preview ? undefined : profileId);
+  const comment = useProfileAiComment(preview ? undefined : profileId);
+  const generate = useGenerateProfileAi(preview ? undefined : profileId);
+  const visibility = useSetProfileAiVisibility(preview ? undefined : profileId);
+  const value = previewStatus ?? status.data;
   const fallbackReadyForFirstReview =
     !value &&
     !status.isPending &&
@@ -59,7 +68,7 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
 
     <View style={styles.bridgeCard}>
       <Text style={styles.bridgeBadge}>구성 → 해석</Text>
-      <Text style={styles.bridgeText}>위 취향 구성은 선택의 큰 틀을 보여줘요. AI는 그 비율을 점수처럼 쓰지 않고, 실제 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석해요.</Text>
+      <Text style={styles.bridgeText}>위 구성은 큰 틀만 보여줘요. AI는 비율을 점수로 쓰지 않고, 원픽과 한줄평의 공통점·대비를 직접 읽어요.</Text>
     </View>
 
     {value ? <View style={styles.progressCard}>
@@ -67,11 +76,10 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${Math.min(100, (Math.min(value.currentPickCount, 10) / 10) * 100)}%` }]} />
       </View>
-      <Text style={styles.helper}>5개부터 평가 가능 · 10개는 권장 목표</Text>
       <Pressable
         accessibilityRole="button"
         disabled={!value.canGenerate || generate.isPending}
-        onPress={() => generate.mutate()}
+        onPress={() => { if (!preview) generate.mutate(); }}
         style={({ pressed }) => [styles.primaryButton, (!value.canGenerate || generate.isPending) && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : value.hasReview ? 'AI가 다시 본 나' : 'AI 평가 보기'}</Text>
       </Pressable>
@@ -81,11 +89,10 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
       </View>
-      <Text style={styles.helper}>5개부터 평가 가능 · 10개는 권장 목표</Text>
       <Pressable
         accessibilityRole="button"
         disabled={generate.isPending}
-        onPress={() => generate.mutate()}
+        onPress={() => { if (!preview) generate.mutate(); }}
         style={({ pressed }) => [styles.primaryButton, generate.isPending && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : 'AI 평가 보기'}</Text>
       </Pressable>
@@ -93,9 +100,9 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
     </View> : status.isPending ? <Text style={styles.helper}>AI 평가 가능 여부를 확인하고 있어요.</Text>
       : <Text style={styles.error}>AI 평가 상태를 불러오지 못했어요.</Text>}
 
-    <ProfileAiComment profileId={profileId} showPrivate />
+    {preview ? <Text style={styles.previewNote}>QA PREVIEW · 버튼은 실제 요청을 보내지 않아요.</Text> : <ProfileAiComment profileId={profileId} showPrivate />}
 
-    {comment.data ? <Pressable
+    {!preview && comment.data ? <Pressable
       accessibilityRole="button"
       disabled={visibility.isPending}
       onPress={() => visibility.mutate(!comment.data!.isVisible)}
@@ -106,24 +113,25 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 8, marginBottom: 22 },
-  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 12 },
+  section: { marginTop: 6, marginBottom: 18 },
+  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 10 },
   eyebrow: { color: '#4945ED', fontSize: 10, fontWeight: '900', letterSpacing: 1.6 },
   title: { color: '#202124', fontSize: 19, fontWeight: '900', marginTop: 4 },
   concept: { color: '#747985', fontSize: 11, textAlign: 'right' },
-  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 },
   bridgeBadge: { color: '#4945ED', fontSize: 10, fontWeight: '900', paddingTop: 1 },
-  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 17 },
-  progressCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 12 },
+  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 16 },
+  progressCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
   progressText: { color: '#202124', fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  track: { height: 8, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 14 },
+  track: { height: 7, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 12 },
   fill: { height: '100%', backgroundColor: '#4945ED', borderRadius: 999 },
   helper: { color: '#747985', fontSize: 11, lineHeight: 17, marginTop: 8 },
-  primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  primaryButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   visibilityButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECEEF3', borderRadius: 14, marginTop: -6 },
   visibilityText: { color: '#5F6470', fontSize: 12, fontWeight: '800' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
+  previewNote: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
   error: { color: '#A9482D', fontSize: 11, lineHeight: 17, marginTop: 10 },
 });

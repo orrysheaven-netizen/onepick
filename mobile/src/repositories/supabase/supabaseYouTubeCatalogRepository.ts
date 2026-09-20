@@ -45,8 +45,13 @@ export class SupabaseYouTubeCatalogRepository implements YouTubeCatalogRepositor
   }
 
   async importChannel(externalId: string): Promise<ImportedYouTubeChannelItem> {
+    const { data: sessionData, error: sessionError } = await this.client.auth.getSession();
+    const accessToken = sessionData.session?.access_token?.trim();
+    if (sessionError || !accessToken) throw new AppError('AUTH_REQUIRED');
+
     const { data, error } = await this.client.functions.invoke('youtube-catalog', {
       body: { action: 'import', externalId },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (error) throw await functionError(error);
     if (!data || !UUID_PATTERN.test(data.itemId) || !UUID_PATTERN.test(data.categoryId) || typeof data.created !== 'boolean') {

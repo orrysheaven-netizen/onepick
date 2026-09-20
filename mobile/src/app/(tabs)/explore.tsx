@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
@@ -19,14 +20,15 @@ export default function ExploreScreen() {
   const [childId, setChildId] = useState<string | undefined>();
   const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
   const categories = useExploreCategories();
-  const allCategories = categories.data ?? [];
-  const groups = browseCategoryGroups(allCategories);
+  const categoryCatalog = categories.data ?? [];
+  const groups = useMemo(() => browseCategoryGroups(categoryCatalog), [categoryCatalog]);
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
-  const selectedCategory = allCategories.find((category) => category.id === selectedCategoryId);
-  const selectedCategoryPath = selectedCategory ? categoryLabel(selectedCategory, allCategories) : null;
-  const leafLabel = (category: (typeof allCategories)[number]) => {
-    const full = categoryLabel(category, allCategories);
+  const selectedCategory = categoryCatalog.find((category) => category.id === selectedCategoryId);
+  const selectedCategoryLabel = selectedCategory ? categoryLabel(selectedCategory, categoryCatalog) : null;
+  // Leaves can sit two levels below a top-level group; show the path below the group name.
+  const leafLabel = (category: Category) => {
+    const full = categoryLabel(category, categoryCatalog);
     const prefix = group ? `${group.category.name} › ` : '';
     return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
   };
@@ -42,6 +44,17 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (scalar(params.search) === '1' || incomingQuery.length > 0) setSearchOpen(true);
   }, [incomingQuery, params.search]);
+
+  useEffect(() => {
+    if (parentId && !groups.some((entry) => entry.category.id === parentId)) {
+      setParentId(undefined);
+      setChildId(undefined);
+      return;
+    }
+    if (childId && group && !group.children.some((child) => child.id === childId)) {
+      setChildId(undefined);
+    }
+  }, [childId, group, groups, parentId]);
 
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
@@ -63,7 +76,7 @@ export default function ExploreScreen() {
         </View>
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategoryPath ? `${selectedCategoryPath}에서 검색` : '전체 항목 검색'}</Text>
+          <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
             {selectedCategory && ['movie', 'drama', 'music', 'game', 'book', 'youtube', 'pokemon'].includes(selectedCategory.slug)
               ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
@@ -89,33 +102,48 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
             onSelect={openItem} />
         </View> : null}
-        <Text style={styles.levelTitle}>1. 관심 분야를 골라주세요</Text>
+        <Text style={styles.levelTitle}>상위 카테고리</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
         {categories.isError ? <View style={styles.stateCard}><Text style={styles.stateText}>카테고리를 불러오지 못했어요.</Text><Pressable accessibilityRole="button" onPress={refresh}><Text style={styles.refreshText}>다시 불러오기</Text></Pressable></View> : null}
-        <View style={styles.categoryGrid}>
-          {groups.map(({ category, children, directlySelectable }) => <Pressable key={category.id}
-            accessibilityRole="button" accessibilityLabel={`${category.name} 1차 카테고리`}
-            accessibilityState={{ selected: parentId === category.id }} onPress={() => { setParentId(category.id); setChildId(undefined); }}
-            style={[styles.parentCard, parentId === category.id && styles.parentActive]}>
-            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{category.name}</Text>
-            <Text style={styles.parentHint}>{directlySelectable ? '원픽 둘러보기' : children.length ? `${children.length}개 카테고리` : '준비 중'}</Text>
-            <Text style={styles.parentArrow}>↗</Text>
-          </Pressable>)}
-        </View>
+        {!categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="전체 카테고리 보기"
+            accessibilityState={{ selected: !parentId }}
+            onPress={() => { setParentId(undefined); setChildId(undefined); }}
+            style={({ pressed }) => [styles.parentChip, !parentId && styles.parentChipActive, pressed && styles.pressed]}>
+            <Text style={[styles.parentChipText, !parentId && styles.parentChipTextActive]}>전체</Text>
+          </Pressable>
+          {groups.map(({ category }) => {
+            const selected = parentId === category.id;
+            return <Pressable key={category.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${category.name} 상위 카테고리 보기`}
+              accessibilityState={{ selected }}
+              onPress={() => { setParentId(category.id); setChildId(undefined); }}
+              style={({ pressed }) => [styles.parentChip, selected && styles.parentChipActive, pressed && styles.pressed]}>
+              <Text style={[styles.parentChipText, selected && styles.parentChipTextActive]}>{category.name}</Text>
+            </Pressable>;
+          })}
+        </View> : null}
         {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
+
         {group && !group.directlySelectable ? <View style={styles.childPanel}>
-          <Text style={styles.sectionTitle}>2. 세부 카테고리를 골라주세요</Text>
+          <View style={styles.childHeader}>
+            <Text style={styles.childTitle}>{group.category.name} 카테고리</Text>
+            <Text style={styles.childCount}>{group.children.length}개</Text>
+          </View>
           <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
-            accessibilityLabel={`${leafLabel(category)} 선택 가능한 카테고리`} accessibilityState={{ selected: childId === category.id }}
+            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} accessibilityState={{ selected: childId === category.id }}
             onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
             <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{leafLabel(category)}</Text>
           </Pressable>)}</View>
-          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>세부 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
+          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
-        {selectedCategoryPath ? <Text style={styles.selectionLabel}>{selectedCategoryPath}</Text> : null}
+        {selectedCategoryLabel ? <Text style={styles.selectionLabel}>{selectedCategoryLabel}</Text> : null}
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategory?.name} 원픽 TOP 3</Text>
+            <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategoryLabel} 원픽 TOP 3</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="제품 순위 새로고침" disabled={topItems.isFetching}
               onPress={() => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); }}
               style={({ pressed }) => [styles.refreshButton, (pressed || topItems.isFetching) && styles.pressed]}>
@@ -170,17 +198,18 @@ const styles = StyleSheet.create({
   searchScope: { fontSize: 12, color: '#747985' },
   searchHint: { color: '#747985', fontSize: 11, lineHeight: 17 },
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 8 },
-  levelTitle: { color: '#202124', fontSize: 15, fontWeight: '700', marginTop: 28, marginBottom: 14 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  parentCard: { width: '48%', flexGrow: 1, minHeight: 118, padding: 18, borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, backgroundColor: '#FFFFFF' },
-  parentActive: { backgroundColor: '#EFEEFF', borderColor: '#4945ED' },
-  parentName: { color: '#202124', fontSize: 20, fontWeight: '800' },
-  parentNameActive: { color: '#4945ED' },
-  parentHint: { color: '#747985', fontSize: 12, marginTop: 8 },
-  parentArrow: { color: '#4945ED', fontSize: 20, alignSelf: 'flex-end', marginTop: 8 },
-  childPanel: { padding: 18, marginTop: 22, borderRadius: 20, backgroundColor: '#FFFFFF' },
-  childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-  selectionLabel: { color: '#4945ED', fontSize: 14, fontWeight: '700', marginTop: 26 },
+  levelTitle: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 28, marginBottom: 10 },
+  parentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 5 },
+  parentChip: { minHeight: 36, justifyContent: 'center', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
+  parentChipActive: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
+  parentChipText: { color: '#747985', fontSize: 12, fontWeight: '700' },
+  parentChipTextActive: { color: '#4945ED', fontWeight: '900' },
+  childPanel: { padding: 16, marginTop: 18, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA' },
+  childHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  childTitle: { color: '#202124', fontSize: 15, fontWeight: '900' },
+  childCount: { color: '#89909C', fontSize: 11, fontWeight: '700' },
+  childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 13 },
+  selectionLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginTop: 18 },
   rankingSection: { marginTop: 8, marginBottom: 18 },
   rankTitle: { flex: 1, marginRight: 12 },
   rankingDescription: { color: '#747985', fontSize: 12, lineHeight: 18, marginBottom: 16 },

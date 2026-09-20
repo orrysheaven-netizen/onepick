@@ -124,7 +124,7 @@ async function main() {
   presses[0]();
   assert.equal(selected, 'item-1');
 
-  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, bookQuery, youtubeQuery;
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, bookQuery, youtubeQuery, submittedQuery;
   const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
@@ -145,6 +145,7 @@ async function main() {
     onSearchGame: (value) => { gameQuery = value; },
     onSearchBook: (value) => { bookQuery = value; },
     onSearchYouTube: (value) => { youtubeQuery = value; },
+    onSubmitSearch: (value) => { submittedQuery = value; },
   };
   let catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, catalogProps));
   assert.match(catalogPage, /OnePick에 아직 등록된 항목이 없어요/);
@@ -155,7 +156,8 @@ async function main() {
   assert.match(catalogPage, /도서 DB에서 검색/);
   assert.match(catalogPage, /YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
-  assert.equal(movieQuery, undefined, 'Global search must not guess a provider on Enter');
+  assert.equal(submittedQuery, '인터스텔라', 'Global Enter must hand off to the dedicated search surface');
+  assert.equal(movieQuery, undefined, 'Global Enter still must not guess a provider');
   assert.equal(dramaQuery, undefined);
   assert.equal(musicQuery, undefined);
   assert.equal(gameQuery, undefined);
@@ -163,6 +165,8 @@ async function main() {
   assert.equal(youtubeQuery, undefined);
   externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 영화 DB에서 검색').onPress();
   assert.equal(movieQuery, '인터스텔라');
+  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
+  assert.equal(bookQuery, '인터스텔라');
 
   externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
   assert.equal(bookQuery, '인터스텔라');
@@ -178,6 +182,6 @@ async function main() {
   externalInput.onSubmitEditing();
   assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
 
-  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, explicit catalog continuation and search states/actions.');
+  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, actionable global submit, explicit catalog continuation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

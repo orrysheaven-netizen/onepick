@@ -28,6 +28,28 @@ async function main() {
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
 
+  const deploymentPath = path.join(dist, 'deployment.json');
+  if (fs.existsSync(deploymentPath)) {
+    const deployment = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
+    assert.deepEqual(
+      Object.keys(deployment).sort(),
+      ['branch', 'commitSha', 'deploymentUrl'],
+      'deployment.json must expose only the expected public deployment identifiers',
+    );
+    for (const key of ['branch', 'commitSha', 'deploymentUrl']) {
+      assert.ok(
+        deployment[key] === null || typeof deployment[key] === 'string',
+        `deployment.json ${key} must be a string or null`,
+      );
+    }
+    if (deployment.commitSha !== null) {
+      assert.match(deployment.commitSha, /^[0-9a-f]{7,64}$/i, 'Cloudflare commit SHA must look like a Git commit');
+    }
+    if (deployment.deploymentUrl !== null) {
+      assert.match(deployment.deploymentUrl, /^https:\/\//, 'Cloudflare deployment URL must be HTTPS');
+    }
+  }
+
   const probe = net.createServer();
   await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
   const port = probe.address().port;
