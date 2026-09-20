@@ -96,7 +96,7 @@ async function main() {
   assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Both refresh actions update all three queries');
 
   profileQuery.isFetching = true; profileQuery.isRefetching = true;
-  assert.match(render(), /최신 상태 확인 중/);
+  assert.match(render(), /확인 중…/);
   assert.equal(refreshButton().disabled, true);
   assert.equal(pullToRefresh.props.refreshing, true);
   profileQuery.isFetching = false; profileQuery.isRefetching = false;
@@ -130,7 +130,7 @@ async function main() {
     query.refetch = async () => { refetchCalls++; };
     query.hasNextPage = true;
     const control = () => presses.find((props) => props.accessibilityLabel?.startsWith(`${label} `));
-    assert.match(render(), /불러온 이전 선택/);
+    assert.match(render(), /이전 원픽 기록/);
     assert.match(control().accessibilityLabel, /더 보기/);
     await control().onPress();
     assert.equal(nextCalls, 1); assert.equal(nextOptions.cancelRefetch, false);
