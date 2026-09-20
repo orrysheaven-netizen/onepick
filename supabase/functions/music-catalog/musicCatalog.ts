@@ -122,6 +122,8 @@ type Dependencies = {
   readCache: (client: SupabaseClient, key: string, maxAgeMs: number) => Promise<unknown | null>;
   writeCache: (client: SupabaseClient, key: string, payload: unknown) => Promise<void>;
   waitForProvider: (client: SupabaseClient) => Promise<boolean>;
+  /** Keeps work running after the response is sent (EdgeRuntime.waitUntil). */
+  keepAlive: (work: Promise<unknown>) => void;
   json: (body: unknown, status?: number) => Response;
 };
 
@@ -142,13 +144,21 @@ async function catalogCategory(client: SupabaseClient) {
 
 // Cover Art Archive answers 404 for most release groups, so only URLs confirmed by
 // fetchCoverArt are ever sent to clients. Misses are re-checked daily because
-// covers keep being added; hits are stable for much longer. Lookups that did not
-// complete (timeout, 5xx) are never cached so the next search retries them.
+// covers keep being added; hits are stable for much longer. A lookup that did not
+// complete (timeout, 5xx) is remembered only briefly, so one slow release group
+// cannot hold every search for the same query at the fetch timeout.
 const COVER_HIT_MS = 30 * 24 * 60 * 60_000;
 const COVER_MISS_MS = 24 * 60 * 60_000;
+const COVER_UNKNOWN_MS = 15 * 60_000;
+// Search waits at most this long for cover verification. Whatever is still
+// pending keeps running after the response and lands in the cache for the
+// next search, which then answers from cache alone.
+export const COVER_BUDGET_MS = 4_000;
+
+type CoverCacheRow = { url: string | null; fetchedAt: string; unknown?: true };
 
 export function createMusicCatalogHandler(deps: Dependencies) {
-  const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, json } = deps;
+  const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, keepAlive, json } = deps;
 
   async function verifiedCover(client: SupabaseClient, releaseGroupId: string) {
     // Namespace v3: earlier entries cached timeouts (v1) and http:// covers (v2)
@@ -156,21 +166,32 @@ export function createMusicCatalogHandler(deps: Dependencies) {
     const cacheKey = `cover:v3\n${releaseGroupId}`;
     const cached = await readCache(client, cacheKey, COVER_HIT_MS);
     if (cached && typeof cached === 'object' && 'url' in cached) {
-      const row = cached as { url: unknown; fetchedAt?: unknown };
+      const row = cached as Partial<CoverCacheRow>;
       if (typeof row.url === 'string') return row.url;
       const age = typeof row.fetchedAt === 'string' ? Date.now() - Date.parse(row.fetchedAt) : Number.NaN;
-      if (Number.isFinite(age) && age >= 0 && age < COVER_MISS_MS) return null;
+      if (Number.isFinite(age) && age >= 0 && age < (row.unknown ? COVER_UNKNOWN_MS : COVER_MISS_MS)) return null;
     }
     const lookup = await fetchCoverArt(releaseGroupId);
-    if (!lookup) return null;
-    await writeCache(client, cacheKey, { url: lookup.url, fetchedAt: new Date().toISOString() });
-    return lookup.url;
+    const row: CoverCacheRow = lookup
+      ? { url: lookup.url, fetchedAt: new Date().toISOString() }
+      : { url: null, fetchedAt: new Date().toISOString(), unknown: true };
+    await writeCache(client, cacheKey, row);
+    return row.url;
   }
 
-  async function verifiedCovers(client: SupabaseClient, releaseGroupIds: Array<string | null>) {
+  // Resolves with every cover verified within the budget; unfinished lookups
+  // continue in the background and are only missing from this response.
+  async function verifiedCovers(client: SupabaseClient, releaseGroupIds: Array<string | null>, budgetMs: number) {
     const unique = [...new Set(releaseGroupIds.filter((id): id is string => Boolean(id)))];
-    const entries = await Promise.all(unique.map(async (id) => [id, await verifiedCover(client, id)] as const));
-    return new Map(entries);
+    const covers = new Map<string, string | null>();
+    const pending = unique.map((id) => verifiedCover(client, id)
+      .then((url) => { covers.set(id, url); }, (error) => { console.error('Cover lookup failed', error instanceof Error ? error.message : 'unknown'); }));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const budget = new Promise<void>((resolve) => { timer = setTimeout(resolve, budgetMs); });
+    await Promise.race([Promise.all(pending), budget]);
+    clearTimeout(timer);
+    if (covers.size < unique.length) keepAlive(Promise.all(pending));
+    return covers;
   }
 
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
@@ -225,7 +246,7 @@ export function createMusicCatalogHandler(deps: Dependencies) {
         client.from('items').select('id,external_id')
           .eq('category_id', category.id).eq('external_source', MUSICBRAINZ_SOURCE)
           .in('external_id', recordings.map((entry) => entry.externalId)).in('status', ['active', 'discontinued']),
-        verifiedCovers(client, recordings.map((entry) => entry.releaseGroupId)),
+        verifiedCovers(client, recordings.map((entry) => entry.releaseGroupId), COVER_BUDGET_MS),
       ]);
       if (known.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       const ids = new Map((known.data ?? []).map((item) => [item.external_id, item.id]));
