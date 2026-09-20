@@ -172,7 +172,7 @@ async function main() {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
-    '@/lib/demoProfile': { isDemoUsername: (username) => typeof username === 'string' && username.trim().toLowerCase().startsWith('demo_') },
+    '@/lib/seedProfiles': { isSeedProfileId: () => false },
   });
   const publicMarkup = renderToStaticMarkup(React.createElement(PublicProfile));
   assert.match(publicMarkup, /영화와 라면/); assert.match(publicMarkup, /&lt;script&gt;/);
