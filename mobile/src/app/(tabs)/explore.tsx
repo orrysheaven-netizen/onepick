@@ -29,6 +29,7 @@ export default function ExploreScreen() {
   const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
   const musicCategory = categories.data?.find((category) => category.slug === 'music');
   const gameCategory = categories.data?.find((category) => category.slug === 'game');
+  const bookCategory = categories.data?.find((category) => category.slug === 'book');
   const youtubeCategory = categories.data?.find((category) => category.slug === 'youtube');
   const pokemonCategory = categories.data?.find((category) => category.slug === 'pokemon');
   const topItems = useCategoryTopItems(selectedCategoryId);
@@ -70,10 +71,10 @@ export default function ExploreScreen() {
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
-            {selectedCategory && ['movie', 'drama', 'music', 'game', 'youtube', 'pokemon'].includes(selectedCategory.slug)
+            {selectedCategory && ['movie', 'drama', 'music', 'game', 'book', 'youtube', 'pokemon'].includes(selectedCategory.slug)
               ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
               : !selectedCategory
-                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
+                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·책·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
                 : 'OnePick에 등록된 항목을 검색합니다.'}
           </Text>
           <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
@@ -86,6 +87,8 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
             onSearchGame={gameCategory && (!selectedCategoryId || selectedCategoryId === gameCategory.id)
               ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+            onSearchBook={bookCategory && (!selectedCategoryId || selectedCategoryId === bookCategory.id)
+              ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
             onSearchYouTube={youtubeCategory && (!selectedCategoryId || selectedCategoryId === youtubeCategory.id)
               ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
