@@ -59,7 +59,7 @@ function setup() {
   const client = {
     auth: { getUser: async () => ({ data:{ user: state.auth ? { id:'user' } : null }, error:null }) },
     rpc: async (name) => {
-      assert.equal(name, 'user_is_suspended');
+      assert.equal(name, 'catalog_user_is_suspended');
       return { data: state.suspended, error: null };
     },
     from(table) {

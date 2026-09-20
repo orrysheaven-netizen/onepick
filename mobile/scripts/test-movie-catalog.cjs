@@ -33,7 +33,7 @@ async function main() {
   assert.match(edgeFunction, /external_catalog_cache/,
     'Repeated public searches should reuse the server-side catalog cache');
   assert.match(edgeFunction, /p_interval_ms:\s*TMDB_PROVIDER_INTERVAL_MS/);
-  assert.match(edgeFunction, /user_is_suspended/,
+  assert.match(edgeFunction, /catalog_user_is_suspended/,
     'Suspended users must not create catalog items through the service-role client');
   const importBody = edgeFunction.slice(edgeFunction.indexOf('async function importMovie'), edgeFunction.indexOf('// Same deployed function'));
   assert.ok(importBody.indexOf('client.auth.getUser(accessToken)') < importBody.indexOf('fetchTmdb(url, client)'),
