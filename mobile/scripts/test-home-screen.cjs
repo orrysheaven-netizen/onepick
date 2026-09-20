@@ -58,6 +58,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'drama', parentId: 'culture', name: '드라마', slug: 'drama', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
     { id: 'music', parentId: 'culture', name: '음악', slug: 'music', status: 'open', isVisible: true, isPickable: true, sortOrder: 3 },
     { id: 'game', parentId: 'culture', name: '게임', slug: 'game', status: 'open', isVisible: true, isPickable: true, sortOrder: 4 },
+    { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'pokemon', parentId: 'culture', name: '포켓몬', slug: 'pokemon', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
@@ -86,6 +87,7 @@ for (width of [390, 800, 1200]) {
   assert.equal(typeof itemSearchProps.onSearchDrama, 'function');
   assert.equal(typeof itemSearchProps.onSearchMusic, 'function');
   assert.equal(typeof itemSearchProps.onSearchGame, 'function');
+  assert.equal(typeof itemSearchProps.onSearchBook, 'function');
   assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
   assert.equal(typeof itemSearchProps.onSearchPokemon, 'function');
   assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
@@ -99,6 +101,10 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   press('음식 › 과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+  itemSearchProps.onSearchBook('아리랑');
+  assert.equal(destination.pathname, '/pick/book');
+  assert.equal(destination.params.categoryId, 'book');
+  assert.equal(destination.params.query, '아리랑');
   itemSearchProps.onSearchYouTube('최재천의 아마존');
   assert.equal(destination.pathname, '/pick/youtube');
   assert.equal(destination.params.categoryId, 'youtube');
