@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
-import { browseCategoryGroups } from '@/lib/categories/categoryTree';
+import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -14,10 +14,17 @@ export default function ExploreScreen() {
   const [childId, setChildId] = useState<string | undefined>();
   const [searchOpen, setSearchOpen] = useState(false);
   const categories = useExploreCategories();
-  const groups = browseCategoryGroups(categories.data ?? []);
+  const allCategories = categories.data ?? [];
+  const groups = browseCategoryGroups(allCategories);
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
-  const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
+  const selectedCategory = allCategories.find((category) => category.id === selectedCategoryId);
+  const selectedCategoryPath = selectedCategory ? categoryLabel(selectedCategory, allCategories) : null;
+  const leafLabel = (category: (typeof allCategories)[number]) => {
+    const full = categoryLabel(category, allCategories);
+    const prefix = group ? `${group.category.name} › ` : '';
+    return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
+  };
   const movieCategory = categories.data?.find((category) => category.slug === 'movie');
   const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
   const musicCategory = categories.data?.find((category) => category.slug === 'music');
@@ -46,7 +53,7 @@ export default function ExploreScreen() {
         </View>
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 항목 검색'}</Text>
+          <Text style={styles.searchScope}>{selectedCategoryPath ? `${selectedCategoryPath}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
             {selectedCategory && ['movie', 'drama', 'music', 'game', 'book', 'youtube', 'pokemon'].includes(selectedCategory.slug)
               ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
@@ -79,22 +86,22 @@ export default function ExploreScreen() {
             accessibilityRole="button" accessibilityLabel={`${category.name} 1차 카테고리`}
             accessibilityState={{ selected: parentId === category.id }} onPress={() => { setParentId(category.id); setChildId(undefined); }}
             style={[styles.parentCard, parentId === category.id && styles.parentActive]}>
-            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{category.name}</Text>
+            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{leafLabel(category)}</Text>
             <Text style={styles.parentHint}>{directlySelectable ? '원픽 둘러보기' : children.length ? `${children.length}개 카테고리` : '준비 중'}</Text>
             <Text style={styles.parentArrow}>↗</Text>
           </Pressable>)}
         </View>
         {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
         {group && !group.directlySelectable ? <View style={styles.childPanel}>
-          <Text style={styles.sectionTitle}>2. {group.category.name}에서 골라주세요</Text>
+          <Text style={styles.sectionTitle}>2. 세부 카테고리를 골라주세요</Text>
           <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
-            accessibilityLabel={`${category.name} 2차 카테고리`} accessibilityState={{ selected: childId === category.id }}
+            accessibilityLabel={`${leafLabel(category)} 선택 가능한 카테고리`} accessibilityState={{ selected: childId === category.id }}
             onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
             <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{category.name}</Text>
           </Pressable>)}</View>
-          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
+          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>세부 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
-        {selectedCategoryId ? <Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text> : null}
+        {selectedCategoryPath ? <Text style={styles.selectionLabel}>{selectedCategoryPath}</Text> : null}
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategory?.name} 원픽 TOP 3</Text>
