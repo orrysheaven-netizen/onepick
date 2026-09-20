@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(11);
+select plan(17);
 
 select ok(
   to_regprocedure('public.user_is_suspended(uuid)') is null,
@@ -10,6 +10,28 @@ select ok(
 select ok(
   to_regprocedure('private.user_is_suspended(uuid)') is not null,
   'Suspension helper remains available to RLS through the private schema'
+);
+select ok(
+  to_regprocedure('public.catalog_user_is_suspended(uuid)') is not null,
+  'Catalog Edge Functions have a dedicated server-only suspension RPC'
+);
+select ok(
+  has_function_privilege('service_role','public.catalog_user_is_suspended(uuid)','EXECUTE'),
+  'Service role can execute the catalog suspension RPC'
+);
+select ok(
+  not has_function_privilege('authenticated','public.catalog_user_is_suspended(uuid)','EXECUTE'),
+  'Authenticated clients cannot execute the catalog suspension RPC'
+);
+select ok(
+  not has_function_privilege('anon','public.catalog_user_is_suspended(uuid)','EXECUTE'),
+  'Anonymous clients cannot execute the catalog suspension RPC'
+);
+select ok(
+  (select p.prosecdef
+   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='public' and p.proname='catalog_user_is_suspended'),
+  'Catalog suspension RPC uses narrowly scoped definer rights to read private moderation state'
 );
 select is(
   (select count(*)::int
@@ -54,6 +76,13 @@ values('d4545454-4545-4545-8545-454545454545','d1515151-1515-4515-8515-151515151
 insert into private.user_moderation(user_id,reason)
 values('d1515151-1515-4515-8515-151515151515','test suspension');
 update public.home_settings set minimum_pick_count=1 where id;
+
+set local role service_role;
+select ok(
+  public.catalog_user_is_suspended('d1515151-1515-4515-8515-151515151515'),
+  'Service-role catalog RPC reads the private suspension record'
+);
+reset role;
 
 set local role anon;
 select is(
