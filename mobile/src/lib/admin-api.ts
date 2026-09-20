@@ -63,6 +63,8 @@ export type AdminItem = {
   created_at: string;
   updated_at: string;
   image_path: string | null;
+  thumbnail_path?: string | null;
+  image_source_url?: string | null;
   categories: { name: string } | null;
 };
 
@@ -84,6 +86,8 @@ export type AdminEditorialFeatureWithItem = AdminEditorialFeature & {
     status: AdminItemStatus;
     category_id: string;
     image_path: string | null;
+    thumbnail_path: string | null;
+    image_source_url: string | null;
     categories: { name: string } | null;
   } | null;
 };
@@ -341,7 +345,7 @@ export const ADMIN_PAGE_SIZE = 100;
 
 export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
     order: 'updated_at.desc',
     limit: String(ADMIN_PAGE_SIZE),
     offset: String(input.offset ?? 0),
@@ -378,13 +382,13 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
 
 export function getEditorialFeatures() {
   return adminRequest<AdminEditorialFeatureWithItem[]>(
-    '/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at,items(id,name,status,category_id,image_path,categories(name))&order=priority.asc,updated_at.desc'
+    '/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at,items(id,name,status,category_id,image_path,thumbnail_path,image_source_url,categories(name))&order=priority.asc,updated_at.desc'
   );
 }
 
 export function getEditorialCandidates(query: string) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
     or: '(status.eq.active,status.eq.discontinued)',
     order: 'updated_at.desc',
     limit: '20',
@@ -405,6 +409,8 @@ export function setItemEditorialFeature(input: {
   isActive: boolean;
   priority: number;
   note?: string | null;
+  startsAt?: string;
+  endsAt?: string | null;
 }) {
   return adminRequest<AdminEditorialFeature>('/rest/v1/rpc/admin_set_item_editorial_feature', {
     method: 'POST',
@@ -413,6 +419,8 @@ export function setItemEditorialFeature(input: {
       p_is_active: input.isActive,
       p_priority: input.priority,
       p_note: input.note?.trim() || null,
+      ...(input.startsAt ? { p_starts_at: input.startsAt } : {}),
+      ...(input.endsAt !== undefined ? { p_ends_at: input.endsAt } : {}),
     }),
   });
 }
