@@ -8,7 +8,7 @@ import type { AdminAuditLog, AdminDashboardMetrics } from '@/lib/admin-api';
 
 type DashboardMetrics = AdminDashboardMetrics & { users_suspended?: number };
 
-type RoutePath = '/admin/pending' | '/admin/reports' | '/admin/users' | '/admin/items' | '/admin/audit';
+type RoutePath = '/admin/pending' | '/admin/reports' | '/admin/users' | '/admin/items' | '/admin/editorial' | '/admin/audit';
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -52,9 +52,14 @@ export default function AdminDashboardScreen() {
           <Text style={adminStyles.pageTitle}>대시보드</Text>
           <Text style={adminStyles.pageDescription}>처리가 필요한 운영 항목과 서비스 핵심 지표를 한 화면에서 확인합니다.</Text>
         </View>
-        <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
-          <Text style={adminStyles.secondaryButtonText}>{loading ? '새로고침 중' : '새로고침'}</Text>
-        </Pressable>
+        <View style={adminStyles.row}>
+          <Pressable onPress={() => go('/admin/editorial')} style={adminStyles.secondaryButton}>
+            <Text style={adminStyles.secondaryButtonText}>홈 추천 관리</Text>
+          </Pressable>
+          <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
+            <Text style={adminStyles.secondaryButtonText}>{loading ? '새로고침 중' : '새로고침'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
