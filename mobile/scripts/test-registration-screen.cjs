@@ -45,6 +45,7 @@ async function main() {
   };
   const { default: Register } = load('app/pick/register.tsx', { ...common,
     '@/lib/items/itemIdentity': identity,
+    '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] } }) },
     '@/hooks/useItemDetail': { useItemDetail: () => ({}) },
     '@/hooks/useItemSearch': { useItemSearch: (_, id) => { searchCategory = id; return { data: results }; } },
