@@ -424,7 +424,11 @@ function EditorialFeatureEditor({ item }: { item: AdminItem }) {
       </View>
 
       {!loading && <>
-        <Toggle label="홈 추천" value={active} onPress={() => { if (eligible) setActive((value) => !value); }} />
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: active }} disabled={!eligible}
+          onPress={() => setActive((value) => !value)}
+          style={[styles.statusChoice, styles.editorialToggle, active && styles.statusChoiceActive, !eligible && styles.disabled]}>
+          <Text style={[styles.statusChoiceText, active && styles.statusChoiceTextActive]}>홈 추천 {active ? 'ON' : 'OFF'}</Text>
+        </Pressable>
         <View>
           <Text style={adminStyles.label}>추천 이유 · 선택 사항</Text>
           <TextInput
@@ -661,6 +665,7 @@ const styles = StyleSheet.create({
   note: { marginTop: 8, color: '#8A5A16', fontSize: 11, lineHeight: 17 },
   editorialSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
   editorialSave: { alignSelf: 'flex-start' },
+  editorialToggle: { alignSelf: 'flex-start' },
   priorityInput: { width: 120 },
   aliasSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
   aliasHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
