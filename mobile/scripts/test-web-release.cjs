@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { validateReleaseEnv, loadReleaseEnv } = require('./build-web-release.cjs');
+const { validateReleaseEnv, loadReleaseEnv, writeDeploymentMetadata } = require('./build-web-release.cjs');
 
 // Deliberately fabricated fixtures; no request is sent with these values.
 const valid = {
@@ -68,6 +68,29 @@ try {
   fs.rmdirSync(root);
 }
 
+
+const metadataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'onepick-deployment-meta-'));
+try {
+  const metadata = writeDeploymentMetadata(metadataDir, {
+    CF_PAGES_COMMIT_SHA: 'abcdef1234567890',
+    CF_PAGES_BRANCH: 'feature/pick-core',
+    CF_PAGES_URL: 'https://abcdef.onepick-5cl.pages.dev',
+  });
+  assert.deepEqual(metadata, {
+    commitSha: 'abcdef1234567890',
+    branch: 'feature/pick-core',
+    deploymentUrl: 'https://abcdef.onepick-5cl.pages.dev',
+  });
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(metadataDir, 'deployment.json'), 'utf8')),
+    metadata,
+  );
+  const localMetadata = writeDeploymentMetadata(metadataDir, {});
+  assert.deepEqual(localMetadata, { commitSha: null, branch: null, deploymentUrl: null });
+} finally {
+  fs.rmSync(metadataDir, { recursive: true, force: true });
+}
+
 function cli(values) {
   return spawnSync(process.execPath, [path.join(__dirname, 'build-web-release.cjs'), '--check'], {
     encoding: 'utf8',
@@ -84,4 +107,4 @@ assert.equal(failure.status, 1);
 assert.match(failure.stderr, /Release configuration failed/);
 assert.ok(!`${failure.stdout}${failure.stderr}`.includes(secret));
 assert.equal(cli({ EXPO_PUBLIC_SUPABASE_URL: 'https://onepick-ci.invalid' }).status, 1);
-console.log('Release checks passed: required settings, public key/origins, production dotenv precedence, host overrides and redacted CLI failures.');
+console.log('Release checks passed: required settings, deployment metadata, public key/origins, production dotenv precedence, host overrides and redacted CLI failures.');
