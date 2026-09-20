@@ -10,6 +10,7 @@ export const queryKeys = {
   },
   categories: {
     all: ['categories'] as const,
+    browse: ['categories', 'browse'] as const,
     open: ['categories', 'open'] as const,
     detail: (categoryId: string) => ['categories', 'detail', categoryId] as const,
   },
