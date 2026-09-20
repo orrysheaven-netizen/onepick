@@ -225,6 +225,7 @@ async function main() {
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/components/item-search': { ItemSearch: () => null },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
