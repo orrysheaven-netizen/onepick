@@ -64,8 +64,24 @@ export default function HomeScreen() {
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
+  const searchCategories = data?.openCategories ?? [];
+  const movieCategory = searchCategories.find((category) => category.slug === 'movie');
+  const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
+  const musicCategory = searchCategories.find((category) => category.slug === 'music');
+  const gameCategory = searchCategories.find((category) => category.slug === 'game');
+  const bookCategory = searchCategories.find((category) => category.slug === 'book');
+  const youtubeCategory = searchCategories.find((category) => category.slug === 'youtube');
+  const pokemonCategory = searchCategories.find((category) => category.slug === 'pokemon');
+  const openRegistration = (category: { id: string; slug: string }) => {
+    const params = { categoryId: category.id };
+    if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
+    if (category.slug === 'game') return router.push({ pathname: '/pick/game', params });
+    if (category.slug === 'book') return router.push({ pathname: '/pick/book', params });
+    if (category.slug === 'youtube') return router.push({ pathname: '/pick/youtube', params });
+    if (category.slug === 'pokemon') return router.push({ pathname: '/pick/pokemon', params });
+    return router.push({ pathname: '/pick/find', params });
+  };
   const ready = !isLoading && !sessionError && Boolean(data);
   const refresh = () => {
     if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
@@ -101,7 +117,15 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
         </View>
 
-        <ItemSearch compact onSelect={openItem} />
+        <ItemSearch compact
+          onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+          onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
+          onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
+          onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+          onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
+          onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
+          onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
+          onSelect={openItem} />
 
         <View style={styles.intro}>
           <View style={styles.introCopy}>
@@ -166,7 +190,7 @@ export default function HomeScreen() {
           <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
           {categories.length ? <View style={styles.categoryGrid}>
             {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
-              onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+              onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
               <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
             </Pressable>)}
           </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}

@@ -33,6 +33,7 @@ function AppStack() {
         <Stack.Screen name="onboarding" options={{ presentation: 'card' }} />
         <Stack.Screen name="admin" options={{ presentation: 'card', animation: 'none' }} />
         <Stack.Screen name="pick/find" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pick/book" options={{ presentation: 'card' }} />
         <Stack.Screen name="pick/request" options={{ presentation: 'card' }} />
         <Stack.Screen name="pick/choose" options={{ presentation: 'card' }} />
         <Stack.Screen name="pick/register" options={{ presentation: 'card' }} />
