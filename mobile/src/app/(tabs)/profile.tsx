@@ -11,6 +11,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
+import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -36,18 +37,18 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
         </Text>
       ) : null}
       {query.hasNextPage || query.isError ? (
-        <Pressable
-          accessibilityRole="button"
+        <Button
+          variant="secondary"
+          size="sm"
+          style={styles.listControl}
           accessibilityLabel={`${label} ${query.isError ? '다시 불러오기' : '더 보기'}`}
           disabled={query.isFetching}
+          label={query.isFetching ? '불러오는 중…' : query.isError ? '다시 불러오기' : `${label} 더 보기`}
           onPress={() => {
             if (query.isFetching) return;
             if (refreshError) void query.refetch({ cancelRefetch: false });
             else void query.fetchNextPage({ cancelRefetch: false });
-          }}
-          style={({ pressed }) => [styles.secondaryButton, (pressed || query.isFetching) && styles.pressed]}>
-          <Text style={styles.secondaryButtonText}>{query.isFetching ? '불러오는 중…' : query.isError ? '다시 불러오기' : `${label} 더 보기`}</Text>
-        </Pressable>
+          }} />
       ) : null}
     </>
   );
@@ -110,41 +111,36 @@ export default function ProfileScreen() {
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <ActivityIndicator /><Text style={styles.stateText}>프로필을 확인하고 있어요</Text>
+      <StateCard loading title="프로필을 확인하고 있어요" />
     </View></SafeAreaView>;
   }
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-      <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
-      <Pressable accessibilityRole="button" onPress={retrySession} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
+      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+        action={{ label: '다시 확인하기', onPress: retrySession, variant: 'secondary' }} />
     </View></SafeAreaView>;
   }
   if (!user) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>1</Text></View>
-      <Text style={styles.stateTitle}>나의 원픽을 모아보세요</Text>
-      <Text style={styles.stateText}>로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요.</Text>
-      <Pressable onPress={() => router.push({ pathname: '/auth/login', params: { action: 'profile' } })} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>로그인하기</Text></Pressable>
+      <StateCard title="나의 원픽을 모아보세요" text="로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요."
+        action={{ label: '로그인하기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'profile' } }) }} />
     </View></SafeAreaView>;
   }
   if (isProfileMissing) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <Text style={styles.stateTitle}>프로필을 완성해주세요</Text>
-      <Text style={styles.stateText}>원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다.</Text>
-      <Pressable onPress={() => router.push({ pathname: '/auth/username', params: { action: 'profile' } })} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>사용자명 만들기</Text></Pressable>
+      <StateCard title="프로필을 완성해주세요" text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다."
+        action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: { action: 'profile' } }) }} />
       <SignOutButton />
     </View></SafeAreaView>;
   }
   if (profileQuery.isPending) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <ActivityIndicator /><Text style={styles.stateText}>원픽을 모으고 있어요</Text><SignOutButton />
+      <StateCard loading title="원픽을 모으고 있어요" /><SignOutButton />
     </View></SafeAreaView>;
   }
   if (!profileQuery.data) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <Text style={styles.stateTitle}>프로필을 불러오지 못했어요</Text>
-      <Pressable onPress={() => void profileQuery.refetch()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>다시 불러오기</Text></Pressable>
+      <StateCard tone="danger" title="프로필을 불러오지 못했어요" action={{ label: '다시 불러오기', variant: 'secondary', onPress: () => void profileQuery.refetch() }} />
       <SignOutButton />
     </View></SafeAreaView>;
   }
@@ -172,18 +168,12 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor={OnePick.accent} />}>
         <View style={styles.header}>
-          <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{profile.username.slice(0, 1).toUpperCase()}</Text></View>
+          <Avatar name={profile.username} size={64} />
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>MY ONEPICK</Text><Text style={styles.username}>@{profile.username}</Text>
+            <Text style={styles.username}>@{profile.username}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
-            disabled={isFetching}
-            onPress={refreshAll}
-            style={({ pressed }) => [styles.refreshAction, (pressed || isFetching) && styles.pressed]}>
-            <Text style={styles.refreshText}>{isFetching ? '확인 중…' : '새로고침'}</Text>
-          </Pressable>
+          <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+            disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} />
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
         <ProfileSocialLinks profileUserId={profile.id} editable />
@@ -195,7 +185,7 @@ export default function ProfileScreen() {
         <ProfileFollowCounts userId={user.id} />
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
+        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups
             picks={currentPicks}
@@ -204,7 +194,8 @@ export default function ProfileScreen() {
             onPressItem={openItem}
           />
         ) : (
-          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
+          <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
+            action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
         )}
 
         <View style={styles.managementSection}>
@@ -266,14 +257,10 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 18 },
-  profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
-  profileAvatarText: { color: OnePick.onAccent, fontSize: 27, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
-  refreshAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8, marginLeft: 8 },
-  refreshText: { color: OnePick.muted, fontSize: 11, fontWeight: '800' },
+  listControl: { marginTop: 12 },
   refreshError: { color: OnePick.danger, fontSize: 13, lineHeight: 20, marginBottom: 8 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2 },
-  username: { color: OnePick.text, fontSize: 24, fontWeight: '800', marginTop: 5 },
+  username: { color: OnePick.text, fontSize: 22, lineHeight: 28, fontWeight: '800', letterSpacing: -0.5 },
   bio: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
   summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
@@ -295,7 +282,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
   requestHeader: { marginTop: 2 },
   historyHeader: { marginTop: 24 },
-  sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '900' },
   activitySectionTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
   sectionHint: { color: OnePick.muted, fontSize: 12 },
   requestCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12, marginBottom: 11 },
@@ -311,17 +297,8 @@ const styles = StyleSheet.create({
   requestDescription: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 5 },
   requestAction: { color: OnePick.accent, fontSize: 12, fontWeight: '800', marginTop: 7 },
   chevron: { color: OnePick.hint, fontSize: 26, paddingHorizontal: 4 },
-  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24 },
-  emptyTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   noHistory: { color: OnePick.muted, fontSize: 12, lineHeight: 19, paddingVertical: 10 },
   signOutArea: { marginTop: 26, paddingTop: 18, borderTopWidth: 1, borderTopColor: OnePick.border },
-  centerState: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  stateTitle: { color: OnePick.text, fontSize: 21, fontWeight: '800', marginTop: 18 },
-  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  primaryButton: { minHeight: 52, minWidth: 180, borderRadius: 17, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, marginTop: 22 },
-  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
-  secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
-  secondaryButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  centerState: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 20 },
   pressed: { opacity: 0.7 },
 });
