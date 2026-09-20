@@ -20,11 +20,20 @@ export class ProfileService {
     return this.profileRepository.getById(userId);
   }
 
-  async createProfile(usernameInput: string) {
+  async createProfile(usernameInput: string, expectedUserId?: string) {
     const username = normalizeUsername(usernameInput);
+    // The first save may have committed before its response was lost. Onboarding
+    // resumes an existing own profile; it never renames it or claims another name.
+    if (expectedUserId) {
+      const own = await this.profileRepository.getById(expectedUserId);
+      if (own) return own;
+    }
     const existing = await this.profileRepository.getByUsername(username);
-    if (existing) throw new AppError('USERNAME_TAKEN');
-    return this.profileRepository.create({ username });
+    if (existing) {
+      if (expectedUserId && existing.id === expectedUserId) return existing;
+      throw new AppError('USERNAME_TAKEN');
+    }
+    return this.profileRepository.create({ username, ...(expectedUserId ? { expectedUserId } : {}) });
   }
 
   async getMyProfile(userId: string) {

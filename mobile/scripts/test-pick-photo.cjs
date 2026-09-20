@@ -24,9 +24,11 @@ function load(file, imports = {}) {
 
 const component = (tag) => (props) => React.createElement(tag, props, props.children);
 const { PickPhoto } = load('components/pick-photo.tsx', {
+  'expo-router': { useRouter: () => ({ push: () => {} }) },
   'react-native': {
     View: component('div'),
     Text: component('span'),
+    Pressable: (props) => React.createElement('button', props, props.children),
     Image: ({ source, accessibilityLabel }) => React.createElement('img', { src: source.uri, alt: accessibilityLabel }),
     StyleSheet: { create: (styles) => styles },
   },

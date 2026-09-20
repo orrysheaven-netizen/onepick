@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
 import { PickPhoto } from '@/components/pick-photo';
+import { ProfileSocialLinks } from '@/components/profile-social-links';
+import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
@@ -22,138 +24,74 @@ export default function PublicProfileScreen() {
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
-
     setIsSharing(true);
     setShareError(false);
     try {
-      await shareProfile({
-        username: query.data.profile.username,
-        pickCount: query.data.currentPicks.length,
-      });
-    } catch {
-      setShareError(true);
-    } finally {
-      setIsSharing(false);
-    }
+      await shareProfile({ username: query.data.profile.username, pickCount: query.data.currentPicks.length });
+    } catch { setShareError(true); }
+    finally { setIsSharing(false); }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-
-        {query.isPending ? (
-          <View style={styles.stateCard}>
-            <ActivityIndicator />
-            <Text style={styles.stateText}>프로필을 불러오고 있어요</Text>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        {query.isPending ? <View style={styles.stateCard}><ActivityIndicator /><Text style={styles.stateText}>프로필을 불러오고 있어요</Text></View> : null}
+        {!query.isPending && (query.isError || !query.data) ? <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>프로필을 찾을 수 없어요</Text><Text style={styles.stateText}>사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요.</Text>
+        </View> : null}
+        {query.data ? <>
+          <View style={styles.header}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{query.data.profile.username.slice(0, 1).toUpperCase()}</Text></View>
+            <View style={styles.headerCopy}>
+              <View style={styles.profileLabels}>
+                <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
+                {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
+              </View>
+              <Text style={styles.username}>@{query.data.profile.username}</Text>
+              {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
+            </View>
           </View>
-        ) : null}
-
-        {!query.isPending && (query.isError || !query.data) ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>프로필을 찾을 수 없어요</Text>
-            <Text style={styles.stateText}>사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요.</Text>
+          <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
+          <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
+          <ProfileAiComment profileId={query.data.profile.id} showPrivate={query.data.isMine} />
+          {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
+            <Text style={styles.safetyTitle}>사용자 관리</Text>
+            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
+            <View style={styles.safetyActions}>
+              <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
+              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.back()} />
+            </View>
+          </View> : null}
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
+          {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
+            <View key={item.pick.id} style={styles.pickCard}>
+              <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={item.item?.name ?? '제품 대표 이미지'}
+                itemId={item.item?.id} itemStatus={item.item?.status} hasPhoto={Boolean(item.item?.imagePath)} />
+              <View style={styles.pickCopy}>
+                <Pressable accessibilityRole="button" accessibilityLabel="원픽 상세 보기"
+                  onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })} style={({ pressed }) => pressed && styles.pressed}>
+                  <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
+                  <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
+                  <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text><Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
+                </Pressable>
+                {item.item ? <Pressable accessibilityRole="button" accessibilityLabel={`${item.item.name} 제품 상세 보기`}
+                  onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } })} style={({ pressed }) => [styles.itemLink, pressed && styles.pressed]}>
+                  <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
+                </Pressable> : null}
+              </View>
+            </View>
+          )) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
+          <View style={styles.shareCard}>
+            <Text style={styles.shareEyebrow}>SHARE PROFILE</Text><Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
+            <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
+            {shareError ? <Text style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
+            <Pressable disabled={isSharing} onPress={() => void handleShare()} style={({ pressed }) => [styles.shareButton, isSharing && styles.shareButtonDisabled, pressed && styles.pressed]}>
+              {isSharing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.shareButtonText}>프로필 공유하기</Text>}
+            </Pressable>
           </View>
-        ) : null}
-
-        {query.data ? (
-          <>
-            <View style={styles.header}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{query.data.profile.username.slice(0, 1).toUpperCase()}</Text>
-              </View>
-              <View style={styles.headerCopy}>
-                <View style={styles.profileLabels}>
-                  <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
-                  {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
-                </View>
-                <Text style={styles.username}>@{query.data.profile.username}</Text>
-                {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
-              </View>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text>
-              <Text style={styles.summaryLabel}>현재 원픽</Text>
-            </View>
-
-            {!query.data.isMine && user && !isDemo ? (
-              <View style={styles.safetyCard}>
-                <Text style={styles.safetyTitle}>사용자 관리</Text>
-                <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
-                <View style={styles.safetyActions}>
-                  <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
-                  <BlockUserButton
-                    blockerUserId={user.id}
-                    blockedUserId={query.data.profile.id}
-                    username={query.data.profile.username}
-                    onBlocked={() => router.back()}
-                  />
-                </View>
-              </View>
-            ) : null}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>지금의 원픽</Text>
-              <Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text>
-            </View>
-
-            {query.data.currentPicks.length > 0 ? (
-              query.data.currentPicks.map((item) => (
-                <View key={item.pick.id} style={styles.pickCard}>
-                  <PickPhoto uri={item.item?.thumbnailUrl} label={item.item?.name ?? '제품 대표 이미지'} />
-                  <View style={styles.pickCopy}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="원픽 상세 보기"
-                      onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })}
-                      style={({ pressed }) => pressed && styles.pressed}>
-                      <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
-                      <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
-                      <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
-                      <Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
-                    </Pressable>
-                    {item.item ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`${item.item.name} 제품 상세 보기`}
-                        onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } })}
-                        style={({ pressed }) => [styles.itemLink, pressed && styles.pressed]}>
-                        <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text>
-                <Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text>
-              </View>
-            )}
-
-            <View style={styles.shareCard}>
-              <Text style={styles.shareEyebrow}>SHARE PROFILE</Text>
-              <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
-              <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
-              {shareError ? <Text style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
-              <Pressable
-                disabled={isSharing}
-                onPress={() => void handleShare()}
-                style={({ pressed }) => [styles.shareButton, isSharing && styles.shareButtonDisabled, pressed && styles.pressed]}>
-                {isSharing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.shareButtonText}>프로필 공유하기</Text>}
-              </Pressable>
-            </View>
-
-            {query.data.isMine ? (
-              <Pressable onPress={() => router.replace('/profile')} style={({ pressed }) => [styles.mineButton, pressed && styles.pressed]}>
-                <Text style={styles.mineButtonText}>내 프로필 관리로 이동</Text>
-              </Pressable>
-            ) : null}
-          </>
-        ) : null}
+          {query.data.isMine ? <Pressable onPress={() => router.replace('/profile')} style={({ pressed }) => [styles.mineButton, pressed && styles.pressed]}><Text style={styles.mineButtonText}>내 프로필 관리로 이동</Text></Pressable> : null}
+        </> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -184,8 +122,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   sectionHint: { color: '#747985', fontSize: 12 },
   pickCard: { flexDirection: 'row', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickIcon: { width: 78, height: 78, borderRadius: 17, backgroundColor: '#F8F9FB', alignItems: 'center', justifyContent: 'center' },
-  pickEmoji: { fontSize: 37 },
   pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
   pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
   pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },

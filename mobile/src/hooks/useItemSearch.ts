@@ -1,24 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import { itemService } from '@/services';
 
+const SEARCH_DELAY_MS = 150;
+const FRESH_RESULT_MS = 30_000;
+
 export function useItemSearch(searchText: string, categoryId?: string) {
-  const normalizedQuery = searchText.trim();
+  const normalizedQuery = searchText.trim().replace(/\s+/g, ' ');
   const [settledQuery, setSettledQuery] = useState('');
+  const queryClient = useQueryClient();
+  const key = queryKeys.items.search(normalizedQuery, categoryId);
+  const cached = queryClient.getQueryState(key);
+  const age = cached ? Date.now() - cached.dataUpdatedAt : Infinity;
+  // Only an exact-key, recent successful result may bypass the typing delay.
+  // Invalidated photos/catalog entries and failed reads must be checked again.
+  const fresh = Boolean(cached?.status === 'success' && cached.data !== undefined
+    && !cached.isInvalidated && age >= 0 && age < FRESH_RESULT_MS);
 
   useEffect(() => {
-    const timeout = setTimeout(() => setSettledQuery(normalizedQuery), 300);
+    const timeout = setTimeout(() => setSettledQuery(normalizedQuery), SEARCH_DELAY_MS);
     return () => clearTimeout(timeout);
   }, [normalizedQuery]);
 
-  const isWaiting = normalizedQuery !== settledQuery;
+  const hasSearchText = normalizedQuery.length > 0;
+  const isWaiting = hasSearchText && normalizedQuery !== settledQuery && !fresh;
   const query = useQuery({
-    queryKey: queryKeys.items.search(normalizedQuery, categoryId),
-    queryFn: () => itemService.search(normalizedQuery, categoryId),
-    enabled: normalizedQuery.length > 0 && !isWaiting,
+    queryKey: key,
+    queryFn: ({ signal }) => itemService.search(normalizedQuery, categoryId, signal),
+    enabled: hasSearchText && !isWaiting,
+    staleTime: FRESH_RESULT_MS,
   });
 
-  return { ...query, isWaiting, hasSearchText: normalizedQuery.length > 0 };
+  return { ...query, isWaiting, hasSearchText };
 }

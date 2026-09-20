@@ -2,8 +2,27 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { createItemAlias, deleteItemAlias, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
-import type { AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
+import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
+import { selectableCategories } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
+
+function toDomainCategory(category: AdminCategory): Category {
+  return {
+    id: category.id,
+    parentId: category.parent_id,
+    name: category.name,
+    slug: category.slug,
+    status: category.status,
+    isVisible: category.is_visible,
+    isPickable: category.is_pickable,
+    rankingMinSample: category.ranking_min_sample,
+    sortOrder: category.sort_order,
+    imageUrl: category.image_url,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
 
 const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
@@ -23,8 +42,11 @@ export default function AdminItemsScreen() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<AdminItemStatus | 'all'>('all');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
   const load = async (nextStatus = status) => {
     setLoading(true);
@@ -32,11 +54,27 @@ export default function AdminItemsScreen() {
     try {
       const result = await getItems({ query, status: nextStatus });
       setItems(result);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '상품을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const result = await getItems({ query, status, offset: items.length });
+      setItems((current) => [...current, ...result]);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '상품을 더 불러오지 못했습니다.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -48,10 +86,29 @@ export default function AdminItemsScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>상품</Text>
-        <Text style={adminStyles.pageDescription}>상품 상태, 운영 메타데이터와 검색 별칭을 관리합니다. 한 번에 최대 100건만 조회합니다.</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={adminStyles.pageTitle}>상품</Text>
+          <Text style={adminStyles.pageDescription}>상품 상태, 운영 메타데이터와 검색 별칭을 관리합니다. 한 번에 최대 100건만 조회합니다.</Text>
+        </View>
+        <Pressable onPress={() => setShowCreate((value) => !value)} style={adminStyles.secondaryButton}>
+          <Text style={adminStyles.secondaryButtonText}>{showCreate ? '새 상품 등록 닫기' : '새 상품 등록'}</Text>
+        </Pressable>
       </View>
+
+      {showCreate && (
+        <NewItemPanel
+          onCancel={() => setShowCreate(false)}
+          onCreated={(item) => {
+            setShowCreate(false);
+            setMessage(`${item.name} 상품을 등록했습니다.`);
+            setError('');
+            void load();
+            setSelectedId(item.id);
+          }}
+          onError={setError}
+        />
+      )}
 
       <View style={styles.toolbar}>
         <TextInput
@@ -101,6 +158,11 @@ export default function AdminItemsScreen() {
               <StatusBadge status={item.status} />
             </Pressable>
           ))}
+          {hasMore && (
+            <Pressable disabled={loadingMore} onPress={loadMore} style={[adminStyles.secondaryButton, styles.loadMore]}>
+              <Text style={adminStyles.secondaryButtonText}>{loadingMore ? '불러오는 중' : '더 보기'}</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={[adminStyles.card, styles.detailPanel]}>
@@ -112,6 +174,106 @@ export default function AdminItemsScreen() {
           }} onError={setError} />}
         </View>
       </View>
+    </View>
+  );
+}
+
+function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: AdminItem) => void; onCancel: () => void; onError: (message: string) => void }) {
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [brands, setBrands] = useState<AdminBrand[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const [officialUrl, setOfficialUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getCategories(), getBrands()])
+      .then(([nextCategories, nextBrands]) => {
+        if (!active) return;
+        setCategories(nextCategories);
+        setBrands(nextBrands);
+      })
+      .catch((caught) => onError(caught instanceof Error ? caught.message : '카테고리·브랜드를 불러오지 못했습니다.'))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [onError]);
+
+  const eligible = selectableCategories(categories.map(toDomainCategory));
+  const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
+  const ready = Boolean(name.trim() && selectedCategory);
+
+  const submit = async () => {
+    if (!selectedCategory || saving) return;
+    if (officialUrl.trim() && !officialUrl.trim().startsWith('https://')) {
+      onError('공식 URL은 https:// 주소만 입력해 주세요.');
+      return;
+    }
+    setSaving(true);
+    onError('');
+    try {
+      const result = await createItem({ categoryId: selectedCategory.id, categorySlug: selectedCategory.slug, name, brandId, officialUrl: officialUrl.trim() || null });
+      if (result[0]) onCreated(result[0]);
+    } catch (caught) {
+      onError(caught instanceof Error ? caught.message : '상품을 등록하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={adminStyles.card}>
+      <Text style={adminStyles.sectionTitle}>새 상품 등록</Text>
+      <Text style={[adminStyles.muted, { marginTop: 6 }]}>검수 요청 없이 운영자가 바로 정식 상품을 등록합니다. 같은 상품이 이미 있는지 먼저 검색해 주세요.</Text>
+
+      {loading ? <View style={styles.loading}><ActivityIndicator /><Text style={adminStyles.muted}>불러오는 중...</Text></View> : <View style={styles.editor}>
+        <View>
+          <Text style={adminStyles.label}>상품명</Text>
+          <TextInput accessibilityLabel="새 상품명" value={name} onChangeText={setName} maxLength={100} placeholder="예: 진라면 매운맛" style={adminStyles.input} />
+        </View>
+
+        <View>
+          <Text style={adminStyles.label}>카테고리</Text>
+          <View style={adminStyles.row}>
+            {eligible.length === 0 && <Text style={adminStyles.muted}>선택 가능한 카테고리가 없습니다.</Text>}
+            {eligible.map((category) => (
+              <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.statusChoice, categoryId === category.id && styles.statusChoiceActive]}>
+                <Text style={[styles.statusChoiceText, categoryId === category.id && styles.statusChoiceTextActive]}>{category.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View>
+          <Text style={adminStyles.label}>브랜드 · 선택 사항</Text>
+          <View style={adminStyles.row}>
+            <Pressable onPress={() => setBrandId(null)} style={[styles.statusChoice, !brandId && styles.statusChoiceActive]}>
+              <Text style={[styles.statusChoiceText, !brandId && styles.statusChoiceTextActive]}>미지정</Text>
+            </Pressable>
+            {brands.filter((brand) => brand.is_active).map((brand) => (
+              <Pressable key={brand.id} onPress={() => setBrandId(brand.id)} style={[styles.statusChoice, brandId === brand.id && styles.statusChoiceActive]}>
+                <Text style={[styles.statusChoiceText, brandId === brand.id && styles.statusChoiceTextActive]}>{brand.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View>
+          <Text style={adminStyles.label}>공식 URL · 선택 사항</Text>
+          <TextInput autoCapitalize="none" value={officialUrl} onChangeText={setOfficialUrl} placeholder="https://" style={adminStyles.input} />
+        </View>
+
+        <View style={adminStyles.row}>
+          <Pressable disabled={saving || !ready} onPress={submit} style={[adminStyles.primaryButton, (saving || !ready) && { opacity: 0.5 }]}>
+            <Text style={adminStyles.primaryButtonText}>{saving ? '등록 중' : '상품 등록'}</Text>
+          </Pressable>
+          <Pressable disabled={saving} onPress={onCancel} style={adminStyles.secondaryButton}>
+            <Text style={adminStyles.secondaryButtonText}>취소</Text>
+          </Pressable>
+        </View>
+      </View>}
     </View>
   );
 }
@@ -358,7 +520,9 @@ function aliasErrorMessage(caught: unknown) {
 
 const styles = StyleSheet.create({
   page: { gap: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
   toolbar: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 10 },
   search: { flexGrow: 1, flexBasis: 280, maxWidth: 520 },
   filter: { minHeight: 34, justifyContent: 'center', borderRadius: 17, paddingHorizontal: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
   filterActive: { backgroundColor: '#111827', borderColor: '#111827' },
@@ -369,6 +533,7 @@ const styles = StyleSheet.create({
   detailPanel: { flexGrow: 1, flexBasis: 360, minWidth: 300 },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
+  loadMore: { marginTop: 12, alignSelf: 'center' },
   itemRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#F0F1F3', borderRadius: 8 },
   itemRowSelected: { backgroundColor: '#F7F7F8' },
   itemBody: { flex: 1, minWidth: 0 },

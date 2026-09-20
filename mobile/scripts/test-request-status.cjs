@@ -12,6 +12,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
+    if (name === '@/components/profile-ai-panel') return { ProfileAiPanel: () => null };
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
   } });
@@ -38,7 +39,7 @@ async function main() {
   });
   const profileQuery = {
     data: {
-      profile: { username: 'owner' }, currentPicks: [],
+      profile: { id: 'owner', username: 'owner' }, currentPicks: [],
     },
     isPending: false, isError: false, isFetching: false, isRefetching: false, isRefetchError: false,
     refetch: async () => {
@@ -54,13 +55,15 @@ async function main() {
   requestsQuery.data = [request('waiting', 'pending')];
   requestsQuery.refetch = async () => { requestRefreshes++; requestsQuery.data = [request('waiting', 'active')]; };
   historyQuery.refetch = async () => { historyRefreshes++; };
-  let historyUser, requestsUser;
+  let historyUser, requestsUser, socialProps, bioProps;
   const { default: Profile } = load('app/(tabs)/profile.tsx', {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
+    '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
+    '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
     '@/components/unselected-categories': { UnselectedCategories: () => null },
     '@/components/sign-out-button': { SignOutButton: () => null },
     '@/errors/appError': { AppError },
@@ -72,11 +75,13 @@ async function main() {
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
     },
   });
-  const render = () => { presses = []; return renderToStaticMarkup(React.createElement(Profile)); };
+  const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
   const button = (label) => presses.find((props) => textOf(props.children).includes(label));
   const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 제품 등록 요청 상태 새로고침');
 
   assert.match(render(), /승인 대기/);
+  assert.equal(bioProps.profileUserId, 'owner');
+  assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
   assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable item');
   await refreshButton().onPress();
@@ -158,6 +163,8 @@ async function main() {
   profileQuery.data = cached;
   auth.user = null;
   const loggedOut = render();
+  assert.equal(bioProps, undefined, 'Logging out hides the bio editor');
+  assert.equal(socialProps, undefined, 'Logging out hides the SNS editor');
   assert.match(loggedOut, /로그인하기/);
   assert.doesNotMatch(loggedOut, /내 제품 등록 요청|merged 제품/, 'Logging out must hide cached private requests');
   assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);

@@ -12,6 +12,10 @@ insert into public.profiles(id,username,onboarding_completed) values
 insert into private.admin_users(user_id) values('8b222222-2222-4222-8222-222222222222');
 
 set local role authenticated;
+-- Real administrator data access now also requires AAL2; model a stepped-up
+-- session for the whole transaction (harmless for the ordinary user checked
+-- first, since the AAL2 gate also requires admin-list membership).
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 select set_config('request.jwt.claim.sub','8a111111-1111-4111-8111-111111111111',true);
 
 select lives_ok($$insert into public.client_error_events(user_id,context,error_code,platform,app_version)

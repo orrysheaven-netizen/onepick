@@ -25,6 +25,7 @@ type HomeShowcaseItemRow = {
   category_name: string;
   image_path: string | null;
   thumbnail_path: string | null;
+  image_source_url?: string | null;
   pick_count: number;
   last_picked_at: string;
   latest_pick_id: string | null;
@@ -72,6 +73,38 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
 
+  private cardThumbnailUrl(row: { thumbnail_path?: string | null; image_path?: string | null; image_source_url?: string | null }) {
+    // User-uploaded photos take priority. External catalog poster URLs are
+    // already absolute URLs and must never be passed to Storage.getPublicUrl.
+    const path = row.thumbnail_path ?? row.image_path;
+    return path
+      ? this.client.storage.from('item-photos').getPublicUrl(path).data.publicUrl
+      : row.image_source_url ?? null;
+  }
+
+  async getHomePicks(cursor: ReadCursor | null = null) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // This is viewer-specific content, NOT a global aggregate. Use the session
+    // client so caller RLS and the server's auth.uid() exclude self/blocked content.
+    const { data, error } = await this.client.rpc('home_pick_feed_page', {
+      p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const last = data[19];
+    return {
+      nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
+      items: data.slice(0, 20).map((row) => ({
+        pickId: row.pick_id, userId: row.user_id, username: row.username,
+        profileImageUrl: row.profile_image_url,
+        itemId: row.item_id, name: row.item_name,
+        categoryId: row.category_id, categoryName: row.category_name,
+        oneLineReview: row.one_line_review,
+        thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+      })),
+    };
+  }
+
   async getHomeShowcase(cursor: ReadCursor | null = null) {
     const { data, error } = await this.countClient.rpc('home_showcase_page', {
       p_before_time: cursor?.timestamp, p_after_id: cursor?.id,
@@ -84,11 +117,10 @@ export class SupabaseReadRepository implements ReadRepository {
       minimumPickCount: data.minimum_pick_count,
       nextCursor: rows.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
       items: rows.slice(0, 20).map((row) => {
-        const photo = row.thumbnail_path ?? row.image_path;
         return {
           itemId: row.item_id, name: row.name,
           categoryId: row.category_id, categoryName: row.category_name,
-          thumbnailUrl: photo ? this.client.storage.from('item-photos').getPublicUrl(photo).data.publicUrl : null,
+          thumbnailUrl: this.cardThumbnailUrl(row),
           pickCount: row.pick_count,
           latestPickId: row.latest_pick_id,
           latestPickerUsername: row.latest_picker_username,
@@ -106,8 +138,7 @@ export class SupabaseReadRepository implements ReadRepository {
     return (data ?? []).map((row) => ({
       itemId: row.item_id,
       name: row.name,
-      thumbnailUrl: row.thumbnail_path
-        ? this.client.storage.from('item-photos').getPublicUrl(row.thumbnail_path).data.publicUrl : null,
+      thumbnailUrl: this.cardThumbnailUrl(row),
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,

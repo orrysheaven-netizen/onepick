@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { getReports, updateReportStatus } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, getReports, updateReportStatus } from '@/lib/admin-api';
+import { getUserModeration, setUserSuspension } from '@/lib/admin-moderation-api';
 import type { AdminReport, AdminReportStatus } from '@/lib/admin-api';
+import type { UserModeration } from '@/lib/admin-moderation-api';
 
 const FILTERS: Array<{ value: AdminReportStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
@@ -17,7 +19,12 @@ export default function AdminReportsScreen() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<AdminReportStatus | 'all'>('all');
+  const [moderation, setModeration] = useState<UserModeration | null>(null);
+  const [suspensionReason, setSuspensionReason] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [moderationLoading, setModerationLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -28,6 +35,7 @@ export default function AdminReportsScreen() {
     try {
       const result = await getReports(next);
       setReports(result);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((report) => report.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '신고 목록을 불러오지 못했습니다.');
@@ -36,11 +44,44 @@ export default function AdminReportsScreen() {
     }
   };
 
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const result = await getReports(filter, reports.length);
+      setReports((current) => [...current, ...result]);
+      setHasMore(result.length === ADMIN_PAGE_SIZE);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '신고 목록을 더 불러오지 못했습니다.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     load('all');
   }, []);
 
   const selected = reports.find((report) => report.id === selectedId) ?? null;
+
+  useEffect(() => {
+    const targetUserId = selected?.target_user_id;
+    setModeration(null);
+    setSuspensionReason('');
+    setError('');
+    setMessage('');
+    if (!targetUserId) return;
+
+    setModerationLoading(true);
+    getUserModeration(targetUserId)
+      .then((state) => {
+        setModeration(state);
+        setSuspensionReason(state.reason ?? '');
+      })
+      .catch((caught) => setError(caught instanceof Error ? caught.message : '대상 사용자 상태를 불러오지 못했습니다.'))
+      .finally(() => setModerationLoading(false));
+  }, [selectedId]);
 
   const changeStatus = async (status: AdminReportStatus) => {
     if (!selected || processing) return;
@@ -60,11 +101,33 @@ export default function AdminReportsScreen() {
     }
   };
 
+  const changeUserSuspension = async (suspended: boolean) => {
+    if (!selected?.target_user_id || !moderation || processing) return;
+    if (suspended && !suspensionReason.trim()) {
+      setError('정지 사유를 입력해 주세요.');
+      return;
+    }
+    if (suspended && !window.confirm('신고 대상 사용자를 정지하시겠습니까?')) return;
+    setProcessing(true);
+    setError('');
+    setMessage('');
+    try {
+      const next = await setUserSuspension(selected.target_user_id, suspended, suspensionReason);
+      setModeration({ ...next, is_admin: moderation.is_admin });
+      setSuspensionReason(next.reason ?? '');
+      setMessage(suspended ? '신고 대상 사용자를 정지했습니다.' : '신고 대상 사용자의 정지를 해제했습니다.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '사용자 제재 상태를 변경하지 못했습니다.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <View style={styles.page}>
       <View>
         <Text style={adminStyles.pageTitle}>신고</Text>
-        <Text style={adminStyles.pageDescription}>프로필·Pick·댓글 신고를 확인하고 처리 상태를 관리합니다.</Text>
+        <Text style={adminStyles.pageDescription}>프로필·Pick·댓글 신고를 확인하고 처리 상태 및 신고 대상 계정 제재를 관리합니다.</Text>
       </View>
 
       <View style={adminStyles.row}>
@@ -94,6 +157,11 @@ export default function AdminReportsScreen() {
               <Text style={styles.status}>{statusLabel(report.status)}</Text>
             </Pressable>
           ))}
+          {hasMore && (
+            <Pressable disabled={loadingMore} onPress={loadMore} style={[adminStyles.secondaryButton, styles.loadMore]}>
+              <Text style={adminStyles.secondaryButtonText}>{loadingMore ? '불러오는 중' : '더 보기'}</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={[adminStyles.card, styles.detailPanel]}>
@@ -116,6 +184,44 @@ export default function AdminReportsScreen() {
                 <Text style={adminStyles.label}>상세 내용</Text>
                 <Text style={styles.detailsText}>{selected.details ?? '추가 설명 없음'}</Text>
               </View>
+
+              {selected.target_user_id && (
+                <View style={styles.moderationBox}>
+                  <View style={styles.moderationHeader}>
+                    <Text style={adminStyles.sectionTitle}>대상 사용자 제재</Text>
+                    {moderationLoading && <ActivityIndicator size="small" />}
+                  </View>
+                  {moderation && (
+                    moderation.is_admin ? (
+                      <Text style={styles.note}>관리자 계정은 이 화면에서 정지할 수 없습니다.</Text>
+                    ) : moderation.status === 'suspended' ? (
+                      <>
+                        <Text style={styles.suspendedBadge}>정지 중</Text>
+                        <Text style={styles.reasonText}>{moderation.reason ?? '사유 없음'}</Text>
+                        {moderation.suspended_at && <Text style={adminStyles.muted}>{new Date(moderation.suspended_at).toLocaleString('ko-KR')} 정지</Text>}
+                        <Pressable disabled={processing} onPress={() => changeUserSuspension(false)} style={[adminStyles.secondaryButton, processing && styles.disabled]}>
+                          <Text style={adminStyles.secondaryButtonText}>정지 해제</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <>
+                        <TextInput
+                          value={suspensionReason}
+                          onChangeText={setSuspensionReason}
+                          placeholder="정지 사유 입력"
+                          multiline
+                          maxLength={500}
+                          style={[adminStyles.input, styles.reasonInput]}
+                        />
+                        <Text style={adminStyles.muted}>{suspensionReason.length}/500</Text>
+                        <Pressable disabled={processing} onPress={() => changeUserSuspension(true)} style={[adminStyles.dangerButton, processing && styles.disabled]}>
+                          <Text style={adminStyles.dangerButtonText}>대상 사용자 정지</Text>
+                        </Pressable>
+                      </>
+                    )
+                  )}
+                </View>
+              )}
 
               <View style={adminStyles.row}>
                 <Pressable disabled={processing} onPress={() => changeStatus('reviewing')} style={adminStyles.secondaryButton}>
@@ -167,6 +273,7 @@ const styles = StyleSheet.create({
   detailPanel: { flexGrow: 1, flexBasis: 380, minWidth: 300 },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
+  loadMore: { marginTop: 12, alignSelf: 'center' },
   reportRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#F0F1F3', borderRadius: 8 },
   reportRowSelected: { backgroundColor: '#F7F7F8' },
   reportBody: { flex: 1, minWidth: 0 },
@@ -180,4 +287,11 @@ const styles = StyleSheet.create({
   metaValue: { flex: 1, color: '#374151', fontSize: 12 },
   detailsBox: { backgroundColor: '#F9FAFB', borderRadius: 9, padding: 14 },
   detailsText: { color: '#374151', fontSize: 13, lineHeight: 20 },
+  moderationBox: { borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingTop: 16, gap: 10 },
+  moderationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reasonInput: { minHeight: 86, textAlignVertical: 'top' },
+  reasonText: { color: '#374151', fontSize: 13, lineHeight: 20, backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
+  suspendedBadge: { alignSelf: 'flex-start', color: '#9F2D2D', backgroundColor: '#FEF2F2', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
+  note: { color: '#6B7280', fontSize: 12, lineHeight: 19, backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
+  disabled: { opacity: 0.5 },
 });

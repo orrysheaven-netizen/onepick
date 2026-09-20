@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name in imports) return imports[name];
+      if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
     },

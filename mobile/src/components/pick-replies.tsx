@@ -29,14 +29,20 @@ function getCommentErrorMessage(error: unknown) {
 }
 
 export function PickReplies({ pickId }: { pickId: string }) {
+  const auth = useAuthSession();
+  // Drafts, pending requests and mutation errors belong to one account/thread.
+  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} />;
+}
+
+function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSession>; pickId: string }) {
   const router = useRouter();
-  const { user } = useAuthSession();
+  const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = usePickDetail(pickId, user?.id);
-  const commentsQuery = usePickComments(pickId);
+  const commentsQuery = usePickComments(!isSessionLoading && !sessionError ? pickId : undefined, user?.id);
   const createComment = useCreateComment(pickId ?? 'missing');
   const [commentBody, setCommentBody] = useState('');
   const submittingComment = useRef(false);
-  const canComment = !query.isError && query.data?.pick.status === 'active';
+  const canComment = !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
@@ -57,6 +63,13 @@ export function PickReplies({ pickId }: { pickId: string }) {
     }
   };
 
+  if (isSessionLoading) return <ActivityIndicator accessibilityLabel="로그인 상태 확인 중" />;
+  if (sessionError) return <View style={styles.commentsState}>
+    <Text accessibilityRole="alert" style={styles.commentsStateText}>로그인 상태를 확인하지 못했어요.</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="로그인 상태 다시 확인" onPress={retrySession} style={styles.smallButton}>
+      <Text style={styles.smallButtonText}>다시 확인하기</Text>
+    </Pressable>
+  </View>;
   if (query.isPending) return <ActivityIndicator accessibilityLabel="답글 불러오는 중" />;
   if (query.isError || !query.data) return (
     <View><Text>한줄평을 불러오지 못했어요.</Text><Pressable onPress={() => void query.refetch()}><Text>다시 불러오기</Text></Pressable></View>
@@ -88,7 +101,7 @@ export function PickReplies({ pickId }: { pickId: string }) {
                 </View>
               ) : null}
 
-              {commentsQuery.data?.length === 0 ? (
+              {!commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
                 <Text style={styles.emptyComments}>{canComment ? '아직 답글이 없어요. 첫 의견을 남겨보세요.' : '아직 답글이 없어요.'}</Text>
               ) : null}
 
@@ -145,7 +158,7 @@ export function PickReplies({ pickId }: { pickId: string }) {
                       editable={!createComment.isPending}
                       maxLength={300}
                       multiline
-                      onChangeText={setCommentBody}
+                      onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
                       placeholder="이 원픽에 대해 이야기해보세요"
                       placeholderTextColor="#89909C"
                       style={styles.commentInput}

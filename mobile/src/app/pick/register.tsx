@@ -71,10 +71,11 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
   const review = draftReview ?? (currentPick?.pick.itemId === selectedItem?.id ? currentPick?.pick.oneLineReview ?? '' : '');
   const nameConfirmed = Boolean(selectedItem || (custom && variantMode && (variantMode === 'none' || variant.trim())));
   const submitting = registration.isPending || photoPicker.isPending || imageImport.isPending;
-  const sharedImage = selectedItem?.imageUrl;
+  const sharedImage = selectedItem?.imageUrl ?? selectedItem?.thumbnailUrl ?? selectedItem?.imageSourceUrl;
+  const hasSharedPhoto = Boolean(sharedImage || selectedItem?.imagePath);
   const ready = Boolean(category && !categories.isError && nameConfirmed && fullName.length > 0 && fullName.length <= 100
     && (!selectedItem || selectedItem.categoryId === categoryId) && (!selectedItem || (review.trim().length > 0 && review.trim().length <= 100))
-    && (!photo || sharedImage || photoApproved) && !submitting && profile.data && !profile.isError);
+    && (!photo || hasSharedPhoto || photoApproved) && !submitting && profile.data && !profile.isError);
   const intent = { action: 'register_pick', ...(categoryId ? { categoryId } : {}), ...(selectedItem ? { itemId: selectedItem.id } : {}) };
 
   const changeName = (value: string) => { setName(value); setSelected(null); setCustom(false); setVariantMode(null); setVariant(''); approvePhoto(false); registration.reset(); };
@@ -93,7 +94,7 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
     try {
       const result = await registration.mutateAsync({ userId: user.id, categoryId, itemId: selectedItem?.id,
         itemName: selectedItem?.name ?? itemName, variant: selectedItem || variantMode === 'none' ? '' : variant,
-        oneLineReview: review, photo: sharedImage ? null : photo });
+        oneLineReview: review, photo: hasSharedPhoto ? null : photo });
       if (result.type === 'pick') router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
       else setSubmitted(result.item);
     } catch { /* Keep the whole draft for retry. */ }
@@ -147,8 +148,9 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
 
             {nameConfirmed ? <>
               <Text style={styles.label}>제품 대표 이미지 · 선택</Text>
-              {sharedImage ? <><PickPhoto uri={sharedImage} label={selectedItem?.name ?? fullName} large /><Text style={styles.hint}>이미 등록된 대표 이미지를 사용해요. 새 사진을 올리지 않아도 됩니다.</Text></> : <>
+              {hasSharedPhoto ? <><PickPhoto uri={sharedImage} label={selectedItem?.name ?? fullName} large /><Text style={styles.hint}>이미 등록된 대표 이미지를 사용해요. 새 사진을 올리지 않아도 됩니다.</Text></> : <>
                 <Text style={styles.hint}>제품 링크에서 사진을 가져오거나 직접 올릴 수 있어요. 사진 없이 등록해도 괜찮아요.</Text>
+                <Text style={styles.hint}>상품 이름이 잘 보이는 사진이면 충분해요. 채택된 사진은 함께 사용하고, 상품 상세에 사진 등록자로 내 사용자명과 프로필 링크가 표시돼요.</Text>
                 <TextInput accessibilityLabel="제품 이미지 링크" editable={!submitting} autoCapitalize="none" keyboardType="url" style={styles.input} value={imageLink} onChangeText={setImageLink} placeholder="https://…" maxLength={2048} />
                 <Pressable accessibilityRole="button" disabled={submitting || !imageLink.trim()} onPress={() => void getPhoto(true)} style={[styles.option, (submitting || !imageLink.trim()) && styles.disabled]}><Text style={styles.optionText}>링크에서 이미지 가져오기</Text></Pressable>
                 <Text style={styles.hint}>농심·오뚜기·하이트진로·오비맥주·오리온·롯데웰푸드 공식 사이트의 상품 또는 JPG·PNG 이미지 링크를 지원해요. 사이트에 따라 가져오지 못할 수 있어요.</Text>

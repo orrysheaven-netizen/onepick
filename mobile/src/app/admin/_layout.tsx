@@ -1,4 +1,4 @@
-import { Redirect, Slot } from 'expo-router';
+import { Redirect, Slot, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ const STATUS_TO_STATE: Record<Awaited<ReturnType<typeof checkAdminSession>>, Aut
 };
 
 export default function AdminLayout() {
+  const pathname = usePathname();
   const [authState, setAuthState] = useState<AuthState>('checking');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +86,10 @@ export default function AdminLayout() {
 
   if (authState === 'needsMfa') {
     return <Redirect href="/auth/admin-security" />;
+  }
+
+  if (pathname === '/admin') {
+    return <Redirect href="/admin/dashboard" />;
   }
 
   return (

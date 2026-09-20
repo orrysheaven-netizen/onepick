@@ -2,6 +2,8 @@ import type { Profile } from '@/types/domain/profile';
 
 export interface CreateProfileInput {
   username: string;
+  /** Optional originating account; verified against auth before insertion. */
+  expectedUserId?: string;
 }
 
 export interface UpdateProfileInput {

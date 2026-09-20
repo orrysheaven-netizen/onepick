@@ -1,5 +1,21 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "feature/shared-item-photo-actions": false,
+      "feature/game-catalog": false,
+      "feature/youtube-channel-catalog": false,
+      "feature/pokemon-catalog": false,
+      "main": false
+    }
+  },
   "installCommand": "cd mobile && npm ci",
   "buildCommand": "cd mobile && npm run build:web",
-  "outputDirectory": "mobile/dist"
+  "outputDirectory": "mobile/dist",
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
 }
