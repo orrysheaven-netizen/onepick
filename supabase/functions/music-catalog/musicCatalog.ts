@@ -99,6 +99,19 @@ export function buildRecordingQuery(title: string, artist: string) {
   return artist ? `${titleClause} AND artist:"${quoteLucene(artist)}"` : titleClause;
 }
 
+// Cover Art Archive still lists many images with http:// URLs. The same paths are
+// served over TLS, so upgrade them; clients and the web CSP only accept https.
+export function secureCoverUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    const host = parsed.hostname;
+    if (host !== 'coverartarchive.org' && host !== 'archive.org' && !host.endsWith('.archive.org')) return null;
+    parsed.protocol = 'https:';
+    return parsed.toString();
+  } catch { return null; }
+}
+
 type Remote = { data: Record<string, unknown>; error?: never } | { error: Response; data?: never };
 /** A definitive Cover Art Archive answer, or null when the lookup could not complete. */
 export type CoverLookup = { url: string | null } | null;
@@ -138,8 +151,9 @@ export function createMusicCatalogHandler(deps: Dependencies) {
   const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, json } = deps;
 
   async function verifiedCover(client: SupabaseClient, releaseGroupId: string) {
-    // Namespace v2: v1 entries cached timeouts as misses and must not be reused.
-    const cacheKey = `cover:v2\n${releaseGroupId}`;
+    // Namespace v3: earlier entries cached timeouts (v1) and http:// covers (v2)
+    // as misses and must not be reused.
+    const cacheKey = `cover:v3\n${releaseGroupId}`;
     const cached = await readCache(client, cacheKey, COVER_HIT_MS);
     if (cached && typeof cached === 'object' && 'url' in cached) {
       const row = cached as { url: unknown; fetchedAt?: unknown };
