@@ -158,6 +158,7 @@ async function main() {
   assert.equal(searchUrl.searchParams.get('type'),'channel');
   assert.equal(searchUrl.searchParams.get('safeSearch'),'strict');
   assert.equal(searchUrl.searchParams.get('relevanceLanguage'),'ko');
+  assert.equal(searchUrl.searchParams.get('regionCode'),'KR');
   assert.equal(searchUrl.searchParams.get('maxResults'),'25');
   assert.equal(searchUrl.searchParams.get('part'),'snippet');
   assert.equal(searchUrl.searchParams.has('statistics'),false);
