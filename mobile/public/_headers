@@ -8,6 +8,8 @@
 # This is not authentication; anyone with the URL can still open the site.
 https://:project.pages.dev/*
   X-Robots-Tag: noindex
+  Cache-Control: no-store, max-age=0
 
 https://:version.:project.pages.dev/*
   X-Robots-Tag: noindex
+  Cache-Control: no-store, max-age=0
