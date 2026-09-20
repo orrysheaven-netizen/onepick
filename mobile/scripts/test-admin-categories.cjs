@@ -15,10 +15,11 @@ async function main() {
   const tree = load('lib/categories/categoryTree.ts');
   const base = { status: 'open', isVisible: true, isPickable: true, parentId: null, sortOrder: 0, rankingMinSample: 20 };
   const parent = { ...base, id: 'food', name: '음식', slug: 'food', isPickable: false };
-  const child = { ...base, id: 'new', name: '새 분류', slug: 'new', parentId: 'food' };
-  const categories = [parent, child];
+  const middle = { ...base, id: 'market', name: '쇼핑몰', slug: 'market', parentId: 'food', isPickable: false };
+  const child = { ...base, id: 'new', name: '새 분류', slug: 'new', parentId: 'market' };
+  const categories = [parent, middle, child];
   assert.equal(tree.selectableCategories(categories).map((c) => c.id).join(','), 'new');
-  assert.equal(tree.categoryLabel(child, categories), '음식 › 새 분류');
+  assert.equal(tree.categoryLabel(child, categories), '음식 › 쇼핑몰 › 새 분류');
   for (const patch of [{ status: 'paused' }, { isVisible: false }, { isPickable: true }]) {
     assert.equal(tree.selectableCategories([{ ...parent, ...patch }, child]).length, 0);
   }
@@ -40,7 +41,7 @@ async function main() {
     '@/errors/appError': { AppError }, '@/lib/categories/categoryTree': tree, '@/lib/items/itemIdentity': identity,
   });
   const service = new AdminService(repo, {});
-  await service.createCategory({ name: '  새   카테고리 ', slug: 'new-category', parentId: 'food', isPickable: true });
+  await service.createCategory({ name: '  새   카테고리 ', slug: 'new-category', parentId: 'market', isPickable: true });
   assert.equal(writes[0].name, '새 카테고리');
   await assert.rejects(() => service.createCategory({ name: '잘못된 하위', slug: 'bad', parentId: 'new' }), (e) => e.code === 'CATEGORY_INVALID');
   await assert.rejects(() => service.updateCategory('food', { isPickable: true }), (e) => e.code === 'CATEGORY_INVALID');
@@ -83,6 +84,6 @@ async function main() {
   invalidated.length = 0;
   await hooks.useAdminActions().updateItem.onSuccess();
   assert.equal(invalidated.sort().join(','), 'admin,categories,explore,home,items,picks,profiles');
-  console.log('Admin checks passed: category tree, formal item edits, alias validation, permissions and cache refresh.');
+  console.log('Admin checks passed: three-level category tree, formal item edits, alias validation, permissions and cache refresh.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
