@@ -182,6 +182,7 @@ function searchUrl(apiKey: string, query: string) {
   url.searchParams.set('maxResults', '25');
   url.searchParams.set('safeSearch', 'strict');
   url.searchParams.set('relevanceLanguage', 'ko');
+  url.searchParams.set('regionCode', 'KR');
   url.searchParams.set('key', apiKey);
   return url;
 }
