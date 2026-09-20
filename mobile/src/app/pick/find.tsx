@@ -71,7 +71,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const normalizedQuery = query.trim().replace(/\s+/g, ' ');
   const hasQuery = normalizedQuery.length > 0;
   const canSearchMovieCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 60;
-  const localItems = authReady && !search.isWaiting && !search.isError
+  const localItems = authReady && !categories.isError && Boolean(selectedCategory || productCategoryIds.length > 0)
+    && !search.isWaiting && !search.isError
     ? (search.data ?? []).filter((item) => !selectedCategory || item.categoryId === selectedCategory.id) : [];
   const externalMovies = (movieCatalog.data ?? []).filter((movie) => movie.source === source &&
     !localItems.some((item) => item.externalSource === movie.source && item.externalId === movie.externalId));
