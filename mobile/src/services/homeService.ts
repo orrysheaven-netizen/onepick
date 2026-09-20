@@ -24,17 +24,9 @@ export class HomeService {
       cursor ? Promise.resolve([]) : this.readRepository.getEditorialHomeItems(6),
     ]);
 
-    const selectedCategoryIds = new Set(currentPicks.map((item) => item.pick.categoryId));
-    const categoriesToPick = userId
-      ? openCategories
-          .filter((category) => !selectedCategoryIds.has(category.id))
-          .map((category) => ({ category }))
-      : [];
-
     return {
       openCategories,
       currentPicks,
-      categoriesToPick,
       editorialItems,
       featuredItems: showcase.items,
       minimumPickCount: showcase.minimumPickCount,
