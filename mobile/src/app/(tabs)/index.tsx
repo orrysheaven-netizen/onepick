@@ -80,8 +80,8 @@ export default function HomeScreen() {
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
   const searchCategories = data?.openCategories ?? [];
+  const categories = user ? [] : searchCategories;
   const movieCategory = searchCategories.find((category) => category.slug === 'movie');
   const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
   const musicCategory = searchCategories.find((category) => category.slug === 'music');
@@ -165,7 +165,7 @@ export default function HomeScreen() {
         </View> : null}
 
         {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
+          <View style={styles.nextSection}><SectionTitle title="어떤 취향부터 골라볼까요?" count={categories.length} /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={(category.label ?? category.name) + ' 원픽 찾기'}
               onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>

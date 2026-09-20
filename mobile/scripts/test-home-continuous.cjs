@@ -64,23 +64,6 @@ async function main() {
   rows = rows.slice(0, 20); page = await repo.getHomeShowcase(cursor);
   assert.equal(page.nextCursor, null, 'Exact last page does not request another page');
 
-  let presses = [], destination;
-  const native = ({ children }) => React.createElement('div', null, children);
-  const categories = { data: [{ id: 'picked', name: '라면', label: '먹을것 › 라면' }, { id: 'new', name: '영화', label: '볼것 › 영화' }] };
-  const { UnselectedCategories } = load('components/unselected-categories.tsx', {
-    'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
-    'react-native': { View: native, Text: native, ActivityIndicator: () => null, StyleSheet: { create: (s) => s },
-      Pressable: (props) => { presses.push(props); return native(props); } },
-    '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
-  });
-  const render = (selected) => { presses = []; return renderToStaticMarkup(React.createElement(UnselectedCategories, { selectedCategoryIds: selected })); };
-  assert.doesNotMatch(render(['picked']), /먹을것/);
-  assert.match(render(['picked']), /볼것.*영화/);
-  presses[0].onPress(); assert.equal(destination.params.categoryId, 'new'); assert.equal(destination.pathname, '/pick/find');
-  assert.match(render(['picked', 'new']), /추가로 고를 수 있는 카테고리가 없어요/);
-  categories.isError = true;
-  assert.match(render([]), /카테고리를 불러오지 못했어요/);
-  assert.doesNotMatch(render(['picked', 'new']), /추가로 고를 수 있는 카테고리가 없어요/);
-  console.log('Continuous home and profile categories passed: cursor, lookahead, precision, deduplication, selection filtering and recovery.');
+  console.log('Continuous home passed: cursor, lookahead, precision and deduplication.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

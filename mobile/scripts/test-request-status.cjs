@@ -65,7 +65,6 @@ async function main() {
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
-    '@/components/unselected-categories': { UnselectedCategories: () => null },
     '@/components/sign-out-button': { SignOutButton: () => null },
     '@/errors/appError': { AppError },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },

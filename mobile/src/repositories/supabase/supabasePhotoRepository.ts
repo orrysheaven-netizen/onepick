@@ -32,7 +32,19 @@ export class SupabasePhotoRepository implements PhotoRepository {
       // Both current and legacy Storage APIs report immutable-path retries as duplicates.
       const duplicate = error && (Number(error.statusCode) === 409 ||
         (Number(error.statusCode) === 400 && /^(?:The resource already exists|Asset Already Exists)$/i.test(error.message)));
-      if (error && !duplicate) throw new AppError('PHOTO_UPLOAD_FAILED', 'PHOTO_UPLOAD_FAILED', error);
+      if (error && !duplicate) {
+        const status = Number(error.statusCode);
+        const message = String(error.message ?? '');
+        if (status === 413) throw new AppError('PHOTO_TOO_LARGE', 'PHOTO_TOO_LARGE', error);
+        if (status === 401 || status === 403 || /row-level security|permission|unauthori[sz]ed|forbidden/i.test(message)) {
+          throw new AppError('FORBIDDEN', 'FORBIDDEN', error);
+        }
+        if (status === 429) throw new AppError('RATE_LIMITED', 'RATE_LIMITED', error);
+        if (!status || /failed to fetch|network request failed|network error|fetch failed|offline/i.test(message)) {
+          throw new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
+        }
+        throw new AppError('PHOTO_UPLOAD_FAILED', 'PHOTO_UPLOAD_FAILED', error);
+      }
     }
     return { imagePath, thumbnailPath };
   }

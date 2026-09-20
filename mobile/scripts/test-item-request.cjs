@@ -92,6 +92,7 @@ async function main() {
       push: (route) => { destination = route; }, replace: (route) => { destination = route; }, canGoBack: () => false,
     }) },
     '@/errors/appError': { AppError },
+    '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useItemCategoryAi': {
       useItemCategorySuggestions: (itemId) => {

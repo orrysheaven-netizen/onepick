@@ -1,7 +1,7 @@
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://image.tmdb.org https://images.igdb.com https://coverartarchive.org https://i.ytimg.com https://*.ytimg.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://image.tmdb.org https://images.igdb.com https://coverartarchive.org https://archive.org https://*.archive.org https://raw.githubusercontent.com https://i.ytimg.com https://*.ytimg.com https://yt3.ggpht.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   Referrer-Policy: strict-origin-when-cross-origin
 
 # Ask search engines not to index the test host or its preview deployments.

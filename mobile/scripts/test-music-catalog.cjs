@@ -34,7 +34,7 @@ function setup() {
   const client = {
     auth: { getUser: async () => ({ data:{ user: state.auth ? { id:'user' } : null }, error:null }) },
     rpc: async (name) => {
-      assert.equal(name,'user_is_suspended');
+      assert.equal(name,'catalog_user_is_suspended');
       return { data:state.suspended,error:null };
     },
     from(table) {
@@ -75,7 +75,7 @@ async function main(){
   const mapped=mapMusicBrainzRecording(raw);
   assert.equal(mapped.externalId,recordingId); assert.equal(mapped.title,'밤편지'); assert.equal(mapped.artistName,'아이유');
   assert.equal(mapped.releaseTitle,'Palette'); assert.equal(mapped.releaseYear,2017); assert.equal(mapped.releaseGroupId,groupId);
-  assert.match(mapped.coverArtUrl,/coverartarchive\.org\/release-group/);
+  assert.equal(mapped.coverArtUrl,null,'Mapping never guesses a Cover Art Archive URL; only verified covers reach clients');
   assert.match(buildRecordingQuery('밤"편지','아이유'),/recording:"밤\\\"편지" AND artist:"아이유"/);
   assert.equal(musicItemName(mapped),'밤편지 · 아이유');
   assert.equal(mapMusicBrainzRecording({...raw,video:true}),null);
@@ -84,6 +84,7 @@ async function main(){
   const s=setup();
   const search=await (await s.request('search',{},false)).json();
   assert.equal(search.recordings.length,1); assert.equal(search.recordings[0].existingItemId,null);
+  assert.equal(search.recordings[0].coverArtUrl,s.state.cover,'Search returns the cover only after Cover Art Archive confirmed it');
   assert.equal(s.state.writes.length,0,'Search never creates catalog items');
   assert.equal(s.state.waits,1); assert.equal(s.state.upstream[0].hostname,'musicbrainz.org');
   const cached=await (await s.request('search',{},false)).json();
@@ -100,6 +101,12 @@ async function main(){
   assert.equal(again.itemId,saved.itemId); assert.equal(again.created,false); assert.equal(s.state.upstream.length,upstream);
   const known=await (await s.request('search',{},false)).json();
   assert.equal(known.recordings[0].existingItemId,saved.itemId);
+
+  const miss=setup(); miss.state.cover=null;
+  const missed=await (await miss.request('search',{},false)).json();
+  assert.equal(missed.recordings[0].coverArtUrl,null,'An unconfirmed cover is omitted instead of guessed');
+  const missImport=await (await miss.request('import')).json();
+  assert.equal(missImport.created,true); assert.equal(miss.state.writes[0].image_source_url,null,'Imports never store an unverified cover URL');
 
   for(const mode of ['no-auth','expired','suspended','hidden-category','hidden-parent','non-leaf','bad-id','bad-query']){
     const t=setup();

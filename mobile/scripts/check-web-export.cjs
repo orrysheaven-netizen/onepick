@@ -23,6 +23,8 @@ async function main() {
   assert.equal(headers, fs.readFileSync(path.join(root, 'public', '_headers'), 'utf8'), 'Test-host headers must be copied into the export');
   assert.match(headers, /https:\/\/:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex\s+Cache-Control: no-store, max-age=0/);
   assert.match(headers, /https:\/\/:version\.:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex\s+Cache-Control: no-store, max-age=0/);
+  // Web photo selection hands blob: object URLs to expo-image-manipulator; blocking them fails every upload as PHOTO_INVALID.
+  assert.match(headers, /Content-Security-Policy:[^\n]*\bimg-src [^;\n]*\bblob:/, 'CSP img-src must allow blob: so web photo uploads can decode picked images');
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
 

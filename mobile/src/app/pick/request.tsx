@@ -8,6 +8,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions } from '@/hooks/useItemCategoryAi';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
 function errorMessage(error: unknown) {
@@ -77,8 +78,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     try {
       const result = fromLink ? await imageImport.mutateAsync(imageLink) : await photoPicker.mutateAsync();
       if (result) { setPhoto(result); approvePhoto(false); }
-    } catch {
-      // Keep the previous photo on cancellation/failure; mutation state explains the error.
+    } catch (error) {
+      showPhotoFailure(error, fromLink ? 'request_item_photo_import' : 'request_item_photo_choose');
+      // Keep the previous photo on cancellation/failure; mutation state also keeps the inline error visible.
     } finally {
       busy.current = false;
     }
@@ -115,7 +117,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       }
 
       router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
-    } catch {
+    } catch (error) {
+      if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'request_item_photo_upload');
       // Mutation state renders the error without losing the draft.
     } finally {
       busy.current = false;
