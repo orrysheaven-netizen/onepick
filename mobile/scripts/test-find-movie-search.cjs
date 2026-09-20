@@ -72,6 +72,7 @@ const imports = {
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/music-search-link': { MusicSearchLink: () => null },
   '@/components/game-search-link': { GameSearchLink: () => null },
+  '@/components/youtube-search-link': { YoutubeSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
