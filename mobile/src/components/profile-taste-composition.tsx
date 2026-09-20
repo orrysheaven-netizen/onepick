@@ -10,12 +10,14 @@ function progressWidth(current: number): `${number}%` {
 
 export function ProfileTasteComposition({
   profileId,
+  viewerId,
   variant = 'self',
 }: {
   profileId: string;
+  viewerId?: string;
   variant?: 'self' | 'public';
 }) {
-  const composition = useProfileTasteComposition(profileId);
+  const composition = useProfileTasteComposition(profileId, viewerId);
   const value = composition.data;
   const isSelf = variant === 'self';
 
