@@ -51,7 +51,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const router = useRouter();
   const { user, isLoading: sessionLoading, error: sessionError, retry: retrySession } = auth;
   const authReady = !sessionLoading && !sessionError;
-  const [searchText, setSearchText] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
+  const [searchText, setSearchText] = useState(() => (scalar(params.query) ?? '').slice(0, 1000));
   const [consent, setConsent] = useState<boolean | null>(null);
   const [consentSaving, setConsentSaving] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
