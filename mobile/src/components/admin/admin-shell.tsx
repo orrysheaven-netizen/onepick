@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/reports', label: '신고' },
   { href: '/admin/audit', label: '운영 기록' },
   { href: '/admin/ops', label: '운영 지표' },
+  { href: '/admin/profile-taste-qa', label: '취향 QA' },
 ] as const;
 
 export function AdminShell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {

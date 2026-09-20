@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
+import type { ProfileTasteComposition as ProfileTasteCompositionValue } from '@/services/profileTasteCompositionService';
 
 const MINIMUM_PICKS = 5;
 
@@ -12,14 +13,18 @@ export function ProfileTasteComposition({
   profileId,
   viewerId,
   variant = 'self',
+  previewValue,
 }: {
   profileId: string;
   viewerId?: string;
   variant?: 'self' | 'public';
+  previewValue?: ProfileTasteCompositionValue;
 }) {
-  const composition = useProfileTasteComposition(profileId, viewerId);
-  const value = composition.data;
+  const composition = useProfileTasteComposition(previewValue ? undefined : profileId, viewerId);
+  const value = previewValue ?? composition.data;
   const isSelf = variant === 'self';
+  const isPending = previewValue ? false : composition.isPending;
+  const isError = previewValue ? false : composition.isError;
 
   return (
     <View style={styles.section}>
@@ -34,12 +39,12 @@ export function ProfileTasteComposition({
         ) : null}
       </View>
 
-      {composition.isPending ? (
+      {isPending ? (
         <View style={styles.stateCard}>
           <ActivityIndicator />
           <Text style={styles.stateText}>{isSelf ? '내 원픽을 취향별로 정리하고 있어요.' : '원픽을 취향별로 정리하고 있어요.'}</Text>
         </View>
-      ) : composition.isError || !value ? (
+      ) : isError || !value ? (
         <View style={styles.stateCard}>
           <Text accessibilityRole="alert" style={styles.errorText}>취향 구성을 불러오지 못했어요.</Text>
           <Text style={styles.stateText}>새로고침하면 다시 확인할 수 있어요.</Text>

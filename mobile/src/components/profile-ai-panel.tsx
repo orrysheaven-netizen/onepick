@@ -35,12 +35,21 @@ function progressCopy(status: ProfileAiStatus) {
     : `${changeText} · 원픽을 더 추가하거나 바꾸면 AI가 다시 읽어요.`;
 }
 
-export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: string; currentPickCount: number }) {
-  const status = useProfileAiStatus(profileId);
-  const comment = useProfileAiComment(profileId);
-  const generate = useGenerateProfileAi(profileId);
-  const visibility = useSetProfileAiVisibility(profileId);
-  const value = status.data;
+export function ProfileAiPanel({
+  profileId,
+  currentPickCount,
+  previewStatus,
+}: {
+  profileId: string;
+  currentPickCount: number;
+  previewStatus?: ProfileAiStatus;
+}) {
+  const preview = Boolean(previewStatus);
+  const status = useProfileAiStatus(preview ? undefined : profileId);
+  const comment = useProfileAiComment(preview ? undefined : profileId);
+  const generate = useGenerateProfileAi(preview ? undefined : profileId);
+  const visibility = useSetProfileAiVisibility(preview ? undefined : profileId);
+  const value = previewStatus ?? status.data;
   const fallbackReadyForFirstReview =
     !value &&
     !status.isPending &&
@@ -71,7 +80,7 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
       <Pressable
         accessibilityRole="button"
         disabled={!value.canGenerate || generate.isPending}
-        onPress={() => generate.mutate()}
+        onPress={() => { if (!preview) generate.mutate(); }}
         style={({ pressed }) => [styles.primaryButton, (!value.canGenerate || generate.isPending) && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : value.hasReview ? 'AI가 다시 본 나' : 'AI 평가 보기'}</Text>
       </Pressable>
@@ -85,7 +94,7 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
       <Pressable
         accessibilityRole="button"
         disabled={generate.isPending}
-        onPress={() => generate.mutate()}
+        onPress={() => { if (!preview) generate.mutate(); }}
         style={({ pressed }) => [styles.primaryButton, generate.isPending && styles.disabled, pressed && styles.pressed]}>
         <Text style={styles.primaryButtonText}>{generate.isPending ? 'AI가 취향을 읽는 중…' : 'AI 평가 보기'}</Text>
       </Pressable>
@@ -93,9 +102,9 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
     </View> : status.isPending ? <Text style={styles.helper}>AI 평가 가능 여부를 확인하고 있어요.</Text>
       : <Text style={styles.error}>AI 평가 상태를 불러오지 못했어요.</Text>}
 
-    <ProfileAiComment profileId={profileId} showPrivate />
+    {preview ? <Text style={styles.previewNote}>QA PREVIEW · 버튼은 실제 요청을 보내지 않아요.</Text> : <ProfileAiComment profileId={profileId} showPrivate />}
 
-    {comment.data ? <Pressable
+    {!preview && comment.data ? <Pressable
       accessibilityRole="button"
       disabled={visibility.isPending}
       onPress={() => visibility.mutate(!comment.data!.isVisible)}
@@ -125,5 +134,6 @@ const styles = StyleSheet.create({
   visibilityText: { color: '#5F6470', fontSize: 12, fontWeight: '800' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
+  previewNote: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
   error: { color: '#A9482D', fontSize: 11, lineHeight: 17, marginTop: 10 },
 });
