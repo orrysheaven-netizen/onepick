@@ -50,16 +50,8 @@ export class RegistrationService {
   ) {}
 
   async getCategories() {
-    const categories = (await this.categoryRepository.getOpenCategories()).filter((category) =>
+    return (await this.categoryRepository.getOpenCategories()).filter((category) =>
       category.isVisible && category.isPickable && category.status === 'open');
-
-    return Promise.all(categories.map(async (category) => {
-      const parent = category.parentId ? await this.categoryRepository.getById(category.parentId) : null;
-      return {
-        ...category,
-        label: parent ? `${parent.name} › ${category.name}` : category.name,
-      };
-    }));
   }
 
   choosePhoto() { return this.devicePhotoRepository.choosePhoto(); }

@@ -77,6 +77,17 @@ export type AdminEditorialFeature = {
   updated_at: string;
 };
 
+export type AdminEditorialFeatureWithItem = AdminEditorialFeature & {
+  items: {
+    id: string;
+    name: string;
+    status: AdminItemStatus;
+    category_id: string;
+    image_path: string | null;
+    categories: { name: string } | null;
+  } | null;
+};
+
 export type AdminItemAlias = {
   id: string;
   item_id: string;
@@ -363,6 +374,24 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
   });
+}
+
+export function getEditorialFeatures() {
+  return adminRequest<AdminEditorialFeatureWithItem[]>(
+    '/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at,items(id,name,status,category_id,image_path,categories(name))&order=priority.asc,updated_at.desc'
+  );
+}
+
+export function getEditorialCandidates(query: string) {
+  const params = new URLSearchParams({
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    or: '(status.eq.active,status.eq.discontinued)',
+    order: 'updated_at.desc',
+    limit: '20',
+  });
+  const keyword = query.trim();
+  if (keyword) params.set('name', `ilike.*${keyword}*`);
+  return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
 }
 
 export function getItemEditorialFeature(itemId: string) {

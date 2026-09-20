@@ -167,6 +167,7 @@ async function main() {
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
+    '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/demoProfile': { isDemoUsername: (username) => typeof username === 'string' && username.trim().toLowerCase().startsWith('demo_') },

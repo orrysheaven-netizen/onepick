@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: '/admin/categories', label: '카테고리' },
   { href: '/admin/brands', label: '브랜드' },
   { href: '/admin/items', label: '상품' },
+  { href: '/admin/editorial', label: '홈 추천' },
   { href: '/admin/pending', label: '검수 대기' },
   { href: '/admin/users', label: '사용자' },
   { href: '/admin/reports', label: '신고' },

@@ -31,7 +31,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
     { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
     { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
-  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
+  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자', label: '먹을것 › 쇼핑몰 › 과자' } }], openCategories: [{ id: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -73,7 +73,8 @@ for (width of [390, 800, 1200]) {
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
-  press('과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+  assert.match(page, /먹을것 › 쇼핑몰 › 과자/);
+  press('먹을것 › 쇼핑몰 › 과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
 }
 
 render(); endReached(); assert.equal(pageCalls, 1);
@@ -87,7 +88,8 @@ auth.user = null;
 const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.match(publicPage, /어떤 취향부터 골라볼까요/);
-press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
+assert.match(publicPage, /먹을것 › 면류 › 라면/);
+press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|MY PICK|내 원픽 2개 모아보기/, 'Visitors see only the public feed, never the cached private collection');
 press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
