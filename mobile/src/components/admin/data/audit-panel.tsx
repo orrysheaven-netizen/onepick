@@ -7,7 +7,7 @@ import type { AdminAuditLog, AdminClientErrorEvent } from '@/lib/admin-api';
 
 const LOG_PAGE_SIZE = 100;
 
-export default function AdminAuditScreen() {
+export function AuditPanel() {
   const [logs, setLogs] = useState<AdminAuditLog[]>([]);
   const [errorEvents, setErrorEvents] = useState<AdminClientErrorEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +54,6 @@ export default function AdminAuditScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <View>
-          <Text style={adminStyles.pageTitle}>운영 기록</Text>
-          <Text style={adminStyles.pageDescription}>카테고리·브랜드·상품·신고·사용자 제재에 대한 관리자 변경 기록과 앱 오류 발생 현황을 확인합니다.</Text>
-        </View>
         <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>새로고침</Text>
         </Pressable>
@@ -147,7 +143,7 @@ function formatValue(value: unknown) {
 
 const styles = StyleSheet.create({
   page: { gap: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
+  header: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
   loadMore: { marginTop: 12, alignSelf: 'center' },

@@ -23,13 +23,13 @@ export function SignOutButton() {
         <>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/admin/audit')}
+            onPress={() => router.push({ pathname: '/admin/data', params: { tab: 'audit' } })}
             style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
             <Text style={styles.adminLabel}>운영 현황 · 감사 로그</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/admin/reports')}
+            onPress={() => router.push({ pathname: '/admin/data', params: { tab: 'reports' } })}
             style={({ pressed }) => [styles.adminButton, pressed && styles.muted]}>
             <Text style={styles.adminLabel}>신고 관리</Text>
           </Pressable>

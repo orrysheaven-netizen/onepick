@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const path = require('node:path');
 const { isIP } = require('node:net');
 const { spawnSync } = require('node:child_process');
@@ -69,7 +70,19 @@ function main() {
     if (result.status !== 0) throw new Error('Release build/check failed; do not deploy this output.');
   }
   // Keep real settings separate from the CI fixture output in dist/.
-  run([require.resolve('expo/bin/cli'), 'export', '--platform', 'web', '--output-dir', 'dist-release']);
+  // Remove any restored output and clear Metro so a Pages build can never
+  // publish a stale JS bundle from a previous deployment.
+  const releaseDir = path.join(root, 'dist-release');
+  fs.rmSync(releaseDir, { recursive: true, force: true });
+  run([require.resolve('expo/bin/cli'), 'export', '--platform', 'web', '--output-dir', 'dist-release', '--clear']);
+
+  // Expose only non-sensitive build identity so production/preview drift can
+  // be diagnosed without inspecting bundled application code.
+  const deployment = {
+    commit: env.CF_PAGES_COMMIT_SHA?.trim() || null,
+    branch: env.CF_PAGES_BRANCH?.trim() || null,
+  };
+  fs.writeFileSync(path.join(releaseDir, 'deploy-meta.json'), JSON.stringify(deployment));
   run([path.join(__dirname, 'check-web-export.cjs'), 'dist-release']);
   console.log('Verified release output: mobile/dist-release. Hosting and actual login verification are still required.');
 }

@@ -13,7 +13,7 @@ const FILTERS: Array<{ value: UserFilter; label: string }> = [
   { value: 'suspended', label: '정지' },
 ];
 
-export default function AdminUsersScreen() {
+export function UsersPanel() {
   const [users, setUsers] = useState<ModeratedAdminUser[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -95,11 +95,6 @@ export default function AdminUsersScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>사용자</Text>
-        <Text style={adminStyles.pageDescription}>사용자를 조회하고 계정을 정지하거나 해제합니다. 정지된 사용자의 공개 콘텐츠는 숨겨지고 새 Pick·댓글 작성이 차단됩니다.</Text>
-      </View>
-
       <View style={styles.summaryRow}>
         <SummaryCard label="전체" value={users.length} />
         <SummaryCard label="정상" value={activeCount} />

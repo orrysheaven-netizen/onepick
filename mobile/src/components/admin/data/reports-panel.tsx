@@ -15,7 +15,7 @@ const FILTERS: Array<{ value: AdminReportStatus | 'all'; label: string }> = [
   { value: 'dismissed', label: '기각' },
 ];
 
-export default function AdminReportsScreen() {
+export function ReportsPanel() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<AdminReportStatus | 'all'>('all');
@@ -125,11 +125,6 @@ export default function AdminReportsScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>신고</Text>
-        <Text style={adminStyles.pageDescription}>프로필·Pick·댓글 신고를 확인하고 처리 상태 및 신고 대상 계정 제재를 관리합니다.</Text>
-      </View>
-
       <View style={adminStyles.row}>
         {FILTERS.map((item) => (
           <Pressable key={item.value} onPress={() => { setFilter(item.value); load(item.value); }} style={[styles.filter, filter === item.value && styles.filterActive]}>
