@@ -99,6 +99,10 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.match(failed, new RegExp(`color&quot;:&quot;${OnePick.danger}`), 'Error title uses the danger tint');
   assert.equal(pressable('다시 불러오기').disabled, true);
 
+  render(React.createElement(ui.StateCard, { title: '나의 원픽을 모아보세요', action: { label: '로그인하기', onPress() {}, variant: 'primary' } }));
+  assert.equal(pressable('로그인하기').resolved.backgroundColor, OnePick.accent, 'Full-screen states can promote the action to primary');
+  assert.equal(pressable('로그인하기').resolved.minHeight, 48);
+
   const compact = render(React.createElement(ui.StateCard, { text: '다음 제품을 불러오지 못했어요.', compact: true }));
   assert.doesNotMatch(compact, />1</); assert.equal(spinners, 0);
 }

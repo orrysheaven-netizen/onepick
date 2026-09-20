@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
-import { Button } from './button';
+import { Button, type ButtonVariant } from './button';
 
 type Props = {
   title?: string;
@@ -11,7 +11,8 @@ type Props = {
   loading?: boolean;
   /** Error notices get the danger tint on the title. */
   tone?: 'default' | 'danger';
-  action?: { label: string; onPress: () => void; accessibilityLabel?: string; disabled?: boolean };
+  /** Ghost by default; pass `variant: 'primary'` when the card is the whole screen (signed-out, onboarding). */
+  action?: { label: string; onPress: () => void; accessibilityLabel?: string; disabled?: boolean; variant?: ButtonVariant };
   /** Tighter padding for inline list states (end of page, failed next page). */
   compact?: boolean;
   accessibilityRole?: 'alert';
@@ -26,7 +27,7 @@ export function StateCard({ title, text, loading, tone = 'default', action, comp
         : compact ? null : <View style={styles.mark}><Text style={styles.markText}>1</Text></View>}
       {title ? <Text style={[styles.title, tone === 'danger' && styles.titleDanger]}>{title}</Text> : null}
       {text ? <Text style={styles.text}>{text}</Text> : null}
-      {action ? <View style={styles.action}><Button variant="ghost" size="sm" label={action.label} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} disabled={action.disabled} /></View> : null}
+      {action ? <View style={styles.action}><Button variant={action.variant ?? 'ghost'} size={action.variant && action.variant !== 'ghost' ? 'md' : 'sm'} label={action.label} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} disabled={action.disabled} /></View> : null}
     </View>
   );
 }

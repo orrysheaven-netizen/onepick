@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
+import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -68,7 +69,7 @@ export default function ExploreScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
-          <View><Text style={styles.eyebrow}>EXPLORE</Text><Text style={styles.title}>카테고리 탐색</Text></View>
+          <Text style={styles.title}>카테고리 탐색</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
@@ -105,26 +106,14 @@ export default function ExploreScreen() {
         </View> : null}
         <Text style={styles.levelTitle}>상위 카테고리</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
-        {categories.isError ? <View style={styles.stateCard}><Text style={styles.stateText}>카테고리를 불러오지 못했어요.</Text><Pressable accessibilityRole="button" onPress={refresh}><Text style={styles.refreshText}>다시 불러오기</Text></Pressable></View> : null}
+        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
         {!categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="전체 카테고리 보기"
-            accessibilityState={{ selected: !parentId }}
-            onPress={() => { setParentId(undefined); setChildId(undefined); }}
-            style={({ pressed }) => [styles.parentChip, !parentId && styles.parentChipActive, pressed && styles.pressed]}>
-            <Text style={[styles.parentChipText, !parentId && styles.parentChipTextActive]}>전체</Text>
-          </Pressable>
+          <Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected={!parentId}
+            onPress={() => { setParentId(undefined); setChildId(undefined); }} />
           {groups.map(({ category }) => {
             const selected = parentId === category.id;
-            return <Pressable key={category.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${category.name} 상위 카테고리 보기`}
-              accessibilityState={{ selected }}
-              onPress={() => { setParentId(category.id); setChildId(undefined); }}
-              style={({ pressed }) => [styles.parentChip, selected && styles.parentChipActive, pressed && styles.pressed]}>
-              <Text style={[styles.parentChipText, selected && styles.parentChipTextActive]}>{category.name}</Text>
-            </Pressable>;
+            return <Chip key={category.id} label={category.name} accessibilityLabel={`${category.name} 상위 카테고리 보기`} selected={selected}
+              onPress={() => { setParentId(category.id); setChildId(undefined); }} />;
           })}
         </View> : null}
         {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
@@ -134,24 +123,18 @@ export default function ExploreScreen() {
             <Text style={styles.childTitle}>{group.category.name} 카테고리</Text>
             <Text style={styles.childCount}>{group.children.length}개</Text>
           </View>
-          <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
-            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} accessibilityState={{ selected: childId === category.id }}
-            onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
-            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{leafLabel(category)}</Text>
-          </Pressable>)}</View>
+          <View style={styles.childList}>{group.children.map((category) => <Chip key={category.id} label={leafLabel(category)}
+            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} selected={childId === category.id}
+            onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
         {selectedCategoryLabel ? <Text style={styles.selectionLabel}>{selectedCategoryLabel}</Text> : null}
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategoryLabel} 원픽 TOP 3</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="제품 순위 새로고침" disabled={topItems.isFetching}
-              onPress={() => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); }}
-              style={({ pressed }) => [styles.refreshButton, (pressed || topItems.isFetching) && styles.pressed]}>
-              <Text style={styles.refreshText}>{topItems.isFetching ? '불러오는 중…' : '새로고침'}</Text>
-            </Pressable>
+            <SectionHeader title={`${selectedCategoryLabel} 원픽 TOP 3`} description="지금 이 제품을 원픽으로 고른 사람 수 기준이에요."
+              action={{ label: topItems.isFetching ? '불러오는 중…' : '새로고침', accessibilityLabel: '제품 순위 새로고침', disabled: topItems.isFetching,
+                onPress: () => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); } }} />
           </View>
-          <Text style={styles.rankingDescription}>지금 이 제품을 원픽으로 고른 사람 수 기준이에요.</Text>
           {topItems.isPending ? <ActivityIndicator accessibilityLabel="제품 순위 불러오는 중" style={styles.rankingLoading} /> : null}
           {topItems.isError ? <Text accessibilityRole="alert" style={styles.refreshError}>
             {topItems.data ? '순위를 갱신하지 못했어요. 마지막으로 불러온 순위예요.' : '제품 순위를 불러오지 못했어요. 새로고침으로 다시 시도해주세요.'}
@@ -172,10 +155,7 @@ export default function ExploreScreen() {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>)}
-          {topItems.data?.length === 0 && !topItems.isError ? <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>아직 선택된 제품이 없어요</Text>
-            <Text style={styles.emptyText}>첫 원픽이 등록되면 이곳에 제품이 표시돼요.</Text>
-          </View> : null}
+          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 제품이 없어요" text="첫 원픽이 등록되면 이곳에 제품이 표시돼요." /> : null}
           {topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개 제품</Text> : null}
         </View> : null}
       </ScrollView>
@@ -185,9 +165,8 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
-  title: { color: OnePick.text, fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.8, marginTop: 8 },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
+  title: { color: OnePick.text, fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   searchButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
   searchButtonActive: { backgroundColor: OnePick.accentSoft, borderColor: OnePick.accent },
@@ -201,10 +180,6 @@ const styles = StyleSheet.create({
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
   levelTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800', marginTop: 28, marginBottom: 10 },
   parentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 5 },
-  parentChip: { minHeight: 36, justifyContent: 'center', borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 14 },
-  parentChipActive: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
-  parentChipText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
-  parentChipTextActive: { color: OnePick.accent, fontWeight: '900' },
   childPanel: { padding: 16, marginTop: 18, borderRadius: 18, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
   childHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   childTitle: { color: OnePick.text, fontSize: 15, fontWeight: '900' },
@@ -212,8 +187,6 @@ const styles = StyleSheet.create({
   childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 13 },
   selectionLabel: { color: OnePick.accent, fontSize: 12, fontWeight: '800', marginTop: 18 },
   rankingSection: { marginTop: 8, marginBottom: 18 },
-  rankTitle: { flex: 1, marginRight: 12 },
-  rankingDescription: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginBottom: 16 },
   rankingLoading: { marginVertical: 20 },
   rankCard: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 10, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface },
   rankCardFirst: { borderColor: OnePick.accentSoft, backgroundColor: OnePick.accentSoft },
@@ -225,20 +198,9 @@ const styles = StyleSheet.create({
   rankName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '800' },
   rankCount: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 8 },
   rankingFootnote: { color: OnePick.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
-  chip: { minHeight: 44, justifyContent: 'center', backgroundColor: OnePick.sunken, borderRadius: 30, paddingHorizontal: 17, paddingVertical: 10 },
-  chipActive: { backgroundColor: OnePick.accent },
-  chipText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: OnePick.onAccent },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 13 },
-  sectionTitle: { color: OnePick.text, fontSize: 18, fontWeight: '800' },
+  sectionHeader: { marginBottom: 16 },
   arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 5 },
-  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 28, marginTop: 28 },
   stateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
-  refreshButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  refreshText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
   refreshError: { alignSelf: 'stretch', color: OnePick.danger, fontSize: 13, lineHeight: 20 },
-  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 26 },
-  emptyTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   pressed: { opacity: 0.7 },
 });

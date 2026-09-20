@@ -166,6 +166,7 @@ async function main() {
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/profile-pick-card': { ProfilePickCard: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-pick-groups': { ProfilePickGroups: () => null },
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/profile-follow-counts': { ProfileFollowCounts: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
