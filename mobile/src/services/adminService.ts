@@ -84,6 +84,31 @@ export class AdminService {
     return { categories, brands, items, aliases, pending: submitters };
   }
 
+  async getOperationsOverview() {
+    await this.assertAdmin();
+    const [snapshot, auditLogs, errorEvents] = await Promise.all([
+      this.adminRepository.getOperationsSnapshot(7),
+      this.adminRepository.getAuditLogs(80),
+      this.adminRepository.getClientErrorEvents(80),
+    ]);
+
+    const errorCounts = new Map<string, number>();
+    for (const event of errorEvents) {
+      errorCounts.set(event.errorCode, (errorCounts.get(event.errorCode) ?? 0) + 1);
+    }
+
+    return {
+      metrics: snapshot.metrics,
+      funnel: snapshot.funnel,
+      generatedAt: snapshot.generatedAt,
+      auditLogs,
+      errorEvents,
+      errorSummary: [...errorCounts.entries()]
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
+    };
+  }
+
   async createCategory(input: AdminCategoryInput) {
     await this.assertAdmin();
     const name = cleanName(input.name, 60);

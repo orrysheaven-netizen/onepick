@@ -107,6 +107,7 @@ async function main() {
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => attachment },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/pick-photo': { PickPhoto: ({ uri }) => React.createElement('span', null, uri || '사진 없음') }, '@/errors/appError': { AppError },
+    '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   });
   const render = () => { buttons = []; stateIndex = 0; refIndex = 0; return renderToStaticMarkup(React.createElement(Detail)); };
   const button = (label) => buttons.find((b) => textOf(b.children) === label);

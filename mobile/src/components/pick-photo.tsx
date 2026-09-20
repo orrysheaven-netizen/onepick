@@ -27,13 +27,21 @@ function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
 
 export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
+  const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
   const canAdd = Boolean(itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
+  const failed = Boolean(uri && failedUri === uri);
   return <View style={[styles.frame, large && styles.large]}>
-    {uri && failedUri !== uri ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
+    {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
         <Text style={styles.emptyText}>사진 없음</Text>
         <AddPhotoButton itemId={itemId!} label={label} />
-      </View> : <Text style={styles.fallback}>{uri ? '사진을 불러올 수 없어요' : '사진 없음'}</Text>}
+      </View>
+      : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
+      : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.placeholder}>
+          <View style={styles.placeholderMark}><Text style={styles.placeholderInitial}>{initial}</Text></View>
+          <Text numberOfLines={large ? 2 : 1} style={[styles.placeholderName, large && styles.placeholderNameLarge]}>{label}</Text>
+          <Text style={styles.placeholderHint}>사진 준비 중</Text>
+        </View>}
   </View>;
 }
 
@@ -41,6 +49,12 @@ const styles = StyleSheet.create({
   frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center' },
   large: { width: '100%', height: 230, marginBottom: 14 },
   image: { width: '100%', height: '100%' },
+  placeholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 7 },
+  placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
+  placeholderInitial: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  placeholderName: { width: '100%', color: '#202124', fontSize: 10, lineHeight: 14, fontWeight: '700', textAlign: 'center', marginTop: 5 },
+  placeholderNameLarge: { fontSize: 14, lineHeight: 20, marginTop: 10 },
+  placeholderHint: { color: '#8A8F9B', fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
   fallback: { color: '#747985', fontSize: 12, textAlign: 'center', padding: 8 },
   empty: { alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#747985', fontSize: 11, marginTop: 5 },

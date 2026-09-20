@@ -94,8 +94,8 @@ async function main() {
   });
   const markup = renderToStaticMarkup(React.createElement(PickPhoto, { uri: poster, label: base.name }));
   assert.equal(renderedImage.source.uri, poster);
-  assert.doesNotMatch(markup, /사진 없음/);
-  assert.match(renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: 'No image' })), /사진 없음/);
+  assert.doesNotMatch(markup, /사진 준비 중/);
+  assert.match(renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: 'No image' })), /사진 준비 중/);
   console.log('Catalog card images: external posters, upload priority, defensive original fallback, missing images, public reads, pagination, errors and rendered Image source passed.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

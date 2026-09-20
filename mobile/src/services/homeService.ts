@@ -11,7 +11,7 @@ export class HomeService {
 
   async getHomeData(userId?: string, cursor: ReadCursor | null = null) {
     const openCategories = await this.categoryRepository.getOpenCategories();
-    const [currentPicks, feed] = await Promise.all([
+    const [currentPicks, showcase] = await Promise.all([
       userId
         ? this.readRepository.getPicks({
             userId,
@@ -20,20 +20,23 @@ export class HomeService {
             limit: 100,
           })
         : Promise.resolve([]),
-      this.readRepository.getHomePicks(cursor),
+      this.readRepository.getHomeShowcase(cursor),
     ]);
-    const selectedCategoryIds = new Set(currentPicks.map((entry) => entry.pick.categoryId));
-    const publicCategoryIds = new Set(openCategories.map((category) => category.id));
+
+    const selectedCategoryIds = new Set(currentPicks.map((item) => item.pick.categoryId));
+    const categoriesToPick = userId
+      ? openCategories
+          .filter((category) => !selectedCategoryIds.has(category.id))
+          .map((category) => ({ category }))
+      : [];
+
     return {
       openCategories,
       currentPicks,
-      categoriesToPick: userId
-        ? openCategories.filter((category) => !selectedCategoryIds.has(category.id)).map((category) => ({ category }))
-        : [],
-      // Defence in depth for stale category metadata/account transitions. The RPC
-      // applies all current visibility rules BEFORE pagination and excludes self.
-      featuredPicks: feed.items.filter((entry) => entry.userId !== userId && publicCategoryIds.has(entry.categoryId)),
-      nextCursor: feed.nextCursor,
+      categoriesToPick,
+      featuredItems: showcase.items,
+      minimumPickCount: showcase.minimumPickCount,
+      nextCursor: showcase.nextCursor,
     };
   }
 }

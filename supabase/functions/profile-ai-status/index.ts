@@ -79,7 +79,10 @@ Deno.serve(async (req: Request) => {
   if (authError || !user || user.is_anonymous) return reply({ error: 'AUTH_REQUIRED' }, 401);
 
   const admin = createClient(url, serviceRole, options);
-  const [picksResult, reviewResult] = await Promise.all([
+  // current_user_is_admin reads auth.uid() from the caller's own JWT, so it
+  // must run on userClient (the service-role admin client carries no real
+  // end-user identity).
+  const [picksResult, reviewResult, adminResult] = await Promise.all([
     admin.from('picks')
       .select('category_id,item_id,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
       .eq('user_id', user.id)
@@ -91,9 +94,11 @@ Deno.serve(async (req: Request) => {
       .select('generated_at,pick_snapshot,is_visible,is_stale')
       .eq('profile_id', user.id)
       .maybeSingle(),
+    userClient.rpc('current_user_is_admin'),
   ]);
 
-  if (picksResult.error || reviewResult.error) return reply({ error: 'AI_STATUS_FAILED' }, 500);
+  if (picksResult.error || reviewResult.error || adminResult.error) return reply({ error: 'AI_STATUS_FAILED' }, 500);
+  const isAdmin = adminResult.data === true;
 
   const currentRows = picksResult.data ?? [];
   const currentPickCount = currentRows.length;
@@ -128,15 +133,20 @@ Deno.serve(async (req: Request) => {
   if (reviewPickCount < 10) {
     canGenerate = currentPickCount >= 10;
     reason = canGenerate ? 'READY_TEN_PICK_UPGRADE' : 'NEED_TEN_PICKS';
+  } else if (isAdmin) {
+    // Admins skip the elapsed-time cooldown only — they still need the
+    // changed-picks gate below like everyone else.
+    canGenerate = changedCount >= 5;
+    reason = canGenerate ? 'READY_REANALYSIS' : 'NEED_CHANGES';
   } else {
     const generated = new Date(review.generated_at).getTime();
-    const weeklyMs = 7 * 24 * 60 * 60 * 1000;
-    const remainingMs = generated + weeklyMs - Date.now();
+    const dailyMs = 24 * 60 * 60 * 1000;
+    const remainingMs = generated + dailyMs - Date.now();
     retryAfterSeconds = Number.isFinite(remainingMs) && remainingMs > 0
       ? Math.max(1, Math.ceil(remainingMs / 1000)) : 0;
     canGenerate = changedCount >= 5 && retryAfterSeconds === 0;
     reason = changedCount < 5 ? 'NEED_CHANGES'
-      : retryAfterSeconds > 0 ? 'WAIT_WEEK' : 'READY_REANALYSIS';
+      : retryAfterSeconds > 0 ? 'WAIT_DAY' : 'READY_REANALYSIS';
   }
 
   return reply({

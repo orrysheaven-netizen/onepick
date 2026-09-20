@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { queryKeys } from '@/lib/query/queryKeys';
 import { profileAiService } from '@/services/profileAiService';
+
+const statusKey = (userId: string) => ['profile-ai', 'status', userId] as const;
+const commentKey = (profileId: string) => ['profile-ai', 'comment', profileId] as const;
 
 export function useProfileAiStatus(userId?: string) {
   return useQuery({
-    queryKey: userId ? queryKeys.profileAi.status(userId) : ['profile-ai', 'status', 'anonymous'],
+    queryKey: userId ? statusKey(userId) : ['profile-ai', 'status', 'anonymous'],
     queryFn: () => profileAiService.getStatus(),
     enabled: Boolean(userId),
   });
@@ -13,7 +15,7 @@ export function useProfileAiStatus(userId?: string) {
 
 export function useProfileAiComment(profileId?: string) {
   return useQuery({
-    queryKey: profileId ? queryKeys.profileAi.comment(profileId) : ['profile-ai', 'comment', 'missing'],
+    queryKey: profileId ? commentKey(profileId) : ['profile-ai', 'comment', 'missing'],
     queryFn: () => profileAiService.getComment(profileId!),
     enabled: Boolean(profileId),
   });
@@ -24,12 +26,11 @@ export function useGenerateProfileAi(userId?: string) {
   return useMutation({
     mutationFn: () => profileAiService.generate(),
     onSuccess: async () => {
-      if (userId) {
-        await Promise.all([
-          client.invalidateQueries({ queryKey: queryKeys.profileAi.status(userId) }),
-          client.invalidateQueries({ queryKey: queryKeys.profileAi.comment(userId) }),
-        ]);
-      }
+      if (!userId) return;
+      await Promise.all([
+        client.invalidateQueries({ queryKey: statusKey(userId) }),
+        client.invalidateQueries({ queryKey: commentKey(userId) }),
+      ]);
     },
   });
 }
@@ -42,12 +43,11 @@ export function useSetProfileAiVisibility(profileId?: string) {
       return profileAiService.setVisible(profileId, isVisible);
     },
     onSuccess: async () => {
-      if (profileId) {
-        await Promise.all([
-          client.invalidateQueries({ queryKey: queryKeys.profileAi.status(profileId) }),
-          client.invalidateQueries({ queryKey: queryKeys.profileAi.comment(profileId) }),
-        ]);
-      }
+      if (!profileId) return;
+      await Promise.all([
+        client.invalidateQueries({ queryKey: statusKey(profileId) }),
+        client.invalidateQueries({ queryKey: commentKey(profileId) }),
+      ]);
     },
   });
 }

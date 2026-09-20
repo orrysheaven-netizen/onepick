@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCompleteOAuth } from '@/hooks/useCompleteOAuth';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { observabilityService } from '@/services';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -26,7 +27,13 @@ export default function AuthCallbackScreen() {
           return;
         }
 
-        router.replace(getPostAuthRoute(getAuthIntent(params), !result.profile));
+        const intent = getAuthIntent(params);
+        void observabilityService.captureProductEvent({
+          eventName: 'auth_completed',
+          source: intent.action,
+          path: '/auth/callback',
+        });
+        router.replace(getPostAuthRoute(intent, !result.profile));
       })
       .catch(() => {
         // Mutation state below renders the callback failure.

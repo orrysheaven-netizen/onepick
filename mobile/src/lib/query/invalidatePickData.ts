@@ -8,6 +8,7 @@ export async function invalidatePickData(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: queryKeys.items.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.picks.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.profiles.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.profileTaste.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.explore.all }),
   ]);
 }

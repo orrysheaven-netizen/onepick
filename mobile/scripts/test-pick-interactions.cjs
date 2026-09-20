@@ -84,6 +84,7 @@ async function main() {
       useChoosePhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null }),
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
+    '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
   const { default: Item } = loadSource('app/item/[itemId].tsx', base);

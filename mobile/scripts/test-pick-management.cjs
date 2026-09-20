@@ -53,26 +53,28 @@ async function main() {
   });
   const invalidated = [];
   const queryClient = { invalidateQueries: async ({ queryKey }) => { invalidated.push(queryKey[0]); } };
+  const capturedEvents = [];
   const hookImports = {
     '@tanstack/react-query': { useMutation: (options) => options, useQueryClient: () => queryClient },
     '@/lib/query/invalidatePickData': { invalidatePickData },
-    '@/services': { pickService: service },
+    '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);
   const { updateReview, removePick } = useManagePick();
   await updateReview.mutationFn({ pickId: 'pick-1', oneLineReview: '수정' });
   await updateReview.onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-taste,profiles');
   invalidated.length = 0;
   await removePick.mutationFn('category-2');
   await removePick.onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-taste,profiles');
   assert.equal(repositoryCalls.at(-1), 'category-2');
 
   const { useChoosePick } = loadSource('hooks/useChoosePick.ts', hookImports);
   invalidated.length = 0;
-  await useChoosePick().onSuccess();
-  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profiles');
+  await useChoosePick().onSuccess({ id: 'pick-c', itemId: 'item-c', categoryId: 'cat-c' });
+  assert.equal(capturedEvents.at(-1)?.eventName, 'pick_created', 'Choosing a Pick from management must still record product analytics');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-taste,profiles');
 
   const { usePickDetail } = loadSource('hooks/usePickDetail.ts', {
     '@tanstack/react-query': { useQuery: (options) => options },
@@ -119,6 +121,7 @@ async function main() {
     '@/hooks/useCreateComment': { useCreateComment: () => ({}) },
     '@/hooks/usePickComments': { usePickComments: () => ({ data: [] }) },
     '@/hooks/usePickDetail': { usePickDetail: () => query },
+    '@/lib/demoProfile': { isDemoUsername: (username) => typeof username === 'string' && username.trim().toLowerCase().startsWith('demo_') },
   });
   const render = () => renderToStaticMarkup(React.createElement(ItemReviewCard, { pick: data.pick, profile: data.profile, categoryName: data.category.name, itemName: data.item.name, focused: false, highlighted: false, onRemoved() {} }));
   assert.match(render(), /한줄평 수정/);

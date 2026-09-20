@@ -7,10 +7,12 @@ import { BlockUserButton } from '@/components/block-user-button';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
+import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
+import { isDemoUsername } from '@/lib/demoProfile';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function PublicProfileScreen() {
   const query = usePublicProfile(username, user?.id);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -42,22 +45,24 @@ export default function PublicProfileScreen() {
           <View style={styles.header}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{query.data.profile.username.slice(0, 1).toUpperCase()}</Text></View>
             <View style={styles.headerCopy}>
-              <Text style={styles.eyebrow}>ONEPICK PROFILE</Text><Text style={styles.username}>@{query.data.profile.username}</Text>
+              <View style={styles.profileLabels}>
+                <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
+                {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
+              </View>
+              <Text style={styles.username}>@{query.data.profile.username}</Text>
               {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
             </View>
           </View>
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
-          <ProfileAiComment profileId={query.data.profile.id} showPrivate={query.data.isMine} />
-          {!query.data.isMine && user ? <View style={styles.safetyCard}>
-            <Text style={styles.safetyTitle}>사용자 관리</Text>
-            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
-            <View style={styles.safetyActions}>
-              <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
-              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.back()} />
-            </View>
-          </View> : null}
-          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>지금의 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
+          <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
+          <ProfileAiComment
+            profileId={query.data.profile.id}
+            showPrivate={query.data.isMine}
+            sectionTitle="AI 취향평가"
+            sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
+          />
+          <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
           {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
             <View key={item.pick.id} style={styles.pickCard}>
               <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={item.item?.name ?? '제품 대표 이미지'}
@@ -76,6 +81,14 @@ export default function PublicProfileScreen() {
               </View>
             </View>
           )) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
+          {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
+            <Text style={styles.safetyTitle}>사용자 관리</Text>
+            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
+            <View style={styles.safetyActions}>
+              <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
+              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.back()} />
+            </View>
+          </View> : null}
           <View style={styles.shareCard}>
             <Text style={styles.shareEyebrow}>SHARE PROFILE</Text><Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
             <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
@@ -100,7 +113,9 @@ const styles = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
+  profileLabels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
+  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
   summaryCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 18, marginBottom: 18 },

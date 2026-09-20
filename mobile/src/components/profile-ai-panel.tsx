@@ -4,8 +4,10 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { useGenerateProfileAi, useProfileAiComment, useProfileAiStatus, useSetProfileAiVisibility } from '@/hooks/useProfileAi';
 import type { ProfileAiStatus } from '@/services/profileAiService';
 
-function daysFromSeconds(seconds: number) {
-  return Math.max(1, Math.ceil(seconds / 86400));
+// The cooldown is at most 24h, so day-granularity would read as "약 1일" for
+// anything from 1 minute to 24 hours remaining. Hours stay meaningful throughout.
+function hoursFromSeconds(seconds: number) {
+  return Math.max(1, Math.ceil(seconds / 3600));
 }
 
 function progressCopy(status: ProfileAiStatus) {
@@ -13,12 +15,10 @@ function progressCopy(status: ProfileAiStatus) {
     if (status.currentPickCount < status.minimumPicks) {
       return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
     }
-    if (status.currentPickCount >= status.minimumPicks) {
-      const extra = status.currentPickCount > status.minimumPicks
-        ? ` 현재 원픽 ${status.currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
-        : ' 10개까지 채우면 해석이 더 풍부해져요.';
-      return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${extra}`;
-    }
+    const extra = status.currentPickCount > status.minimumPicks
+      ? ` 현재 원픽 ${status.currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
+      : ' 10개까지 채우면 해석이 더 풍부해져요.';
+    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${extra}`;
   }
   if (status.reviewPickCount < status.recommendedPicks) {
     if (status.currentPickCount < status.recommendedPicks) {
@@ -28,7 +28,7 @@ function progressCopy(status: ProfileAiStatus) {
   }
   const changeText = `새로운 취향 변화 ${Math.min(status.changedCount, status.minimumChanges)}/${status.minimumChanges}`;
   if (status.retryAfterSeconds > 0) {
-    return `${changeText} · 다음 재평가까지 약 ${daysFromSeconds(status.retryAfterSeconds)}일`;
+    return `${changeText} · 다음 재평가까지 약 ${hoursFromSeconds(status.retryAfterSeconds)}시간`;
   }
   return status.changedCount >= status.minimumChanges
     ? `${changeText} · 다시 평가할 수 있어요.`
@@ -52,9 +52,14 @@ export function ProfileAiPanel({ profileId, currentPickCount }: { profileId: str
     <View style={styles.headingRow}>
       <View>
         <Text style={styles.eyebrow}>AI TASTE COMMENT</Text>
-        <Text style={styles.title}>AI가 본 나</Text>
+        <Text style={styles.title}>AI 취향평가</Text>
       </View>
       <Text style={styles.concept}>내 취향이 곧 나이다.</Text>
+    </View>
+
+    <View style={styles.bridgeCard}>
+      <Text style={styles.bridgeBadge}>구성 → 해석</Text>
+      <Text style={styles.bridgeText}>위 취향 구성은 선택의 큰 틀을 보여줘요. AI는 그 비율을 점수처럼 쓰지 않고, 실제 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석해요.</Text>
     </View>
 
     {value ? <View style={styles.progressCard}>
@@ -106,6 +111,9 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#4945ED', fontSize: 10, fontWeight: '900', letterSpacing: 1.6 },
   title: { color: '#202124', fontSize: 19, fontWeight: '900', marginTop: 4 },
   concept: { color: '#747985', fontSize: 11, textAlign: 'right' },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
+  bridgeBadge: { color: '#4945ED', fontSize: 10, fontWeight: '900', paddingTop: 1 },
+  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 17 },
   progressCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 12 },
   progressText: { color: '#202124', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   track: { height: 8, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 14 },

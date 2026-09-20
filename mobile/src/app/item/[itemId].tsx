@@ -11,6 +11,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
+import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 
 function photoErrorMessage(error: unknown) {
@@ -41,6 +42,23 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = useItemDetail(itemId, user?.id, focusPickId, !isSessionLoading && !sessionError);
+  const trackedItemId = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const data = query.data;
+    if (!data) return;
+    const viewedItemId = data.item.id;
+    if (trackedItemId.current === viewedItemId) return;
+    trackedItemId.current = viewedItemId;
+    void observabilityService.captureProductEvent({
+      eventName: 'item_detail_viewed',
+      itemId: viewedItemId,
+      categoryId: data.item.categoryId,
+      pickId: focusPickId ?? null,
+      source: focusPickId ? 'pick_route' : 'direct_or_browse',
+      path: '/item/[itemId]',
+    });
+  }, [focusPickId, query.data?.item.categoryId, query.data?.item.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});

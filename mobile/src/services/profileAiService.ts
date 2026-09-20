@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { supabase } from '@/lib/supabase/client';
 
 export type ProfileAiReason =
@@ -6,7 +8,7 @@ export type ProfileAiReason =
   | 'READY_TEN_PICK_UPGRADE'
   | 'NEED_TEN_PICKS'
   | 'NEED_CHANGES'
-  | 'WAIT_WEEK'
+  | 'WAIT_DAY'
   | 'READY_REANALYSIS';
 
 export type ProfileAiStatus = {
@@ -54,6 +56,8 @@ function stringValue(value: unknown) {
   return typeof value === 'string' ? value : null;
 }
 
+const db = supabase as unknown as SupabaseClient;
+
 class ProfileAiService {
   async getStatus(): Promise<ProfileAiStatus> {
     const { data, error } = await supabase.functions.invoke('profile-ai-status', { body: {} });
@@ -78,7 +82,7 @@ class ProfileAiService {
   }
 
   async getComment(profileId: string): Promise<ProfileAiComment | null> {
-    const { data: review, error } = await supabase
+    const { data: review, error } = await db
       .from('profile_ai_reviews')
       .select('id,profile_id,actor_id,summary,body,keywords,is_visible,is_stale,generated_at,tone')
       .eq('profile_id', profileId)
@@ -86,7 +90,7 @@ class ProfileAiService {
     if (error) throw error;
     if (!review) return null;
 
-    const { data: actor, error: actorError } = await supabase
+    const { data: actor, error: actorError } = await db
       .from('system_actors')
       .select('id,display_name,bio,is_verified')
       .eq('id', review.actor_id)
@@ -122,7 +126,7 @@ class ProfileAiService {
   }
 
   async setVisible(profileId: string, isVisible: boolean) {
-    const { error } = await supabase
+    const { error } = await db
       .from('profile_ai_reviews')
       .update({ is_visible: isVisible })
       .eq('profile_id', profileId);

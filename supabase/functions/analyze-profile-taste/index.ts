@@ -8,7 +8,10 @@ import {
 } from './contract.ts';
 import { inspectRequest, reply } from './request.ts';
 import { logProfileAiServerPerformance, type ProfileAiServerOutcome } from './performance.ts';
-import { assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION } from './quality.ts';
+import {
+  assertNoAgeComment, buildTasteInput, TASTE_INSTRUCTIONS, TASTE_PROMPT_VERSION,
+  type PopularityEntry, type PopularityMap,
+} from './quality.ts';
 import { readTasteTone, tasteInstructions, tastePromptVersion } from './tone.ts';
 
 const MODEL = 'gpt-5.6-terra';
@@ -185,6 +188,26 @@ Deno.serve(async (req: Request) => {
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
       return buildSnapshot(data ?? []);
     };
+    // Community-wide, not scoped to this user; safe on the anon-keyed client
+    // since picks_public_active_read already makes every active pick public.
+    const readPopularity = async (rows: ReturnType<typeof buildSnapshot>): Promise<PopularityMap> => {
+      const itemIds = [...new Set(rows.map((row) => row.itemId).filter((id): id is string => !!id))];
+      if (itemIds.length === 0) return new Map();
+      const { data, error } = await publicClient.rpc('profile_ai_pick_popularity', { p_item_ids: itemIds });
+      if (error) throw new Error('AI_POPULARITY_READ_FAILED');
+      const map = new Map<string, PopularityEntry>();
+      for (const value of (data ?? [])) {
+        const row = record(value);
+        const itemId = textOrNull(row.item_id, 36);
+        if (!itemId) continue;
+        map.set(itemId, {
+          itemPickCount: Number(row.item_pick_count) || 0,
+          categoryPickCount: Number(row.category_pick_count) || 0,
+          rankingMinSample: Number(row.ranking_min_sample) || 0,
+        });
+      }
+      return map;
+    };
     // Read the public-profile gate and the initial source version together.
     // The snapshot still follows the initial version read so a second version
     // read can detect changes that committed while the snapshot was being read.
@@ -203,23 +226,27 @@ Deno.serve(async (req: Request) => {
     }, 409));
 
     // These reads are independent once a valid public snapshot exists. Running
-    // them together removes two serial PostgREST round trips without weakening
-    // the source-version check or public snapshot RLS.
-    const [latestSourceVersion, existingResult, actorResult] = await Promise.all([
+    // them together removes serial PostgREST round trips without weakening
+    // the source-version check or public snapshot RLS. current_user_is_admin
+    // reads auth.uid() from the caller's own JWT, so it must run on userClient
+    // (publicClient/admin carry no real end-user identity).
+    const [latestSourceVersion, existingResult, actorResult, adminResult] = await Promise.all([
       readSourceVersion(),
       admin.from('profile_ai_reviews')
         .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
         .eq('profile_id', user.id).maybeSingle(),
       admin.from('system_actors')
         .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single(),
+      userClient.rpc('current_user_is_admin'),
     ]);
     if (latestSourceVersion !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
     const { data: existing, error: existingError } = existingResult;
     if (existingError) throw new Error('AI_REVIEW_READ_FAILED');
     const { data: actor, error: actorError } = actorResult;
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
+    if (adminResult.error) throw new Error('AI_ADMIN_CHECK_FAILED');
+    const isAdmin = adminResult.data === true;
 
-    const tasteInput = buildTasteInput(snapshot);
     const sourceFingerprint = await fingerprint(snapshot);
 
     // Same source but a DIFFERENT tone is not a cache hit. Only the latest
@@ -238,7 +265,7 @@ Deno.serve(async (req: Request) => {
 
       // The first result is intentionally available early at five picks. Once the
       // profile reaches ten, allow one immediate quality upgrade without making
-      // the user wait seven days. Until then, keep showing the existing result.
+      // the user wait out the daily cooldown. Until then, keep showing the existing result.
       if (previousPickCount < PROFILE_AI_RECOMMENDED_PICKS) {
         if (snapshot.length < PROFILE_AI_RECOMMENDED_PICKS) {
           return finish('waiting_for_ten', reply({
@@ -259,12 +286,14 @@ Deno.serve(async (req: Request) => {
           }, 409));
         }
 
-        if (existing.generated_at) {
+        // Admins skip the elapsed-time cooldown only — they still need the
+        // pick-count and changed-picks gates above like everyone else.
+        if (!isAdmin && existing.generated_at) {
           const elapsedMs = Date.now() - new Date(existing.generated_at).getTime();
           if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < REANALYSIS_INTERVAL_MS) {
             return finish('rate_limited', reply({
               error: 'RATE_LIMITED',
-              reason: 'WEEKLY_REANALYSIS_LIMIT',
+              reason: 'DAILY_REANALYSIS_LIMIT',
               retryAfterSeconds: Math.max(1, Math.ceil((REANALYSIS_INTERVAL_MS - elapsedMs) / 1000)),
               minimumChanges: PROFILE_AI_MIN_CHANGES,
               changedCount,
@@ -286,6 +315,9 @@ Deno.serve(async (req: Request) => {
       PROFILE_AI_COOLDOWN_SECONDS,
       Math.ceil((COOLDOWN_MS - Math.max(0, Date.now() - reservationGrantedAt!)) / 1000),
     ));
+
+    const popularity = await readPopularity(snapshot);
+    const tasteInput = buildTasteInput(snapshot, popularity);
 
     providerStartedAt = performance.now();
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {

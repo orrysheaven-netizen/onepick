@@ -51,7 +51,8 @@ function harness(file, imports) {
   const Screen = load(file, {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
-    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, ...imports,
+    '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,
   }).default;
   function walk(value, loc) {
     if (value == null || typeof value !== 'object') return value;

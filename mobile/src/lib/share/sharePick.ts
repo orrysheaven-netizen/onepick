@@ -1,8 +1,9 @@
 import { Share } from 'react-native';
 
 import { createPickShareUrl } from './shareLinks';
+import { demoSharePrefix } from '../demoProfile';
 
-interface SharePickInput {
+export interface SharePickInput {
   pickId: string;
   username: string;
   categoryName: string;
@@ -12,14 +13,15 @@ interface SharePickInput {
 
 export async function sharePick(input: SharePickInput) {
   const url = createPickShareUrl(input.pickId);
+  const prefix = demoSharePrefix(input.username);
   const message = [
-    `@${input.username}님의 ${input.categoryName} 원픽: ${input.itemName}`,
+    `${prefix}@${input.username}님의 ${input.categoryName} 원픽: ${input.itemName}`,
     `“${input.oneLineReview}”`,
     url,
   ].join('\n');
 
   return Share.share({
-    title: `${input.itemName} · OnePick`,
+    title: `${prefix}${input.itemName} · OnePick`,
     message,
   });
 }
