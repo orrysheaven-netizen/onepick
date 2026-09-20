@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
@@ -10,6 +10,7 @@ import { useAttachItemPhoto, useChoosePhoto } from '@/hooks/useRegisterPick';
 import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
+import { Button, SectionHeader, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { observabilityService } from '@/services';
@@ -143,8 +144,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   if (!isSessionLoading && sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
-      <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-      <Pressable accessibilityRole="button" onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
+      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
     </View></SafeAreaView>;
   }
 
@@ -152,8 +152,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <ActivityIndicator />
-          <Text style={styles.stateText}>제품 정보를 불러오고 있어요</Text>
+          <StateCard loading title="제품 정보를 불러오고 있어요" />
         </View>
       </SafeAreaView>
     );
@@ -163,17 +162,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <Text style={styles.stateTitle}>{savedItem ? '사진 등록 요청은 처리됐어요' : '제품을 볼 수 없어요'}</Text>
-          <Text style={styles.stateText}>{savedItem
-            ? '서버의 처리 응답은 받았지만 최신 상품 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
-            : '연결 상태를 확인한 뒤 다시 시도해주세요. 제품이 없거나 공개되지 않은 링크일 수도 있어요.'}</Text>
-          {itemId ? <Pressable accessibilityRole="button" accessibilityLabel="제품 정보 다시 불러오기" disabled={query.isFetching}
-            onPress={() => void retryItem()} style={[styles.secondaryButton, query.isFetching && styles.disabled]}>
-            <Text style={styles.secondaryButtonText}>{query.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기'}</Text>
-          </Pressable> : null}
-          <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-            <Text style={styles.secondaryButtonText}>돌아가기</Text>
-          </Pressable>
+          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요' : '제품을 볼 수 없어요'}
+            text={savedItem
+              ? '서버의 처리 응답은 받았지만 최신 상품 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
+              : '연결 상태를 확인한 뒤 다시 시도해주세요. 제품이 없거나 공개되지 않은 링크일 수도 있어요.'}
+            action={itemId ? { label: query.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기', accessibilityLabel: '제품 정보 다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void retryItem() } : undefined} />
+          <Button variant="ghost" label="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.centered} />
         </View>
       </SafeAreaView>
     );
@@ -212,37 +206,25 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               <Text style={styles.photoContributionTitle}>{item.name} 사진 등록</Text>
               <Text style={styles.photoContributionHint}>상품 이름이 잘 보이는 사진이면 충분해요. 직접 찍었거나 공유할 권한이 있는 사진을 골라주세요.</Text>
               <Text style={styles.photoContributionHint}>채택된 사진은 같은 상품의 원픽 카드에 함께 표시돼요. 상품 상세에 사진 등록자로 내 사용자명이 표시되고 프로필이 연결돼요. 사진 없이도 원픽을 이용할 수 있어요.</Text>
-              {!user ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })}
-                style={[styles.photoPrimaryButton, styles.photoChooseButton]}><Text style={styles.photoPrimaryText}>로그인하고 사진 등록</Text></Pressable> : <>
+              {!user ? <Button fullWidth label="로그인하고 사진 등록" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoChooseButton} /> : <>
               {photo ? (
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
                   <View style={styles.photoActions}>
-                    <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void choosePhoto()}
-                      style={({ pressed }) => [styles.photoSecondaryButton, pressed && styles.pressed]}>
-                      <Text style={styles.photoSecondaryText}>다시 선택</Text>
-                    </Pressable>
-                    <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void attachPhoto()}
-                      style={({ pressed }) => [styles.photoPrimaryButton, photoBusy && styles.disabled, pressed && styles.pressed]}>
-                      {photoAttachment.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
-                    </Pressable>
+                    <Button variant="secondary" label="다시 선택" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
+                    <Button label="대표 이미지 등록" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
                   </View>
-                  <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.photoConsent}>
-                    <Text style={styles.photoSecondaryText}>사진 선택 취소</Text>
-                  </Pressable>
+                  <Button variant="ghost" size="sm" label="사진 선택 취소" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
                 </>
               ) : (
-                <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void choosePhoto()}
-                  style={({ pressed }) => [styles.photoPrimaryButton, styles.photoChooseButton, pressed && styles.pressed]}>
-                  {photoPicker.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.photoPrimaryText}>사진 선택</Text>}
-                </Pressable>
+                <Button fullWidth label="사진 선택" disabled={photoBusy && !photoPicker.isPending} loading={photoPicker.isPending} onPress={() => void choosePhoto()} style={styles.photoChooseButton} />
               )}
               {photoPicker.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoPicker.error)}</Text> : null}
               {photoAttachment.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoAttachment.error)}</Text> : null}
               {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'PROFILE_NOT_FOUND' ?
-                <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/username', params: photoIntent })} style={styles.photoConsent}><Text style={styles.photoSecondaryText}>사용자명 만들고 계속하기</Text></Pressable> : null}
+                <Button variant="secondary" size="sm" label="사용자명 만들고 계속하기" onPress={() => router.push({ pathname: '/auth/username', params: photoIntent })} style={styles.photoRecovery} /> : null}
               {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'AUTH_REQUIRED' ?
-                <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoConsent}><Text style={styles.photoSecondaryText}>다시 로그인하고 계속</Text></Pressable> : null}
+                <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoRecovery} /> : null}
               </>}
             </View>
           ) : null}
@@ -252,17 +234,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <Text style={styles.itemMeta}>이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
 
           {canChoose || myPickStatus.type === 'selected_this' ? (
-            <Pressable accessibilityRole="button" onPress={openPickAction} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>
-                {myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이 제품으로 원픽 바꾸기' : '이 제품으로 원픽 등록'}
-              </Text>
-            </Pressable>
+            <Button size="lg" fullWidth onPress={openPickAction} style={styles.primaryAction}
+              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이 제품으로 원픽 바꾸기' : '이 제품으로 원픽 등록'} />
           ) : <Text style={styles.itemMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>원픽 한줄평</Text>
-          <Text style={styles.sectionHint}>각 한줄평에서 답글로 대화해요</Text>
+          <SectionHeader title="원픽 한줄평" description="각 한줄평에서 답글로 대화해요" />
         </View>
 
         {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
@@ -281,10 +259,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>아직 다른 사람의 한줄평이 없어요</Text>
-            <Text style={styles.emptyText}>{canChoose ? '첫 번째로 이 제품을 원픽으로 선택할 수 있어요.' : '새로운 선택을 받을 수 없는 제품이나 카테고리입니다.'}</Text>
-          </View>
+          <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이 제품을 원픽으로 선택할 수 있어요.' : '새로운 선택을 받을 수 없는 제품이나 카테고리입니다.'} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -293,40 +268,28 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
+  centered: { alignSelf: 'center' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  heroCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 26, padding: 28, marginTop: 8 },
+  heroCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24, marginTop: 8 },
   creditLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   creditText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
-  photoContribution: { width: '100%', borderWidth: 1, borderColor: OnePick.accentSoft, backgroundColor: OnePick.accentSoft, borderRadius: 18, padding: 16, marginTop: 18 },
-  photoContributionTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  photoContributionHint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  photoContribution: { width: '100%', backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 16, marginTop: 18 },
+  photoContributionTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  photoContributionHint: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 6 },
   photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: OnePick.surface, marginTop: 14 },
-  photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: OnePick.surface, borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
-  photoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
+  photoActions: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 4 },
+  photoAction: { flex: 1 },
+  photoRecovery: { marginTop: 10 },
   photoChooseButton: { marginTop: 14 },
-  photoPrimaryText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
-  photoSecondaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
-  photoSecondaryText: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   photoError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
-  category: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
-  itemName: { color: OnePick.text, fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
-  itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
-  primaryButton: { width: '100%', minHeight: 50, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
-  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 30, marginBottom: 12 },
-  sectionTitle: { color: OnePick.text, fontSize: 18, fontWeight: '800' },
-  sectionHint: { color: OnePick.muted, fontSize: 12 },
-  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24 },
-  emptyTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
-  centerState: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  stateTitle: { color: OnePick.text, fontSize: 20, fontWeight: '800' },
+  category: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600', marginTop: 20 },
+  itemName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', marginTop: 6 },
+  itemMeta: { color: OnePick.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 10 },
+  primaryAction: { marginTop: 20 },
+  sectionHeader: { marginTop: 28, marginBottom: 12 },
+  centerState: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
-  secondaryButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
-  disabled: { opacity: 0.4 },
 });

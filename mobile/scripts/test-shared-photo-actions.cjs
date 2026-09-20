@@ -108,6 +108,7 @@ async function main() {
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => attachment },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/pick-photo': { PickPhoto: ({ uri }) => React.createElement('span', null, uri || '사진 없음') }, '@/errors/appError': { AppError },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   });
