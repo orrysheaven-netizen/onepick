@@ -49,7 +49,7 @@ export default function PublicProfileScreen() {
           </View>
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryNumber}>{query.data.currentPicks.length}</Text><Text style={styles.summaryLabel}>현재 원픽</Text></View>
-          <ProfileTasteComposition profileId={query.data.profile.id} variant="public" />
+          <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
           <ProfileAiComment profileId={query.data.profile.id} showPrivate={query.data.isMine} sectionTitle="AI 취향평가" />
           <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
           {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
