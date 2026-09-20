@@ -91,14 +91,13 @@ const render = () => {
 };
 
 let page = render();
-assert.match(page, /상품은 카테고리 선택 없이 검색합니다/);
+assert.match(page, /카테고리 선택 없이 상품명만 검색하고 등록합니다/);
+assert.match(page, /카테고리는 비워두고 상품 등록만 진행합니다/);
 assert.equal(itemSearchArgs[0], '', 'Empty product search does not query yet');
-assert.equal(JSON.stringify(itemSearchArgs[2]), JSON.stringify(['ramen']), 'Generic registration is scoped to ordinary product categories');
+assert.equal(itemSearchArgs[1], undefined, 'Category-free registration does not preselect a category');
+assert.equal(itemSearchArgs[2], undefined, 'Category-free registration searches the full saved catalog');
 assert.equal(inputs[0].editable, true);
-const movieCategoryButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 › 영화 콘텐츠 종류 선택');
-assert.ok(movieCategoryButton);
-movieCategoryButton.onPress();
-assert.equal(destination.params.categoryId, 'movie');
+assert.ok(!presses.some((button) => String(button.accessibilityLabel ?? '').includes('콘텐츠 종류 선택')));
 
 params = { categoryId: 'movie' };
 page = render();
@@ -129,4 +128,4 @@ assert.equal(destination.params.action, 'choose_drama'); assert.equal(destinatio
 
 state = []; refs = []; params = { categoryId: 'ramen', query: '라면' };
 render(); assert.equal(movieSearchArgs[1], false, 'Ordinary products do not activate either external media search');
-console.log('Find screen checks passed: product-first search, explicit content selection, movie/TV activation and query/login handoff.');
+console.log('Find screen checks passed: category-free product search, legacy scoped movie/TV routes and query/login handoff.');
