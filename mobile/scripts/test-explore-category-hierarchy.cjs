@@ -30,6 +30,10 @@ assert.doesNotMatch(explore, /parentCard:/);
 assert.doesNotMatch(explore, /categoryGrid:/);
 
 assert.match(explore, /parentChipActive/);
+assert.doesNotMatch(explore, /<ScrollView\s+horizontal[\s\S]*contentContainerStyle=\{styles\.parentRow\}/,
+  'Explore must not nest a horizontal ScrollView for top-level category chips on web');
+assert.match(explore, /parentRow:\s*\{[^}]*flexDirection: 'row'[^}]*flexWrap: 'wrap'/,
+  'Explore top-level category chips should wrap in a normal View so web presses and following content stay reliable');
 assert.match(explore, /childTitle/);
 assert.match(explore, /selectionLabel/);
 assert.match(tree, /export function categoryLabel/);
