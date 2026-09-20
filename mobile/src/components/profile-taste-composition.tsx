@@ -8,14 +8,21 @@ function progressWidth(current: number): `${number}%` {
   return `${Math.min(100, Math.max(0, (current / MINIMUM_PICKS) * 100))}%`;
 }
 
-export function ProfileTasteComposition({ profileId }: { profileId: string }) {
+export function ProfileTasteComposition({
+  profileId,
+  variant = 'self',
+}: {
+  profileId: string;
+  variant?: 'self' | 'public';
+}) {
   const composition = useProfileTasteComposition(profileId);
   const value = composition.data;
+  const isSelf = variant === 'self';
 
   return (
     <View style={styles.section}>
       <View style={styles.headingRow}>
-        <Text style={styles.title}>내 취향 구성</Text>
+        <Text style={styles.title}>{isSelf ? '내 취향 구성' : '취향 구성'}</Text>
         {value && value.totalPickCount >= MINIMUM_PICKS ? (
           <Text style={styles.headingHint}>
             {value.unmappedPickCount > 0
@@ -28,7 +35,7 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
       {composition.isPending ? (
         <View style={styles.stateCard}>
           <ActivityIndicator />
-          <Text style={styles.stateText}>내 원픽을 취향별로 정리하고 있어요.</Text>
+          <Text style={styles.stateText}>{isSelf ? '내 원픽을 취향별로 정리하고 있어요.' : '원픽을 취향별로 정리하고 있어요.'}</Text>
         </View>
       ) : composition.isError || !value ? (
         <View style={styles.stateCard}>
@@ -38,7 +45,7 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
       ) : value.totalPickCount < MINIMUM_PICKS ? (
         <View style={styles.stateCard}>
           <Text style={styles.collectingTitle}>취향을 모으는 중 · 원픽 {value.totalPickCount}개</Text>
-          <Text style={styles.stateText}>원픽 5개부터 내가 고른 취향의 구성을 보여드려요.</Text>
+          <Text style={styles.stateText}>{isSelf ? '원픽 5개부터 내가 고른 취향의 구성을 보여드려요.' : '원픽 5개부터 이 프로필의 취향 구성을 보여드려요.'}</Text>
           <View
             accessibilityRole="progressbar"
             accessibilityValue={{ min: 0, max: MINIMUM_PICKS, now: Math.min(value.totalPickCount, MINIMUM_PICKS) }}
