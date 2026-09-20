@@ -117,14 +117,13 @@ async function main() {
   assert.equal(savedCalls, 0); assert.equal(button('대표 이미지 등록'), undefined, 'Cancelling picker makes no change');
   pickerResult = photo; button('사진 선택').onPress(); button('사진 선택').onPress(); await flush();
   assert.equal(pickerCalls, 2, 'Repeated picker taps are deduplicated');
-  render(); assert.equal(button('대표 이미지 등록').disabled, true);
-  await button('대표 이미지 등록').onPress(); await flush(); assert.equal(savedCalls, 0, 'Consent required before upload');
-  buttons.find((b) => b.accessibilityRole === 'checkbox').onPress(); render();
+  render(); assert.equal(button('대표 이미지 등록').disabled, false, 'A chosen photo can be registered without a separate consent step');
+  assert.equal(buttons.find((b) => b.accessibilityRole === 'checkbox'), undefined, 'No consent checkbox is rendered');
   rejectSave = true; await button('대표 이미지 등록').onPress(); await flush();
   render(); assert.ok(button('대표 이미지 등록'), 'Retry preserves selected photo');
   assert.equal(image.source.uri, photo.uri);
   button('사진 선택 취소').onPress(); render(); assert.ok(button('사진 선택')); assert.equal(button('대표 이미지 등록'), undefined);
-  button('사진 선택').onPress(); await flush(); render(); buttons.find((b) => b.accessibilityRole === 'checkbox').onPress(); render();
+  button('사진 선택').onPress(); await flush(); render();
   rejectSave = false; const beforeSave = savedCalls;
   button('대표 이미지 등록').onPress(); button('대표 이미지 등록').onPress(); await flush();
   assert.equal(savedCalls, beforeSave + 1, 'Repeated upload taps are deduplicated');

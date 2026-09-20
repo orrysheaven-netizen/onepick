@@ -93,7 +93,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const photoAcknowledged = useRef(false);
   const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
-  const [photoApproved, setPhotoApproved] = useState(false);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
@@ -108,7 +107,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       const selected = await photoPicker.mutateAsync();
       if (selected) {
         setPhoto(selected);
-        setPhotoApproved(false);
         photoAttachment.reset();
       }
     } catch (error) {
@@ -118,7 +116,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   };
 
   const attachPhoto = async () => {
-    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || !photoApproved || busy.current || photoAcknowledged.current) return;
+    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || busy.current || photoAcknowledged.current) return;
     busy.current = true;
     try {
       const saved = await photoAttachment.mutateAsync({ userId: user.id, itemId, photo });
@@ -126,7 +124,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       photoAcknowledged.current = true;
       setSavedItem(saved);
       setPhoto(null);
-      setPhotoApproved(false);
       // Refresh is a separate operation. Preserve the acknowledged response and
       // keep all stale product/review content hidden if the fresh read fails.
       await query.refetch().catch(() => {});
@@ -219,25 +216,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               {photo ? (
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: photoApproved }}
-                    disabled={photoBusy}
-                    onPress={() => setPhotoApproved((approved) => !approved)}
-                    style={({ pressed }) => [styles.photoConsent, pressed && styles.pressed]}>
-                    <Text style={styles.photoConsentText}>{photoApproved ? '☑' : '☐'} 이 제품의 사진이 맞으며 대표 이미지로 공유할 수 있어요</Text>
-                  </Pressable>
                   <View style={styles.photoActions}>
                     <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void choosePhoto()}
                       style={({ pressed }) => [styles.photoSecondaryButton, pressed && styles.pressed]}>
                       <Text style={styles.photoSecondaryText}>다시 선택</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" disabled={!photoApproved || photoBusy} onPress={() => void attachPhoto()}
-                      style={({ pressed }) => [styles.photoPrimaryButton, (!photoApproved || photoBusy) && styles.disabled, pressed && styles.pressed]}>
+                    <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void attachPhoto()}
+                      style={({ pressed }) => [styles.photoPrimaryButton, photoBusy && styles.disabled, pressed && styles.pressed]}>
                       {photoAttachment.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
                     </Pressable>
                   </View>
-                  <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); setPhotoApproved(false); photoAttachment.reset(); }} style={styles.photoConsent}>
+                  <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.photoConsent}>
                     <Text style={styles.photoSecondaryText}>사진 선택 취소</Text>
                   </Pressable>
                 </>
@@ -314,7 +303,6 @@ const styles = StyleSheet.create({
   photoContributionHint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
   photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: '#FFFFFF', marginTop: 14 },
   photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
-  photoConsentText: { color: '#202124', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   photoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
   photoChooseButton: { marginTop: 14 },

@@ -51,7 +51,6 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const categorySuggestions = useItemCategorySuggestions(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
   const applyCategory = useApplyItemCategory(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
-  const [photoApproved, approvePhoto] = useState(false);
   const [imageLink, setImageLink] = useState('');
   const submitting = registration.isPending || photoPicker.isPending || imageImport.isPending;
 
@@ -60,7 +59,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const isValid = normalizedName.length >= 1 && normalizedName.length <= 100
     && (!categoryId || Boolean(selectedCategory));
   const canSubmit = isValid && (!categoryId || (!categories.isPending && !categories.isError)) && !auth.isLoading && !auth.error
-    && !submitting && (!photo || photoApproved) && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
+    && !submitting && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
   const intent = useMemo(() => ({
     action: 'request_item' as const,
     itemName: normalizedName,
@@ -77,7 +76,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     photoPicker.reset(); imageImport.reset(); registration.reset();
     try {
       const result = fromLink ? await imageImport.mutateAsync(imageLink) : await photoPicker.mutateAsync();
-      if (result) { setPhoto(result); approvePhoto(false); }
+      if (result) setPhoto(result);
     } catch (error) {
       showPhotoFailure(error, fromLink ? 'request_item_photo_import' : 'request_item_photo_choose');
       // Keep the previous photo on cancellation/failure; mutation state also keeps the inline error visible.
@@ -319,7 +318,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           accessibilityLabel="요청 제품명"
           editable={!submitting}
           maxLength={100}
-          onChangeText={(value) => { setName(value); approvePhoto(false); }}
+          onChangeText={setName}
           placeholder="제품명"
           placeholderTextColor="#89909C"
           style={styles.input}
@@ -361,14 +360,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {photoPicker.isError || imageImport.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(photoPicker.error ?? imageImport.error)}</Text> : null}
           {photo ? <>
             <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="제품 대표 이미지 미리보기" />
-            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: photoApproved, disabled: submitting }} disabled={submitting}
-              onPress={() => approvePhoto(!photoApproved)} style={styles.photoButton}>
-              <Text style={styles.confirmText}>{photoApproved ? '☑' : '☐'} 이 제품의 사진이 맞으며 대표 이미지로 공유할 수 있어요</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" disabled={submitting} style={styles.retryButton} onPress={() => { setPhoto(null); approvePhoto(false); photoPicker.reset(); imageImport.reset(); registration.reset(); }}>
+            <Pressable accessibilityRole="button" disabled={submitting} style={styles.retryButton} onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }}>
               <Text style={styles.retryText}>사진 제거</Text>
             </Pressable>
-            {!photoApproved ? <Text style={styles.helper}>사진을 확인하고 위 항목에 체크해주세요.</Text> : null}
           </> : null}
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
         </View>
@@ -443,7 +437,6 @@ const styles = StyleSheet.create({
   photoButton: { minHeight: 48, justifyContent: 'center', borderRadius: 12, backgroundColor: '#EFEEFF', padding: 14, marginTop: 14 },
   photoPreview: { width: '100%', height: 220, backgroundColor: '#F5F6F8', borderRadius: 14, marginTop: 12 },
   photoLoading: { alignItems: 'center', paddingVertical: 10 },
-  confirmText: { color: '#4945ED', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   suggestionState: { alignItems: 'center', paddingVertical: 28 },
   suggestionCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginTop: 22 },
   suggestionTitle: { color: '#202124', fontSize: 15, fontWeight: '900', marginBottom: 4 },
