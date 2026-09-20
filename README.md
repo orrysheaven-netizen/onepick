@@ -34,6 +34,7 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item 
 - Item detail, Pick detail, comments, Pick sharing and profile sharing.
 - My Profile and public profiles.
 - Admin Category / Brand / Item management.
+- Admin web: OnePick dashboard (demo and admin activity excluded) and a single data-management page.
 - Item aliases and trigram-backed search.
 - Account settings, account deletion, user blocking and content reporting.
 - Admin report moderation.

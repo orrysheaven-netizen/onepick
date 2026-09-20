@@ -8,7 +8,7 @@ import type { AdminCategory } from '@/lib/admin-api';
 const STATUSES: AdminCategory['status'][] = ['draft', 'open', 'paused', 'closed'];
 const STATUS_LABELS: Record<AdminCategory['status'], string> = { draft: '준비', open: '운영', paused: '중지', closed: '종료' };
 
-export default function AdminCategoriesScreen() {
+export function CategoriesPanel() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -63,11 +63,6 @@ export default function AdminCategoriesScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>카테고리</Text>
-        <Text style={adminStyles.pageDescription}>노출 여부, Pick 가능 여부, 상태와 정렬 순서를 관리합니다.</Text>
-      </View>
-
       <View style={adminStyles.card}>
         <Text style={adminStyles.sectionTitle}>카테고리 추가</Text>
         <Text style={[adminStyles.muted, { marginTop: 6 }]}>새 카테고리는 안전하게 draft · 비노출 상태로 생성됩니다.</Text>

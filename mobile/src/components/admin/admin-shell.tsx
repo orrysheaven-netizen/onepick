@@ -4,15 +4,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const NAV_ITEMS = [
-  { href: '/admin/dashboard', label: '대시보드' },
-  { href: '/admin/categories', label: '카테고리' },
-  { href: '/admin/brands', label: '브랜드' },
-  { href: '/admin/items', label: '상품' },
-  { href: '/admin/pending', label: '검수 대기' },
-  { href: '/admin/users', label: '사용자' },
-  { href: '/admin/reports', label: '신고' },
-  { href: '/admin/audit', label: '운영 기록' },
-  { href: '/admin/ops', label: '운영 지표' },
+  { href: '/admin/dashboard', label: '원픽 대시보드', hint: '서비스 지표 · 추이' },
+  { href: '/admin/data', label: '데이터 관리', hint: '카테고리 · 상품 · 사용자 · 신고' },
 ] as const;
 
 export function AdminShell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
@@ -36,6 +29,7 @@ export function AdminShell({ children, onSignOut }: { children: ReactNode; onSig
                 <Link key={item.href} href={item.href} asChild>
                   <Pressable style={() => [styles.navItem, active && styles.navItemActive]}>
                     <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
+                    {wide && <Text style={[styles.navHint, active && styles.navHintActive]}>{item.hint}</Text>}
                   </Pressable>
                 </Link>
               );
@@ -91,6 +85,8 @@ const styles = StyleSheet.create({
   navItemActive: { backgroundColor: '#F3F4F6' },
   navText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
   navTextActive: { color: '#111827' },
+  navHint: { marginTop: 3, color: '#9CA3AF', fontSize: 11 },
+  navHintActive: { color: '#6B7280' },
   sidebarFooter: { marginTop: 'auto', gap: 14, paddingTop: 30 },
   sidebarFooterCompact: { flexDirection: 'row', marginTop: 18, paddingTop: 0 },
   backLink: { color: '#6B7280', fontSize: 12 },

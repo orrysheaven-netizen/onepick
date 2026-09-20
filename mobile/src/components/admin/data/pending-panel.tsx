@@ -5,7 +5,7 @@ import { adminStyles } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminItem, PendingItem } from '@/lib/admin-api';
 
-export default function AdminPendingScreen() {
+export function PendingPanel() {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -126,10 +126,13 @@ export default function AdminPendingScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <View>
-          <Text style={adminStyles.pageTitle}>검수 대기</Text>
-          <Text style={adminStyles.pageDescription}>사용자가 추가한 pending 상품을 승인, 반려하거나 기존 상품과 병합합니다.</Text>
-        </View>
+        <TextInput
+          accessibilityLabel="검수 대기 상품 검색"
+          value={query}
+          onChangeText={setQuery}
+          placeholder="상품명 또는 카테고리 검색"
+          style={[adminStyles.input, styles.search]}
+        />
         <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>새로고침</Text>
         </Pressable>
@@ -137,14 +140,6 @@ export default function AdminPendingScreen() {
 
       {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
       {!!message && <Text accessibilityLiveRegion="polite" style={adminStyles.success}>{message}</Text>}
-
-      <TextInput
-        accessibilityLabel="검수 대기 상품 검색"
-        value={query}
-        onChangeText={setQuery}
-        placeholder="상품명 또는 카테고리 검색"
-        style={[adminStyles.input, styles.search]}
-      />
 
       <View style={styles.workspace}>
         <View style={[adminStyles.card, styles.listPanel]}>
@@ -258,8 +253,8 @@ function formatDate(value: string) {
 
 const styles = StyleSheet.create({
   page: { gap: 22 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  search: { maxWidth: 420 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  search: { flexGrow: 1, flexBasis: 280, maxWidth: 420 },
   workspace: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
   listPanel: { flexGrow: 1, flexBasis: 480, minWidth: 300 },
   detailPanel: { flexGrow: 1, flexBasis: 390, minWidth: 300 },

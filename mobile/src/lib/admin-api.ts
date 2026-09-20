@@ -117,6 +117,46 @@ export type AdminClientErrorEvent = {
   created_at: string;
 };
 
+// Shape of public.admin_onepick_dashboard(). Every user-activity number here
+// already excludes demo_* profiles and admin-allowlisted accounts.
+export type AdminOnePickDashboardWindow = 7 | 30 | 90;
+
+export type AdminOnePickDashboard = {
+  days: number;
+  generated_at: string;
+  excluded: { demo_users: number; admin_users: number };
+  totals: {
+    users: number;
+    active_picks: number;
+    picks_total: number;
+    comments: number;
+    open_categories: number;
+    active_items: number;
+  };
+  recent: {
+    users_7d: number;
+    users_30d: number;
+    picks_7d: number;
+    picks_30d: number;
+    comments_7d: number;
+    comments_30d: number;
+    active_users_7d: number;
+    active_users_30d: number;
+  };
+  queue: { pending_items: number; open_reports: number; suspended_users: number };
+  daily: Array<{ day: string; users: number; picks: number; comments: number }>;
+  categories: Array<{ id: string; name: string; slug: string; active_picks: number; pickers: number; picks_in_window: number }>;
+  top_items: Array<{ id: string; name: string; category_name: string; active_picks: number }>;
+  funnel: {
+    pick_created: number;
+    pick_share_clicked: number;
+    pick_link_opened: number;
+    item_detail_viewed: number;
+    auth_started: number;
+    auth_completed: number;
+  };
+};
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
 const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -244,6 +284,13 @@ export function getDashboardMetrics() {
   return adminRequest<AdminDashboardMetrics>('/rest/v1/rpc/admin_dashboard_metrics', {
     method: 'POST',
     body: '{}',
+  });
+}
+
+export function getOnePickDashboard(days: AdminOnePickDashboardWindow = 30) {
+  return adminRequest<AdminOnePickDashboard>('/rest/v1/rpc/admin_onepick_dashboard', {
+    method: 'POST',
+    body: JSON.stringify({ p_days: days }),
   });
 }
 
