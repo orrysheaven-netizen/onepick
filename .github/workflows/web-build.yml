@@ -1,10 +1,9 @@
 name: Web build
 
 on:
+  # No path filter on pull_request: these jobs are required status checks on main,
+  # and a filtered-out check never reports, which leaves such a PR unmergeable.
   pull_request:
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/web-build.yml'
   push:
     branches: [main]
     paths:
