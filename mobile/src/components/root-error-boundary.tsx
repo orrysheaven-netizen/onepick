@@ -1,5 +1,5 @@
 import React, { type ErrorInfo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { observabilityService } from '@/services';
 
@@ -10,16 +10,19 @@ interface Props {
 interface State {
   hasError: boolean;
   retryKey: number;
+  debugMessage: string;
+  debugComponentStack: string;
 }
 
 export class RootErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false, retryKey: 0 };
+  state: State = { hasError: false, retryKey: 0, debugMessage: '', debugComponentStack: '' };
 
-  static getDerivedStateFromError(): Partial<State> {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, debugMessage: error instanceof Error ? `${error.name}: ${error.message}` : String(error) };
   }
 
-  componentDidCatch(error: Error, _info: ErrorInfo) {
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    this.setState({ debugComponentStack: info.componentStack ?? '' });
     void observabilityService.captureError(error, 'root_error_boundary');
   }
 
@@ -37,6 +40,11 @@ export class RootErrorBoundary extends React.Component<Props, State> {
           <Pressable accessibilityRole="button" onPress={this.retry} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
             <Text style={styles.buttonText}>다시 시도</Text>
           </Pressable>
+          {(this.state.debugMessage || this.state.debugComponentStack) && (
+            <ScrollView style={styles.debugBox} contentContainerStyle={styles.debugBoxContent}>
+              <Text selectable style={styles.debugText}>{this.state.debugMessage}{'\n'}{this.state.debugComponentStack}</Text>
+            </ScrollView>
+          )}
         </View>
       );
     }
@@ -53,4 +61,7 @@ const styles = StyleSheet.create({
   button: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, marginTop: 22 },
   buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
+  debugBox: { maxWidth: 640, maxHeight: 260, width: '100%', marginTop: 24, borderWidth: 1, borderColor: '#DEE0E6', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  debugBoxContent: { padding: 12 },
+  debugText: { color: '#4B4F58', fontSize: 11, lineHeight: 16, fontFamily: 'monospace' },
 });

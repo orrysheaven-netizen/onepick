@@ -70,6 +70,7 @@ function setup(overrides = {}) {
     }), useLocalSearchParams: () => params, useFocusEffect: (callback) => hooks.useEffect(() => focused ? callback() : undefined, [focused, callback]) },
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
     '@/components/music-search-link': { MusicSearchLink: 'MusicSearchLink' },
+    '@/components/game-search-link': { GameSearchLink: 'GameSearchLink' },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
