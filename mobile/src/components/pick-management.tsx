@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { AppError } from '@/errors/appError';
 import { useManagePick } from '@/hooks/useManagePick';
 import type { Pick } from '@/types/domain/pick';
+import { OnePick } from '@/constants/onepick';
 
 function getErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -99,7 +100,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
             disabled={!canSave || isBusy}
             onPress={() => void saveReview()}
             style={[styles.button, (!canSave || isBusy) && styles.disabled]}>
-            {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>한줄평 저장</Text>}
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 저장</Text>}
           </Pressable>
         </>
       ) : (
@@ -110,7 +111,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
             disabled={isBusy}
             onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
-            {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
           </Pressable>
         </>
       )}
@@ -125,16 +126,16 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginTop: 14 },
-  title: { color: '#202124', fontSize: 16, fontWeight: '800' },
-  description: { color: '#5F5A54', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  input: { minHeight: 96, borderRadius: 15, backgroundColor: '#F5F6F8', padding: 13, color: '#202124', fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
-  counter: { color: '#747985', fontSize: 12, textAlign: 'right', marginTop: 6 },
-  button: { minHeight: 46, borderRadius: 14, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
-  buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
+  title: { color: OnePick.text, fontSize: 16, fontWeight: '800' },
+  description: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
+  input: { minHeight: 96, borderRadius: 15, backgroundColor: OnePick.background, padding: 13, color: OnePick.text, fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
+  counter: { color: OnePick.muted, fontSize: 12, textAlign: 'right', marginTop: 6 },
+  button: { minHeight: 46, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
+  buttonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  secondaryText: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
-  removeButton: { backgroundColor: '#A9482D' },
+  secondaryText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  removeButton: { backgroundColor: OnePick.danger },
   disabled: { opacity: 0.4 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 10 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
 });

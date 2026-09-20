@@ -11,6 +11,7 @@ import { PendingPanel } from '@/components/admin/data/pending-panel';
 import { ReportsPanel } from '@/components/admin/data/reports-panel';
 import { UsersPanel } from '@/components/admin/data/users-panel';
 import { ADMIN_DATA_TABS, DEFAULT_ADMIN_DATA_TAB, isAdminDataTab } from '@/lib/admin/dataTabs';
+import { OnePick } from '@/constants/onepick';
 
 export default function AdminDataScreen() {
   const router = useRouter();
@@ -64,11 +65,11 @@ export default function AdminDataScreen() {
 
 const styles = StyleSheet.create({
   page: { gap: 20 },
-  tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10 },
+  tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderBottomWidth: 1, borderBottomColor: OnePick.border, paddingBottom: 10 },
   tab: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 13, borderRadius: 8 },
-  tabActive: { backgroundColor: '#111827' },
-  tabText: { color: '#6B7280', fontSize: 13, fontWeight: '700' },
-  tabTextActive: { color: '#FFFFFF' },
+  tabActive: { backgroundColor: OnePick.text },
+  tabText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  tabTextActive: { color: OnePick.onAccent },
   tabHeader: { gap: 4 },
   tabDescription: { lineHeight: 19 },
 });

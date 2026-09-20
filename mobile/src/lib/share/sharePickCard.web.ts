@@ -1,5 +1,6 @@
 import { createPickShareUrl } from './shareLinks';
 import type { SharePickInput } from './sharePick';
+import { OnePick } from '@/constants/onepick';
 
 export type SharePickCardResult = 'shared' | 'downloaded' | 'unsupported';
 
@@ -111,50 +112,50 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
   const review = clean(input.oneLineReview, 240);
   const username = clean(input.username, 50);
 
-  ctx.fillStyle = '#F5F6F8';
+  ctx.fillStyle = OnePick.background;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = OnePick.surface;
   roundedRect(ctx, 72, 72, 936, 1206, 42);
   ctx.fill();
 
-  ctx.fillStyle = '#4945ED';
+  ctx.fillStyle = OnePick.accent;
   ctx.font = '800 34px system-ui, sans-serif';
   ctx.fillText('ONE PICK', 130, 160);
 
-  ctx.fillStyle = '#747985';
+  ctx.fillStyle = OnePick.muted;
   ctx.font = '700 28px system-ui, sans-serif';
   ctx.fillText(category, 130, 232);
 
-  ctx.fillStyle = '#202124';
+  ctx.fillStyle = OnePick.text;
   ctx.font = '800 70px system-ui, sans-serif';
   drawLines(ctx, wrapLines(ctx, item, 820, 2), 130, 340, 86);
 
-  ctx.strokeStyle = '#E3E5EA';
+  ctx.strokeStyle = OnePick.border;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(130, 535);
   ctx.lineTo(950, 535);
   ctx.stroke();
 
-  ctx.fillStyle = '#4945ED';
+  ctx.fillStyle = OnePick.accent;
   ctx.font = '700 25px system-ui, sans-serif';
   ctx.fillText('WHY THIS ONE', 130, 620);
 
-  ctx.fillStyle = '#3E4350';
+  ctx.fillStyle = OnePick.muted;
   ctx.font = '500 42px system-ui, sans-serif';
   const reviewLines = wrapLines(ctx, `“${review}”`, 820, 5);
   drawLines(ctx, reviewLines, 130, 700, 62);
 
-  ctx.fillStyle = '#202124';
+  ctx.fillStyle = OnePick.text;
   ctx.font = '800 30px system-ui, sans-serif';
   ctx.fillText(`@${username}`, 130, 1090);
 
-  ctx.fillStyle = '#89909C';
+  ctx.fillStyle = OnePick.hint;
   ctx.font = '500 22px system-ui, sans-serif';
   ctx.fillText(clean(shareUrl, 92), 130, 1160);
 
-  ctx.fillStyle = '#4945ED';
+  ctx.fillStyle = OnePick.accent;
   roundedRect(ctx, 130, 1202, 180, 14, 7);
   ctx.fill();
 

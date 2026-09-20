@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { OnePick } from '@/constants/onepick';
 
 type Props = {
   categoryName: string;
@@ -78,8 +79,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#E3E5EA',
-    backgroundColor: '#FFFFFF',
+    borderColor: OnePick.border,
+    backgroundColor: OnePick.surface,
     borderRadius: 18,
     padding: 11,
     marginBottom: 10,
@@ -88,12 +89,12 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0, paddingLeft: 12 },
   mainAction: { minHeight: 76 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: '#EFEEFF', paddingHorizontal: 8, paddingVertical: 3 },
-  category: { color: '#4945ED', fontSize: 10, lineHeight: 14, fontWeight: '900' },
-  chevron: { color: '#A6ADBB', fontSize: 22, lineHeight: 24, marginTop: -2 },
-  name: { color: '#202124', fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 6 },
-  review: { color: '#5F6470', fontSize: 11, lineHeight: 16, marginTop: 5 },
-  status: { color: '#89909C', fontSize: 10, lineHeight: 14, marginTop: 5, fontWeight: '700' },
+  categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
+  category: { color: OnePick.accent, fontSize: 10, lineHeight: 14, fontWeight: '900' },
+  chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24, marginTop: -2 },
+  name: { color: OnePick.text, fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 6 },
+  review: { color: OnePick.muted, fontSize: 11, lineHeight: 16, marginTop: 5 },
+  status: { color: OnePick.hint, fontSize: 10, lineHeight: 14, marginTop: 5, fontWeight: '700' },
   itemAction: {
     minHeight: 36,
     flexDirection: 'row',
@@ -101,11 +102,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     gap: 3,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ECEEF3',
+    borderTopColor: OnePick.sunken,
     marginTop: 6,
     paddingTop: 6,
   },
-  itemActionText: { color: '#747985', fontSize: 10, fontWeight: '800' },
-  itemActionArrow: { color: '#A6ADBB', fontSize: 15, lineHeight: 16 },
+  itemActionText: { color: OnePick.muted, fontSize: 10, fontWeight: '800' },
+  itemActionArrow: { color: OnePick.hint, fontSize: 15, lineHeight: 16 },
   pressed: { opacity: 0.68 },
 });

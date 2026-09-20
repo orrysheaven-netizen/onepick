@@ -7,13 +7,15 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+import { OnePick } from '@/constants/onepick';
+
 export const Colors = {
   light: {
-    text: '#202124',
-    background: '#F5F6F8',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#EFEEFF',
-    textSecondary: '#747985',
+    text: OnePick.text,
+    background: OnePick.background,
+    backgroundElement: OnePick.surface,
+    backgroundSelected: OnePick.accentSoft,
+    textSecondary: OnePick.muted,
   },
   dark: {
     text: '#ffffff',

@@ -12,6 +12,7 @@ import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { useImportYouTubeChannel, useYouTubeCatalogSearch } from '@/hooks/useYouTubeCatalog';
 import { acceptYouTubePolicyConsent, getYouTubePolicyConsent } from '@/lib/youtube/consent';
 import type { ImportedYouTubeChannelItem, YouTubeChannelEntry } from '@/types/domain/youtubeCatalog';
+import { OnePick } from '@/constants/onepick';
 
 type Params = {
   categoryId?: string | string[];
@@ -207,7 +208,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
         <Pressable disabled={consentSaving} onPress={() => void acceptConsent()} style={[styles.consentButton, consentSaving && styles.disabled]}>
-          {consentSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다</Text>}
+          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다</Text>}
         </Pressable>
       </View> : null}
 
@@ -223,7 +224,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <TextInput autoFocus={Platform.OS !== 'web'} accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
           editable={Boolean(category) && !importing} maxLength={1000} value={searchText}
           onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
+          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
         <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줍니다. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용합니다.</Text>
         {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
@@ -286,38 +287,38 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 40, fontWeight: '300' },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 12 },
-  title: { color: '#202124', fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
-  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  notice: { color: '#5F6470', fontSize: 12, lineHeight: 18, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, marginTop: 14 },
-  policyCard: { borderWidth: 1, borderColor: '#D8D6FF', backgroundColor: '#F5F4FF', borderRadius: 18, padding: 18, marginTop: 18 },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
+  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 12 },
+  title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
+  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
+  notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },
+  policyCard: { borderWidth: 1, borderColor: OnePick.accentSoft, backgroundColor: OnePick.accentSoft, borderRadius: 18, padding: 18, marginTop: 18 },
   policyLink: { minHeight: 40, justifyContent: 'center', marginTop: 7 },
-  policyLinkText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
-  externalLink: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 10 },
-  consentButton: { minHeight: 48, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingHorizontal: 14, marginTop: 18 },
-  consentButtonText: { color: '#FFFFFF', fontSize: 12, lineHeight: 17, fontWeight: '800', textAlign: 'center' },
-  label: { color: '#202124', fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
-  input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
-  hint: { color: '#89909C', fontSize: 11, lineHeight: 17, marginTop: 7 },
+  policyLinkText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
+  externalLink: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 10 },
+  consentButton: { minHeight: 48, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingHorizontal: 14, marginTop: 18 },
+  consentButtonText: { color: OnePick.onAccent, fontSize: 12, lineHeight: 17, fontWeight: '800', textAlign: 'center' },
+  label: { color: OnePick.text, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
+  input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, paddingHorizontal: 15, color: OnePick.text, fontSize: 15 },
+  hint: { color: OnePick.hint, fontSize: 11, lineHeight: 17, marginTop: 7 },
   loading: { marginTop: 18 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
-  stateCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginTop: 16 },
-  stateTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 12 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
+  stateCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 18, marginTop: 16 },
+  stateTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  stateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12, marginTop: 11 },
   itemCopy: { flex: 1, paddingLeft: 14, minHeight: 86, justifyContent: 'center' },
-  itemCategory: { color: '#4945ED', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  itemName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  itemAction: { color: '#747985', fontSize: 12, marginTop: 7 },
-  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
-  secondaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  itemCategory: { color: OnePick.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  itemName: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 5 },
+  itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
+  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
+  secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  attribution: { color: '#89909C', fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
 });

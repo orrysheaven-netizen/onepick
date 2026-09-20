@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { OnePick } from '@/constants/onepick';
 
 type Props = {
   uri?: string | null;
@@ -57,22 +58,22 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
 }
 
 const styles = StyleSheet.create({
-  frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center' },
+  frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: OnePick.sunken, justifyContent: 'center', alignItems: 'center' },
   large: { width: '100%', height: 230, marginBottom: 14 },
   tall: { width: 74, height: 94, borderRadius: 12 },
-  tallPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: '#4945ED' },
-  tallPlaceholderName: { color: '#FFFFFF', fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  tallPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: OnePick.accent },
+  tallPlaceholderName: { color: OnePick.onAccent, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   image: { width: '100%', height: '100%' },
   placeholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 7 },
-  placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
-  placeholderInitial: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
-  placeholderName: { width: '100%', color: '#202124', fontSize: 10, lineHeight: 14, fontWeight: '700', textAlign: 'center', marginTop: 5 },
+  placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  placeholderInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
+  placeholderName: { width: '100%', color: OnePick.text, fontSize: 10, lineHeight: 14, fontWeight: '700', textAlign: 'center', marginTop: 5 },
   placeholderNameLarge: { fontSize: 14, lineHeight: 20, marginTop: 10 },
-  placeholderHint: { color: '#8A8F9B', fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
-  fallback: { color: '#747985', fontSize: 12, textAlign: 'center', padding: 8 },
+  placeholderHint: { color: OnePick.hint, fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
+  fallback: { color: OnePick.muted, fontSize: 12, textAlign: 'center', padding: 8 },
   empty: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: '#747985', fontSize: 11, marginTop: 5 },
+  emptyText: { color: OnePick.muted, fontSize: 11, marginTop: 5 },
   addButton: { minHeight: 44, minWidth: 76, alignItems: 'center', justifyContent: 'center' },
-  addText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  addText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 },
 });

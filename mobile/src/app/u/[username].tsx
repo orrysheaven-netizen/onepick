@@ -14,6 +14,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { isSeedProfileId } from '@/lib/seedProfiles';
+import { OnePick } from '@/constants/onepick';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function PublicProfileScreen() {
             <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
             {shareError ? <Text style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
             <Pressable disabled={isSharing} onPress={() => void handleShare()} style={({ pressed }) => [styles.shareButton, isSharing && styles.shareButtonDisabled, pressed && styles.pressed]}>
-              {isSharing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.shareButtonText}>프로필 공유하기</Text>}
+              {isSharing ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.shareButtonText}>프로필 공유하기</Text>}
             </Pressable>
           </View>
           {query.data.isMine ? <Pressable onPress={() => router.replace('/profile')} style={({ pressed }) => [styles.mineButton, pressed && styles.pressed]}><Text style={styles.mineButtonText}>내 프로필 관리로 이동</Text></Pressable> : null}
@@ -96,43 +97,43 @@ export default function PublicProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 56 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   header: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 20 },
-  avatar: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
+  avatar: { width: 72, height: 72, borderRadius: 24, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: OnePick.onAccent, fontSize: 28, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 16 },
   profileLabels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
-  username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
-  bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
-  summaryNumber: { color: '#202124', fontSize: 17, fontWeight: '900' },
-  summaryLabel: { color: '#747985', fontSize: 12, fontWeight: '700' },
-  safetyCard: { backgroundColor: '#ECEEF3', borderRadius: 18, padding: 16, marginBottom: 28 },
-  safetyTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
-  safetyText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 5 },
+  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
+  username: { color: OnePick.text, fontSize: 26, fontWeight: '900', marginTop: 5 },
+  bio: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
+  summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
+  summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  safetyCard: { backgroundColor: OnePick.sunken, borderRadius: 18, padding: 16, marginBottom: 28 },
+  safetyTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  safetyText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 5 },
   safetyActions: { gap: 10, marginTop: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
-  sectionHint: { color: '#747985', fontSize: 12 },
-  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
-  emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
-  shareCard: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, padding: 18, marginTop: 22 },
-  shareEyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
-  shareTitle: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 6 },
-  shareText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  shareError: { color: '#A9482D', fontSize: 12, lineHeight: 17, marginTop: 10 },
-  shareButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '900' },
+  sectionHint: { color: OnePick.muted, fontSize: 12 },
+  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24 },
+  emptyTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  shareCard: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 22 },
+  shareEyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
+  shareTitle: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 6 },
+  shareText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  shareError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 10 },
+  shareButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
   shareButtonDisabled: { opacity: 0.5 },
-  shareButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  mineButton: { minHeight: 46, borderRadius: 15, backgroundColor: '#ECEEF3', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  mineButtonText: { color: '#5F5A54', fontSize: 12, fontWeight: '800' },
-  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 28, marginTop: 34 },
-  stateTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  shareButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  mineButton: { minHeight: 46, borderRadius: 15, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  mineButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 28, marginTop: 34 },
+  stateTitle: { color: OnePick.text, fontSize: 18, fontWeight: '800' },
+  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   pressed: { opacity: 0.72 },
 });

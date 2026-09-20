@@ -8,6 +8,7 @@ import { AppError } from '@/errors/appError';
 import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
+import { OnePick } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 
 const PROVIDER_LABEL: Record<SocialAuthProvider, string> = {
@@ -126,26 +127,26 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginTop: 5 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
-  title: { color: '#202124', fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20, marginTop: 34 },
-  cardTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
+  title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 20, marginTop: 34 },
+  cardTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
   providerStack: { gap: 10, marginTop: 16 },
   providerButton: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  kakaoButton: { backgroundColor: '#FEE500' },
-  kakaoButtonText: { color: '#191919', fontSize: 15, fontWeight: '800' },
-  googleButton: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4D6DD' },
-  googleButtonText: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  naverButton: { backgroundColor: '#03C75A' },
-  naverButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
-  note: { color: '#747985', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
+  kakaoButton: { backgroundColor: OnePick.kakao },
+  kakaoButtonText: { color: OnePick.kakaoText, fontSize: 15, fontWeight: '800' },
+  googleButton: { backgroundColor: OnePick.google, borderWidth: 1, borderColor: OnePick.googleBorder },
+  googleButtonText: { color: OnePick.googleText, fontSize: 15, fontWeight: '800' },
+  naverButton: { backgroundColor: OnePick.naver },
+  naverButtonText: { color: OnePick.naverText, fontSize: 15, fontWeight: '800' },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
+  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18 },
+  note: { color: OnePick.muted, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.7 },
 });

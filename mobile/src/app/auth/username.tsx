@@ -7,6 +7,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
 import { getAuthIntent, getPostAuthRoute, type AuthIntent, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { OnePick } from '@/constants/onepick';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -115,7 +116,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
                 setUsername(value); setSaveError(null);
               }}
               placeholder="onepick_user"
-              placeholderTextColor="#89909C"
+              placeholderTextColor={OnePick.hint}
               style={styles.input}
               value={username}
             />
@@ -141,21 +142,21 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 62 },
-  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
-  title: { color: '#202124', fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  statusText: { color: '#747985', fontSize: 13, marginTop: 34 },
+  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
+  title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
+  statusText: { color: OnePick.muted, fontSize: 13, marginTop: 34 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 34, marginBottom: 10 },
-  label: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  counter: { color: '#747985', fontSize: 12 },
-  input: { minHeight: 54, borderRadius: 16, backgroundColor: '#FFFFFF', paddingHorizontal: 16, color: '#202124', fontSize: 16 },
-  helper: { color: '#747985', fontSize: 12, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 12 },
+  label: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
+  counter: { color: OnePick.muted, fontSize: 12 },
+  input: { minHeight: 54, borderRadius: 16, backgroundColor: OnePick.surface, paddingHorizontal: 16, color: OnePick.text, fontSize: 16 },
+  helper: { color: OnePick.muted, fontSize: 12, marginTop: 8 },
+  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 15, fontWeight: '800' },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
+  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.7 },
 });

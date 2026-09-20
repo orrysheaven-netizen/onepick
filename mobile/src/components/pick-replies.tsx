@@ -15,6 +15,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
 import { usePickComments } from '@/hooks/usePickComments';
 import { usePickDetail } from '@/hooks/usePickDetail';
+import { OnePick } from '@/constants/onepick';
 
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -142,7 +143,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                   disabled={commentsQuery.isFetching}
                   onPress={() => { if (!commentsQuery.isFetching) void commentsQuery.fetchNextPage({ cancelRefetch: false }); }}
                   style={({ pressed }) => [styles.smallButton, commentsQuery.isFetching && { opacity: 0.5 }, pressed && styles.pressed]}>
-                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '답글 더 보기 다시 시도' : '답글 더 보기'}</Text>}
+                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '답글 더 보기 다시 시도' : '답글 더 보기'}</Text>}
                 </Pressable>
               ) : null}
 
@@ -160,7 +161,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                       multiline
                       onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
                       placeholder="이 원픽에 대해 이야기해보세요"
-                      placeholderTextColor="#89909C"
+                      placeholderTextColor={OnePick.hint}
                       style={styles.commentInput}
                       value={commentBody}
                     />
@@ -185,7 +186,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                         pressed && canSubmitComment && !createComment.isPending && styles.pressed,
                       ]}>
                       {createComment.isPending ? (
-                        <ActivityIndicator color="#FFFFFF" />
+                        <ActivityIndicator color={OnePick.onAccent} />
                       ) : (
                         <Text style={styles.commentButtonText}>답글 남기기</Text>
                       )}
@@ -212,34 +213,34 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
 
 const styles = StyleSheet.create({
   commentAuthorLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  commentsCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginTop: 14 },
+  commentsCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
   commentsHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
-  commentsTitle: { color: '#202124', fontSize: 16, fontWeight: '800' },
-  commentsCount: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  commentsTitle: { color: OnePick.text, fontSize: 16, fontWeight: '800' },
+  commentsCount: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   commentsState: { alignItems: 'center', paddingVertical: 20 },
-  commentsStateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 8 },
-  smallButton: { backgroundColor: '#202124', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
-  smallButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  emptyComments: { color: '#747985', fontSize: 12, lineHeight: 18, paddingVertical: 17 },
-  commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E3E5EA' },
-  commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#ECEEF3', alignItems: 'center', justifyContent: 'center' },
-  commentAvatarText: { color: '#5F5A54', fontSize: 13, fontWeight: '900' },
+  commentsStateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 8 },
+  smallButton: { backgroundColor: OnePick.text, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
+  smallButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
+  emptyComments: { color: OnePick.muted, fontSize: 12, lineHeight: 18, paddingVertical: 17 },
+  commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
+  commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
+  commentAvatarText: { color: OnePick.muted, fontSize: 13, fontWeight: '900' },
   commentCopy: { flex: 1, marginLeft: 11 },
-  commentAuthor: { color: '#202124', fontSize: 12, fontWeight: '800' },
-  commentBody: { color: '#5F5A54', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  commentAuthor: { color: OnePick.text, fontSize: 12, fontWeight: '800' },
+  commentBody: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
   commentSafety: { marginTop: 8 },
   commentComposer: { marginTop: 18 },
   commentInputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
-  commentInputLabel: { color: '#202124', fontSize: 12, fontWeight: '800' },
-  commentCounter: { color: '#89909C', fontSize: 12 },
-  commentInput: { minHeight: 88, borderRadius: 15, backgroundColor: '#F5F6F8', paddingHorizontal: 13, paddingVertical: 12, color: '#202124', fontSize: 13, lineHeight: 19, textAlignVertical: 'top' },
-  commentError: { color: '#A9482D', fontSize: 12, lineHeight: 17, marginTop: 8 },
-  commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  commentInputLabel: { color: OnePick.text, fontSize: 12, fontWeight: '800' },
+  commentCounter: { color: OnePick.hint, fontSize: 12 },
+  commentInput: { minHeight: 88, borderRadius: 15, backgroundColor: OnePick.background, paddingHorizontal: 13, paddingVertical: 12, color: OnePick.text, fontSize: 13, lineHeight: 19, textAlignVertical: 'top' },
+  commentError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 8 },
+  commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   commentButtonDisabled: { opacity: 0.4 },
-  commentButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  loginPrompt: { backgroundColor: '#F5F6F8', borderRadius: 15, padding: 14, marginTop: 16 },
-  loginPromptTitle: { color: '#202124', fontSize: 13, fontWeight: '800' },
-  loginPromptText: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 4 },
-  historyCommentNotice: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 16 },
+  commentButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  loginPrompt: { backgroundColor: OnePick.background, borderRadius: 15, padding: 14, marginTop: 16 },
+  loginPromptTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  loginPromptText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  historyCommentNotice: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 16 },
   pressed: { opacity: 0.7 },
 });

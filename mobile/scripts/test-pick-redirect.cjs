@@ -21,7 +21,7 @@ const imports = {
 const exportsObject = {};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-}).outputText, { exports: exportsObject, require: (name) => name === 'react' || name === 'react/jsx-runtime' ? require(name) : imports[name] });
+}).outputText, { exports: exportsObject, require: (name) => name === '@/constants/onepick' ? require('./design-tokens.cjs') : name === 'react' || name === 'react/jsx-runtime' ? require(name) : imports[name] });
 const render = () => { destination = null; return renderToStaticMarkup(React.createElement(exportsObject.default)); };
 query = { isPending: true };
 assert.match(render(), /원픽을 불러오고 있어요/);

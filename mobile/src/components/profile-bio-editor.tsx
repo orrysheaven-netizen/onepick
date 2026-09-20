@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useUpdateProfileBio } from '@/hooks/useUpdateProfileBio';
 import { MAX_PROFILE_BIO_LENGTH, profileBioLength, ProfileBioValidationError } from '@/lib/profileBio';
+import { OnePick } from '@/constants/onepick';
 
 type Props = { profileUserId: string; bio?: string | null };
 
@@ -57,7 +58,7 @@ function BioEditor({ profileUserId, bio }: Props) {
       <Text style={styles.hint}>다른 사람이 내 프로필에서 볼 수 있는 공개 소개예요.</Text>
       <TextInput accessibilityLabel="자기소개 입력" multiline textAlignVertical="top"
         placeholder="라면과 영화를 좋아해요. 오래 좋아한 것들을 모읍니다."
-        placeholderTextColor="#89909C" value={draft}
+        placeholderTextColor={OnePick.hint} value={draft}
         onChangeText={(value) => { setDraft(value); setError(''); }}
         editable={!mutation.isPending} maxLength={Math.max(MAX_PROFILE_BIO_LENGTH * 2, (bio ?? '').length)}
         style={styles.input} />
@@ -67,7 +68,7 @@ function BioEditor({ profileUserId, bio }: Props) {
       <View style={styles.buttons}>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 저장" disabled={disabled}
           onPress={() => void save()} style={[styles.save, disabled && styles.disabled]}>
-          {mutation.isPending ? <ActivityIndicator color="#FFFFFF" accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
+          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 편집 취소" disabled={mutation.isPending}
           onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>취소</Text></Pressable>
@@ -82,21 +83,21 @@ function BioEditor({ profileUserId, bio }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, padding: 16, marginBottom: 18 },
+  card: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginBottom: 18 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  title: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  optional: { color: '#747985', fontSize: 12, fontWeight: '400' },
-  bio: { color: '#5F6470', fontSize: 14, lineHeight: 22, marginTop: 4 },
-  hint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  input: { minHeight: 104, borderWidth: 1, borderColor: '#D9DCE3', borderRadius: 12, padding: 12,
-    marginTop: 12, color: '#202124', backgroundColor: '#F8F9FB', fontSize: 14, lineHeight: 22 },
-  counter: { color: '#747985', fontSize: 12, textAlign: 'right', marginTop: 6 },
+  title: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  optional: { color: OnePick.muted, fontSize: 12, fontWeight: '400' },
+  bio: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 4 },
+  hint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  input: { minHeight: 104, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, padding: 12,
+    marginTop: 12, color: OnePick.text, backgroundColor: OnePick.sunken, fontSize: 14, lineHeight: 22 },
+  counter: { color: OnePick.muted, fontSize: 12, textAlign: 'right', marginTop: 6 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 },
   action: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center' },
-  actionText: { color: '#4945ED', fontSize: 13, fontWeight: '700' },
-  clearText: { color: '#747985', fontSize: 12 },
-  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: '#4945ED', justifyContent: 'center' },
-  saveText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  actionText: { color: OnePick.accent, fontSize: 13, fontWeight: '700' },
+  clearText: { color: OnePick.muted, fontSize: 12 },
+  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: OnePick.accent, justifyContent: 'center' },
+  saveText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
   disabled: { opacity: 0.5 },
 });

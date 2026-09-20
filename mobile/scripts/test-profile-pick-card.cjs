@@ -26,6 +26,7 @@ vm.runInNewContext(ts.transpileModule(source, {
 }).outputText, {
   exports: moduleExports,
   require: (name) => {
+    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === 'react/jsx-runtime') return require(name);
     if (name === 'react-native') return native;
     if (name === '@/components/pick-photo') return { PickPhoto: () => React.createElement('img', { alt: 'photo' }) };

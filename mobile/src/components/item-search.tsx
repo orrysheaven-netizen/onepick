@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { PickPhoto } from '@/components/pick-photo';
 import { useItemSearch } from '@/hooks/useItemSearch';
+import { OnePick } from '@/constants/onepick';
 
 type ItemSearchProps = {
   categoryId?: string;
@@ -123,7 +124,7 @@ export function ItemSearch({
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
           onChangeText={setSearchText} onSubmitEditing={submitSearch}
-          placeholder="어떤 원픽을 찾으세요?" placeholderTextColor="#89909C"
+          placeholder="어떤 원픽을 찾으세요?" placeholderTextColor={OnePick.hint}
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
@@ -172,26 +173,26 @@ export function ItemSearch({
 const styles = StyleSheet.create({
   container: { marginTop: 20, marginBottom: 28 },
   compactContainer: { marginBottom: 16 },
-  compactSearchRow: { marginTop: 0, borderWidth: 1, borderColor: '#E3E5EA' },
-  title: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 },
-  input: { flex: 1, minWidth: 0, minHeight: 50, color: '#202124', fontSize: 14, paddingHorizontal: 15, paddingVertical: 12 },
+  compactSearchRow: { marginTop: 0, borderWidth: 1, borderColor: OnePick.border },
+  title: { color: OnePick.text, fontSize: 18, fontWeight: '800' },
+  description: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: OnePick.surface, borderRadius: 16, marginTop: 12 },
+  input: { flex: 1, minWidth: 0, minHeight: 50, color: OnePick.text, fontSize: 14, paddingHorizontal: 15, paddingVertical: 12 },
   clearButton: { minHeight: 44, minWidth: 58, alignItems: 'center', justifyContent: 'center' },
-  clearText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
-  submitButton: { minHeight: 40, minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#4945ED', marginRight: 5, paddingHorizontal: 12 },
-  submitText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  clearText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  submitButton: { minHeight: 40, minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, marginRight: 5, paddingHorizontal: 12 },
+  submitText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   state: { alignItems: 'center', paddingVertical: 20 },
-  retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
-  retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  resultCount: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginVertical: 14 },
+  retryButton: { backgroundColor: OnePick.text, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
+  retryText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
+  resultCount: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginVertical: 14 },
   emptyState: { alignItems: 'flex-start' },
-  externalSearchButton: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: '#EFEEFF', paddingHorizontal: 15, marginTop: 10 },
-  externalSearchText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
-  resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 12, marginBottom: 10 },
+  externalSearchButton: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: OnePick.accentSoft, paddingHorizontal: 15, marginTop: 10 },
+  externalSearchText: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
+  resultCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 12, marginBottom: 10 },
   resultAction: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center', paddingLeft: 12 },
   resultCopy: { flex: 1 },
-  itemName: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  arrow: { color: '#A6ADBB', fontSize: 25, marginLeft: 10 },
+  itemName: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 10 },
   pressed: { opacity: 0.7 },
 });

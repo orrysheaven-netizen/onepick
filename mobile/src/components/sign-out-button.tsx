@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useSignOut } from '@/hooks/useSignOut';
+import { OnePick } from '@/constants/onepick';
 
 export function SignOutButton() {
   const router = useRouter();
@@ -51,12 +52,12 @@ export function SignOutButton() {
 
 const styles = StyleSheet.create({
   container: { marginTop: 24, alignSelf: 'stretch', gap: 10 },
-  settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#ECEEF3', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  settingsLabel: { color: '#202124', fontSize: 13, fontWeight: '800' },
-  adminButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  adminLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: '#E3E5EA', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  label: { color: '#5F6470', fontSize: 13, fontWeight: '700' },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
+  settingsButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  settingsLabel: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  adminButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  adminLabel: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  button: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: OnePick.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  label: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
   muted: { opacity: 0.5 },
 });
