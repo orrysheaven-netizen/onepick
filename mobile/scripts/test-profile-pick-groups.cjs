@@ -57,10 +57,10 @@ const seven = [
 ];
 
 const groups = grouping.buildProfilePickGroups(seven, categories);
-assert.deepEqual(groups.map((group) => group.id), ['food', 'culture', 'tech', 'style']);
-assert.deepEqual(groups.map((group) => group.name), ['음식', '문화', '기술', '스타일']);
-assert.deepEqual(groups[0].items.map((item) => item.category.name), ['과자', '라면']);
-assert.deepEqual(groups[1].items.map((item) => item.category.name), ['영화', '드라마', '게임']);
+assert.deepEqual(Array.from(groups, (group) => group.id), ['food', 'culture', 'tech', 'style']);
+assert.deepEqual(Array.from(groups, (group) => group.name), ['음식', '문화', '기술', '스타일']);
+assert.deepEqual(Array.from(groups[0].items, (item) => item.category.name), ['과자', '라면']);
+assert.deepEqual(Array.from(groups[1].items, (item) => item.category.name), ['영화', '드라마', '게임']);
 assert.equal(groups.reduce((sum, group) => sum + group.items.length, 0), seven.length, 'grouping must never drop Picks');
 
 const longCollapsed = grouping.defaultCollapsedProfilePickGroups(groups, seven.length);
@@ -68,7 +68,7 @@ assert.deepEqual([...longCollapsed], ['tech', 'style'], '7+ Picks keep only the 
 assert.equal(grouping.defaultCollapsedProfilePickGroups(groups, 6).size, 0, '6 or fewer Picks stay fully expanded');
 
 const fallback = grouping.buildProfilePickGroups(seven.slice(0, 3), []);
-assert.deepEqual(fallback.map((group) => group.name), ['영화', '라면', '스마트폰'].sort((a, b) => {
+assert.deepEqual(Array.from(fallback, (group) => group.name), ['영화', '라면', '스마트폰'].sort((a, b) => {
   const sort = { '라면': 2, '영화': 1, '스마트폰': 1 };
   return sort[a] - sort[b] || a.localeCompare(b);
 }));
