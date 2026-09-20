@@ -79,6 +79,7 @@ function setup(overrides = {}) {
       canGoBack: () => false, back: () => routes.push({ action: 'back' }),
     }), useLocalSearchParams: () => params, useFocusEffect: (callback) => hooks.useEffect(() => focused ? callback() : undefined, [focused, callback]) },
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
     '@/components/music-search-link': { MusicSearchLink: 'MusicSearchLink' },
     '@/components/game-search-link': { GameSearchLink: 'GameSearchLink' },
     '@/components/youtube-search-link': { YoutubeSearchLink: 'YoutubeSearchLink' },
