@@ -108,6 +108,13 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
 - `_headers` requests `noindex` for Pages test/preview domains. This is crawler
   guidance, not an access restriction. Local `serve` does not interpret this
   provider-specific file; verify its actual response header after hosting.
+- `_headers` also sets the Content-Security-Policy. Its `img-src` allowlist must
+  name every external host that catalog Edge Functions store in
+  `image_source_url` (TMDB, IGDB, Cover Art Archive and its `archive.org`
+  redirect targets, PokeAPI sprites on `raw.githubusercontent.com`, YouTube
+  thumbnails on `ytimg.com` / channel avatars on `yt3.ggpht.com`). Adding a
+  catalog with a new image host requires extending that directive, otherwise the
+  browser blocks the images with a CSP violation.
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
