@@ -30,7 +30,16 @@ const imported = { itemId, categoryId: movieCategory, created: false };
 function setup(overrides = {}) {
   let params = { categoryId: movieCategory, query: '인터스텔라', ...overrides };
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retries: 0, retry() { auth.retries++; } };
-  const categories = { data: [{ id: movieCategory, slug: 'movie', label: '콘텐츠 › 영화' }, { id: ramenCategory, slug: 'ramen', label: '먹을 것 › 라면' }], isError: false, refetch: async () => {} };
+  const categories = { data: [
+    { id: movieCategory, parentId: 'content', name: '영화', slug: 'movie', label: '콘텐츠 › 영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: ramenCategory, parentId: 'food', name: '라면', slug: 'ramen', label: '먹을 것 › 라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  ], isError: false, refetch: async () => {} };
+  const categoryCatalog = [
+    { id: 'content', parentId: null, name: '콘텐츠', slug: 'content', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+    { id: 'food', parentId: null, name: '먹을 것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+    ...categories.data,
+  ];
+  const categoryTree = load('lib/categories/categoryTree.ts');
   const local = { data: [], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} };
   const catalog = { data: [movie], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} };
   const pending = [], writes = [], routes = [], queries = [];
@@ -72,8 +81,10 @@ function setup(overrides = {}) {
     '@/components/music-search-link': { MusicSearchLink: 'MusicSearchLink' },
     '@/components/game-search-link': { GameSearchLink: 'GameSearchLink' },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: categoryCatalog }) },
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
+    '@/lib/categories/categoryTree': categoryTree,
     '@/hooks/useItemSearch': { useItemSearch: (...args) => { queries.push(args); return local; } },
     '@/hooks/useMovieCatalog': { useMovieCatalogSearch: () => catalog, useImportMovieCatalogItem: () => mutation },
   });
