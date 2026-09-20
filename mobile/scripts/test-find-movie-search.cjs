@@ -93,7 +93,7 @@ const render = () => {
 let page = render();
 assert.match(page, /상품은 카테고리 선택 없이 검색합니다/);
 assert.equal(itemSearchArgs[0], '', 'Empty product search does not query yet');
-assert.deepEqual(itemSearchArgs[2], ['ramen'], 'Generic registration is scoped to ordinary product categories');
+assert.equal(JSON.stringify(itemSearchArgs[2]), JSON.stringify(['ramen']), 'Generic registration is scoped to ordinary product categories');
 assert.equal(inputs[0].editable, true);
 const movieCategoryButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 › 영화 콘텐츠 종류 선택');
 assert.ok(movieCategoryButton);
