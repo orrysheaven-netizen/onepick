@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -46,15 +46,20 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/item-pick-count': { ItemPickCount: () => null },
-  '@/components/item-search': { ItemSearch: () => null },
+  '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': load('constants/onepick.ts'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
-    { id: 'food', parentId: null, name: '음식', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
-    { id: 'culture', parentId: null, name: '문화', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
-    { id: 'ramen', parentId: 'food', name: '라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
-    { id: 'snacks', parentId: 'food', name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
-    { id: 'movie', parentId: 'culture', name: '영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'food', parentId: null, name: '음식', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+    { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+    { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'snacks', parentId: 'food', name: '과자', slug: 'snacks', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+    { id: 'movie', parentId: 'culture', name: '영화', slug: 'movie', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'drama', parentId: 'culture', name: '드라마', slug: 'drama', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+    { id: 'music', parentId: 'culture', name: '음악', slug: 'music', status: 'open', isVisible: true, isPickable: true, sortOrder: 3 },
+    { id: 'game', parentId: 'culture', name: '게임', slug: 'game', status: 'open', isVisible: true, isPickable: true, sortOrder: 4 },
+    { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
+    { id: 'pokemon', parentId: 'culture', name: '포켓몬', slug: 'pokemon', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
   '@/hooks/useHomeData': { useHomeData: () => query },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
@@ -77,6 +82,12 @@ for (width of [390, 800, 1200]) {
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
   assert.match(page, /전체/); assert.match(page, /음식/); assert.match(page, /문화/);
+  assert.equal(typeof itemSearchProps.onSearchMovie, 'function');
+  assert.equal(typeof itemSearchProps.onSearchDrama, 'function');
+  assert.equal(typeof itemSearchProps.onSearchMusic, 'function');
+  assert.equal(typeof itemSearchProps.onSearchGame, 'function');
+  assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
+  assert.equal(typeof itemSearchProps.onSearchPokemon, 'function');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.ok(page.indexOf('내 원픽 2개 모아보기') < page.indexOf('아직 선택하지 않은 카테고리'));
@@ -87,6 +98,10 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   press('음식 › 과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+  itemSearchProps.onSearchYouTube('최재천의 아마존');
+  assert.equal(destination.pathname, '/pick/youtube');
+  assert.equal(destination.params.categoryId, 'youtube');
+  assert.equal(destination.params.query, '최재천의 아마존');
 }
 
 render(); endReached(); assert.equal(pageCalls, 1);
@@ -143,4 +158,4 @@ assert.match(render(), /사람들의 선택이 모이면/);
 assert.match(render(), /5명 이상/);
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: product counts, latest picker context, product/profile routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: product counts, latest picker context, global external catalog search routes, product/profile routes, empty states, refresh recovery and session privacy.');
