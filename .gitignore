@@ -13,6 +13,9 @@ coverage/
 *.jks
 *.keystore
 service-account*.json
+# Supabase CLI writes this when running the local stack (supabase start).
+supabase/.temp/
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
