@@ -1,4 +1,5 @@
 import type { AuthRepository } from '@/repositories/interfaces/authRepository';
+import type { SocialAuthProvider } from '@/types/domain/auth';
 
 export class AuthService {
   constructor(private readonly authRepository: AuthRepository) {}
@@ -11,8 +12,12 @@ export class AuthService {
     return this.authRepository.subscribe(listener);
   }
 
+  signInWithProvider(provider: SocialAuthProvider, redirectTo: string) {
+    return this.authRepository.signInWithProvider(provider, redirectTo);
+  }
+
   signInWithKakao(redirectTo: string) {
-    return this.authRepository.signInWithKakao(redirectTo);
+    return this.signInWithProvider('kakao', redirectTo);
   }
 
   completeOAuthFromUrl(url: string) {
