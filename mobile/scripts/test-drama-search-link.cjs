@@ -15,7 +15,7 @@ const imports={
 const output={};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/components/drama-search-link.tsx'),'utf8'),{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX},
-}).outputText,{exports:output,require:(name)=>name==='react/jsx-runtime'?require(name):imports[name]});
+}).outputText,{exports:output,require:(name)=>name === '@/constants/onepick' ? require('./design-tokens.cjs') : name==='react/jsx-runtime'?require(name):imports[name]});
 const render=(categoryId,query='  테스트  드라마  ')=>{button=null;return renderToStaticMarkup(React.createElement(output.DramaSearchLink,{categoryId,query}));};
 assert.match(render(),/드라마 DB에서 찾아보기/);button.onPress();assert.equal(route.pathname,'/pick/find');assert.equal(route.params.categoryId,'drama-id');assert.equal(route.params.query,'테스트 드라마');
 assert.match(render('drama-id'),/드라마 DB/);assert.equal(render('ramen-id'),'');assert.equal(render('movie-id'),'');

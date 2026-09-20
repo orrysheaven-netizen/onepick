@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { createCategory, getCategories, updateCategory } from '@/lib/admin-api';
 import type { AdminCategory } from '@/lib/admin-api';
+import { OnePick } from '@/constants/onepick';
 
 const STATUSES: AdminCategory['status'][] = ['draft', 'open', 'paused', 'closed'];
 const STATUS_LABELS: Record<AdminCategory['status'], string> = { draft: '준비', open: '운영', paused: '중지', closed: '종료' };
@@ -232,24 +233,24 @@ const styles = StyleSheet.create({
   addInput: { flexGrow: 1, flexBasis: 210 },
   parentPicker: { marginTop: 14, gap: 8 },
   addButton: { alignSelf: 'flex-start', marginTop: 14 },
-  pathLabel: { marginTop: 4, color: '#4F46E5', fontSize: 11, fontWeight: '700' },
+  pathLabel: { marginTop: 4, color: OnePick.accent, fontSize: 11, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 },
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 28 },
-  categoryRow: { borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  empty: { color: OnePick.hint, fontSize: 13, paddingVertical: 28 },
+  categoryRow: { borderTopWidth: 1, borderTopColor: OnePick.sunken, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   nameArea: { flexGrow: 1, flexBasis: 230, minWidth: 210 },
   nameInput: { width: '100%' },
-  slug: { marginTop: 5, color: '#9CA3AF', fontSize: 11 },
+  slug: { marginTop: 5, color: OnePick.hint, fontSize: 11 },
   statusPicker: { flexDirection: 'row', gap: 6 },
-  statusChoice: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
-  statusChoiceActive: { backgroundColor: '#111827', borderColor: '#111827' },
-  statusChoiceText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
-  statusChoiceTextActive: { color: '#FFFFFF' },
+  statusChoice: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: OnePick.border },
+  statusChoiceActive: { backgroundColor: OnePick.text, borderColor: OnePick.text },
+  statusChoiceText: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
+  statusChoiceTextActive: { color: OnePick.onAccent },
   toggleWrap: { alignItems: 'center', gap: 5 },
-  smallLabel: { color: '#6B7280', fontSize: 10, fontWeight: '700' },
-  toggle: { width: 38, height: 22, borderRadius: 11, backgroundColor: '#D1D5DB', padding: 3 },
-  toggleOn: { backgroundColor: '#111827' },
-  toggleKnob: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FFFFFF' },
+  smallLabel: { color: OnePick.muted, fontSize: 10, fontWeight: '700' },
+  toggle: { width: 38, height: 22, borderRadius: 11, backgroundColor: OnePick.border, padding: 3 },
+  toggleOn: { backgroundColor: OnePick.text },
+  toggleKnob: { width: 16, height: 16, borderRadius: 8, backgroundColor: OnePick.surface },
   toggleKnobOn: { marginLeft: 16 },
   orderArea: { alignItems: 'center', gap: 4 },
   orderInput: { width: 68, textAlign: 'center' },

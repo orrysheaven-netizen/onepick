@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { AppError } from '@/errors/appError';
 import { useSafetyActions } from '@/hooks/useSafety';
+import { OnePick } from '@/constants/onepick';
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
@@ -54,7 +55,7 @@ export function BlockUserButton({
           onPress={() => void handlePress()}
           style={({ pressed }) => [styles.button, confirming && styles.dangerButton, pressed && styles.pressed]}>
           {blockUser.isPending ? (
-            <ActivityIndicator size="small" color={confirming ? '#FFFFFF' : undefined} />
+            <ActivityIndicator size="small" color={confirming ? OnePick.surface : undefined} />
           ) : (
             <Text style={[styles.buttonText, confirming && styles.dangerText]}>{confirming ? '차단 확인' : '차단'}</Text>
           )}
@@ -71,14 +72,14 @@ export function BlockUserButton({
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'stretch' },
-  confirm: { color: '#7A4B3F', fontSize: 12, lineHeight: 17, marginBottom: 8 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 16, marginBottom: 8 },
+  confirm: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 8 },
-  button: { minHeight: 40, minWidth: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#DDD5CD', paddingHorizontal: 12 },
-  dangerButton: { backgroundColor: '#A9482D', borderColor: '#A9482D' },
-  buttonText: { color: '#747985', fontSize: 12, fontWeight: '800' },
-  dangerText: { color: '#FFFFFF' },
+  button: { minHeight: 40, minWidth: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, paddingHorizontal: 12 },
+  dangerButton: { backgroundColor: OnePick.danger, borderColor: OnePick.danger },
+  buttonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  dangerText: { color: OnePick.onAccent },
   cancelButton: { minHeight: 40, justifyContent: 'center', borderRadius: 12, paddingHorizontal: 12 },
-  cancelText: { color: '#747985', fontSize: 12, fontWeight: '700' },
+  cancelText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   pressed: { opacity: 0.65 },
 });

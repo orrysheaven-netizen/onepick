@@ -14,6 +14,7 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
+import { OnePick } from '@/constants/onepick';
 
 function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -223,7 +224,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                     </Pressable>
                     <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void attachPhoto()}
                       style={({ pressed }) => [styles.photoPrimaryButton, photoBusy && styles.disabled, pressed && styles.pressed]}>
-                      {photoAttachment.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
+                      {photoAttachment.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
                     </Pressable>
                   </View>
                   <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.photoConsent}>
@@ -233,7 +234,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               ) : (
                 <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void choosePhoto()}
                   style={({ pressed }) => [styles.photoPrimaryButton, styles.photoChooseButton, pressed && styles.pressed]}>
-                  {photoPicker.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>사진 선택</Text>}
+                  {photoPicker.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.photoPrimaryText}>사진 선택</Text>}
                 </Pressable>
               )}
               {photoPicker.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoPicker.error)}</Text> : null}
@@ -291,41 +292,41 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  heroCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 26, padding: 28, marginTop: 8 },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  heroCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 26, padding: 28, marginTop: 8 },
   creditLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  creditText: { color: '#747985', fontSize: 12, lineHeight: 18 },
-  photoContribution: { width: '100%', borderWidth: 1, borderColor: '#DDDDF5', backgroundColor: '#F7F7FF', borderRadius: 18, padding: 16, marginTop: 18 },
-  photoContributionTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  photoContributionHint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: '#FFFFFF', marginTop: 14 },
-  photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
+  creditText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
+  photoContribution: { width: '100%', borderWidth: 1, borderColor: OnePick.accentSoft, backgroundColor: OnePick.accentSoft, borderRadius: 18, padding: 16, marginTop: 18 },
+  photoContributionTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  photoContributionHint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: OnePick.surface, marginTop: 14 },
+  photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: OnePick.surface, borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
   photoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
+  photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
   photoChooseButton: { marginTop: 14 },
-  photoPrimaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  photoSecondaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4D6DD', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
-  photoSecondaryText: { color: '#202124', fontSize: 13, fontWeight: '800' },
-  photoError: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 10 },
-  category: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
-  itemName: { color: '#202124', fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
-  itemMeta: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
-  primaryButton: { width: '100%', minHeight: 50, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  photoPrimaryText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  photoSecondaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
+  photoSecondaryText: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  photoError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
+  category: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
+  itemName: { color: OnePick.text, fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
+  itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
+  primaryButton: { width: '100%', minHeight: 50, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 30, marginBottom: 12 },
-  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
-  sectionHint: { color: '#747985', fontSize: 12 },
-  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
-  emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  sectionTitle: { color: OnePick.text, fontSize: 18, fontWeight: '800' },
+  sectionHint: { color: OnePick.muted, fontSize: 12 },
+  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24 },
+  emptyTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   centerState: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  stateTitle: { color: '#202124', fontSize: 20, fontWeight: '800' },
-  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
-  secondaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  stateTitle: { color: OnePick.text, fontSize: 20, fontWeight: '800' },
+  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  secondaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 17 },
+  secondaryButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.4 },
 });

@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { adminStyles } from '@/components/admin/admin-shell';
 import { getAuditLogs, getClientErrorEvents } from '@/lib/admin-api';
 import type { AdminAuditLog, AdminClientErrorEvent } from '@/lib/admin-api';
+import { OnePick } from '@/constants/onepick';
 
 const LOG_PAGE_SIZE = 100;
 
@@ -145,15 +146,15 @@ const styles = StyleSheet.create({
   page: { gap: 20 },
   header: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
+  empty: { color: OnePick.hint, fontSize: 13, paddingVertical: 24 },
   loadMore: { marginTop: 12, alignSelf: 'center' },
-  logRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0F1F3' },
-  actionBadge: { minWidth: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5 },
-  actionText: { color: '#4B5563', fontSize: 11, fontWeight: '700' },
+  logRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: OnePick.sunken },
+  actionBadge: { minWidth: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.sunken, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5 },
+  actionText: { color: OnePick.muted, fontSize: 11, fontWeight: '700' },
   logBody: { flex: 1, minWidth: 0 },
-  logTitle: { color: '#111827', fontSize: 14, fontWeight: '700', marginBottom: 5 },
-  date: { color: '#9CA3AF', fontSize: 11 },
-  errorSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingVertical: 10 },
-  errorCode: { color: '#111827', fontSize: 13, fontWeight: '700' },
-  errorCount: { color: '#4945ED', fontSize: 11, fontWeight: '800', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  logTitle: { color: OnePick.text, fontSize: 14, fontWeight: '700', marginBottom: 5 },
+  date: { color: OnePick.hint, fontSize: 11 },
+  errorSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: OnePick.sunken, paddingVertical: 10 },
+  errorCode: { color: OnePick.text, fontSize: 13, fontWeight: '700' },
+  errorCount: { color: OnePick.accent, fontSize: 11, fontWeight: '800', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
 });

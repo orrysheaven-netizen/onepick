@@ -5,6 +5,7 @@ import { ProfilePickCard } from '@/components/profile-pick-card';
 import { buildProfilePickGroups, defaultCollapsedProfilePickGroups } from '@/lib/profile/profilePickGroups';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
+import { OnePick } from '@/constants/onepick';
 
 type Props = {
   picks: PickReadItem[];
@@ -99,8 +100,8 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
 const styles = StyleSheet.create({
   container: { gap: 10 },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 1 },
-  toolbarText: { color: '#89909C', fontSize: 10, fontWeight: '700' },
-  toolbarAction: { color: '#4945ED', fontSize: 11, fontWeight: '900' },
+  toolbarText: { color: OnePick.hint, fontSize: 10, fontWeight: '700' },
+  toolbarAction: { color: OnePick.accent, fontSize: 11, fontWeight: '900' },
   group: { gap: 8 },
   groupHeader: {
     minHeight: 42,
@@ -108,15 +109,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 14,
-    backgroundColor: '#ECEEF3',
+    backgroundColor: OnePick.sunken,
     paddingHorizontal: 13,
     paddingVertical: 9,
   },
   groupTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  groupName: { flexShrink: 1, color: '#202124', fontSize: 13, fontWeight: '900' },
-  countPill: { borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 7, paddingVertical: 2 },
-  countText: { color: '#747985', fontSize: 9, fontWeight: '800' },
-  groupChevron: { color: '#89909C', fontSize: 16, lineHeight: 18, marginLeft: 8 },
+  groupName: { flexShrink: 1, color: OnePick.text, fontSize: 13, fontWeight: '900' },
+  countPill: { borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 7, paddingVertical: 2 },
+  countText: { color: OnePick.muted, fontSize: 9, fontWeight: '800' },
+  groupChevron: { color: OnePick.hint, fontSize: 16, lineHeight: 18, marginLeft: 8 },
   groupBody: { paddingLeft: 6 },
   pressed: { opacity: 0.68 },
 });

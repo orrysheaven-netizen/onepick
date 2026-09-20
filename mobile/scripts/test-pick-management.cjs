@@ -19,6 +19,7 @@ function loadSource(relativePath, imports = {}) {
   vm.runInNewContext(result.outputText, {
     exports,
     require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];

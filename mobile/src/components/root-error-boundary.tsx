@@ -2,6 +2,7 @@ import React, { type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { observabilityService } from '@/services';
+import { OnePick } from '@/constants/onepick';
 
 interface Props {
   children: ReactNode;
@@ -54,14 +55,14 @@ export class RootErrorBoundary extends React.Component<Props, State> {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F6F8', paddingHorizontal: 28 },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
-  title: { color: '#202124', fontSize: 22, lineHeight: 30, fontWeight: '900', textAlign: 'center', marginTop: 12 },
-  description: { maxWidth: 460, color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
-  button: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, marginTop: 22 },
-  buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.background, paddingHorizontal: 28 },
+  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  title: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '900', textAlign: 'center', marginTop: 12 },
+  description: { maxWidth: 460, color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
+  button: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, marginTop: 22 },
+  buttonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
-  debugBox: { maxWidth: 640, maxHeight: 260, width: '100%', marginTop: 24, borderWidth: 1, borderColor: '#DEE0E6', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  debugBox: { maxWidth: 640, maxHeight: 260, width: '100%', marginTop: 24, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, backgroundColor: OnePick.surface },
   debugBoxContent: { padding: 12 },
-  debugText: { color: '#4B4F58', fontSize: 11, lineHeight: 16, fontFamily: 'monospace' },
+  debugText: { color: OnePick.muted, fontSize: 11, lineHeight: 16, fontFamily: 'monospace' },
 });

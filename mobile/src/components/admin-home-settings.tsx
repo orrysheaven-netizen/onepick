@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAdminHomeSettings, useUpdateAdminHomeSettings } from '@/hooks/useAdminHomeSettings';
+import { OnePick } from '@/constants/onepick';
 
 export function AdminHomeSettings({ userId }: { userId?: string }) {
   const query = useAdminHomeSettings(userId);
@@ -49,13 +50,13 @@ export function AdminHomeSettings({ userId }: { userId?: string }) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginVertical: 12, gap: 12 },
-  heading: { color: '#202124', fontSize: 18, fontWeight: '700' },
-  hint: { color: '#747985', fontSize: 13, lineHeight: 20 },
-  label: { color: '#202124', fontSize: 14, fontWeight: '600' },
-  input: { minHeight: 46, borderWidth: 1, borderColor: '#D4D7DE', borderRadius: 12, paddingHorizontal: 14, fontSize: 16, color: '#202124' },
-  button: { minHeight: 44, justifyContent: 'center', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: '#EFEEFF' },
-  buttonText: { color: '#4945ED', fontSize: 14, fontWeight: '700' },
-  message: { color: '#5F6470', fontSize: 13, lineHeight: 20 },
+  card: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, padding: 18, marginVertical: 12, gap: 12 },
+  heading: { color: OnePick.text, fontSize: 18, fontWeight: '700' },
+  hint: { color: OnePick.muted, fontSize: 13, lineHeight: 20 },
+  label: { color: OnePick.text, fontSize: 14, fontWeight: '600' },
+  input: { minHeight: 46, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 14, fontSize: 16, color: OnePick.text },
+  button: { minHeight: 44, justifyContent: 'center', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: OnePick.accentSoft },
+  buttonText: { color: OnePick.accent, fontSize: 14, fontWeight: '700' },
+  message: { color: OnePick.muted, fontSize: 13, lineHeight: 20 },
   disabled: { opacity: 0.5 },
 });

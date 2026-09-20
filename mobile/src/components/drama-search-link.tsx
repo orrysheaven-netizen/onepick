@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { OnePick } from '@/constants/onepick';
 
 /** Loaded only for an empty local result; never adds a preflight to item searches. */
 export function DramaSearchLink({ query, categoryId }: { query: string; categoryId?: string }) {
@@ -15,7 +16,7 @@ export function DramaSearchLink({ query, categoryId }: { query: string; category
     style={({ pressed }) => [styles.button, pressed && styles.pressed]}><Text style={styles.label}>드라마 DB에서 찾아보기</Text></Pressable>;
 }
 const styles = StyleSheet.create({
-  button: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: '#EFEEFF', paddingHorizontal: 15, marginTop: 12 },
-  label: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
+  button: { minHeight: 44, justifyContent: 'center', borderRadius: 14, backgroundColor: OnePick.accentSoft, paddingHorizontal: 15, marginTop: 12 },
+  label: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.7 },
 });

@@ -14,6 +14,7 @@ function loadSource(relativePath, imports = {}) {
   vm.runInNewContext(result.outputText, {
     exports,
     require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);

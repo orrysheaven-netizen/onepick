@@ -11,6 +11,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
+import { OnePick } from '@/constants/onepick';
 
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -166,7 +167,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
-            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor="#89909C" style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
+            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {choosePick.isError ? <View style={styles.errorBox}>
@@ -183,7 +184,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Pressable accessibilityRole="button" accessibilityLabel={submitLabel} accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
             disabled={choosePick.isPending} onPress={() => void handleSubmit()}
             style={({ pressed }) => [styles.primaryButton, choosePick.isPending && styles.primaryButtonDisabled, pressed && !choosePick.isPending && styles.pressed]}>
-            {choosePick.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
+            {choosePick.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
           </Pressable>
         </> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
@@ -223,48 +224,48 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
-  title: { color: '#202124', fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
-  subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 10 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14, marginTop: 26 },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
+  title: { color: OnePick.text, fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 10 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 14, marginTop: 26 },
   itemCopy: { flex: 1, paddingLeft: 16 },
-  itemLabel: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
-  itemName: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 6 },
-  itemState: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  itemLabel: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
+  itemName: { color: OnePick.text, fontSize: 19, fontWeight: '800', marginTop: 6 },
+  itemState: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 10 },
-  inputLabel: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  required: { color: '#A9482D', fontSize: 12, fontWeight: '600' },
-  counter: { color: '#747985', fontSize: 12 },
-  reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 15, color: '#202124', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
-  reviewInputError: { borderWidth: 1, borderColor: '#A9482D' },
-  reviewError: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 8 },
-  helperText: { color: '#747985', fontSize: 12, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
+  inputLabel: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  required: { color: OnePick.danger, fontSize: 12, fontWeight: '600' },
+  counter: { color: OnePick.muted, fontSize: 12 },
+  reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: OnePick.surface, paddingHorizontal: 16, paddingVertical: 15, color: OnePick.text, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  reviewInputError: { borderWidth: 1, borderColor: OnePick.danger },
+  reviewError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
+  helperText: { color: OnePick.muted, fontSize: 12, marginTop: 8 },
+  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
   loginButton: { alignSelf: 'stretch' },
   primaryButtonDisabled: { opacity: 0.4 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  secondaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 20 },
-  secondaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 15, fontWeight: '800' },
+  secondaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 20 },
+  secondaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
   textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 6 },
-  textButtonText: { color: '#747985', fontSize: 13, fontWeight: '700' },
-  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 26, marginTop: 34 },
-  stateTitle: { color: '#202124', fontSize: 19, fontWeight: '800', marginTop: 14 },
-  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
-  errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
+  textButtonText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 26, marginTop: 34 },
+  stateTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', marginTop: 14 },
+  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
+  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18 },
   successCard: { alignItems: 'center', paddingTop: 58 },
-  successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#EFEEFF', alignItems: 'center', justifyContent: 'center' },
-  successIconText: { color: '#4945ED', fontSize: 34, fontWeight: '900' },
-  successItem: { color: '#202124', fontSize: 18, fontWeight: '800', marginTop: 24 },
-  savedReview: { color: '#5F6470', fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
+  successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: OnePick.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  successIconText: { color: OnePick.accent, fontSize: 34, fontWeight: '900' },
+  successItem: { color: OnePick.text, fontSize: 18, fontWeight: '800', marginTop: 24 },
+  savedReview: { color: OnePick.muted, fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
   successPhoto: { marginTop: 16 },
   successActions: { alignSelf: 'stretch', width: '100%' },
-  photoOffer: { alignSelf: 'stretch', borderRadius: 18, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', padding: 18, marginTop: 20 },
-  offerTitle: { color: '#202124', fontSize: 15, lineHeight: 23, fontWeight: '800' },
-  offerText: { color: '#747985', fontSize: 12, lineHeight: 19, marginTop: 8 },
+  photoOffer: { alignSelf: 'stretch', borderRadius: 18, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 18, marginTop: 20 },
+  offerTitle: { color: OnePick.text, fontSize: 15, lineHeight: 23, fontWeight: '800' },
+  offerText: { color: OnePick.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
   pressed: { opacity: 0.7 },
 });
