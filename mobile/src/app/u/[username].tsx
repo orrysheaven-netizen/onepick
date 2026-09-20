@@ -11,6 +11,7 @@ import { ProfileTasteComposition } from '@/components/profile-taste-composition'
 import { ReportAction } from '@/components/report-action';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
+import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { isDemoUsername } from '@/lib/demoProfile';
 
@@ -19,9 +20,11 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
+  const categoryOptions = useRegistrationCategories();
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
+  const categoryLabels = new Map((categoryOptions.data ?? []).map((category) => [category.id, category.label ?? category.name]));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -70,7 +73,7 @@ export default function PublicProfileScreen() {
               <View style={styles.pickCopy}>
                 <Pressable accessibilityRole="button" accessibilityLabel="원픽 상세 보기"
                   onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })} style={({ pressed }) => pressed && styles.pressed}>
-                  <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
+                  <Text style={styles.pickCategory}>{categoryLabels.get(item.pick.categoryId) ?? item.category?.name ?? '카테고리'}</Text>
                   <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
                   <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text><Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
                 </Pressable>
