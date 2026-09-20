@@ -63,7 +63,7 @@ assert.deepEqual(Array.from(filters.filterHomeShowcaseItems(items, null), (item)
 const home = read('src/app/(tabs)/index.tsx');
 assert.match(home, /buildHomeCategoryFilters/);
 assert.match(home, /filterHomeShowcaseItems/);
-assert.match(home, /accessibilityState=\{\{ selected \}\}/);
+assert.match(home, /<Chip key=\{group\.id\} label=\{group\.name\} selected=\{selected\}/, 'Category filters are kit Chips, which expose accessibilityState.selected');
 assert.match(home, /전체 카테고리 보기/);
 assert.match(home, /다음 원픽 더 불러오기/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
