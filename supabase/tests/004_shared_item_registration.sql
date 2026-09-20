@@ -49,7 +49,7 @@ select throws_ok($$select public.submit_item((select id from public.categories w
 select set_config('request.jwt.claim.sub','66666666-6666-6666-6666-666666666666',true);
 select is((select count(*)::int from public.items where id=(select item_id from shared_state)),0,'another user cannot read pending request');
 select throws_ok(
-  $select public.submit_item((select category_id from shared_state),'테스트라면 매운맛 컵라면')$,
+  $sql$select public.submit_item((select category_id from shared_state),'테스트라면 매운맛 컵라면')$sql$,
   'P0001','ITEM_ALREADY_PENDING',
   'another user cannot create a duplicate pending request'
 );
