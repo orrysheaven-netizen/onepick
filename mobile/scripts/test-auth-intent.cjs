@@ -31,6 +31,7 @@ async function main() {
   const choose = { action: 'choose_pick', itemId: ids[0], categoryId: ids[1] };
   const chooseMovie = { action: 'choose_movie', externalId: '157336', categoryId: ids[1] };
   const chooseGame = { action: 'choose_game', externalGameId: '1942', categoryId: ids[1] };
+  const chooseBook = { action: 'choose_book', externalBookId: 'abc_DEF-123', categoryId: ids[1] };
   const chooseYouTube = { action: 'choose_youtube', externalYouTubeId: 'UC1234567890123456789012', categoryId: ids[1] };
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
@@ -43,6 +44,8 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseMovie, externalId: '../../bad' })), '/');
   same(getPostAuthRoute(getAuthIntent(chooseGame)), { pathname: '/pick/game', params: { categoryId: ids[1], externalGameId: '1942' } });
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseGame, externalGameId: 'bad' })), '/');
+  same(getPostAuthRoute(getAuthIntent(chooseBook)), { pathname: '/pick/book', params: { categoryId: ids[1], externalBookId: 'abc_DEF-123' } });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseBook, externalBookId: 'bad/id' })), '/');
   same(getPostAuthRoute(getAuthIntent(chooseYouTube)), { pathname: '/pick/youtube', params: { categoryId: ids[1], externalYouTubeId: 'UC1234567890123456789012' } });
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseYouTube, externalYouTubeId: 'bad' })), '/');
   same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
@@ -64,7 +67,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseYouTube, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
