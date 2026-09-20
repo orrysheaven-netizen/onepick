@@ -86,7 +86,7 @@ export default function ExploreScreen() {
             accessibilityRole="button" accessibilityLabel={`${category.name} 1차 카테고리`}
             accessibilityState={{ selected: parentId === category.id }} onPress={() => { setParentId(category.id); setChildId(undefined); }}
             style={[styles.parentCard, parentId === category.id && styles.parentActive]}>
-            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{leafLabel(category)}</Text>
+            <Text style={[styles.parentName, parentId === category.id && styles.parentNameActive]}>{category.name}</Text>
             <Text style={styles.parentHint}>{directlySelectable ? '원픽 둘러보기' : children.length ? `${children.length}개 카테고리` : '준비 중'}</Text>
             <Text style={styles.parentArrow}>↗</Text>
           </Pressable>)}
@@ -97,7 +97,7 @@ export default function ExploreScreen() {
           <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
             accessibilityLabel={`${leafLabel(category)} 선택 가능한 카테고리`} accessibilityState={{ selected: childId === category.id }}
             onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
-            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{category.name}</Text>
+            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{leafLabel(category)}</Text>
           </Pressable>)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>세부 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
