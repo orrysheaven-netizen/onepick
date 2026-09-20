@@ -9,6 +9,7 @@ import {
   movieCatalogRepository,
   musicCatalogRepository,
   gameCatalogRepository,
+  bookCatalogRepository,
   youtubeCatalogRepository,
   pokemonCatalogRepository,
   profileRepository,
@@ -29,6 +30,7 @@ import { ItemService } from './itemService';
 import { MovieCatalogService } from './movieCatalogService';
 import { MusicCatalogService } from './musicCatalogService';
 import { GameCatalogService } from './gameCatalogService';
+import { BookCatalogService } from './bookCatalogService';
 import { YouTubeCatalogService } from './youtubeCatalogService';
 import { PokemonCatalogService } from './pokemonCatalogService';
 import { ProfileService } from './profileService';
@@ -71,6 +73,7 @@ export const itemService = new ItemService(
 export const movieCatalogService = new MovieCatalogService(movieCatalogRepository);
 export const musicCatalogService = new MusicCatalogService(musicCatalogRepository);
 export const gameCatalogService = new GameCatalogService(gameCatalogRepository);
+export const bookCatalogService = new BookCatalogService(bookCatalogRepository);
 export const youtubeCatalogService = new YouTubeCatalogService(youtubeCatalogRepository);
 export const pokemonCatalogService = new PokemonCatalogService(pokemonCatalogRepository);
 export const profileService = new ProfileService(
@@ -90,6 +93,7 @@ export {
   MovieCatalogService,
   MusicCatalogService,
   GameCatalogService,
+  BookCatalogService,
   YouTubeCatalogService,
   PokemonCatalogService,
   ProfileService,
