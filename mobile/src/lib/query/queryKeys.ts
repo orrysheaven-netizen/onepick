@@ -55,7 +55,7 @@ export const queryKeys = {
   },
   profileTaste: {
     all: ['profile-taste'] as const,
-    composition: (profileId: string) => ['profile-taste', 'composition', profileId] as const,
+    composition: (profileId: string, viewerId?: string) => ['profile-taste', 'composition', profileId, viewerId ?? 'public'] as const,
   },
   safety: {
     all: ['safety'] as const,
