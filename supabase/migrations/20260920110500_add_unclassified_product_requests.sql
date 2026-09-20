@@ -156,7 +156,7 @@ returns public.items
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_item public.items%rowtype;
   v_category public.categories%rowtype;
