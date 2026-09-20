@@ -186,7 +186,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       return;
     }
     if (!canChoose) return;
-    router.push({ pathname: '/pick/register', params: { itemId: item.id, categoryId: item.categoryId } });
+    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId } });
   };
 
   return (
