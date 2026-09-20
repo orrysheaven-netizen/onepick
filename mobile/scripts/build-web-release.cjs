@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { isIP } = require('node:net');
+const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
 // Offline configuration checks only: validity/revocation of a key and OAuth
@@ -51,6 +52,16 @@ function loadReleaseEnv(root, systemEnv = process.env) {
   return systemEnv;
 }
 
+function writeDeploymentMetadata(dist, env) {
+  const metadata = {
+    commitSha: env.CF_PAGES_COMMIT_SHA?.trim() || null,
+    branch: env.CF_PAGES_BRANCH?.trim() || null,
+    deploymentUrl: env.CF_PAGES_URL?.trim() || null,
+  };
+  fs.writeFileSync(path.join(dist, 'deployment.json'), `${JSON.stringify(metadata, null, 2)}\n`);
+  return metadata;
+}
+
 function main() {
   const args = process.argv.slice(2);
   if (args.length && (args.length !== 1 || args[0] !== '--check')) {
@@ -70,11 +81,12 @@ function main() {
   }
   // Keep real settings separate from the CI fixture output in dist/.
   run([require.resolve('expo/bin/cli'), 'export', '--platform', 'web', '--output-dir', 'dist-release']);
+  writeDeploymentMetadata(path.join(root, 'dist-release'), env);
   run([path.join(__dirname, 'check-web-export.cjs'), 'dist-release']);
   console.log('Verified release output: mobile/dist-release. Hosting and actual login verification are still required.');
 }
 
-module.exports = { validateReleaseEnv, loadReleaseEnv };
+module.exports = { validateReleaseEnv, loadReleaseEnv, writeDeploymentMetadata };
 if (require.main === module) {
   try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
