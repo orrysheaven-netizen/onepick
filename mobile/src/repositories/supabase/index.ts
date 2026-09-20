@@ -10,6 +10,7 @@ import { SupabaseItemRepository } from './supabaseItemRepository';
 import { SupabaseMovieCatalogRepository } from './supabaseMovieCatalogRepository';
 import { SupabaseMusicCatalogRepository } from './supabaseMusicCatalogRepository';
 import { SupabaseGameCatalogRepository } from './supabaseGameCatalogRepository';
+import { SupabaseBookCatalogRepository } from './supabaseBookCatalogRepository';
 import { SupabaseYouTubeCatalogRepository } from './supabaseYouTubeCatalogRepository';
 import { SupabasePokemonCatalogRepository } from './supabasePokemonCatalogRepository';
 import { SupabaseProfileRepository } from './supabaseProfileRepository';
@@ -26,6 +27,7 @@ export const itemRepository = new SupabaseItemRepository(supabase);
 export const movieCatalogRepository = new SupabaseMovieCatalogRepository(supabase);
 export const musicCatalogRepository = new SupabaseMusicCatalogRepository(supabase);
 export const gameCatalogRepository = new SupabaseGameCatalogRepository(supabase);
+export const bookCatalogRepository = new SupabaseBookCatalogRepository(supabase);
 export const youtubeCatalogRepository = new SupabaseYouTubeCatalogRepository(supabase);
 export const pokemonCatalogRepository = new SupabasePokemonCatalogRepository(supabase);
 export const pickRepository = new SupabasePickRepository(supabase);
@@ -45,6 +47,7 @@ export {
   SupabaseMovieCatalogRepository,
   SupabaseMusicCatalogRepository,
   SupabaseGameCatalogRepository,
+  SupabaseBookCatalogRepository,
   SupabaseYouTubeCatalogRepository,
   SupabasePokemonCatalogRepository,
   SupabaseProfileRepository,
