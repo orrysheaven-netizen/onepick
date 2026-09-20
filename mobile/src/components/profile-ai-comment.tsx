@@ -2,7 +2,15 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useProfileAiComment } from '@/hooks/useProfileAi';
 
-export function ProfileAiComment({ profileId, showPrivate = false }: { profileId: string; showPrivate?: boolean }) {
+export function ProfileAiComment({
+  profileId,
+  showPrivate = false,
+  sectionTitle,
+}: {
+  profileId: string;
+  showPrivate?: boolean;
+  sectionTitle?: string;
+}) {
   const query = useProfileAiComment(profileId);
 
   if (query.isPending) {
@@ -12,7 +20,9 @@ export function ProfileAiComment({ profileId, showPrivate = false }: { profileId
   if (!showPrivate && !query.data.isVisible) return null;
 
   const comment = query.data;
-  return <View style={styles.card}>
+  return <>
+    {sectionTitle ? <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{sectionTitle}</Text></View> : null}
+    <View style={styles.card}>
     <View style={styles.header}>
       <View style={styles.avatar}><Text style={styles.avatarText}>AI</Text></View>
       <View style={styles.headerCopy}>
@@ -30,10 +40,13 @@ export function ProfileAiComment({ profileId, showPrivate = false }: { profileId
       <View key={keyword} style={styles.keyword}><Text style={styles.keywordText}>#{keyword}</Text></View>)}
     </View>
     {comment.isStale ? <Text style={styles.stale}>최근 원픽 변화는 다음 AI 평가 때 반영됩니다.</Text> : null}
-  </View>;
+    </View>
+  </>;
 }
 
 const styles = StyleSheet.create({
+  sectionHeading: { marginBottom: 12 },
+  sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
   card: { borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 18 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   loadingText: { color: '#747985', fontSize: 12 },
