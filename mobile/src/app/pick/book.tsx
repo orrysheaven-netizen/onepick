@@ -15,6 +15,7 @@ type Params = {
   categoryId?: string | string[];
   externalBookId?: string | string[];
   query?: string | string[];
+  author?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -41,7 +42,7 @@ function bookErrorMessage(error: unknown) {
 export default function BookPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null]);
   return <BookPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -49,15 +50,18 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const router = useRouter();
   const { user, isLoading: sessionLoading, error: sessionError, retry: retrySession } = auth;
   const authReady = !sessionLoading && !sessionError;
-  const [searchText, setSearchText] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
+  const [titleText, setTitleText] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
+  const [authorText, setAuthorText] = useState(() => (scalar(params.author) ?? '').slice(0, 100));
   const [selection, setSelection] = useState<Selection | null>(null);
   const categories = useRegistrationCategories();
   const category = !categories.isError ? categories.data?.find((entry) =>
     entry.slug === 'book' && (!scalar(params.categoryId) || entry.id === scalar(params.categoryId))) : undefined;
 
-  const cleanQuery = normalize(searchText);
-  const local = useItemSearch(authReady && category ? cleanQuery : '', category?.id);
-  const catalog = useBookCatalogSearch(searchText, Boolean(authReady && category));
+  const cleanTitle = normalize(titleText);
+  const cleanAuthor = normalize(authorText);
+  const localQuery = [cleanTitle, cleanAuthor].filter(Boolean).join(' ');
+  const local = useItemSearch(authReady && category ? localQuery : '', category?.id);
+  const catalog = useBookCatalogSearch(titleText, authorText, Boolean(authReady && category));
   const importBook = useImportBookCatalogItem();
   const localItems = authReady && category && !local.isWaiting && !local.isError
     ? (local.data ?? []).filter((item) => item.categoryId === category.id)
@@ -168,8 +172,8 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.kicker}>YOUR BOOK ONE PICK</Text>
       <Text style={styles.title}>나의 책 원픽 찾기</Text>
-      <Text style={styles.subtitle}>책 제목, 저자명 또는 ISBN으로 찾고 가장 좋아하는 책 하나를 골라보세요.</Text>
-      <Text style={styles.notice}>같은 작품이라도 번역·출판사·판형에 따라 Google Books의 별도 도서로 표시될 수 있어요. 제목과 저자, 출판사 정보를 함께 확인해주세요.</Text>
+      <Text style={styles.subtitle}>책 제목을 입력하고, 필요하면 작가 이름을 함께 넣어 가장 정확한 판본을 찾아보세요.</Text>
+      <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있습니다.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요</Text>
@@ -178,14 +182,21 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
       {params.externalBookId !== undefined && !validReturn ? <Text accessibilityRole="alert" style={styles.errorText}>도서 선택 링크를 확인해주세요. 다시 검색할 수 있어요.</Text> : null}
 
-      <Text style={styles.label}>책 검색</Text>
-      <TextInput autoFocus accessibilityLabel="원픽 도서 검색" autoCapitalize="none" autoCorrect={false}
-        editable={Boolean(category) && !importing} maxLength={100} value={searchText}
-        onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-        placeholder="예: 아리랑" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
-      {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
+      <Text style={styles.label}>책 제목</Text>
+      <TextInput autoFocus accessibilityLabel="원픽 책 제목 검색" autoCapitalize="none" autoCorrect={false}
+        editable={Boolean(category) && !importing} maxLength={100} value={titleText}
+        onChangeText={(value) => { if (!busy.current) { setTitleText(value); setSelection(null); } }}
+        placeholder="예: 아리랑" placeholderTextColor="#89909C" returnKeyType="next" style={styles.input} />
+      {cleanTitle.length === 1 ? <Text style={styles.stateText}>책 제목은 두 글자 이상 입력해주세요.</Text> : null}
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 책과 Google Books를 함께 찾고 있어요</Text></View> : null}
+      <Text style={styles.authorLabel}>작가 이름 <Text style={styles.optional}>(선택)</Text></Text>
+      <TextInput accessibilityLabel="원픽 책 작가 검색" autoCapitalize="none" autoCorrect={false}
+        editable={Boolean(category) && !importing} maxLength={100} value={authorText}
+        onChangeText={(value) => { if (!busy.current) { setAuthorText(value); setSelection(null); } }}
+        placeholder="예: 조정래" placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} />
+      <Text style={styles.helperText}>작가를 알고 있다면 함께 입력하면 더 정확한 결과를 찾을 수 있어요.</Text>
+
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{cleanAuthor ? '책 제목과 작가 이름으로 찾고 있어요' : '책 제목으로 찾고 있어요'}</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 책 검색을 불러오지 못했어요</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
@@ -211,7 +222,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <Pressable onPress={() => loginForBook(externalId!)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>로그인하고 책 선택 계속</Text></Pressable>
       </View> : null}
 
-      {cleanQuery && localItems.map((item) => <View key={item.id} style={styles.itemCard}>
+      {cleanTitle && localItems.map((item) => <View key={item.id} style={styles.itemCard}>
         <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name}
           itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
@@ -240,7 +251,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요</Text>
-        <Text style={styles.stateText}>제목, 저자명 또는 ISBN을 바꿔서 검색해보세요.</Text></View> : null}
+        <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요.</Text></View> : null}
 
       <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인합니다.</Text>
     </ScrollView>
@@ -257,6 +268,9 @@ const styles = StyleSheet.create({
   subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: '#5F6470', fontSize: 12, lineHeight: 18, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, marginTop: 14 },
   label: { color: '#202124', fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
+  authorLabel: { color: '#202124', fontSize: 13, fontWeight: '800', marginTop: 13, marginBottom: 7 },
+  optional: { color: '#89909C', fontWeight: '600' },
+  helperText: { color: '#89909C', fontSize: 11, lineHeight: 16, marginTop: 7 },
   input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
   loading: { marginTop: 18 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },

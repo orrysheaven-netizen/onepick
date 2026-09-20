@@ -54,9 +54,9 @@ function isEntry(value: unknown): value is BookCatalogEntry {
 export class SupabaseBookCatalogRepository implements BookCatalogRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  async search(query: string, signal?: AbortSignal) {
+  async search(title: string, author?: string, signal?: AbortSignal) {
     const { data, error } = await this.client.functions.invoke('book-catalog', {
-      body: { action: 'search', query },
+      body: { action: 'search', query: title, ...(author ? { author } : {}) },
       signal,
     });
     if (error) throw await functionError(error);
