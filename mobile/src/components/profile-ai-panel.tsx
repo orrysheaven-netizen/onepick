@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { useGenerateProfileAi, useProfileAiComment, useProfileAiStatus, useSetProfileAiVisibility } from '@/hooks/useProfileAi';
 import type { ProfileAiStatus } from '@/services/profileAiService';
+import { OnePick } from '@/constants/onepick';
 
 // The cooldown is at most 24h, so day-granularity would read as "약 1일" for
 // anything from 1 minute to 24 hours remaining. Hours stay meaningful throughout.
@@ -115,23 +116,23 @@ export function ProfileAiPanel({
 const styles = StyleSheet.create({
   section: { marginTop: 6, marginBottom: 18 },
   headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 10 },
-  eyebrow: { color: '#4945ED', fontSize: 10, fontWeight: '900', letterSpacing: 1.6 },
-  title: { color: '#202124', fontSize: 19, fontWeight: '900', marginTop: 4 },
-  concept: { color: '#747985', fontSize: 11, textAlign: 'right' },
-  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 },
-  bridgeBadge: { color: '#4945ED', fontSize: 10, fontWeight: '900', paddingTop: 1 },
-  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 16 },
-  progressCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 10 },
-  progressText: { color: '#202124', fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  track: { height: 7, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 12 },
-  fill: { height: '100%', backgroundColor: '#4945ED', borderRadius: 999 },
-  helper: { color: '#747985', fontSize: 11, lineHeight: 17, marginTop: 8 },
-  primaryButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  visibilityButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECEEF3', borderRadius: 14, marginTop: -6 },
-  visibilityText: { color: '#5F6470', fontSize: 12, fontWeight: '800' },
+  eyebrow: { color: OnePick.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.6 },
+  title: { color: OnePick.text, fontSize: 19, fontWeight: '900', marginTop: 4 },
+  concept: { color: OnePick.muted, fontSize: 11, textAlign: 'right' },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: OnePick.hairline, paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 },
+  bridgeBadge: { color: OnePick.accent, fontSize: 10, fontWeight: '900', paddingTop: 1 },
+  bridgeText: { flex: 1, color: OnePick.muted, fontSize: 11, lineHeight: 16 },
+  progressCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 16, marginBottom: 10 },
+  progressText: { color: OnePick.text, fontSize: 13, lineHeight: 20, fontWeight: '700' },
+  track: { height: 7, borderRadius: 999, backgroundColor: OnePick.sunken, overflow: 'hidden', marginTop: 12 },
+  fill: { height: '100%', backgroundColor: OnePick.accent, borderRadius: 999 },
+  helper: { color: OnePick.muted, fontSize: 11, lineHeight: 17, marginTop: 8 },
+  primaryButton: { minHeight: 46, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '900' },
+  visibilityButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.sunken, borderRadius: 14, marginTop: -6 },
+  visibilityText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
-  previewNote: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
-  error: { color: '#A9482D', fontSize: 11, lineHeight: 17, marginTop: 10 },
+  previewNote: { color: OnePick.hint, fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
+  error: { color: OnePick.danger, fontSize: 11, lineHeight: 17, marginTop: 10 },
 });

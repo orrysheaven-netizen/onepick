@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
+import { OnePick } from '@/constants/onepick';
 
 export default function TermsScreen() {
   const router = useRouter();
@@ -31,14 +32,14 @@ export default function TermsScreen() {
 }
 
 const styles=StyleSheet.create({
-  safe:{flex:1,backgroundColor:'#F5F6F8'},
+  safe:{flex:1,backgroundColor:OnePick.background},
   content:{width:'100%',maxWidth:680,alignSelf:'center',padding:22,paddingBottom:50},
-  back:{fontSize:36,color:'#202124'},
-  kicker:{color:'#4945ED',fontSize:12,fontWeight:'800',letterSpacing:2,marginTop:12},
-  title:{fontSize:27,fontWeight:'900',color:'#202124',marginTop:8},
-  note:{fontSize:12,lineHeight:19,color:'#9D3E2C',marginTop:10},
-  card:{backgroundColor:'#FFFFFF',borderRadius:18,padding:18,marginTop:14,borderWidth:1,borderColor:'#E3E5EA'},
-  heading:{fontSize:16,fontWeight:'800',color:'#202124'},
-  body:{fontSize:12,lineHeight:20,color:'#625A53',marginTop:8},
-  link:{color:'#4945ED',fontSize:13,fontWeight:'700',marginTop:12},
+  back:{fontSize:36,color:OnePick.text},
+  kicker:{color:OnePick.accent,fontSize:12,fontWeight:'800',letterSpacing:2,marginTop:12},
+  title:{fontSize:27,fontWeight:'900',color:OnePick.text,marginTop:8},
+  note:{fontSize:12,lineHeight:19,color:OnePick.danger,marginTop:10},
+  card:{backgroundColor:OnePick.surface,borderRadius:18,padding:18,marginTop:14,borderWidth:1,borderColor:OnePick.border},
+  heading:{fontSize:16,fontWeight:'800',color:OnePick.text},
+  body:{fontSize:12,lineHeight:20,color:OnePick.muted,marginTop:8},
+  link:{color:OnePick.accent,fontSize:13,fontWeight:'700',marginTop:12},
 });

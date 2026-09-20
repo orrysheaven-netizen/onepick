@@ -4,6 +4,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChangeSocialLink, useSocialLinks } from '@/hooks/useSocialLinks';
 import { normalizeSocialLink, SOCIAL_PLATFORMS, SocialLinkValidationError } from '@/lib/socialLinks';
 import type { SocialLink, SocialPlatform } from '@/lib/socialLinks';
+import { OnePick } from '@/constants/onepick';
 
 type Props = { profileUserId: string; editable?: boolean };
 
@@ -131,27 +132,27 @@ function SocialLinksContent({ profileUserId, viewerId, editable }: Props & { vie
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, padding: 16, marginBottom: 18 },
+  card: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginBottom: 18 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  title: { fontSize: 15, fontWeight: '800', color: '#202124' },
+  title: { fontSize: 15, fontWeight: '800', color: OnePick.text },
   manage: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignSelf: 'flex-start' },
-  action: { color: '#4945ED', fontSize: 13, fontWeight: '700' },
-  hint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  action: { color: OnePick.accent, fontSize: 13, fontWeight: '700' },
+  hint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  chip: { minHeight: 44, backgroundColor: '#F5F6F8', borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center' },
-  chipText: { color: '#202124', fontSize: 12, fontWeight: '700' },
+  chip: { minHeight: 44, backgroundColor: OnePick.background, borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center' },
+  chipText: { color: OnePick.text, fontSize: 12, fontWeight: '700' },
   editor: { marginTop: 8 },
-  row: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA', paddingTop: 8, marginTop: 12 },
+  row: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: OnePick.border, paddingTop: 8, marginTop: 12 },
   rowHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rowCopy: { flex: 1 },
-  label: { color: '#202124', fontSize: 13, fontWeight: '700' },
-  url: { color: '#747985', fontSize: 12, marginTop: 4 },
+  label: { color: OnePick.text, fontSize: 13, fontWeight: '700' },
+  url: { color: OnePick.muted, fontSize: 12, marginTop: 4 },
   form: { marginTop: 6 },
-  input: { minHeight: 46, borderWidth: 1, borderColor: '#D9DCE3', borderRadius: 12, paddingHorizontal: 12, color: '#202124', backgroundColor: '#F8F9FB', fontSize: 14 },
+  input: { minHeight: 46, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 12, color: OnePick.text, backgroundColor: OnePick.sunken, fontSize: 14 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 },
-  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: '#4945ED', justifyContent: 'center' },
-  saveText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  remove: { color: '#A9482D', fontSize: 12 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: OnePick.accent, justifyContent: 'center' },
+  saveText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  remove: { color: OnePick.danger, fontSize: 12 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
   disabled: { opacity: 0.5 },
 });

@@ -10,6 +10,7 @@ function load(file, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, setTimeout, clearTimeout, require(name) {
+    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };

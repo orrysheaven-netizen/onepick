@@ -29,12 +29,12 @@ assert.doesNotMatch(owner, /불러온 이전 선택/);
 assert.doesNotMatch(owner, /summaryDivider/);
 assert.doesNotMatch(owner, /refreshButton/);
 assert.match(owner, /refreshAction:/);
-assert.match(owner, /sectionTitle: \{ color: '#202124', fontSize: 19, fontWeight: '900' \}/);
+assert.match(owner, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
 
 assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{query\.data\.currentPicks\.length}개<\/Text>/);
-assert.match(publicProfile, /sectionTitle: \{ color: '#202124', fontSize: 19, fontWeight: '900' \}/);
+assert.match(publicProfile, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
 
-assert.match(aiComment, /sectionTitle: \{ color: '#202124', fontSize: 19, fontWeight: '900' \}/);
+assert.match(aiComment, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
 assert.match(aiComment, /borderRadius: 18, padding: 16, marginBottom: 18/);
 
 console.log('Profile core hierarchy checks passed: header refresh, focused summary, and consistent section hierarchy.');

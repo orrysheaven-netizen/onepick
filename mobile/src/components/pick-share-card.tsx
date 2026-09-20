@@ -8,6 +8,7 @@ import { sharePick } from '@/lib/share/sharePick';
 import { sharePickCardImage } from '@/lib/share/sharePickCard';
 import { isSeedProfileId } from '@/lib/seedProfiles';
 import { observabilityService } from '@/services';
+import { OnePick } from '@/constants/onepick';
 
 interface PickShareCardProps {
   pickId: string;
@@ -100,7 +101,7 @@ export function PickShareCard(props: PickShareCardProps) {
         disabled={isCardSharing || isSharing}
         onPress={() => void handleCardShare()}
         style={({ pressed }) => [styles.cardButton, (isCardSharing || isSharing) && styles.buttonDisabled, pressed && styles.pressed]}>
-        {isCardSharing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>이미지 카드 공유</Text>}
+        {isCardSharing ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>이미지 카드 공유</Text>}
       </Pressable> : null}
 
       {cardSaved ? <Text style={styles.success}>이미지 카드가 저장됐어요. 원하는 앱에서 첨부해 공유할 수 있어요.</Text> : null}
@@ -114,7 +115,7 @@ export function PickShareCard(props: PickShareCardProps) {
         disabled={isSharing || isCardSharing}
         onPress={() => void handleShare()}
         style={({ pressed }) => [styles.linkButton, (isSharing || isCardSharing) && styles.buttonDisabled, pressed && styles.pressed]}>
-        {isSharing ? <ActivityIndicator color="#202124" /> : <Text style={styles.linkButtonText}>링크 공유</Text>}
+        {isSharing ? <ActivityIndicator color={OnePick.text} /> : <Text style={styles.linkButtonText}>링크 공유</Text>}
       </Pressable>
 
       {canReport && user ? (
@@ -128,28 +129,28 @@ export function PickShareCard(props: PickShareCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 20, padding: 18, marginTop: 14 },
-  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
-  title: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 6 },
-  description: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  preview: { borderRadius: 18, backgroundColor: '#F7F7FF', borderWidth: 1, borderColor: '#DDDDF5', padding: 18, marginTop: 16 },
+  card: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 14 },
+  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
+  title: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 6 },
+  description: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  preview: { borderRadius: 18, backgroundColor: OnePick.accentSoft, borderWidth: 1, borderColor: OnePick.accentSoft, padding: 18, marginTop: 16 },
   previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  previewBrand: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 1.7 },
-  previewCategory: { color: '#747985', fontSize: 11, fontWeight: '700', marginTop: 14 },
-  previewItem: { color: '#202124', fontSize: 24, lineHeight: 31, fontWeight: '900', marginTop: 6 },
-  previewDivider: { height: 1, backgroundColor: '#E3E5EA', marginVertical: 16 },
-  previewLabel: { color: '#4945ED', fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  previewReview: { color: '#3E4350', fontSize: 14, lineHeight: 21, marginTop: 8 },
-  previewUser: { color: '#202124', fontSize: 12, fontWeight: '800', marginTop: 16 },
-  link: { color: '#89909C', fontSize: 12, marginTop: 12 },
-  success: { color: '#3D7A55', fontSize: 12, lineHeight: 17, marginTop: 10 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 17, marginTop: 10 },
-  cardButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  linkButton: { minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: '#D4D6DD', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  previewBrand: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7 },
+  previewCategory: { color: OnePick.muted, fontSize: 11, fontWeight: '700', marginTop: 14 },
+  previewItem: { color: OnePick.text, fontSize: 24, lineHeight: 31, fontWeight: '900', marginTop: 6 },
+  previewDivider: { height: 1, backgroundColor: OnePick.border, marginVertical: 16 },
+  previewLabel: { color: OnePick.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  previewReview: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  previewUser: { color: OnePick.text, fontSize: 12, fontWeight: '800', marginTop: 16 },
+  link: { color: OnePick.hint, fontSize: 12, marginTop: 12 },
+  success: { color: OnePick.success, fontSize: 12, lineHeight: 17, marginTop: 10 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 10 },
+  cardButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  linkButton: { minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  linkButtonText: { color: '#202124', fontSize: 13, fontWeight: '800' },
-  safetyRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA', marginTop: 14, paddingTop: 14, gap: 8 },
-  safetyText: { color: '#747985', fontSize: 12 },
+  buttonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  linkButtonText: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  safetyRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: OnePick.border, marginTop: 14, paddingTop: 14, gap: 8 },
+  safetyText: { color: OnePick.muted, fontSize: 12 },
   pressed: { opacity: 0.72 },
 });

@@ -26,7 +26,7 @@ assert.match(profile, /PROFILE TOOLS/);
 assert.match(profile, /ACTIVITY/);
 assert.match(profile, /managementSection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
 assert.match(profile, /activitySection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
-assert.match(profile, /activitySectionTitle: \{ color: '#202124', fontSize: 15, fontWeight: '800' \}/);
+assert.match(profile, /activitySectionTitle: \{ color: OnePick\.text, fontSize: 15, fontWeight: '800' \}/);
 assert.match(profile, /signOutArea: \{ marginTop: 26, paddingTop: 18, borderTopWidth: 1/);
 
 assert.doesNotMatch(profile, /onboardingButton/);

@@ -19,6 +19,6 @@ export function NotificationButton({ userId }: { userId: string }) {
 const styles = StyleSheet.create({
   button: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10 },
   label: { fontSize: 14, fontWeight: '700', color: OnePick.text },
-  badge: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', backgroundColor: OnePick.accent, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  badge: { fontSize: 12, fontWeight: '700', color: OnePick.onAccent, backgroundColor: OnePick.accent, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   error: { color: OnePick.muted, fontSize: 14 },
 });

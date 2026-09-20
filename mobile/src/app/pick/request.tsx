@@ -10,6 +10,7 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import type { PickPhotoDraft } from '@/types/domain/photo';
+import { OnePick } from '@/constants/onepick';
 
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -287,7 +288,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
                 disabled={!selectedSuggestedCategoryId || applyCategory.isPending}
                 onPress={() => void applySelectedCategory()}
                 style={[styles.primaryButton, (!selectedSuggestedCategoryId || applyCategory.isPending) && styles.disabled]}>
-                {applyCategory.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>이 카테고리 적용</Text>}
+                {applyCategory.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.primaryButtonText}>이 카테고리 적용</Text>}
               </Pressable>
             </View>
           ) : null}
@@ -320,7 +321,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           maxLength={100}
           onChangeText={setName}
           placeholder="제품명"
-          placeholderTextColor="#89909C"
+          placeholderTextColor={OnePick.hint}
           style={styles.input}
           value={name}
         />
@@ -390,7 +391,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           disabled={!canSubmit}
           onPress={() => void submit()}
           style={[styles.primaryButton, !canSubmit && styles.disabled]}>
-          {registration.isPending ? <ActivityIndicator color="#FFFFFF" /> : (
+          {registration.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : (
             <Text style={styles.primaryButtonText}>{auth.user ? '제품 등록 요청 보내기' : '로그인하고 요청하기'}</Text>
           )}
         </Pressable>
@@ -400,55 +401,55 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
   center: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },
-  back: { color: '#202124', fontSize: 36, lineHeight: 42 },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 16 },
-  title: { color: '#202124', fontSize: 26, lineHeight: 34, fontWeight: '900', marginTop: 8 },
-  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  label: { color: '#202124', fontSize: 15, fontWeight: '800', marginTop: 25, marginBottom: 9 },
-  input: { minHeight: 52, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 16, paddingHorizontal: 15, color: '#202124', fontSize: 15 },
-  selectedCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', marginBottom: 9 },
+  back: { color: OnePick.text, fontSize: 36, lineHeight: 42 },
+  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 16 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '900', marginTop: 8 },
+  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
+  label: { color: OnePick.text, fontSize: 15, fontWeight: '800', marginTop: 25, marginBottom: 9 },
+  input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, paddingHorizontal: 15, color: OnePick.text, fontSize: 15 },
+  selectedCategory: { color: OnePick.accent, fontSize: 12, fontWeight: '800', marginBottom: 9 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: '#ECEEF3', paddingHorizontal: 14, paddingVertical: 10 },
-  chipActive: { backgroundColor: '#4945ED' },
-  chipText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#FFFFFF' },
-  helper: { color: '#747985', fontSize: 12, lineHeight: 17, marginTop: 10 },
-  notice: { backgroundColor: '#ECEEF3', borderRadius: 14, padding: 13, marginTop: 18 },
-  noticeText: { color: '#5F6470', fontSize: 12, lineHeight: 17 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 14 },
+  chip: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.sunken, paddingHorizontal: 14, paddingVertical: 10 },
+  chipActive: { backgroundColor: OnePick.accent },
+  chipText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: OnePick.onAccent },
+  helper: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 10 },
+  notice: { backgroundColor: OnePick.sunken, borderRadius: 14, padding: 13, marginTop: 18 },
+  noticeText: { color: OnePick.muted, fontSize: 12, lineHeight: 17 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 14 },
   retryButton: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4 },
   homeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, marginTop: 8 },
-  retryText: { color: '#4945ED', fontSize: 13, fontWeight: '800' },
-  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
-  requestedName: { color: '#202124', fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
-  requestedNameLeft: { color: '#202124', fontSize: 19, fontWeight: '900', marginTop: 16 },
-  appliedCategory: { color: '#4945ED', fontSize: 14, fontWeight: '900', marginTop: 12, textAlign: 'center' },
-  stateTitle: { color: '#202124', fontSize: 21, fontWeight: '900', marginTop: 10, textAlign: 'center' },
-  stateTitleSmall: { color: '#202124', fontSize: 16, fontWeight: '900' },
-  stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  retryText: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
+  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '900' },
+  requestedName: { color: OnePick.text, fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
+  requestedNameLeft: { color: OnePick.text, fontSize: 19, fontWeight: '900', marginTop: 16 },
+  appliedCategory: { color: OnePick.accent, fontSize: 14, fontWeight: '900', marginTop: 12, textAlign: 'center' },
+  stateTitle: { color: OnePick.text, fontSize: 21, fontWeight: '900', marginTop: 10, textAlign: 'center' },
+  stateTitleSmall: { color: OnePick.text, fontSize: 16, fontWeight: '900' },
+  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   disabled: { opacity: 0.4 },
-  photoCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginTop: 24 },
-  photoTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  photoButton: { minHeight: 48, justifyContent: 'center', borderRadius: 12, backgroundColor: '#EFEEFF', padding: 14, marginTop: 14 },
-  photoPreview: { width: '100%', height: 220, backgroundColor: '#F5F6F8', borderRadius: 14, marginTop: 12 },
+  photoCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, padding: 18, marginTop: 24 },
+  photoTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  photoButton: { minHeight: 48, justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accentSoft, padding: 14, marginTop: 14 },
+  photoPreview: { width: '100%', height: 220, backgroundColor: OnePick.background, borderRadius: 14, marginTop: 12 },
   photoLoading: { alignItems: 'center', paddingVertical: 10 },
   suggestionState: { alignItems: 'center', paddingVertical: 28 },
-  suggestionCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginTop: 22 },
-  suggestionTitle: { color: '#202124', fontSize: 15, fontWeight: '900', marginBottom: 4 },
-  suggestionOption: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 15, padding: 14, marginTop: 10 },
-  suggestionOptionSelected: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
-  suggestionLabel: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  suggestionLabelSelected: { color: '#4945ED' },
-  suggestionReason: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  categoryGapNotice: { color: '#747985', backgroundColor: '#F5F6F8', borderRadius: 12, padding: 12, fontSize: 12, lineHeight: 18, marginTop: 13 },
+  suggestionCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, padding: 18, marginTop: 22 },
+  suggestionTitle: { color: OnePick.text, fontSize: 15, fontWeight: '900', marginBottom: 4 },
+  suggestionOption: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 15, padding: 14, marginTop: 10 },
+  suggestionOptionSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
+  suggestionLabel: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
+  suggestionLabelSelected: { color: OnePick.accent },
+  suggestionReason: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  categoryGapNotice: { color: OnePick.muted, backgroundColor: OnePick.background, borderRadius: 12, padding: 12, fontSize: 12, lineHeight: 18, marginTop: 13 },
   manualCategoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  manualCategory: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
-  manualCategorySelected: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
-  manualCategoryText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
+  manualCategory: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
+  manualCategorySelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
+  manualCategoryText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   linkInput: { marginTop: 10 },
 });

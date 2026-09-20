@@ -13,6 +13,7 @@ function load(file, imports = {}) {
   }).outputText, {
     exports,
     require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
       if (name === 'react') return React;
       if (name === 'react/jsx-runtime') return require(name);

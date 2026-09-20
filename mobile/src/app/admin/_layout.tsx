@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdminShell, adminStyles } from '@/components/admin/admin-shell';
 import { beginKakaoAdminSignIn, checkAdminSession, signOutAdmin } from '@/lib/admin-api';
+import { OnePick } from '@/constants/onepick';
 
 type AuthState = 'checking' | 'signedOut' | 'needsMfa' | 'signedIn';
 
@@ -102,16 +103,16 @@ export default function AdminLayout() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FB', padding: 24 },
-  checkingText: { marginTop: 12, color: '#6B7280', fontSize: 13 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.sunken, padding: 24 },
+  checkingText: { marginTop: 12, color: OnePick.muted, fontSize: 13 },
   messageCard: { width: '100%', maxWidth: 520 },
-  loginPage: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FB', padding: 24 },
-  loginCard: { width: '100%', maxWidth: 420, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 28 },
-  logo: { color: '#111827', fontSize: 25, fontWeight: '900', letterSpacing: -1 },
-  adminLabel: { marginTop: 3, color: '#9CA3AF', fontSize: 10, fontWeight: '800', letterSpacing: 2.4 },
-  loginTitle: { marginTop: 34, color: '#111827', fontSize: 23, fontWeight: '800' },
-  loginDescription: { marginTop: 8, marginBottom: 24, color: '#6B7280', fontSize: 13, lineHeight: 20 },
-  kakaoButton: { minHeight: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEE500', paddingHorizontal: 16 },
-  kakaoButtonText: { color: '#191919', fontSize: 14, fontWeight: '700' },
-  loginHint: { marginTop: 14, color: '#9CA3AF', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  loginPage: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.sunken, padding: 24 },
+  loginCard: { width: '100%', maxWidth: 420, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 14, padding: 28 },
+  logo: { color: OnePick.text, fontSize: 25, fontWeight: '900', letterSpacing: -1 },
+  adminLabel: { marginTop: 3, color: OnePick.hint, fontSize: 10, fontWeight: '800', letterSpacing: 2.4 },
+  loginTitle: { marginTop: 34, color: OnePick.text, fontSize: 23, fontWeight: '800' },
+  loginDescription: { marginTop: 8, marginBottom: 24, color: OnePick.muted, fontSize: 13, lineHeight: 20 },
+  kakaoButton: { minHeight: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.kakao, paddingHorizontal: 16 },
+  kakaoButtonText: { color: OnePick.kakaoText, fontSize: 14, fontWeight: '700' },
+  loginHint: { marginTop: 14, color: OnePick.hint, fontSize: 11, lineHeight: 17, textAlign: 'center' },
 });

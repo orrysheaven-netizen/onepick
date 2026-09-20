@@ -6,6 +6,7 @@ const moduleExports={};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/components/music-search-link.tsx'),'utf8'),{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}
 }).outputText,{exports:moduleExports,require:(name)=>{
+  if (name === '@/constants/onepick') return require('./design-tokens.cjs');
   if(name==='react/jsx-runtime')return require(name);
   if(name==='expo-router')return{useRouter:()=>({push:(r)=>{route=r;}})};
   if(name==='react-native')return{Pressable:(p)=>React.createElement('button',{onClick:p.onPress},p.children),Text:({children})=>React.createElement('span',null,children),StyleSheet:{create:x=>x}};

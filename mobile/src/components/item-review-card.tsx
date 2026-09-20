@@ -7,6 +7,7 @@ import { PickShareCard } from '@/components/pick-share-card';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
+import { OnePick } from '@/constants/onepick';
 
 export function ItemReviewCard({ pick, profile, categoryName, itemName, focused, highlighted, onRemoved }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
@@ -65,22 +66,22 @@ function ReplyThread({ pickId, open }: { pickId: string; open: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 12 },
-  mine: { backgroundColor: '#F1F0FF', borderColor: '#B9B5F5' },
-  highlight: { borderColor: '#4945ED', borderWidth: 2, backgroundColor: '#EEEDFF' },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginBottom: 12 },
+  mine: { backgroundColor: OnePick.accentSoft, borderColor: OnePick.accentSoft },
+  highlight: { borderColor: OnePick.accent, borderWidth: 2, backgroundColor: OnePick.accentSoft },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#252B38', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: OnePick.onAccent, fontSize: 16, fontWeight: '800' },
   author: { flex: 1 },
-  badge: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
-  username: { color: '#202124', fontSize: 13, fontWeight: '700' },
+  badge: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
+  username: { color: OnePick.text, fontSize: 13, fontWeight: '700' },
   profileLink: { minHeight: 44, justifyContent: 'center' },
-  review: { color: '#3E4350', fontSize: 16, lineHeight: 25, marginVertical: 12 },
+  review: { color: OnePick.muted, fontSize: 16, lineHeight: 25, marginVertical: 12 },
   myReview: { fontWeight: '700' },
-  history: { color: '#747985', fontSize: 12, lineHeight: 18 },
+  history: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   action: { minHeight: 44, justifyContent: 'center' },
-  actionText: { color: '#4945ED', fontSize: 13, fontWeight: '700' },
-  secondary: { color: '#747985', fontSize: 12 },
+  actionText: { color: OnePick.accent, fontSize: 13, fontWeight: '700' },
+  secondary: { color: OnePick.muted, fontSize: 12 },
 });
 

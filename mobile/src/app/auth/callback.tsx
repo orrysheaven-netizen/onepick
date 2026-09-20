@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCompleteOAuth } from '@/hooks/useCompleteOAuth';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
+import { OnePick } from '@/constants/onepick';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -67,10 +68,10 @@ export default function AuthCallbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  title: { color: '#202124', fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' },
-  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  retryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#202124', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
-  retryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  title: { color: OnePick.text, fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' },
+  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
+  retryButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  retryText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
 });
