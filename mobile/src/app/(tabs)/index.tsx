@@ -70,6 +70,12 @@ export default function HomeScreen() {
   const categoriesQuery = useExploreCategories(Boolean(data));
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
+  const movieCategory = categoryCatalog.find((category) => category.slug === 'movie');
+  const dramaCategory = categoryCatalog.find((category) => category.slug === 'drama');
+  const musicCategory = categoryCatalog.find((category) => category.slug === 'music');
+  const gameCategory = categoryCatalog.find((category) => category.slug === 'game');
+  const youtubeCategory = categoryCatalog.find((category) => category.slug === 'youtube');
+  const pokemonCategory = categoryCatalog.find((category) => category.slug === 'pokemon');
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
   const selectedCategoryGroup = categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null;
   const visibleFeaturedItems = useMemo(
@@ -120,7 +126,20 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
         </View>
 
-        <ItemSearch compact onSelect={openItem} />
+        <ItemSearch compact
+          onSearchMovie={movieCategory
+            ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+          onSearchDrama={dramaCategory
+            ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
+          onSearchMusic={musicCategory
+            ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
+          onSearchGame={gameCategory
+            ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+          onSearchYouTube={youtubeCategory
+            ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
+          onSearchPokemon={pokemonCategory
+            ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
+          onSelect={openItem} />
 
         <View style={styles.intro}>
           <View style={styles.introCopy}>
