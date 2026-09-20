@@ -28,7 +28,9 @@ export function useItemSearch(searchText: string, categoryId?: string, categoryI
   const isWaiting = hasSearchText && normalizedQuery !== settledQuery && !fresh;
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => itemService.search(normalizedQuery, categoryId, signal, categoryIds),
+    queryFn: ({ signal }) => categoryIds === undefined
+      ? itemService.search(normalizedQuery, categoryId, signal)
+      : itemService.search(normalizedQuery, undefined, signal, categoryIds),
     enabled: hasSearchText && !isWaiting && (categoryIds === undefined || categoryIds.length > 0),
     staleTime: FRESH_RESULT_MS,
   });
