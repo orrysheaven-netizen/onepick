@@ -103,7 +103,7 @@ export default function ProfileScreen() {
   const historyQuery = useMyPickHistory(listUserId);
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
-  const categoriesQuery = useExploreCategories();
+  const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
