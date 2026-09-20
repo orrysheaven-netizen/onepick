@@ -100,10 +100,12 @@ export function buildRecordingQuery(title: string, artist: string) {
 }
 
 type Remote = { data: Record<string, unknown>; error?: never } | { error: Response; data?: never };
+/** A definitive Cover Art Archive answer, or null when the lookup could not complete. */
+export type CoverLookup = { url: string | null } | null;
 type Dependencies = {
   client: () => SupabaseClient | null;
   fetchMusicBrainz: (url: URL) => Promise<Remote>;
-  fetchCoverArt: (releaseGroupId: string) => Promise<string | null>;
+  fetchCoverArt: (releaseGroupId: string) => Promise<CoverLookup>;
   readCache: (client: SupabaseClient, key: string, maxAgeMs: number) => Promise<unknown | null>;
   writeCache: (client: SupabaseClient, key: string, payload: unknown) => Promise<void>;
   waitForProvider: (client: SupabaseClient) => Promise<boolean>;
@@ -127,7 +129,8 @@ async function catalogCategory(client: SupabaseClient) {
 
 // Cover Art Archive answers 404 for most release groups, so only URLs confirmed by
 // fetchCoverArt are ever sent to clients. Misses are re-checked daily because
-// covers keep being added; hits are stable for much longer.
+// covers keep being added; hits are stable for much longer. Lookups that did not
+// complete (timeout, 5xx) are never cached so the next search retries them.
 const COVER_HIT_MS = 30 * 24 * 60 * 60_000;
 const COVER_MISS_MS = 24 * 60 * 60_000;
 
@@ -135,7 +138,8 @@ export function createMusicCatalogHandler(deps: Dependencies) {
   const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, json } = deps;
 
   async function verifiedCover(client: SupabaseClient, releaseGroupId: string) {
-    const cacheKey = `cover:\n${releaseGroupId}`;
+    // Namespace v2: v1 entries cached timeouts as misses and must not be reused.
+    const cacheKey = `cover:v2\n${releaseGroupId}`;
     const cached = await readCache(client, cacheKey, COVER_HIT_MS);
     if (cached && typeof cached === 'object' && 'url' in cached) {
       const row = cached as { url: unknown; fetchedAt?: unknown };
@@ -143,9 +147,10 @@ export function createMusicCatalogHandler(deps: Dependencies) {
       const age = typeof row.fetchedAt === 'string' ? Date.now() - Date.parse(row.fetchedAt) : Number.NaN;
       if (Number.isFinite(age) && age >= 0 && age < COVER_MISS_MS) return null;
     }
-    const url = await fetchCoverArt(releaseGroupId);
-    await writeCache(client, cacheKey, { url, fetchedAt: new Date().toISOString() });
-    return url;
+    const lookup = await fetchCoverArt(releaseGroupId);
+    if (!lookup) return null;
+    await writeCache(client, cacheKey, { url: lookup.url, fetchedAt: new Date().toISOString() });
+    return lookup.url;
   }
 
   async function verifiedCovers(client: SupabaseClient, releaseGroupIds: Array<string | null>) {

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { createMusicCatalogHandler } from './musicCatalog.ts';
+import { createMusicCatalogHandler, type CoverLookup } from './musicCatalog.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,23 +80,33 @@ function allowedCover(url: string) {
   } catch { return false; }
 }
 
-async function fetchCoverArt(releaseGroupId: string) {
+// Resolves to { url } when Cover Art Archive gave a definitive answer (a front
+// image, or none at all) and to null when it could not be reached in time, so
+// callers can cache only real answers. The archive redirects twice to slow
+// storage hosts, hence the generous timeout.
+async function fetchCoverArt(releaseGroupId: string): Promise<CoverLookup> {
   try {
     const response = await fetch(`https://coverartarchive.org/release-group/${releaseGroupId}`, {
       headers: { Accept: 'application/json', 'User-Agent': userAgent },
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(8_000),
     });
-    if (response.status === 404) return null;
-    if (!response.ok) return null;
+    if (response.status === 404) return { url: null };
+    if (!response.ok) {
+      console.error('Cover Art Archive request failed', response.status);
+      return null;
+    }
     const data = await response.json() as { images?: unknown[] };
-    if (!Array.isArray(data.images)) return null;
+    if (!Array.isArray(data.images)) return { url: null };
     const rows = data.images.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object');
     const front = rows.find((row) => row.front === true && row.approved !== false) ?? rows.find((row) => row.front === true);
-    if (!front) return null;
+    if (!front) return { url: null };
     const thumbs = front.thumbnails && typeof front.thumbnails === 'object' ? front.thumbnails as Record<string, unknown> : {};
     const candidate = [thumbs['500'], thumbs['250'], front.image].find((value) => typeof value === 'string') as string | undefined;
-    return candidate && allowedCover(candidate) ? candidate : null;
-  } catch { return null; }
+    return { url: candidate && allowedCover(candidate) ? candidate : null };
+  } catch (error) {
+    console.error('Cover Art Archive request error', error instanceof Error ? error.message : 'unknown');
+    return null;
+  }
 }
 
 const handler = createMusicCatalogHandler({
