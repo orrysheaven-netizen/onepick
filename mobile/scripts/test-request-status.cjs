@@ -13,6 +13,7 @@ function load(file, imports = {}) {
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
     if (name === '@/components/profile-ai-panel') return { ProfileAiPanel: () => null };
+    if (name === '@/components/profile-taste-composition') return { ProfileTasteComposition: () => null };
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
   } });
@@ -146,7 +147,7 @@ async function main() {
     const data = query.data; query.data = undefined; query.hasNextPage = false;
     assert.match(render(), new RegExp(`${label}을 불러오지 못했어요`));
     await control().onPress(); assert.equal(refetchCalls, 2);
-    assert.match(render(), /지금의 원픽/, 'A failed list must not take down the profile');
+    assert.match(render(), /카테고리별 원픽/, 'A failed list must not take down the profile');
     query.isPending = true; query.isError = false;
     render(); assert.equal(control(), undefined, 'The pending list must not offer a misleading retry');
     query.isPending = false; query.data = data;
