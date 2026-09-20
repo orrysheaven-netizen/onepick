@@ -87,7 +87,15 @@ function retryAfterMs(response: Response, attempt: number) {
 
 async function fetchGoogleBooks(url: URL, client: SupabaseClient) {
   const key = Deno.env.get('GOOGLE_BOOKS_API_KEY')?.trim();
-  if (key) url.searchParams.set('key', key);
+  if (!key) {
+    await writeDiagnostic(client, {
+      stage: 'google_books',
+      outcome: 'missing_api_key',
+      authenticated: false,
+    });
+    return { error: json({ error: 'CATALOG_NOT_CONFIGURED' }, 503) } as const;
+  }
+  url.searchParams.set('key', key);
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
