@@ -58,12 +58,6 @@ function releaseCandidate(value: unknown) {
   return releases[0];
 }
 
-export function coverCandidate(releaseGroupId: string | null) {
-  return releaseGroupId && MBID.test(releaseGroupId)
-    ? `https://coverartarchive.org/release-group/${releaseGroupId}/front-500`
-    : null;
-}
-
 export function mapMusicBrainzRecording(value: unknown): MusicEntry | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -81,7 +75,7 @@ export function mapMusicBrainzRecording(value: unknown): MusicEntry | null {
     releaseTitle: release?.title ?? null,
     releaseGroupId: release?.id ?? null,
     releaseYear: year(row['first-release-date']) ?? year(release?.date),
-    coverArtUrl: coverCandidate(release?.id ?? null),
+    coverArtUrl: null,
     disambiguation: clean(row.disambiguation, 120) || null,
     existingItemId: null,
   };
@@ -131,8 +125,35 @@ async function catalogCategory(client: SupabaseClient) {
   return category;
 }
 
+// Cover Art Archive answers 404 for most release groups, so only URLs confirmed by
+// fetchCoverArt are ever sent to clients. Misses are re-checked daily because
+// covers keep being added; hits are stable for much longer.
+const COVER_HIT_MS = 30 * 24 * 60 * 60_000;
+const COVER_MISS_MS = 24 * 60 * 60_000;
+
 export function createMusicCatalogHandler(deps: Dependencies) {
   const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, json } = deps;
+
+  async function verifiedCover(client: SupabaseClient, releaseGroupId: string) {
+    const cacheKey = `cover:\n${releaseGroupId}`;
+    const cached = await readCache(client, cacheKey, COVER_HIT_MS);
+    if (cached && typeof cached === 'object' && 'url' in cached) {
+      const row = cached as { url: unknown; fetchedAt?: unknown };
+      if (typeof row.url === 'string') return row.url;
+      const age = typeof row.fetchedAt === 'string' ? Date.now() - Date.parse(row.fetchedAt) : Number.NaN;
+      if (Number.isFinite(age) && age >= 0 && age < COVER_MISS_MS) return null;
+    }
+    const url = await fetchCoverArt(releaseGroupId);
+    await writeCache(client, cacheKey, { url, fetchedAt: new Date().toISOString() });
+    return url;
+  }
+
+  async function verifiedCovers(client: SupabaseClient, releaseGroupIds: Array<string | null>) {
+    const unique = [...new Set(releaseGroupIds.filter((id): id is string => Boolean(id)))];
+    const entries = await Promise.all(unique.map(async (id) => [id, await verifiedCover(client, id)] as const));
+    return new Map(entries);
+  }
+
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
     if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
     const title = clean(body.title, 1000);
@@ -181,12 +202,19 @@ export function createMusicCatalogHandler(deps: Dependencies) {
         await writeCache(client, cacheKey, source.slice(0, 40));
       }
       if (!recordings.length) return json({ recordings: [] });
-      const known = await client.from('items').select('id,external_id')
-        .eq('category_id', category.id).eq('external_source', MUSICBRAINZ_SOURCE)
-        .in('external_id', recordings.map((entry) => entry.externalId)).in('status', ['active', 'discontinued']);
+      const [known, covers] = await Promise.all([
+        client.from('items').select('id,external_id')
+          .eq('category_id', category.id).eq('external_source', MUSICBRAINZ_SOURCE)
+          .in('external_id', recordings.map((entry) => entry.externalId)).in('status', ['active', 'discontinued']),
+        verifiedCovers(client, recordings.map((entry) => entry.releaseGroupId)),
+      ]);
       if (known.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       const ids = new Map((known.data ?? []).map((item) => [item.external_id, item.id]));
-      return json({ recordings: recordings.map((entry) => ({ ...entry, existingItemId: ids.get(entry.externalId) ?? null })) });
+      return json({ recordings: recordings.map((entry) => ({
+        ...entry,
+        coverArtUrl: entry.releaseGroupId ? covers.get(entry.releaseGroupId) ?? null : null,
+        existingItemId: ids.get(entry.externalId) ?? null,
+      })) });
     }
 
     const findExisting = () => client.from('items').select('id,category_id,status')
@@ -214,14 +242,14 @@ export function createMusicCatalogHandler(deps: Dependencies) {
     }
     const recording = mapMusicBrainzRecording(raw);
     if (!recording || recording.externalId !== id) return json({ error: 'RECORDING_NOT_FOUND' }, 404);
-    const verifiedCover = recording.releaseGroupId ? await fetchCoverArt(recording.releaseGroupId) : null;
+    const cover = recording.releaseGroupId ? await verifiedCover(client, recording.releaseGroupId) : null;
     const itemName = musicItemName(recording);
     const inserted = await client.from('items').insert({
       category_id: category.id,
       name: itemName,
       normalized_name: normalizeItemName(`${recording.title} ${recording.artistName}`),
       official_url: `https://musicbrainz.org/recording/${id}`,
-      image_source_url: verifiedCover,
+      image_source_url: cover,
       external_source: MUSICBRAINZ_SOURCE,
       external_id: id,
       original_name: recording.title,
