@@ -37,8 +37,7 @@ async function main() {
   const home = await service.getHomeData('me');
   assert.equal(home.currentPicks.length, 2);
   assert.equal(home.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
-  assert.equal(home.categoriesToPick.length, 1);
-  assert.equal(home.categoriesToPick[0].category.id, 'new');
+  assert.equal('categoriesToPick' in home, false, 'Home no longer computes unselected categories');
   assert.equal(home.minimumPickCount, 3);
   assert.equal(home.featuredItems[0].itemId, 'qualified');
   assert.equal(home.featuredItems[0].latestPickerUsername, 'friend');
@@ -63,3 +62,4 @@ async function main() {
   console.log('Home checks passed: qualified public products, no catalog fallback, one aggregate, private collection and configurable empty state.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

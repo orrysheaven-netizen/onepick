@@ -31,7 +31,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
     { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
     { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
-  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자', label: '먹을것 › 쇼핑몰 › 과자' } }], openCategories: [{ id: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면' }], singleCategoryItems: [],
+  ], openCategories: [{ id: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -63,18 +63,16 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /@friend 외 4명이 추천/); assert.match(page, /@owner 외 2명이 추천/); assert.match(page, /MY PICK/);
   assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
-  assert.match(page, /아직 선택하지 않은 카테고리/);
+  assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
-  assert.ok(page.indexOf('아직 선택하지 않은 카테고리') < page.indexOf('사람들이 추천한 원픽'), 'The category picker sits above the pick feed so the first screen offers something to do');
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
-  assert.match(page, /먹을것 › 쇼핑몰 › 과자/);
-  press('먹을것 › 쇼핑몰 › 과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+  assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');
 }
 
 render(); endReached(); assert.equal(pageCalls, 1);
