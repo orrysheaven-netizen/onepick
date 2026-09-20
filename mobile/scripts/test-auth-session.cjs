@@ -112,19 +112,32 @@ async function main() {
   assert.equal(await repository.getCurrentUser(), null);
   await repository.signOut();
   assert.equal(signOutOptions.scope, 'local');
-  assert.equal(await repository.signInWithKakao('onepick://auth/callback'), null);
+  assert.equal(await repository.signInWithProvider('kakao', 'onepick://auth/callback'), null);
   assert.equal(oauthOptions.provider, 'kakao');
   assert.equal(oauthOptions.options.redirectTo, 'onepick://auth/callback');
   assert.equal(oauthOptions.options.queryParams.scope, 'profile_nickname');
   assert.equal(oauthOptions.options.scopes, undefined, 'Additive scopes must not reintroduce email and photos');
   assert.equal(oauthOptions.options.skipBrowserRedirect, true);
-  assert.equal(browserCalls, 1, 'Native OAuth still uses the auth session browser');
+
+  assert.equal(await repository.signInWithProvider('google', 'onepick://auth/callback'), null);
+  assert.equal(oauthOptions.provider, 'google');
+  assert.equal(oauthOptions.options.queryParams, undefined, 'Google scopes come from the configured Supabase provider');
+
+  assert.equal(await repository.signInWithProvider('naver', 'onepick://auth/callback'), null);
+  assert.equal(oauthOptions.provider, 'custom:naver');
+  assert.equal(oauthOptions.options.queryParams, undefined, 'Naver scopes come from the configured custom OIDC provider');
+  assert.equal(browserCalls, 3, 'Native OAuth uses the auth session browser for every provider');
+
+  assert.equal(await repository.signInWithKakao('onepick://auth/callback'), null);
+  assert.equal(oauthOptions.provider, 'kakao', 'Legacy Kakao entry point delegates to the shared provider flow');
+  assert.equal(browserCalls, 4);
+
   platform.OS = 'web';
   const callback = 'https://example.com/auth/callback?action=request_item&itemName=ramen';
   assert.equal(await repository.signInWithKakao(callback), null);
   assert.equal(oauthOptions.options.redirectTo, callback);
   assert.equal(oauthOptions.options.skipBrowserRedirect, false, 'Web lets Supabase navigate in the current tab');
-  assert.equal(browserCalls, 1, 'Web never opens an authentication popup');
+  assert.equal(browserCalls, 4, 'Web never opens an authentication popup');
   const completed = await repository.completeOAuthFromUrl(callback + '#access_token=test-access&refresh_token=test-refresh');
   assert.equal(completed.id, 'signed-in');
   assert.equal(sessionCalls, 1, 'The web callback completes the session');
@@ -132,7 +145,7 @@ async function main() {
   assert.equal(sessionCalls, 1, 'Provider rejection must not establish a session');
   oauthError = { message: 'unavailable' };
   await assert.rejects(() => repository.signInWithKakao(callback), (error) => error.code === 'AUTH_FAILED');
-  assert.equal(browserCalls, 1);
+  assert.equal(browserCalls, 4);
 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['profiles', 'mine', 'owner'], { private: true });
@@ -162,6 +175,6 @@ async function main() {
   });
   const keys = [undefined, 'owner', 'visitor'].map((id) => JSON.stringify(usePublicProfile('Owner', id).queryKey));
   assert.equal(new Set(keys).size, 3);
-  console.log('Auth checks passed: session races, failure/retry, cleanup, local logout, cache clearing and viewer isolation.');
+  console.log('Auth checks passed: session races, Kakao/Google/Naver OAuth routing, failure/retry, local logout, cache clearing and viewer isolation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
