@@ -14,6 +14,7 @@ function load(file, imports = {}) {
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
     if (name === '@/components/profile-ai-comment') return { ProfileAiComment: () => null };
+    if (name === '@/components/profile-taste-composition') return { ProfileTasteComposition: () => null };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected import ${name}`);
   } });
