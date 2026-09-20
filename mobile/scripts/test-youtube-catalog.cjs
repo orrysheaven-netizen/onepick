@@ -228,17 +228,26 @@ async function main() {
   const { SupabaseYouTubeCatalogRepository }=load('mobile/src/repositories/supabase/supabaseYouTubeCatalogRepository.ts',{
     '@/errors/appError':{AppError},
   });
-  const calls=[]; let failure=null;
-  const repo=new SupabaseYouTubeCatalogRepository({functions:{invoke:async(name,options)=>{
-    calls.push(options); assert.equal(name,'youtube-catalog');
-    return { data: options.body.action==='search' ? {channels:[mappedSearch]} :
-      {itemId:'c3333333-3333-4333-8333-333333333333',categoryId:'d4444444-4444-4444-8444-444444444444',created:false}, error:failure };
-  }}});
+  const calls=[]; let failure=null; let sessionToken='user-jwt';
+  const repo=new SupabaseYouTubeCatalogRepository({
+    auth:{getSession:async()=>({data:{session:sessionToken?{access_token:sessionToken}:null},error:null})},
+    functions:{invoke:async(name,options)=>{
+      calls.push(options); assert.equal(name,'youtube-catalog');
+      return { data: options.body.action==='search' ? {channels:[mappedSearch]} :
+        {itemId:'c3333333-3333-4333-8333-333333333333',categoryId:'d4444444-4444-4444-8444-444444444444',created:false}, error:failure };
+    }}
+  });
   const signal=new AbortController().signal;
   assert.equal((await repo.search('테스트 채널',signal))[0].title,'테스트 채널');
   assert.equal(calls[0].signal,signal);
   await repo.importChannel(channelId);
   assert.equal(calls.at(-1).body.externalId,channelId);
+  assert.equal(calls.at(-1).headers.Authorization,'Bearer user-jwt','authenticated imports explicitly forward the user JWT');
+  const callsBeforeMissingSession=calls.length;
+  sessionToken='';
+  await assert.rejects(()=>repo.importChannel(channelId),(error)=>error.code==='AUTH_REQUIRED');
+  assert.equal(calls.length,callsBeforeMissingSession,'missing sessions never invoke the import endpoint');
+  sessionToken='user-jwt';
   failure={context:new Response(JSON.stringify({error:'RATE_LIMITED'}),{status:429})};
   await assert.rejects(()=>repo.search('테스트 채널'),(error)=>error.code==='RATE_LIMITED');
 
