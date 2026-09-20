@@ -71,6 +71,7 @@ async function main() {
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
+    '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
