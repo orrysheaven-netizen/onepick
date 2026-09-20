@@ -54,6 +54,7 @@ const categories = [
   { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을 것 › 라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
   { id: 'movie', parentId: 'content', name: '영화', slug: 'movie', label: '콘텐츠 › 영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
   { id: 'drama', parentId: 'content', name: '드라마', slug: 'drama', label: '콘텐츠 › 드라마', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+  { id: 'youtube', parentId: 'content', name: '유튜브', slug: 'youtube', label: '콘텐츠 › 유튜브', status: 'open', isVisible: true, isPickable: true, sortOrder: 3 },
 ];
 const categoryCatalog = [
   { id: 'food', parentId: null, name: '먹을 것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
@@ -139,4 +140,13 @@ assert.equal(destination.params.action, 'choose_drama'); assert.equal(destinatio
 
 state = []; refs = []; params = { categoryId: 'ramen', query: '라면' };
 render(); assert.equal(movieSearchArgs[1], false, 'Ordinary products do not activate either external media search');
-console.log('Find screen checks passed: category-first search, explicit movie/TV activation and query/login handoff.');
+
+state = []; refs = []; destination = undefined;
+params = { categoryId: 'youtube', query: '최재천의 아마존', onboarding: '1' };
+render();
+assert.equal(destination.pathname, '/pick/youtube', 'YouTube categories must use the dedicated external catalog screen');
+assert.equal(destination.params.categoryId, 'youtube');
+assert.equal(destination.params.query, '최재천의 아마존');
+assert.equal(destination.params.onboarding, '1', 'onboarding state must survive the YouTube handoff');
+
+console.log('Find screen checks passed: category-first search, explicit movie/TV activation, YouTube handoff, and query/login handoff.');
