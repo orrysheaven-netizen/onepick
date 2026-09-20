@@ -65,7 +65,7 @@ export type AdminItem = {
   image_path: string | null;
   thumbnail_path?: string | null;
   image_source_url?: string | null;
-  categories: { name: string; slug: string } | null;
+  categories: { name: string } | null;
 };
 
 export type AdminEditorialFeature = {
@@ -108,7 +108,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
-  categories: { name: string } | null;
+  categories: { name: string; slug: string } | null;
 };
 
 export type AdminReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
