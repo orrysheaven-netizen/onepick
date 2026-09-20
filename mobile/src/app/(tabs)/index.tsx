@@ -4,11 +4,13 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
+import { FollowingPickCard } from '@/components/following-pick-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
+import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeShowcaseItems } from '@/lib/home/homeCategoryFilters';
@@ -79,6 +81,12 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
+  // 전체 / 팔로잉: the second scope only exists for signed-in people and never
+  // changes what the public feed shows.
+  const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
+  const showFollowing = Boolean(user) && feedScope === 'following';
+  const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
+  const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const categoriesQuery = useExploreCategories(Boolean(data));
@@ -117,20 +125,99 @@ export default function HomeScreen() {
     }
   }, [categoryFilters, selectedCategoryGroupId]);
   const refresh = () => {
-    if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
-      void homeQuery.refetch({ cancelRefetch: false });
+    if (isSessionLoading || sessionError) return;
+    if (showFollowing) {
+      if (!followingQuery.isFetching) void followingQuery.refetch({ cancelRefetch: false });
+      return;
     }
+    if (!homeQuery.isFetching) void homeQuery.refetch({ cancelRefetch: false });
   };
+  const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
+  const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
+
+  const listHeader = <>
+    <View style={styles.nativeHeader}>
+      <OnePickBrand />
+      <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
+    </View>
+
+    <ItemSearch compact
+      onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
+      onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+      onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
+      onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
+      onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+      onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
+      onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
+      onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
+      onSelect={openItem} />
+
+    {user ? <View style={styles.scopeRow}>
+      {(['all', 'following'] as const).map((scope) => {
+        const selected = feedScope === scope;
+        return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}
+          accessibilityLabel={scope === 'all' ? '전체 원픽 보기' : '팔로잉 원픽 보기'}
+          onPress={() => setFeedScope(scope)}
+          style={({ pressed }) => [styles.scopeTab, selected && styles.scopeTabSelected, pressed && styles.pressed]}>
+          <Text style={[styles.scopeText, selected && styles.scopeTextSelected]}>{scope === 'all' ? '전체' : '팔로잉'}</Text>
+        </Pressable>;
+      })}
+    </View> : null}
+  </>;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <FlatList
+      {showFollowing ? <FlatList
+        data={followingItems}
+        keyExtractor={(pick) => pick.pickId}
+        renderItem={({ item: pick }) => <View style={styles.productCell}>
+          <FollowingPickCard pick={pick} mine={isMyItem(pick.itemId)}
+            onOpenItem={() => openItem(pick.itemId)}
+            onOpenProfile={() => openProfile(pick.username)}
+            onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })} />
+        </View>}
+        onEndReached={() => {
+          if (followingQuery.hasNextPage && !followingQuery.isFetching && !followingQuery.isFetchNextPageError) {
+            void followingQuery.fetchNextPage({ cancelRefetch: false });
+          }
+        }}
+        onEndReachedThreshold={0.6}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={followingQuery.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}
+        ListHeaderComponent={<>
+          {listHeader}
+          {followingQuery.isPending ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>팔로우한 사람들의 원픽을 불러오고 있어요</Text></View> : null}
+          {followingQuery.isError && !followingQuery.data ? <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>팔로잉 원픽을 불러오지 못했어요</Text>
+            <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 시도해주세요.</Text>
+            <Pressable accessibilityRole="button" disabled={followingQuery.isFetching} onPress={refresh} style={styles.retryButton}><Text style={styles.actionText}>다시 불러오기</Text></Pressable>
+          </View> : null}
+          {followingQuery.data && !followingItems.length ? <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>아직 팔로잉 원픽이 없어요</Text>
+            <Text style={styles.stateText}>프로필에서 팔로우한 사람이 원픽을 고르면 여기에 이유와 함께 보여요. 친구에게 내 프로필을 공유해 원픽으로 초대해보세요.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="전체 원픽 보기" onPress={() => setFeedScope('all')} style={styles.retryButton}><Text style={styles.actionText}>전체 원픽 보기</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="내 프로필 공유하러 가기" onPress={() => router.push('/profile')} style={styles.retryButton}><Text style={styles.actionText}>내 프로필 공유하기</Text></Pressable>
+          </View> : null}
+        </>}
+        ListFooterComponent={followingQuery.data ? <>
+          {followingQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 원픽 불러오는 중" color={OnePick.accent} /> : null}
+          {followingQuery.isFetchNextPageError ? <View style={styles.stateCard}>
+            <Text style={styles.stateText}>다음 원픽을 불러오지 못했어요.</Text>
+            <Pressable accessibilityRole="button" disabled={followingQuery.isFetching}
+              onPress={() => { if (!followingQuery.isFetching) void followingQuery.fetchNextPage({ cancelRefetch: false }); }}
+              style={styles.retryButton}><Text style={styles.actionText}>다음 원픽 다시 불러오기</Text></Pressable>
+          </View> : null}
+          {!followingQuery.hasNextPage && followingItems.length > 0 ? <Text style={styles.endText}>팔로우한 사람들의 원픽을 모두 확인했어요.</Text> : null}
+        </> : null}
+      /> : <FlatList
         data={ready ? visibleFeaturedItems : []}
         keyExtractor={(item) => item.itemId}
         renderItem={({ item }) => <View style={styles.productCell}>
-          <ProductCard item={item} mine={Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === item.itemId && pick.status === 'active'))}
+          <ProductCard item={item} mine={isMyItem(item.itemId)}
             onOpen={() => openItem(item.itemId)}
-            onProfile={item.latestPickerUsername ? () => router.push({ pathname: '/u/[username]', params: { username: item.latestPickerUsername! } }) : undefined} />
+            onProfile={item.latestPickerUsername ? () => openProfile(item.latestPickerUsername!) : undefined} />
         </View>}
         onEndReached={() => {
           if (ready && homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
@@ -145,21 +232,7 @@ export default function HomeScreen() {
           <RefreshControl refreshing={homeQuery.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />
         ) : undefined}
         ListHeaderComponent={<>
-        <View style={styles.nativeHeader}>
-          <OnePickBrand />
-          <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
-        </View>
-
-        <ItemSearch compact
-          onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
-          onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
-          onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
-          onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
-          onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
-          onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
-          onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
-          onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
-          onSelect={openItem} />
+        {listHeader}
 
         {user ? null : <View style={styles.signinStrip}>
           <View style={styles.signinMark}><Text style={styles.signinMarkText}>1</Text></View>
@@ -282,7 +355,7 @@ export default function HomeScreen() {
 
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
-      />
+      />}
     </SafeAreaView>
   );
 }
@@ -317,6 +390,11 @@ const styles = StyleSheet.create({
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
   count: { color: OnePick.accent },
   sectionDescription: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  scopeRow: { flexDirection: 'row', gap: 6, padding: 4, marginTop: 4, marginBottom: 18, borderRadius: 14, backgroundColor: OnePick.sunken, alignSelf: 'flex-start' },
+  scopeTab: { minHeight: 36, minWidth: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 14 },
+  scopeTabSelected: { backgroundColor: OnePick.surface },
+  scopeText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  scopeTextSelected: { color: OnePick.text, fontWeight: '900' },
   categoryFilterRow: { gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   categoryFilter: { minHeight: 34, justifyContent: 'center', borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 13 },
   categoryFilterSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },

@@ -8,6 +8,7 @@ import type { ReportStatus } from '@/types/domain/safety';
 async function invalidateSafetyVisibility(client: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     client.invalidateQueries({ queryKey: queryKeys.safety.all }),
+    client.invalidateQueries({ queryKey: queryKeys.follows.all }),
     client.invalidateQueries({ queryKey: queryKeys.home.all }),
     client.invalidateQueries({ queryKey: queryKeys.explore.all }),
     client.invalidateQueries({ queryKey: queryKeys.profiles.all }),

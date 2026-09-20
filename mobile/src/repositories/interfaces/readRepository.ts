@@ -99,6 +99,8 @@ export interface PickReadInput {
 
 export interface ReadRepository {
   getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
+  /** Same cards as getHomePicks, limited to people the session user follows. */
+  getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;

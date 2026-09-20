@@ -62,6 +62,12 @@ type SystemActorRow = {
   updated_at: string;
 };
 
+type UserFollowRow = {
+  follower_id: string;
+  followee_id: string;
+  created_at: string;
+};
+
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -92,6 +98,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       }>;
       profile_ai_reviews: TableShape<ProfileAiReviewRow, never, { is_visible?: boolean }>;
       system_actors: TableShape<SystemActorRow, never, never>;
+      user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
@@ -103,6 +110,14 @@ export type AppDatabase = Omit<Database, 'public'> & {
       home_pick_feed_page: {
         Args: { p_before_time?: string; p_before_id?: string };
         Returns: HomePickFeedRow[];
+      };
+      home_following_feed_page: {
+        Args: { p_before_time?: string; p_before_id?: string };
+        Returns: HomePickFeedRow[];
+      };
+      follow_counts: {
+        Args: never;
+        Returns: { following_count: number; follower_count: number }[];
       };
       item_photo_credit: {
         Args: { p_item_id: string };

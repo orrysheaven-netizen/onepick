@@ -3,6 +3,7 @@ import {
   authRepository,
   categoryRepository,
   commentRepository,
+  followRepository,
   observabilityRepository,
   pickRepository,
   itemRepository,
@@ -23,6 +24,7 @@ import { AdminService } from './adminService';
 import { AuthService } from './authService';
 import { CommentService } from './commentService';
 import { ExploreService } from './exploreService';
+import { FollowService } from './followService';
 import { HomeService } from './homeService';
 import { ObservabilityService } from './observabilityService';
 import { PickService } from './pickService';
@@ -49,6 +51,7 @@ export const commentService = new CommentService(
   profileRepository,
   readRepository,
 );
+export const followService = new FollowService(followRepository, readRepository);
 export const exploreService = new ExploreService(
   categoryRepository,
   readRepository,
@@ -86,6 +89,7 @@ export {
   AuthService,
   CommentService,
   ExploreService,
+  FollowService,
   HomeService,
   ObservabilityService,
   PickService,
