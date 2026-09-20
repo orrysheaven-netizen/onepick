@@ -136,7 +136,7 @@ async function importMovie(externalId: unknown, req: Request): Promise<Response>
   if (!accessToken) return json({ error: 'AUTH_REQUIRED' }, 401);
   const { data: authData, error: authError } = await client.auth.getUser(accessToken);
   if (authError || !authData.user) return json({ error: 'AUTH_REQUIRED' }, 401);
-  const suspended = await client.rpc('user_is_suspended', { p_user_id: authData.user.id });
+  const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: authData.user.id });
   if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
   if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
   const url = new URL(`https://api.themoviedb.org/3/movie/${id}`);
