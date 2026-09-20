@@ -20,7 +20,7 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
-  const categoriesQuery = useExploreCategories();
+  const categoriesQuery = useExploreCategories(Boolean(query.data));
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
