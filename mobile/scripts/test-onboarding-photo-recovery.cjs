@@ -179,7 +179,9 @@ async function main() {
   await check('Invalid item links cannot spin forever and photo sessions show errors before disabled-query loading', async () => {
     const c = setup('app/item/[itemId].tsx'); delete c.params.itemId; c.query.data = undefined; c.query.isPending = true;
     assert.doesNotMatch(c.view.render(), /제품 정보를 불러오고 있어요/);
-    c.params.itemId = id; c.auth.error = new Error('session');
+    c.params.itemId = id; c.query.isPending = false; c.query.isError = true; c.query.error = new AppError('ITEM_NOT_FOUND');
+    const missing = c.view.render(); assert.match(missing, /제품을 볼 수 없어요/); assert.doesNotMatch(missing, /제품 정보를 불러오고 있어요/);
+    c.auth.error = new Error('session');
     assert.match(c.view.render(), /로그인 상태를 확인하지 못했어요/);
   });
   await check('Profile creation retries acknowledge an already saved own profile but do not take another name', async () => {
