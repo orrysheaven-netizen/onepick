@@ -266,7 +266,7 @@ async function main() {
   assert.match(screen,/YouTube 이용약관/);
   assert.match(screen,/Google 개인정보처리방침/);
   assert.match(screen,/영상·Shorts 링크/);
-  assert.match(screen,/maxLength={1000}/);
+  assert.match(screen,/slice\(0, 1000\)/);\n  assert.match(screen,/maxLength=\{1000\}/);
   assert.doesNotMatch(screen,/구독자 수.*toLocaleString|subscriberCount/);
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/youtube-catalog/index.ts'),'utf8');
