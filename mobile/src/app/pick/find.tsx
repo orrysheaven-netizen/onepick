@@ -199,7 +199,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <View style={styles.categoryList}>{contentCategories.map((category) => <Pressable key={category.id} accessibilityRole="button"
           accessibilityLabel={`${category.label ?? category.name} 콘텐츠 종류 선택`} onPress={() => selectCategory(category)} style={({ pressed }) => [styles.categoryChip, pressed && styles.pressed]}><Text style={styles.categoryChipText}>{category.name}</Text></Pressable>)}</View>
         {categories.isPending ? <ActivityIndicator style={styles.categoryLoading} /> : null}
-        {categories.isError ? <Pressable accessibilityRole="button" disabled={categories.isFetching} onPress={() => { if (!categories.isFetching) void categories.refetch(); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>검색 종류 다시 불러오기</Text></Pressable> : null}
+        {categories.isError ? <Pressable accessibilityRole="button" disabled={categories.isFetching} onPress={() => { if (!categories.isFetching) void categories.refetch(); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>카테고리 다시 불러오기</Text></Pressable> : null}
       </View>}
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
       <TextInput autoFocus={!validReturn} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
