@@ -10,6 +10,8 @@ const explore = fs.readFileSync(path.join(root, 'app', '(tabs)', 'explore.tsx'),
 assert.match(itemSearch, /initialQuery\?: string/);
 assert.match(itemSearch, /onSubmitSearch\?: \(query: string\) => void/);
 assert.match(itemSearch, /onSubmitSearch\?\.\(normalizedSearch\)/);
+assert.match(itemSearch, /accessibilityLabel="검색 실행"/);
+assert.match(itemSearch, /<Text style=\{styles\.submitText\}>검색<\/Text>/);
 assert.match(home, /onSubmitSearch=\{\(query\) => router\.push\(\{ pathname: '\/explore', params: \{ search: '1', query \} \}\)\}/);
 assert.match(explore, /useLocalSearchParams<ExploreParams>/);
 assert.match(explore, /incomingQuery/);
