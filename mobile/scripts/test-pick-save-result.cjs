@@ -52,6 +52,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   '@/components/pick-photo': { PickPhoto: () => null }, '@/errors/appError': { AppError },
+  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
   '@/hooks/useChoosePick': { useChoosePick: () => mutation },
@@ -90,7 +91,7 @@ function button(label) {
   return found;
 }
 function noSuccess(markup) {
-  assert.doesNotMatch(markup, /ONE PICK SAVED|다른 사람의 원픽 계속 보기/);
+  assert.doesNotMatch(markup, /원픽이 선택됐어요|다른 사람의 원픽 계속 보기/);
   assert.equal(buttons.some((props) => props.accessibilityLabel === '내 원픽 보기'), false);
 }
 function submit(label) {
@@ -149,7 +150,7 @@ async function main() {
   auth.isLoading = true; noSuccess(render()); auth.isLoading = false;
   auth.error = new Error('session'); page = render(); noSuccess(page);
   assert.match(page, /로그인 상태를 확인하지 못했어요/); button('다시 확인하기').onPress(); assert.equal(retries, 1);
-  auth.error = null; assert.match(render(), /ONE PICK SAVED/);
+  auth.error = null; assert.match(render(), /원픽이 선택됐어요/);
   const ownerKey = mountedKey;
   auth.user = null; noSuccess(render()); assert.notEqual(mountedKey, ownerKey);
   assert.doesNotMatch(render(), /서버에서 확인한 나의 한줄평/); button('로그인하고 계속').onPress();

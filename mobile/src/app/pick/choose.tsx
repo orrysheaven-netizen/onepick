@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -63,6 +64,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
+  const formTitle = pickStatus?.type === 'selected_other' ? '이 제품으로 원픽을 바꿀까요?'
+    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이 제품을 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
     if (pickStatus?.type === 'selected_other') return '이 제품으로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
@@ -120,9 +123,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
 
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-        <Pressable accessibilityRole="button" onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable>
+      <View style={styles.stateArea}>
+        <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
       </View>
     </SafeAreaView>;
   }
@@ -132,90 +134,73 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={choosePick.isPending} onPress={goBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-        {isLoading ? <View style={styles.stateCard}><ActivityIndicator /><Text style={styles.stateTitle}>제품을 확인하고 있어요</Text></View> : null}
-        {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>제품을 불러오지 못했어요</Text>
-          <Text style={styles.stateText}>연결 상태를 확인한 뒤 다시 불러와주세요. 제품이 없거나 사용할 수 없는 링크일 수도 있어요.</Text>
-          {params.itemId && routeMatchesItem ? <Pressable accessibilityRole="button" accessibilityLabel="제품 정보 다시 불러오기"
-            disabled={itemQuery.isFetching} onPress={retryItem} style={[styles.secondaryButton, itemQuery.isFetching && styles.primaryButtonDisabled]}>
-            <Text style={styles.secondaryButtonText}>{itemQuery.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기'}</Text>
-          </Pressable> : null}
-          <Pressable onPress={goBack} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>돌아가기</Text></Pressable>
+        {isLoading ? <View style={styles.stateArea}><StateCard loading title="제품을 확인하고 있어요" /></View> : null}
+        {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
+          <StateCard tone="danger" title="제품을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 불러와주세요. 제품이 없거나 사용할 수 없는 링크일 수도 있어요."
+            action={params.itemId && routeMatchesItem ? { label: itemQuery.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기', accessibilityLabel: '제품 정보 다시 불러오기', variant: 'secondary', disabled: itemQuery.isFetching, onPress: retryItem } : undefined} />
+          <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />
         </View> : null}
-        {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>지금은 선택할 수 없어요</Text><Text style={styles.stateText}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>
-          <Pressable accessibilityRole="button" onPress={() => router.replace(pickStatus?.type === 'selected_this'
-            ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } })} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기'}</Text>
-          </Pressable>
+        {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateArea}>
+          <StateCard title="지금은 선택할 수 없어요" text="현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요."
+            action={{ label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기', variant: 'secondary',
+              onPress: () => router.replace(pickStatus?.type === 'selected_this'
+                ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } }) }} />
         </View> : null}
-        {hasItem && item && canChoose && !user ? <View style={styles.stateCard}>
-          {itemPhoto}<Text style={styles.kicker}>원픽을 고르려면</Text><Text style={styles.title}>로그인이 필요해요</Text>
-          <Text style={styles.stateText}>선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
-          <Pressable onPress={openLogin} style={({ pressed }) => [styles.primaryButton, styles.loginButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>로그인하고 계속</Text></Pressable>
-          <Pressable onPress={goBack} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다음에 고르기</Text></Pressable>
+        {hasItem && item && canChoose && !user ? <View style={styles.panel}>
+          {itemPhoto}
+          <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요</Text>
+          <Text style={styles.panelText}>선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
+          <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
+          <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
         {hasItem && item && canChoose && user && !isSuccess ? <>
-          <Text style={styles.kicker}>YOUR ONE PICK</Text><Text style={styles.title}>{item.name}</Text><Text style={styles.subtitle}>왜 이 제품이 지금 당신의 원픽인가요?</Text>
+          <View style={styles.markRow}><View style={styles.mark}><Text style={styles.markText}>1</Text></View><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
+          <Text style={styles.title}>{formTitle}</Text>
           <View style={styles.itemCard}>
             {itemPhoto}
             <View style={styles.itemCopy}>
-              <Text style={styles.itemLabel}>선택한 제품</Text><Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이 제품으로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이 제품을 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          <View style={styles.inputHeader}><Text style={styles.inputLabel}>한줄평 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이 제품으로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+          <View style={styles.inputHeader}><Text style={styles.inputLabel}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
-          <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
+          <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {choosePick.isError ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
             {choosePick.error instanceof AppError && choosePick.error.code === 'PROFILE_NOT_FOUND' ?
-              <Pressable accessibilityRole="button" onPress={() => openRecovery(true)} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>사용자명 만들고 계속</Text>
-              </Pressable> : null}
+              <Button variant="secondary" size="sm" label="사용자명 만들고 계속" onPress={() => openRecovery(true)} style={styles.errorAction} /> : null}
             {choosePick.error instanceof AppError && choosePick.error.code === 'AUTH_REQUIRED' ?
-              <Pressable accessibilityRole="button" onPress={openLogin} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>다시 로그인하고 계속</Text>
-              </Pressable> : null}
+              <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Pressable accessibilityRole="button" accessibilityLabel={submitLabel} accessibilityState={{ disabled: choosePick.isPending, busy: choosePick.isPending }}
-            disabled={choosePick.isPending} onPress={() => void handleSubmit()}
-            style={({ pressed }) => [styles.primaryButton, choosePick.isPending && styles.primaryButtonDisabled, pressed && !choosePick.isPending && styles.pressed]}>
-            {choosePick.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.primaryButtonText}>{submitLabel}</Text>}
-          </Pressable>
+          <Button size="lg" fullWidth label={submitLabel} loading={choosePick.isPending} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
-          <Text style={styles.kicker}>ONE PICK SAVED</Text><Text style={styles.title}>원픽이 선택됐어요</Text>
+          <Text style={[styles.title, styles.successTitle]}>원픽이 선택됐어요</Text>
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
-          <Text style={styles.stateText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
+          <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
           <View style={styles.successActions}>
             {params.onboarding === '1' ? <>
-              <Pressable accessibilityRole="button" accessibilityLabel="다음 카테고리로 이동"
-                onPress={() => router.replace('/onboarding')}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>다음 카테고리</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="온보딩을 나중에 이어서 하기"
-                onPress={() => router.replace('/profile')} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>나중에 이어하기</Text></Pressable>
+              <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
+              <Button variant="ghost" label="나중에 이어하기" accessibilityLabel="온보딩을 나중에 이어서 하기" onPress={() => router.replace('/profile')} style={styles.centered} />
             </> : <>
-              <Pressable accessibilityRole="button" accessibilityLabel="내 원픽 보기"
-                onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>내 원픽 보기</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="다른 사람의 원픽 계속 보기"
-                onPress={() => router.replace('/')} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}><Text style={styles.textButtonText}>다른 사람의 원픽 계속 보기</Text></Pressable>
+              <Button size="lg" fullWidth label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.submit} />
+              <Button variant="ghost" label="다른 사람의 원픽 계속 보기" onPress={() => router.replace('/')} style={styles.centered} />
             </>}
           </View>
           {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
             <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 상품을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
             <Text style={styles.offerText}>상품 이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>사진 등록</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={skipPhoto} style={styles.textButton}><Text style={styles.textButtonText}>지금은 넘어가기</Text></Pressable>
+            <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
+            <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}
         </View> : null}
       </ScrollView>
@@ -225,46 +210,49 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
+  stateArea: { marginTop: 34, gap: 12, alignItems: 'stretch' },
+  centered: { alignSelf: 'center' },
+  markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  mark: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accent },
+  markText: { color: OnePick.onAccent, fontSize: 14, lineHeight: 16, fontWeight: '900' },
+  markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.2, marginTop: 20 },
-  title: { color: OnePick.text, fontSize: 30, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 9 },
-  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 10 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 14, marginTop: 26 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
+  notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 12 },
+  noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 14, marginTop: 20 },
   itemCopy: { flex: 1, paddingLeft: 16 },
-  itemLabel: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
-  itemName: { color: OnePick.text, fontSize: 19, fontWeight: '800', marginTop: 6 },
-  itemState: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
-  inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 10 },
-  inputLabel: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  itemName: { color: OnePick.text, fontSize: 17, lineHeight: 24, fontWeight: '700', letterSpacing: -0.4 },
+  itemState: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
+  inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 24, marginBottom: 8 },
+  inputLabel: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
   required: { color: OnePick.danger, fontSize: 12, fontWeight: '600' },
   counter: { color: OnePick.muted, fontSize: 12 },
-  reviewInput: { minHeight: 126, borderRadius: 18, backgroundColor: OnePick.surface, paddingHorizontal: 16, paddingVertical: 15, color: OnePick.text, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
-  reviewInputError: { borderWidth: 1, borderColor: OnePick.danger },
+  reviewInput: { minHeight: 124, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 16, paddingVertical: 14, color: OnePick.text, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  reviewInputError: { borderColor: OnePick.danger },
+  submit: { marginTop: 24 },
+  footnote: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 8 },
+  errorAction: { marginTop: 10 },
   reviewError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
   helperText: { color: OnePick.muted, fontSize: 12, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },
-  loginButton: { alignSelf: 'stretch' },
-  primaryButtonDisabled: { opacity: 0.4 },
-  primaryButtonText: { color: OnePick.onAccent, fontSize: 15, fontWeight: '800' },
-  secondaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 20 },
-  secondaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
-  textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 6 },
-  textButtonText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
-  stateCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 26, marginTop: 34 },
-  stateTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', marginTop: 14 },
-  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
-  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18 },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 12, padding: 14, marginTop: 14 },
+  panel: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24, marginTop: 34 },
+  panelTitle: { color: OnePick.text, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4, textAlign: 'center', marginTop: 16 },
+  panelText: { color: OnePick.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 8 },
+  panelAction: { marginTop: 20, marginBottom: 4 },
+  errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18 },
   successCard: { alignItems: 'center', paddingTop: 58 },
   successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: OnePick.accentSoft, alignItems: 'center', justifyContent: 'center' },
   successIconText: { color: OnePick.accent, fontSize: 34, fontWeight: '900' },
-  successItem: { color: OnePick.text, fontSize: 18, fontWeight: '800', marginTop: 24 },
-  savedReview: { color: OnePick.muted, fontSize: 15, lineHeight: 23, textAlign: 'center', marginTop: 11, paddingHorizontal: 18 },
+  successTitle: { textAlign: 'center', marginTop: 20 },
+  successItem: { color: OnePick.text, fontSize: 17, lineHeight: 24, fontWeight: '700', marginTop: 20 },
+  savedReview: { color: OnePick.text, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 8, paddingHorizontal: 18 },
   successPhoto: { marginTop: 16 },
   successActions: { alignSelf: 'stretch', width: '100%' },
-  photoOffer: { alignSelf: 'stretch', borderRadius: 18, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 18, marginTop: 20 },
+  photoOffer: { alignSelf: 'stretch', alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 18, marginTop: 20 },
+  offerAction: { marginTop: 14 },
   offerTitle: { color: OnePick.text, fontSize: 15, lineHeight: 23, fontWeight: '800' },
   offerText: { color: OnePick.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
   pressed: { opacity: 0.7 },
