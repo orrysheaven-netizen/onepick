@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
+import type { ProfileTasteComposition as ProfileTasteCompositionValue } from '@/services/profileTasteCompositionService';
 
 const MINIMUM_PICKS = 5;
 
@@ -12,14 +13,18 @@ export function ProfileTasteComposition({
   profileId,
   viewerId,
   variant = 'self',
+  previewValue,
 }: {
   profileId: string;
   viewerId?: string;
   variant?: 'self' | 'public';
+  previewValue?: ProfileTasteCompositionValue;
 }) {
-  const composition = useProfileTasteComposition(profileId, viewerId);
-  const value = composition.data;
+  const composition = useProfileTasteComposition(previewValue ? undefined : profileId, viewerId);
+  const value = previewValue ?? composition.data;
   const isSelf = variant === 'self';
+  const isPending = previewValue ? false : composition.isPending;
+  const isError = previewValue ? false : composition.isError;
 
   return (
     <View style={styles.section}>
@@ -34,12 +39,12 @@ export function ProfileTasteComposition({
         ) : null}
       </View>
 
-      {composition.isPending ? (
+      {isPending ? (
         <View style={styles.stateCard}>
           <ActivityIndicator />
           <Text style={styles.stateText}>{isSelf ? '내 원픽을 취향별로 정리하고 있어요.' : '원픽을 취향별로 정리하고 있어요.'}</Text>
         </View>
-      ) : composition.isError || !value ? (
+      ) : isError || !value ? (
         <View style={styles.stateCard}>
           <Text accessibilityRole="alert" style={styles.errorText}>취향 구성을 불러오지 못했어요.</Text>
           <Text style={styles.stateText}>새로고침하면 다시 확인할 수 있어요.</Text>
@@ -109,30 +114,30 @@ export function ProfileTasteComposition({
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 8, marginBottom: 22 },
-  headingRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  section: { marginTop: 6, marginBottom: 18 },
+  headingRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
   title: { color: '#202124', fontSize: 19, fontWeight: '900' },
   headingHint: { color: '#747985', fontSize: 11 },
-  stateCard: { minHeight: 116, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, justifyContent: 'center' },
+  stateCard: { minHeight: 108, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, justifyContent: 'center' },
   collectingTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
   stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
   errorText: { color: '#A9482D', fontSize: 13, fontWeight: '800' },
   collectingTrack: { height: 6, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 15 },
   collectingFill: { height: '100%', borderRadius: 999, backgroundColor: '#4945ED' },
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18 },
-  description: { color: '#747985', fontSize: 12, lineHeight: 18, marginBottom: 4 },
-  dimension: { paddingTop: 15 },
+  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16 },
+  description: { color: '#747985', fontSize: 12, lineHeight: 17, marginBottom: 2 },
+  dimension: { paddingTop: 12 },
   dimensionTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   dimensionCopy: { flex: 1 },
   dimensionName: { color: '#202124', fontSize: 14, fontWeight: '900' },
-  dimensionMeta: { color: '#89909C', fontSize: 11, marginTop: 4 },
+  dimensionMeta: { color: '#89909C', fontSize: 10, marginTop: 2 },
   percentage: { color: '#4945ED', fontSize: 13, fontWeight: '900' },
-  track: { height: 6, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 10 },
+  track: { height: 6, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 8 },
   fill: { height: '100%', borderRadius: 999, backgroundColor: '#4945ED' },
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  categoryChip: { borderRadius: 999, backgroundColor: '#F1F2F6', paddingHorizontal: 9, paddingVertical: 5 },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 },
+  categoryChip: { borderRadius: 999, backgroundColor: '#F1F2F6', paddingHorizontal: 8, paddingVertical: 4 },
   categoryText: { color: '#5F6470', fontSize: 10, fontWeight: '700' },
   categoryMoreChip: { backgroundColor: '#EFEEFF' },
   categoryMoreText: { color: '#4945ED', fontWeight: '900' },
-  unmappedText: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: 16 },
+  unmappedText: { color: '#89909C', fontSize: 10, lineHeight: 15, marginTop: 12 },
 });

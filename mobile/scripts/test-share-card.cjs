@@ -31,7 +31,6 @@ function loadWeb(globals) {
     require: (name) => {
       if (name === './shareLinks') return { createPickShareUrl: (id) => 'https://onepick.example/pick/' + id };
       if (name === './sharePick') return {};
-      if (name === '../demoProfile') return { isDemoUsername: (username) => String(username || '').trim().toLowerCase().startsWith('demo_') };
       throw new Error(name);
     },
   };
@@ -71,19 +70,19 @@ async function main() {
   assert.match(sharedCase.drawn.join('|'), /얼큰한 너구리/);
   assert.match(sharedCase.drawn.join('|'), /friend/);
 
-  let demoShared;
-  const demoCase = loadWeb({
+  let seedShared;
+  const seedCase = loadWeb({
     anchor,
     File: FileMock,
     atob: (value) => Buffer.from(value, 'base64').toString('binary'),
     navigator: {
       canShare: () => true,
-      share: async (data) => { demoShared = data; },
+      share: async (data) => { seedShared = data; },
     },
   });
-  assert.equal(await demoCase.exports.sharePickCardImage({ ...input, username: 'demo_01' }), 'shared');
-  assert.match(demoCase.drawn.join('|'), /DEMO DATA/);
-  assert.match(demoShared.text, /^\[DEMO DATA\]/);
+  assert.equal(await seedCase.exports.sharePickCardImage({ ...input, username: 'moodarchive' }), 'shared');
+  assert.doesNotMatch(seedCase.drawn.join('|'), /DEMO DATA/);
+  assert.equal(seedShared.text, '@moodarchive의 라면 원픽');
 
   let downloaded = false;
   const downloadAnchor = { href: '', download: '', rel: '', click() { downloaded = true; }, remove() {} };
@@ -102,7 +101,7 @@ async function main() {
   assert.match(source, /링크 공유/);
   assert.match(source, /WHY THIS ONE/);
   assert.match(source, /Platform\.OS === 'web'/);
-  assert.match(source, /DEMO DATA/);
+  assert.doesNotMatch(source, /DEMO DATA/);
 
   console.log('Share-card checks passed: PNG drawing, file sharing, download fallback and dual share UI.');
 }

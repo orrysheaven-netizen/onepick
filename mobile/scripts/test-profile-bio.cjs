@@ -164,13 +164,16 @@ async function main() {
     'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-pick-card': { ProfilePickCard: () => null },
+    '@/components/profile-pick-groups': { ProfilePickGroups: () => null },
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
-    '@/lib/demoProfile': { isDemoUsername: (username) => typeof username === 'string' && username.trim().toLowerCase().startsWith('demo_') },
+    '@/lib/seedProfiles': { isSeedProfileId: () => false },
   });
   const publicMarkup = renderToStaticMarkup(React.createElement(PublicProfile));
   assert.match(publicMarkup, /영화와 라면/); assert.match(publicMarkup, /&lt;script&gt;/);

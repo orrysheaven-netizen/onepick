@@ -5,7 +5,7 @@ export class YouTubeCatalogService {
 
   search(query: string, signal?: AbortSignal) {
     const cleanQuery = query.trim().replace(/\s+/g, ' ');
-    return cleanQuery.length >= 2 && cleanQuery.length <= 100
+    return cleanQuery.length >= 2 && cleanQuery.length <= 1000
       ? this.repository.search(cleanQuery, signal)
       : Promise.resolve([]);
   }

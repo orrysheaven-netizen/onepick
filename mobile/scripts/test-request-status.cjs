@@ -62,6 +62,14 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-pick-card': {
+      ProfilePickCard: (props) => React.createElement(
+        native.Pressable,
+        { accessibilityRole: 'button', accessibilityLabel: `${props.itemName} 원픽 상세 보기`, onPress: props.onPressPick },
+        React.createElement(native.Text, null, props.itemName),
+      ),
+    },
+    '@/components/profile-pick-groups': { ProfilePickGroups: () => null },
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
@@ -69,8 +77,9 @@ async function main() {
     '@/errors/appError': { AppError },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
-    '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
+    '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
@@ -96,7 +105,7 @@ async function main() {
   assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Both refresh actions update all three queries');
 
   profileQuery.isFetching = true; profileQuery.isRefetching = true;
-  assert.match(render(), /최신 상태 확인 중/);
+  assert.match(render(), /확인 중…/);
   assert.equal(refreshButton().disabled, true);
   assert.equal(pullToRefresh.props.refreshing, true);
   profileQuery.isFetching = false; profileQuery.isRefetching = false;
@@ -130,7 +139,7 @@ async function main() {
     query.refetch = async () => { refetchCalls++; };
     query.hasNextPage = true;
     const control = () => presses.find((props) => props.accessibilityLabel?.startsWith(`${label} `));
-    assert.match(render(), /불러온 이전 선택/);
+    assert.match(render(), /이전 원픽 기록/);
     assert.match(control().accessibilityLabel, /더 보기/);
     await control().onPress();
     assert.equal(nextCalls, 1); assert.equal(nextOptions.cancelRefetch, false);

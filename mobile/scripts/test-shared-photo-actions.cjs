@@ -150,9 +150,15 @@ async function main() {
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));
   cache.clear();
-  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/u/[username].tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
+  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
+  const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
+  assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{query\.data\.currentPicks\}/, 'public profile forwards its real Pick rows to the grouped list');
+  const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
+  assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');
+  const profilePickCardSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-card.tsx'), 'utf8');
+  assert.match(profilePickCardSource, /<PickPhoto[\s\S]*?itemId=\{itemId\}/, 'shared profile card forwards the real catalog target to PickPhoto');
   console.log('Shared photo actions passed: visibility, source/failure protection, scoped navigation, login return, consent, cancel/retry, double taps, remount isolation, service guards and all-surface cache invalidation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

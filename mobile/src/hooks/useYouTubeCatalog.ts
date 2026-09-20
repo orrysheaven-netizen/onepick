@@ -16,7 +16,7 @@ export function useYouTubeCatalogSearch(searchText: string, enabled: boolean) {
   const age = cached ? Date.now() - cached.dataUpdatedAt : Infinity;
   const fresh = Boolean(cached?.status === 'success' && cached.data !== undefined
     && !cached.isInvalidated && age >= 0 && age < FRESH_RESULT_MS);
-  const valid = enabled && cleanQuery.length >= 2 && cleanQuery.length <= 100;
+  const valid = enabled && cleanQuery.length >= 2 && cleanQuery.length <= 1000;
 
   useEffect(() => {
     const timeout = setTimeout(() => setSettledQuery(cleanQuery), SEARCH_DELAY_MS);
