@@ -71,6 +71,7 @@ const imports = {
   '@/errors/appError': load('errors/appError.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/music-search-link': { MusicSearchLink: () => null },
+  '@/components/game-search-link': { GameSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
