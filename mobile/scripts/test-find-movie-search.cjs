@@ -51,10 +51,16 @@ const movie = {
 };
 const drama = { ...movie, source: 'tmdb_tv', externalId: '101', title: '테스트 드라마', originalTitle: 'Test Series', releaseYear: 2020 };
 const categories = [
-  { id: 'ramen', slug: 'ramen', label: '먹을 것 › 라면' },
-  { id: 'movie', slug: 'movie', label: '콘텐츠 › 영화' },
-  { id: 'drama', slug: 'drama', label: '콘텐츠 › 드라마' },
+  { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을 것 › 라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'movie', parentId: 'content', name: '영화', slug: 'movie', label: '콘텐츠 › 영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'drama', parentId: 'content', name: '드라마', slug: 'drama', label: '콘텐츠 › 드라마', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
 ];
+const categoryCatalog = [
+  { id: 'food', parentId: null, name: '먹을 것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+  { id: 'content', parentId: null, name: '콘텐츠', slug: 'content', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+  ...categories,
+];
+const categoryTree = load('lib/categories/categoryTree.ts');
 const imports = {
   react: fakeReact,
   'expo-router': {
@@ -73,6 +79,7 @@ const imports = {
   '@/components/music-search-link': { MusicSearchLink: () => null },
   '@/components/game-search-link': { GameSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
+  '@/hooks/useExploreData': { useExploreCategories: () => ({ data: categoryCatalog }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
     useMovieCatalogSearch: (...args) => {
@@ -82,6 +89,7 @@ const imports = {
     useImportMovieCatalogItem: (mediaType) => { mutationMediaType = mediaType; return { isPending: false, isError: false, mutateAsync: async () => ({}) }; },
   },
   '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: categories, isPending: false, isError: false, refetch() {} }) },
+  '@/lib/categories/categoryTree': categoryTree,
 };
 const { default: Find } = load('app/pick/find.tsx', imports);
 const render = () => {
@@ -93,6 +101,10 @@ let page = render();
 assert.match(page, /먼저 카테고리를 선택해주세요/);
 assert.equal(itemSearchArgs[0], '', 'Generic registration must not run an unscoped item search');
 assert.equal(inputs[0].editable, false);
+const contentParentButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 상위 카테고리 선택');
+assert.ok(contentParentButton);
+contentParentButton.onPress();
+page = render();
 const movieCategoryButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 › 영화 카테고리 선택');
 assert.ok(movieCategoryButton);
 movieCategoryButton.onPress();
