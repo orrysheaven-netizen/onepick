@@ -3,10 +3,11 @@ import type { BookCatalogRepository } from '@/repositories/interfaces/bookCatalo
 export class BookCatalogService {
   constructor(private readonly repository: BookCatalogRepository) {}
 
-  search(query: string, signal?: AbortSignal) {
-    const cleanQuery = query.trim().replace(/\s+/g, ' ');
-    return cleanQuery.length >= 2 && cleanQuery.length <= 100
-      ? this.repository.search(cleanQuery, signal)
+  search(title: string, author = '', signal?: AbortSignal) {
+    const cleanTitle = title.trim().replace(/\s+/g, ' ');
+    const cleanAuthor = author.trim().replace(/\s+/g, ' ');
+    return cleanTitle.length >= 2 && cleanTitle.length <= 100 && cleanAuthor.length <= 100
+      ? this.repository.search(cleanTitle, cleanAuthor || undefined, signal)
       : Promise.resolve([]);
   }
 
