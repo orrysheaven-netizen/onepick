@@ -9,9 +9,12 @@ export class HomeService {
     private readonly readRepository: ReadRepository,
   ) {}
 
+  // Home is people-first: each card is one person's current Pick with their
+  // reason (docs/people-first-home.md). The server excludes the viewer's own
+  // Picks and applies block/suspension rules; no minimum pick count applies.
   async getHomeData(userId?: string, cursor: ReadCursor | null = null) {
     const openCategories = await this.categoryRepository.getOpenCategories();
-    const [currentPicks, showcase, editorialItems] = await Promise.all([
+    const [currentPicks, feed, editorialItems] = await Promise.all([
       userId
         ? this.readRepository.getPicks({
             userId,
@@ -20,7 +23,7 @@ export class HomeService {
             limit: 100,
           })
         : Promise.resolve([]),
-      this.readRepository.getHomeShowcase(cursor),
+      this.readRepository.getHomePicks(cursor),
       cursor ? Promise.resolve([]) : this.readRepository.getEditorialHomeItems(6),
     ]);
 
@@ -28,9 +31,8 @@ export class HomeService {
       openCategories,
       currentPicks,
       editorialItems,
-      featuredItems: showcase.items,
-      minimumPickCount: showcase.minimumPickCount,
-      nextCursor: showcase.nextCursor,
+      picks: feed.items,
+      nextCursor: feed.nextCursor,
     };
   }
 }

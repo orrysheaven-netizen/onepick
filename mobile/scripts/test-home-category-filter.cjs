@@ -53,20 +53,20 @@ const items = [
 const food = groups.find((group) => group.id === 'food');
 const culture = groups.find((group) => group.id === 'culture');
 assert.deepEqual(
-  Array.from(filters.filterHomeShowcaseItems(items, food), (item) => item.itemId),
+  Array.from(filters.filterHomeFeedByCategory(items, food), (item) => item.itemId),
   ['ramen-new', 'snacks-old', 'ramen-old'],
   'filtering preserves the Home service recent-order within a category group',
 );
-assert.deepEqual(Array.from(filters.filterHomeShowcaseItems(items, culture), (item) => item.itemId), ['movie-new']);
-assert.deepEqual(Array.from(filters.filterHomeShowcaseItems(items, null), (item) => item.itemId), items.map((item) => item.itemId));
+assert.deepEqual(Array.from(filters.filterHomeFeedByCategory(items, culture), (item) => item.itemId), ['movie-new']);
+assert.deepEqual(Array.from(filters.filterHomeFeedByCategory(items, null), (item) => item.itemId), items.map((item) => item.itemId));
 
 const home = read('src/app/(tabs)/index.tsx');
 assert.match(home, /buildHomeCategoryFilters/);
-assert.match(home, /filterHomeShowcaseItems/);
+assert.match(home, /filterHomeFeedByCategory\(data\?\.picks \?\? \[\], selectedCategoryGroup\)/, 'the category filter narrows the people feed');
 assert.match(home, /<Chip key=\{group\.id\} label=\{group\.name\} selected=\{selected\}/, 'Category filters are kit Chips, which expose accessibilityState.selected');
 assert.match(home, /전체 카테고리 보기/);
 assert.match(home, /다음 원픽 더 불러오기/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
-assert.match(home, /data=\{ready \? visibleFeaturedItems : \[\]\}/);
+assert.match(home, /data=\{ready \? visiblePicks : \[\]\}/);
 
 console.log('Home category filter checks passed: top-level taxonomy, stable recency order, all/filter behavior, empty-filter recovery and hierarchical category labels.');

@@ -15,9 +15,10 @@ export function useHomeData(userId?: string, enabled = true) {
       const seen = new Set<string>();
       return {
         ...first,
-        featuredItems: data.pages.flatMap((page) => page.featuredItems).filter((item) => {
-          if (seen.has(item.itemId)) return false;
-          seen.add(item.itemId);
+        // A Pick can move between pages while the user scrolls; show each once.
+        picks: data.pages.flatMap((page) => page.picks).filter((pick) => {
+          if (seen.has(pick.pickId)) return false;
+          seen.add(pick.pickId);
           return true;
         }),
       };
