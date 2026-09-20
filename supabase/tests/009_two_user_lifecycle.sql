@@ -13,7 +13,6 @@ declare
   v_admin constant uuid := 'f8100000-0000-4000-8000-000000000003';
   v_category constant uuid := 'f8200000-0000-4000-8000-000000000001';
   v_item public.items%rowtype;
-  v_duplicate public.items%rowtype;
   v_rejected public.items%rowtype;
   v_retry public.items%rowtype;
   v_rows integer;
@@ -65,22 +64,22 @@ begin
 
   perform set_config('request.jwt.claim.sub',v_bob::text,true);
   assert (select count(*)=0 from public.items where id=v_item.id), 'Another user must not see a private pending request';
-  v_duplicate := public.submit_item(v_category,'검증용 제품');
-  assert v_duplicate.id<>v_item.id and v_duplicate.created_by=v_bob, 'Another submitter receives their own private request';
+  begin
+    perform public.submit_item(v_category,'검증용 제품');
+    assert false, 'Another submitter must not create a duplicate pending request';
+  exception when sqlstate 'P0001' then
+    assert sqlerrm='ITEM_ALREADY_PENDING', 'Expected duplicate pending request rejection';
+  end;
   v_rejected := public.submit_item(v_category,'보류할 검증 제품');
 
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  assert (select count(*)=3 from public.items where category_id=v_category and status='pending'), 'Admin must see all requests';
+  assert (select count(*)=2 from public.items where category_id=v_category and status='pending'), 'Admin must see the two distinct pending requests';
   update public.items set status='active' where id=v_item.id and status='pending';
   get diagnostics v_rows = row_count;
   assert v_rows=1, 'Admin approval must update exactly one pending item';
   update public.items set status='rejected' where id=v_item.id and status='pending';
   get diagnostics v_rows = row_count;
   assert v_rows=0, 'A stale moderation action must not overwrite an approval';
-  update public.items set status='merged',merged_into_item_id=v_item.id
-    where id=v_duplicate.id and status='pending';
-  get diagnostics v_rows = row_count;
-  assert v_rows=1, 'Admin can merge the duplicate request into the approved master';
   update public.items set status='rejected' where id=v_rejected.id and status='pending';
   get diagnostics v_rows = row_count;
   assert v_rows=1, 'Admin can reject a pending request';
@@ -93,14 +92,7 @@ begin
   assert (select one_line_review='수정한 선택 이유' from public.picks where user_id=v_alice and category_id=v_category and status='active'), 'Repeated selection must update the review';
 
   perform set_config('request.jwt.claim.sub',v_bob::text,true);
-  assert (select status='merged' and merged_into_item_id=v_item.id from public.items where id=v_duplicate.id), 'Submitter can read the canonical merge target';
   assert (select status='rejected' from public.items where id=v_rejected.id), 'Submitter can read rejection status';
-  begin
-    perform public.register_pick(v_category,v_duplicate.id,'검증용 제품','병합된 원본 선택');
-    assert false, 'Merged duplicate must not be selectable';
-  exception when sqlstate 'P0001' then
-    assert sqlerrm='ITEM_NOT_ELIGIBLE', 'Expected merged-item rejection';
-  end;
   begin
     perform public.register_pick(v_category,v_rejected.id,'보류할 검증 제품','거절된 제품 선택');
     assert false, 'Rejected item must not be selectable';
@@ -142,7 +134,7 @@ begin
   reset role;
 end;
 $flow$;
-$test$, 'Two-user request approval, shared comments, ownership rules and changing Pick counts');
+$test$, 'Two-user duplicate prevention, request approval, shared comments, ownership rules and changing Pick counts');
 select * from finish();
 
 
