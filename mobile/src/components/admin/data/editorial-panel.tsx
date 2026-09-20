@@ -44,7 +44,7 @@ function readinessText(input: {
   return '초기 홈 추천 권장 기준을 충족했습니다.';
 }
 
-export default function AdminEditorialScreen() {
+export function EditorialPanel() {
   const [features, setFeatures] = useState<AdminEditorialFeatureWithItem[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [query, setQuery] = useState('');
@@ -139,8 +139,7 @@ export default function AdminEditorialScreen() {
 
   return <View style={styles.page}>
     <View style={styles.header}>
-      <View style={styles.grow}><Text style={adminStyles.pageTitle}>홈 추천</Text>
-        <Text style={adminStyles.pageDescription}>초기 운영에서 먼저 소개할 원픽을 직접 고릅니다. 사용자 추천 수·인기 순위와는 별도입니다.</Text></View>
+      <View style={styles.grow} />
       <Pressable disabled={loading} onPress={() => void load()} style={adminStyles.secondaryButton}>
         <Text style={adminStyles.secondaryButtonText}>{loading ? '새로고침 중' : '새로고침'}</Text>
       </Pressable>

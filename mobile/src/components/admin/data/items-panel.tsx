@@ -36,7 +36,7 @@ const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
 
 const EDITABLE_STATUSES: AdminItemStatus[] = ['active', 'discontinued', 'hidden', 'rejected'];
 
-export default function AdminItemsScreen() {
+export function ItemsPanel() {
   const [items, setItems] = useState<AdminItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -87,10 +87,7 @@ export default function AdminItemsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <View>
-          <Text style={adminStyles.pageTitle}>상품</Text>
-          <Text style={adminStyles.pageDescription}>상품 상태, 운영 메타데이터와 검색 별칭을 관리합니다. 한 번에 최대 100건만 조회합니다.</Text>
-        </View>
+        <Text style={adminStyles.muted}>한 번에 최대 100건만 조회합니다.</Text>
         <Pressable onPress={() => setShowCreate((value) => !value)} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>{showCreate ? '새 상품 등록 닫기' : '새 상품 등록'}</Text>
         </Pressable>
@@ -636,7 +633,7 @@ function aliasErrorMessage(caught: unknown) {
 
 const styles = StyleSheet.create({
   page: { gap: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
   toolbar: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 10 },
   search: { flexGrow: 1, flexBasis: 280, maxWidth: 520 },

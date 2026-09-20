@@ -50,10 +50,11 @@ vm.runInNewContext(output, {
   assert.equal(scheduledBody.p_starts_at, '2026-09-20T00:00:00Z');
   assert.equal(scheduledBody.p_ends_at, '2026-10-01T00:00:00Z');
 
-  const nav = fs.readFileSync(path.join(__dirname, '../src/components/admin/admin-shell.tsx'), 'utf8');
-  const page = fs.readFileSync(path.join(__dirname, '../src/app/admin/editorial.tsx'), 'utf8');
-  assert.match(nav, /\/admin\/editorial/);
-  assert.match(page, /사용자 추천 수·인기 순위와는 별도/);
+  // 홈 추천 is a tab of the admin 데이터 관리 page (/admin/data?tab=editorial).
+  const nav = fs.readFileSync(path.join(__dirname, '../src/lib/admin/dataTabs.ts'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, '../src/components/admin/data/editorial-panel.tsx'), 'utf8');
+  assert.match(nav, /key: 'editorial', label: '홈 추천'/);
+  assert.match(nav, /사용자 추천 수·인기 순위와는 별도/);
   assert.match(page, /홈 추천에 추가/);
   assert.match(page, /초기 추천 준비도/);
   assert.match(page, /권장 4~6개/);
