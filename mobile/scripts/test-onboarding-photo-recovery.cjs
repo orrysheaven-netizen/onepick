@@ -52,6 +52,7 @@ function harness(file, imports) {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,
   }).default;
   function walk(value, loc) {
