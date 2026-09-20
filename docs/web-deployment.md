@@ -1,10 +1,26 @@
 # MVP web deployment
 
-Source of truth: `orrysheaven-netizen/onepick`, branch `feature/pick-core`, Draft PR #1.
-Cloudflare Pages now serves the tester site at https://onepick-5cl.pages.dev.
-Project: `onepick`; production branch: `feature/pick-core`; preview branch builds disabled.
+Cloudflare Pages serves the tester site at https://onepick-5cl.pages.dev.
+Project: `onepick`; production branch `main`; preview branch builds enabled.
 Supabase Site URL and the two app callback patterns point to this origin.
 See [배포 설정과 확인 기록](test-hosting.md) for the verified configuration and remaining device checks.
+
+## Which branch the tester site is built from
+
+`main`. The Cloudflare Pages production branch was switched to `main` on 2026-09-20,
+after `feature/pick-core` was merged back into `main` (PR #128) and retired. Preview
+branch builds are enabled, so every pull request gets its own URL.
+
+A change is on the tester site once it is merged into `main` and the resulting Pages
+build finishes. Database migrations are the one thing a merge does not deploy: apply
+them with `supabase db push` from a `main` checkout right after merging (see
+[development-start.md](development-start.md#applying-migrations-to-the-linked-project)),
+so the site and the database agree. `https://onepick-5cl.pages.dev/deployment.json` shows which commit
+and branch the site is currently serving; `branch` must be `main`.
+
+Do not point Cloudflare at any branch other than `main`, and do not call another
+branch the source of truth — that wording is what let `main` and the tester site
+drift apart by 100+ commits before.
 
 ## Build and preview
 
@@ -92,6 +108,17 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
 - `_headers` requests `noindex` for Pages test/preview domains. This is crawler
   guidance, not an access restriction. Local `serve` does not interpret this
   provider-specific file; verify its actual response header after hosting.
+- `_headers` also sets the Content-Security-Policy. Its `img-src` allowlist must
+  name every external host that catalog Edge Functions store in
+  `image_source_url` (TMDB, IGDB, Cover Art Archive and its `archive.org`
+  redirect targets, PokeAPI sprites on `raw.githubusercontent.com`, YouTube
+  thumbnails on `ytimg.com` / channel avatars on `yt3.ggpht.com`). Adding a
+  catalog with a new image host requires extending that directive, otherwise the
+  browser blocks the images with a CSP violation.
+- `img-src` must also keep `blob:`. On web, `expo-image-picker` returns the
+  chosen file as a `blob:` object URL and `expo-image-manipulator` decodes it
+  through an `<img>` element; without `blob:` every photo upload fails as
+  `PHOTO_INVALID` ("이미지를 읽지 못했어요"). `npm run check:web` asserts it.
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.

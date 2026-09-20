@@ -5,6 +5,13 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { validateReleaseEnv, loadReleaseEnv, writeDeploymentMetadata } = require('./build-web-release.cjs');
 
+const releaseBuilderSource = fs.readFileSync(path.join(__dirname, 'build-web-release.cjs'), 'utf8');
+assert.match(releaseBuilderSource, /fs\.rmSync\(releaseDir, \{ recursive: true, force: true \}\)/);
+assert.match(releaseBuilderSource, /'--clear'/);
+assert.match(releaseBuilderSource, /deploy-meta\.json/);
+assert.match(releaseBuilderSource, /CF_PAGES_COMMIT_SHA/);
+assert.match(releaseBuilderSource, /CF_PAGES_BRANCH/);
+
 // Deliberately fabricated fixtures; no request is sent with these values.
 const valid = {
   EXPO_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co',

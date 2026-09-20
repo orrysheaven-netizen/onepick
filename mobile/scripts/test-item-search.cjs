@@ -124,7 +124,7 @@ async function main() {
   presses[0]();
   assert.equal(selected, 'item-1');
 
-  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, youtubeQuery, submittedQuery;
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, bookQuery, youtubeQuery, submittedQuery;
   const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
@@ -143,6 +143,7 @@ async function main() {
     onSearchDrama: (value) => { dramaQuery = value; },
     onSearchMusic: (value) => { musicQuery = value; },
     onSearchGame: (value) => { gameQuery = value; },
+    onSearchBook: (value) => { bookQuery = value; },
     onSearchYouTube: (value) => { youtubeQuery = value; },
     onSubmitSearch: (value) => { submittedQuery = value; },
   };
@@ -152,6 +153,7 @@ async function main() {
   assert.match(catalogPage, /드라마 DB에서 검색/);
   assert.match(catalogPage, /음악 DB에서 검색/);
   assert.match(catalogPage, /게임 DB에서 검색/);
+  assert.match(catalogPage, /도서 DB에서 검색/);
   assert.match(catalogPage, /YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
   assert.equal(submittedQuery, '인터스텔라', 'Global Enter must hand off to the dedicated search surface');
@@ -159,18 +161,24 @@ async function main() {
   assert.equal(dramaQuery, undefined);
   assert.equal(musicQuery, undefined);
   assert.equal(gameQuery, undefined);
+  assert.equal(bookQuery, undefined);
   assert.equal(youtubeQuery, undefined);
   externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 영화 DB에서 검색').onPress();
   assert.equal(movieQuery, '인터스텔라');
+  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
+  assert.equal(bookQuery, '인터스텔라');
 
-  externalPresses = []; externalInput = undefined; movieQuery = undefined;
+  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
+  assert.equal(bookQuery, '인터스텔라');
+
+  externalPresses = []; externalInput = undefined; movieQuery = undefined; bookQuery = undefined;
   catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, {
     categoryId: 'movie-category',
     onSelect: () => {},
     onSearchMovie: (value) => { movieQuery = value; },
   }));
   assert.match(catalogPage, /영화 DB에서 검색/);
-  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색|게임 DB에서 검색|YouTube 채널에서 검색/);
+  assert.doesNotMatch(catalogPage, /드라마 DB에서 검색|음악 DB에서 검색|게임 DB에서 검색|도서 DB에서 검색|YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
   assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
 

@@ -34,6 +34,7 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item 
 - Item detail, Pick detail, comments, Pick sharing and profile sharing.
 - My Profile and public profiles.
 - Admin Category / Brand / Item management.
+- Admin web: OnePick dashboard (demo and admin activity excluded) and a single data-management page.
 - Item aliases and trigram-backed search.
 - Account settings, account deletion, user blocking and content reporting.
 - Admin report moderation.
@@ -59,7 +60,7 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item 
 
 ## Validation
 
-The project has separate Mobile and Database CI workflows. Current feature work is kept on `feature/pick-core` and reviewed through Draft PR #1 before merge.
+The project has separate Mobile and Database CI workflows. `main` is the single trunk: feature branches are opened as PRs against `main` and merged once both workflows are green.
 
 See `docs/development-start.md` for local setup and `docs/shared-item-registration.md` for the item-master workflow.
 

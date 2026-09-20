@@ -6,10 +6,9 @@ on:
     paths:
       - 'supabase/**'
       - '.github/workflows/database-tests.yml'
+  # No path filter on pull_request: these jobs are required status checks on main,
+  # and a filtered-out check never reports, which leaves such a PR unmergeable.
   pull_request:
-    paths:
-      - 'supabase/**'
-      - '.github/workflows/database-tests.yml'
 
 concurrency:
   group: database-tests-${{ github.ref }}
@@ -46,3 +45,4 @@ jobs:
           deno check --config supabase/functions/movie-catalog/deno.json supabase/functions/movie-catalog/index.ts
           deno check --config supabase/functions/analyze-profile-taste/deno.json supabase/functions/analyze-profile-taste/index.ts
           deno check --config supabase/functions/profile-ai-status/deno.json supabase/functions/profile-ai-status/index.ts
+          deno check --config supabase/functions/suggest-item-categories/deno.json supabase/functions/suggest-item-categories/index.ts

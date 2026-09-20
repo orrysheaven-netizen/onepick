@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
@@ -25,10 +26,17 @@ export default function ExploreScreen() {
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categoryCatalog.find((category) => category.id === selectedCategoryId);
   const selectedCategoryLabel = selectedCategory ? categoryLabel(selectedCategory, categoryCatalog) : null;
+  // Leaves can sit two levels below a top-level group; show the path below the group name.
+  const leafLabel = (category: Category) => {
+    const full = categoryLabel(category, categoryCatalog);
+    const prefix = group ? `${group.category.name} › ` : '';
+    return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
+  };
   const movieCategory = categories.data?.find((category) => category.slug === 'movie');
   const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
   const musicCategory = categories.data?.find((category) => category.slug === 'music');
   const gameCategory = categories.data?.find((category) => category.slug === 'game');
+  const bookCategory = categories.data?.find((category) => category.slug === 'book');
   const youtubeCategory = categories.data?.find((category) => category.slug === 'youtube');
   const pokemonCategory = categories.data?.find((category) => category.slug === 'pokemon');
   const topItems = useCategoryTopItems(selectedCategoryId);
@@ -70,10 +78,10 @@ export default function ExploreScreen() {
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
-            {selectedCategory && ['movie', 'drama', 'music', 'game', 'youtube', 'pokemon'].includes(selectedCategory.slug)
+            {selectedCategory && ['movie', 'drama', 'music', 'game', 'book', 'youtube', 'pokemon'].includes(selectedCategory.slug)
               ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
               : !selectedCategory
-                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
+                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·책·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
                 : 'OnePick에 등록된 항목을 검색합니다.'}
           </Text>
           <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
@@ -86,6 +94,8 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
             onSearchGame={gameCategory && (!selectedCategoryId || selectedCategoryId === gameCategory.id)
               ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+            onSearchBook={bookCategory && (!selectedCategoryId || selectedCategoryId === bookCategory.id)
+              ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
             onSearchYouTube={youtubeCategory && (!selectedCategoryId || selectedCategoryId === youtubeCategory.id)
               ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
@@ -124,9 +134,9 @@ export default function ExploreScreen() {
             <Text style={styles.childCount}>{group.children.length}개</Text>
           </View>
           <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
-            accessibilityLabel={`${group.category.name} › ${category.name} 카테고리 보기`} accessibilityState={{ selected: childId === category.id }}
+            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} accessibilityState={{ selected: childId === category.id }}
             onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
-            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{category.name}</Text>
+            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{leafLabel(category)}</Text>
           </Pressable>)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}

@@ -9,7 +9,6 @@ import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
-import { UnselectedCategories } from '@/components/unselected-categories';
 import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
@@ -17,6 +16,8 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
+import { categoryLabel } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -72,9 +73,9 @@ function getRequestState(item: ItemRequestItem) {
   }
 }
 
-function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenItem: (itemId: string) => void }) {
+function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemRequestItem; categoryLabel?: string; onOpenItem: (itemId: string) => void }) {
   const state = getRequestState(item);
-  const category = item.category?.name ?? '카테고리';
+  const category = categoryLabel ?? item.category?.name ?? '카테고리';
   const copy = <View style={styles.requestCopy}>
     <View style={styles.requestTopRow}>
       <Text style={styles.requestCategory}>{category}</Text>
@@ -149,6 +150,11 @@ export default function ProfileScreen() {
   const { profile, currentPicks } = profileQuery.data;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
+  const categoryCatalog = categoriesQuery.data ?? [];
+  // Full path (e.g. 먹을것 › 면류 › 라면) once the taxonomy is loaded; the leaf name until then.
+  const labelFor = (category: Category | null | undefined) => category
+    ? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name)
+    : undefined;
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
@@ -197,7 +203,6 @@ export default function ProfileScreen() {
         ) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
-        <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryEyebrow}>PROFILE TOOLS</Text>
@@ -225,14 +230,14 @@ export default function ProfileScreen() {
           <View style={[styles.sectionHeader, styles.requestHeader]}>
             <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
           </View>
-          {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} onOpenItem={openItem} />)}
+          {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
           {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
           <ListControls query={requestsQuery} label="등록 요청" />
 
           <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
           {history.map((item) => <ProfilePickCard
             key={item.pick.id}
-            categoryName={item.category?.name ?? '카테고리'}
+            categoryName={labelFor(item.category) ?? '카테고리'}
             itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
             review={item.pick.oneLineReview}
             imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}

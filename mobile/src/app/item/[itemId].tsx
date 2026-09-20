@@ -11,6 +11,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
+import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 
@@ -18,8 +19,8 @@ function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
     switch (error.code) {
       case 'PHOTO_INVALID': return '이미지를 읽지 못했어요. 다른 사진을 선택해주세요.';
-      case 'PHOTO_TOO_LARGE': return '사진이 너무 커요. 더 작은 사진을 선택해주세요.';
-      case 'PHOTO_UPLOAD_FAILED': return '사진을 저장하지 못했어요. 다시 시도해주세요.';
+      case 'PHOTO_TOO_LARGE': return '사진 용량이 너무 커 자동 최적화할 수 없어요. 다른 사진을 선택해주세요.';
+      case 'PHOTO_UPLOAD_FAILED': return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 잠시 후 다시 시도해주세요.';
       case 'ITEM_NOT_ELIGIBLE': return '현재 이 제품에는 이미지를 추가할 수 없어요.';
       case 'AUTH_REQUIRED': return '로그인 상태를 다시 확인해주세요.';
       case 'PROFILE_NOT_FOUND': return '사용자명을 먼저 정해주세요.';
@@ -92,7 +93,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const photoAcknowledged = useRef(false);
   const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
-  const [photoApproved, setPhotoApproved] = useState(false);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
@@ -107,15 +107,16 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       const selected = await photoPicker.mutateAsync();
       if (selected) {
         setPhoto(selected);
-        setPhotoApproved(false);
         photoAttachment.reset();
       }
-    } catch { /* The mutation renders an actionable error below. */ }
+    } catch (error) {
+      showPhotoFailure(error, 'item_photo_choose');
+    }
     finally { busy.current = false; }
   };
 
   const attachPhoto = async () => {
-    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || !photoApproved || busy.current || photoAcknowledged.current) return;
+    if (!user || isSessionLoading || sessionError || !canContribute || !itemId || !photo || busy.current || photoAcknowledged.current) return;
     busy.current = true;
     try {
       const saved = await photoAttachment.mutateAsync({ userId: user.id, itemId, photo });
@@ -123,11 +124,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       photoAcknowledged.current = true;
       setSavedItem(saved);
       setPhoto(null);
-      setPhotoApproved(false);
       // Refresh is a separate operation. Preserve the acknowledged response and
       // keep all stale product/review content hidden if the fresh read fails.
       await query.refetch().catch(() => {});
-    } catch { /* A failed attachment keeps the selected image for retry. */ }
+    } catch (error) {
+      showPhotoFailure(error, 'item_photo_upload');
+    }
     finally { busy.current = false; }
   };
   const retryItem = async () => {
@@ -186,7 +188,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       return;
     }
     if (!canChoose) return;
-    router.push({ pathname: '/pick/register', params: { itemId: item.id, categoryId: item.categoryId } });
+    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId } });
   };
 
   return (
@@ -214,25 +216,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               {photo ? (
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: photoApproved }}
-                    disabled={photoBusy}
-                    onPress={() => setPhotoApproved((approved) => !approved)}
-                    style={({ pressed }) => [styles.photoConsent, pressed && styles.pressed]}>
-                    <Text style={styles.photoConsentText}>{photoApproved ? '☑' : '☐'} 이 제품의 사진이 맞으며 대표 이미지로 공유할 수 있어요</Text>
-                  </Pressable>
                   <View style={styles.photoActions}>
                     <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void choosePhoto()}
                       style={({ pressed }) => [styles.photoSecondaryButton, pressed && styles.pressed]}>
                       <Text style={styles.photoSecondaryText}>다시 선택</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" disabled={!photoApproved || photoBusy} onPress={() => void attachPhoto()}
-                      style={({ pressed }) => [styles.photoPrimaryButton, (!photoApproved || photoBusy) && styles.disabled, pressed && styles.pressed]}>
+                    <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => void attachPhoto()}
+                      style={({ pressed }) => [styles.photoPrimaryButton, photoBusy && styles.disabled, pressed && styles.pressed]}>
                       {photoAttachment.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.photoPrimaryText}>대표 이미지 등록</Text>}
                     </Pressable>
                   </View>
-                  <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); setPhotoApproved(false); photoAttachment.reset(); }} style={styles.photoConsent}>
+                  <Pressable accessibilityRole="button" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.photoConsent}>
                     <Text style={styles.photoSecondaryText}>사진 선택 취소</Text>
                   </Pressable>
                 </>
@@ -309,7 +303,6 @@ const styles = StyleSheet.create({
   photoContributionHint: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
   photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: '#FFFFFF', marginTop: 14 },
   photoConsent: { minHeight: 48, justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 13, paddingHorizontal: 13, marginTop: 10 },
-  photoConsentText: { color: '#202124', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   photoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   photoPrimaryButton: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13 },
   photoChooseButton: { marginTop: 14 },

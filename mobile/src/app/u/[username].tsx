@@ -13,7 +13,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
-import { isDemoUsername } from '@/lib/demoProfile';
+import { isSeedProfileId } from '@/lib/seedProfiles';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function PublicProfileScreen() {
   const categoriesQuery = useExploreCategories(Boolean(query.data));
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
-  const isDemo = Boolean(query.data && isDemoUsername(query.data.profile.username));
+  const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -49,7 +49,6 @@ export default function PublicProfileScreen() {
             <View style={styles.headerCopy}>
               <View style={styles.profileLabels}>
                 <Text style={styles.eyebrow}>ONEPICK PROFILE</Text>
-                {isDemo ? <Text style={styles.demoBadge}>DEMO · 테스트 데이터</Text> : null}
               </View>
               <Text style={styles.username}>@{query.data.profile.username}</Text>
               {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
@@ -73,7 +72,7 @@ export default function PublicProfileScreen() {
               onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
             />
           ) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
-          {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
+          {!query.data.isMine && user && !isSeed ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
             <View style={styles.safetyActions}>
@@ -107,7 +106,6 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, marginLeft: 16 },
   profileLabels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
-  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   username: { color: '#202124', fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 6 },
   summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },

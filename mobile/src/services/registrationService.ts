@@ -10,7 +10,7 @@ import type { Item } from '@/types/domain/item';
 
 export interface RegisterPickInput {
   userId: string;
-  categoryId: string;
+  categoryId?: string;
   itemId?: string;
   itemName: string;
   variant: string;
@@ -50,16 +50,8 @@ export class RegistrationService {
   ) {}
 
   async getCategories() {
-    const categories = (await this.categoryRepository.getOpenCategories()).filter((category) =>
+    return (await this.categoryRepository.getOpenCategories()).filter((category) =>
       category.isVisible && category.isPickable && category.status === 'open');
-
-    return Promise.all(categories.map(async (category) => {
-      const parent = category.parentId ? await this.categoryRepository.getById(category.parentId) : null;
-      return {
-        ...category,
-        label: parent ? `${parent.name} › ${category.name}` : category.name,
-      };
-    }));
   }
 
   choosePhoto() { return this.devicePhotoRepository.choosePhoto(); }
@@ -105,17 +97,20 @@ export class RegistrationService {
   async register(input: RegisterPickInput): Promise<RegistrationResult> {
     if (!input.userId) throw new AppError('AUTH_REQUIRED');
 
-    const category = (await this.getCategories()).find((item) => item.id === input.categoryId);
-    if (!category?.isVisible || !category.isPickable || category.status !== 'open') {
-      throw new AppError('CATEGORY_NOT_PICKABLE');
-    }
-
-    const name = canonicalItemName(formatItemName(input.itemName, input.variant), category.slug);
-    if (!name || name.length > 100) throw new AppError('ITEM_NAME_INVALID');
-
+    const categories = await this.getCategories();
     const item = input.itemId ? await this.itemRepository.getById(input.itemId) : null;
     if (input.itemId && !item) throw new AppError('ITEM_NOT_FOUND');
-    if (item && item.categoryId !== category.id) throw new AppError('ITEM_CATEGORY_MISMATCH');
+
+    const requestedCategoryId = input.categoryId ?? item?.categoryId;
+    const category = requestedCategoryId ? categories.find((entry) => entry.id === requestedCategoryId) : undefined;
+    if (requestedCategoryId && (!category?.isVisible || !category.isPickable || category.status !== 'open')) {
+      throw new AppError('CATEGORY_NOT_PICKABLE');
+    }
+    if (item && input.categoryId && item.categoryId !== input.categoryId) throw new AppError('ITEM_CATEGORY_MISMATCH');
+    if (item && !category) throw new AppError('CATEGORY_NOT_PICKABLE');
+
+    const name = canonicalItemName(formatItemName(input.itemName, input.variant), category?.slug ?? '');
+    if (!name || name.length > 100) throw new AppError('ITEM_NAME_INVALID');
     if (item && item.status !== 'active' && item.status !== 'discontinued') throw new AppError('ITEM_NOT_ELIGIBLE');
 
     if (item) {
@@ -129,7 +124,7 @@ export class RegistrationService {
       }
 
       const pick = await this.pickRepository.registerPick({
-        categoryId: category.id,
+        categoryId: category!.id,
         itemId: item.id,
         itemName: item.name,
         oneLineReview: review,
@@ -146,12 +141,18 @@ export class RegistrationService {
       uploaded = await this.photoRepository.upload(input.userId, input.photo);
     }
 
-    const submitted = await this.itemRepository.submitItem({
-      categoryId: category.id,
-      itemName: name,
-      ...uploaded,
-      imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
-    });
+    const submitted = category
+      ? await this.itemRepository.submitItem({
+          categoryId: category.id,
+          itemName: name,
+          ...uploaded,
+          imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        })
+      : await this.itemRepository.submitUnclassifiedItem({
+          itemName: name,
+          ...uploaded,
+          imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        });
 
     if (submitted.status === 'pending') {
       if (uploaded && submitted.imagePath !== uploaded.imagePath) {

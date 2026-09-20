@@ -5,7 +5,7 @@ import { adminStyles } from '@/components/admin/admin-shell';
 import { createBrand, getBrands, updateBrand } from '@/lib/admin-api';
 import type { AdminBrand } from '@/lib/admin-api';
 
-export default function AdminBrandsScreen() {
+export function BrandsPanel() {
   const [brands, setBrands] = useState<AdminBrand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,11 +65,6 @@ export default function AdminBrandsScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>브랜드</Text>
-        <Text style={adminStyles.pageDescription}>상품 등록에 사용할 브랜드를 추가하고 활성 상태를 관리합니다.</Text>
-      </View>
-
       <View style={adminStyles.card}>
         <Text style={adminStyles.sectionTitle}>브랜드 추가</Text>
         <Text style={[adminStyles.muted, { marginTop: 6 }]}>새 브랜드는 활성 상태로 생성되어 바로 상품 등록에 사용할 수 있습니다.</Text>

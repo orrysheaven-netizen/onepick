@@ -18,7 +18,7 @@ assert.match(explore, /accessibilityLabel="전체 카테고리 보기"/);
 assert.match(explore, /accessibilityState=\{\{ selected: !parentId \}\}/);
 assert.match(explore, /상위 카테고리 보기/);
 assert.match(explore, /카테고리 보기/);
-assert.match(explore, /\$\{group\.category\.name\} › \$\{category\.name\}/);
+assert.match(explore, /\$\{group\.category\.name\} › \$\{leafLabel\(category\)\}/);
 assert.match(explore, /\$\{selectedCategoryLabel\}에서 검색/);
 assert.match(explore, />\{selectedCategoryLabel\} 원픽 TOP 3</);
 assert.match(explore, /setParentId\(undefined\);\s*setChildId\(undefined\)/);

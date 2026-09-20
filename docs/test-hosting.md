@@ -25,16 +25,18 @@
 | 항목 | 값 |
 | --- | --- |
 | 프로젝트 이름 | `onepick` (주소: `onepick-5cl.pages.dev`) |
-| Production branch | `feature/pick-core` |
+| Production branch | `main` |
 | Framework preset | None |
 | Root directory | `mobile` |
 | Build command | `npm ci --include=dev && npm run typecheck && npm test && npm run build:web:release` |
 | Build output directory | `dist-release` |
-| Preview deployments | None — 처음에는 고정 테스트 주소 하나 사용 |
+| Preview deployments | All non-production branches — PR마다 미리보기 주소가 생긴다 |
 
 Cloudflare의 “Production branch”는 이 **테스트 사이트의 기본 주소를 갱신할
-브랜치**라는 뜻이다. GitHub `main` 병합이나 원픽 정식 출시를 의미하지 않는다.
-이 브랜치의 새 커밋은 자동 배포를 유발한다. 위 명령은 검사 실패 시 종료하여
+브랜치**라는 뜻이다. `main`에 병합된 커밋이 자동 배포를 유발한다. 원픽 정식
+출시를 의미하지는 않는다. 다른 브랜치를 여기에 두지 않는다 — 과거에
+`feature/pick-core`를 두었다가 `main`과 100개 이상 커밋이 벌어졌고,
+2026-09-20에 `main`으로 되돌렸다. 위 명령은 검사 실패 시 종료하여
 실패한 빌드가 새 테스트 버전으로 게시되는 것을 막는다. DB 마이그레이션은
 이 명령에서 실행하지 않는다.
 
@@ -84,8 +86,7 @@ Release build는 Cloudflare Pages가 자동 주입하는 `CF_PAGES_COMMIT_SHA`,
 
 - `https://onepick-5cl.pages.dev/deployment.json`
 
-Production branch가 `feature/pick-core`이므로 `branch`는
-`feature/pick-core`이어야 하고, `commitSha`는 GitHub의 해당 브랜치 HEAD와
+`branch`는 `main`이어야 하고, `commitSha`는 GitHub `main`의 HEAD와
 일치해야 한다. 이 파일에는 공개 가능한 배포 식별자만 기록하며 Supabase 키나
 기타 비밀값은 포함하지 않는다.
 

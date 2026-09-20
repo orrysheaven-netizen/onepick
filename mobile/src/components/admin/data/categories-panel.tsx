@@ -8,13 +8,32 @@ import type { AdminCategory } from '@/lib/admin-api';
 const STATUSES: AdminCategory['status'][] = ['draft', 'open', 'paused', 'closed'];
 const STATUS_LABELS: Record<AdminCategory['status'], string> = { draft: '준비', open: '운영', paused: '중지', closed: '종료' };
 
-export default function AdminCategoriesScreen() {
+function categoryPath(category: AdminCategory, categories: AdminCategory[]) {
+  const byId = new Map(categories.map((item) => [item.id, item]));
+  const names: string[] = [];
+  const seen = new Set<string>();
+  let current: AdminCategory | undefined = category;
+  while (current && names.length < 3 && !seen.has(current.id)) {
+    seen.add(current.id);
+    names.unshift(current.name);
+    current = current.parent_id ? byId.get(current.parent_id) : undefined;
+  }
+  return names.join(' › ');
+}
+
+function categoryDepth(category: AdminCategory, categories: AdminCategory[]) {
+  const path = categoryPath(category, categories);
+  return path ? path.split(' › ').length : 99;
+}
+
+export function CategoriesPanel() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
+  const [newParentId, setNewParentId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = async () => {
@@ -49,9 +68,10 @@ export default function AdminCategoriesScreen() {
     setError('');
     setMessage('');
     try {
-      await createCategory({ name, slug });
+      await createCategory({ name, slug, parentId: newParentId });
       setNewName('');
       setNewSlug('');
+      setNewParentId(null);
       setMessage(`${name} 카테고리를 draft 상태로 추가했습니다.`);
       await load();
     } catch (caught) {
@@ -63,21 +83,31 @@ export default function AdminCategoriesScreen() {
 
   return (
     <View style={styles.page}>
-      <View>
-        <Text style={adminStyles.pageTitle}>카테고리</Text>
-        <Text style={adminStyles.pageDescription}>노출 여부, Pick 가능 여부, 상태와 정렬 순서를 관리합니다.</Text>
-      </View>
-
       <View style={adminStyles.card}>
         <Text style={adminStyles.sectionTitle}>카테고리 추가</Text>
         <Text style={[adminStyles.muted, { marginTop: 6 }]}>새 카테고리는 안전하게 draft · 비노출 상태로 생성됩니다.</Text>
         <View style={styles.addRow}>
-          <TextInput accessibilityLabel="새 카테고리 이름" value={newName} onChangeText={setNewName} placeholder="예: 라면" style={[adminStyles.input, styles.addInput]} />
-          <TextInput accessibilityLabel="새 카테고리 slug" autoCapitalize="none" value={newSlug} onChangeText={setNewSlug} placeholder="예: ramyeon" style={[adminStyles.input, styles.addInput]} />
-          <Pressable disabled={creating} onPress={addCategory} style={[adminStyles.primaryButton, creating && { opacity: 0.5 }]}>
-            <Text style={adminStyles.primaryButtonText}>{creating ? '추가 중' : '추가'}</Text>
-          </Pressable>
+          <TextInput accessibilityLabel="새 카테고리 이름" value={newName} onChangeText={setNewName} placeholder="예: 김치" style={[adminStyles.input, styles.addInput]} />
+          <TextInput accessibilityLabel="새 카테고리 slug" autoCapitalize="none" value={newSlug} onChangeText={setNewSlug} placeholder="예: kimchi" style={[adminStyles.input, styles.addInput]} />
         </View>
+        <View style={styles.parentPicker}>
+          <Text style={adminStyles.label}>상위 카테고리 · 선택 사항</Text>
+          <Text style={adminStyles.muted}>예: 먹을것 › 쇼핑몰 › 김치. 3단계까지만 만들 수 있고, 하위 카테고리를 가진 항목은 Pick 대상으로 사용할 수 없습니다.</Text>
+          <View style={adminStyles.row}>
+            <Pressable onPress={() => setNewParentId(null)} style={[styles.statusChoice, !newParentId && styles.statusChoiceActive]}>
+              <Text style={[styles.statusChoiceText, !newParentId && styles.statusChoiceTextActive]}>최상위</Text>
+            </Pressable>
+            {categories.filter((category) => !category.is_pickable && categoryDepth(category, categories) < 3).map((category) => (
+              <Pressable key={category.id} onPress={() => setNewParentId(category.id)}
+                style={[styles.statusChoice, newParentId === category.id && styles.statusChoiceActive]}>
+                <Text style={[styles.statusChoiceText, newParentId === category.id && styles.statusChoiceTextActive]}>{categoryPath(category, categories)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+        <Pressable disabled={creating} onPress={addCategory} style={[adminStyles.primaryButton, styles.addButton, creating && { opacity: 0.5 }]}>
+          <Text style={adminStyles.primaryButtonText}>{creating ? '추가 중' : '카테고리 추가'}</Text>
+        </Pressable>
       </View>
 
       {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
@@ -97,6 +127,7 @@ export default function AdminCategoriesScreen() {
           <CategoryRow
             key={category.id}
             category={category}
+            pathLabel={categoryPath(category, categories)}
             onSaved={(next) => {
               setCategories((items) => items.map((item) => item.id === next.id ? next : item));
               setMessage(`${next.name} 카테고리를 저장했습니다.`);
@@ -110,7 +141,7 @@ export default function AdminCategoriesScreen() {
   );
 }
 
-function CategoryRow({ category, onSaved, onError }: { category: AdminCategory; onSaved: (value: AdminCategory) => void; onError: (message: string) => void }) {
+function CategoryRow({ category, pathLabel, onSaved, onError }: { category: AdminCategory; pathLabel: string; onSaved: (value: AdminCategory) => void; onError: (message: string) => void }) {
   const [name, setName] = useState(category.name);
   const [status, setStatus] = useState(category.status);
   const [visible, setVisible] = useState(category.is_visible);
@@ -152,6 +183,7 @@ function CategoryRow({ category, onSaved, onError }: { category: AdminCategory; 
       <View style={styles.nameArea}>
         <TextInput accessibilityLabel={`${category.name} 이름`} value={name} onChangeText={setName} style={[adminStyles.input, styles.nameInput]} />
         <Text style={styles.slug}>{category.slug}</Text>
+        {category.parent_id ? <Text style={styles.pathLabel}>{pathLabel}</Text> : null}
       </View>
 
       <StatusPicker value={status} onChange={setStatus} />
@@ -198,6 +230,9 @@ const styles = StyleSheet.create({
   page: { gap: 22 },
   addRow: { marginTop: 16, flexDirection: 'row', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   addInput: { flexGrow: 1, flexBasis: 210 },
+  parentPicker: { marginTop: 14, gap: 8 },
+  addButton: { alignSelf: 'flex-start', marginTop: 14 },
+  pathLabel: { marginTop: 4, color: '#4F46E5', fontSize: 11, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 },
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 10 },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 28 },

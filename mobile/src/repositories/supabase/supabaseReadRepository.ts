@@ -130,6 +130,23 @@ export class SupabaseReadRepository implements ReadRepository {
     };
   }
 
+  async getEditorialHomeItems(limit = 6) {
+    const safeLimit = Math.min(Math.max(limit, 1), 12);
+    const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map((row) => ({
+      itemId: row.item_id,
+      name: row.name,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      categoryPath: row.category_path ?? row.category_name,
+      thumbnailUrl: this.cardThumbnailUrl(row),
+      editorialNote: row.editorial_note,
+      editorialPriority: row.editorial_priority,
+      pickCount: row.pick_count,
+    }));
+  }
+
   async getCategoryTopItems(categoryId: string) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. The RPC counts all current picks before limiting.

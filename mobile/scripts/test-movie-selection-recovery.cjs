@@ -80,6 +80,7 @@ function setup(overrides = {}) {
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
     '@/components/music-search-link': { MusicSearchLink: 'MusicSearchLink' },
     '@/components/game-search-link': { GameSearchLink: 'GameSearchLink' },
+    '@/components/youtube-search-link': { YoutubeSearchLink: 'YoutubeSearchLink' },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: categoryCatalog }) },
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },

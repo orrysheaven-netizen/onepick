@@ -5,11 +5,12 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      # Regression tests in mobile/scripts load Edge Function sources directly.
+      - 'supabase/functions/**'
       - '.github/workflows/mobile-ci.yml'
+  # No path filter on pull_request: these jobs are required status checks on main,
+  # and a filtered-out check never reports, which leaves such a PR unmergeable.
   pull_request:
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile-ci.yml'
 
 concurrency:
   group: mobile-ci-${{ github.ref }}

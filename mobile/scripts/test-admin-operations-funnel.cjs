@@ -78,13 +78,19 @@ async function main() {
   assert.equal(overview.funnel.itemDetailViewed, 9);
   assert.equal(overview.errorSummary.length, 0);
 
-  const source = fs.readFileSync(path.join(__dirname, '../src/app/admin/ops.tsx'), 'utf8');
-  assert.match(source, /최근 \{query\.data\.funnel\.days\}일 퍼널/);
-  assert.match(source, /DEMO 제외/);
+  // The dashboard screen is the only funnel surface now. It reads the
+  // demo+admin-filtered admin_onepick_dashboard RPC and must say so.
+  const source = fs.readFileSync(path.join(__dirname, '../src/app/admin/dashboard.tsx'), 'utf8');
+  assert.match(source, /최근 \{data\.days\}일 퍼널/);
+  assert.match(source, /데모 계정과 관리자 계정의 활동은 모든 지표에서 제외/);
   assert.match(source, /원픽 등록/);
   assert.match(source, /공유 링크 방문/);
   assert.match(source, /로그인 완료/);
 
-  console.log('Admin operations funnel checks passed: RPC mapping, service overview and demo-filtered UI copy.');
+  const api = fs.readFileSync(path.join(__dirname, '../src/lib/admin-api.ts'), 'utf8');
+  assert.match(api, /\/rest\/v1\/rpc\/admin_onepick_dashboard/);
+  assert.match(api, /JSON\.stringify\(\{ p_days: days \}\)/);
+
+  console.log('Admin operations funnel checks passed: RPC mapping, service overview and demo/admin-filtered dashboard copy.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

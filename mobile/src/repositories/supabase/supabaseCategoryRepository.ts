@@ -1,5 +1,5 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
-import { selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
@@ -8,7 +8,11 @@ export class SupabaseCategoryRepository implements CategoryRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
   async getOpenCategories() {
-    return selectableCategories(await this.getBrowseCategories());
+    const categories = await this.getBrowseCategories();
+    return selectableCategories(categories).map((category) => ({
+      ...category,
+      label: categoryLabel(category, categories),
+    }));
   }
 
   async getBrowseCategories() {

@@ -22,43 +22,41 @@ function load(relativePath, imports = {}) {
   return exports;
 }
 
-const demo = load('lib/demoProfile.ts');
-assert.equal(demo.isDemoUsername('demo_01'), true);
-assert.equal(demo.isDemoUsername(' DEMO_05 '), true);
-assert.equal(demo.isDemoUsername('onepick_qa'), false);
-assert.equal(demo.isDemoUsername(null), false);
-assert.equal(demo.demoSharePrefix('demo_02'), '[DEMO DATA] ');
-assert.equal(demo.demoSharePrefix('real_user'), '');
+const seed = load('lib/seedProfiles.ts');
+assert.equal(seed.isSeedProfileId('d0e00001-1111-4111-8111-111111111111'), true);
+assert.equal(seed.isSeedProfileId(' D0E00005-5555-4555-8555-555555555555 '), true);
+assert.equal(seed.isSeedProfileId('11111111-1111-4111-8111-111111111111'), false);
+assert.equal(seed.isSeedProfileId(null), false);
 
 let pickPayload;
 const sharePick = load('lib/share/sharePick.ts', {
   'react-native': { Share: { share: async (payload) => { pickPayload = payload; return payload; } } },
-  './shareLinks': { createPickShareUrl: () => 'https://onepick.example/pick/demo' },
-  '../demoProfile': demo,
+  './shareLinks': { createPickShareUrl: () => 'https://onepick.example/pick/seed' },
 });
 sharePick.sharePick({
-  pickId: 'pick', username: 'demo_01', categoryName: '라면',
+  pickId: 'pick', username: 'moodarchive', categoryName: '라면',
   itemName: '신라면', oneLineReview: '테스트 이유',
 });
-assert.match(pickPayload.title, /^\[DEMO DATA\]/);
-assert.match(pickPayload.message, /^\[DEMO DATA\]/);
+assert.doesNotMatch(pickPayload.title, /DEMO/i);
+assert.doesNotMatch(pickPayload.message, /DEMO/i);
+assert.match(pickPayload.message, /^@moodarchive/);
 
 let profilePayload;
 const shareProfile = load('lib/share/shareProfile.ts', {
   'react-native': { Share: { share: async (payload) => { profilePayload = payload; return payload; } } },
-  './shareLinks': { createProfileShareUrl: () => 'https://onepick.example/u/demo_01' },
-  '../demoProfile': demo,
+  './shareLinks': { createProfileShareUrl: () => 'https://onepick.example/u/moodarchive' },
 });
-shareProfile.shareProfile({ username: 'demo_01', pickCount: 3 });
-assert.match(profilePayload.title, /^\[DEMO DATA\]/);
-assert.match(profilePayload.message, /^\[DEMO DATA\]/);
+shareProfile.shareProfile({ username: 'moodarchive', pickCount: 3 });
+assert.doesNotMatch(profilePayload.title, /DEMO/i);
+assert.doesNotMatch(profilePayload.message, /DEMO/i);
+assert.match(profilePayload.title, /^@moodarchive/);
 
 const source = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
-assert.match(source('app/(tabs)/index.tsx'), /demoBadge/);
-assert.match(source('components/item-review-card.tsx'), /DEMO · 테스트 데이터/);
-assert.match(source('app/u/[username].tsx'), /DEMO · 테스트 데이터/);
-assert.match(source('app/u/[username].tsx'), /user && !isDemo/);
-assert.match(source('components/pick-share-card.tsx'), /user\.id !== props\.authorUserId && !isDemo/);
-assert.match(source('components/pick-share-card.tsx'), /DEMO DATA/);
+assert.doesNotMatch(source('app/(tabs)/index.tsx'), />DEMO</);
+assert.doesNotMatch(source('components/item-review-card.tsx'), /DEMO · 테스트 데이터/);
+assert.doesNotMatch(source('app/u/[username].tsx'), /DEMO · 테스트 데이터/);
+assert.match(source('app/u/[username].tsx'), /user && !isSeed/);
+assert.match(source('components/pick-share-card.tsx'), /isSeedProfileId\(props\.authorUserId\)/);
+assert.doesNotMatch(source('components/pick-share-card.tsx'), /DEMO DATA/);
 
-console.log('Demo profile checks passed: detection, UI labels, share labels and safety-action exclusion.');
+console.log('Seed profile checks passed: stable-id detection, ordinary handles and unlabelled sharing/UI.');

@@ -52,6 +52,7 @@ function harness(file, imports) {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,
   }).default;
   function walk(value, loc) {
@@ -161,7 +162,6 @@ async function main() {
   await check('Photo confirmation survives a later read failure without stale content or duplicate upload', async () => {
     const c = setup('app/item/[itemId].tsx'); c.params.photo = '1';
     c.view.render(); c.view.button('사진 선택').onPress(); await flush(); c.view.render();
-    c.view.nodes().find((n) => n.props.accessibilityRole === 'checkbox').props.onPress(); c.view.render();
     c.view.button('대표 이미지 등록').onPress();
     c.pending[0].resolve({ ...c.query.data.item, imagePath: 'owner/photo.jpg', imageUrl: 'https://storage.test/photo.jpg' });
     await flush(); assert.equal(c.attempts.length, 1);

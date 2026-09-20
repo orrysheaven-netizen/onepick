@@ -38,7 +38,7 @@ async function main() {
   let calls = [];
   let item = null;
   let submittedStatus = 'pending';
-  const category = { id: 'ramen', slug: 'ramen', isVisible: true, isPickable: true, status: 'open' };
+  const category = { id: 'ramen', slug: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면', isVisible: true, isPickable: true, status: 'open' };
   const futureCategory = { ...category, id: 'future', slug: 'future' };
   const hiddenCategory = { ...category, id: 'hidden', isPickable: false };
 
@@ -71,6 +71,16 @@ async function main() {
           imagePath: input.imagePath ?? null,
         });
       },
+      submitUnclassifiedItem: async (input) => {
+        calls.push(['submit-unclassified', input]);
+        return itemRecord({
+          id: 'submitted-unclassified',
+          name: input.itemName,
+          categoryId: 'pending-product',
+          status: submittedStatus,
+          imagePath: input.imagePath ?? null,
+        });
+      },
     },
     {
       cleanupUnused: async () => calls.push(['cleanup']),
@@ -81,7 +91,9 @@ async function main() {
     { preparePhoto: async (uri, sourceUrl) => ({ uri, sourceUrl }), choosePhoto: async () => null },
   );
 
-  assert.equal((await service.getCategories()).length, 2, 'All visible pickable categories are available without hardcoded slugs');
+  const registrationCategories = await service.getCategories();
+  assert.equal(registrationCategories.length, 2, 'All visible pickable categories are available without hardcoded slugs');
+  assert.equal(registrationCategories[0].label, '먹을것 › 면류 › 라면', 'Registration keeps the repository full-path label');
 
   const input = {
     userId: 'me',
@@ -95,6 +107,12 @@ async function main() {
   assert.equal(pending.type, 'pending_item', 'Unknown item becomes an approval request');
   assert.deepEqual(calls.map(([name]) => name), ['submit'], 'Image-free item request only submits the item');
   assert.equal(calls[0][1].itemName, '진라면 매운맛');
+
+  calls = [];
+  const generalProduct = await service.register({ ...input, categoryId: undefined, itemName: '새 텀블러' });
+  assert.equal(generalProduct.type, 'pending_item');
+  assert.deepEqual(calls.map(([name]) => name), ['submit-unclassified'], 'General products are staged without user category selection');
+  assert.equal(calls[0][1].itemName, '새 텀블러');
 
   calls = [];
   item = itemRecord({ id: 'existing', imagePath: 'shared' });
@@ -140,7 +158,7 @@ async function main() {
   const imported = await service.importPhoto('https://www.otoki.com/item');
   assert.equal(imported.sourceUrl, 'https://www.otoki.com/item');
 
-  console.log('Registration checks passed: generic categories, pending approval, existing-item picks, photo reuse, validation and URL import.');
+  console.log('Registration checks passed: category-free product staging, fixed-category requests, existing-item picks, photo reuse, validation and URL import.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -42,6 +42,7 @@ function harness(file, imports) {
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/errors/appError': { AppError },
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' },
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
+    '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;

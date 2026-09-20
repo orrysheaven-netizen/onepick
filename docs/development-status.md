@@ -1,12 +1,12 @@
 # Shared development status
 
-Last updated: 2026-09-17.
+Last updated: 2026-09-20.
 
-The shared code baseline is `feature/pick-core` in Draft PR #1. Work from the
-`onepick_main` conversation and the local Home/UI conversation is integrated on
-that branch. Conversation messages are not automatically synchronized; check the
-latest available conversation context and GitHub branch before starting work,
-and reconcile intervening commits before updating the branch without force.
+The shared code baseline is `main`. `feature/pick-core` was merged back into
+`main` (PR #128) and deleted on 2026-09-20; do not recreate it. Conversation
+messages are not automatically synchronized; check the latest available
+conversation context and GitHub `main` before starting work, and rebase onto
+intervening commits rather than force-pushing over them.
 
 ## Integrated work
 

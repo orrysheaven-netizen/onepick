@@ -74,6 +74,18 @@ export interface HomeShowcase {
   nextCursor: ReadCursor | null;
 }
 
+export interface EditorialHomeItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  categoryPath: string;
+  thumbnailUrl: string | null;
+  editorialNote: string | null;
+  editorialPriority: number;
+  pickCount: number;
+}
+
 export interface PickReadInput {
   userId?: string;
   excludeUserId?: string;
@@ -88,6 +100,7 @@ export interface PickReadInput {
 export interface ReadRepository {
   getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
+  getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;

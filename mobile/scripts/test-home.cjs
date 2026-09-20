@@ -28,6 +28,7 @@ let calls = [];
 const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomeShowcase: async () => { calls.push(['showcase']); return showcase; },
+  getEditorialHomeItems: async () => { calls.push(['editorial']); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
 const itemRepository = { getByCategory: async () => assert.fail('Home must not list unqualified catalog products') };
 const service = new HomeService({ getOpenCategories: async () => categories }, itemRepository, readRepository);
@@ -36,19 +37,20 @@ async function main() {
   const home = await service.getHomeData('me');
   assert.equal(home.currentPicks.length, 2);
   assert.equal(home.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
-  assert.equal(home.categoriesToPick.length, 1);
-  assert.equal(home.categoriesToPick[0].category.id, 'new');
+  assert.equal('categoriesToPick' in home, false, 'Home no longer computes unselected categories');
   assert.equal(home.minimumPickCount, 3);
   assert.equal(home.featuredItems[0].itemId, 'qualified');
   assert.equal(home.featuredItems[0].latestPickerUsername, 'friend');
+  assert.equal(home.editorialItems[0].itemId, 'editorial');
   assert.equal(calls.filter(([kind]) => kind === 'showcase').length, 1, 'Use one aggregate, not per-product count requests');
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
+  assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
   calls = [];
   const publicHome = await service.getHomeData();
   assert.equal(publicHome.currentPicks.length, 0);
   assert.equal(publicHome.featuredItems, home.featuredItems, 'Visitors see the same threshold-qualified products');
-  assert.equal(calls.length, 1, 'Visitors never fetch private picks');
-  assert.equal(calls[0][0], 'showcase');
+  assert.equal(calls.length, 2, 'Visitors fetch public showcase and editorial recommendations only');
+  assert.equal(calls.some(([kind]) => kind === 'private'), false);
   categories.splice(0, categories.length, category('only'));
   showcase.minimumPickCount = 5;
   showcase.items = [];
@@ -60,3 +62,4 @@ async function main() {
   console.log('Home checks passed: qualified public products, no catalog fallback, one aggregate, private collection and configurable empty state.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

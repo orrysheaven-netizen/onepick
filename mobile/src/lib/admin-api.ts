@@ -63,7 +63,33 @@ export type AdminItem = {
   created_at: string;
   updated_at: string;
   image_path: string | null;
+  thumbnail_path?: string | null;
+  image_source_url?: string | null;
   categories: { name: string } | null;
+};
+
+export type AdminEditorialFeature = {
+  item_id: string;
+  priority: number;
+  note: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminEditorialFeatureWithItem = AdminEditorialFeature & {
+  items: {
+    id: string;
+    name: string;
+    status: AdminItemStatus;
+    category_id: string;
+    image_path: string | null;
+    thumbnail_path: string | null;
+    image_source_url: string | null;
+    categories: { name: string } | null;
+  } | null;
 };
 
 export type AdminItemAlias = {
@@ -82,7 +108,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
-  categories: { name: string } | null;
+  categories: { name: string; slug: string } | null;
 };
 
 export type AdminReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
@@ -115,6 +141,46 @@ export type AdminClientErrorEvent = {
   platform: string | null;
   app_version: string | null;
   created_at: string;
+};
+
+// Shape of public.admin_onepick_dashboard(). Every user-activity number here
+// already excludes demo_* profiles and admin-allowlisted accounts.
+export type AdminOnePickDashboardWindow = 7 | 30 | 90;
+
+export type AdminOnePickDashboard = {
+  days: number;
+  generated_at: string;
+  excluded: { demo_users: number; admin_users: number };
+  totals: {
+    users: number;
+    active_picks: number;
+    picks_total: number;
+    comments: number;
+    open_categories: number;
+    active_items: number;
+  };
+  recent: {
+    users_7d: number;
+    users_30d: number;
+    picks_7d: number;
+    picks_30d: number;
+    comments_7d: number;
+    comments_30d: number;
+    active_users_7d: number;
+    active_users_30d: number;
+  };
+  queue: { pending_items: number; open_reports: number; suspended_users: number };
+  daily: Array<{ day: string; users: number; picks: number; comments: number }>;
+  categories: Array<{ id: string; name: string; slug: string; active_picks: number; pickers: number; picks_in_window: number }>;
+  top_items: Array<{ id: string; name: string; category_name: string; active_picks: number }>;
+  funnel: {
+    pick_created: number;
+    pick_share_clicked: number;
+    pick_link_opened: number;
+    item_detail_viewed: number;
+    auth_started: number;
+    auth_completed: number;
+  };
 };
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
@@ -247,6 +313,13 @@ export function getDashboardMetrics() {
   });
 }
 
+export function getOnePickDashboard(days: AdminOnePickDashboardWindow = 30) {
+  return adminRequest<AdminOnePickDashboard>('/rest/v1/rpc/admin_onepick_dashboard', {
+    method: 'POST',
+    body: JSON.stringify({ p_days: days }),
+  });
+}
+
 export function getAuditLogs(limit = 8, offset = 0) {
   return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?select=id,entity_type,action,summary,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 100)}&offset=${offset}`);
 }
@@ -259,13 +332,14 @@ export function getCategories() {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
 }
 
-export function createCategory(input: { name: string; slug: string }) {
-  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
+export function createCategory(input: { name: string; slug: string; parentId?: string | null }) {
+  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
       name: input.name,
       slug: input.slug,
+      parent_id: input.parentId ?? null,
       status: 'draft',
       is_visible: false,
       is_pickable: false,
@@ -274,8 +348,8 @@ export function createCategory(input: { name: string; slug: string }) {
   });
 }
 
-export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'name' | 'status' | 'is_visible' | 'is_pickable' | 'sort_order' | 'ranking_min_sample' | 'image_url'>>) {
-  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url`, {
+export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'name' | 'parent_id' | 'status' | 'is_visible' | 'is_pickable' | 'sort_order' | 'ranking_min_sample' | 'image_url'>>) {
+  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
@@ -318,7 +392,7 @@ export const ADMIN_PAGE_SIZE = 100;
 
 export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
     order: 'updated_at.desc',
     limit: String(ADMIN_PAGE_SIZE),
     offset: String(input.offset ?? 0),
@@ -353,6 +427,51 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
   });
 }
 
+export function getEditorialFeatures() {
+  return adminRequest<AdminEditorialFeatureWithItem[]>(
+    '/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at,items(id,name,status,category_id,image_path,thumbnail_path,image_source_url,categories(name))&order=priority.asc,updated_at.desc'
+  );
+}
+
+export function getEditorialCandidates(query: string) {
+  const params = new URLSearchParams({
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
+    or: '(status.eq.active,status.eq.discontinued)',
+    order: 'updated_at.desc',
+    limit: '20',
+  });
+  const keyword = query.trim();
+  if (keyword) params.set('name', `ilike.*${keyword}*`);
+  return adminRequest<AdminItem[]>(`/rest/v1/items?${params.toString()}`);
+}
+
+export function getItemEditorialFeature(itemId: string) {
+  return adminRequest<AdminEditorialFeature[]>(
+    `/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at&item_id=eq.${encodeURIComponent(itemId)}&limit=1`
+  );
+}
+
+export function setItemEditorialFeature(input: {
+  itemId: string;
+  isActive: boolean;
+  priority: number;
+  note?: string | null;
+  startsAt?: string;
+  endsAt?: string | null;
+}) {
+  return adminRequest<AdminEditorialFeature>('/rest/v1/rpc/admin_set_item_editorial_feature', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: input.itemId,
+      p_is_active: input.isActive,
+      p_priority: input.priority,
+      p_note: input.note?.trim() || null,
+      ...(input.startsAt ? { p_starts_at: input.startsAt } : {}),
+      ...(input.endsAt !== undefined ? { p_ends_at: input.endsAt } : {}),
+    }),
+  });
+}
+
 export function getItemAliases(itemId: string) {
   return adminRequest<AdminItemAlias[]>(`/rest/v1/item_aliases?select=id,item_id,alias,normalized_alias,created_at,updated_at&item_id=eq.${encodeURIComponent(itemId)}&order=alias.asc`);
 }
@@ -381,14 +500,17 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
-export function updatePendingItem(id: string, status: 'active' | 'rejected') {
-  return adminRequest(`/rest/v1/items?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({ status }),
+export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_review_pending_item', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: id,
+      p_status: status,
+      p_category_id: status === 'active' ? categoryId ?? null : null,
+    }),
   });
 }
 

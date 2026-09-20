@@ -36,6 +36,26 @@ supabase test db
 
 Database CI recreates the project from migrations and runs every pgTAP suite under `supabase/tests`.
 
+### Applying migrations to the linked project
+
+Merging a PR does not apply its migrations to the linked Supabase project: the
+Cloudflare build ships only the web bundle, and the Supabase GitHub integration
+deploys only Edge Functions. After a PR that adds a migration is merged:
+
+```bash
+git checkout main && git pull
+supabase migration list --linked
+supabase db push
+```
+
+Push only from a `main` checkout. Pushing from a feature branch records that branch's
+migrations in the remote history before they exist on `main`, and the next `db push`
+from `main` then refuses to run ("remote migration versions not found in local
+migrations directory"). If that has already happened, either bring the migration to
+`main` in a PR, or — when the remote entry duplicates one `main` already has — drop it
+from the history with `supabase migration repair --status reverted <version>`; that
+edits only the history table, not the schema.
+
 Current database coverage includes:
 
 - Pick replacement / review / removal.
@@ -66,4 +86,4 @@ Account deletion is server-side because deleting an Auth user requires an admin/
 
 ## Pull request workflow
 
-Feature work currently lives on `feature/pick-core` in Draft PR #1. Keep the PR draft until the active milestone has both Mobile CI and Database Tests green and actual-device release checks are complete.
+`main` is the single trunk (see `CLAUDE.md`). Branch from `main`, open a PR against `main`, and merge once Mobile CI and Database Tests are green. `main` is also what the Cloudflare Pages tester site and Supabase Edge Function deploys build from, so there is no separate integration branch to keep in sync. A PR that adds a migration additionally needs `supabase db push` from a `main` checkout after the merge (see [Applying migrations to the linked project](#applying-migrations-to-the-linked-project)).

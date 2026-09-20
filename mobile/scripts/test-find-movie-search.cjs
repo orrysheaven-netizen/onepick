@@ -51,17 +51,10 @@ const movie = {
 };
 const drama = { ...movie, source: 'tmdb_tv', externalId: '101', title: '테스트 드라마', originalTitle: 'Test Series', releaseYear: 2020 };
 const categories = [
-  { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을 것 › 라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
-  { id: 'movie', parentId: 'content', name: '영화', slug: 'movie', label: '콘텐츠 › 영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
-  { id: 'drama', parentId: 'content', name: '드라마', slug: 'drama', label: '콘텐츠 › 드라마', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
-  { id: 'youtube', parentId: 'content', name: '유튜브', slug: 'youtube', label: '콘텐츠 › 유튜브', status: 'open', isVisible: true, isPickable: true, sortOrder: 3 },
+  { id: 'ramen', slug: 'ramen', label: '먹을 것 › 라면' },
+  { id: 'movie', slug: 'movie', label: '콘텐츠 › 영화' },
+  { id: 'drama', slug: 'drama', label: '콘텐츠 › 드라마' },
 ];
-const categoryCatalog = [
-  { id: 'food', parentId: null, name: '먹을 것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
-  { id: 'content', parentId: null, name: '콘텐츠', slug: 'content', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
-  ...categories,
-];
-const categoryTree = load('lib/categories/categoryTree.ts');
 const imports = {
   react: fakeReact,
   'expo-router': {
@@ -79,8 +72,8 @@ const imports = {
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/music-search-link': { MusicSearchLink: () => null },
   '@/components/game-search-link': { GameSearchLink: () => null },
+  '@/components/youtube-search-link': { YoutubeSearchLink: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
-  '@/hooks/useExploreData': { useExploreCategories: () => ({ data: categoryCatalog }) },
   '@/hooks/useItemSearch': { useItemSearch: (...args) => { itemSearchArgs = args; return { data: [], isWaiting: false, isFetching: false, isError: false }; } },
   '@/hooks/useMovieCatalog': {
     useMovieCatalogSearch: (...args) => {
@@ -90,7 +83,6 @@ const imports = {
     useImportMovieCatalogItem: (mediaType) => { mutationMediaType = mediaType; return { isPending: false, isError: false, mutateAsync: async () => ({}) }; },
   },
   '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: categories, isPending: false, isError: false, refetch() {} }) },
-  '@/lib/categories/categoryTree': categoryTree,
 };
 const { default: Find } = load('app/pick/find.tsx', imports);
 const render = () => {
@@ -99,17 +91,13 @@ const render = () => {
 };
 
 let page = render();
-assert.match(page, /먼저 카테고리를 선택해주세요/);
-assert.equal(itemSearchArgs[0], '', 'Generic registration must not run an unscoped item search');
-assert.equal(inputs[0].editable, false);
-const contentParentButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 상위 카테고리 선택');
-assert.ok(contentParentButton);
-contentParentButton.onPress();
-page = render();
-const movieCategoryButton = presses.find((button) => button.accessibilityLabel === '콘텐츠 › 영화 카테고리 선택');
-assert.ok(movieCategoryButton);
-movieCategoryButton.onPress();
-assert.equal(destination.params.categoryId, 'movie');
+assert.match(page, /카테고리 선택 없이 상품명만 검색하고 등록합니다/);
+assert.match(page, /카테고리는 비워두고 상품 등록만 진행합니다/);
+assert.equal(itemSearchArgs[0], '', 'Empty product search does not query yet');
+assert.equal(itemSearchArgs[1], undefined, 'Category-free registration does not preselect a category');
+assert.equal(itemSearchArgs[2], undefined, 'Category-free registration searches the full saved catalog');
+assert.equal(inputs[0].editable, true);
+assert.ok(!presses.some((button) => String(button.accessibilityLabel ?? '').includes('콘텐츠 종류 선택')));
 
 params = { categoryId: 'movie' };
 page = render();
@@ -140,13 +128,4 @@ assert.equal(destination.params.action, 'choose_drama'); assert.equal(destinatio
 
 state = []; refs = []; params = { categoryId: 'ramen', query: '라면' };
 render(); assert.equal(movieSearchArgs[1], false, 'Ordinary products do not activate either external media search');
-
-state = []; refs = []; destination = undefined;
-params = { categoryId: 'youtube', query: '최재천의 아마존', onboarding: '1' };
-render();
-assert.equal(destination.pathname, '/pick/youtube', 'YouTube categories must use the dedicated external catalog screen');
-assert.equal(destination.params.categoryId, 'youtube');
-assert.equal(destination.params.query, '최재천의 아마존');
-assert.equal(destination.params.onboarding, '1', 'onboarding state must survive the YouTube handoff');
-
-console.log('Find screen checks passed: category-first search, explicit movie/TV activation, YouTube handoff, and query/login handoff.');
+console.log('Find screen checks passed: category-free product search, legacy scoped movie/TV routes and query/login handoff.');
