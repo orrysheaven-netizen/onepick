@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'src/components/profile-pick-card.tsx'), 'utf8');
 const owner = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
 const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
+const groups = fs.readFileSync(path.join(root, 'src/components/profile-pick-groups.tsx'), 'utf8');
 
 const moduleExports = {};
 const presses = [];
@@ -67,9 +68,11 @@ assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.name\}>/);
 assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.review\}>/);
 assert.match(source, /categoryPill/);
 assert.match(owner, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
-assert.match(publicProfile, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
-assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 2, 'owner profile uses the shared card for current and history picks');
-assert.ok((publicProfile.match(/<ProfilePickCard/g) || []).length >= 1, 'public profile uses the shared card');
+assert.match(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
+assert.match(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
+assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 1, 'owner profile still uses the shared card for history picks');
+assert.match(groups, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
+assert.match(groups, /<ProfilePickCard/, 'current owner/public groups render the same shared card');
 assert.doesNotMatch(publicProfile, /원픽 상세 보기 ›/);
 assert.doesNotMatch(publicProfile, /제품 상세 보기 ›/);
 
