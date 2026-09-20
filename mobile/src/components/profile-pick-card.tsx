@@ -61,6 +61,7 @@ export function ProfilePickCard({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${itemName} 제품 상세 보기`}
+            hitSlop={4}
             onPress={onPressItem}
             style={({ pressed }) => [styles.itemAction, pressed && styles.pressed]}>
             <Text style={styles.itemActionText}>제품 보기</Text>
