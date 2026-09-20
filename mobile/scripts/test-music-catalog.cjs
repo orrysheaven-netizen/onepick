@@ -13,7 +13,7 @@ function load(file, imports = {}) {
     require: (name) => { if (name in imports) return imports[name]; throw new Error(name); } });
   return exports;
 }
-const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, musicItemName } =
+const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, musicItemName, secureCoverUrl } =
   load('supabase/functions/music-catalog/musicCatalog.ts', { '@supabase/supabase-js': {} });
 const recordingId = '11111111-2222-4333-8444-555555555555';
 const groupId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -82,6 +82,14 @@ async function main(){
   assert.equal(musicItemName(mapped),'밤편지 · 아이유');
   assert.equal(mapMusicBrainzRecording({...raw,video:true}),null);
   assert.equal(mapMusicBrainzRecording({...raw,'artist-credit':[]}),null);
+
+  assert.equal(secureCoverUrl('http://coverartarchive.org/release/6fc86dcc-8e52-4572-8fad-f7ba5616c400/32198285436-500.jpg'),
+    'https://coverartarchive.org/release/6fc86dcc-8e52-4572-8fad-f7ba5616c400/32198285436-500.jpg','http:// Cover Art Archive URLs are upgraded, not rejected');
+  assert.equal(secureCoverUrl('https://coverartarchive.org/release/x/1-500.jpg'),'https://coverartarchive.org/release/x/1-500.jpg');
+  assert.equal(secureCoverUrl('https://ia800000.us.archive.org/1/items/mbid-x/x-500.jpg'),'https://ia800000.us.archive.org/1/items/mbid-x/x-500.jpg');
+  assert.equal(secureCoverUrl('https://evil.example/coverartarchive.org/x.jpg'),null,'Only archive hosts are accepted');
+  assert.equal(secureCoverUrl('ftp://coverartarchive.org/x.jpg'),null);
+  assert.equal(secureCoverUrl('not a url'),null);
 
   const s=setup();
   const search=await (await s.request('search',{},false)).json();
