@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications, useReadNotification } from '@/hooks/useNotifications';
-import type { CommentNotification } from '@/services/notificationService';
+import type { AppNotification } from '@/services/notificationService';
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -14,15 +14,16 @@ export default function NotificationsScreen() {
   const query = useNotifications(session.user?.id, ready);
   const read = useReadNotification(session.user?.id);
   const [openError, setOpenError] = useState(false);
+  const keyOf = (item: AppNotification) => `${item.kind}:${item.id}`;
   const items = ready && !query.isError ? query.data?.pages.flatMap((page) => page.items)
-    .filter((item, index, all) => all.findIndex((other) => other.comment_id === item.comment_id) === index) ?? [] : [];
+    .filter((item, index, all) => all.findIndex((other) => keyOf(other) === keyOf(item)) === index) ?? [] : [];
   const loading = session.isLoading || (ready && query.isPending);
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
-  const open = async (item: CommentNotification) => {
+  const open = async (item: AppNotification) => {
     if (!ready || read.isPending) return;
     setOpenError(false);
     try {
-      await read.mutateAsync(item.comment_id);
+      await read.mutateAsync({ kind: item.kind, id: item.id });
       router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });
     } catch {
       setOpenError(true);
@@ -37,26 +38,26 @@ export default function NotificationsScreen() {
     </View>
     <FlatList
       data={items}
-      keyExtractor={(item) => item.comment_id}
+      keyExtractor={keyOf}
       contentContainerStyle={styles.content}
       refreshControl={ready ? <RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} /> : undefined}
       renderItem={({ item }) => <Pressable accessibilityRole="button"
-        accessibilityLabel={`${item.read_at ? '읽은' : '새'} 알림, @${item.username}님이 ${item.item_name} 원픽에 댓글을 남겼어요`}
+        accessibilityLabel={`${item.read_at ? '읽은' : '새'} 알림, @${item.username}님이 ${item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요` : `${item.item_name}을(를) 원픽으로 골랐어요`}`}
         disabled={read.isPending}
         onPress={() => { void open(item); }}
         style={({ pressed }) => [styles.card, !item.read_at && styles.unread, pressed && { opacity: 0.65 }]}>
-        <View style={styles.row}><Text style={styles.sender}>@{item.username}</Text>{!item.read_at ? <Text style={styles.newLabel}>새 댓글</Text> : null}</View>
-        <Text style={styles.message}>{item.item_name} 원픽에 댓글을 남겼어요.</Text>
-        <Text style={styles.body} numberOfLines={3}>{item.body}</Text>
+        <View style={styles.row}><Text style={styles.sender}>@{item.username}</Text>{!item.read_at ? <Text style={styles.newLabel}>{item.kind === 'comment' ? '새 댓글' : '새 원픽'}</Text> : null}</View>
+        <Text style={styles.message}>{item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`}</Text>
+        {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : `“${item.body}”`}</Text> : null}
         <Text style={styles.time}>{new Date(item.created_at).toLocaleString('ko-KR')}</Text>
       </Pressable>}
       ListHeaderComponent={openError && ready ? <Text accessibilityRole="alert" style={styles.error}>알림을 열지 못했어요. 다시 눌러주세요.</Text> : null}
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
-          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽에 달린 댓글을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
+          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽에 달린 댓글과 팔로우한 사람의 새 원픽을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
           : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
-          : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 댓글이 달리면 여기에 알려드려요.</Text></>}
+          : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 댓글이 달리거나 팔로우한 사람이 원픽을 고르면 여기에 알려드려요.</Text></>}
       </View>}
       ListFooterComponent={ready && query.hasNextPage ? <Pressable accessibilityRole="button" disabled={query.isFetching} style={styles.more} onPress={() => { if (!query.isFetching) void query.fetchNextPage(); }}><Text style={styles.link}>{query.isFetchingNextPage ? '불러오는 중…' : '이전 알림 더 보기'}</Text></Pressable> : null}
     />

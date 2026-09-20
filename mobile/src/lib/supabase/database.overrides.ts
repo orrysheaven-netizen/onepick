@@ -68,6 +68,28 @@ type UserFollowRow = {
   created_at: string;
 };
 
+type PickChangeNotificationRow = {
+  pick_id: string;
+  recipient_id: string;
+  created_at: string;
+  read_at: string | null;
+};
+type NotificationPreferencesRow = {
+  user_id: string;
+  followee_pick_change: boolean;
+  updated_at: string;
+};
+export type NotificationPageRow = {
+  kind: 'comment' | 'pick_change';
+  id: string;
+  pick_id: string;
+  username: string;
+  body: string;
+  item_name: string;
+  created_at: string;
+  read_at: string | null;
+};
+
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -99,6 +121,8 @@ export type AppDatabase = Omit<Database, 'public'> & {
       profile_ai_reviews: TableShape<ProfileAiReviewRow, never, { is_visible?: boolean }>;
       system_actors: TableShape<SystemActorRow, never, never>;
       user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
+      pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
+      notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
@@ -118,6 +142,14 @@ export type AppDatabase = Omit<Database, 'public'> & {
       follow_counts: {
         Args: never;
         Returns: { following_count: number; follower_count: number }[];
+      };
+      notification_count: {
+        Args: never;
+        Returns: number;
+      };
+      notification_page: {
+        Args: { p_before_time?: string; p_before_id?: string };
+        Returns: NotificationPageRow[];
       };
       item_photo_credit: {
         Args: { p_item_id: string };

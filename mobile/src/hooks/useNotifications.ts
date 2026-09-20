@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { notificationService, type NotificationCursor } from '@/services/notificationService';
+import { notificationService, type NotificationCursor, type NotificationKind } from '@/services/notificationService';
 
 export const notificationKeys = {
   user: (userId?: string) => ['notifications', userId ?? 'signed-out'] as const,
   count: (userId?: string) => [...notificationKeys.user(userId), 'count'] as const,
   list: (userId?: string) => [...notificationKeys.user(userId), 'list'] as const,
+  preferences: (userId?: string) => [...notificationKeys.user(userId), 'preferences'] as const,
 };
 
 function useAppActive() {
@@ -47,12 +48,34 @@ export function useNotifications(userId?: string, enabled = true) {
 export function useReadNotification(userId?: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (commentId: string) => {
+    mutationFn: async ({ kind, id }: { kind: NotificationKind; id: string }) => {
       if (!userId) throw new Error('Sign in required');
-      await notificationService.markRead(userId, commentId);
+      await notificationService.markRead(userId, kind, id);
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: notificationKeys.user(userId) });
+    },
+  });
+}
+
+export function useNotificationPreferences(userId?: string) {
+  return useQuery({
+    queryKey: notificationKeys.preferences(userId),
+    enabled: Boolean(userId),
+    queryFn: () => notificationService.preferences(userId!),
+    retry: false,
+  });
+}
+
+export function useSetFolloweePickChange(userId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (!userId) throw new Error('Sign in required');
+      await notificationService.setFolloweePickChange(userId, enabled);
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: notificationKeys.preferences(userId) });
     },
   });
 }

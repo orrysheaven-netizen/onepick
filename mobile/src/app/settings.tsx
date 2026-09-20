@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
+import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { OnePick } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
@@ -22,6 +23,8 @@ export default function SettingsScreen() {
   const blocked = useBlockedUsers(user?.id);
   const safety = useSafetyActions();
   const deleteAccount = useDeleteAccount();
+  const preferences = useNotificationPreferences(user?.id);
+  const setFolloweePickChange = useSetFolloweePickChange(user?.id);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteAccount = async () => {
@@ -70,6 +73,25 @@ export default function SettingsScreen() {
 
         {user ? (
           <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>알림</Text>
+              <View style={styles.switchRow}>
+                <View style={styles.switchCopy}>
+                  <Text style={styles.switchLabel}>팔로우한 사람의 원픽 변경</Text>
+                  <Text style={styles.body}>팔로우한 사람이 원픽을 새로 고르거나 바꾸면 알림에 표시합니다. 한줄평만 고친 경우는 알리지 않아요.</Text>
+                </View>
+                <Switch
+                  accessibilityLabel="팔로우한 사람의 원픽 변경 알림"
+                  value={preferences.data?.followeePickChange ?? true}
+                  disabled={preferences.isPending || setFolloweePickChange.isPending}
+                  onValueChange={(value) => setFolloweePickChange.mutate(value)}
+                  trackColor={{ true: OnePick.accent, false: OnePick.border }}
+                />
+              </View>
+              {preferences.isError ? <Text style={styles.error}>알림 설정을 불러오지 못했어요. 기본값(켜짐)으로 동작합니다.</Text> : null}
+              {setFolloweePickChange.isError ? <Text style={styles.error}>알림 설정을 저장하지 못했어요. 다시 시도해주세요.</Text> : null}
+            </View>
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>차단한 사용자</Text>
               <Text style={styles.body}>차단하면 서로의 프로필, 원픽, 댓글이 로그인 상태에서 보이지 않습니다.</Text>
@@ -142,6 +164,9 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginBottom: 14 },
   dangerCard: { borderWidth: 1, borderColor: OnePick.dangerSoft },
   cardTitle: { color: OnePick.text, fontSize: 17, fontWeight: '800' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 },
+  switchCopy: { flex: 1, minWidth: 0 },
+  switchLabel: { color: OnePick.text, fontSize: 14, fontWeight: '700', marginTop: 8 },
   dangerTitle: { color: OnePick.danger, fontSize: 17, fontWeight: '800' },
   body: { color: OnePick.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
   empty: { color: OnePick.hint, fontSize: 12, marginTop: 16 },

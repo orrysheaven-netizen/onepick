@@ -18,11 +18,15 @@ function load(file, imports = {}) {
 }
 const calls = [];
 let failure = null;
-const rows = Array.from({ length: 21 }, (_, i) => ({ comment_id: 'c'+i, pick_id: 'pick', created_at: '2026-09-17T00:00:00.123456Z', read_at: null }));
+const rows = Array.from({ length: 21 }, (_, i) => ({ kind: i % 2 ? 'pick_change' : 'comment', id: 'c'+i, pick_id: 'pick', created_at: '2026-09-17T00:00:00.123456Z', read_at: null }));
+let preferenceRow = { followee_pick_change: false };
 const chain = {
   update: (value) => { calls.push(['update', value]); return chain; },
   eq: (key, value) => { calls.push([key, value]); return chain; },
   is: async (key, value) => { calls.push([key, value]); return { error: failure }; },
+  select: (columns) => { calls.push(['select', columns]); return chain; },
+  maybeSingle: async () => ({ data: preferenceRow, error: failure }),
+  upsert: async (value, options) => { calls.push(['upsert', value, options]); return { error: failure }; },
 };
 const client = {
   rpc: async (name, args) => { calls.push([name, args]); return { data: name.includes('count') ? 4 : rows, error: failure }; },
@@ -38,7 +42,7 @@ const native = {
   Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
   StyleSheet: { create: (styles) => styles },
   FlatList: (props) => React.createElement('main', null, props.ListHeaderComponent,
-    props.data.length ? props.data.map((item) => React.createElement('div', { key: item.comment_id }, props.renderItem({ item }))) : props.ListEmptyComponent, props.ListFooterComponent),
+    props.data.length ? props.data.map((item) => React.createElement('div', { key: props.keyExtractor(item) }, props.renderItem({ item }))) : props.ListEmptyComponent, props.ListFooterComponent),
 };
 const countQuery = { data: 4, isError: false };
 const imports = {
@@ -48,35 +52,61 @@ const imports = {
 };
 const { NotificationButton } = load('components/notification-button.tsx', imports);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null };
-const inbox = { data: { pages: [{ items: [{ ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' }] }] }, isError: false };
+const inbox = { data: { pages: [{ items: [
+  { ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' },
+  { ...rows[1], id: 'p1', pick_id: 'pick-p1', username: 'jimin', item_name: '헤드폰', body: '음질이 좋아요' },
+] }] }, isError: false };
+let readCalls = [];
 const { default: Screen } = load('app/notifications.tsx', {
   ...imports,
   'react-native-safe-area-context': { SafeAreaView: part('section') },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useNotifications': { useNotifications: () => inbox, useReadNotification: () => ({ isPending: false, mutateAsync: async () => {} }) },
+  '@/hooks/useNotifications': { useNotifications: () => inbox, useReadNotification: () => ({ isPending: false, mutateAsync: async (input) => { readCalls.push(input); } }) },
 });
 async function main() {
   const service = new NotificationService(client);
   assert.equal(await service.unreadCount('owner'), 4);
-  assert.equal(calls[0][1].p_recipient_id, 'owner');
+  assert.equal(calls[0][0], 'notification_count', 'Unified count RPC, no user id argument');
   const page = await service.page('owner', null);
+  assert.equal(calls[1][0], 'notification_page');
   assert.equal(page.items.length, 20);
   assert.equal(page.nextCursor.id, 'c19');
   assert.equal(page.nextCursor.timestamp, rows[19].created_at, 'Keep microsecond cursor precision');
-  await service.markRead('owner', 'c0');
+  await service.markRead('owner', 'comment', 'c0');
+  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'comment_notifications'));
   assert.ok(calls.some(([key, value]) => key === 'recipient_id' && value === 'owner'));
   assert.ok(calls.some(([key, value]) => key === 'comment_id' && value === 'c0'));
+  calls.length = 0;
+  await service.markRead('owner', 'pick_change', 'p1');
+  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'pick_change_notifications'), 'Pick changes are marked read on their own table');
+  assert.ok(calls.some(([key, value]) => key === 'pick_id' && value === 'p1'));
+  assert.ok(!calls.some(([key]) => key === 'comment_id'));
+  assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: false }));
+  preferenceRow = null;
+  assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: true }), 'No row means on');
+  calls.length = 0;
+  await service.setFolloweePickChange('owner', false);
+  const upsert = calls.find(([key]) => key === 'upsert');
+  assert.equal(upsert[1].user_id, 'owner'); assert.equal(upsert[1].followee_pick_change, false); assert.equal(upsert[2].onConflict, 'user_id');
   failure = new Error('offline');
   await assert.rejects(() => service.unreadCount('owner'), /offline/);
-  await assert.rejects(() => service.markRead('owner', 'c0'), /offline/);
+  await assert.rejects(() => service.markRead('owner', 'comment', 'c0'), /offline/);
+  await assert.rejects(() => service.setFolloweePickChange('owner', true), /offline/);
   buttons = [];
   assert.match(renderToStaticMarkup(React.createElement(NotificationButton, { userId: 'owner' })), /4/);
   buttons[0].onPress(); assert.equal(destination, '/notifications');
   buttons = [];
-  assert.match(renderToStaticMarkup(React.createElement(Screen)), /새 댓글/);
+  const inboxHtml = renderToStaticMarkup(React.createElement(Screen));
+  assert.match(inboxHtml, /새 댓글/);
+  assert.match(inboxHtml, /새 원픽/); assert.match(inboxHtml, /@jimin/); assert.match(inboxHtml, /헤드폰을\(를\) 원픽으로 골랐어요/); assert.match(inboxHtml, /“음질이 좋아요”/);
   const open = buttons.find((button) => button.accessibilityLabel?.includes('@friend'));
   open.onPress(); await new Promise((resolve) => setImmediate(resolve));
   assert.equal(destination.params.pickId, 'pick');
+  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'comment', id: 'c0' }));
+  const openPick = buttons.find((button) => button.accessibilityLabel?.includes('@jimin'));
+  openPick.onPress(); await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(destination.params.pickId, 'pick-p1', 'Pick-change rows open the new pick');
+  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'pick_change', id: 'p1' }));
   auth.user = null;
   const publicPage = renderToStaticMarkup(React.createElement(Screen));
   assert.match(publicPage, /로그인/); assert.doesNotMatch(publicPage, /@friend|신라면/, 'No cached private data on logout');
@@ -86,6 +116,6 @@ async function main() {
   assert.match(renderToStaticMarkup(React.createElement(Screen)), /불러오지 못했어요/);
   inbox.isError = false; inbox.data.pages[0].items = [];
   assert.match(renderToStaticMarkup(React.createElement(Screen)), /아직 알림이 없어요/);
-  console.log('Notification checks passed: cursor, scoped reads, errors, navigation, badge and private UI states.');
+  console.log('Notification checks passed: unified inbox cursor, per-kind read marks, preferences, errors, navigation, badge and private UI states.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
