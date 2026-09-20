@@ -194,7 +194,7 @@ export default function ProfileScreen() {
           itemStatus={item.item?.status}
           hasPhoto={Boolean(item.item?.imagePath)}
           onPressPick={() => openPick(item.pick.id)}
-          onPressItem={item.item ? () => openItem(item.item.id) : undefined}
+          onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
         />) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
@@ -243,7 +243,7 @@ export default function ProfileScreen() {
             muted
             statusText={item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}
             onPressPick={() => openPick(item.pick.id)}
-            onPressItem={item.item ? () => openItem(item.item.id) : undefined}
+            onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
           />)}
           {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
           <ListControls query={historyQuery} label="이전 기록" />
