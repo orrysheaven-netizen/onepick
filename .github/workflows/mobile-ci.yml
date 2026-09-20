@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      # Regression tests in mobile/scripts load Edge Function sources directly.
+      - 'supabase/functions/**'
       - '.github/workflows/mobile-ci.yml'
   pull_request:
     paths:
       - 'mobile/**'
+      # Regression tests in mobile/scripts load Edge Function sources directly.
+      - 'supabase/functions/**'
       - '.github/workflows/mobile-ci.yml'
 
 concurrency:
