@@ -11,7 +11,7 @@ const source = fs.readFileSync(path.join(root, 'src/components/profile-pick-card
 const owner = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
 const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
 
-const exports = {};
+const moduleExports = {};
 const presses = [];
 const native = {
   View: ({ children }) => React.createElement('div', null, children),
@@ -23,7 +23,7 @@ const native = {
 vm.runInNewContext(ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText, {
-  exports,
+  exports: moduleExports,
   require: (name) => {
     if (name === 'react/jsx-runtime') return require(name);
     if (name === 'react-native') return native;
@@ -33,7 +33,7 @@ vm.runInNewContext(ts.transpileModule(source, {
 });
 
 let pickCalls = 0, itemCalls = 0;
-const html = renderToStaticMarkup(React.createElement(exports.ProfilePickCard, {
+const html = renderToStaticMarkup(React.createElement(moduleExports.ProfilePickCard, {
   categoryName: '영화',
   itemName: '아주 긴 제품 이름을 가진 테스트 작품',
   review: '긴 한줄평도 카드 높이를 과하게 늘리지 않고 두 줄 안에서 읽을 수 있어야 합니다.',
