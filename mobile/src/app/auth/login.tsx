@@ -1,16 +1,24 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
-import { useKakaoSignIn } from '@/hooks/useKakaoSignIn';
+import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
+import type { SocialAuthProvider } from '@/types/domain/auth';
 
-function getMessage(error: unknown) {
+const PROVIDER_LABEL: Record<SocialAuthProvider, string> = {
+  kakao: '카카오',
+  google: 'Google',
+  naver: '네이버',
+};
+
+function getMessage(error: unknown, provider: SocialAuthProvider | null) {
   if (error instanceof AppError && error.code === 'AUTH_FAILED') {
-    return '카카오 로그인을 완료하지 못했어요. 설정을 확인한 뒤 다시 시도해주세요.';
+    return `${provider ? PROVIDER_LABEL[provider] : '소셜'} 로그인을 완료하지 못했어요. 설정을 확인한 뒤 다시 시도해주세요.`;
   }
 
   return '로그인 중 문제가 발생했어요. 다시 시도해주세요.';
@@ -20,10 +28,12 @@ export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<AuthReturnParams>();
   const intent = getAuthIntent(params);
-  const kakaoSignIn = useKakaoSignIn();
+  const socialSignIn = useSocialSignIn();
+  const [activeProvider, setActiveProvider] = useState<SocialAuthProvider | null>(null);
 
-  const handleKakao = async () => {
-    if (kakaoSignIn.isPending) return;
+  const handleProvider = async (provider: SocialAuthProvider) => {
+    if (socialSignIn.isPending) return;
+    setActiveProvider(provider);
     void observabilityService.captureProductEvent({
       eventName: 'auth_started',
       source: intent.action,
@@ -34,7 +44,7 @@ export default function LoginScreen() {
     });
 
     try {
-      const result = await kakaoSignIn.mutateAsync(redirectTo);
+      const result = await socialSignIn.mutateAsync({ provider, redirectTo });
 
       if (!result) return;
       router.replace(getPostAuthRoute(intent, !result.profile));
@@ -42,6 +52,8 @@ export default function LoginScreen() {
       // Mutation state renders the error. Avoid an unhandled mutateAsync rejection.
     }
   };
+
+  const pendingLabel = activeProvider ? PROVIDER_LABEL[activeProvider] : '소셜';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -61,31 +73,51 @@ export default function LoginScreen() {
                 ? '선택한 제품을 기억해두고 로그인 뒤 한줄평 화면으로 돌아옵니다.'
                 : intent.action === 'choose_movie'
                   ? '선택한 영화를 기억해두고 로그인 뒤 원픽 등록을 이어갑니다.'
-                : intent.action === 'comment_pick'
-                  ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'
-                  : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
+                  : intent.action === 'comment_pick'
+                    ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'
+                    : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
         </Text>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>간편 로그인</Text>
-          <Pressable
-            disabled={kakaoSignIn.isPending}
-            onPress={() => void handleKakao()}
-            style={({ pressed }) => [styles.kakaoButton, pressed && styles.pressed, kakaoSignIn.isPending && styles.disabled]}>
-            <Text style={styles.kakaoButtonText}>{kakaoSignIn.isPending ? '카카오 로그인 중...' : '카카오로 계속하기'}</Text>
-          </Pressable>
+          <View style={styles.providerStack}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="카카오로 계속하기"
+              disabled={socialSignIn.isPending}
+              onPress={() => void handleProvider('kakao')}
+              style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+              <Text style={styles.kakaoButtonText}>{socialSignIn.isPending && activeProvider === 'kakao' ? '카카오 로그인 중...' : '카카오로 계속하기'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Google로 계속하기"
+              disabled={socialSignIn.isPending}
+              onPress={() => void handleProvider('google')}
+              style={({ pressed }) => [styles.providerButton, styles.googleButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+              <Text style={styles.googleButtonText}>{socialSignIn.isPending && activeProvider === 'google' ? 'Google 로그인 중...' : 'Google로 계속하기'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="네이버로 계속하기"
+              disabled={socialSignIn.isPending}
+              onPress={() => void handleProvider('naver')}
+              style={({ pressed }) => [styles.providerButton, styles.naverButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+              <Text style={styles.naverButtonText}>{socialSignIn.isPending && activeProvider === 'naver' ? '네이버 로그인 중...' : '네이버로 계속하기'}</Text>
+            </Pressable>
+          </View>
 
-          {kakaoSignIn.isError ? (
+          {socialSignIn.isError ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{getMessage(kakaoSignIn.error)}</Text>
+              <Text style={styles.errorText}>{getMessage(socialSignIn.error, activeProvider)}</Text>
             </View>
           ) : null}
-          {kakaoSignIn.isSuccess && !kakaoSignIn.data ? (
-            <Text style={styles.note}>{Platform.OS === 'web' ? '카카오 로그인 화면으로 이동합니다.' : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
+          {socialSignIn.isSuccess && !socialSignIn.data ? (
+            <Text style={styles.note}>{Platform.OS === 'web' ? `${pendingLabel} 로그인 화면으로 이동합니다.` : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
           ) : null}
         </View>
 
-        <Text style={styles.note}>처음 로그인하면 사용할 사용자명만 정하면 됩니다.</Text>
+        <Text style={styles.note}>처음 로그인하면 사용할 사용자명만 정하면 됩니다. 기존 계정은 처음 사용한 로그인 방식을 계속 사용해주세요.</Text>
       </View>
     </SafeAreaView>
   );
@@ -101,8 +133,14 @@ const styles = StyleSheet.create({
   subtitle: { color: '#747985', fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
   card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20, marginTop: 34 },
   cardTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  kakaoButton: { minHeight: 54, borderRadius: 16, backgroundColor: '#FEE500', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  providerStack: { gap: 10, marginTop: 16 },
+  providerButton: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  kakaoButton: { backgroundColor: '#FEE500' },
   kakaoButtonText: { color: '#191919', fontSize: 15, fontWeight: '800' },
+  googleButton: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4D6DD' },
+  googleButtonText: { color: '#202124', fontSize: 15, fontWeight: '800' },
+  naverButton: { backgroundColor: '#03C75A' },
+  naverButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   errorBox: { backgroundColor: '#FFF0EB', borderRadius: 14, padding: 13, marginTop: 14 },
   errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18 },
   note: { color: '#747985', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
