@@ -38,7 +38,7 @@ async function main() {
   let calls = [];
   let item = null;
   let submittedStatus = 'pending';
-  const category = { id: 'ramen', slug: 'ramen', isVisible: true, isPickable: true, status: 'open' };
+  const category = { id: 'ramen', slug: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면', isVisible: true, isPickable: true, status: 'open' };
   const futureCategory = { ...category, id: 'future', slug: 'future' };
   const hiddenCategory = { ...category, id: 'hidden', isPickable: false };
 
@@ -81,7 +81,9 @@ async function main() {
     { preparePhoto: async (uri, sourceUrl) => ({ uri, sourceUrl }), choosePhoto: async () => null },
   );
 
-  assert.equal((await service.getCategories()).length, 2, 'All visible pickable categories are available without hardcoded slugs');
+  const registrationCategories = await service.getCategories();
+  assert.equal(registrationCategories.length, 2, 'All visible pickable categories are available without hardcoded slugs');
+  assert.equal(registrationCategories[0].label, '먹을것 › 면류 › 라면', 'Registration keeps the repository full-path label');
 
   const input = {
     userId: 'me',
