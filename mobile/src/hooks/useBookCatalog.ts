@@ -7,31 +7,35 @@ import { bookCatalogService } from '@/services';
 const SEARCH_DELAY_MS = 250;
 const FRESH_RESULT_MS = 10 * 60_000;
 
-export function useBookCatalogSearch(searchText: string, enabled: boolean) {
-  const cleanQuery = searchText.trim().replace(/\s+/g, ' ');
-  const [settledQuery, setSettledQuery] = useState('');
+export function useBookCatalogSearch(titleText: string, authorText: string, enabled: boolean) {
+  const cleanTitle = titleText.trim().replace(/\s+/g, ' ');
+  const cleanAuthor = authorText.trim().replace(/\s+/g, ' ');
+  const requestKey = `${cleanTitle}\n${cleanAuthor}`;
+  const [settledKey, setSettledKey] = useState('');
   const queryClient = useQueryClient();
-  const key = queryKeys.bookCatalog.search(cleanQuery);
+  const key = queryKeys.bookCatalog.search(cleanTitle, cleanAuthor);
   const cached = queryClient.getQueryState(key);
   const age = cached ? Date.now() - cached.dataUpdatedAt : Infinity;
   const fresh = Boolean(cached?.status === 'success' && cached.data !== undefined
     && !cached.isInvalidated && age >= 0 && age < FRESH_RESULT_MS);
-  const valid = enabled && cleanQuery.length >= 2 && cleanQuery.length <= 100;
+  const valid = enabled
+    && cleanTitle.length >= 2 && cleanTitle.length <= 100
+    && cleanAuthor.length <= 100;
 
   useEffect(() => {
-    const timeout = setTimeout(() => setSettledQuery(cleanQuery), SEARCH_DELAY_MS);
+    const timeout = setTimeout(() => setSettledKey(requestKey), SEARCH_DELAY_MS);
     return () => clearTimeout(timeout);
-  }, [cleanQuery]);
+  }, [requestKey]);
 
-  const isWaiting = valid && cleanQuery !== settledQuery && !fresh;
+  const isWaiting = valid && requestKey !== settledKey && !fresh;
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => bookCatalogService.search(cleanQuery, signal),
+    queryFn: ({ signal }) => bookCatalogService.search(cleanTitle, cleanAuthor, signal),
     enabled: valid && !isWaiting,
     staleTime: FRESH_RESULT_MS,
   });
 
-  return { ...query, isWaiting, valid, cleanQuery };
+  return { ...query, isWaiting, valid, cleanTitle, cleanAuthor };
 }
 
 export function useImportBookCatalogItem() {
