@@ -46,3 +46,21 @@ the scales new components should use. Korean body copy does not go below `body`;
 
 Regression checks that load screen sources through a module map hand back the real
 tokens via `mobile/scripts/design-tokens.cjs`.
+
+## UI kit
+
+`mobile/src/components/ui/` holds the shared pieces screens compose instead of
+restyling `View`/`Text`/`Pressable` per screen. Import from `@/components/ui`.
+
+| Component | Role |
+| --- | --- |
+| `Button` | `primary` (one per screen) · `secondary` · `soft` (in-card action) · `ghost` (text link) · `danger`; sizes `lg` 52 / `md` 48 / `sm` 40; `loading` swaps the label for a spinner and blocks presses |
+| `Chip` | Category filters and slots; `selected` uses the accent pair and is exposed through `accessibilityState`; `dashed` marks an empty slot |
+| `SectionHeader` | Title + accent count + caption description, optional ghost action |
+| `StateCard` | Empty, `loading` and `tone="danger"` error states share one card; `compact` for inline list states |
+| `Avatar` | Initial on `accentSoft`; sizes 24/32/40/64; pressable only when given `onPress` |
+| `PickCard` | The feed card. Reads person → category → item → reason; the review is always quoted; `footer` takes the action row |
+
+Home is the first screen on the kit. Regression checks that render a screen
+through a module map get the real kit from `mobile/scripts/ui-components.cjs`
+(`loadUi(imports)` shares the test's `react-native` and `PickPhoto` stubs).
