@@ -190,7 +190,7 @@ async function main() {
   render(); press('제품 등록 요청 보내기'); await settle();
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
-  assert.match(render(), /사진을 저장하지 못했어요/);
+  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요/);
   assert.equal(button('이 제품의 사진이 맞으며').accessibilityState.checked, true, 'Upload failure preserves photo for retry');
   press('사진 제거'); render();
   assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Image-free requests remain supported');
