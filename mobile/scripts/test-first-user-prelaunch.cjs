@@ -174,7 +174,11 @@ async function main() {
     /disabled={!value\.canGenerate \|\| generate\.isPending}[\s\S]*?generate\.mutate\(\)/,
     'the AI CTA must be enabled by canGenerate and invoke generation',
   );
-  assert.match(aiPanelSource, />AI 평가 보기<\//, 'the first AI CTA must remain visible in the profile flow');
+  assert.match(
+    aiPanelSource,
+    /value\.hasReview \? 'AI가 다시 본 나' : 'AI 평가 보기'/,
+    'the first AI CTA label must remain visible in the profile flow',
+  );
 
   // 5) Profile -> public profile -> native share payload with a stable public URL.
   const profileSource = read('src/app/(tabs)/profile.tsx');
