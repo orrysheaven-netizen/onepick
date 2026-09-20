@@ -13,10 +13,11 @@ function load(file, imports = {}) {
     require: (name) => { if (name in imports) return imports[name]; throw new Error(name); } });
   return exports;
 }
-const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, musicItemName, secureCoverUrl, COVER_BUDGET_MS } =
+const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, buildArtistQuery, mapArtistMatch, musicItemName, secureCoverUrl, COVER_BUDGET_MS } =
   load('supabase/functions/music-catalog/musicCatalog.ts', { '@supabase/supabase-js': {} });
 const recordingId = '11111111-2222-4333-8444-555555555555';
 const groupId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+const artistId = 'b9545342-1e6d-4dae-84ac-013374ad8d7c';
 const raw = {
   id: recordingId, title: '밤편지', 'first-release-date': '2017-03-24', video: false,
   disambiguation: '', 'artist-credit': [{ name: '아이유', artist: { name: 'IU' } }],
@@ -61,7 +62,16 @@ function setup() {
   };
   const handler=createMusicCatalogHandler({
     client:()=>client, json,
-    fetchMusicBrainz:async(url)=>{state.upstream.push(url); return {data:url.pathname.endsWith(recordingId)?raw:{recordings:[raw]}};},
+    fetchMusicBrainz:async(url)=>{
+      state.upstream.push(url);
+      if(url.pathname.endsWith(recordingId)) return {data:raw};
+      // Artist lookup: "아이유" resolves to IU through her alias; unknown names score too low.
+      if(url.pathname.endsWith('/artist/')) return {data:{artists:url.searchParams.get('query').includes('아이유')?[{id:artistId,score:100,name:'IU'}]:[{id:artistId,score:41,name:'Someone'}]}};
+      const query=url.searchParams.get('query');
+      // Only the arid-scoped query (or a plain title query) finds the recording; a raw
+      // credited-name clause with "아이유" matches nothing, as on the real service.
+      return {data:{recordings:query.includes('artist:"아이유"')?[]:[raw]}};
+    },
     // Mirrors index.ts: { url } is a definitive Cover Art Archive answer, null means the lookup did not complete.
     fetchCoverArt:async()=>{
       state.coverLookups++;
@@ -84,6 +94,13 @@ async function main(){
   assert.equal(mapped.releaseTitle,'Palette'); assert.equal(mapped.releaseYear,2017); assert.equal(mapped.releaseGroupId,groupId);
   assert.equal(mapped.coverArtUrl,null,'Mapping never guesses a Cover Art Archive URL; only verified covers reach clients');
   assert.match(buildRecordingQuery('밤"편지','아이유'),/recording:"밤\\\"편지" AND artist:"아이유"/);
+  assert.equal(buildRecordingQuery('밤편지','아이유',artistId),`recording:"밤편지" AND arid:${artistId}`,'A resolved artist scopes the query by id, not by credited name');
+  assert.equal(buildRecordingQuery('밤편지','아이유','not-an-mbid'),'recording:"밤편지" AND artist:"아이유"');
+  assert.equal(buildRecordingQuery('밤편지',''),'recording:"밤편지"');
+  assert.equal(buildArtistQuery('아이"유'),'artist:"아이\\"유" OR alias:"아이\\"유"');
+  assert.equal(mapArtistMatch({artists:[{id:artistId,score:100}]}),artistId);
+  assert.equal(mapArtistMatch({artists:[{id:artistId,score:89}]}),null,'A weak artist match is ignored rather than scoping the search wrongly');
+  assert.equal(mapArtistMatch({artists:[]}),null); assert.equal(mapArtistMatch(null),null);
   assert.equal(musicItemName(mapped),'밤편지 · 아이유');
   assert.equal(mapMusicBrainzRecording({...raw,video:true}),null);
   assert.equal(mapMusicBrainzRecording({...raw,'artist-credit':[]}),null);
@@ -101,9 +118,28 @@ async function main(){
   assert.equal(search.recordings.length,1); assert.equal(search.recordings[0].existingItemId,null);
   assert.equal(search.recordings[0].coverArtUrl,s.state.cover,'Search returns the cover only after Cover Art Archive confirmed it');
   assert.equal(s.state.writes.length,0,'Search never creates catalog items');
-  assert.equal(s.state.waits,1); assert.equal(s.state.upstream[0].hostname,'musicbrainz.org');
+  assert.equal(s.state.waits,2,'Artist lookup and recording search each take a provider slot');
+  assert.equal(s.state.upstream[0].hostname,'musicbrainz.org'); assert.ok(s.state.upstream[0].pathname.endsWith('/artist/'));
+  assert.equal(s.state.upstream[0].searchParams.get('query'),'artist:"아이유" OR alias:"아이유"');
+  assert.equal(s.state.upstream[1].searchParams.get('query'),`recording:"밤편지" AND arid:${artistId}`,'Korean artist names reach MusicBrainz as a resolved artist id');
+  assert.equal(s.state.upstream[1].searchParams.get('dismax'),null,'dismax is never sent: it would make MusicBrainz ignore the field syntax');
   const cached=await (await s.request('search',{},false)).json();
-  assert.equal(cached.recordings.length,1); assert.equal(s.state.waits,1,'Cached search avoids another provider slot');
+  assert.equal(cached.recordings.length,1); assert.equal(s.state.waits,2,'Cached search avoids another provider slot');
+  const sameArtist=await (await s.request('search',{title:'좋은 날'},false)).json();
+  assert.equal(sameArtist.recordings.length,1); assert.equal(s.state.waits,3,'A known artist is served from cache; only the recording search costs a slot');
+  assert.equal(s.state.upstream.at(-1).searchParams.get('query'),`recording:"좋은 날" AND arid:${artistId}`);
+
+  const unresolved=setup();
+  const byName=await (await unresolved.request('search',{artist:'Beatles'},false)).json();
+  assert.equal(byName.recordings.length,1);
+  assert.equal(unresolved.state.upstream[1].searchParams.get('query'),'recording:"밤편지" AND artist:"Beatles"','Without a confident artist match the credited-name clause is used');
+  assert.equal(unresolved.state.waits,2);
+
+  const fallback=setup(); fallback.state.cache.set('artist:\n아이유',{id:null});
+  const titleOnly=await (await fallback.request('search',{},false)).json();
+  assert.equal(titleOnly.recordings.length,1,'When the artist clause matches nothing the song is still found by title');
+  assert.deepEqual(fallback.state.upstream.map((u)=>u.searchParams.get('query')),['recording:"밤편지" AND artist:"아이유"','recording:"밤편지"']);
+  assert.equal(fallback.state.waits,2,'Cached artist miss costs no slot; the retry does');
 
   const saved=await (await s.request('import')).json();
   assert.equal(saved.created,true); assert.equal(saved.categoryId,'music');

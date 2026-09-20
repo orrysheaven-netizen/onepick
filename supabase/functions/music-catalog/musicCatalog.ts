@@ -94,9 +94,29 @@ function quoteLucene(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-export function buildRecordingQuery(title: string, artist: string) {
+// Lucene field queries. MusicBrainz must be called without dismax=true, which
+// switches to a plain-text parser that ignores field names and drops the artist
+// constraint entirely.
+export function buildRecordingQuery(title: string, artist: string, artistId: string | null = null) {
   const titleClause = `recording:"${quoteLucene(title)}"`;
+  if (artistId && MBID.test(artistId)) return `${titleClause} AND arid:${artistId}`;
   return artist ? `${titleClause} AND artist:"${quoteLucene(artist)}"` : titleClause;
+}
+
+// Credited names on recordings are usually Latin ("IU", "NewJeans"), so a Korean
+// artist name only matches through the artist's aliases.
+export function buildArtistQuery(artist: string) {
+  return `artist:"${quoteLucene(artist)}" OR alias:"${quoteLucene(artist)}"`;
+}
+
+const ARTIST_MATCH_SCORE = 90;
+export function mapArtistMatch(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null;
+  const artists = (value as Record<string, unknown>).artists;
+  if (!Array.isArray(artists) || !artists[0] || typeof artists[0] !== 'object') return null;
+  const top = artists[0] as Record<string, unknown>;
+  const id = clean(top.id, 36);
+  return MBID.test(id) && typeof top.score === 'number' && top.score >= ARTIST_MATCH_SCORE ? id : null;
 }
 
 // Cover Art Archive still lists many images with http:// URLs. The same paths are
@@ -147,6 +167,7 @@ async function catalogCategory(client: SupabaseClient) {
 // covers keep being added; hits are stable for much longer. A lookup that did not
 // complete (timeout, 5xx) is remembered only briefly, so one slow release group
 // cannot hold every search for the same query at the fetch timeout.
+const ARTIST_CACHE_MS = 7 * 24 * 60 * 60_000;
 const COVER_HIT_MS = 30 * 24 * 60 * 60_000;
 const COVER_MISS_MS = 24 * 60 * 60_000;
 const COVER_UNKNOWN_MS = 15 * 60_000;
@@ -159,6 +180,27 @@ type CoverCacheRow = { url: string | null; fetchedAt: string; unknown?: true };
 
 export function createMusicCatalogHandler(deps: Dependencies) {
   const { client: makeClient, fetchMusicBrainz, fetchCoverArt, readCache, writeCache, waitForProvider, keepAlive, json } = deps;
+
+  // Resolves a typed artist name to a MusicBrainz artist id via name or alias,
+  // cached per name. Null means "no confident match"; a Response is an error.
+  async function resolveArtist(client: SupabaseClient, artist: string): Promise<string | null | Response> {
+    const cacheKey = `artist:\n${artist}`;
+    const cached = await readCache(client, cacheKey, ARTIST_CACHE_MS);
+    if (cached && typeof cached === 'object' && 'id' in cached) {
+      const id = (cached as { id: unknown }).id;
+      return typeof id === 'string' && MBID.test(id) ? id : null;
+    }
+    if (!await waitForProvider(client)) return json({ error: 'RATE_LIMITED' }, 429);
+    const url = new URL('https://musicbrainz.org/ws/2/artist/');
+    url.searchParams.set('query', buildArtistQuery(artist));
+    url.searchParams.set('fmt', 'json');
+    url.searchParams.set('limit', '3');
+    const remote = await fetchMusicBrainz(url);
+    if (remote.error) return remote.error;
+    const id = mapArtistMatch(remote.data);
+    await writeCache(client, cacheKey, { id });
+    return id;
+  }
 
   async function verifiedCover(client: SupabaseClient, releaseGroupId: string) {
     // Namespace v3: earlier entries cached timeouts (v1) and http:// covers (v2)
@@ -221,19 +263,31 @@ export function createMusicCatalogHandler(deps: Dependencies) {
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
 
     if (body.action === 'search') {
-      const cacheKey = `search:\n${title}\n${artist}`;
+      // v2: v1 entries hold dismax-era results that ignored the artist clause.
+      const cacheKey = `search:v2\n${title}\n${artist}`;
       const cached = await readCache(client, cacheKey, 6 * 60 * 60_000);
       let recordings = Array.isArray(cached) ? cached.map(mapMusicBrainzRecording).filter((v): v is MusicEntry => Boolean(v)) : [];
       if (!recordings.length) {
-        if (!await waitForProvider(client)) return json({ error: 'RATE_LIMITED' }, 429);
-        const url = new URL('https://musicbrainz.org/ws/2/recording/');
-        url.searchParams.set('query', buildRecordingQuery(title, artist));
-        url.searchParams.set('fmt', 'json');
-        url.searchParams.set('limit', '20');
-        url.searchParams.set('dismax', 'true');
-        const remote = await fetchMusicBrainz(url);
-        if (remote.error) return remote.error;
-        const source = Array.isArray(remote.data.recordings) ? remote.data.recordings : [];
+        const artistId = artist ? await resolveArtist(client, artist) : null;
+        if (artistId instanceof Response) return artistId;
+        const searchRecordings = async (query: string) => {
+          if (!await waitForProvider(client)) return json({ error: 'RATE_LIMITED' }, 429);
+          const url = new URL('https://musicbrainz.org/ws/2/recording/');
+          url.searchParams.set('query', query);
+          url.searchParams.set('fmt', 'json');
+          url.searchParams.set('limit', '20');
+          const remote = await fetchMusicBrainz(url);
+          if (remote.error) return remote.error;
+          return Array.isArray(remote.data.recordings) ? remote.data.recordings : [];
+        };
+        let source = await searchRecordings(buildRecordingQuery(title, artist, artistId));
+        if (source instanceof Response) return source;
+        // A credited-name mismatch (unresolved alias, featured artist, typo)
+        // should still show the song rather than nothing.
+        if (!source.length && artist) {
+          source = await searchRecordings(buildRecordingQuery(title, ''));
+          if (source instanceof Response) return source;
+        }
         const seen = new Set<string>();
         recordings = source.map(mapMusicBrainzRecording).filter((entry): entry is MusicEntry => {
           if (!entry || seen.has(entry.externalId)) return false;

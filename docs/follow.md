@@ -1,6 +1,6 @@
 # 아는 사람의 원픽을 먼저 보는 팔로우
 
-상태: 1차 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `전체 / 팔로잉` 탭, 본인 팔로잉/팔로워 수. 원픽 변경 알림과 알림 설정 스위치는 아직 없다. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
+상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `전체 / 팔로잉` 탭, 본인 팔로잉/팔로워 수(#137), 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
 
 ## 왜 필요한가
 - 홈은 모르는 사람의 최신 원픽을 시간순으로 보여준다. 사용자가 늘수록 낯선 사람의 이유를 읽을 동기가 약해진다. 아는 사람의 이유는 읽는다.
@@ -33,7 +33,7 @@
 - `follow_counts()` : 호출자 본인의 팔로잉 수/팔로워 수만 반환한다. 타인 수를 주는 함수는 만들지 않는다.
 - 알림 테이블 `public.pick_change_notifications(pick_id, recipient_id, created_at, read_at)`: 댓글 알림과 같은 "참조만 저장, 텍스트 사본 없음" 원칙. `picks` insert 및 status가 active로 바뀔 때 trigger가 팔로워 전원에게 행을 만든다. 한줄평 수정은 트리거 대상이 아니다. 읽기 정책에서 차단·정지·비공개 조건을 다시 검사해 저장 이후 상태 변화도 숨긴다.
 - 알림 팬아웃 상한: 팔로워가 많은 계정의 원픽 변경 한 번이 큰 insert가 되므로 트리거는 `limit`을 두거나(예: 1,000) 그 이상은 배치 처리로 넘긴다. 초기 규모에서는 트리거 직접 insert로 충분하다.
-- 알림 설정은 `profiles` 또는 기존 설정 테이블에 `notify_followee_pick_change boolean default true`로 두고 트리거에서 확인한다.
+- 알림 설정은 `notification_preferences(user_id, followee_pick_change)` 본인 행으로 두고 트리거에서 확인한다. 행이 없으면 켜짐이다. `profiles`는 공개 조회가 가능해 설정을 두지 않는다.
 - 관리자 RLS 예외를 포함한 기존 정책은 바꾸지 않는다. 신고/정지 흐름은 그대로이며 정지된 계정의 원픽은 팔로잉 피드에서도 빠진다.
 
 ## 하지 않는 것
