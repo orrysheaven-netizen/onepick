@@ -154,9 +154,9 @@ create or replace function public.admin_review_pending_item(
 )
 returns public.items
 language plpgsql
-security invoker
+security definer
 set search_path = ''
-as $$
+as $
 declare
   v_item public.items%rowtype;
   v_category public.categories%rowtype;
