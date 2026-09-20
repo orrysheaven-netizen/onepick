@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
@@ -152,7 +153,7 @@ export default function AdminProfileTasteQaScreen() {
   );
 }
 
-function PreviewFrame({ title, width, children }: { title: string; width: number; children: React.ReactNode }) {
+function PreviewFrame({ title, width, children }: { title: string; width: number; children: ReactNode }) {
   return (
     <View style={styles.frameOuter}>
       <View style={styles.frameHeader}>
