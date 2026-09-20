@@ -7,6 +7,8 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 type ItemSearchProps = {
   categoryId?: string;
   compact?: boolean;
+  initialQuery?: string;
+  onSubmitSearch?: (query: string) => void;
   onSearchMovie?: (query: string) => void;
   onSearchDrama?: (query: string) => void;
   onSearchMusic?: (query: string) => void;
@@ -27,6 +29,8 @@ type ExternalSearchAction = {
 export function ItemSearch({
   categoryId,
   compact = false,
+  initialQuery = '',
+  onSubmitSearch,
   onSearchMovie,
   onSearchDrama,
   onSearchMusic,
@@ -36,7 +40,7 @@ export function ItemSearch({
   onSearchPokemon,
   onSelect,
 }: ItemSearchProps) {
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => initialQuery.slice(0, 100));
   const query = useItemSearch(searchText, categoryId);
   const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
@@ -100,10 +104,14 @@ export function ItemSearch({
   }
 
   const submitSearch = () => {
+    if (!normalizedSearch) return;
     // A category-scoped catalog search has exactly one destination. Global
-    // search intentionally keeps the provider choice visible instead of
-    // guessing whether a title is a movie, drama, or song.
-    if (categoryId && externalActions.length === 1) externalActions[0].run();
+    // search goes to the dedicated search surface instead of doing nothing.
+    if (categoryId && externalActions.length === 1) {
+      externalActions[0].run();
+      return;
+    }
+    onSubmitSearch?.(normalizedSearch);
   };
 
   return (
