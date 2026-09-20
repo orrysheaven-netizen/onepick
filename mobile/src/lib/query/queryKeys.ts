@@ -29,6 +29,7 @@ export const queryKeys = {
   movieCatalog: { search: (query: string) => ['movie-catalog', 'search', query] as const },
   musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },
   gameCatalog: { search: (query: string) => ['game-catalog', 'search', query] as const },
+  bookCatalog: { search: (query: string) => ['book-catalog', 'search', query] as const },
   youtubeCatalog: { search: (query: string) => ['youtube-catalog', 'search', query] as const },
   pokemonCatalog: { search: (query: string) => ['pokemon-catalog', 'search', query] as const },
   picks: {
