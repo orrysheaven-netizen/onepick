@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { createMusicCatalogHandler, type CoverLookup } from './musicCatalog.ts';
+import { createMusicCatalogHandler, secureCoverUrl, type CoverLookup } from './musicCatalog.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -72,14 +72,6 @@ async function fetchMusicBrainz(url: URL) {
   }
 }
 
-function allowedCover(url: string) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'https:' && (parsed.hostname === 'coverartarchive.org'
-      || parsed.hostname === 'archive.org' || parsed.hostname.endsWith('.archive.org'));
-  } catch { return false; }
-}
-
 // Resolves to { url } when Cover Art Archive gave a definitive answer (a front
 // image, or none at all) and to null when it could not be reached in time, so
 // callers can cache only real answers. The archive redirects twice to slow
@@ -102,7 +94,7 @@ async function fetchCoverArt(releaseGroupId: string): Promise<CoverLookup> {
     if (!front) return { url: null };
     const thumbs = front.thumbnails && typeof front.thumbnails === 'object' ? front.thumbnails as Record<string, unknown> : {};
     const candidate = [thumbs['500'], thumbs['250'], front.image].find((value) => typeof value === 'string') as string | undefined;
-    return { url: candidate && allowedCover(candidate) ? candidate : null };
+    return { url: candidate ? secureCoverUrl(candidate) : null };
   } catch (error) {
     console.error('Cover Art Archive request error', error instanceof Error ? error.message : 'unknown');
     return null;
