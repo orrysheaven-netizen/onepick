@@ -1704,6 +1704,45 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      submit_unclassified_item: {
+        Args: {
+          p_image_path?: string
+          p_image_source_url?: string
+          p_item_name: string
+          p_thumbnail_path?: string
+        }
+        Returns: {
+          brand_id: string | null
+          category_id: string
+          collection_name: string | null
+          created_at: string
+          created_by: string | null
+          creator_name: string | null
+          external_id: string | null
+          external_refreshed_at: string | null
+          external_source: string | null
+          id: string
+          image_path: string | null
+          image_source_url: string | null
+          market_availability_status: string
+          merged_into_item_id: string | null
+          model_code: string | null
+          name: string
+          normalized_name: string
+          official_url: string | null
+          original_name: string | null
+          release_year: number | null
+          status: string
+          thumbnail_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_pick_review: {
         Args: { p_one_line_review: string; p_pick_id: string }
         Returns: {
