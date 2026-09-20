@@ -115,6 +115,10 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
   thumbnails on `ytimg.com` / channel avatars on `yt3.ggpht.com`). Adding a
   catalog with a new image host requires extending that directive, otherwise the
   browser blocks the images with a CSP violation.
+- `img-src` must also keep `blob:`. On web, `expo-image-picker` returns the
+  chosen file as a `blob:` object URL and `expo-image-manipulator` decodes it
+  through an `<img>` element; without `blob:` every photo upload fails as
+  `PHOTO_INVALID` ("이미지를 읽지 못했어요"). `npm run check:web` asserts it.
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
