@@ -8,6 +8,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { reviewContainsPromotion } from '@/lib/shops/shopUrl';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
@@ -23,6 +24,7 @@ function getErrorMessage(error: unknown) {
     case 'ITEM_NOT_FOUND': return '지금은 이 제품을 원픽으로 고를 수 없어요.';
     case 'ITEM_CATEGORY_MISMATCH': return '제품과 카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
+    case 'REVIEW_PROMOTIONAL': return '한줄평에는 링크와 할인코드를 넣을 수 없어요. 고른 이유만 적어주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
@@ -60,7 +62,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
-  const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
+  const isPromotionalReview = reviewContainsPromotion(trimmedReview);
+  const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100 && !isPromotionalReview;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
   const submitLabel = useMemo(() => {
@@ -168,8 +171,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
-          <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요.</Text>
-          {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
+          <Text style={styles.helperText}>선택한 이유를 1~100자로 남겨주세요. 링크와 할인코드는 넣을 수 없어요.</Text>
+          {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : isPromotionalReview ? '한줄평에는 링크와 할인코드를 넣을 수 없어요. 고른 이유만 적어주세요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {choosePick.isError ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
             {choosePick.error instanceof AppError && choosePick.error.code === 'PROFILE_NOT_FOUND' ?

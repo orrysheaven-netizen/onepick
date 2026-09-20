@@ -65,7 +65,7 @@ export type AdminItem = {
   image_path: string | null;
   thumbnail_path?: string | null;
   image_source_url?: string | null;
-  categories: { name: string } | null;
+  categories: { name: string; slug?: string } | null;
 };
 
 export type AdminEditorialFeature = {
@@ -118,7 +118,7 @@ export type AdminReport = {
   target_type: 'profile' | 'pick' | 'comment';
   target_id: string;
   target_user_id: string | null;
-  reason: 'spam' | 'harassment' | 'inappropriate' | 'misleading' | 'other';
+  reason: 'spam' | 'harassment' | 'inappropriate' | 'misleading' | 'self_promotion' | 'other';
   details: string | null;
   status: AdminReportStatus;
   created_at: string;
@@ -392,7 +392,7 @@ export const ADMIN_PAGE_SIZE = 100;
 
 export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name,slug)',
     order: 'updated_at.desc',
     limit: String(ADMIN_PAGE_SIZE),
     offset: String(input.offset ?? 0),
@@ -405,7 +405,7 @@ export function getItems(input: { query?: string; status?: AdminItemStatus | 'al
 
 export function createItem(input: { categoryId: string; categorySlug: string; name: string; brandId?: string | null; officialUrl?: string | null }) {
   const name = canonicalItemName(cleanName(input.name, 100), input.categorySlug);
-  return adminRequest<AdminItem[]>('/rest/v1/items?select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)', {
+  return adminRequest<AdminItem[]>('/rest/v1/items?select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name,slug)', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -420,7 +420,7 @@ export function createItem(input: { categoryId: string; categorySlug: string; na
 }
 
 export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' | 'model_code' | 'official_url'>>) {
-  return adminRequest<AdminItem[]>(`/rest/v1/items?id=eq.${encodeURIComponent(id)}&select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)`, {
+  return adminRequest<AdminItem[]>(`/rest/v1/items?id=eq.${encodeURIComponent(id)}&select=id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name,slug)`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
@@ -435,7 +435,7 @@ export function getEditorialFeatures() {
 
 export function getEditorialCandidates(query: string) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,thumbnail_path,image_source_url,categories(name,slug)',
     or: '(status.eq.active,status.eq.discontinued)',
     order: 'updated_at.desc',
     limit: '20',
@@ -516,7 +516,7 @@ export function updatePendingItem(id: string, status: 'active' | 'rejected', cat
 
 export function getMergeCandidates(query: string, categoryId: string) {
   const params = new URLSearchParams({
-    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name)',
+    select: 'id,category_id,name,model_code,official_url,status,created_at,updated_at,image_path,categories(name,slug)',
     category_id: `eq.${categoryId}`,
     or: '(status.eq.active,status.eq.discontinued)',
     order: 'updated_at.desc',

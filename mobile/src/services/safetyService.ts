@@ -7,6 +7,7 @@ const REPORT_REASONS = new Set<ReportReason>([
   'harassment',
   'inappropriate',
   'misleading',
+  'self_promotion',
   'other',
 ]);
 const REPORT_TARGET_TYPES = new Set<ReportTargetType>(['profile', 'pick', 'comment']);

@@ -1,5 +1,11 @@
 export type ReportTargetType = 'profile' | 'pick' | 'comment';
-export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'misleading' | 'other';
+export type ReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'inappropriate'
+  | 'misleading'
+  | 'self_promotion'
+  | 'other';
 export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
 
 export interface UserBlock {

@@ -6,6 +6,7 @@ import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrand
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
+import { isMarketplaceShopUrl, isSpecialtyShopCategorySlug, normalizeShopUrl } from '@/lib/shops/shopUrl';
 import { OnePick } from '@/constants/onepick';
 
 function toDomainCategory(category: AdminCategory): Category {
@@ -36,6 +37,24 @@ const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
 ];
 
 const EDITABLE_STATUSES: AdminItemStatus[] = ['active', 'discontinued', 'hidden', 'rejected'];
+
+/**
+ * Mirrors the specialty-shop trigger so the admin who seeds the item master
+ * sees the problem in the form instead of a database error. The database
+ * still decides; this only explains.
+ */
+function shopUrlProblem(categorySlug: string, rawUrl: string): string | null {
+  const trimmed = rawUrl.trim();
+  if (!isSpecialtyShopCategorySlug(categorySlug)) {
+    if (trimmed && !trimmed.startsWith('https://')) return '공식 URL은 https:// 주소만 입력해 주세요.';
+    return null;
+  }
+  if (!trimmed) return '전문몰은 판매처 주소가 필요합니다.';
+  const normalized = normalizeShopUrl(trimmed);
+  if (!normalized) return '열 수 있는 http(s) 주소를 입력해 주세요. 스마트스토어는 상점 주소까지 넣어야 합니다.';
+  if (isMarketplaceShopUrl(normalized)) return '여러 품목을 함께 파는 마트형 판매처는 전문몰이 아닙니다.';
+  return null;
+}
 
 export function ItemsPanel() {
   const [items, setItems] = useState<AdminItem[]>([]);
@@ -206,8 +225,9 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
 
   const submit = async () => {
     if (!selectedCategory || saving) return;
-    if (officialUrl.trim() && !officialUrl.trim().startsWith('https://')) {
-      onError('공식 URL은 https:// 주소만 입력해 주세요.');
+    const problem = shopUrlProblem(selectedCategory.slug, officialUrl);
+    if (problem) {
+      onError(problem);
       return;
     }
     setSaving(true);
@@ -290,8 +310,9 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
   }, [item.id]);
 
   const save = async () => {
-    if (officialUrl.trim() && !officialUrl.trim().startsWith('https://')) {
-      onError('공식 URL은 https:// 주소만 입력해 주세요.');
+    const problem = shopUrlProblem(item.categories?.slug ?? '', officialUrl);
+    if (problem) {
+      onError(problem);
       return;
     }
     setSaving(true);

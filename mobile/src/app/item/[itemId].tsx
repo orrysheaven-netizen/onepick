@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
@@ -12,6 +12,7 @@ import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
+import { isSpecialtyShopCategorySlug, shopDisplayLabel } from '@/lib/shops/shopUrl';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 import { OnePick } from '@/constants/onepick';
@@ -95,6 +96,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
+  const [shopError, setShopError] = useState('');
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
   const canContribute = Boolean(itemId && !query.isError && currentItem && ['active', 'discontinued'].includes(currentItem.status) && !hasPhoto);
@@ -183,6 +185,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const item = savedItem ?? query.data.item;
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
+  // A specialty-shop item is the shop, so its address is the item's identity.
+  // Show the canonical domain and let the reader open it.
+  const shopLabel = isSpecialtyShopCategorySlug(category?.slug) ? shopDisplayLabel(item.officialUrl) : null;
+  const openShop = async () => {
+    if (!item.officialUrl) return;
+    setShopError('');
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(item.officialUrl, '_blank', 'noopener,noreferrer');
+      else await Linking.openURL(item.officialUrl);
+    } catch { setShopError('판매처를 열지 못했어요. 다시 시도해주세요.'); }
+  };
   const openPickAction = () => {
     if (myPickStatus.type === 'selected_this') {
       focusReview(myPickStatus.pickId);
@@ -248,6 +261,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           ) : null}
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.itemName}>{item.name}</Text>
+          {shopLabel ? (
+            <Pressable accessibilityRole="link" accessibilityLabel={`${item.name} 판매처 열기 ${shopLabel}`}
+              onPress={() => void openShop()} style={({ pressed }) => [styles.shopLink, pressed && styles.pressed]}>
+              <Text style={styles.shopLinkText}>{shopLabel}</Text>
+            </Pressable>
+          ) : null}
+          {shopError ? <Text accessibilityRole="alert" style={styles.shopLinkError}>{shopError}</Text> : null}
           <ItemPickCount itemId={item.id} />
           <Text style={styles.itemMeta}>이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
 
@@ -312,6 +332,9 @@ const styles = StyleSheet.create({
   photoSecondaryText: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   photoError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
   category: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginTop: 22 },
+  shopLink: { alignSelf: 'flex-start', marginTop: 6 },
+  shopLinkText: { color: OnePick.accentDeep, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
+  shopLinkError: { color: OnePick.danger, fontSize: 12, marginTop: 6 },
   itemName: { color: OnePick.text, fontSize: 28, fontWeight: '900', textAlign: 'center', marginTop: 8 },
   itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 10 },
   primaryButton: { width: '100%', minHeight: 50, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 24 },

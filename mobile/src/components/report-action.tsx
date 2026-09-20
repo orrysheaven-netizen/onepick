@@ -11,6 +11,7 @@ const REASONS: Array<{ value: ReportReason; label: string }> = [
   { value: 'harassment', label: '괴롭힘' },
   { value: 'inappropriate', label: '부적절한 콘텐츠' },
   { value: 'misleading', label: '잘못된 정보' },
+  { value: 'self_promotion', label: '본인이 운영하는 몰' },
   { value: 'other', label: '기타' },
 ];
 

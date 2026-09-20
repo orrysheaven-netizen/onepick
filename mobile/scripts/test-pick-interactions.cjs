@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/shops/shopUrl') return loadSource('lib/shops/shopUrl.ts', {});
       if (name in imports) return imports[name];
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);

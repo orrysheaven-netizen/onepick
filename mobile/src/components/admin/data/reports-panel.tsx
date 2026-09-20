@@ -247,7 +247,7 @@ function targetLabel(value: AdminReport['target_type']) {
 }
 
 function reasonLabel(value: AdminReport['reason']) {
-  return ({ spam: '스팸', harassment: '괴롭힘', inappropriate: '부적절한 콘텐츠', misleading: '오해 소지', other: '기타' } as const)[value];
+  return ({ spam: '스팸', harassment: '괴롭힘', inappropriate: '부적절한 콘텐츠', misleading: '오해 소지', self_promotion: '본인 운영 몰', other: '기타' } as const)[value];
 }
 
 function statusLabel(value: AdminReportStatus) {
