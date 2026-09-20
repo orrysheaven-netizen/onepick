@@ -11,6 +11,8 @@ type Props = {
   itemStatus?: string;
   /** Preserve existing-photo protection even when a read model has no usable URL. */
   hasPhoto?: boolean;
+  /** Home feed portrait frame (3:4). Crops to fill instead of letterboxing. */
+  tall?: boolean;
 };
 
 function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
@@ -25,11 +27,20 @@ function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
   </Pressable>;
 }
 
-export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false }: Props) {
+export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false, tall = false }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
   const canAdd = Boolean(itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
   const failed = Boolean(uri && failedUri === uri);
+  if (tall) {
+    return <View style={[styles.frame, styles.tall]}>
+      {uri && !failed
+        ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="cover" onError={() => setFailedUri(uri)} />
+        : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.tallPlaceholder}>
+            <Text numberOfLines={3} style={styles.tallPlaceholderName}>{label}</Text>
+          </View>}
+    </View>;
+  }
   return <View style={[styles.frame, large && styles.large]}>
     {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
@@ -48,6 +59,9 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
 const styles = StyleSheet.create({
   frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center' },
   large: { width: '100%', height: 230, marginBottom: 14 },
+  tall: { width: 74, height: 94, borderRadius: 12 },
+  tallPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: '#4945ED' },
+  tallPlaceholderName: { color: '#FFFFFF', fontSize: 12, lineHeight: 16, fontWeight: '800' },
   image: { width: '100%', height: '100%' },
   placeholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 7 },
   placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
