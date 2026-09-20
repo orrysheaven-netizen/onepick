@@ -17,7 +17,7 @@ function load(file, imports = {}) {
 }
 
 const {
-  mapYouTubeSearchResult, mapYouTubeChannel, directLookup, channelUrl, createYouTubeCatalogHandler,
+  mapYouTubeSearchResult, mapYouTubeChannel, directLookup, channelUrl, rankChannels, createYouTubeCatalogHandler,
 } = load('supabase/functions/youtube-catalog/youtubeCatalog.ts', { '@supabase/supabase-js': {} });
 
 const channelId = 'UC1234567890123456789012';
@@ -39,6 +39,11 @@ const channelRaw = {
     thumbnails: { high: { url: 'https://yt3.ggpht.com/test-high' } },
   },
 };
+const videoId = 'QzTOFNbgU-s';
+const videoRaw = {
+  id: videoId,
+  snippet: { channelId, channelTitle: '테스트 채널', title: '테스트 영상' },
+};
 const secondRaw = {
   id: { channelId: secondId },
   snippet: { title: '두번째 채널', thumbnails: {} },
@@ -55,6 +60,7 @@ function setup() {
     ],
     searchItems: [searchRaw, secondRaw],
     channelItems: [channelRaw],
+    videoItems: [videoRaw],
   };
   const client = {
     auth: { getUser: async () => ({ data:{ user: state.auth ? { id:'user' } : null }, error:null }) },
@@ -105,7 +111,10 @@ function setup() {
     writeCache:async(_client,key,payload)=>{state.cache.set(key,payload);},
     fetchYouTube:async(url)=>{
       state.upstream.push(url);
-      return { data:{ items:url.pathname.endsWith('/channels')?state.channelItems:state.searchItems } };
+      const items = url.pathname.endsWith('/channels') ? state.channelItems
+        : url.pathname.endsWith('/videos') ? state.videoItems
+          : state.searchItems;
+      return { data:{ items } };
     },
   });
   const request=(action,extra={},auth=true)=>handler(
@@ -128,7 +137,16 @@ async function main() {
   assert.equal(JSON.stringify(directLookup(channelId)),JSON.stringify({type:'id',value:channelId}));
   assert.equal(JSON.stringify(directLookup('https://www.youtube.com/@GoogleDevelopers')),JSON.stringify({type:'handle',value:'@GoogleDevelopers'}));
   assert.equal(JSON.stringify(directLookup('https://www.youtube.com/channel/'+channelId)),JSON.stringify({type:'id',value:channelId}));
+  assert.equal(JSON.stringify(directLookup('https://youtu.be/'+videoId+'?si=share')),JSON.stringify({type:'video',value:videoId}));
+  assert.equal(JSON.stringify(directLookup('https://www.youtube.com/watch?v='+videoId+'&feature=share')),JSON.stringify({type:'video',value:videoId}));
+  assert.equal(JSON.stringify(directLookup('https://www.youtube.com/shorts/'+videoId)),JSON.stringify({type:'video',value:videoId}));
   assert.equal(directLookup('https://example.com/@GoogleDevelopers'),null);
+
+  const ranked = rankChannels([
+    {...mappedSearch,title:'다른 채널'},
+    {...mappedSearch,externalId:secondId,title:'최재천의 아마존'},
+  ], '최재천의 아마존');
+  assert.equal(ranked[0].title,'최재천의 아마존','exact normalized channel title ranks first');
 
   const s=setup();
   const search=await (await s.request('search',{},false)).json();
@@ -140,6 +158,7 @@ async function main() {
   assert.equal(searchUrl.searchParams.get('type'),'channel');
   assert.equal(searchUrl.searchParams.get('safeSearch'),'strict');
   assert.equal(searchUrl.searchParams.get('relevanceLanguage'),'ko');
+  assert.equal(searchUrl.searchParams.get('maxResults'),'25');
   assert.equal(searchUrl.searchParams.get('part'),'snippet');
   assert.equal(searchUrl.searchParams.has('statistics'),false);
   await s.request('search',{},false);
@@ -149,6 +168,17 @@ async function main() {
   await direct.request('search',{query:'@GoogleDevelopers'},false);
   assert.equal(direct.state.upstream[0].pathname,'/youtube/v3/channels');
   assert.equal(direct.state.upstream[0].searchParams.get('forHandle'),'@GoogleDevelopers');
+
+  const byVideo=setup();
+  const longVideoUrl='https://www.youtube.com/watch?v='+videoId+'&si='+'x'.repeat(140);
+  const videoSearch=await (await byVideo.request('search',{query:longVideoUrl},false)).json();
+  assert.equal(videoSearch.channels.length,1);
+  assert.equal(videoSearch.channels[0].externalId,channelId);
+  assert.equal(byVideo.state.upstream.length,2,'video links resolve through videos.list then channels.list');
+  assert.equal(byVideo.state.upstream[0].pathname,'/youtube/v3/videos');
+  assert.equal(byVideo.state.upstream[0].searchParams.get('id'),videoId);
+  assert.equal(byVideo.state.upstream[1].pathname,'/youtube/v3/channels');
+  assert.equal(byVideo.state.upstream[1].searchParams.get('id'),channelId);
 
   const saved=await (await s.request('import')).json();
   assert.equal(saved.created,true);
@@ -218,6 +248,9 @@ async function main() {
   });
   await service.search(' 테스트 채널 ');
   assert.equal(serviceCalls[0][0],'테스트 채널');
+  const longServiceUrl='https://youtu.be/'+videoId+'?si='+'z'.repeat(160);
+  await service.search(longServiceUrl);
+  assert.equal(serviceCalls.at(-1)[0],longServiceUrl,'long shared YouTube links reach the repository');
   assert.equal((await service.search('a')).length,0);
 
   const intents=load('mobile/src/lib/auth/authIntent.ts');
@@ -232,6 +265,8 @@ async function main() {
   assert.match(screen,/acceptYouTubePolicyConsent/);
   assert.match(screen,/YouTube 이용약관/);
   assert.match(screen,/Google 개인정보처리방침/);
+  assert.match(screen,/영상·Shorts 링크/);
+  assert.match(screen,/maxLength={1000}/);
   assert.doesNotMatch(screen,/구독자 수.*toLocaleString|subscriberCount/);
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/youtube-catalog/index.ts'),'utf8');
@@ -245,6 +280,6 @@ async function main() {
   const termsSource=fs.readFileSync(path.join(root,'mobile/src/app/legal/terms.tsx'),'utf8');
   assert.match(termsSource,/YouTube 이용약관에 동의하고 그 적용을 받습니다/);
 
-  console.log('YouTube catalog passed: channel/handle lookup, safe name search, no search writes/stats, selected-only import, freshness refresh, consent gate and login return.');
+  console.log('YouTube catalog passed: ranked channel search, handle/channel/video-link lookup, safe name search, no search writes/stats, selected-only import, freshness refresh, consent gate and login return.');
 }
 main().catch((error)=>{console.error(error);process.exitCode=1;});
