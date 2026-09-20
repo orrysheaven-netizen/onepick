@@ -11,9 +11,9 @@ const fetch = async (url, init = {}) => {
   calls.push({ url, init });
   return { status: 200, ok: true, json: async () => [] };
 };
-const exports = {};
+const moduleExports = {};
 vm.runInNewContext(output, {
-  exports, fetch, URL, URLSearchParams,
+  exports: moduleExports, fetch, URL, URLSearchParams,
   process: { env: { EXPO_PUBLIC_SUPABASE_URL: 'https://example.supabase.co', EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'public-key' } },
   globalThis: {},
   require: (name) => {
@@ -25,16 +25,16 @@ vm.runInNewContext(output, {
 });
 
 (async () => {
-  await exports.getEditorialFeatures();
+  await moduleExports.getEditorialFeatures();
   assert.match(calls[0].url, /item_editorial_features/);
   assert.match(calls[0].url, /items\(id,name,status,category_id,image_path,categories\(name\)\)/);
 
-  await exports.getEditorialCandidates('김치');
+  await moduleExports.getEditorialCandidates('김치');
   assert.match(calls[1].url, /items\?/);
   assert.match(decodeURIComponent(calls[1].url), /status\.eq\.active,status\.eq\.discontinued/);
   assert.match(decodeURIComponent(calls[1].url), /name=ilike\.\*김치\*/);
 
-  await exports.setItemEditorialFeature({ itemId:'item', isActive:true, priority:20, note:'먼저 소개' });
+  await moduleExports.setItemEditorialFeature({ itemId:'item', isActive:true, priority:20, note:'먼저 소개' });
   assert.match(calls[2].url, /rpc\/admin_set_item_editorial_feature/);
   const body = JSON.parse(calls[2].init.body);
   assert.deepEqual(body, { p_item_id:'item', p_is_active:true, p_priority:20, p_note:'먼저 소개' });
