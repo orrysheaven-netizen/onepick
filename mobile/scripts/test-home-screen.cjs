@@ -126,7 +126,7 @@ assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|MY PICK/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
 query.data = { ...cached, featuredItems: [], currentPicks: [], minimumPickCount: 5 }; query.isError = false;
-assert.match(render(), /사람들의 선택이 모이면/);
+assert.match(render(), /사람들의 추천이 모이면/);
 assert.match(render(), /5명 이상/);
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
