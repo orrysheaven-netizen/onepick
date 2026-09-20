@@ -4,6 +4,8 @@ export interface Category {
   id: string;
   parentId: string | null;
   name: string;
+  /** Full visible path for selectable leaves, e.g. 먹을것 › 쇼핑몰 › 김치. */
+  label?: string;
   slug: string;
   status: CategoryStatus;
   isVisible: boolean;
