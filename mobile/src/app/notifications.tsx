@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
   body: { fontSize: 16, lineHeight: 24, color: OnePick.text, marginTop: 12 },
   time: { fontSize: 12, color: OnePick.muted, marginTop: 12 },
   empty: { paddingVertical: 48, alignItems: 'center', gap: 10 },
-  error: { color: '#A9482D', fontSize: 14, lineHeight: 22, marginBottom: 12 },
+  error: { color: OnePick.danger, fontSize: 14, lineHeight: 22, marginBottom: 12 },
   more: { alignItems: 'center', minHeight: 48, justifyContent: 'center' },
 });

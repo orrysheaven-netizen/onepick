@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
 import type { ProfileTasteComposition as ProfileTasteCompositionValue } from '@/services/profileTasteCompositionService';
+import { OnePick } from '@/constants/onepick';
 
 const MINIMUM_PICKS = 5;
 
@@ -116,28 +117,28 @@ export function ProfileTasteComposition({
 const styles = StyleSheet.create({
   section: { marginTop: 6, marginBottom: 18 },
   headingRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
-  title: { color: '#202124', fontSize: 19, fontWeight: '900' },
-  headingHint: { color: '#747985', fontSize: 11 },
-  stateCard: { minHeight: 108, borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, justifyContent: 'center' },
-  collectingTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
-  stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  errorText: { color: '#A9482D', fontSize: 13, fontWeight: '800' },
-  collectingTrack: { height: 6, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 15 },
-  collectingFill: { height: '100%', borderRadius: 999, backgroundColor: '#4945ED' },
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16 },
-  description: { color: '#747985', fontSize: 12, lineHeight: 17, marginBottom: 2 },
+  title: { color: OnePick.text, fontSize: 19, fontWeight: '900' },
+  headingHint: { color: OnePick.muted, fontSize: 11 },
+  stateCard: { minHeight: 108, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 16, justifyContent: 'center' },
+  collectingTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
+  stateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  errorText: { color: OnePick.danger, fontSize: 13, fontWeight: '800' },
+  collectingTrack: { height: 6, borderRadius: 999, backgroundColor: OnePick.sunken, overflow: 'hidden', marginTop: 15 },
+  collectingFill: { height: '100%', borderRadius: 999, backgroundColor: OnePick.accent },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 16 },
+  description: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginBottom: 2 },
   dimension: { paddingTop: 12 },
   dimensionTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   dimensionCopy: { flex: 1 },
-  dimensionName: { color: '#202124', fontSize: 14, fontWeight: '900' },
-  dimensionMeta: { color: '#89909C', fontSize: 10, marginTop: 2 },
-  percentage: { color: '#4945ED', fontSize: 13, fontWeight: '900' },
-  track: { height: 6, borderRadius: 999, backgroundColor: '#ECEEF3', overflow: 'hidden', marginTop: 8 },
-  fill: { height: '100%', borderRadius: 999, backgroundColor: '#4945ED' },
+  dimensionName: { color: OnePick.text, fontSize: 14, fontWeight: '900' },
+  dimensionMeta: { color: OnePick.hint, fontSize: 10, marginTop: 2 },
+  percentage: { color: OnePick.accent, fontSize: 13, fontWeight: '900' },
+  track: { height: 6, borderRadius: 999, backgroundColor: OnePick.sunken, overflow: 'hidden', marginTop: 8 },
+  fill: { height: '100%', borderRadius: 999, backgroundColor: OnePick.accent },
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 },
-  categoryChip: { borderRadius: 999, backgroundColor: '#F1F2F6', paddingHorizontal: 8, paddingVertical: 4 },
-  categoryText: { color: '#5F6470', fontSize: 10, fontWeight: '700' },
-  categoryMoreChip: { backgroundColor: '#EFEEFF' },
-  categoryMoreText: { color: '#4945ED', fontWeight: '900' },
-  unmappedText: { color: '#89909C', fontSize: 10, lineHeight: 15, marginTop: 12 },
+  categoryChip: { borderRadius: 999, backgroundColor: OnePick.hairline, paddingHorizontal: 8, paddingVertical: 4 },
+  categoryText: { color: OnePick.muted, fontSize: 10, fontWeight: '700' },
+  categoryMoreChip: { backgroundColor: OnePick.accentSoft },
+  categoryMoreText: { color: OnePick.accent, fontWeight: '900' },
+  unmappedText: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 12 },
 });

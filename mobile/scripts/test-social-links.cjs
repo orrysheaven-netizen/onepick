@@ -8,6 +8,7 @@ function load(file, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, ...globals, require: (name) => {
+    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected import: ${name}`);

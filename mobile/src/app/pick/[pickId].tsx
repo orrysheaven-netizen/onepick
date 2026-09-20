@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { observabilityService } from '@/services';
+import { OnePick } from '@/constants/onepick';
 
 // Preserve old shared links and login return paths without a second detail screen.
 export default function PickDetailScreen() {
@@ -44,7 +45,7 @@ export default function PickDetailScreen() {
   );
 }
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F5F6F8' },
+  page: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
   button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
 });

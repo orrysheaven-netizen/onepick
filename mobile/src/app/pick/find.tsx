@@ -13,6 +13,7 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
+import { OnePick } from '@/constants/onepick';
 
 type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
 type Selection = { externalId: string; replace: boolean } & (
@@ -185,7 +186,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
       <TextInput autoFocus={!validReturn} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
         maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); } }}
-        placeholder={isCatalogCategory ? `${label} 제목 검색` : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor="#89909C" returnKeyType="search" style={styles.input} value={query} />
+        placeholder={isCatalogCategory ? `${label} 제목 검색` : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
       {isCatalogCategory && normalizedQuery.length > 60 ? <Text accessibilityRole="alert" style={styles.stateText}>{label} DB 검색어는 60자 이내로 입력해주세요. 등록된 상품 검색은 계속 사용할 수 있어요.</Text> : null}
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isCatalogCategory ? `등록된 ${label}와 TMDB를 함께 찾고 있어요` : '등록된 제품을 찾고 있어요'}</Text></View> : null}
       {search.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>제품 검색을 불러오지 못했어요</Text><Pressable disabled={search.isFetching} onPress={() => { if (!search.isFetching) void search.refetch(); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
@@ -243,39 +244,39 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  kicker: { color: '#4945ED', fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 12 },
-  title: { color: '#202124', fontSize: 26, lineHeight: 34, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
-  subtitle: { color: '#747985', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  categoryBadge: { alignSelf: 'flex-start', backgroundColor: '#EFEEFF', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
-  categoryBadgeText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
-  categorySection: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginTop: 18 },
-  categoryTitle: { color: '#202124', fontSize: 14, fontWeight: '800' },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2.1, marginTop: 12 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
+  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
+  categoryBadge: { alignSelf: 'flex-start', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
+  categoryBadgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
+  categorySection: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 18, marginTop: 18 },
+  categoryTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   categoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  categoryChip: { minHeight: 42, justifyContent: 'center', borderRadius: 999, backgroundColor: '#EFEEFF', paddingHorizontal: 14, paddingVertical: 9 },
-  categoryChipText: { color: '#4945ED', fontSize: 12, fontWeight: '800' },
+  categoryChip: { minHeight: 42, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 14, paddingVertical: 9 },
+  categoryChipText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   categoryLoading: { marginTop: 14 },
-  input: { minHeight: 54, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 17, paddingHorizontal: 16, color: '#202124', fontSize: 16, marginTop: 22 },
+  input: { minHeight: 54, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 17, paddingHorizontal: 16, color: OnePick.text, fontSize: 16, marginTop: 22 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
-  stateCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginTop: 16 },
-  requestCard: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 22, marginTop: 18 },
-  stateTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
-  stateText: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginTop: 11 },
+  stateCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 20, marginTop: 16 },
+  requestCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 22, marginTop: 18 },
+  stateTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  stateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12, marginTop: 11 },
   itemCopy: { flex: 1, paddingLeft: 14 },
   itemActionArea: { minHeight: 86, justifyContent: 'center' },
-  itemCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
-  itemName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  itemAction: { color: '#747985', fontSize: 12, marginTop: 7 },
-  movieMeta: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  errorText: { color: '#A9482D', fontSize: 12, lineHeight: 18, marginTop: 12 },
-  attribution: { color: '#89909C', fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
-  primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
-  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: '#202124', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
-  secondaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  itemCategory: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
+  itemName: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 5 },
+  itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
+  movieMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
+  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  primaryButton: { minHeight: 50, borderRadius: 15, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '900' },
+  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
+  secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 }, disabled: { opacity: 0.5 },
 });

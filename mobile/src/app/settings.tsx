@@ -7,6 +7,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
+import { OnePick } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
   if (error instanceof AppError && error.code === 'ACCOUNT_DELETE_FAILED') {
@@ -110,7 +111,7 @@ export default function SettingsScreen() {
                   onPress={() => void handleDeleteAccount()}
                   style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
                   {deleteAccount.isPending ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={OnePick.onAccent} />
                   ) : (
                     <Text style={styles.deleteButtonText}>{confirmDelete ? '계정 삭제 확인' : '계정 삭제'}</Text>
                   )}
@@ -130,32 +131,32 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6F8' },
+  safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: '#202124', fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 2.4, marginTop: 8 },
-  title: { color: '#202124', fontSize: 28, fontWeight: '900', marginTop: 8, marginBottom: 22 },
+  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.4, marginTop: 8 },
+  title: { color: OnePick.text, fontSize: 28, fontWeight: '900', marginTop: 8, marginBottom: 22 },
   loading: { marginTop: 24 },
   inlineLoading: { marginTop: 14 },
-  card: { borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 14 },
-  dangerCard: { borderWidth: 1, borderColor: '#E8C6BB' },
-  cardTitle: { color: '#202124', fontSize: 17, fontWeight: '800' },
-  dangerTitle: { color: '#9D3E2C', fontSize: 17, fontWeight: '800' },
-  body: { color: '#736D67', fontSize: 12, lineHeight: 19, marginTop: 8 },
-  empty: { color: '#9B958F', fontSize: 12, marginTop: 16 },
-  blockRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E3E5EA' },
-  blockName: { flex: 1, color: '#202124', fontSize: 13, fontWeight: '800' },
-  smallButton: { borderRadius: 12, borderWidth: 1, borderColor: '#DDD5CD', paddingHorizontal: 12, paddingVertical: 9 },
-  smallButtonText: { color: '#625A53', fontSize: 12, fontWeight: '800' },
-  primaryButton: { alignItems: 'center', backgroundColor: '#202124', borderRadius: 14, paddingVertical: 13, marginTop: 16 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginBottom: 14 },
+  dangerCard: { borderWidth: 1, borderColor: OnePick.dangerSoft },
+  cardTitle: { color: OnePick.text, fontSize: 17, fontWeight: '800' },
+  dangerTitle: { color: OnePick.danger, fontSize: 17, fontWeight: '800' },
+  body: { color: OnePick.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
+  empty: { color: OnePick.hint, fontSize: 12, marginTop: 16 },
+  blockRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
+  blockName: { flex: 1, color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  smallButton: { borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, paddingHorizontal: 12, paddingVertical: 9 },
+  smallButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  primaryButton: { alignItems: 'center', backgroundColor: OnePick.text, borderRadius: 14, paddingVertical: 13, marginTop: 16 },
+  primaryButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  deleteButton: { minHeight: 44, minWidth: 130, alignItems: 'center', justifyContent: 'center', backgroundColor: '#A9482D', borderRadius: 14, paddingHorizontal: 16 },
-  deleteButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
-  secondaryButton: { alignSelf: 'flex-start', borderRadius: 14, borderWidth: 1, borderColor: '#D7CEC6', paddingHorizontal: 14, paddingVertical: 11, marginTop: 12 },
-  secondaryButtonText: { color: '#625A53', fontSize: 12, fontWeight: '800' },
-  confirmText: { color: '#9D3E2C', fontSize: 12, lineHeight: 19, fontWeight: '700', marginTop: 12 },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 17, marginTop: 10 },
+  deleteButton: { minHeight: 44, minWidth: 130, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.danger, borderRadius: 14, paddingHorizontal: 16 },
+  deleteButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '900' },
+  secondaryButton: { alignSelf: 'flex-start', borderRadius: 14, borderWidth: 1, borderColor: OnePick.border, paddingHorizontal: 14, paddingVertical: 11, marginTop: 12 },
+  secondaryButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  confirmText: { color: OnePick.danger, fontSize: 12, lineHeight: 19, fontWeight: '700', marginTop: 12 },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 10 },
   pressed: { opacity: 0.7 },
 });

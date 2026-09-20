@@ -29,6 +29,7 @@ function loadWeb(globals) {
       createElement: (tag) => tag === 'canvas' ? canvas : globals.anchor,
     },
     require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === './shareLinks') return { createPickShareUrl: (id) => 'https://onepick.example/pick/' + id };
       if (name === './sharePick') return {};
       throw new Error(name);

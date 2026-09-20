@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { createBrand, getBrands, updateBrand } from '@/lib/admin-api';
 import type { AdminBrand } from '@/lib/admin-api';
+import { OnePick } from '@/constants/onepick';
 
 export function BrandsPanel() {
   const [brands, setBrands] = useState<AdminBrand[]>([]);
@@ -112,13 +113,13 @@ const styles = StyleSheet.create({
   addInput: { flexGrow: 1, flexBasis: 210 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 },
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 28 },
-  brandRow: { borderTopWidth: 1, borderTopColor: '#F0F1F3', paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  empty: { color: OnePick.hint, fontSize: 13, paddingVertical: 28 },
+  brandRow: { borderTopWidth: 1, borderTopColor: OnePick.sunken, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   nameArea: { flexGrow: 1, flexBasis: 230, minWidth: 210 },
-  name: { color: '#111827', fontSize: 14, fontWeight: '700' },
-  slug: { marginTop: 4, color: '#9CA3AF', fontSize: 11 },
-  pill: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 17, backgroundColor: '#F3F4F6' },
-  pillActive: { backgroundColor: '#ECFDF3' },
-  pillText: { color: '#6B7280', fontSize: 12, fontWeight: '700' },
-  pillTextActive: { color: '#2F6B45' },
+  name: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
+  slug: { marginTop: 4, color: OnePick.hint, fontSize: 11 },
+  pill: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 17, backgroundColor: OnePick.sunken },
+  pillActive: { backgroundColor: OnePick.successSoft },
+  pillText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  pillTextActive: { color: OnePick.success },
 });

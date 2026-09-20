@@ -7,6 +7,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, T
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { supabase } from '@/lib/supabase/client';
 import { AdminMfaService } from '@/services/adminMfaService';
+import { OnePick } from '@/constants/onepick';
 
 const service = new AdminMfaService(supabase);
 type Status = Awaited<ReturnType<AdminMfaService['status']>>;
@@ -113,18 +114,18 @@ function SecurityForm({ userId }: { userId: string }) {
 
 const styles = StyleSheet.create({
   page: { padding: 24, gap: 16, width: '100%', maxWidth: 600, alignSelf: 'center' },
-  title: { fontSize: 25, fontWeight: '800', color: '#322B27' },
-  heading: { fontSize: 17, fontWeight: '700', color: '#322B27' },
-  text: { fontSize: 14, lineHeight: 22, color: '#615952' },
-  note: { padding: 12, backgroundColor: '#FFF0D6', color: '#755320', lineHeight: 21 },
-  card: { padding: 18, gap: 14, borderRadius: 16, backgroundColor: '#FFFFFF' },
-  button: { padding: 14, borderRadius: 12, backgroundColor: '#4F5E45', alignItems: 'center' },
-  buttonText: { color: '#FFFFFF', fontWeight: '700' },
+  title: { fontSize: 25, fontWeight: '800', color: OnePick.text },
+  heading: { fontSize: 17, fontWeight: '700', color: OnePick.text },
+  text: { fontSize: 14, lineHeight: 22, color: OnePick.muted },
+  note: { padding: 12, backgroundColor: OnePick.warningSoft, color: OnePick.warning, lineHeight: 21 },
+  card: { padding: 18, gap: 14, borderRadius: 16, backgroundColor: OnePick.surface },
+  button: { padding: 14, borderRadius: 12, backgroundColor: OnePick.success, alignItems: 'center' },
+  buttonText: { color: OnePick.onAccent, fontWeight: '700' },
   disabled: { opacity: 0.5 },
-  input: { padding: 14, borderWidth: 1, borderColor: '#CFC7BD', borderRadius: 10, fontSize: 22, letterSpacing: 8 },
-  emailInput: { padding: 14, borderWidth: 1, borderColor: '#CFC7BD', borderRadius: 10, fontSize: 16 },
-  error: { color: '#A33220', lineHeight: 22 },
-  link: { color: '#425C39', paddingVertical: 12, fontWeight: '700' },
-  secret: { padding: 12, backgroundColor: '#F2F1EC', fontSize: 16 },
+  input: { padding: 14, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, fontSize: 22, letterSpacing: 8 },
+  emailInput: { padding: 14, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, fontSize: 16 },
+  error: { color: OnePick.danger, lineHeight: 22 },
+  link: { color: OnePick.success, paddingVertical: 12, fontWeight: '700' },
+  secret: { padding: 12, backgroundColor: OnePick.sunken, fontSize: 16 },
   qr: { width: 220, height: 220, alignSelf: 'center' },
 });

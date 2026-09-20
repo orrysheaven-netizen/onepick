@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { AppError } from '@/errors/appError';
 import { useSafetyActions } from '@/hooks/useSafety';
 import type { ReportReason, ReportTargetType } from '@/types/domain/safety';
+import { OnePick } from '@/constants/onepick';
 
 const REASONS: Array<{ value: ReportReason; label: string }> = [
   { value: 'spam', label: '스팸' },
@@ -97,15 +98,15 @@ export function ReportAction({
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'flex-start' },
-  reportButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#DDD5CD' },
-  reportButtonText: { color: '#747985', fontSize: 12, fontWeight: '800' },
-  panel: { backgroundColor: '#F5F6F8', borderRadius: 14, padding: 12, marginTop: 8, maxWidth: 360 },
-  title: { color: '#5F5A54', fontSize: 12, fontWeight: '800' },
+  reportButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border },
+  reportButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  panel: { backgroundColor: OnePick.background, borderRadius: 14, padding: 12, marginTop: 8, maxWidth: 360 },
+  title: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  reasonButton: { minHeight: 38, justifyContent: 'center', borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 12 },
-  reasonText: { color: '#625A53', fontSize: 12, fontWeight: '800' },
+  reasonButton: { minHeight: 38, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 12 },
+  reasonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   loading: { marginTop: 10 },
-  done: { color: '#6A7665', fontSize: 12, fontWeight: '700' },
-  error: { color: '#A9482D', fontSize: 12, lineHeight: 16, marginTop: 9 },
+  done: { color: OnePick.success, fontSize: 12, fontWeight: '700' },
+  error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 9 },
   pressed: { opacity: 0.65 },
 });

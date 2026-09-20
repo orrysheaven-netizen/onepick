@@ -6,6 +6,7 @@ import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import type { ProfileAiStatus } from '@/services/profileAiService';
 import type { ProfileTasteComposition as ProfileTasteCompositionValue } from '@/services/profileTasteCompositionService';
+import { OnePick } from '@/constants/onepick';
 
 const FIVE_STATUS: ProfileAiStatus = {
   currentPickCount: 5,
@@ -170,17 +171,17 @@ function PreviewFrame({ title, width, children }: { title: string; width: number
 const styles = StyleSheet.create({
   page: { gap: 18 },
   notice: { gap: 6 },
-  noticeTitle: { color: '#111827', fontSize: 13, fontWeight: '800' },
-  sectionTitle: { color: '#374151', fontSize: 14, fontWeight: '800', marginTop: 8 },
+  noticeTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
+  sectionTitle: { color: OnePick.muted, fontSize: 14, fontWeight: '800', marginTop: 8 },
   previewGrid: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' },
   frameOuter: { gap: 8, flexShrink: 1 },
   frameHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  frameTitle: { color: '#374151', fontSize: 12, fontWeight: '800' },
-  frameWidth: { color: '#9CA3AF', fontSize: 10, fontWeight: '700' },
+  frameTitle: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  frameWidth: { color: OnePick.hint, fontSize: 10, fontWeight: '700' },
   frame: {
-    backgroundColor: '#F8F9FB',
+    backgroundColor: OnePick.sunken,
     borderWidth: 1,
-    borderColor: '#D9DCE3',
+    borderColor: OnePick.border,
     borderRadius: 18,
     padding: 18,
     overflow: 'hidden',
