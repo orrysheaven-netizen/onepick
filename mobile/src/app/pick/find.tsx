@@ -64,6 +64,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const isDramaCategory = selectedCategory?.slug === 'drama';
   const isMusicCategory = selectedCategory?.slug === 'music';
   const isGameCategory = selectedCategory?.slug === 'game';
+  const isYouTubeCategory = selectedCategory?.slug === 'youtube';
   const isCatalogCategory = isMovieCategory || isDramaCategory;
   const label = isDramaCategory ? '드라마' : '영화';
   const mediaType = isDramaCategory ? 'tv' : 'movie';
@@ -98,6 +99,20 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       setSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
     };
   }, []));
+
+  useEffect(() => {
+    if (!authReady || !selectedCategory || !isYouTubeCategory || navigating.current) return;
+    navigating.current = true;
+    router.replace({
+      pathname: '/pick/youtube',
+      params: {
+        categoryId: selectedCategory.id,
+        ...(query.trim() ? { query: query.trim() } : {}),
+        ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+      },
+    });
+  }, [authReady, isYouTubeCategory, params.onboarding, query, router, selectedCategory]);
+
   const importing = selection?.phase === 'loading';
   const canAct = () => focused.current && latest.current.authReady && !busy.current && !navigating.current;
   const chooseItem = (itemId: string, categoryId: string) => {

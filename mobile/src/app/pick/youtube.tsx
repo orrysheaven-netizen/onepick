@@ -17,6 +17,7 @@ type Params = {
   categoryId?: string | string[];
   externalYouTubeId?: string | string[];
   query?: string | string[];
+  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -43,7 +44,7 @@ function youtubeErrorMessage(error: unknown) {
 export default function YouTubePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <YouTubePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -117,7 +118,10 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
+    const route = {
+      pathname: '/pick/choose' as const,
+      params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) },
+    };
     if (replace) router.replace(route); else router.push(route);
   };
 
