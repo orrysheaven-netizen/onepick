@@ -17,7 +17,11 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
       <View style={styles.headingRow}>
         <Text style={styles.title}>내 취향 구성</Text>
         {value && value.totalPickCount >= MINIMUM_PICKS ? (
-          <Text style={styles.headingHint}>원픽 {value.mappedPickCount}개 반영</Text>
+          <Text style={styles.headingHint}>
+            {value.unmappedPickCount > 0
+              ? `${value.mappedPickCount}/${value.totalPickCount}개 반영`
+              : `원픽 ${value.mappedPickCount}개 반영`}
+          </Text>
         ) : null}
       </View>
 
@@ -35,7 +39,10 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
         <View style={styles.stateCard}>
           <Text style={styles.collectingTitle}>취향을 모으는 중 · 원픽 {value.totalPickCount}개</Text>
           <Text style={styles.stateText}>원픽 5개부터 내가 고른 취향의 구성을 보여드려요.</Text>
-          <View style={styles.collectingTrack}>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: MINIMUM_PICKS, now: Math.min(value.totalPickCount, MINIMUM_PICKS) }}
+            style={styles.collectingTrack}>
             <View style={[styles.collectingFill, { width: progressWidth(value.totalPickCount) }]} />
           </View>
         </View>
@@ -46,7 +53,11 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
         </View>
       ) : (
         <View style={styles.card}>
-          <Text style={styles.description}>원픽을 취향 영역별로 묶어, 지금 내 선택이 어디에 모여 있는지 보여줘요.</Text>
+          <Text style={styles.description}>
+            {value.unmappedPickCount > 0
+              ? `취향 분류가 준비된 원픽 ${value.mappedPickCount}개를 기준으로 구성했어요.`
+              : '원픽을 취향 영역별로 묶어, 지금 내 선택이 어디에 모여 있는지 보여줘요.'}
+          </Text>
           {value.dimensions.map((dimension) => (
             <View key={dimension.code} style={styles.dimension}>
               <View style={styles.dimensionTopRow}>
@@ -56,16 +67,25 @@ export function ProfileTasteComposition({ profileId }: { profileId: string }) {
                 </View>
                 <Text style={styles.percentage}>{dimension.percentage.toFixed(1)}%</Text>
               </View>
-              <View style={styles.track}>
+              <View
+                accessibilityRole="progressbar"
+                accessibilityLabel={`${dimension.name} 취향 비중`}
+                accessibilityValue={{ min: 0, max: 100, now: dimension.percentage }}
+                style={styles.track}>
                 <View style={[styles.fill, { width: `${Math.min(100, Math.max(0, dimension.percentage))}%` }]} />
               </View>
               {dimension.categories.length > 0 ? (
                 <View style={styles.categoryRow}>
-                  {dimension.categories.map((category) => (
+                  {dimension.categories.slice(0, 4).map((category) => (
                     <View key={category.categoryId} style={styles.categoryChip}>
                       <Text style={styles.categoryText}>{category.categoryName}</Text>
                     </View>
                   ))}
+                  {dimension.categories.length > 4 ? (
+                    <View style={[styles.categoryChip, styles.categoryMoreChip]}>
+                      <Text style={[styles.categoryText, styles.categoryMoreText]}>+{dimension.categories.length - 4}</Text>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -103,5 +123,7 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   categoryChip: { borderRadius: 999, backgroundColor: '#F1F2F6', paddingHorizontal: 9, paddingVertical: 5 },
   categoryText: { color: '#5F6470', fontSize: 10, fontWeight: '700' },
+  categoryMoreChip: { backgroundColor: '#EFEEFF' },
+  categoryMoreText: { color: '#4945ED', fontWeight: '900' },
   unmappedText: { color: '#89909C', fontSize: 10, lineHeight: 16, marginTop: 16 },
 });
