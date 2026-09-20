@@ -12,7 +12,10 @@ after `feature/pick-core` was merged back into `main` (PR #128) and retired. Pre
 branch builds are enabled, so every pull request gets its own URL.
 
 A change is on the tester site once it is merged into `main` and the resulting Pages
-build finishes. `https://onepick-5cl.pages.dev/deployment.json` shows which commit
+build finishes. Database migrations are the one thing a merge does not deploy: apply
+them with `supabase db push` from a `main` checkout right after merging (see
+[development-start.md](development-start.md#applying-migrations-to-the-linked-project)),
+so the site and the database agree. `https://onepick-5cl.pages.dev/deployment.json` shows which commit
 and branch the site is currently serving; `branch` must be `main`.
 
 Do not point Cloudflare at any branch other than `main`, and do not call another
