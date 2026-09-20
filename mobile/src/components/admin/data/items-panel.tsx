@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItems, updateItem, updateItemAlias } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
-import { selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 
 function toDomainCategory(category: AdminCategory): Category {
@@ -198,7 +198,8 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
     return () => { active = false; };
   }, [onError]);
 
-  const eligible = selectableCategories(categories.map(toDomainCategory));
+  const domainCategories = categories.map(toDomainCategory);
+  const eligible = selectableCategories(domainCategories);
   const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
   const ready = Boolean(name.trim() && selectedCategory);
 
@@ -237,7 +238,7 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
             {eligible.length === 0 && <Text style={adminStyles.muted}>선택 가능한 카테고리가 없습니다.</Text>}
             {eligible.map((category) => (
               <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.statusChoice, categoryId === category.id && styles.statusChoiceActive]}>
-                <Text style={[styles.statusChoiceText, categoryId === category.id && styles.statusChoiceTextActive]}>{category.name}</Text>
+                <Text style={[styles.statusChoiceText, categoryId === category.id && styles.statusChoiceTextActive]}>{categoryLabel(category, domainCategories)}</Text>
               </Pressable>
             ))}
           </View>
@@ -340,7 +341,122 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
         <Text style={adminStyles.primaryButtonText}>{saving ? '저장 중' : '상품 정보 저장'}</Text>
       </Pressable>
 
+      <EditorialFeatureEditor item={item} />
       <AliasManager itemId={item.id} itemName={item.name} />
+    </View>
+  );
+}
+
+function EditorialFeatureEditor({ item }: { item: AdminItem }) {
+  const [active, setActive] = useState(false);
+  const [priority, setPriority] = useState('100');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const eligible = item.status === 'active' || item.status === 'discontinued';
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError('');
+    setMessage('');
+    getItemEditorialFeature(item.id)
+      .then((rows) => {
+        if (!mounted) return;
+        const feature = rows[0];
+        setActive(feature?.is_active ?? false);
+        setPriority(String(feature?.priority ?? 100));
+        setNote(feature?.note ?? '');
+      })
+      .catch((caught) => {
+        if (mounted) setError(caught instanceof Error ? caught.message : '추천 노출 상태를 불러오지 못했습니다.');
+      })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [item.id]);
+
+  const save = async () => {
+    if (!eligible || saving) return;
+    const parsedPriority = Number.parseInt(priority, 10);
+    if (!Number.isFinite(parsedPriority) || parsedPriority < 0 || parsedPriority > 1000) {
+      setError('추천 노출 순서는 0~1000 사이 숫자로 입력해 주세요.');
+      return;
+    }
+    if (note.trim().length > 200) {
+      setError('추천 이유는 200자 이하로 입력해 주세요.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await setItemEditorialFeature({
+        itemId: item.id,
+        isActive: active,
+        priority: parsedPriority,
+        note: note.trim() || null,
+      });
+      setActive(result.is_active);
+      setPriority(String(result.priority));
+      setNote(result.note ?? '');
+      setMessage(result.is_active ? '홈의 초기 추천 영역에 노출됩니다.' : '초기 추천 노출을 해제했습니다.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '추천 노출 설정을 저장하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.editorialSection}>
+      <View style={styles.aliasHeader}>
+        <View>
+          <Text style={adminStyles.sectionTitle}>초기 추천 노출</Text>
+          <Text style={[adminStyles.muted, { marginTop: 4 }]}>운영 초기에 먼저 소개하고 싶은 원픽을 홈 상단에 노출합니다. 이 설정은 사용자 추천 수나 인기 순위에는 영향을 주지 않습니다.</Text>
+        </View>
+        {loading && <ActivityIndicator size="small" />}
+      </View>
+
+      {!loading && <>
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: active }} disabled={!eligible}
+          onPress={() => setActive((value) => !value)}
+          style={[styles.statusChoice, styles.editorialToggle, active && styles.statusChoiceActive, !eligible && styles.disabled]}>
+          <Text style={[styles.statusChoiceText, active && styles.statusChoiceTextActive]}>홈 추천 {active ? 'ON' : 'OFF'}</Text>
+        </Pressable>
+        <View>
+          <Text style={adminStyles.label}>추천 이유 · 선택 사항</Text>
+          <TextInput
+            accessibilityLabel={`${item.name} 초기 추천 이유`}
+            value={note}
+            onChangeText={setNote}
+            editable={eligible}
+            maxLength={200}
+            placeholder="왜 먼저 소개하고 싶은지 짧게 적어주세요."
+            style={adminStyles.input}
+          />
+        </View>
+        <View>
+          <Text style={adminStyles.label}>노출 순서 · 숫자가 작을수록 먼저</Text>
+          <TextInput
+            accessibilityLabel={`${item.name} 초기 추천 노출 순서`}
+            value={priority}
+            onChangeText={setPriority}
+            editable={eligible}
+            keyboardType="number-pad"
+            style={[adminStyles.input, styles.priorityInput]}
+          />
+        </View>
+        {!eligible ? <Text style={styles.note}>활성 또는 단종 상태의 상품만 초기 추천으로 노출할 수 있습니다.</Text> : null}
+        {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
+        {!!message && <Text accessibilityLiveRegion="polite" style={adminStyles.success}>{message}</Text>}
+        <Pressable disabled={!eligible || saving} onPress={save}
+          style={[adminStyles.secondaryButton, styles.editorialSave, (!eligible || saving) && styles.disabled]}>
+          <Text style={adminStyles.secondaryButtonText}>{saving ? '저장 중' : '추천 노출 저장'}</Text>
+        </Pressable>
+      </>}
     </View>
   );
 }
@@ -544,6 +660,10 @@ const styles = StyleSheet.create({
   statusChoiceText: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
   statusChoiceTextActive: { color: '#FFFFFF' },
   note: { marginTop: 8, color: '#8A5A16', fontSize: 11, lineHeight: 17 },
+  editorialSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
+  editorialSave: { alignSelf: 'flex-start' },
+  editorialToggle: { alignSelf: 'flex-start' },
+  priorityInput: { width: 120 },
   aliasSection: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 18, gap: 12 },
   aliasHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   aliasComposer: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

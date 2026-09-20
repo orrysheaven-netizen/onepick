@@ -31,7 +31,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
     { itemId: 'jin', name: '진라면', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
     { itemId: 'ramen', name: '신라면', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
-  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자' } }], openCategories: [{ id: 'ramen', name: '라면' }], singleCategoryItems: [],
+  ], categoriesToPick: [{ category: { id: 'snacks', name: '과자', label: '먹을것 › 쇼핑몰 › 과자' } }], openCategories: [{ id: 'ramen', name: '라면', label: '먹을것 › 면류 › 라면' }], singleCategoryItems: [],
 } };
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -60,20 +60,21 @@ const press = (label) => {
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, /현재 5명이 원픽으로 선택/); assert.match(page, /현재 3명이 원픽으로 선택/); assert.match(page, /MY PICK/);
+  assert.match(page, /@friend 외 4명이 추천/); assert.match(page, /@owner 외 2명이 추천/); assert.match(page, /MY PICK/);
   assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
-  assert.ok(page.indexOf('내 원픽 2개 모아보기') < page.indexOf('아직 선택하지 않은 카테고리'));
+  assert.ok(page.indexOf('아직 선택하지 않은 카테고리') < page.indexOf('사람들이 추천한 원픽'), 'The category picker sits above the pick feed so the first screen offers something to do');
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
-  press('과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
+  assert.match(page, /먹을것 › 쇼핑몰 › 과자/);
+  press('먹을것 › 쇼핑몰 › 과자 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'snacks');
 }
 
 render(); endReached(); assert.equal(pageCalls, 1);
@@ -87,7 +88,8 @@ auth.user = null;
 const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.match(publicPage, /어떤 취향부터 골라볼까요/);
-press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
+assert.match(publicPage, /먹을것 › 면류 › 라면/);
+press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|MY PICK|내 원픽 2개 모아보기/, 'Visitors see only the public feed, never the cached private collection');
 press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
@@ -126,7 +128,7 @@ assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|MY PICK/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
 query.data = { ...cached, featuredItems: [], currentPicks: [], minimumPickCount: 5 }; query.isError = false;
-assert.match(render(), /사람들의 선택이 모이면/);
+assert.match(render(), /사람들의 추천이 모이면/);
 assert.match(render(), /5명 이상/);
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);

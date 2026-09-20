@@ -14,6 +14,7 @@ import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
+import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ProfilePickItem = MyProfileData['currentPicks'][number];
@@ -48,9 +49,9 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
   );
 }
 
-function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; muted?: boolean; onPress: () => void }) {
+function PickCard({ item, categoryLabel, muted = false, onPress }: { item: ProfilePickItem; categoryLabel?: string; muted?: boolean; onPress: () => void }) {
   const title = item.item?.name ?? '제품 정보를 확인할 수 없어요';
-  const category = item.category?.name ?? '카테고리';
+  const category = categoryLabel ?? item.category?.name ?? '카테고리';
   return (
     <View style={[styles.pickCard, muted && styles.pickCardMuted]}>
       <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={title}
@@ -90,9 +91,9 @@ function getRequestState(item: ItemRequestItem) {
   }
 }
 
-function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenItem: (itemId: string) => void }) {
+function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemRequestItem; categoryLabel?: string; onOpenItem: (itemId: string) => void }) {
   const state = getRequestState(item);
-  const category = item.category?.name ?? '카테고리';
+  const category = categoryLabel ?? item.category?.name ?? '카테고리';
   const copy = <View style={styles.requestCopy}>
     <View style={styles.requestTopRow}>
       <Text style={styles.requestCategory}>{category}</Text>
@@ -121,6 +122,7 @@ export default function ProfileScreen() {
   const historyQuery = useMyPickHistory(listUserId);
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
+  const categoryOptions = useRegistrationCategories();
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -166,6 +168,7 @@ export default function ProfileScreen() {
   const { profile, currentPicks } = profileQuery.data;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
+  const categoryLabels = new Map((categoryOptions.data ?? []).map((category) => [category.id, category.label ?? category.name]));
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
@@ -201,7 +204,7 @@ export default function ProfileScreen() {
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
-        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
+        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} categoryLabel={categoryLabels.get(item.pick.categoryId)} onPress={() => openPick(item.pick.id)} />) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
         <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />
@@ -219,11 +222,11 @@ export default function ProfileScreen() {
         <View style={[styles.sectionHeader, styles.requestHeader]}>
           <Text style={styles.sectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
         </View>
-        {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} onOpenItem={openItem} />)}
+        {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={categoryLabels.get(item.item.categoryId)} onOpenItem={openItem} />)}
         {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
         <ListControls query={requestsQuery} label="등록 요청" />
         <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.sectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
-        {history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />)}
+        {history.map((item) => <PickCard key={item.pick.id} item={item} categoryLabel={categoryLabels.get(item.pick.categoryId)} muted onPress={() => openPick(item.pick.id)} />)}
         {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
         <ListControls query={historyQuery} label="이전 기록" />
         <SignOutButton />

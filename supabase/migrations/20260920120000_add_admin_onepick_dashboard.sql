@@ -188,7 +188,10 @@ begin
     left join public.picks pk
       on pk.category_id = cat.id
       and pk.user_id <> all(v_excluded_ids)
+    -- Parent categories are never pickable, so this keeps the breakdown to
+    -- the leaf categories Picks actually live in.
     where cat.status = 'open'
+      and cat.is_pickable
     group by cat.id, cat.name, cat.slug
   )
   select coalesce(jsonb_agg(jsonb_build_object(

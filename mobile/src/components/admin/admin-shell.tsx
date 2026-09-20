@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: '원픽 대시보드', hint: '서비스 지표 · 추이' },
-  { href: '/admin/data', label: '데이터 관리', hint: '카테고리 · 상품 · 사용자 · 신고' },
+  { href: '/admin/data', label: '데이터 관리', hint: '카테고리 · 상품 · 홈 추천 · 사용자 · 신고' },
 ] as const;
 
 export function AdminShell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {

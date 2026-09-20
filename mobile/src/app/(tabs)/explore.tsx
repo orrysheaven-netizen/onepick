@@ -1,30 +1,48 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
-import { browseCategoryGroups } from '@/lib/categories/categoryTree';
+import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
+
+type ExploreParams = { search?: string | string[]; query?: string | string[] };
+const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<ExploreParams>();
+  const incomingQuery = (scalar(params.query) ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
   const [parentId, setParentId] = useState<string | undefined>();
   const [childId, setChildId] = useState<string | undefined>();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
   const categories = useExploreCategories();
-  const groups = browseCategoryGroups(categories.data ?? []);
+  const allCategories = categories.data ?? [];
+  const groups = browseCategoryGroups(allCategories);
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
-  const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId);
+  const selectedCategory = allCategories.find((category) => category.id === selectedCategoryId);
+  const selectedCategoryPath = selectedCategory ? categoryLabel(selectedCategory, allCategories) : null;
+  const leafLabel = (category: (typeof allCategories)[number]) => {
+    const full = categoryLabel(category, allCategories);
+    const prefix = group ? `${group.category.name} › ` : '';
+    return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
+  };
   const movieCategory = categories.data?.find((category) => category.slug === 'movie');
   const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
   const musicCategory = categories.data?.find((category) => category.slug === 'music');
   const gameCategory = categories.data?.find((category) => category.slug === 'game');
+  const bookCategory = categories.data?.find((category) => category.slug === 'book');
   const youtubeCategory = categories.data?.find((category) => category.slug === 'youtube');
   const pokemonCategory = categories.data?.find((category) => category.slug === 'pokemon');
   const topItems = useCategoryTopItems(selectedCategoryId);
+
+  useEffect(() => {
+    if (scalar(params.search) === '1' || incomingQuery.length > 0) setSearchOpen(true);
+  }, [incomingQuery, params.search]);
+
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
@@ -45,15 +63,16 @@ export default function ExploreScreen() {
         </View>
         <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
         {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategory ? `${selectedCategory.name}에서 검색` : '전체 항목 검색'}</Text>
+          <Text style={styles.searchScope}>{selectedCategoryPath ? `${selectedCategoryPath}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
-            {selectedCategory && ['movie', 'drama', 'music', 'game', 'youtube', 'pokemon'].includes(selectedCategory.slug)
+            {selectedCategory && ['movie', 'drama', 'music', 'game', 'book', 'youtube', 'pokemon'].includes(selectedCategory.slug)
               ? '등록된 항목이 없으면 외부 DB 검색으로 바로 이어집니다.'
               : !selectedCategory
-                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
+                ? '등록된 항목을 먼저 찾고, 없으면 영화·드라마·음악·게임·책·YouTube 채널·포켓몬에서 계속 검색할 수 있어요.'
                 : 'OnePick에 등록된 항목을 검색합니다.'}
           </Text>
-          <ItemSearch key={selectedCategoryId ?? 'all'} compact categoryId={selectedCategoryId}
+          <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
+            initialQuery={incomingQuery}
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
             onSearchDrama={dramaCategory && (!selectedCategoryId || selectedCategoryId === dramaCategory.id)
@@ -62,6 +81,8 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
             onSearchGame={gameCategory && (!selectedCategoryId || selectedCategoryId === gameCategory.id)
               ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+            onSearchBook={bookCategory && (!selectedCategoryId || selectedCategoryId === bookCategory.id)
+              ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
             onSearchYouTube={youtubeCategory && (!selectedCategoryId || selectedCategoryId === youtubeCategory.id)
               ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
@@ -83,15 +104,15 @@ export default function ExploreScreen() {
         </View>
         {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
         {group && !group.directlySelectable ? <View style={styles.childPanel}>
-          <Text style={styles.sectionTitle}>2. {group.category.name}에서 골라주세요</Text>
+          <Text style={styles.sectionTitle}>2. 세부 카테고리를 골라주세요</Text>
           <View style={styles.childList}>{group.children.map((category) => <Pressable key={category.id} accessibilityRole="button"
-            accessibilityLabel={`${category.name} 2차 카테고리`} accessibilityState={{ selected: childId === category.id }}
+            accessibilityLabel={`${leafLabel(category)} 선택 가능한 카테고리`} accessibilityState={{ selected: childId === category.id }}
             onPress={() => setChildId(category.id)} style={[styles.chip, childId === category.id && styles.chipActive]}>
-            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{category.name}</Text>
+            <Text style={[styles.chipText, childId === category.id && styles.chipTextActive]}>{leafLabel(category)}</Text>
           </Pressable>)}</View>
-          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
+          {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>세부 카테고리를 선택하면 원픽 TOP 3를 볼 수 있어요.</Text> : null}
         </View> : null}
-        {selectedCategoryId ? <Text style={styles.selectionLabel}>{group?.category.name}{group?.directlySelectable ? '' : ` › ${selectedCategory?.name}`}</Text> : null}
+        {selectedCategoryPath ? <Text style={styles.selectionLabel}>{selectedCategoryPath}</Text> : null}
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, styles.rankTitle]}>{selectedCategory?.name} 원픽 TOP 3</Text>

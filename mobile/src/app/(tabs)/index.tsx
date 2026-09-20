@@ -12,6 +12,7 @@ import { isDemoUsername } from '@/lib/demoProfile';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type FeaturedItem = HomeData['featuredItems'][number];
+type EditorialItem = HomeData['editorialItems'][number];
 
 function ProductCard({ item, mine, onOpen, onProfile }: {
   item: FeaturedItem;
@@ -22,15 +23,17 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
   return <View style={styles.card}>
     <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 제품 상세 보기'} onPress={onOpen}
       style={({ pressed }) => [styles.productAction, pressed && styles.pressed]}>
-      <View style={styles.cardTop}>
-        <Text style={styles.cardCategory}>{item.categoryName}</Text>
-        {mine ? <View style={styles.badge}><Text style={styles.badgeText}>♥ MY PICK</Text></View> : null}
-      </View>
       <View style={styles.cardBody}>
-        <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+        <PickPhoto tall uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
         <View style={styles.cardCopy}>
+          <View style={styles.cardTop}>
+            <Text numberOfLines={1} style={styles.cardCategory}>{item.categoryName}</Text>
+            {mine ? <View style={styles.badge}><Text style={styles.badgeText}>MY PICK</Text></View> : null}
+          </View>
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>
+          {item.latestPickReview
+            ? <><Text style={styles.reasonLabel}>추천 이유</Text><Text numberOfLines={3} style={styles.review}>{`“${item.latestPickReview}”`}</Text></>
+            : <Text style={styles.pickCount}>{item.pickCount.toLocaleString()}명이 추천</Text>}
         </View>
       </View>
     </Pressable>
@@ -38,16 +41,29 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
       accessibilityLabel={`@${item.latestPickerUsername} 프로필 보기`} onPress={onProfile}
       style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}>
       <View style={styles.pickerAvatar}><Text style={styles.pickerInitial}>{item.latestPickerUsername.slice(0, 1).toUpperCase()}</Text></View>
-      <View style={styles.pickerCopy}>
-        <View style={styles.pickerNameRow}>
-          <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
-          {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
-        </View>
-        {item.latestPickReview ? <Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text> : null}
-      </View>
+      <Text numberOfLines={1} style={styles.pickerMeta}>@{item.latestPickerUsername}{item.pickCount > 1 ? ` 외 ${(item.pickCount - 1).toLocaleString()}명` : ''}이 추천</Text>
+      {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
       <Text style={styles.profileArrow}>›</Text>
     </Pressable> : null}
   </View>;
+}
+
+function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
+    onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
+    <View style={styles.editorialTop}>
+      <Text style={styles.editorialKicker}>ONEPICK 추천</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+    </View>
+    <View style={styles.editorialBody}>
+      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+      <View style={styles.editorialCopy}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        {item.editorialNote ? <Text numberOfLines={3} style={styles.editorialNote}>{item.editorialNote}</Text> : null}
+        <Text style={styles.editorialCount}>{item.pickCount > 0 ? `현재 ${item.pickCount.toLocaleString()}명이 이 원픽을 추천` : '아직 첫 추천을 기다리는 원픽'}</Text>
+      </View>
+    </View>
+  </Pressable>;
 }
 
 function SectionTitle({ title, count, description }: { title: string; count?: number; description?: string }) {
@@ -64,8 +80,24 @@ export default function HomeScreen() {
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
+  const searchCategories = data?.openCategories ?? [];
+  const movieCategory = searchCategories.find((category) => category.slug === 'movie');
+  const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
+  const musicCategory = searchCategories.find((category) => category.slug === 'music');
+  const gameCategory = searchCategories.find((category) => category.slug === 'game');
+  const bookCategory = searchCategories.find((category) => category.slug === 'book');
+  const youtubeCategory = searchCategories.find((category) => category.slug === 'youtube');
+  const pokemonCategory = searchCategories.find((category) => category.slug === 'pokemon');
+  const openRegistration = (category: { id: string; slug: string }) => {
+    const params = { categoryId: category.id };
+    if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
+    if (category.slug === 'game') return router.push({ pathname: '/pick/game', params });
+    if (category.slug === 'book') return router.push({ pathname: '/pick/book', params });
+    if (category.slug === 'youtube') return router.push({ pathname: '/pick/youtube', params });
+    if (category.slug === 'pokemon') return router.push({ pathname: '/pick/pokemon', params });
+    return router.push({ pathname: '/pick/find', params });
+  };
   const ready = !isLoading && !sessionError && Boolean(data);
   const refresh = () => {
     if (!isSessionLoading && !sessionError && !homeQuery.isFetching) {
@@ -101,18 +133,49 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} style={styles.avatar}><Text style={styles.avatarText}>나</Text></Pressable>
         </View>
 
-        <ItemSearch compact onSelect={openItem} />
+        <ItemSearch compact
+          onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
+          onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
+          onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
+          onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
+          onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+          onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
+          onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
+          onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
+          onSelect={openItem} />
 
-        <View style={styles.intro}>
-          <View style={styles.introCopy}>
-            <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
-            <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
-            <Text style={styles.introDescription}>사람들이 고른 제품과 그 선택의 이유를 함께 만나보세요.</Text>
+        {user ? null : <View style={styles.signinStrip}>
+          <View style={styles.signinMark}><Text style={styles.signinMarkText}>1</Text></View>
+          <View style={styles.signinCopy}>
+            <Text style={styles.signinTitle}>하나만 추천한다면 무엇인가요?</Text>
+            <Text style={styles.signinText}>카테고리마다 하나를 고르고 이유를 남겨보세요</Text>
           </View>
-        </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="로그인하고 내 추천 원픽 만들기"
+            onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })}
+            style={({ pressed }) => [styles.signinButton, pressed && styles.pressed]}>
+            <Text style={styles.signinButtonText}>시작하기</Text>
+          </Pressable>
+        </View>}
+
+        {ready && data?.editorialItems?.length ? <View style={styles.editorialSection}>
+          <SectionTitle title="먼저 소개하는 원픽" description="초기 추천 큐레이션 · 인기 순위와는 별도로 운영해요." />
+          <View style={styles.editorialList}>
+            {data.editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
+          </View>
+        </View> : null}
+
+        {ready && data && categories.length ? <View style={styles.categorySection}>
+          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
+          <View style={styles.categoryGrid}>
+            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={(category.label ?? category.name) + ' 원픽 찾기'}
+              onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+              <Text style={styles.categoryName}>{category.label ?? category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
+            </Pressable>)}
+          </View>
+        </View> : null}
 
         <View style={styles.sectionHeader}>
-          <SectionTitle title="사람들의 원픽" description={data ? `${data.minimumPickCount}명 이상이 선택한 제품 · 최근 선택순` : undefined} />
+          <SectionTitle title="사람들이 추천한 원픽" description={data ? `${data.minimumPickCount}명 이상이 추천한 원픽 · 최근 선택순` : undefined} />
         </View>
 
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
@@ -135,8 +198,8 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           {!data.featuredItems.length ? <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>사람들의 선택이 모이면 이곳에 소개돼요</Text>
-            <Text style={styles.stateText}>현재 원픽으로 선택한 사람이 {data.minimumPickCount}명 이상인 제품을 보여드려요.</Text>
+            <Text style={styles.stateTitle}>사람들의 추천이 모이면 이곳에 소개돼요</Text>
+            <Text style={styles.stateText}>현재 이 원픽을 추천한 사람이 {data.minimumPickCount}명 이상인 항목을 보여드려요.</Text>
           </View> : null}
         </> : null}
         </>}
@@ -155,21 +218,7 @@ export default function HomeScreen() {
 
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
-          </Pressable> : <View style={styles.welcomeCard}>
-              <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
-              <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
-                <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
-              </Pressable>
-          </View>}
-
-          <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
-          {categories.length ? <View style={styles.categoryGrid}>
-            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
-              onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
-            </Pressable>)}
-          </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
+          </Pressable> : null}
 
           <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
@@ -184,13 +233,26 @@ const styles = StyleSheet.create({
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EAECF1', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, color: OnePick.text, fontWeight: '600' },
-  intro: { paddingTop: 8, paddingBottom: 24 },
-  introCopy: { flex: 1 },
-  eyebrow: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
-  headline: { color: OnePick.text, fontSize: 30, lineHeight: 40, letterSpacing: -1.2, fontWeight: '800', marginTop: 8 },
-  accent: { color: OnePick.accent },
-  introDescription: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginTop: 8, marginBottom: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
+  signinMark: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  signinMarkText: { color: OnePick.accent, fontSize: 16, fontWeight: '800' },
+  signinCopy: { flex: 1, minWidth: 0 },
+  signinTitle: { color: OnePick.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
+  signinText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  signinButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 22, backgroundColor: OnePick.accent },
+  signinButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  categorySection: { marginBottom: 26 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
+  editorialSection: { marginBottom: 26 },
+  editorialList: { gap: 10, marginTop: 12 },
+  editorialCard: { padding: 16, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, backgroundColor: OnePick.surface },
+  editorialTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
+  editorialKicker: { color: OnePick.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  editorialPath: { flex: 1, color: OnePick.muted, fontSize: 11, textAlign: 'right' },
+  editorialBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  editorialCopy: { flex: 1, minWidth: 0 },
+  editorialNote: { color: OnePick.text, fontSize: 13, lineHeight: 20, marginTop: 7 },
+  editorialCount: { color: OnePick.muted, fontSize: 11, lineHeight: 17, marginTop: 7 },
   sectionCopy: { flexShrink: 1 },
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
   count: { color: OnePick.accent },
@@ -202,35 +264,29 @@ const styles = StyleSheet.create({
   profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginTop: 20, borderRadius: 16, backgroundColor: OnePick.accentSoft },
   card: { flex: 1, overflow: 'hidden', backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20 },
   productAction: { padding: 16 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 24, marginBottom: 12 },
-  cardBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 5 },
+  cardBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   cardCopy: { flex: 1, minWidth: 0 },
-  cardCategory: { flex: 1, color: OnePick.text, fontSize: 14, fontWeight: '700' },
+  cardCategory: { flexShrink: 1, color: OnePick.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 6, backgroundColor: OnePick.accentSoft },
   badgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
   itemName: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '700', letterSpacing: -0.5 },
-  pickCount: { color: OnePick.accent, fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
-  pickerRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
-  pickerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
-  pickerInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
-  pickerCopy: { flex: 1, minWidth: 0 },
-  pickerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '900' },
-  pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  review: { color: OnePick.text, fontSize: 14, lineHeight: 21, marginTop: 2 },
+  pickCount: { color: OnePick.muted, fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 6 },
+  pickerRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: OnePick.hairline },
+  pickerAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  pickerInitial: { color: OnePick.accent, fontSize: 11, fontWeight: '800' },
+  pickerMeta: { flex: 1, minWidth: 0, color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  demoBadge: { color: OnePick.muted, backgroundColor: OnePick.image, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '700' },
+  reasonLabel: { color: OnePick.accent, fontSize: 11, fontWeight: '700', marginTop: 7 },
   profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
   arrow: { color: OnePick.accent, fontSize: 20 },
-  welcomeCard: { padding: 20, marginTop: 20, borderRadius: 20, backgroundColor: OnePick.accentSoft },
-  welcomeTitle: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '700', letterSpacing: -0.8 },
-  welcomeText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, marginTop: 8 },
-  loginButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 44, marginTop: 12 },
-  nextSection: { marginTop: 30, marginBottom: 16 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  categoryCard: { width: '46%', flexGrow: 1, padding: 16, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, backgroundColor: OnePick.surface },
-  categoryName: { color: OnePick.text, fontSize: 17, fontWeight: '700' },
-  categoryAction: { color: OnePick.muted, fontSize: 13, marginTop: 14 },
-  emptyText: { color: OnePick.muted, fontSize: 14, lineHeight: 23, paddingVertical: 16 },
+  nextSection: { marginBottom: 12 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  categoryCard: { width: '46%', flexGrow: 1, minHeight: 88, justifyContent: 'space-between', padding: 14, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
+  categoryName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700' },
+  categoryAction: { color: OnePick.muted, fontSize: 12, marginTop: 10 },
   stateCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 24, padding: 32, alignItems: 'center' },
   stateTitle: { color: OnePick.text, fontSize: 16, fontWeight: '600', marginTop: 10, textAlign: 'center' },
   stateText: { color: OnePick.muted, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: 'center' },

@@ -1,10 +1,26 @@
 # MVP web deployment
 
-Source of truth: `orrysheaven-netizen/onepick`, branch `feature/pick-core`, Draft PR #1.
-Cloudflare Pages now serves the tester site at https://onepick-5cl.pages.dev.
-Project: `onepick`; production branch: `feature/pick-core`; preview branch builds disabled.
+Cloudflare Pages serves the tester site at https://onepick-5cl.pages.dev.
+Project: `onepick`; preview branch builds disabled.
 Supabase Site URL and the two app callback patterns point to this origin.
 See [배포 설정과 확인 기록](test-hosting.md) for the verified configuration and remaining device checks.
+
+## Which branch the tester site is built from
+
+The Cloudflare Pages production branch is still `feature/pick-core`, so `main` can be
+green while the tester site shows something else entirely. That split is the drift
+`CLAUDE.md` warns about. It is being closed, not kept:
+
+1. Merge `feature/pick-core` into `main`, so nothing the tester site shows today is lost.
+2. Switch the Cloudflare Pages production branch to `main`
+   (Workers & Pages → `onepick` → Settings → Builds & deployments), and enable preview
+   branch builds so every pull request gets a URL someone can actually look at.
+3. Update this section and retire `feature/pick-core`.
+
+Until step 2 lands: `main` is the branch you merge into (`CLAUDE.md`), and
+`feature/pick-core` is what testers see. A change is not on the tester site until it
+reaches `feature/pick-core`. Do not call any branch other than `main` the source of
+truth — that wording is what let these two drift apart.
 
 ## Build and preview
 

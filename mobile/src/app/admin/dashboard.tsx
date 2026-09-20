@@ -196,7 +196,10 @@ export default function AdminDashboardScreen() {
                   <Text style={adminStyles.sectionTitle}>인기 원픽 상품 TOP 10</Text>
                   <Text style={[adminStyles.muted, styles.cardHint]}>현재 활성 원픽 기준</Text>
                 </View>
-                <Pressable onPress={() => goToData('items')}><Text style={styles.textLink}>상품 관리</Text></Pressable>
+                <View style={styles.linkRow}>
+                  <Pressable onPress={() => goToData('editorial')}><Text style={styles.textLink}>홈 추천 관리</Text></Pressable>
+                  <Pressable onPress={() => goToData('items')}><Text style={styles.textLink}>상품 관리</Text></Pressable>
+                </View>
               </View>
               {data.top_items.length === 0 ? (
                 <Text style={styles.empty}>아직 실제 사용자의 원픽이 없습니다.</Text>
@@ -357,6 +360,7 @@ const styles = StyleSheet.create({
   chartLabel: { color: '#9CA3AF', fontSize: 10 },
   columns: { flexDirection: 'row', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' },
   column: { flexGrow: 1, flexBasis: 430, minWidth: 300 },
+  linkRow: { flexDirection: 'row', gap: 14 },
   textLink: { color: '#374151', fontSize: 12, fontWeight: '700' },
   empty: { color: '#9CA3AF', fontSize: 13, paddingVertical: 24 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#F0F1F3' },

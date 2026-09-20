@@ -7,17 +7,20 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 type ItemSearchProps = {
   categoryId?: string;
   compact?: boolean;
+  initialQuery?: string;
+  onSubmitSearch?: (query: string) => void;
   onSearchMovie?: (query: string) => void;
   onSearchDrama?: (query: string) => void;
   onSearchMusic?: (query: string) => void;
   onSearchGame?: (query: string) => void;
+  onSearchBook?: (query: string) => void;
   onSearchYouTube?: (query: string) => void;
   onSearchPokemon?: (query: string) => void;
   onSelect: (itemId: string) => void;
 };
 
 type ExternalSearchAction = {
-  key: 'movie' | 'drama' | 'music' | 'game' | 'youtube' | 'pokemon';
+  key: 'movie' | 'drama' | 'music' | 'game' | 'book' | 'youtube' | 'pokemon';
   label: string;
   accessibilityLabel: string;
   run: () => void;
@@ -26,15 +29,18 @@ type ExternalSearchAction = {
 export function ItemSearch({
   categoryId,
   compact = false,
+  initialQuery = '',
+  onSubmitSearch,
   onSearchMovie,
   onSearchDrama,
   onSearchMusic,
   onSearchGame,
+  onSearchBook,
   onSearchYouTube,
   onSearchPokemon,
   onSelect,
 }: ItemSearchProps) {
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => initialQuery.slice(0, 100));
   const query = useItemSearch(searchText, categoryId);
   const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
@@ -72,6 +78,14 @@ export function ItemSearch({
       run: () => onSearchGame(normalizedSearch),
     });
   }
+  if (onSearchBook && normalizedSearch.length >= 2) {
+    externalActions.push({
+      key: 'book',
+      label: '도서 DB에서 검색',
+      accessibilityLabel: `${normalizedSearch} 도서 DB에서 검색`,
+      run: () => onSearchBook(normalizedSearch),
+    });
+  }
   if (onSearchYouTube && normalizedSearch.length >= 2) {
     externalActions.push({
       key: 'youtube',
@@ -90,10 +104,14 @@ export function ItemSearch({
   }
 
   const submitSearch = () => {
+    if (!normalizedSearch) return;
     // A category-scoped catalog search has exactly one destination. Global
-    // search intentionally keeps the provider choice visible instead of
-    // guessing whether a title is a movie, drama, or song.
-    if (categoryId && externalActions.length === 1) externalActions[0].run();
+    // search goes to the dedicated search surface instead of doing nothing.
+    if (categoryId && externalActions.length === 1) {
+      externalActions[0].run();
+      return;
+    }
+    onSubmitSearch?.(normalizedSearch);
   };
 
   return (
@@ -109,6 +127,11 @@ export function ItemSearch({
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
+        </Pressable> : null}
+        {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
+          accessibilityState={{ disabled: !normalizedSearch }} disabled={!normalizedSearch}
+          onPress={submitSearch} style={({ pressed }) => [styles.submitButton, (!normalizedSearch || pressed) && styles.pressed]}>
+          <Text style={styles.submitText}>검색</Text>
         </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
@@ -156,6 +179,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, minWidth: 0, minHeight: 50, color: '#202124', fontSize: 14, paddingHorizontal: 15, paddingVertical: 12 },
   clearButton: { minHeight: 44, minWidth: 58, alignItems: 'center', justifyContent: 'center' },
   clearText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
+  submitButton: { minHeight: 40, minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#4945ED', marginRight: 5, paddingHorizontal: 12 },
+  submitText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   state: { alignItems: 'center', paddingVertical: 20 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
   retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
