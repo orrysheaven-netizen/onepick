@@ -166,9 +166,9 @@ export default function HomeScreen() {
         {ready && data && categories.length ? <View style={styles.categorySection}>
           <View style={styles.nextSection}><SectionTitle title={user ? '아직 선택하지 않은 카테고리' : '어떤 취향부터 골라볼까요?'} count={categories.length} /></View>
           <View style={styles.categoryGrid}>
-            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
+            {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={(category.label ?? category.name) + ' 원픽 찾기'}
               onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
+              <Text style={styles.categoryName}>{category.label ?? category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
             </Pressable>)}
           </View>
         </View> : null}
