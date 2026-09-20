@@ -48,8 +48,11 @@ select throws_ok($$select public.submit_item((select id from public.categories w
   'P0001','CATEGORY_NOT_PICKABLE','parent cannot receive requests');
 select set_config('request.jwt.claim.sub','66666666-6666-6666-6666-666666666666',true);
 select is((select count(*)::int from public.items where id=(select item_id from shared_state)),0,'another user cannot read pending request');
-select isnt((public.submit_item((select category_id from shared_state),'테스트라면 매운맛 컵라면')).id,
-  (select item_id from shared_state),'RPC does not return another user private request');
+select throws_ok(
+  $select public.submit_item((select category_id from shared_state),'테스트라면 매운맛 컵라면')$,
+  'P0001','ITEM_ALREADY_PENDING',
+  'another user cannot create a duplicate pending request'
+);
 select throws_ok($$select public.submit_item((select category_id from shared_state),'도용라면',
   '55555555-5555-5555-5555-555555555555/unused.jpg','55555555-5555-5555-5555-555555555555/thumb.jpg')$$,
   'P0001','PHOTO_INVALID','cannot attach another user upload');
