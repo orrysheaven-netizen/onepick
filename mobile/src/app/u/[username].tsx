@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
-import { PickPhoto } from '@/components/pick-photo';
+import { ProfilePickCard } from '@/components/profile-pick-card';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
@@ -64,22 +64,18 @@ export default function PublicProfileScreen() {
           />
           <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{query.data.currentPicks.length}개</Text></View>
           {query.data.currentPicks.length > 0 ? query.data.currentPicks.map((item) => (
-            <View key={item.pick.id} style={styles.pickCard}>
-              <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={item.item?.name ?? '제품 대표 이미지'}
-                itemId={item.item?.id} itemStatus={item.item?.status} hasPhoto={Boolean(item.item?.imagePath)} />
-              <View style={styles.pickCopy}>
-                <Pressable accessibilityRole="button" accessibilityLabel="원픽 상세 보기"
-                  onPress={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })} style={({ pressed }) => pressed && styles.pressed}>
-                  <Text style={styles.pickCategory}>{item.category?.name ?? '카테고리'}</Text>
-                  <Text style={styles.pickName}>{item.item?.name ?? '제품 정보를 확인할 수 없어요'}</Text>
-                  <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text><Text style={styles.pickAction}>원픽 상세 보기 ›</Text>
-                </Pressable>
-                {item.item ? <Pressable accessibilityRole="button" accessibilityLabel={`${item.item.name} 제품 상세 보기`}
-                  onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } })} style={({ pressed }) => [styles.itemLink, pressed && styles.pressed]}>
-                  <Text style={styles.pickAction}>제품 상세 보기 ›</Text>
-                </Pressable> : null}
-              </View>
-            </View>
+            <ProfilePickCard
+              key={item.pick.id}
+              categoryName={item.category?.name ?? '카테고리'}
+              itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+              review={item.pick.oneLineReview}
+              imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
+              itemId={item.item?.id}
+              itemStatus={item.item?.status}
+              hasPhoto={Boolean(item.item?.imagePath)}
+              onPressPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick.id } })}
+              onPressItem={item.item ? () => router.push({ pathname: '/item/[itemId]', params: { itemId: item.pick.itemId } }) : undefined}
+            />
           )) : <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 공개된 원픽이 없어요</Text><Text style={styles.emptyText}>이 사용자가 원픽을 고르면 여기에 표시됩니다.</Text></View>}
           {!query.data.isMine && user && !isDemo ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
@@ -128,13 +124,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
   sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
   sectionHint: { color: '#747985', fontSize: 12 },
-  pickCard: { flexDirection: 'row', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
-  pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  pickAction: { color: '#4945ED', fontSize: 12, fontWeight: '700', marginTop: 7 },
-  itemLink: { minHeight: 44, justifyContent: 'center', marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E3E5EA' },
   emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24 },
   emptyTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   emptyText: { color: '#747985', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },

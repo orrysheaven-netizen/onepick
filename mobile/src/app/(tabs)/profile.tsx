@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
+import { ProfilePickCard } from '@/components/profile-pick-card';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
@@ -16,7 +17,6 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
-type ProfilePickItem = MyProfileData['currentPicks'][number];
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
 
 function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHistory> | ReturnType<typeof useMyItemRequests>; label: string }) {
@@ -45,26 +45,6 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
         </Pressable>
       ) : null}
     </>
-  );
-}
-
-function PickCard({ item, muted = false, onPress }: { item: ProfilePickItem; muted?: boolean; onPress: () => void }) {
-  const title = item.item?.name ?? '제품 정보를 확인할 수 없어요';
-  const category = item.category?.name ?? '카테고리';
-  return (
-    <View style={[styles.pickCard, muted && styles.pickCardMuted]}>
-      <PickPhoto uri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl} label={title}
-        itemId={item.item?.id} itemStatus={item.item?.status} hasPhoto={Boolean(item.item?.imagePath)} />
-      <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.pickActionArea, pressed && styles.pressed]}>
-        <View style={styles.pickCopy}>
-          <Text style={styles.pickCategory}>{category}</Text>
-          <Text style={styles.pickName}>{title}</Text>
-          <Text style={styles.pickReview}>“{item.pick.oneLineReview}”</Text>
-          {muted ? <Text style={styles.pickMeta}>{item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}</Text> : null}
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -204,7 +184,18 @@ export default function ProfileScreen() {
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>
-        {currentPicks.length > 0 ? currentPicks.map((item) => <PickCard key={item.pick.id} item={item} onPress={() => openPick(item.pick.id)} />) : (
+        {currentPicks.length > 0 ? currentPicks.map((item) => <ProfilePickCard
+          key={item.pick.id}
+          categoryName={item.category?.name ?? '카테고리'}
+          itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+          review={item.pick.oneLineReview}
+          imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
+          itemId={item.item?.id}
+          itemStatus={item.item?.status}
+          hasPhoto={Boolean(item.item?.imagePath)}
+          onPressPick={() => openPick(item.pick.id)}
+          onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
+        />) : (
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>아직 고른 원픽이 없어요</Text><Text style={styles.emptyText}>홈에서 지금 가장 좋아하는 하나를 골라보세요.</Text><Pressable onPress={() => router.push('/')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>원픽 고르러 가기</Text></Pressable></View>
         )}
         <UnselectedCategories selectedCategoryIds={currentPicks.map(({ pick }) => pick.categoryId)} />
@@ -240,7 +231,20 @@ export default function ProfileScreen() {
           <ListControls query={requestsQuery} label="등록 요청" />
 
           <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
-          {history.map((item) => <PickCard key={item.pick.id} item={item} muted onPress={() => openPick(item.pick.id)} />)}
+          {history.map((item) => <ProfilePickCard
+            key={item.pick.id}
+            categoryName={item.category?.name ?? '카테고리'}
+            itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+            review={item.pick.oneLineReview}
+            imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
+            itemId={item.item?.id}
+            itemStatus={item.item?.status}
+            hasPhoto={Boolean(item.item?.imagePath)}
+            muted
+            statusText={item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}
+            onPressPick={() => openPick(item.pick.id)}
+            onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
+          />)}
           {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
           <ListControls query={historyQuery} label="이전 기록" />
         </View>
@@ -287,14 +291,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '900' },
   activitySectionTitle: { color: '#202124', fontSize: 15, fontWeight: '800' },
   sectionHint: { color: '#747985', fontSize: 12 },
-  pickCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
-  pickCardMuted: { opacity: 0.7 },
-  pickActionArea: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center' },
-  pickCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },
-  pickCategory: { color: '#4945ED', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  pickName: { color: '#202124', fontSize: 16, fontWeight: '800', marginTop: 5 },
-  pickReview: { color: '#5F6470', fontSize: 12, lineHeight: 18, marginTop: 6 },
-  pickMeta: { color: '#89909C', fontSize: 12, marginTop: 6 },
   requestCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E3E5EA', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 12, marginBottom: 11 },
   requestActionArea: { flex: 1, minHeight: 86, justifyContent: 'center' },
   requestCopy: { flex: 1, paddingLeft: 14, paddingVertical: 3 },

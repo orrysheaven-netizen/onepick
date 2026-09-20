@@ -62,6 +62,13 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/profile-pick-card': {
+      ProfilePickCard: (props) => React.createElement(
+        native.Pressable,
+        { accessibilityRole: 'button', accessibilityLabel: `${props.itemName} 원픽 상세 보기`, onPress: props.onPressPick },
+        React.createElement(native.Text, null, props.itemName),
+      ),
+    },
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
