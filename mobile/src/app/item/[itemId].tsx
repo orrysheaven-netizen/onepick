@@ -11,6 +11,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
 import type { PickPhotoDraft } from '@/types/domain/photo';
+import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 
@@ -110,7 +111,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         setPhotoApproved(false);
         photoAttachment.reset();
       }
-    } catch { /* The mutation renders an actionable error below. */ }
+    } catch (error) {
+      showPhotoFailure(error, 'item_photo_choose');
+    }
     finally { busy.current = false; }
   };
 
@@ -127,7 +130,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       // Refresh is a separate operation. Preserve the acknowledged response and
       // keep all stale product/review content hidden if the fresh read fails.
       await query.refetch().catch(() => {});
-    } catch { /* A failed attachment keeps the selected image for retry. */ }
+    } catch (error) {
+      showPhotoFailure(error, 'item_photo_upload');
+    }
     finally { busy.current = false; }
   };
   const retryItem = async () => {

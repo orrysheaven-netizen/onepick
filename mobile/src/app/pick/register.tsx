@@ -10,6 +10,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { canonicalItemName, categoryRegistrationHint } from '@/lib/items/itemIdentity';
+import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import type { Item } from '@/types/domain/item';
 
@@ -85,7 +86,10 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
     try {
       const result = fromLink ? await imageImport.mutateAsync(imageLink) : await photoPicker.mutateAsync();
       if (result) { setPhoto(result); approvePhoto(false); }
-    } catch { /* Keep any previous image and render an actionable error. */ }
+    } catch (error) {
+      showPhotoFailure(error, fromLink ? 'register_pick_photo_import' : 'register_pick_photo_choose');
+      /* Keep any previous image and render an actionable error. */
+    }
     finally { busy.current = false; }
   };
   const submit = async () => {
@@ -97,7 +101,10 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
         oneLineReview: review, photo: hasSharedPhoto ? null : photo });
       if (result.type === 'pick') router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
       else setSubmitted(result.item);
-    } catch { /* Keep the whole draft for retry. */ }
+    } catch (error) {
+      if (photo && !hasSharedPhoto && isPhotoFailure(error)) showPhotoFailure(error, 'register_pick_photo_upload');
+      /* Keep the whole draft for retry. */
+    }
     finally { busy.current = false; }
   };
 
