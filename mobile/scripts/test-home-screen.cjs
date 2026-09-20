@@ -52,6 +52,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto }),
+  '@/components/following-pick-card': { FollowingPickCard: () => null },
+  '@/hooks/useFollow': { useFollowingFeed: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, isRefetching: false, hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false, refetch: async () => {}, fetchNextPage: async () => {} }) },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': load('constants/onepick.ts'),

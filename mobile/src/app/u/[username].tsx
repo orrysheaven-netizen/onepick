@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
+import { FollowButton } from '@/components/follow-button';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
@@ -55,6 +56,14 @@ export default function PublicProfileScreen() {
               {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
             </View>
           </View>
+          {!query.data.isMine ? <View style={styles.followRow}>
+            <FollowButton
+              viewerUserId={user?.id}
+              profileUserId={query.data.profile.id}
+              username={query.data.profile.username}
+              onRequireLogin={() => router.push({ pathname: '/auth/login', params: { action: 'view_profile', username: query.data!.profile.username } })} />
+            <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
+          </View> : null}
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{query.data.currentPicks.length}개</Text></View>
           <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
@@ -109,6 +118,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.9 },
   username: { color: OnePick.text, fontSize: 26, fontWeight: '900', marginTop: 5 },
   bio: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  followRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  followHint: { flex: 1, color: OnePick.muted, fontSize: 12, lineHeight: 17 },
   summaryCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 6 },
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },

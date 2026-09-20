@@ -59,6 +59,12 @@ export const queryKeys = {
     all: ['profile-taste'] as const,
     composition: (profileId: string, viewerId?: string) => ['profile-taste', 'composition', profileId, viewerId ?? 'public'] as const,
   },
+  follows: {
+    all: ['follows'] as const,
+    state: (userId: string, profileId: string) => ['follows', 'state', userId, profileId] as const,
+    counts: (userId: string) => ['follows', 'counts', userId] as const,
+    feed: (userId: string) => ['follows', 'feed', userId, 'cursor'] as const,
+  },
   safety: {
     all: ['safety'] as const,
     blocks: (userId: string) => ['safety', 'blocks', userId] as const,

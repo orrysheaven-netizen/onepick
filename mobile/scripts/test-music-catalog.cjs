@@ -9,11 +9,11 @@ function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText, { exports, URL, Request, Response, AbortController, console,
+  }).outputText, { exports, URL, Request, Response, AbortController, console, setTimeout, clearTimeout,
     require: (name) => { if (name in imports) return imports[name]; throw new Error(name); } });
   return exports;
 }
-const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, musicItemName, secureCoverUrl } =
+const { mapMusicBrainzRecording, createMusicCatalogHandler, buildRecordingQuery, musicItemName, secureCoverUrl, COVER_BUDGET_MS } =
   load('supabase/functions/music-catalog/musicCatalog.ts', { '@supabase/supabase-js': {} });
 const recordingId = '11111111-2222-4333-8444-555555555555';
 const groupId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -27,8 +27,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 
 function setup() {
   const state = {
-    rows: [], writes: [], upstream: [], cache: new Map(), waits: 0, auth: true, suspended: false, coverLookups: 0,
-    cover: 'https://coverartarchive.org/release/bbbbbbbb-cccc-4ddd-8eee-ffffffffffff/12345-500.jpg',
+    rows: [], writes: [], upstream: [], cache: new Map(), waits: 0, auth: true, suspended: false, coverLookups: 0, background: [],
+    cover: 'https://coverartarchive.org/release/bbbbbbbb-cccc-4ddd-8eee-ffffffffffff/12345-500.jpg', coverDelay: null,
     categories: [{ id:'music',parent_id:'content',slug:'music',status:'open',is_visible:true,is_pickable:true },
       { id:'content',parent_id:null,slug:'content',status:'open',is_visible:true,is_pickable:false }],
   };
@@ -63,10 +63,15 @@ function setup() {
     client:()=>client, json,
     fetchMusicBrainz:async(url)=>{state.upstream.push(url); return {data:url.pathname.endsWith(recordingId)?raw:{recordings:[raw]}};},
     // Mirrors index.ts: { url } is a definitive Cover Art Archive answer, null means the lookup did not complete.
-    fetchCoverArt:async()=>{state.coverLookups++; return state.cover===undefined?null:{url:state.cover};},
+    fetchCoverArt:async()=>{
+      state.coverLookups++;
+      if(state.coverDelay) await new Promise((resolve)=>setTimeout(resolve,state.coverDelay));
+      return state.cover===undefined?null:{url:state.cover};
+    },
     readCache:async(_client,key)=>state.cache.get(key)??null,
     writeCache:async(_client,key,payload)=>{state.cache.set(key,payload);},
     waitForProvider:async()=>{state.waits++;return true;},
+    keepAlive:(work)=>{state.background.push(work);},
   });
   const request=(action,extra={},auth=true)=>handler({action,title:'밤편지',artist:'아이유',externalId:recordingId,...extra},
     new Request('https://edge.test',{headers:auth?{Authorization:'Bearer token'}:{}}));
@@ -124,11 +129,30 @@ async function main(){
   const unknown=setup(); unknown.state.cover=undefined;
   const pending=await (await unknown.request('search',{},false)).json();
   assert.equal(pending.recordings[0].coverArtUrl,null,'A lookup that did not complete yields no cover for this response');
-  assert.equal([...unknown.state.cache.keys()].some((key)=>key.startsWith('cover:')),false,'A timed-out lookup is never cached as a miss');
+  const unknownKey=[...unknown.state.cache.keys()].find((key)=>key.startsWith('cover:'));
+  assert.equal(unknown.state.cache.get(unknownKey).unknown,true,'A timed-out lookup is remembered as unknown, not as a miss');
   unknown.state.cover='https://coverartarchive.org/release/bbbbbbbb-cccc-4ddd-8eee-ffffffffffff/12345-500.jpg';
+  const soon=await (await unknown.request('search',{},false)).json();
+  assert.equal(soon.recordings[0].coverArtUrl,null); assert.equal(unknown.state.coverLookups,1,'Within 15 minutes the slow lookup is not repeated');
+  unknown.state.cache.set(unknownKey,{...unknown.state.cache.get(unknownKey),fetchedAt:new Date(Date.now()-16*60_000).toISOString()});
   const retried=await (await unknown.request('search',{},false)).json();
-  assert.equal(retried.recordings[0].coverArtUrl,unknown.state.cover,'The next search retries the lookup and serves the confirmed cover');
+  assert.equal(retried.recordings[0].coverArtUrl,unknown.state.cover,'After 15 minutes the lookup is retried and the confirmed cover served');
   assert.equal(unknown.state.coverLookups,2);
+  assert.equal(unknown.state.background.length,0,'Nothing is left running when every lookup finished within the budget');
+
+  const slow=setup(); slow.state.coverDelay=COVER_BUDGET_MS+300;
+  const started=Date.now();
+  const partial=await (await slow.request('search',{},false)).json();
+  const elapsed=Date.now()-started;
+  assert.equal(partial.recordings[0].coverArtUrl,null,'A lookup still running at the budget is omitted from this response');
+  assert.ok(elapsed>=COVER_BUDGET_MS-50&&elapsed<COVER_BUDGET_MS+250,`Search answers at the cover budget (took ${elapsed}ms)`);
+  assert.equal(slow.state.background.length,1,'The unfinished lookup is handed to the runtime to keep running');
+  await slow.state.background[0];
+  assert.equal(slow.state.cache.get([...slow.state.cache.keys()].find((key)=>key.startsWith('cover:'))).url,slow.state.cover,'It finishes in the background and lands in the cache');
+  slow.state.coverDelay=null;
+  const warm=await (await slow.request('search',{},false)).json();
+  assert.equal(warm.recordings[0].coverArtUrl,slow.state.cover,'The next search serves the cover from cache');
+  assert.equal(slow.state.coverLookups,1);
 
   for(const mode of ['no-auth','expired','suspended','hidden-category','hidden-parent','non-leaf','bad-id','bad-query']){
     const t=setup();

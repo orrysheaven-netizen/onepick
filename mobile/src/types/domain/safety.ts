@@ -9,6 +9,11 @@ export interface UserBlock {
   createdAt: string;
 }
 
+export interface FollowCounts {
+  followingCount: number;
+  followerCount: number;
+}
+
 export interface ContentReport {
   id: string;
   reporterUserId: string | null;
