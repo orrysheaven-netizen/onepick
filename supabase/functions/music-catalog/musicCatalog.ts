@@ -263,7 +263,8 @@ export function createMusicCatalogHandler(deps: Dependencies) {
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
 
     if (body.action === 'search') {
-      const cacheKey = `search:\n${title}\n${artist}`;
+      // v2: v1 entries hold dismax-era results that ignored the artist clause.
+      const cacheKey = `search:v2\n${title}\n${artist}`;
       const cached = await readCache(client, cacheKey, 6 * 60 * 60_000);
       let recordings = Array.isArray(cached) ? cached.map(mapMusicBrainzRecording).filter((v): v is MusicEntry => Boolean(v)) : [];
       if (!recordings.length) {
