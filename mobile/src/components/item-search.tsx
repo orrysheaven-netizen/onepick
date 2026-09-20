@@ -128,6 +128,11 @@ export function ItemSearch({
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
         </Pressable> : null}
+        {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
+          accessibilityState={{ disabled: !normalizedSearch }} disabled={!normalizedSearch}
+          onPress={submitSearch} style={({ pressed }) => [styles.submitButton, (!normalizedSearch || pressed) && styles.pressed]}>
+          <Text style={styles.submitText}>검색</Text>
+        </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
       {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요</Text></View> : null}
@@ -174,6 +179,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, minWidth: 0, minHeight: 50, color: '#202124', fontSize: 14, paddingHorizontal: 15, paddingVertical: 12 },
   clearButton: { minHeight: 44, minWidth: 58, alignItems: 'center', justifyContent: 'center' },
   clearText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
+  submitButton: { minHeight: 40, minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#4945ED', marginRight: 5, paddingHorizontal: 12 },
+  submitText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   state: { alignItems: 'center', paddingVertical: 20 },
   retryButton: { backgroundColor: '#202124', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11, marginTop: 12 },
   retryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
