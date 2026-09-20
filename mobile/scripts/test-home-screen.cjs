@@ -60,7 +60,7 @@ const press = (label) => {
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, /현재 5명이 원픽으로 선택/); assert.match(page, /현재 3명이 원픽으로 선택/); assert.match(page, /MY PICK/);
+  assert.match(page, /현재 5명이 이 원픽을 추천/); assert.match(page, /현재 3명이 이 원픽을 추천/); assert.match(page, /MY PICK/);
   assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
