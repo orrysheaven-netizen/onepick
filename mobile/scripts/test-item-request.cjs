@@ -174,15 +174,14 @@ async function main() {
 
   state = []; render();
   press('직접 사진 선택'); await settle(); render();
-  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'A photo needs explicit shared-image confirmation');
-  press('이 제품의 사진이 맞으며'); render();
-  assert.equal(button('제품 등록 요청 보내기').disabled, false);
+  assert.equal(button('제품 등록 요청 보내기').disabled, false, 'A chosen photo can be sent without a separate confirmation step');
+  assert.doesNotMatch(render(), /이 제품의 사진이 맞으며|체크해주세요/, 'No consent checkbox is rendered');
   chosenPhoto = null;
   press('사진 바꾸기'); await settle(); render();
-  assert.equal(button('이 제품의 사진이 맞으며').accessibilityState.checked, true, 'Cancelling keeps the confirmed photo');
+  button('사진 제거');
+  assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Cancelling the picker keeps the chosen photo');
   nameInput().onChangeText('사진 있는 라면'); render();
-  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Changing identity requires confirming the photo again');
-  press('이 제품의 사진이 맞으며'); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Changing the name keeps the photo ready to send');
   picker.isPending = true; render();
   assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Submitting is blocked during photo preparation');
   assert.equal(nameInput().editable, false);
@@ -192,14 +191,13 @@ async function main() {
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
   assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요/);
-  assert.equal(button('이 제품의 사진이 맞으며').accessibilityState.checked, true, 'Upload failure preserves photo for retry');
+  button('사진 제거'); assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Upload failure preserves photo for retry');
   press('사진 제거'); render();
   assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Image-free requests remain supported');
   inputs.find((p) => p.accessibilityLabel === '제품 이미지 링크').onChangeText('https://maker.example/ramen');
   render(); press('링크에서 이미지 가져오기'); await settle(); render();
   assert.equal(importedUrl, 'https://maker.example/ramen');
-  assert.equal(button('제품 등록 요청 보내기').disabled, true, 'Imported images also need confirmation');
-  press('이 제품의 사진이 맞으며'); render();
+  assert.equal(button('제품 등록 요청 보내기').disabled, false, 'Imported images are ready to send immediately');
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-photo', name: '사진 있는 라면' } });
   press('제품 등록 요청 보내기'); await settle();
   assert.equal(payload.photo.sourceUrl, importedUrl, 'Source attribution reaches the existing registration service');
