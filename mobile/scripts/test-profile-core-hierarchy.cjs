@@ -33,7 +33,8 @@ assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{curre
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 
 assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{query\.data\.currentPicks\.length}개<\/Text>/);
-assert.match(publicProfile, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
+assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{query\.data\.currentPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
+assert.doesNotMatch(publicProfile, /sectionTitle:/);
 
 assert.match(aiComment, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
 assert.match(aiComment, /borderRadius: 18, padding: 16, marginBottom: 18/);
