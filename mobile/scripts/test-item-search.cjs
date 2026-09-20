@@ -124,7 +124,7 @@ async function main() {
   presses[0]();
   assert.equal(selected, 'item-1');
 
-  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, youtubeQuery;
+  let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, youtubeQuery, submittedQuery;
   const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
@@ -144,6 +144,7 @@ async function main() {
     onSearchMusic: (value) => { musicQuery = value; },
     onSearchGame: (value) => { gameQuery = value; },
     onSearchYouTube: (value) => { youtubeQuery = value; },
+    onSubmitSearch: (value) => { submittedQuery = value; },
   };
   let catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, catalogProps));
   assert.match(catalogPage, /OnePick에 아직 등록된 항목이 없어요/);
@@ -153,7 +154,8 @@ async function main() {
   assert.match(catalogPage, /게임 DB에서 검색/);
   assert.match(catalogPage, /YouTube 채널에서 검색/);
   externalInput.onSubmitEditing();
-  assert.equal(movieQuery, undefined, 'Global search must not guess a provider on Enter');
+  assert.equal(submittedQuery, '인터스텔라', 'Global Enter must hand off to the dedicated search surface');
+  assert.equal(movieQuery, undefined, 'Global Enter still must not guess a provider');
   assert.equal(dramaQuery, undefined);
   assert.equal(musicQuery, undefined);
   assert.equal(gameQuery, undefined);
@@ -172,6 +174,6 @@ async function main() {
   externalInput.onSubmitEditing();
   assert.equal(movieQuery, '인터스텔라', 'Category-scoped Enter continues into its one external catalog');
 
-  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, explicit catalog continuation and search states/actions.');
+  console.log('Item search checks passed: 150ms debounce, alias-aware single RPC, category isolation, actionable global submit, explicit catalog continuation and search states/actions.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
