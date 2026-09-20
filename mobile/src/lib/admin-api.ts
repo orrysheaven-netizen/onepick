@@ -66,6 +66,17 @@ export type AdminItem = {
   categories: { name: string } | null;
 };
 
+export type AdminEditorialFeature = {
+  item_id: string;
+  priority: number;
+  note: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AdminItemAlias = {
   id: string;
   item_id: string;
@@ -259,13 +270,14 @@ export function getCategories() {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
 }
 
-export function createCategory(input: { name: string; slug: string }) {
-  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
+export function createCategory(input: { name: string; slug: string; parentId?: string | null }) {
+  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
       name: input.name,
       slug: input.slug,
+      parent_id: input.parentId ?? null,
       status: 'draft',
       is_visible: false,
       is_pickable: false,
@@ -274,8 +286,8 @@ export function createCategory(input: { name: string; slug: string }) {
   });
 }
 
-export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'name' | 'status' | 'is_visible' | 'is_pickable' | 'sort_order' | 'ranking_min_sample' | 'image_url'>>) {
-  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url`, {
+export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'name' | 'parent_id' | 'status' | 'is_visible' | 'is_pickable' | 'sort_order' | 'ranking_min_sample' | 'image_url'>>) {
+  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
@@ -350,6 +362,29 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
+  });
+}
+
+export function getItemEditorialFeature(itemId: string) {
+  return adminRequest<AdminEditorialFeature[]>(
+    `/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at&item_id=eq.${encodeURIComponent(itemId)}&limit=1`
+  );
+}
+
+export function setItemEditorialFeature(input: {
+  itemId: string;
+  isActive: boolean;
+  priority: number;
+  note?: string | null;
+}) {
+  return adminRequest<AdminEditorialFeature>('/rest/v1/rpc/admin_set_item_editorial_feature', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: input.itemId,
+      p_is_active: input.isActive,
+      p_priority: input.priority,
+      p_note: input.note?.trim() || null,
+    }),
   });
 }
 
