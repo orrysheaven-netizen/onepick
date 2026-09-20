@@ -97,7 +97,7 @@ assert.match(rendered.html, /AI 취향평가/);
 assert.match(rendered.html, /구성 → 해석/);
 assert.match(rendered.html, /5\/5개를 채웠으니 AI 평가가 가능합니다/);
 assert.match(rendered.html, /10개까지 채우면 해석이 더 풍부해져요/);
-assert.match(rendered.html, /5개부터 평가 가능 · 10개는 권장 목표/);
+assert.doesNotMatch(rendered.html, /5개부터 평가 가능 · 10개는 권장 목표/);
 assert.ok(rendered.button('AI 평가 보기'), '5-pick state must show first AI review CTA');
 assert.equal(rendered.button('AI 평가 보기').disabled, false, '5-pick AI review CTA must be enabled');
 
