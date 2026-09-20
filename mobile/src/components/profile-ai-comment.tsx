@@ -6,10 +6,12 @@ export function ProfileAiComment({
   profileId,
   showPrivate = false,
   sectionTitle,
+  sectionDescription,
 }: {
   profileId: string;
   showPrivate?: boolean;
   sectionTitle?: string;
+  sectionDescription?: string;
 }) {
   const query = useProfileAiComment(profileId);
 
@@ -21,7 +23,13 @@ export function ProfileAiComment({
 
   const comment = query.data;
   return <>
-    {sectionTitle ? <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{sectionTitle}</Text></View> : null}
+    {sectionTitle ? <View style={styles.sectionHeading}>
+      <Text style={styles.sectionTitle}>{sectionTitle}</Text>
+      {sectionDescription ? <View style={styles.bridgeCard}>
+        <Text style={styles.bridgeBadge}>구성 → 해석</Text>
+        <Text style={styles.bridgeText}>{sectionDescription}</Text>
+      </View> : null}
+    </View> : null}
     <View style={styles.card}>
     <View style={styles.header}>
       <View style={styles.avatar}><Text style={styles.avatarText}>AI</Text></View>
@@ -47,6 +55,9 @@ export function ProfileAiComment({
 const styles = StyleSheet.create({
   sectionHeading: { marginBottom: 12 },
   sectionTitle: { color: '#202124', fontSize: 18, fontWeight: '800' },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#F1F2F6', paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 },
+  bridgeBadge: { color: '#4945ED', fontSize: 10, fontWeight: '900', paddingTop: 1 },
+  bridgeText: { flex: 1, color: '#5F6470', fontSize: 11, lineHeight: 17 },
   card: { borderWidth: 1, borderColor: '#DDDDF7', backgroundColor: '#FAFAFF', borderRadius: 20, padding: 18, marginBottom: 18 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   loadingText: { color: '#747985', fontSize: 12 },
