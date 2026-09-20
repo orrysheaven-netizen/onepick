@@ -12,6 +12,7 @@ import { isDemoUsername } from '@/lib/demoProfile';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type FeaturedItem = HomeData['featuredItems'][number];
+type EditorialItem = HomeData['editorialItems'][number];
 
 function ProductCard({ item, mine, onOpen, onProfile }: {
   item: FeaturedItem;
@@ -30,7 +31,7 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
         <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
         <View style={styles.cardCopy}>
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 원픽으로 선택</Text>
+          <Text style={styles.pickCount}>현재 {item.pickCount.toLocaleString()}명이 이 원픽을 추천</Text>
         </View>
       </View>
     </Pressable>
@@ -43,11 +44,29 @@ function ProductCard({ item, mine, onOpen, onProfile }: {
           <Text style={styles.pickerName}>@{item.latestPickerUsername}</Text>
           {isDemoUsername(item.latestPickerUsername) ? <Text style={styles.demoBadge}>DEMO</Text> : null}
         </View>
-        {item.latestPickReview ? <Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text> : null}
+        {item.latestPickReview ? <><Text style={styles.reasonLabel}>추천 이유</Text><Text numberOfLines={2} style={styles.pickerReview}>“{item.latestPickReview}”</Text></> : null}
       </View>
       <Text style={styles.profileArrow}>›</Text>
     </Pressable> : null}
   </View>;
+}
+
+function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
+    onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
+    <View style={styles.editorialTop}>
+      <Text style={styles.editorialKicker}>ONEPICK 추천</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+    </View>
+    <View style={styles.editorialBody}>
+      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+      <View style={styles.editorialCopy}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        {item.editorialNote ? <Text numberOfLines={3} style={styles.editorialNote}>{item.editorialNote}</Text> : null}
+        <Text style={styles.editorialCount}>{item.pickCount > 0 ? `현재 ${item.pickCount.toLocaleString()}명이 이 원픽을 추천` : '아직 첫 추천을 기다리는 원픽'}</Text>
+      </View>
+    </View>
+  </Pressable>;
 }
 
 function SectionTitle({ title, count, description }: { title: string; count?: number; description?: string }) {
@@ -129,14 +148,21 @@ export default function HomeScreen() {
 
         <View style={styles.intro}>
           <View style={styles.introCopy}>
-            <Text style={styles.eyebrow}>취향을 발견하는 곳</Text>
-            <Text style={styles.headline}>사람들이 고른 <Text style={styles.accent}>하나.</Text></Text>
-            <Text style={styles.introDescription}>사람들이 고른 제품과 그 선택의 이유를 함께 만나보세요.</Text>
+            <Text style={styles.eyebrow}>카테고리마다 단 하나</Text>
+            <Text style={styles.headline}>내가 추천하는 <Text style={styles.accent}>원픽.</Text></Text>
+            <Text style={styles.introDescription}>수많은 선택지 중 하나만 고르고, 왜 추천하는지 남겨보세요.</Text>
           </View>
         </View>
 
+        {ready && data?.editorialItems?.length ? <View style={styles.editorialSection}>
+          <SectionTitle title="먼저 소개하는 원픽" description="초기 추천 큐레이션 · 인기 순위와는 별도로 운영해요." />
+          <View style={styles.editorialList}>
+            {data.editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
+          </View>
+        </View> : null}
+
         <View style={styles.sectionHeader}>
-          <SectionTitle title="사람들의 원픽" description={data ? `${data.minimumPickCount}명 이상이 선택한 제품 · 최근 선택순` : undefined} />
+          <SectionTitle title="사람들이 추천한 원픽" description={data ? `${data.minimumPickCount}명 이상이 추천한 원픽 · 최근 선택순` : undefined} />
         </View>
 
         {isLoading ? <View style={styles.stateCard}><ActivityIndicator color={OnePick.accent} /><Text style={styles.stateTitle}>원픽을 불러오고 있어요</Text></View> : null}
@@ -159,8 +185,8 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           {!data.featuredItems.length ? <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>사람들의 선택이 모이면 이곳에 소개돼요</Text>
-            <Text style={styles.stateText}>현재 원픽으로 선택한 사람이 {data.minimumPickCount}명 이상인 제품을 보여드려요.</Text>
+            <Text style={styles.stateTitle}>사람들의 추천이 모이면 이곳에 소개돼요</Text>
+            <Text style={styles.stateText}>현재 이 원픽을 추천한 사람이 {data.minimumPickCount}명 이상인 항목을 보여드려요.</Text>
           </View> : null}
         </> : null}
         </>}
@@ -180,10 +206,10 @@ export default function HomeScreen() {
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
           </Pressable> : <View style={styles.welcomeCard}>
-              <Text style={styles.welcomeTitle}>취향은, 하나씩 쌓여요.</Text>
-              <Text style={styles.welcomeText}>좋아하는 것을 고르고{ '\n' }나만의 이유를 남겨보세요.</Text>
+              <Text style={styles.welcomeTitle}>하나만 추천한다면 무엇인가요?</Text>
+              <Text style={styles.welcomeText}>카테고리마다 하나를 고르고{ '\n' }내가 추천하는 이유를 남겨보세요.</Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} style={styles.loginButton}>
-                <Text style={styles.actionText}>로그인하고 내 원픽 모으기</Text><Text style={styles.arrow}>↗</Text>
+                <Text style={styles.actionText}>로그인하고 내 추천 원픽 만들기</Text><Text style={styles.arrow}>↗</Text>
               </Pressable>
           </View>}
 
@@ -191,7 +217,7 @@ export default function HomeScreen() {
           {categories.length ? <View style={styles.categoryGrid}>
             {categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.name + ' 원픽 찾기'}
               onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
+              <Text style={styles.categoryName}>{category.name}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
             </Pressable>)}
           </View> : <Text style={styles.emptyText}>{user ? '지금 추가로 고를 수 있는 카테고리가 없어요.' : '새로운 카테고리를 준비하고 있어요.'}</Text>}
 
@@ -215,6 +241,16 @@ const styles = StyleSheet.create({
   accent: { color: OnePick.accent },
   introDescription: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
+  editorialSection: { marginBottom: 26 },
+  editorialList: { gap: 10, marginTop: 12 },
+  editorialCard: { padding: 16, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, backgroundColor: OnePick.surface },
+  editorialTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
+  editorialKicker: { color: OnePick.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  editorialPath: { flex: 1, color: OnePick.muted, fontSize: 11, textAlign: 'right' },
+  editorialBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  editorialCopy: { flex: 1, minWidth: 0 },
+  editorialNote: { color: OnePick.text, fontSize: 13, lineHeight: 20, marginTop: 7 },
+  editorialCount: { color: OnePick.muted, fontSize: 11, lineHeight: 17, marginTop: 7 },
   sectionCopy: { flexShrink: 1 },
   sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.7 },
   count: { color: OnePick.accent },
@@ -241,6 +277,7 @@ const styles = StyleSheet.create({
   pickerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pickerName: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   demoBadge: { color: '#8A5A00', backgroundColor: '#FFF3CD', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 9, lineHeight: 12, fontWeight: '900' },
+  reasonLabel: { color: OnePick.accent, fontSize: 10, fontWeight: '700', marginTop: 3 },
   pickerReview: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
   profileArrow: { color: OnePick.muted, fontSize: 22 },
   actionText: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },

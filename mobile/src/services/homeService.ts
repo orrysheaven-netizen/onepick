@@ -11,7 +11,7 @@ export class HomeService {
 
   async getHomeData(userId?: string, cursor: ReadCursor | null = null) {
     const openCategories = await this.categoryRepository.getOpenCategories();
-    const [currentPicks, showcase] = await Promise.all([
+    const [currentPicks, showcase, editorialItems] = await Promise.all([
       userId
         ? this.readRepository.getPicks({
             userId,
@@ -21,6 +21,7 @@ export class HomeService {
           })
         : Promise.resolve([]),
       this.readRepository.getHomeShowcase(cursor),
+      cursor ? Promise.resolve([]) : this.readRepository.getEditorialHomeItems(6),
     ]);
 
     const selectedCategoryIds = new Set(currentPicks.map((item) => item.pick.categoryId));
@@ -34,6 +35,7 @@ export class HomeService {
       openCategories,
       currentPicks,
       categoriesToPick,
+      editorialItems,
       featuredItems: showcase.items,
       minimumPickCount: showcase.minimumPickCount,
       nextCursor: showcase.nextCursor,
