@@ -74,6 +74,7 @@ export default function HomeScreen() {
   const dramaCategory = categoryCatalog.find((category) => category.slug === 'drama');
   const musicCategory = categoryCatalog.find((category) => category.slug === 'music');
   const gameCategory = categoryCatalog.find((category) => category.slug === 'game');
+  const bookCategory = categoryCatalog.find((category) => category.slug === 'book');
   const youtubeCategory = categoryCatalog.find((category) => category.slug === 'youtube');
   const pokemonCategory = categoryCatalog.find((category) => category.slug === 'pokemon');
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -83,7 +84,15 @@ export default function HomeScreen() {
     [data?.featuredItems, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const openRegistration = (categoryId?: string) => router.push({ pathname: '/pick/find', params: categoryId ? { categoryId } : {} });
+  const openRegistration = (category: { id: string; slug?: string }) => {
+    const params = { categoryId: category.id };
+    if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
+    if (category.slug === 'game') return router.push({ pathname: '/pick/game', params });
+    if (category.slug === 'book') return router.push({ pathname: '/pick/book', params });
+    if (category.slug === 'youtube') return router.push({ pathname: '/pick/youtube', params });
+    if (category.slug === 'pokemon') return router.push({ pathname: '/pick/pokemon', params });
+    return router.push({ pathname: '/pick/find', params });
+  };
   const categories = user ? data?.categoriesToPick.map(({ category }) => category) ?? [] : data?.openCategories ?? [];
   const ready = !isLoading && !sessionError && Boolean(data);
 
@@ -136,6 +145,8 @@ export default function HomeScreen() {
             ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
           onSearchGame={gameCategory
             ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
+          onSearchBook={bookCategory
+            ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
           onSearchYouTube={youtubeCategory
             ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
           onSearchPokemon={pokemonCategory
@@ -250,7 +261,7 @@ export default function HomeScreen() {
             {categories.map((category) => {
               const label = categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
-                onPress={() => openRegistration(category.id)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+                onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
                 <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>원픽 고르기  ↗</Text>
               </Pressable>;
             })}
