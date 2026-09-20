@@ -127,6 +127,7 @@ export default function HomeScreen() {
         </View>
 
         <ItemSearch compact
+          onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
           onSearchMovie={movieCategory
             ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
           onSearchDrama={dramaCategory
