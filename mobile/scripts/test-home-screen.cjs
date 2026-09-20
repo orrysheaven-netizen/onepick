@@ -48,6 +48,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   },
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/onepick-brand': { OnePickBrand: () => null },
+  '@/components/following-pick-card': { FollowingPickCard: () => null },
+  '@/hooks/useFollow': { useFollowingFeed: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, isRefetching: false, hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false, refetch: async () => {}, fetchNextPage: async () => {} }) },
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },

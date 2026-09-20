@@ -8,6 +8,7 @@ import { ProfilePickCard } from '@/components/profile-pick-card';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
+import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
 import { AppError } from '@/errors/appError';
@@ -191,6 +192,7 @@ export default function ProfileScreen() {
           <Text style={styles.summaryLabel}>현재 원픽</Text>
           <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
         </View>
+        <ProfileFollowCounts userId={user.id} />
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>카테고리별 원픽</Text><Text style={styles.sectionHint}>{currentPicks.length}개</Text></View>

@@ -4,6 +4,7 @@ import { SupabaseAdminRepository } from './supabaseAdminRepository';
 import { SupabaseAuthRepository } from './supabaseAuthRepository';
 import { SupabaseCategoryRepository } from './supabaseCategoryRepository';
 import { SupabaseCommentRepository } from './supabaseCommentRepository';
+import { SupabaseFollowRepository } from './supabaseFollowRepository';
 import { SupabaseObservabilityRepository } from './supabaseObservabilityRepository';
 import { SupabasePickRepository } from './supabasePickRepository';
 import { SupabaseItemRepository } from './supabaseItemRepository';
@@ -22,6 +23,7 @@ export const adminRepository = new SupabaseAdminRepository(supabase);
 export const authRepository = new SupabaseAuthRepository(supabase);
 export const categoryRepository = new SupabaseCategoryRepository(supabase);
 export const commentRepository = new SupabaseCommentRepository(supabase);
+export const followRepository = new SupabaseFollowRepository(supabase);
 export const observabilityRepository = new SupabaseObservabilityRepository(supabase);
 export const itemRepository = new SupabaseItemRepository(supabase);
 export const movieCatalogRepository = new SupabaseMovieCatalogRepository(supabase);
@@ -41,6 +43,7 @@ export {
   SupabaseAuthRepository,
   SupabaseCategoryRepository,
   SupabaseCommentRepository,
+  SupabaseFollowRepository,
   SupabaseObservabilityRepository,
   SupabasePickRepository,
   SupabaseItemRepository,

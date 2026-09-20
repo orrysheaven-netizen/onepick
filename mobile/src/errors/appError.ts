@@ -27,6 +27,8 @@ export type AppErrorCode =
   | 'PICK_NOT_FOUND'
   | 'COMMENT_INVALID'
   | 'BLOCK_SELF'
+  | 'FOLLOW_SELF'
+  | 'FOLLOW_BLOCKED'
   | 'REPORT_INVALID'
   | 'REPORT_TARGET_NOT_FOUND'
   | 'REPORT_SELF'

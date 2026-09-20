@@ -6,6 +6,7 @@ export type AuthReturnParams = {
   itemName?: string | string[];
   categoryId?: string | string[];
   pickId?: string | string[];
+  username?: string | string[];
   externalId?: string | string[];
   externalMusicId?: string | string[];
   externalGameId?: string | string[];
@@ -27,6 +28,7 @@ export type AuthIntent =
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
+  | { action: 'view_profile'; username: string }
   | { action: 'profile' }
   | { action: 'home' };
 
@@ -34,6 +36,9 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 function isId(value: string | string[] | undefined): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
+}
+function isUsername(value: string | string[] | undefined): value is string {
+  return typeof value === 'string' && /^[a-z0-9_]{3,20}$/.test(value);
 }
 function getItemName(value: string | string[] | undefined) {
   if (typeof value !== 'string') return null;
@@ -97,6 +102,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   }
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
+  if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
 
@@ -115,6 +121,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
+    case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
     case 'profile': return '/profile';
     default: return '/';
   }

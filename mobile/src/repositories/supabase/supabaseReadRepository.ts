@@ -83,10 +83,18 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 
   async getHomePicks(cursor: ReadCursor | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor);
+  }
+
+  async getFollowingPicks(cursor: ReadCursor | null = null) {
+    return this.pickFeedPage('home_following_feed_page', cursor);
+  }
+
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
-    const { data, error } = await this.client.rpc('home_pick_feed_page', {
+    const { data, error } = await this.client.rpc(rpc, {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
     });
     if (error) throw mapSupabaseError(error);

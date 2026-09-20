@@ -164,10 +164,10 @@ async function main() {
   const { default: PublicProfile } = load('app/u/[username].tsx', {
     'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
-    '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/profile-pick-card': { ProfilePickCard: () => null },
     '@/components/profile-pick-groups': { ProfilePickGroups: () => null },
-    '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
+    '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/profile-follow-counts': { ProfileFollowCounts: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
