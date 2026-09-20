@@ -123,7 +123,7 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
             <TextInput accessibilityLabel="제품명" editable={!submitting} style={styles.input} placeholder={category?.slug === 'ramen' ? '예: 진라면' : '브랜드와 제품 이름을 입력해주세요'} maxLength={100} value={itemName} onChangeText={changeName} />
             <Text style={styles.hint}>같은 제품이 있으면 아래 이름을 선택해주세요. 없는 제품은 관리자에게 등록을 요청할 수 있어요.</Text>
             {params.itemId && prefill.isError && name === null ? <Text style={styles.error}>제품 정보를 불러오지 못했어요. 이름을 입력해 다시 찾아주세요.</Text> : null}
-            {selectedItem ? <View style={styles.confirmed}><Text style={styles.confirmedText}>✓ {selectedItem.name}</Text><Text style={styles.hint}>{category ? `${category.name} · 카테고리가 자동으로 선택됐어요.` : '현재 선택할 수 없는 카테고리예요.'}</Text></View> : itemName.trim() ? <>
+            {selectedItem ? <View style={styles.confirmed}><Text style={styles.confirmedText}>✓ {selectedItem.name}</Text><Text style={styles.hint}>{category ? `${category.label ?? category.name} · 카테고리가 자동으로 선택됐어요.` : '현재 선택할 수 없는 카테고리예요.'}</Text></View> : itemName.trim() ? <>
               {search.isWaiting || search.isFetching ? <ActivityIndicator /> : null}
               {search.isError ? <Pressable onPress={() => void search.refetch()}><Text style={styles.error}>이름 후보를 불러오지 못했어요. 다시 불러오기</Text></Pressable> : null}
               {!search.isWaiting && search.data?.map((item) => <Pressable key={item.id} accessibilityRole="button" disabled={submitting} style={styles.option} onPress={() => { setCategory(item.categoryId); setSelected(item); setName(item.name); setCustom(false); setPhoto(null); }}><Text style={styles.optionText}>{item.name}</Text><Text style={styles.link}>이 제품 선택 ›</Text></Pressable>)}
@@ -131,7 +131,7 @@ function RegistrationForm({ auth, params }: { auth: ReturnType<typeof useAuthSes
               {custom ? <>
             <Text style={styles.label}>카테고리</Text>
             {categories.isPending ? <ActivityIndicator /> : categories.isError ? <Pressable onPress={() => void categories.refetch()}><Text style={styles.error}>카테고리를 불러오지 못했어요. 다시 불러오기</Text></Pressable> : <View style={styles.choices}>
-              {categories.data?.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ selected: categoryId === item.id }} disabled={submitting} style={[styles.chip, categoryId === item.id && styles.chosen]} onPress={() => { setCategory(item.id); approvePhoto(false); registration.reset(); }}><Text style={categoryId === item.id ? styles.chosenText : styles.chipText}>{item.name}</Text></Pressable>)}
+              {categories.data?.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ selected: categoryId === item.id }} disabled={submitting} style={[styles.chip, categoryId === item.id && styles.chosen]} onPress={() => { setCategory(item.id); approvePhoto(false); registration.reset(); }}><Text style={categoryId === item.id ? styles.chosenText : styles.chipText}>{item.label ?? item.name}</Text></Pressable>)}
             </View>}
             {category ? <Text style={styles.hint}>{categoryRegistrationHint(category.slug)}</Text> : !categories.isPending ? <Text style={styles.error}>등록 가능한 카테고리를 선택해주세요.</Text> : null}
 
