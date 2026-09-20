@@ -45,7 +45,6 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
   return <View style={[styles.frame, large && styles.large]}>
     {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="contain" onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
-        <Text style={styles.emptyText}>사진 없음</Text>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
       : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
@@ -72,7 +71,6 @@ const styles = StyleSheet.create({
   placeholderHint: { color: OnePick.hint, fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
   fallback: { color: OnePick.muted, fontSize: 12, textAlign: 'center', padding: 8 },
   empty: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: OnePick.muted, fontSize: 11, marginTop: 5 },
   addButton: { minHeight: 44, minWidth: 76, alignItems: 'center', justifyContent: 'center' },
   addText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 },
