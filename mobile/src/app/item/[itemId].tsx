@@ -19,8 +19,8 @@ function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
     switch (error.code) {
       case 'PHOTO_INVALID': return '이미지를 읽지 못했어요. 다른 사진을 선택해주세요.';
-      case 'PHOTO_TOO_LARGE': return '사진이 너무 커요. 더 작은 사진을 선택해주세요.';
-      case 'PHOTO_UPLOAD_FAILED': return '사진을 저장하지 못했어요. 다시 시도해주세요.';
+      case 'PHOTO_TOO_LARGE': return '사진 용량이 너무 커 자동 최적화할 수 없어요. 다른 사진을 선택해주세요.';
+      case 'PHOTO_UPLOAD_FAILED': return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 잠시 후 다시 시도해주세요.';
       case 'ITEM_NOT_ELIGIBLE': return '현재 이 제품에는 이미지를 추가할 수 없어요.';
       case 'AUTH_REQUIRED': return '로그인 상태를 다시 확인해주세요.';
       case 'PROFILE_NOT_FOUND': return '사용자명을 먼저 정해주세요.';
