@@ -47,8 +47,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [appliedCategoryLabel, setAppliedCategoryLabel] = useState<string | null>(null);
-  const categorySuggestions = useItemCategorySuggestions(!categoryId ? submittedItem?.id : undefined);
-  const applyCategory = useApplyItemCategory(!categoryId ? submittedItem?.id : undefined);
+  const categorySuggestions = useItemCategorySuggestions(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
+  const applyCategory = useApplyItemCategory(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [photoApproved, approvePhoto] = useState(false);
   const [imageLink, setImageLink] = useState('');
