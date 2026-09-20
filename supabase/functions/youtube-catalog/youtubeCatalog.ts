@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const YOUTUBE_SOURCE = 'youtube_channel' as const;
 const CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const clean = (value: unknown, max: number) => typeof value === 'string'
   ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
 
@@ -78,6 +79,7 @@ export function normalizeItemName(value: string) {
 export type DirectLookup =
   | { type: 'id'; value: string }
   | { type: 'handle'; value: string }
+  | { type: 'video'; value: string }
   | null;
 
 export function directLookup(query: string): DirectLookup {
@@ -89,10 +91,18 @@ export function directLookup(query: string): DirectLookup {
   try {
     const url = new URL(trimmed);
     const host = url.hostname.toLowerCase();
-    if (!['youtube.com','www.youtube.com','m.youtube.com'].includes(host)) return null;
+    const youtubeHost = ['youtube.com','www.youtube.com','m.youtube.com'].includes(host);
+    const shortHost = ['youtu.be','www.youtu.be'].includes(host);
+    if (!youtubeHost && !shortHost) return null;
     const parts = url.pathname.split('/').filter(Boolean);
+    if (shortHost && VIDEO_ID.test(parts[0] ?? '')) return { type: 'video', value: parts[0] };
     if (parts[0] === 'channel' && CHANNEL_ID.test(parts[1] ?? '')) return { type: 'id', value: parts[1] };
     if (parts[0]?.startsWith('@') && parts[0].length >= 3) return { type: 'handle', value: decodeURIComponent(parts[0]) };
+    const queryVideo = url.searchParams.get('v') ?? '';
+    if (parts[0] === 'watch' && VIDEO_ID.test(queryVideo)) return { type: 'video', value: queryVideo };
+    if (['shorts','live','embed'].includes(parts[0] ?? '') && VIDEO_ID.test(parts[1] ?? '')) {
+      return { type: 'video', value: parts[1] };
+    }
   } catch { /* Not a URL. */ }
   return null;
 }
@@ -122,7 +132,7 @@ async function catalogCategory(client: SupabaseClient) {
   return category;
 }
 
-function channelsUrl(apiKey: string, lookup: Exclude<DirectLookup, null>) {
+function channelsUrl(apiKey: string, lookup: Exclude<DirectLookup, null | { type: 'video'; value: string }>) {
   const url = new URL('https://www.googleapis.com/youtube/v3/channels');
   url.searchParams.set('part', 'snippet');
   url.searchParams.set(lookup.type === 'id' ? 'id' : 'forHandle', lookup.value);
@@ -130,12 +140,46 @@ function channelsUrl(apiKey: string, lookup: Exclude<DirectLookup, null>) {
   return url;
 }
 
+function videosUrl(apiKey: string, videoId: string) {
+  const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+  url.searchParams.set('part', 'snippet');
+  url.searchParams.set('id', videoId);
+  url.searchParams.set('key', apiKey);
+  return url;
+}
+
+function videoChannelId(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const snippet = (value as Record<string, unknown>).snippet;
+  if (!snippet || typeof snippet !== 'object' || Array.isArray(snippet)) return null;
+  const id = clean((snippet as Record<string, unknown>).channelId, 40);
+  return CHANNEL_ID.test(id) ? id : null;
+}
+
+function searchable(value: string) {
+  return value.normalize('NFKC').toLocaleLowerCase('ko-KR').replace(/[\s\p{P}\p{S}]+/gu, '');
+}
+
+export function rankChannels(channels: YouTubeChannelEntry[], query: string) {
+  const wanted = searchable(query);
+  if (!wanted) return channels;
+  return channels.map((entry, index) => {
+    const title = searchable(entry.title);
+    const score = title === wanted ? 1000
+      : title.startsWith(wanted) ? 800
+        : title.includes(wanted) ? 650
+          : wanted.includes(title) ? 500
+            : 0;
+    return { entry, index, score };
+  }).sort((a, b) => b.score - a.score || a.index - b.index).map(({ entry }) => entry);
+}
+
 function searchUrl(apiKey: string, query: string) {
   const url = new URL('https://www.googleapis.com/youtube/v3/search');
   url.searchParams.set('part', 'snippet');
   url.searchParams.set('type', 'channel');
   url.searchParams.set('q', query);
-  url.searchParams.set('maxResults', '10');
+  url.searchParams.set('maxResults', '25');
   url.searchParams.set('safeSearch', 'strict');
   url.searchParams.set('relevanceLanguage', 'ko');
   url.searchParams.set('key', apiKey);
@@ -154,7 +198,8 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
     const query = clean(body.query, 1000);
     const id = typeof body.externalId === 'string' ? body.externalId.trim() : '';
-    if (body.action === 'search' && (query.length < 2 || query.length > 100)) return json({ error: 'QUERY_INVALID' }, 400);
+    const lookup = body.action === 'search' ? directLookup(query) : null;
+    if (body.action === 'search' && (query.length < 2 || (!lookup && query.length > 100))) return json({ error: 'QUERY_INVALID' }, 400);
     if (body.action === 'import' && !CHANNEL_ID.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
 
     const client = makeClient();
@@ -177,25 +222,38 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
     if (body.action === 'search') {
-      const lookup = directLookup(query);
       const cacheKey = lookup ? `direct:\n${lookup.type}:\n${lookup.value}` : `search:\n${query}`;
       const cached = await readCache(client, cacheKey, 10 * 60_000);
       let rawItems: unknown[] | null = Array.isArray(cached) ? cached : null;
       let fetchedNow = false;
       if (!rawItems) {
-        const remote = await fetchYouTube(lookup ? channelsUrl(key, lookup) : searchUrl(key, query));
-        if (remote.error) return remote.error;
-        rawItems = Array.isArray(remote.data.items) ? remote.data.items.slice(0, 10) : [];
+        if (lookup?.type === 'video') {
+          const videoRemote = await fetchYouTube(videosUrl(key, lookup.value));
+          if (videoRemote.error) return videoRemote.error;
+          const videoItems = Array.isArray(videoRemote.data.items) ? videoRemote.data.items : [];
+          const channelId = videoItems.map(videoChannelId).find((value): value is string => Boolean(value));
+          if (!channelId) rawItems = [];
+          else {
+            const channelRemote = await fetchYouTube(channelsUrl(key, { type: 'id', value: channelId }));
+            if (channelRemote.error) return channelRemote.error;
+            rawItems = Array.isArray(channelRemote.data.items) ? channelRemote.data.items.slice(0, 1) : [];
+          }
+        } else {
+          const remote = await fetchYouTube(lookup ? channelsUrl(key, lookup) : searchUrl(key, query));
+          if (remote.error) return remote.error;
+          rawItems = Array.isArray(remote.data.items) ? remote.data.items.slice(0, 25) : [];
+        }
         await writeCache(client, cacheKey, rawItems);
         fetchedNow = true;
       }
       const mapper = lookup ? mapYouTubeChannel : mapYouTubeSearchResult;
       const seen = new Set<string>();
-      const channels = rawItems.map(mapper).filter((entry): entry is YouTubeChannelEntry => {
+      const mappedChannels = rawItems.map(mapper).filter((entry): entry is YouTubeChannelEntry => {
         if (!entry || seen.has(entry.externalId)) return false;
         seen.add(entry.externalId);
         return true;
       });
+      const channels = lookup ? mappedChannels : rankChannels(mappedChannels, query);
       if (!channels.length) return json({ channels: [] });
 
       const known = await client.from('items').select('id,external_id,status,external_refreshed_at')
