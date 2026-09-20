@@ -20,6 +20,7 @@ assert.match(component, /취향을 모으는 중 · 원픽/);
 assert.match(component, /dimension\.percentage\.toFixed\(1\)/);
 assert.match(component, /variant\?: 'self' \| 'public'/);
 assert.match(queryKeys, /profileTaste:\s*\{/);
+assert.match(queryKeys, /composition: \(profileId: string, viewerId\?: string\)/);
 assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 
 const infoIndex = profile.indexOf('<ProfileBioEditor');
@@ -31,6 +32,7 @@ assert.ok(infoIndex >= 0, 'profile info section is missing');
 assert.ok(tasteIndex > infoIndex, 'taste composition must follow profile info');
 assert.ok(aiIndex > tasteIndex, 'AI taste evaluation must follow taste composition');
 assert.ok(picksIndex > aiIndex, 'category picks must follow AI taste evaluation');
+assert.match(profile, /<ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
 
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
@@ -43,6 +45,7 @@ assert.ok(publicTasteIndex > publicInfoIndex, 'public taste composition must fol
 assert.ok(publicAiIndex > publicTasteIndex, 'public AI taste evaluation must follow taste composition');
 assert.ok(publicPicksIndex > publicAiIndex, 'public category picks must follow AI taste evaluation');
 assert.ok(publicSafetyIndex > publicPicksIndex, 'public safety controls must not interrupt the core profile story');
+assert.match(publicProfile, /viewerId=\{user\?\.id\}/);
 assert.match(publicProfile, /variant="public"/);
 assert.match(publicProfile, /sectionTitle="AI 취향평가"/);
 
