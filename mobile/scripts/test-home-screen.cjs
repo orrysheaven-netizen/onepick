@@ -60,13 +60,13 @@ const press = (label) => {
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, /현재 5명이 이 원픽을 추천/); assert.match(page, /현재 3명이 이 원픽을 추천/); assert.match(page, /MY PICK/);
+  assert.match(page, /@friend 외 4명이 추천/); assert.match(page, /@owner 외 2명이 추천/); assert.match(page, /MY PICK/);
   assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.match(page, /아직 선택하지 않은 카테고리/);
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
-  assert.ok(page.indexOf('내 원픽 2개 모아보기') < page.indexOf('아직 선택하지 않은 카테고리'));
+  assert.ok(page.indexOf('아직 선택하지 않은 카테고리') < page.indexOf('사람들이 추천한 원픽'), 'The category picker sits above the pick feed so the first screen offers something to do');
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
