@@ -10,7 +10,9 @@ Do not create or target a long-lived integration branch (e.g. a `feature/*` bran
 
 `supabase db start` restores the existing `supabase_db_onepick` Docker volume
 ("Starting database from backup...") and does not apply migrations added since
-the volume was created. Before `supabase test db`, run `supabase db reset` so
-the schema matches `supabase/migrations`; otherwise pgTAP suites for newer
-migrations fail with errors that look like validator bugs. See
-`docs/development-start.md`.
+the volume was created. Before `supabase test db`, run
+`supabase migration up --local --include-all` to apply only the pending
+migrations; otherwise pgTAP suites for newer migrations fail with errors that
+look like validator bugs. Never use `supabase db reset` or
+`supabase stop --no-backup` for this — they drop the local database and its
+data. See `docs/development-start.md`.

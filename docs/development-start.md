@@ -31,7 +31,7 @@ From the repository root:
 
 ```bash
 supabase db start
-supabase db reset
+supabase migration up --local --include-all
 supabase test db
 ```
 
@@ -40,17 +40,20 @@ supabase test db
 `Starting database from backup...` and restores that volume as-is, so any
 migration that landed after the volume was created (for example after a
 `git pull` or a branch switch) is **not** applied and pgTAP suites for the new
-schema fail. `supabase db reset` (which needs the database running) rebuilds
-the schema from `supabase/migrations` and re-applies `supabase/seed.sql`;
-run it whenever migrations changed. `supabase stop --no-backup` discards the
-volume entirely for the same effect.
+schema fail. `supabase migration up --local --include-all` applies only the
+migration files that are missing from `supabase_migrations.schema_migrations`
+and leaves existing data alone; `--include-all` is needed because a branch
+switch can leave a newer migration already applied ahead of older pending
+ones. `supabase migration list --local` shows which files are pending.
+
+Do **not** use `supabase db reset` or `supabase stop --no-backup` for this:
+both drop the local database and rebuild it from migrations plus
+`supabase/seed.sql`, wiping local data.
 
 A stale volume typically surfaces as a trigger or function raising for input
 the current migrations accept, e.g. `033_category_hierarchy_editorial.sql`
 failing with `CATEGORY_INVALID` from a two-level-only
-`private.validate_category_tree()`. Compare
-`select version from supabase_migrations.schema_migrations` against the files
-in `supabase/migrations` to confirm.
+`private.validate_category_tree()`.
 
 Database CI recreates the project from migrations and runs every pgTAP suite under `supabase/tests`.
 
