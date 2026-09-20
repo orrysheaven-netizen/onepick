@@ -85,10 +85,10 @@ async function main() {
   auth.error = null; render(); assert.equal(nameInput().value, '  수정한   라면  ');
 
   categories.isError = true;
-  assert.match(render(), /카테고리를 불러오지 못했어요/);
-  await assertBlocked(); press('카테고리 다시 불러오기'); assert.equal(categoryRetries, 1);
+  assert.match(render(), /선택한 종류를 확인하지 못했어요/);
+  await assertBlocked(); press('종류 다시 확인하기'); assert.equal(categoryRetries, 1);
   categories.isError = false; categories.data = [];
-  assert.match(render(), /요청할 수 있는 카테고리가 없어요/); await assertBlocked();
+  assert.match(render(), /선택한 콘텐츠 종류를 사용할 수 없어요/); await assertBlocked();
   categories.data = [category];
 
   profile.isPending = true; render(); await assertBlocked();
