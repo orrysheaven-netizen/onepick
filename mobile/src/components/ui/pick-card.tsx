@@ -76,6 +76,6 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 17, lineHeight: 24, fontWeight: '700', letterSpacing: -0.4, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.label, color: OnePick.muted },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   pressed: { opacity: 0.6 },
 });

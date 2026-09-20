@@ -4,40 +4,21 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
-import { FollowingPickCard } from '@/components/following-pick-card';
+import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar, Button, Chip, PickCard, SectionHeader, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel } from '@/lib/categories/categoryTree';
-import { buildHomeCategoryFilters, filterHomeShowcaseItems } from '@/lib/home/homeCategoryFilters';
+import { buildHomeCategoryFilters, filterHomeFeedByCategory } from '@/lib/home/homeCategoryFilters';
+import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
-type FeaturedItem = HomeData['featuredItems'][number];
 type EditorialItem = HomeData['editorialItems'][number];
-
-function ProductCard({ item, mine, onOpen, onProfile }: {
-  item: FeaturedItem;
-  mine?: boolean;
-  onOpen: () => void;
-  onProfile?: () => void;
-}) {
-  const others = item.pickCount > 1 ? ` 외 ${(item.pickCount - 1).toLocaleString()}명` : '';
-  return <PickCard
-    categoryName={item.categoryName}
-    itemName={item.name}
-    review={item.latestPickReview}
-    fallbackText={`${item.pickCount.toLocaleString()}명이 추천`}
-    photo={{ uri: item.thumbnailUrl, itemId: item.itemId }}
-    badge={mine ? '내 원픽' : undefined}
-    person={item.latestPickerUsername ? { username: item.latestPickerUsername, label: `@${item.latestPickerUsername}${others}이 추천`, onPress: onProfile } : undefined}
-    onPress={onOpen}
-    accessibilityLabel={item.name + ' 제품 상세 보기'} />;
-}
 
 function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => void }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
@@ -74,9 +55,9 @@ export default function HomeScreen() {
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
   const selectedCategoryGroup = categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null;
-  const visibleFeaturedItems = useMemo(
-    () => filterHomeShowcaseItems(data?.featuredItems ?? [], selectedCategoryGroup),
-    [data?.featuredItems, selectedCategoryGroup],
+  const visiblePicks = useMemo(
+    () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup),
+    [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const searchCategories = data?.openCategories ?? [];
@@ -114,6 +95,20 @@ export default function HomeScreen() {
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
+  // Both feed scopes render the same card. Same item → the normal choose screen
+  // (signed-out readers get its login gate); different item → the category finder.
+  const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
+    <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
+      onOpenItem={() => openItem(pick.itemId)}
+      onOpenProfile={() => openProfile(pick.username)}
+      onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })}
+      onChooseOther={() => {
+        const category = searchCategories.find((entry) => entry.id === pick.categoryId);
+        if (category) openRegistration(category);
+        else router.push({ pathname: '/pick/find', params: { categoryId: pick.categoryId } });
+      }} />
+  </View>;
 
   const listHeader = <>
     <View style={styles.nativeHeader}>
@@ -150,12 +145,7 @@ export default function HomeScreen() {
       {showFollowing ? <FlatList
         data={followingItems}
         keyExtractor={(pick) => pick.pickId}
-        renderItem={({ item: pick }) => <View style={styles.productCell}>
-          <FollowingPickCard pick={pick} mine={isMyItem(pick.itemId)}
-            onOpenItem={() => openItem(pick.itemId)}
-            onOpenProfile={() => openProfile(pick.username)}
-            onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })} />
-        </View>}
+        renderItem={({ item: pick }) => renderFeedCard(pick)}
         onEndReached={() => {
           if (followingQuery.hasNextPage && !followingQuery.isFetching && !followingQuery.isFetchNextPageError) {
             void followingQuery.fetchNextPage({ cancelRefetch: false });
@@ -184,13 +174,9 @@ export default function HomeScreen() {
           {!followingQuery.hasNextPage && followingItems.length > 0 ? <Text style={styles.endText}>팔로우한 사람들의 원픽을 모두 확인했어요.</Text> : null}
         </> : null}
       /> : <FlatList
-        data={ready ? visibleFeaturedItems : []}
-        keyExtractor={(item) => item.itemId}
-        renderItem={({ item }) => <View style={styles.productCell}>
-          <ProductCard item={item} mine={isMyItem(item.itemId)}
-            onOpen={() => openItem(item.itemId)}
-            onProfile={item.latestPickerUsername ? () => openProfile(item.latestPickerUsername!) : undefined} />
-        </View>}
+        data={ready ? visiblePicks : []}
+        keyExtractor={(pick) => pick.pickId}
+        renderItem={({ item: pick }) => renderFeedCard(pick)}
         onEndReached={() => {
           if (ready && homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
             void homeQuery.fetchNextPage({ cancelRefetch: false });
@@ -237,7 +223,7 @@ export default function HomeScreen() {
         </View> : null}
 
         <View style={styles.sectionHeader}>
-          <SectionHeader title="사람들이 추천한 원픽" description={data ? `${data.minimumPickCount}명 이상이 추천한 원픽 · 최근 선택순` : undefined} />
+          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
         </View>
 
         {ready && categoryFilters.length > 1 ? <ScrollView
@@ -264,21 +250,21 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'} />
           </View>
-          {!data.featuredItems.length ? <StateCard title="사람들의 추천이 모이면 이곳에 소개돼요"
-            text={`현재 이 원픽을 추천한 사람이 ${data.minimumPickCount}명 이상인 항목을 보여드려요.`} /> : null}
+          {!data.picks.length ? <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
+            action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} /> : null}
         </> : null}
         </>}
-        ListEmptyComponent={ready && data && data.featuredItems.length > 0 && selectedCategoryGroup ? <StateCard
+        ListEmptyComponent={ready && data && data.picks.length > 0 && selectedCategoryGroup ? <StateCard
           title={`${selectedCategoryGroup.name}에서 아직 표시할 원픽이 없어요`}
           text="현재 불러온 원픽에는 없지만 다음 페이지에 더 있을 수 있어요."
           action={homeQuery.hasNextPage
             ? { label: '다음 원픽 더 불러오기', accessibilityLabel: selectedCategoryGroup.name + ' 다음 원픽 더 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }
             : { label: '전체 보기', accessibilityLabel: '전체 카테고리 보기', onPress: () => setSelectedCategoryGroupId(null) }} /> : null}
         ListFooterComponent={ready && data ? <>
-          {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 제품 불러오는 중" color={OnePick.accent} /> : null}
-          {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 제품을 불러오지 못했어요."
-            action={{ label: '다음 제품 다시 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }} /> : null}
-          {!homeQuery.hasNextPage && data.featuredItems.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 제품을 모두 확인했어요.</Text> : null}
+          {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 원픽 불러오는 중" color={OnePick.accent} /> : null}
+          {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 원픽을 불러오지 못했어요."
+            action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }} /> : null}
+          {!homeQuery.hasNextPage && data.picks.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
           <View style={styles.moreRow}><Button variant="ghost" label="원픽 더 둘러보기  ↗" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} /></View>
 
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>

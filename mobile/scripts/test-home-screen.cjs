@@ -28,9 +28,10 @@ const privatePick = { ...own, pick: { ...own.pick, id: 'private', status: 'needs
 const query = { isPending: false, isError: false, isFetching: false, isRefetching: false,
   hasNextPage: true, isFetchNextPageError: false, fetchNextPage: (options) => { assert.equal(options.cancelRefetch, false); pageCalls++; },
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
-  minimumPickCount: 3, currentPicks: [own, privatePick], featuredItems: [
-    { itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', pickCount: 5, latestPickId: 'other', latestPickerUsername: 'friend', latestPickReview: '다른 사람의 이유' },
-    { itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', pickCount: 3, latestPickId: 'mine', latestPickerUsername: 'owner', latestPickReview: '내 실제 선택 이유' },
+  currentPicks: [own, privatePick], picks: [
+    // Newest first; the server already excluded the viewer's own Picks.
+    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00' },
+    { pickId: 'same-as-mine', userId: 'neighbor', username: 'neighbor', profileImageUrl: null, itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이웃도 신라면', thumbnailUrl: null, startedAt: '2026-09-20T09:00:00.000000+00:00' },
   ], openCategories: [
     { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을것 › 면류 › 라면' },
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', label: '문화 › 책' },
@@ -45,14 +46,15 @@ const native = {
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
 };
 const pickPhoto = { PickPhoto: () => null };
+const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto });
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': pickPhoto,
-  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto }),
-  '@/components/following-pick-card': { FollowingPickCard: () => null },
+  '@/components/ui': ui,
+  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
   '@/hooks/useFollow': { useFollowingFeed: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, isRefetching: false, hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false, refetch: async () => {}, fetchNextPage: async () => {} }) },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
@@ -82,8 +84,12 @@ const press = (label) => {
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, /@friend 외 4명이 추천/); assert.match(page, /@owner 외 2명이 추천/); assert.match(page, /내 원픽/);
-  assert.match(page, /@friend/); assert.match(page, /다른 사람의 이유/); assert.match(page, /@owner/);
+  assert.match(page, /@friend/); assert.match(page, /“다른 사람의 이유”/, 'Each card quotes that person’s own reason');
+  assert.match(page, /@neighbor/); assert.match(page, /이웃도 신라면/);
+  assert.match(page, /내 원픽/, 'A card for the item I already picked is badged');
+  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.match(page, /나는 다른 원픽/); assert.match(page, /의견 나누기/);
+  assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
+  assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.match(page, /전체/); assert.match(page, /음식/); assert.match(page, /문화/);
@@ -96,6 +102,10 @@ for (width of [390, 800, 1200]) {
   press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
+  press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
+  press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
+  press('라면에서 나는 다른 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'ramen');
+  press('@friend의 원픽에 의견 나누기'); assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'other');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');
@@ -115,8 +125,8 @@ for (width of [390, 800, 1200]) {
 render(); endReached(); assert.equal(pageCalls, 1);
 query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1);
 query.isFetching = false; query.isFetchNextPageError = true;
-assert.match(render(), /다음 제품을 불러오지 못했어요/); endReached(); assert.equal(pageCalls, 1, 'Do not repeatedly retry a failed next page');
-press('다음 제품 다시 불러오기'); assert.equal(pageCalls, 2);
+assert.match(render(), /다음 원픽을 불러오지 못했어요/); endReached(); assert.equal(pageCalls, 1, 'Do not repeatedly retry a failed next page');
+press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 2);
 query.isFetchNextPageError = false; query.hasNextPage = false; render(); endReached(); assert.equal(pageCalls, 2);
 assert.match(render(), /모두 확인했어요/);
 auth.user = null;
@@ -125,7 +135,8 @@ assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.match(publicPage, /어떤 취향부터 골라볼까요/);
 assert.match(publicPage, /먹을것 › 면류 › 라면/);
 press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
-assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽/, 'Visitors see only the public feed, never the cached private collection');
+assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
+assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
 press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
@@ -162,9 +173,9 @@ auth.isLoading = false; auth.user = null;
 assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|내 원픽/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
-query.data = { ...cached, featuredItems: [], currentPicks: [], minimumPickCount: 5 }; query.isError = false;
-assert.match(render(), /사람들의 추천이 모이면/);
-assert.match(render(), /5명 이상/);
+query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
+assert.match(render(), /아직 공개된 원픽이 없어요/);
+assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: product counts, latest picker context, product/profile routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: people-first cards with reasons, same/other/discuss actions, product/profile routes, empty states, refresh recovery and session privacy.');

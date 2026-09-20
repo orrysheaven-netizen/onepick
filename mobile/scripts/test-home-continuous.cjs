@@ -33,10 +33,10 @@ async function main() {
   assert.equal(useHomeData('me', false).enabled, false);
   assert.notDeepEqual(options.queryKey, useHomeData().queryKey);
   const result = options.select({ pages: [
-    { minimumPickCount: 3, currentPicks: ['current'], featuredItems: [{ itemId: 'a' }, { itemId: 'b' }] },
-    { minimumPickCount: 3, currentPicks: [], featuredItems: [{ itemId: 'b' }, { itemId: 'c' }] },
+    { currentPicks: ['current'], picks: [{ pickId: 'a' }, { pickId: 'b' }] },
+    { currentPicks: [], picks: [{ pickId: 'b' }, { pickId: 'c' }] },
   ] });
-  assert.equal(result.featuredItems.map((p) => p.itemId).join(','), 'a,b,c', 'Product movement does not repeat cards');
+  assert.equal(result.picks.map((p) => p.pickId).join(','), 'a,b,c', 'A Pick moving between pages is shown once');
   assert.equal(result.currentPicks[0], 'current');
 
   const { AppError } = load('errors/appError.ts');
@@ -64,6 +64,18 @@ async function main() {
   rows = rows.slice(0, 20); page = await repo.getHomeShowcase(cursor);
   assert.equal(page.nextCursor, null, 'Exact last page does not request another page');
 
-  console.log('Continuous home passed: cursor, lookahead, precision and deduplication.');
+  // Feed cards label when a Pick was made, relative to now, in short Korean.
+  const { formatRelativeTime } = load('lib/format/relativeTime.ts');
+  const now = new Date('2026-09-21T12:00:00+09:00');
+  assert.equal(formatRelativeTime('2026-09-21T11:59:40+09:00', now), '방금');
+  assert.equal(formatRelativeTime('2026-09-21T11:15:00+09:00', now), '45분 전');
+  assert.equal(formatRelativeTime('2026-09-21T03:00:00+09:00', now), '9시간 전');
+  assert.equal(formatRelativeTime('2026-09-18T12:00:00+09:00', now), '3일 전');
+  assert.match(formatRelativeTime('2026-08-30T12:00:00+09:00', now), /^8월 30일$/);
+  assert.equal(formatRelativeTime('2025-03-01T12:00:00+09:00', now), '2025.03.01');
+  assert.equal(formatRelativeTime('not-a-date', now), '', 'Bad timestamps render nothing instead of NaN');
+  assert.equal(formatRelativeTime('2026-09-21T12:05:00+09:00', now), '방금', 'Clock skew never shows a negative age');
+
+  console.log('Continuous home passed: cursor, lookahead, precision, deduplication and relative time labels.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

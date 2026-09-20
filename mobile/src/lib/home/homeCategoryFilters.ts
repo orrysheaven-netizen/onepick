@@ -1,5 +1,4 @@
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
-import type { HomeShowcaseItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
 export interface HomeCategoryFilter {
@@ -21,8 +20,9 @@ export function buildHomeCategoryFilters(categories: Category[]): HomeCategoryFi
     .filter((group) => group.categoryIds.length > 0);
 }
 
-export function filterHomeShowcaseItems(
-  items: HomeShowcaseItem[],
+/** Keeps feed rows (Picks, showcase items — anything with a categoryId) inside one top-level group. */
+export function filterHomeFeedByCategory<T extends { categoryId: string }>(
+  items: T[],
   filter?: HomeCategoryFilter | null,
 ) {
   if (!filter) return items;
