@@ -24,9 +24,10 @@ assert.match(taste, /const value = previewValue \?\? composition\.data/);
 assert.match(adminShell, /\/admin\/profile-taste-qa/);
 assert.match(adminShell, /취향 QA/);
 
-assert.match(qaPage, /원픽 5개 경계/);
+assert.match(qaPage, /5개 · 최초 AI 평가/);
 assert.match(qaPage, /currentPickCount: 5/);
 assert.match(qaPage, /reason: 'READY_FIRST'/);
+assert.match(qaPage, /10개 · 즉시 업그레이드/);
 assert.match(qaPage, /currentPickCount: 10/);
 assert.match(qaPage, /reason: 'READY_TEN_PICK_UPGRADE'/);
 assert.match(qaPage, /width=\{390\}/);
