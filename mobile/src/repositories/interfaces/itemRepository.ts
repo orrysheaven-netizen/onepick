@@ -11,6 +11,7 @@ export interface ItemSearchInput {
 export interface ItemRepository {
   attachPhoto(input: AttachItemPhotoInput): Promise<Item>;
   submitItem(input: SubmitItemInput): Promise<Item>;
+  submitUnclassifiedItem(input: SubmitUnclassifiedItemInput): Promise<Item>;
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
   getById(itemId: string): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;
@@ -30,6 +31,13 @@ export interface AttachItemPhotoInput {
 
 export interface SubmitItemInput {
   categoryId: string;
+  itemName: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  imageSourceUrl?: string;
+}
+
+export interface SubmitUnclassifiedItemInput {
   itemName: string;
   imagePath?: string;
   thumbnailPath?: string;
