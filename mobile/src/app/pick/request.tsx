@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useApplyItemCategory, useItemCategorySuggestions } from '@/hooks/useItemCategoryAi';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { PickPhotoDraft } from '@/types/domain/photo';
@@ -42,7 +43,12 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const [submittedName, setSubmittedName] = useState<string | null>(null);
+  const [submittedItem, setSubmittedItem] = useState<{ id: string; name: string } | null>(null);
+  const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [appliedCategoryLabel, setAppliedCategoryLabel] = useState<string | null>(null);
+  const categorySuggestions = useItemCategorySuggestions(!categoryId ? submittedItem?.id : undefined);
+  const applyCategory = useApplyItemCategory(!categoryId ? submittedItem?.id : undefined);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [photoApproved, approvePhoto] = useState(false);
   const [imageLink, setImageLink] = useState('');
@@ -96,7 +102,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       });
 
       if (result.type === 'pending_item') {
-        setSubmittedName(result.item.name);
+        setSubmittedItem({ id: result.item.id, name: result.item.name });
         return;
       }
 
@@ -113,6 +119,24 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       // Mutation state renders the error without losing the draft.
     } finally {
       busy.current = false;
+    }
+  };
+
+  const applySelectedCategory = async () => {
+    if (!submittedItem || !selectedSuggestedCategoryId || applyCategory.isPending) return;
+    const option = categorySuggestions.data?.categories.find((entry) => entry.categoryId === selectedSuggestedCategoryId);
+    try {
+      const result = await applyCategory.mutateAsync(selectedSuggestedCategoryId);
+      if (result.type === 'existing_item') {
+        router.replace({
+          pathname: '/pick/choose',
+          params: { itemId: result.itemId, categoryId: result.categoryId },
+        });
+        return;
+      }
+      setAppliedCategoryLabel(option?.label ?? '선택한 카테고리');
+    } catch {
+      // Keep the chosen category so the user can retry or leave it for later.
     }
   };
 
@@ -147,21 +171,132 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     );
   }
 
-  if (submittedName) {
+  if (submittedItem) {
+    if (categoryId) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.center}>
+            <Text style={styles.kicker}>REQUEST SENT</Text>
+            <Text style={styles.stateTitle}>제품 등록 요청을 보냈어요</Text>
+            <Text style={styles.requestedName}>{submittedItem.name}</Text>
+            <Text style={styles.stateText}>내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 항목을 열어 원픽으로 선택해주세요.</Text>
+            <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
+              <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
+              <Text style={styles.retryText}>홈으로 돌아가기</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    if (appliedCategoryLabel) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.center}>
+            <Text style={styles.kicker}>CATEGORY APPLIED</Text>
+            <Text style={styles.stateTitle}>카테고리를 적용했어요</Text>
+            <Text style={styles.requestedName}>{submittedItem.name}</Text>
+            <Text style={styles.appliedCategory}>{appliedCategoryLabel}</Text>
+            <Text style={styles.stateText}>최종 선택은 직접 적용되었습니다. 관리자 확인 후 승인된 제품을 원픽으로 선택할 수 있어요.</Text>
+            <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
+              <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
+              <Text style={styles.retryText}>홈으로 돌아가기</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    const suggestionIds = new Set(categorySuggestions.data?.suggestions.map((entry) => entry.categoryId) ?? []);
+    const manualCategories = categorySuggestions.data?.categories.filter((entry) => !suggestionIds.has(entry.categoryId)) ?? [];
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.center}>
-          <Text style={styles.kicker}>REQUEST SENT</Text>
-          <Text style={styles.stateTitle}>제품 등록 요청을 보냈어요</Text>
-          <Text style={styles.requestedName}>{submittedName}</Text>
-          <Text style={styles.stateText}>내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 제품을 열어 원픽으로 선택해주세요.</Text>
-          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
-            <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.kicker}>AI CATEGORY SUGGESTION</Text>
+          <Text style={styles.title}>AI가 카테고리를 추천해요</Text>
+          <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
+          <Text style={styles.subtitle}>상품은 먼저 등록됐습니다. AI는 기존 카테고리 후보만 제안하며, 실제 적용은 직접 선택해야 합니다.</Text>
+
+          {categorySuggestions.isPending ? (
+            <View style={styles.suggestionState}><ActivityIndicator /><Text style={styles.helper}>상품명과 기존 카테고리를 비교하고 있어요</Text></View>
+          ) : categorySuggestions.isError ? (
+            <View style={styles.suggestionCard}>
+              <Text style={styles.stateTitleSmall}>AI 추천을 불러오지 못했어요</Text>
+              <Text style={styles.helper}>상품 등록은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요.</Text>
+              <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categorySuggestions.refetch()}>
+                <Text style={styles.retryText}>AI 추천 다시 받기</Text>
+              </Pressable>
+            </View>
+          ) : categorySuggestions.data ? (
+            <View style={styles.suggestionCard}>
+              <Text style={styles.suggestionTitle}>추천 카테고리</Text>
+              {categorySuggestions.data.suggestions.length > 0 ? categorySuggestions.data.suggestions.map((suggestion) => {
+                const selected = selectedSuggestedCategoryId === suggestion.categoryId;
+                return (
+                  <Pressable key={suggestion.categoryId} accessibilityRole="radio"
+                    accessibilityLabel={`${suggestion.label} 추천 카테고리 선택`}
+                    accessibilityState={{ selected, disabled: applyCategory.isPending }}
+                    disabled={applyCategory.isPending}
+                    onPress={() => setSelectedSuggestedCategoryId(suggestion.categoryId)}
+                    style={[styles.suggestionOption, selected && styles.suggestionOptionSelected]}>
+                    <Text style={[styles.suggestionLabel, selected && styles.suggestionLabelSelected]}>{suggestion.label}</Text>
+                    <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
+                  </Pressable>
+                );
+              }) : (
+                <Text style={styles.helper}>현재 카테고리 중에는 충분히 맞는 후보를 찾지 못했어요.</Text>
+              )}
+
+              {categorySuggestions.data.needsNewCategory ? (
+                <Text style={styles.categoryGapNotice}>딱 맞는 기존 카테고리가 없을 수 있어요. 억지로 적용하지 않아도 됩니다.</Text>
+              ) : null}
+
+              {manualCategories.length > 0 ? (
+                <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => setShowAllCategories((value) => !value)}>
+                  <Text style={styles.retryText}>{showAllCategories ? '직접 선택 닫기' : '다른 카테고리 직접 선택'}</Text>
+                </Pressable>
+              ) : null}
+
+              {showAllCategories ? (
+                <View style={styles.manualCategoryList}>
+                  {manualCategories.map((option) => {
+                    const selected = selectedSuggestedCategoryId === option.categoryId;
+                    return (
+                      <Pressable key={option.categoryId} accessibilityRole="radio"
+                        accessibilityLabel={`${option.label} 직접 카테고리 선택`}
+                        accessibilityState={{ selected, disabled: applyCategory.isPending }}
+                        disabled={applyCategory.isPending}
+                        onPress={() => setSelectedSuggestedCategoryId(option.categoryId)}
+                        style={[styles.manualCategory, selected && styles.manualCategorySelected]}>
+                        <Text style={[styles.manualCategoryText, selected && styles.suggestionLabelSelected]}>{option.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {applyCategory.isError ? <Text style={styles.error}>카테고리를 적용하지 못했어요. 선택은 유지되니 다시 시도하거나 나중에 정할 수 있어요.</Text> : null}
+
+              <Pressable accessibilityRole="button"
+                disabled={!selectedSuggestedCategoryId || applyCategory.isPending}
+                onPress={() => void applySelectedCategory()}
+                style={[styles.primaryButton, (!selectedSuggestedCategoryId || applyCategory.isPending) && styles.disabled]}>
+                {applyCategory.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>이 카테고리 적용</Text>}
+              </Pressable>
+            </View>
+          ) : null}
+
+          <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/(tabs)/profile')}>
+            <Text style={styles.retryText}>카테고리는 나중에 정하기</Text>
           </Pressable>
           <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
             <Text style={styles.retryText}>홈으로 돌아가기</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -174,7 +309,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         </Pressable>
         <Text style={styles.kicker}>새로운 원픽의 시작</Text>
         <Text style={styles.title}>제품 등록 요청</Text>
-        <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 등록 요청합니다. 일반 상품의 카테고리는 운영자가 검수하면서 정리하고, 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
+        <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 먼저 등록합니다. 일반 상품은 등록 뒤 AI가 기존 카테고리 후보를 제안하고, 최종 카테고리는 직접 선택합니다. 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
 
         <Text style={styles.label}>제품명</Text>
         <TextInput
@@ -200,7 +335,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>카테고리를 직접 고를 필요가 없어요. 운영자가 등록 요청을 확인하면서 실제 상품 카테고리로 분류합니다.</Text>
+          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 등록이 끝나면 AI가 몇 가지 카테고리를 제안하고, 원하는 카테고리를 직접 적용할 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>
@@ -294,7 +429,10 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#4945ED', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   requestedName: { color: '#202124', fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
+  requestedNameLeft: { color: '#202124', fontSize: 19, fontWeight: '900', marginTop: 16 },
+  appliedCategory: { color: '#4945ED', fontSize: 14, fontWeight: '900', marginTop: 12, textAlign: 'center' },
   stateTitle: { color: '#202124', fontSize: 21, fontWeight: '900', marginTop: 10, textAlign: 'center' },
+  stateTitleSmall: { color: '#202124', fontSize: 16, fontWeight: '900' },
   stateText: { color: '#747985', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   disabled: { opacity: 0.4 },
   photoCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginTop: 24 },
@@ -303,5 +441,18 @@ const styles = StyleSheet.create({
   photoPreview: { width: '100%', height: 220, backgroundColor: '#F5F6F8', borderRadius: 14, marginTop: 12 },
   photoLoading: { alignItems: 'center', paddingVertical: 10 },
   confirmText: { color: '#4945ED', fontSize: 13, lineHeight: 20, fontWeight: '700' },
+  suggestionState: { alignItems: 'center', paddingVertical: 28 },
+  suggestionCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 18, padding: 18, marginTop: 22 },
+  suggestionTitle: { color: '#202124', fontSize: 15, fontWeight: '900', marginBottom: 4 },
+  suggestionOption: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 15, padding: 14, marginTop: 10 },
+  suggestionOptionSelected: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
+  suggestionLabel: { color: '#202124', fontSize: 14, fontWeight: '800' },
+  suggestionLabelSelected: { color: '#4945ED' },
+  suggestionReason: { color: '#747985', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  categoryGapNotice: { color: '#747985', backgroundColor: '#F5F6F8', borderRadius: 12, padding: 12, fontSize: 12, lineHeight: 18, marginTop: 13 },
+  manualCategoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  manualCategory: { borderWidth: 1, borderColor: '#E3E5EA', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
+  manualCategorySelected: { borderColor: '#4945ED', backgroundColor: '#EFEEFF' },
+  manualCategoryText: { color: '#5F6470', fontSize: 12, fontWeight: '700' },
   linkInput: { marginTop: 10 },
 });
