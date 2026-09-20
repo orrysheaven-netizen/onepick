@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 import { AppError } from '@/errors/appError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { AuthRepository } from '@/repositories/interfaces/authRepository';
-import type { AuthUser } from '@/types/domain/auth';
+import type { AuthUser, SocialAuthProvider } from '@/types/domain/auth';
 
 function mapAuthUser(user: User): AuthUser {
   return {
@@ -23,6 +23,12 @@ function getUrlParam(url: string, key: string) {
   const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
   return new URLSearchParams(hash).get(key);
 }
+
+const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'google' | 'custom:naver'> = {
+  kakao: 'kakao',
+  google: 'google',
+  naver: 'custom:naver',
+};
 
 export class SupabaseAuthRepository implements AuthRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -87,14 +93,18 @@ export class SupabaseAuthRepository implements AuthRepository {
     return data.user ? mapAuthUser(data.user) : null;
   }
 
-  async signInWithKakao(redirectTo: string) {
+  async signInWithProvider(provider: SocialAuthProvider, redirectTo: string) {
     const { data, error } = await this.client.auth.signInWithOAuth({
-      provider: 'kakao',
+      provider: OAUTH_PROVIDER[provider],
       options: {
         redirectTo,
-        // `scopes` adds to Supabase's Kakao defaults; the provider's `scope`
-        // parameter replaces them so email and profile photos are not requested.
-        queryParams: { scope: 'profile_nickname' },
+        ...(provider === 'kakao'
+          ? {
+              // Keep the existing privacy-minimal Kakao scope. Google and Naver
+              // use the scopes configured on their Supabase Auth providers.
+              queryParams: { scope: 'profile_nickname' },
+            }
+          : {}),
         // Web uses a same-tab redirect; embedded browsers may not support popups.
         skipBrowserRedirect: Platform.OS !== 'web',
       },
@@ -114,6 +124,10 @@ export class SupabaseAuthRepository implements AuthRepository {
     }
 
     return this.completeOAuthFromUrl(result.url);
+  }
+
+  signInWithKakao(redirectTo: string) {
+    return this.signInWithProvider('kakao', redirectTo);
   }
 
   async signOut() {

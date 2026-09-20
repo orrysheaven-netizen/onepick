@@ -27,9 +27,14 @@ export const OnePick = {
   warning: '#8A5A00',
   warningSoft: '#FFF3CD',
 
-  // Third-party brand (Kakao login button guideline)
+  // Third-party brand (login button guidelines: Kakao, Google, Naver)
   kakao: '#FEE500',
   kakaoText: '#191919',
+  google: '#FFFFFF',
+  googleText: '#202124',
+  googleBorder: '#D4D6DD',
+  naver: '#03C75A',
+  naverText: '#FFFFFF',
 
   maxWidth: 480,
 } as const;

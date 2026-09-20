@@ -75,7 +75,7 @@ async function main() {
   }
   assert.equal(Object.hasOwn(getAuthIntent({ ...comment, access_token: 'not-forwarded' }), 'access_token'), false);
 
-  let params = {}, destination, callbackParams, mutationResult;
+  let params = {}, destination, callbackParams, mutationResult, mutationInput;
   const presses = [], analytics = [];
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
@@ -94,21 +94,29 @@ async function main() {
     ...baseImports,
     'expo-linking': { createURL: (_path, options) => { callbackParams = options.queryParams; return 'onepick://auth/callback'; } },
     '@/errors/appError': { AppError: Error },
-    '@/hooks/useKakaoSignIn': { useKakaoSignIn: () => ({ mutateAsync: async () => mutationResult }) },
+    '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({
+      isPending: false, isError: false, isSuccess: false,
+      mutateAsync: async (input) => { mutationInput = input; return mutationResult; },
+    }) },
+    '@/types/domain/auth': {},
   });
-  const login = async (input, result) => {
-    params = input; mutationResult = result; destination = undefined; presses.length = 0;
+  const login = async (input, result, buttonIndex = 1) => {
+    params = input; mutationResult = result; mutationInput = undefined; destination = undefined; presses.length = 0;
     renderToStaticMarkup(React.createElement(Login));
-    await presses[1]();
+    await presses[buttonIndex]();
     await flush();
   };
   await login({}, { profile: {} });
+  assert.equal(mutationInput.provider, 'kakao');
+  assert.equal(mutationInput.redirectTo, 'onepick://auth/callback');
   assert.equal(destination, '/');
   assert.equal(analytics.at(-1).eventName, 'auth_started');
   assert.equal(analytics.at(-1).path, '/auth/login');
-  await login({ action: 'profile' }, { profile: {} });
+  await login({ action: 'profile' }, { profile: {} }, 2);
+  assert.equal(mutationInput.provider, 'google');
   assert.equal(destination, '/profile');
-  await login(comment, { profile: null });
+  await login(comment, { profile: null }, 3);
+  assert.equal(mutationInput.provider, 'naver');
   same(destination, getPostAuthRoute(comment, true));
   same(callbackParams, comment);
   await login(choose, { profile: {} });
@@ -144,6 +152,6 @@ async function main() {
   await flush();
   presses[0]();
   same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
-  console.log('Auth return checks passed: choose/comment/profile/home/item-request, onboarding, malformed params, cancellation and callback retry.');
+  console.log('Auth return checks passed: Kakao/Google/Naver preserve choose/comment/profile/home/item-request intents, onboarding, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
