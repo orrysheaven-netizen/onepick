@@ -88,6 +88,7 @@ for (width of [390, 800, 1200]) {
   assert.equal(typeof itemSearchProps.onSearchGame, 'function');
   assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
   assert.equal(typeof itemSearchProps.onSearchPokemon, 'function');
+  assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.ok(page.indexOf('내 원픽 2개 모아보기') < page.indexOf('아직 선택하지 않은 카테고리'));
@@ -101,6 +102,10 @@ for (width of [390, 800, 1200]) {
   itemSearchProps.onSearchYouTube('최재천의 아마존');
   assert.equal(destination.pathname, '/pick/youtube');
   assert.equal(destination.params.categoryId, 'youtube');
+  assert.equal(destination.params.query, '최재천의 아마존');
+  itemSearchProps.onSubmitSearch('최재천의 아마존');
+  assert.equal(destination.pathname, '/explore');
+  assert.equal(destination.params.search, '1');
   assert.equal(destination.params.query, '최재천의 아마존');
 }
 
@@ -158,4 +163,4 @@ assert.match(render(), /사람들의 선택이 모이면/);
 assert.match(render(), /5명 이상/);
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: product counts, latest picker context, global external catalog search routes, product/profile routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: product counts, latest picker context, actionable global search submit, external catalog routes, product/profile routes, empty states, refresh recovery and session privacy.');

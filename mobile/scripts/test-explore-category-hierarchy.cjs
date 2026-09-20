@@ -9,6 +9,10 @@ const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8'
 const profileGroups = fs.readFileSync(path.join(root, 'src/components/profile-pick-groups.tsx'), 'utf8');
 
 assert.match(explore, /browseCategoryGroups, categoryLabel/);
+assert.match(explore, /useLocalSearchParams<ExploreParams>/);
+assert.match(explore, /incomingQuery/);
+assert.match(explore, /scalar\(params\.search\) === '1' \|\| incomingQuery\.length > 0/);
+assert.match(explore, /initialQuery=\{incomingQuery\}/);
 assert.match(explore, /const selectedCategoryLabel = selectedCategory \? categoryLabel\(selectedCategory, categoryCatalog\) : null/);
 assert.match(explore, /accessibilityLabel="전체 카테고리 보기"/);
 assert.match(explore, /accessibilityState=\{\{ selected: !parentId \}\}/);
@@ -32,4 +36,4 @@ assert.match(tree, /export function categoryLabel/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
 assert.match(profileGroups, /buildProfilePickGroups/);
 
-console.log('Explore category hierarchy checks passed: shared taxonomy labels, top-level pills, child selection, reset behavior, and consistent Home/Profile category language.');
+console.log('Explore category hierarchy checks passed: shared taxonomy labels, query-hydrated search, top-level pills, child selection, reset behavior, and consistent Home/Profile category language.');
