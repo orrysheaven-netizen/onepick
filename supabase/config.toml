@@ -24,6 +24,18 @@ additional_redirect_urls = ["http://localhost:8081"]
 [functions.import-item-image]
 verify_jwt = true
 
+[functions.delete-account]
+# The handler authenticates the user with @supabase/server.
+verify_jwt = false
+
+[functions.analyze-profile-taste]
+# The handler validates the caller Bearer token before reading or generating a review.
+verify_jwt = false
+
+[functions.profile-ai-status]
+# The handler validates the caller Bearer token before returning private generation state.
+verify_jwt = false
+
 [functions.movie-catalog]
 # Search is public. The function verifies a real user JWT itself before imports.
 verify_jwt = false
