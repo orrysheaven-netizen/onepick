@@ -50,7 +50,7 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  const categoriesQuery = useExploreCategories(Boolean(data));
+  const categoriesQuery = useExploreCategories();
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
