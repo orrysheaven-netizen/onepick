@@ -85,7 +85,7 @@ export function PickShareCard(props: PickShareCardProps) {
 
       {Platform.OS === 'web' ? <View style={styles.preview}>
         <View style={styles.previewTop}>
-          <Text style={styles.previewBrand}>원픽</Text>
+          <View style={styles.previewBrandRow}><View style={styles.previewMark}><Text style={styles.previewMarkText}>원픽</Text></View><Text style={styles.previewBrand}>one pick</Text></View>
         </View>
         <Text style={styles.previewCategory}>{props.categoryName}</Text>
         <Text numberOfLines={2} style={styles.previewItem}>{props.itemName}</Text>
@@ -133,7 +133,10 @@ const styles = StyleSheet.create({
   description: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   preview: { borderRadius: 18, backgroundColor: OnePick.accentSoft, borderWidth: 1, borderColor: OnePick.accentSoft, padding: 18, marginTop: 16 },
   previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  previewBrand: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7 },
+  previewBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  previewMark: { height: 22, paddingHorizontal: 6, borderRadius: 7, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
+  previewMarkText: { color: OnePick.onAccent, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: -0.5 },
+  previewBrand: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '800', letterSpacing: -0.3 },
   previewCategory: { color: OnePick.muted, fontSize: 11, fontWeight: '700', marginTop: 14 },
   previewItem: { color: OnePick.text, fontSize: 24, lineHeight: 31, fontWeight: '900', marginTop: 6 },
   previewDivider: { height: 1, backgroundColor: OnePick.border, marginVertical: 16 },

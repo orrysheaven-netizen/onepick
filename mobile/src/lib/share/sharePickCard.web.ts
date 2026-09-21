@@ -119,9 +119,16 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
   roundedRect(ctx, 72, 72, 936, 1206, 42);
   ctx.fill();
 
+  // Brand lockup: indigo tag reading 원픽, then "one pick".
   ctx.fillStyle = OnePick.accent;
+  roundedRect(ctx, 130, 118, 104, 56, 16);
+  ctx.fill();
+  ctx.fillStyle = OnePick.onAccent;
+  ctx.font = '900 30px system-ui, sans-serif';
+  ctx.fillText('원픽', 148, 160);
+  ctx.fillStyle = OnePick.text;
   ctx.font = '800 34px system-ui, sans-serif';
-  ctx.fillText('원픽', 130, 160);
+  ctx.fillText('one pick', 252, 160);
 
   ctx.fillStyle = OnePick.muted;
   ctx.font = '700 28px system-ui, sans-serif';
