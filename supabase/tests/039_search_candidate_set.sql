@@ -54,10 +54,17 @@ begin
   select count(*) into n from public.search_items(token,array[closed_cat],50);
   assert n=0, 'A caller-supplied closed category cannot reveal alias-only candidates';
 
+  -- anon may read the catalog but never write it, so each status change is made
+  -- with the test's own privileges and only the search is run as the caller.
+  reset role;
   update public.items set status='pending' where id=by_alias;
+  set local role anon;
   select count(*) into n from public.search_items(token,null,50) where id=by_alias;
   assert n=0, 'Item eligibility is applied to alias-only candidates too';
+
+  reset role;
   update public.items set status='discontinued' where id=by_alias;
+  set local role anon;
   select count(*) into n from public.search_items(token,null,50) where id=by_alias;
   assert n=1, 'Discontinued items stay searchable through their aliases';
   reset role;
