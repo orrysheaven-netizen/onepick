@@ -263,7 +263,7 @@ Deno.serve(async (req: Request) => {
     if (existing) {
       const previousPickCount = Array.isArray(existing.pick_snapshot) ? existing.pick_snapshot.length : 0;
 
-      // The first result is intentionally available early at five picks. Once the
+      // Legacy reviews may have been generated before the ten-pick policy. Once the
       // profile reaches ten, allow one immediate quality upgrade without making
       // the user wait out the daily cooldown. Until then, keep showing the existing result.
       if (previousPickCount < PROFILE_AI_RECOMMENDED_PICKS) {
@@ -293,7 +293,7 @@ Deno.serve(async (req: Request) => {
           if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < REANALYSIS_INTERVAL_MS) {
             return finish('rate_limited', reply({
               error: 'RATE_LIMITED',
-              reason: 'DAILY_REANALYSIS_LIMIT',
+              reason: 'WEEKLY_REANALYSIS_LIMIT',
               retryAfterSeconds: Math.max(1, Math.ceil((REANALYSIS_INTERVAL_MS - elapsedMs) / 1000)),
               minimumChanges: PROFILE_AI_MIN_CHANGES,
               changedCount,
