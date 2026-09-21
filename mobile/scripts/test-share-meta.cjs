@@ -48,4 +48,6 @@ const fallbackImage = pickShareMeta({ origin: 'https://onepick.example', pickId:
 assert.equal(fallbackImage.image, 'https://onepick.example/og-default.png');
 assert.match(fallbackImage.description, /책에서 고른/);
 assert.equal(pickShareMeta({ origin: 'https://onepick.example', pickId: 'bad', itemName: 'x', username: 'u', categoryName: 'c', review: '', image: '' }), null);
+assert.equal(pickShareMeta({ origin: 'javascript:alert(1)', pickId: id, itemName: 'x', username: 'user_name', categoryName: 'c', review: '', image: '' }), null);
+assert.equal(pickShareMeta({ origin: 'http://onepick.example', pickId: id, itemName: 'x', username: 'user_name', categoryName: 'c', review: '', image: '' }), null);
 console.log('H-1B Pick meta checks passed: validation, escaping, fallback image, canonical URL and dynamic OG tags.');
