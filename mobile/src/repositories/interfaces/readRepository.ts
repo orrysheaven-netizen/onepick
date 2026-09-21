@@ -39,6 +39,8 @@ export interface HomeFeedPick {
   categoryName: string;
   oneLineReview: string;
   thumbnailUrl: string | null;
+  purchaseUrl: string | null;
+  purchaseTip: string | null;
   startedAt: string;
 }
 
