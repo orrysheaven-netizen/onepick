@@ -8,7 +8,8 @@ const panel = fs.readFileSync(
 );
 
 assert.match(panel, /getCategories/,'Pending review loads current categories');
-assert.ok(panel.includes('selectableCategories(categories.map(toDomainCategory))'),'Pending review uses the same full-tree eligibility rules as pick selection');
+assert.match(panel, /selectableCategories\(domainCategories\)/,'Pending review uses the same full-tree eligibility rules as pick selection');
+assert.match(panel, /categoryLabel\(toDomainCategory\(category\), domainCategories\)/,'Admin sees the full category path, not an ambiguous leaf name');
 assert.match(panel, /selected\?\.categories\?\.slug === 'pending-product'/,'The staging category is recognized as unclassified');
 assert.match(panel, /status === 'active' && !reviewCategoryId/,'Approval is blocked until a real category is chosen');
 assert.match(panel, /updatePendingItem\(selected\.id, status, status === 'active' \? reviewCategoryId : undefined\)/,'The reviewed category is sent to admin_review_pending_item');
