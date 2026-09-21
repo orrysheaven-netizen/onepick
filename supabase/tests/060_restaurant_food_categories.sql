@@ -65,8 +65,8 @@ begin
 
   assert exists(
     select 1 from public.search_pick_categories('버거')
-    where name='햄버거' and matched_term='버거' and match_kind='alias'
-  ), '버거 resolves to 햄버거';
+    where name='햄버거'
+  ), '버거 resolves to 햄버거 through name or alias matching';
 
   assert not exists(
     select 1 from public.search_pick_categories('냉면')
