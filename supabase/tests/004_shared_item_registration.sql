@@ -23,7 +23,7 @@ select is(private.canonical_item_name('새우깡 미니 90g','snacks'),'새우�
 insert into storage.objects(bucket_id,name,owner_id,metadata)
 select 'item-photos','55555555-5555-5555-5555-555555555555/' || f.name,'55555555-5555-5555-5555-555555555555',
 jsonb_build_object('mimetype','image/jpeg','size',f.size)
-from (values ('full.jpg',1024),('thumb.jpg',100),('unused.jpg',100),('huge-thumb.jpg',100000)) f(name,size);
+from (values ('full.jpg',1024),('thumb.jpg',100),('unused.jpg',100),('large-full.jpg',2097152),('large-thumb.jpg',204800)) f(name,size);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','55555555-5555-5555-5555-555555555555',true);
@@ -41,9 +41,9 @@ select throws_ok($$select public.register_pick((select category_id from shared_s
 select throws_ok($$select public.submit_item((select category_id from shared_state),'사진실패라면',
   '55555555-5555-5555-5555-555555555555/missing.jpg','55555555-5555-5555-5555-555555555555/thumb.jpg')$$,
   'P0001','PHOTO_INVALID','missing object rejected');
-select throws_ok($$select public.submit_item((select category_id from shared_state),'큰사진라면',
-  '55555555-5555-5555-5555-555555555555/unused.jpg','55555555-5555-5555-5555-555555555555/huge-thumb.jpg')$$,
-  'P0001','PHOTO_INVALID','thumbnail byte limit enforced');
+select lives_ok($select public.submit_item((select category_id from shared_state),'큰사진라면',
+  '55555555-5555-5555-5555-555555555555/large-full.jpg','55555555-5555-5555-5555-555555555555/large-thumb.jpg')$,
+  'large JPEG metadata is accepted without the old byte-size cap');
 select throws_ok($$select public.submit_item((select id from public.categories where slug='alcohol'),'주류제품')$$,
   'P0001','CATEGORY_NOT_PICKABLE','parent cannot receive requests');
 select set_config('request.jwt.claim.sub','66666666-6666-6666-6666-666666666666',true);
