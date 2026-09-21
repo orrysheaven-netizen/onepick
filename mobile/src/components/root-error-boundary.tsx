@@ -9,6 +9,8 @@ interface Props {
   children: ReactNode;
 }
 
+const SHOW_DEBUG_DETAILS = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+
 interface State {
   hasError: boolean;
   retryKey: number;
@@ -42,7 +44,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
           <Pressable accessibilityRole="button" onPress={this.retry} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
             <Text style={styles.buttonText}>다시 시도</Text>
           </Pressable>
-          {(this.state.debugMessage || this.state.debugComponentStack) && (
+          {SHOW_DEBUG_DETAILS && (this.state.debugMessage || this.state.debugComponentStack) && (
             <ScrollView style={styles.debugBox} contentContainerStyle={styles.debugBoxContent}>
               <Text selectable style={styles.debugText}>{this.state.debugMessage}{'\n'}{this.state.debugComponentStack}</Text>
             </ScrollView>

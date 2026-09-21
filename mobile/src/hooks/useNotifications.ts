@@ -28,6 +28,7 @@ export function useNotificationCount(userId?: string, enabled = true) {
     refetchInterval: 20000,
     refetchIntervalInBackground: false,
     staleTime: 0,
+    retry: 1,
   });
 }
 
@@ -42,6 +43,7 @@ export function useNotifications(userId?: string, enabled = true) {
     refetchInterval: 20000,
     refetchIntervalInBackground: false,
     staleTime: 0,
+    retry: 1,
   });
 }
 

@@ -113,9 +113,13 @@ async function main() {
   auth.user = { id: 'owner' }; auth.error = new Error('session');
   assert.doesNotMatch(renderToStaticMarkup(React.createElement(Screen)), /@friend/);
   auth.error = null; inbox.isError = true;
-  assert.match(renderToStaticMarkup(React.createElement(Screen)), /불러오지 못했어요/);
-  inbox.isError = false; inbox.data.pages[0].items = [];
+  const staleInbox = renderToStaticMarkup(React.createElement(Screen));
+  assert.match(staleInbox, /@friend/, 'A refresh error keeps the last successful inbox visible');
+  assert.match(staleInbox, /갱신하지 못했어요/, 'A refresh error is shown as a non-blocking warning');
+  inbox.data.pages[0].items = [];
+  assert.match(renderToStaticMarkup(React.createElement(Screen)), /알림을 불러오지 못했어요/);
+  inbox.isError = false;
   assert.match(renderToStaticMarkup(React.createElement(Screen)), /아직 알림이 없어요/);
-  console.log('Notification checks passed: unified inbox cursor, per-kind read marks, preferences, errors, navigation, badge and private UI states.');
+  console.log('Notification checks passed: unified inbox cursor, per-kind read marks, cached-data refresh resilience, preferences, errors, navigation, badge and private UI states.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

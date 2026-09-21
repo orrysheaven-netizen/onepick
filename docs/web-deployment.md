@@ -123,8 +123,10 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
 
-The SPA choice does not generate per-Pick search-engine/social-preview HTML.
-Rich link previews and server rendering are separate follow-up work.
+The SPA choice by itself does not generate per-Pick search-engine/social-preview HTML.
+H-1A supplies safe default metadata; the scoped H-1B design keeps the SPA and adds
+dynamic metadata only for public Pick/profile/item document routes through Cloudflare
+Pages Functions. See [share-h1b-dynamic-og.md](share-h1b-dynamic-og.md).
 
 References: [Expo web publishing](https://docs.expo.dev/guides/publishing-websites/),
 [Expo static rendering](https://docs.expo.dev/router/web/static-rendering/),

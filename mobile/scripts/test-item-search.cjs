@@ -118,18 +118,20 @@ async function main() {
   assert.match(render(), /다시 검색하기/);
   presses[0]();
   assert.equal(retried, true);
-  state = { hasSearchText: true, data: [{ id: 'item-1', name: '찾은 제품', status: 'active' }] };
+  state = { hasSearchText: true, data: [{ id: 'item-1', name: '찾은 제품', status: 'active', creatorName: '만든 사람', collectionName: '시리즈', releaseYear: 2026 }] };
   assert.match(render(), /찾은 제품/);
+  assert.match(render(), /만든 사람 · 시리즈 · 2026/, 'Search results expose disambiguating creator/collection/year metadata');
   assert.equal(photoProps.itemId, 'item-1');
   assert.equal(photoProps.itemStatus, 'active');
   presses[0]();
   assert.equal(selected, 'item-1');
 
   let externalInput, externalPresses = [], movieQuery, dramaQuery, musicQuery, gameQuery, bookQuery, youtubeQuery, submittedQuery;
+  let catalogState = { hasSearchText: true, isWaiting: false, isPending: false, isError: false, data: [] };
   const { ItemSearch: CatalogSearch } = loadSource('components/item-search.tsx', {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
-    '@/hooks/useItemSearch': { useItemSearch: () => ({ hasSearchText: true, isWaiting: false, isPending: false, isError: false, data: [] }) },
+    '@/hooks/useItemSearch': { useItemSearch: () => catalogState },
     'react-native': {
       ActivityIndicator: () => null,
       Pressable: (props) => { externalPresses.push(props); return React.createElement('button', null, props.children); },
@@ -169,10 +171,14 @@ async function main() {
   externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
   assert.equal(bookQuery, '인터스텔라');
 
-  externalPresses.find((button) => button.accessibilityLabel === '인터스텔라 도서 DB에서 검색').onPress();
-  assert.equal(bookQuery, '인터스텔라');
+  catalogState = { ...catalogState, data: [{ id: 'local-1', name: '인터스텔라', status: 'active' }] };
+  externalPresses = [];
+  catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, { ...catalogProps, showExternalActionsWithResults: true }));
+  assert.match(catalogPage, /외부 DB에서 더 정확히 찾기/);
+  assert.match(catalogPage, /도서 DB에서 검색/, 'External refinement remains available even with a local match');
 
   externalPresses = []; externalInput = undefined; movieQuery = undefined; bookQuery = undefined;
+  catalogState = { ...catalogState, data: [] };
   catalogPage = renderToStaticMarkup(React.createElement(CatalogSearch, {
     categoryId: 'movie-category',
     onSelect: () => {},

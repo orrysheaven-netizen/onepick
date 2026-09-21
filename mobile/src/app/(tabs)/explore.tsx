@@ -87,7 +87,7 @@ export default function ExploreScreen() {
                 : 'OnePick에 등록된 항목을 검색합니다.'}
           </Text>
           <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
-            initialQuery={incomingQuery}
+            initialQuery={incomingQuery} showExternalActionsWithResults
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
             onSearchDrama={dramaCategory && (!selectedCategoryId || selectedCategoryId === dramaCategory.id)
