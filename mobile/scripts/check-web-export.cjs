@@ -21,12 +21,42 @@ async function main() {
   assert.ok(!fs.existsSync(path.join(dist, '404.html')), 'A root 404.html disables the Pages SPA fallback');
   const headers = fs.readFileSync(path.join(dist, '_headers'), 'utf8');
   assert.equal(headers, fs.readFileSync(path.join(root, 'public', '_headers'), 'utf8'), 'Test-host headers must be copied into the export');
-  assert.match(headers, /https:\/\/:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex\s+Cache-Control: no-store, max-age=0/);
-  assert.match(headers, /https:\/\/:version\.:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex\s+Cache-Control: no-store, max-age=0/);
+  assert.match(headers, /https:\/\/:project\.pages\.dev\/\*\n\s+X-Robots-Tag: noindex\n/);
+  assert.match(headers, /https:\/\/:version\.:project\.pages\.dev\/\*\n\s+X-Robots-Tag: noindex\n/);
   // Web photo selection hands blob: object URLs to expo-image-manipulator; blocking them fails every upload as PHOTO_INVALID.
   assert.match(headers, /Content-Security-Policy:[^\n]*\bimg-src [^;\n]*\bblob:/, 'CSP img-src must allow blob: so web photo uploads can decode picked images');
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
+
+  // Repeat visits should not re-download the multi-megabyte bundle. Pages joins
+  // the Cache-Control of every matching rule with a comma instead of letting a
+  // later rule win, so exactly the content-hashed prefixes may declare one.
+  const rules = [];
+  for (const line of headers.split(/\r?\n/)) {
+    if (!line.trim() || line.trim().startsWith('#')) continue;
+    if (/^\s/.test(line)) {
+      const [name, ...rest] = line.trim().split(':');
+      assert.ok(rules.length, `Header outside any rule: ${line}`);
+      rules[rules.length - 1].headers[name.trim().toLowerCase()] = rest.join(':').trim();
+    } else {
+      rules.push({ pattern: line.trim(), headers: {} });
+    }
+  }
+  const cached = rules.filter((rule) => 'cache-control' in rule.headers);
+  assert.deepEqual(cached.map((rule) => rule.pattern), ['/_expo/static/*', '/assets/*'],
+    'Only the content-hashed export prefixes may set Cache-Control; a second matching rule would join, not override');
+  for (const rule of cached) {
+    assert.equal(rule.headers['cache-control'], 'public, max-age=31536000, immutable');
+  }
+  const longCached = cached.map((rule) => rule.pattern.replace(/\*$/, ''));
+  for (const asset of assets) {
+    assert.ok(longCached.some((prefix) => asset.startsWith(prefix)),
+      `${asset} is served without long-lived caching; every hashed export path must sit under ${longCached.join(' or ')}`);
+  }
+  // index.html names new hashed assets on each release. It must keep Pages'
+  // normal revalidation behavior instead of inheriting a long browser TTL.
+  assert.ok(!longCached.some((prefix) => '/index.html'.startsWith(prefix)),
+    'The SPA entry document must stay revalidated');
 
   const metaContent = (needle) => {
     const tag = [...html.matchAll(/<meta\b[^>]*>/g)].map((match) => match[0]).find((candidate) => candidate.includes(needle));
