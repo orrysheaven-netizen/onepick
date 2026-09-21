@@ -88,6 +88,7 @@ async function main() {
   };
   const { default: Request } = load('app/pick/request.tsx', {
     react: fakeReact, 'react-native': native,
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({
       push: (route) => { destination = route; }, replace: (route) => { destination = route; }, canGoBack: () => false,

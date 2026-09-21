@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions } from '@/hooks/useItemCategoryAi';
@@ -144,17 +145,14 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   };
 
   if (auth.isLoading) {
-    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><ActivityIndicator /><Text style={styles.stateText}>로그인 상태를 확인하고 있어요</Text></View></SafeAreaView>;
+    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
   }
 
   if (auth.error) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <Text style={styles.stateTitle}>로그인 상태를 확인하지 못했어요</Text>
-          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => void auth.retry()}>
-            <Text style={styles.primaryButtonText}>로그인 상태 다시 확인</Text>
-          </Pressable>
+          <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '로그인 상태 다시 확인', variant: 'secondary', onPress: () => void auth.retry() }} />
         </View>
       </SafeAreaView>
     );
@@ -164,11 +162,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <Text style={styles.stateTitle}>사용자명을 먼저 정해주세요</Text>
-          <Text style={styles.stateText}>제품 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.push({ pathname: '/auth/username', params: intent })}>
-            <Text style={styles.primaryButtonText}>사용자명 만들기</Text>
-          </Pressable>
+          <StateCard title="사용자명을 먼저 정해주세요" text="제품 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
+            action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: intent }) }} />
         </View>
       </SafeAreaView>
     );
@@ -179,16 +174,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <Text style={styles.kicker}>REQUEST SENT</Text>
-            <Text style={styles.stateTitle}>제품 등록 요청을 보냈어요</Text>
-            <Text style={styles.requestedName}>{submittedItem.name}</Text>
-            <Text style={styles.stateText}>내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 항목을 열어 원픽으로 선택해주세요.</Text>
-            <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
-              <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
-              <Text style={styles.retryText}>홈으로 돌아가기</Text>
-            </Pressable>
+            <StateCard title="제품 등록 요청을 보냈어요" text={`${submittedItem.name}\n내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 항목을 열어 원픽으로 선택해주세요.`}
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+            <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
         </SafeAreaView>
       );
@@ -198,17 +186,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <Text style={styles.kicker}>CATEGORY APPLIED</Text>
-            <Text style={styles.stateTitle}>카테고리를 적용했어요</Text>
-            <Text style={styles.requestedName}>{submittedItem.name}</Text>
-            <Text style={styles.appliedCategory}>{appliedCategoryLabel}</Text>
-            <Text style={styles.stateText}>최종 선택은 직접 적용되었습니다. 관리자 확인 후 승인된 제품을 원픽으로 선택할 수 있어요.</Text>
-            <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => router.replace('/(tabs)/profile')}>
-              <Text style={styles.primaryButtonText}>내 등록 요청 보기</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
-              <Text style={styles.retryText}>홈으로 돌아가기</Text>
-            </Pressable>
+            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 확인 후 승인된 제품을 원픽으로 선택할 수 있어요.`}
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+            <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
         </SafeAreaView>
       );
@@ -219,21 +199,15 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.kicker}>AI CATEGORY SUGGESTION</Text>
           <Text style={styles.title}>AI가 카테고리를 추천해요</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
           <Text style={styles.subtitle}>상품은 먼저 등록됐습니다. AI는 기존 카테고리 후보만 제안하며, 실제 적용은 직접 선택해야 합니다.</Text>
 
           {categorySuggestions.isPending ? (
-            <View style={styles.suggestionState}><ActivityIndicator /><Text style={styles.helper}>상품명과 기존 카테고리를 비교하고 있어요</Text></View>
+            <View style={styles.block}><StateCard loading title="상품명과 기존 카테고리를 비교하고 있어요" /></View>
           ) : categorySuggestions.isError ? (
-            <View style={styles.suggestionCard}>
-              <Text style={styles.stateTitleSmall}>AI 추천을 불러오지 못했어요</Text>
-              <Text style={styles.helper}>상품 등록은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요.</Text>
-              <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categorySuggestions.refetch()}>
-                <Text style={styles.retryText}>AI 추천 다시 받기</Text>
-              </Pressable>
-            </View>
+            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요" text="상품 등록은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
+              action={{ label: 'AI 추천 다시 받기', onPress: () => void categorySuggestions.refetch() }} /></View>
           ) : categorySuggestions.data ? (
             <View style={styles.suggestionCard}>
               <Text style={styles.suggestionTitle}>추천 카테고리</Text>
@@ -259,9 +233,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
               ) : null}
 
               {manualCategories.length > 0 ? (
-                <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => setShowAllCategories((value) => !value)}>
-                  <Text style={styles.retryText}>{showAllCategories ? '직접 선택 닫기' : '다른 카테고리 직접 선택'}</Text>
-                </Pressable>
+                <Button variant="ghost" size="sm" style={styles.inlineAction} onPress={() => setShowAllCategories((value) => !value)}
+                  label={showAllCategories ? '직접 선택 닫기' : '다른 카테고리 직접 선택'} />
               ) : null}
 
               {showAllCategories ? (
@@ -269,14 +242,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
                   {manualCategories.map((option) => {
                     const selected = selectedSuggestedCategoryId === option.categoryId;
                     return (
-                      <Pressable key={option.categoryId} accessibilityRole="radio"
-                        accessibilityLabel={`${option.label} 직접 카테고리 선택`}
-                        accessibilityState={{ selected, disabled: applyCategory.isPending }}
-                        disabled={applyCategory.isPending}
-                        onPress={() => setSelectedSuggestedCategoryId(option.categoryId)}
-                        style={[styles.manualCategory, selected && styles.manualCategorySelected]}>
-                        <Text style={[styles.manualCategoryText, selected && styles.suggestionLabelSelected]}>{option.label}</Text>
-                      </Pressable>
+                      <Chip key={option.categoryId} label={option.label} selected={selected} accessibilityLabel={`${option.label} 직접 카테고리 선택`}
+                        onPress={applyCategory.isPending ? undefined : () => setSelectedSuggestedCategoryId(option.categoryId)} />
                     );
                   })}
                 </View>
@@ -284,21 +251,15 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
               {applyCategory.isError ? <Text style={styles.error}>카테고리를 적용하지 못했어요. 선택은 유지되니 다시 시도하거나 나중에 정할 수 있어요.</Text> : null}
 
-              <Pressable accessibilityRole="button"
-                disabled={!selectedSuggestedCategoryId || applyCategory.isPending}
-                onPress={() => void applySelectedCategory()}
-                style={[styles.primaryButton, (!selectedSuggestedCategoryId || applyCategory.isPending) && styles.disabled]}>
-                {applyCategory.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.primaryButtonText}>이 카테고리 적용</Text>}
-              </Pressable>
+              <Button size="lg" fullWidth label="이 카테고리 적용" disabled={!selectedSuggestedCategoryId} loading={applyCategory.isPending}
+                onPress={() => void applySelectedCategory()} style={styles.primaryAction} />
             </View>
           ) : null}
 
-          <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/(tabs)/profile')}>
-            <Text style={styles.retryText}>카테고리는 나중에 정하기</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={styles.homeButton} onPress={() => router.replace('/')}>
-            <Text style={styles.retryText}>홈으로 돌아가기</Text>
-          </Pressable>
+          <View style={styles.laterRow}>
+            <Button variant="ghost" label="카테고리는 나중에 정하기" onPress={() => router.replace('/(tabs)/profile')} />
+            <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -310,7 +271,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
         </Pressable>
-        <Text style={styles.kicker}>새로운 원픽의 시작</Text>
+        <View style={styles.markRow}><View style={styles.mark}><Text style={styles.markText}>1</Text></View><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>제품 등록 요청</Text>
         <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 먼저 등록합니다. 일반 상품은 등록 뒤 AI가 기존 카테고리 후보를 제안하고, 최종 카테고리는 직접 선택합니다. 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
 
@@ -331,9 +292,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {categories.isPending ? <ActivityIndicator /> : categories.isError ? (
             <View>
               <Text style={styles.error}>선택한 종류를 확인하지 못했어요. 입력한 내용은 그대로 있어요.</Text>
-              <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void categories.refetch()}>
-                <Text style={styles.retryText}>종류 다시 확인하기</Text>
-              </Pressable>
+              <Button variant="ghost" size="sm" style={styles.inlineAction} label="종류 다시 확인하기" onPress={() => void categories.refetch()} />
             </View>
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
@@ -345,25 +304,17 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.photoTitle}>제품 대표 이미지 · 선택</Text>
           <Text style={styles.helper}>승인된 대표 사진 한 장을 같은 제품을 고른 사람들이 함께 사용해요.</Text>
           {auth.user ? <>
-            <Pressable accessibilityRole="button" disabled={submitting} style={[styles.photoButton, submitting && styles.disabled]} onPress={() => void getPhoto(false)}>
-              <Text style={styles.retryText}>{photo ? '사진 바꾸기' : '직접 사진 선택'}</Text>
-            </Pressable>
+            <Button variant="soft" fullWidth disabled={submitting} label={photo ? '사진 바꾸기' : '직접 사진 선택'} onPress={() => void getPhoto(false)} style={styles.photoButton} />
             <Text style={styles.helper}>또는 제조사 제품·이미지 링크에서 가져올 수 있어요.</Text>
             <TextInput accessibilityLabel="제품 이미지 링크" editable={!submitting} value={imageLink} onChangeText={setImageLink}
               autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" style={[styles.input, styles.linkInput]} />
-            <Pressable accessibilityRole="button" disabled={submitting || !imageLink.trim()} onPress={() => void getPhoto(true)} style={[styles.retryButton, (submitting || !imageLink.trim()) && styles.disabled]}>
-              <Text style={styles.retryText}>링크에서 이미지 가져오기</Text>
-            </Pressable>
-          </> : <Pressable accessibilityRole="button" style={styles.photoButton} onPress={() => router.push({ pathname: '/auth/login', params: intent })}>
-            <Text style={styles.retryText}>로그인하고 사진 추가</Text>
-          </Pressable>}
+            <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting || !imageLink.trim()} label="링크에서 이미지 가져오기" onPress={() => void getPhoto(true)} />
+          </> : <Button variant="soft" fullWidth label="로그인하고 사진 추가" onPress={() => router.push({ pathname: '/auth/login', params: intent })} style={styles.photoButton} />}
           {photoPicker.isPending || imageImport.isPending ? <View style={styles.photoLoading}><ActivityIndicator /><Text style={styles.helper}>사진을 준비하고 있어요</Text></View> : null}
           {photoPicker.isError || imageImport.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(photoPicker.error ?? imageImport.error)}</Text> : null}
           {photo ? <>
             <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="제품 대표 이미지 미리보기" />
-            <Pressable accessibilityRole="button" disabled={submitting} style={styles.retryButton} onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }}>
-              <Text style={styles.retryText}>사진 제거</Text>
-            </Pressable>
+            <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting} label="사진 제거" onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }} />
           </> : null}
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
         </View>
@@ -378,23 +329,14 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         {auth.user && profile.isError ? (
           <View>
             <Text style={styles.error}>프로필을 불러오지 못했어요. 다시 확인한 뒤 요청해주세요.</Text>
-            <Pressable accessibilityRole="button" style={styles.retryButton} onPress={() => void profile.refetch()}>
-              <Text style={styles.retryText}>프로필 다시 불러오기</Text>
-            </Pressable>
+            <Button variant="ghost" size="sm" style={styles.inlineAction} label="프로필 다시 불러오기" onPress={() => void profile.refetch()} />
           </View>
         ) : null}
 
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={!canSubmit}
-          onPress={() => void submit()}
-          style={[styles.primaryButton, !canSubmit && styles.disabled]}>
-          {registration.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : (
-            <Text style={styles.primaryButtonText}>{auth.user ? '제품 등록 요청 보내기' : '로그인하고 요청하기'}</Text>
-          )}
-        </Pressable>
+        <Button size="lg" fullWidth disabled={!canSubmit && !registration.isPending} loading={registration.isPending}
+          label={auth.user ? '제품 등록 요청 보내기' : '로그인하고 요청하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -402,54 +344,42 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
-  center: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 36 },
+  block: { marginTop: 22 },
+  centered: { alignSelf: 'center' },
+  inlineAction: { alignSelf: 'flex-start', marginTop: 6 },
+  primaryAction: { marginTop: 22 },
+  laterRow: { alignItems: 'center', marginTop: 12 },
+  markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  mark: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accent },
+  markText: { color: OnePick.onAccent, fontSize: 14, lineHeight: 16, fontWeight: '900' },
+  markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },
   back: { color: OnePick.text, fontSize: 36, lineHeight: 42 },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 16 },
-  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '900', marginTop: 8 },
-  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
-  label: { color: OnePick.text, fontSize: 15, fontWeight: '800', marginTop: 25, marginBottom: 9 },
-  input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, paddingHorizontal: 15, color: OnePick.text, fontSize: 15 },
-  selectedCategory: { color: OnePick.accent, fontSize: 12, fontWeight: '800', marginBottom: 9 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.sunken, paddingHorizontal: 14, paddingVertical: 10 },
-  chipActive: { backgroundColor: OnePick.accent },
-  chipText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: OnePick.onAccent },
-  helper: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 10 },
-  notice: { backgroundColor: OnePick.sunken, borderRadius: 14, padding: 13, marginTop: 18 },
-  noticeText: { color: OnePick.muted, fontSize: 12, lineHeight: 17 },
-  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 14 },
-  retryButton: { alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 4 },
-  homeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, marginTop: 8 },
-  retryText: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
-  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 22 },
-  primaryButtonText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '900' },
-  requestedName: { color: OnePick.text, fontSize: 18, fontWeight: '900', marginTop: 18, textAlign: 'center' },
-  requestedNameLeft: { color: OnePick.text, fontSize: 19, fontWeight: '900', marginTop: 16 },
-  appliedCategory: { color: OnePick.accent, fontSize: 14, fontWeight: '900', marginTop: 12, textAlign: 'center' },
-  stateTitle: { color: OnePick.text, fontSize: 21, fontWeight: '900', marginTop: 10, textAlign: 'center' },
-  stateTitleSmall: { color: OnePick.text, fontSize: 16, fontWeight: '900' },
-  stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  disabled: { opacity: 0.4 },
-  photoCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, padding: 18, marginTop: 24 },
-  photoTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  photoButton: { minHeight: 48, justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accentSoft, padding: 14, marginTop: 14 },
-  photoPreview: { width: '100%', height: 220, backgroundColor: OnePick.background, borderRadius: 14, marginTop: 12 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
+  label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginTop: 24, marginBottom: 8 },
+  input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 15 },
+  selectedCategory: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600', marginBottom: 8 },
+  helper: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 10 },
+  notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 18 },
+  noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },
+  error: { color: OnePick.danger, fontSize: 13, lineHeight: 18, marginTop: 14 },
+  requestedNameLeft: { color: OnePick.text, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4, marginTop: 14 },
+  photoCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginTop: 24 },
+  photoTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  photoButton: { marginTop: 14 },
+  photoPreview: { width: '100%', height: 220, backgroundColor: OnePick.sunken, borderRadius: 12, marginTop: 12 },
   photoLoading: { alignItems: 'center', paddingVertical: 10 },
-  suggestionState: { alignItems: 'center', paddingVertical: 28 },
-  suggestionCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 18, padding: 18, marginTop: 22 },
-  suggestionTitle: { color: OnePick.text, fontSize: 15, fontWeight: '900', marginBottom: 4 },
-  suggestionOption: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 15, padding: 14, marginTop: 10 },
+  suggestionCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginTop: 22 },
+  suggestionTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 4 },
+  suggestionOption: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, padding: 14, marginTop: 10 },
   suggestionOptionSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
-  suggestionLabel: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
-  suggestionLabelSelected: { color: OnePick.accent },
-  suggestionReason: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  categoryGapNotice: { color: OnePick.muted, backgroundColor: OnePick.background, borderRadius: 12, padding: 12, fontSize: 12, lineHeight: 18, marginTop: 13 },
+  suggestionLabel: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  suggestionLabelSelected: { color: OnePick.accentDeep },
+  suggestionReason: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
+  categoryGapNotice: { color: OnePick.muted, backgroundColor: OnePick.sunken, borderRadius: 12, padding: 12, fontSize: 13, lineHeight: 18, marginTop: 12 },
   manualCategoryList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  manualCategory: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
-  manualCategorySelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
-  manualCategoryText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   linkInput: { marginTop: 10 },
 });
