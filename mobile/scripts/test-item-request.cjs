@@ -157,7 +157,7 @@ async function main() {
   assert.equal(presses.find((p) => p.accessibilityLabel === '돌아가기').disabled, true);
   rejectRequest(new Error('offline')); await settle();
   mutation.isPending = false; mutation.isError = true; mutation.error = new Error('offline');
-  assert.match(render(), /요청을 보내지 못했어요/);
+  assert.match(render(), /상품을 등록하지 못했어요/);
   assert.equal(nameInput().value, '  수정한   라면  ', 'A failed request keeps the edited draft');
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-ramen', name: '수정한 라면' } });
   press('상품 등록하기'); await settle();
