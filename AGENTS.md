@@ -5,3 +5,7 @@ Read `CLAUDE.md` first. It holds the branching rule (`main` is the single trunk,
 ## Working tree
 
 The primary checkout is shared by several concurrent agent sessions. Never checkout, switch, commit, reset or stash there. Create your own worktree from `origin/main`, work and push from it, open the PR with `--head <branch>`, and remove the worktree after the merge. Uncommitted changes you find in the primary checkout belong to another session; leave them out of your commits.
+
+## Role division
+
+ChatGPT/Codex is the primary builder; Claude Code is the independent reviewer/QA. GitHub is the source of truth, and agents should not implement the same feature in parallel. See `docs/ai-role-division.md`.
