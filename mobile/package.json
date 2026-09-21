@@ -48,7 +48,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "build:web": "expo export --platform web && node scripts/apply-link-preview-head.cjs dist",
     "build:web:release": "node scripts/build-web-release.cjs",
     "check:web:release-env": "node scripts/build-web-release.cjs --check",
     "preview:web": "serve dist --single --listen tcp://127.0.0.1:4173 --no-clipboard",

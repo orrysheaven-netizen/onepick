@@ -85,6 +85,9 @@ function main() {
   const releaseDir = path.join(root, 'dist-release');
   fs.rmSync(releaseDir, { recursive: true, force: true });
   run([require.resolve('expo/bin/cli'), 'export', '--platform', 'web', '--output-dir', 'dist-release', '--clear']);
+  // `web.output: "single"` gives the export no document head hook, so the
+  // default social card is written in afterwards. See the script's comment.
+  run([path.join(__dirname, 'apply-link-preview-head.cjs'), 'dist-release']);
 
   // Expose only non-sensitive build identity so production/preview drift can
   // be diagnosed without inspecting bundled application code.

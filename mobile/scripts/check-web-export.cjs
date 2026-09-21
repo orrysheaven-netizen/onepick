@@ -25,6 +25,16 @@ async function main() {
   assert.match(headers, /https:\/\/:version\.:project\.pages\.dev\/\*\s+X-Robots-Tag: noindex\s+Cache-Control: no-store, max-age=0/);
   // Web photo selection hands blob: object URLs to expo-image-manipulator; blocking them fails every upload as PHOTO_INVALID.
   assert.match(headers, /Content-Security-Policy:[^\n]*\bimg-src [^;\n]*\bblob:/, 'CSP img-src must allow blob: so web photo uploads can decode picked images');
+  // A shared link with no Open Graph tags renders as a bare URL in chat apps.
+  // The markers delimit the region the Pages Function rewrites per route.
+  assert.match(html, /<meta name="onepick:preview" content="start"\/>/, 'Export must carry the default link preview region');
+  assert.match(html, /<meta name="onepick:preview" content="end"\/>/, 'The preview region must be closed for the edge renderer to find it');
+  for (const tag of ['og:title', 'og:description', 'og:site_name', 'og:type']) {
+    assert.match(html, new RegExp(`<meta property="${tag}" content="[^"]+"/>`), `Link previews need a non-empty ${tag}`);
+  }
+  assert.match(html, /<meta name="description" content="[^"]+"\/>/, 'Link previews need a non-empty description');
+  assert.match(html, /<html lang="ko"/, 'The exported shell states its Korean copy');
+
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
 

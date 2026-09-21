@@ -123,8 +123,14 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
 
-The SPA choice does not generate per-Pick search-engine/social-preview HTML.
-Rich link previews and server rendering are separate follow-up work.
+The SPA choice does not generate per-Pick HTML at build time. Social link
+previews are handled after the export instead: the default card is written into
+`index.html` by `scripts/apply-link-preview-head.cjs`, and the Pages Functions in
+`mobile/functions/` replace that one head region per shared link. They read the
+same public `EXPO_PUBLIC_SUPABASE_*` settings at runtime and fall back to the
+default card when those are absent, so nothing new has to be configured to
+deploy. See [공유 링크 미리보기](link-previews.md). Server rendering for search
+engines remains separate follow-up work.
 
 References: [Expo web publishing](https://docs.expo.dev/guides/publishing-websites/),
 [Expo static rendering](https://docs.expo.dev/router/web/static-rendering/),
