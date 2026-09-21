@@ -29,7 +29,7 @@ const { PickPhoto } = load('components/pick-photo.tsx', {
   'react-native': {
     View: component('div'),
     Text: component('span'),
-    Pressable: (props) => React.createElement('button', props, props.children),
+    Pressable: ({ style: _style, ...props }) => React.createElement('button', props, props.children),
     Image: ({ source, accessibilityLabel }) => React.createElement('img', { src: source.uri, alt: accessibilityLabel }),
     StyleSheet: { create: (styles) => styles },
   },
@@ -48,5 +48,9 @@ assert.doesNotMatch(remote, /사진 준비 중/);
 const large = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '센과 치히로의 행방불명', large: true }));
 assert.match(large, /센과 치히로의 행방불명/);
 assert.match(large, /사진 준비 중/);
+
+const addable = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '신라면', itemId: 'a1111111-1111-4111-8111-111111111111' }));
+assert.match(addable, /사진 등록/, 'An addable item shows the add-photo button');
+assert.doesNotMatch(addable, /사진 없음|사진 준비 중/, 'The add state is the button alone, without an empty-state caption');
 
 console.log('PickPhoto checks passed: real images stay intact and missing images use intentional product placeholders.');
