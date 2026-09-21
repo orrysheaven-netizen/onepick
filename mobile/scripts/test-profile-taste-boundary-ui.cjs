@@ -140,6 +140,23 @@ const legacyUpgradeStatus = {
   isStale: true,
 };
 
+// 원픽이 15개인데 5/10을 보는 사람에게 "원픽 5개"는 틀린 말이다. 그래서 센
+// 대상을 밝히고, 제외 사실을 한 번만 알린다.
+const serviceHeavyStatus = {
+  ...nineStatus,
+  currentPickCount: 15,
+  tastePickCount: 5,
+};
+
+rendered = renderAi(serviceHeavyStatus, 5);
+assert.match(rendered.html, /취향 카테고리 원픽 5\/10 · 5개를 채우면 AI 평가가 열려요/);
+assert.match(rendered.html, /온라인·오프라인 카테고리 원픽은 취향 평가에 넣지 않아요/);
+assert.equal(
+  rendered.button('AI 평가 보기').disabled,
+  true,
+  'service Picks must not open the AI review CTA',
+);
+
 rendered = renderAi(legacyUpgradeStatus, 10);
 assert.match(rendered.html, /10개의 취향 원픽이 모였어요\. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요/);
 assert.ok(rendered.button('AI가 다시 본 나'), 'legacy review below ten picks must keep its one-time upgrade CTA');

@@ -15,7 +15,7 @@
 -- 취향 구성에서 빠져 있던 주류 원픽을 다시 세게 만드는 변경이다.
 -- AI 평가 결과는 이미 주류를 재료로 써왔으므로 달라지지 않는다.
 --
--- docs/dangol-entry-direction.md 참조.
+-- docs/life-service-entry-direction.md 참조.
 
 insert into public.category_taste_dimensions(
   category_id, dimension_code, weight, is_primary

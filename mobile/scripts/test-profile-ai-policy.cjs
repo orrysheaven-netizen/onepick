@@ -20,6 +20,9 @@ assert.match(generate, /!isAdmin && existing\.generated_at/);
 assert.match(status, /rpc\('profile_taste_picks'/);
 assert.match(generate, /rpc\('profile_taste_picks'/);
 assert.match(status, /tastePickCount >= 10/);
+// 양성 단언만으로는 currentPickCount 게이트가 나란히 추가되는 것을 못 잡는다.
+// 분모를 다시 넓히면 여기서 걸린다.
+assert.doesNotMatch(status, /currentPickCount >= /);
 assert.match(status, /meaningfulChangeCount\(snapshot, tasteRows\)/);
 assert.match(status, /changedCount >= 5/);
 assert.match(status, /7 \* 24 \* 60 \* 60 \* 1000/);
