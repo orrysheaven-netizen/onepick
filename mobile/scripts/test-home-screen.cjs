@@ -44,6 +44,7 @@ const native = {
     FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
+    Linking: { openURL: async () => {} },
 };
 const pickPhoto = { PickPhoto: () => null };
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto });
@@ -54,7 +55,12 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
-  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
+  '@/components/home-feed-card': load('components/home-feed-card.tsx', {
+    '@/components/ui': ui,
+    'react-native': native,
+    '@/lib/format/relativeTime': load('lib/format/relativeTime.ts'),
+    '@/lib/format/purchaseHost': load('lib/format/purchaseHost.ts'),
+  }),
   '@/hooks/useFollow': { useFollowingFeed: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, isRefetching: false, hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false, refetch: async () => {}, fetchNextPage: async () => {} }) },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
