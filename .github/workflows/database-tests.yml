@@ -22,6 +22,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Fail fast before starting a local database when concurrent branches reused a version.
+      - name: Check unique migration versions
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+
+          files = sorted(Path("supabase/migrations").glob("*.sql"))
+          versions = [path.name.split("_", 1)[0] for path in files]
+          duplicates = [version for version, count in Counter(versions).items() if count > 1]
+          if duplicates:
+              for version in duplicates:
+                  matching = [path.name for path in files if path.name.startswith(version + "_")]
+                  print(f"Duplicate migration version {version}: " + ", ".join(matching))
+              raise SystemExit("Migration version prefixes must be unique.")
+          print(f"Checked {len(files)} migrations: all version prefixes are unique.")
+          PY
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
