@@ -74,7 +74,7 @@ async function main() {
     'a successful onboarding Pick must be recorded as picked',
   );
 
-  // 3) The fifth Pick must make cached AI eligibility stale so READY_FIRST can be refetched.
+  // 3) The tenth Pick must make cached AI eligibility stale so READY_FIRST can be refetched.
   const { queryKeys } = load('src/lib/query/queryKeys.ts');
   const { invalidatePickData } = load('src/lib/query/invalidatePickData.ts', {
     './queryKeys': { queryKeys },
@@ -85,15 +85,15 @@ async function main() {
   const aiKey = queryKeys.profileAi.status(userId);
 
   cache.setQueryData(aiKey, {
-    currentPickCount: 4,
-    minimumPicks: 5,
+    currentPickCount: 9,
+    minimumPicks: 10,
     canGenerate: false,
     reason: 'NEED_FIRST_PICKS',
   });
 
   let pickMutation;
   const savedPick = {
-    id: 'pick-5',
+    id: 'pick-10',
     userId,
     categoryId,
     itemId,
@@ -122,17 +122,17 @@ async function main() {
     itemId,
     oneLineReview: savedPick.oneLineReview,
   });
-  assert.equal(returnedPick.id, 'pick-5');
+  assert.equal(returnedPick.id, 'pick-10');
   await pickMutation.onSuccess(returnedPick);
   assert.equal(
     cache.getQueryState(aiKey).isInvalidated,
     true,
-    'saving the fifth Pick must invalidate cached AI eligibility',
+    'saving the tenth Pick must invalidate cached AI eligibility',
   );
 
   cache.setQueryData(aiKey, {
-    currentPickCount: 5,
-    minimumPicks: 5,
+    currentPickCount: 10,
+    minimumPicks: 10,
     canGenerate: true,
     reason: 'READY_FIRST',
   });
@@ -225,7 +225,7 @@ async function main() {
   }
 
   cache.clear();
-  console.log('First-user pre-launch journey passed: login -> username -> onboarding -> fifth Pick -> AI request -> public profile share.');
+  console.log('First-user pre-launch journey passed: login -> username -> onboarding -> tenth Pick -> AI request -> public profile share.');
 }
 
 main().catch((error) => {
