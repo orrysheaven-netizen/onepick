@@ -4,26 +4,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
+import { toDomainCategory } from '@/lib/admin/adminCategory';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
-import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
-
-function toDomainCategory(category: AdminCategory): Category {
-  return {
-    id: category.id,
-    parentId: category.parent_id,
-    name: category.name,
-    slug: category.slug,
-    status: category.status,
-    isVisible: category.is_visible,
-    isPickable: category.is_pickable,
-    rankingMinSample: category.ranking_min_sample,
-    sortOrder: category.sort_order,
-    imageUrl: category.image_url,
-    createdAt: '',
-    updatedAt: '',
-  };
-}
 
 const FILTERS: Array<{ value: AdminItemStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
