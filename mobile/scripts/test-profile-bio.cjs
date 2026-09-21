@@ -174,7 +174,9 @@ async function main() {
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
+    '@/hooks/useProfileAi': { useProfileAiComment: () => ({ data: null }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
+    '@/lib/share/shareProfileCard': { shareProfileCardImage: async () => 'shared' },
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
   });
   const publicMarkup = renderToStaticMarkup(React.createElement(PublicProfile));

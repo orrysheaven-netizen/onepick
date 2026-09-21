@@ -10,6 +10,13 @@ function transpile(file) {
   }).outputText;
 }
 
+// The canvas primitives are shared with the profile card, so they load as their own module.
+function loadCardCanvas() {
+  const exports = {};
+  vm.runInNewContext(transpile('lib/share/cardCanvas.ts'), { exports, Uint8Array });
+  return exports;
+}
+
 function loadWeb(globals) {
   const exports = {};
   const drawn = [];
@@ -32,6 +39,7 @@ function loadWeb(globals) {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === './shareLinks') return { createPickShareUrl: (id) => 'https://onepick.example/pick/' + id };
       if (name === './sharePick') return {};
+      if (name === './cardCanvas') return loadCardCanvas();
       throw new Error(name);
     },
   };

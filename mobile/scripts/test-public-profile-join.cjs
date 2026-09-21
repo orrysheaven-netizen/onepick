@@ -29,12 +29,28 @@ assert.ok(picksIndex >= 0 && shareIndex >= 0, 'the picks and share sections must
 assert.ok(joinIndex > picksIndex, 'the join call to action must follow the category picks');
 assert.ok(joinIndex < shareIndex, 'the join call to action must come before the share card');
 
-// The follow button keeps its own intent: it returns the visitor to the profile they were reading.
+// The follow button keeps its own intent: an existing account returns to the profile it was reading.
 assert.match(
   profile,
   /params: \{ action: 'view_profile', username: query\.data!\.profile\.username \}/,
-  'following must keep returning the visitor to this profile',
+  'following must keep returning an existing account to this profile',
 );
+
+// A brand-new account that signed up to follow owns nothing yet, so it onboards first.
+assert.match(
+  username,
+  /const ONBOARDING_INTENTS = new Set<AuthIntent\['action'\]>\(\[[^\]]*'view_profile'[^\]]*\]\)/,
+  'a new account created from a profile follow must enter onboarding',
+);
+
+// Intents with an action still in flight must keep resuming it instead of onboarding.
+for (const action of ['comment_pick', 'choose_pick', 'request_item', 'add_item_photo']) {
+  assert.doesNotMatch(
+    username,
+    new RegExp(`const ONBOARDING_INTENTS = new Set<AuthIntent\\['action'\\]>\\(\\[[^\\]]*'${action}'`),
+    `${action} carries an action in flight and must not be diverted to onboarding`,
+  );
+}
 
 // A brand-new account from that intent starts taste onboarding, like the home intent does.
 assert.match(

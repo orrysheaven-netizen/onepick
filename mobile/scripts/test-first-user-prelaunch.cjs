@@ -193,10 +193,17 @@ async function main() {
     /openPublicProfile = \(\) => router\.push\({ pathname: '\/u\/\[username\]'[\s\S]*?username: profile\.username/,
     'the owner profile must open its public profile by username',
   );
+  // The share now leads with a card image; the text share is the path that keeps the link
+  // reachable when the platform cannot share a file.
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: query\.data\.profile\.username, pickCount: query\.data\.currentPicks\.length }\)/,
-    'the public profile must share the loaded username and current Pick count',
+    /shareProfileCardImage\(\{\s*\n\s*username: profile\.username,/,
+    'the public profile must offer its collection as a card image',
+  );
+  assert.match(
+    publicProfileSource,
+    /await shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    'the public profile must fall back to sharing the username and current Pick count',
   );
   assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
 

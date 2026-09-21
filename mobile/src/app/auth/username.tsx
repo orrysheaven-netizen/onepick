@@ -21,8 +21,11 @@ function getMessage(error: unknown) {
   return '사용자명을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
-// Intents that carry no destination of their own: a brand-new account starts taste onboarding instead.
-const ONBOARDING_INTENTS = new Set<AuthIntent['action']>(['home', 'join_from_profile']);
+// Intents with no action left in flight: a brand-new account starts taste onboarding instead.
+// view_profile belongs here because following still needs a second press after returning, so a
+// new account would otherwise land on a stranger's profile owning nothing itself. Intents that do
+// carry an action (comment_pick, choose_*, request_item) keep resuming it.
+const ONBOARDING_INTENTS = new Set<AuthIntent['action']>(['home', 'join_from_profile', 'view_profile']);
 
 export default function UsernameScreen() {
   const auth = useAuthSession();

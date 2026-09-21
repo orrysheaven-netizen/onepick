@@ -13,8 +13,10 @@ import { ReportAction } from '@/components/report-action';
 import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
+import { useProfileAiComment } from '@/hooks/useProfileAi';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
+import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
 import { isSeedProfileId } from '@/lib/seedProfiles';
 import { OnePick } from '@/constants/onepick';
 
@@ -24,16 +26,38 @@ export default function PublicProfileScreen() {
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
   const categoriesQuery = useExploreCategories(Boolean(query.data));
+  const aiCommentQuery = useProfileAiComment(query.data?.profile.id);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const [cardNotice, setCardNotice] = useState<string | null>(null);
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
+    const { profile, currentPicks } = query.data;
     setIsSharing(true);
     setShareError(false);
+    setCardNotice(null);
     try {
-      await shareProfile({ username: query.data.profile.username, pickCount: query.data.currentPicks.length });
+      // The card carries the collection; the text share is what keeps the link reachable when it cannot.
+      let needsLink = false;
+      try {
+        const result = await shareProfileCardImage({
+          username: profile.username,
+          picks: currentPicks.map((entry) => ({
+            categoryName: entry.category?.name ?? '',
+            itemName: entry.item?.name ?? '',
+          })),
+          aiComment: aiCommentQuery.data ?? null,
+        });
+        if (result === 'downloaded-with-link') setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
+        needsLink = result === 'downloaded';
+      } catch (error) {
+        if (error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError') return;
+        needsLink = true;
+      }
+      if (!needsLink) return;
+      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
     } catch { setShareError(true); }
     finally { setIsSharing(false); }
   };
@@ -97,7 +121,8 @@ export default function PublicProfileScreen() {
           </View> : null}
           <View style={styles.shareCard}>
             <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
-            <Text style={styles.shareText}>이 프로필의 원픽 컬렉션을 링크로 전해보세요.</Text>
+            <Text style={styles.shareText}>원픽이 담긴 카드 이미지와 프로필 링크를 함께 보낼 수 있어요.</Text>
+            {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
             {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
             <Button variant="secondary" fullWidth style={styles.shareButton} label="프로필 공유하기" loading={isSharing} onPress={() => void handleShare()} />
           </View>
@@ -134,6 +159,7 @@ const styles = StyleSheet.create({
   shareCard: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 22 },
   shareTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
   shareText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  shareNotice: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 17, marginTop: 10 },
   shareError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 10 },
   shareButton: { marginTop: 14 },
   mineRow: { alignItems: 'center', marginTop: 8 },
