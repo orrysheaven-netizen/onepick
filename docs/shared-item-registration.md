@@ -45,8 +45,9 @@ The MVP Admin dashboard provides:
 
 1. **Pending item review**
    - requester username
-   - category
-   - likely duplicate items
+   - the approval category. Categoryless requests remain staged until an admin chooses a selectable leaf category.
+   - when a stored AI category suggestion exists, the review screen highlights the strongest still-selectable suggestion, but the admin makes the final choice.
+   - likely duplicate items, searched in the chosen category
    - approve as a new official item
    - merge into an existing item
    - reject
