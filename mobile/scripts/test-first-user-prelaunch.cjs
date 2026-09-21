@@ -50,8 +50,8 @@ async function main() {
   );
   assert.match(
     usernameSource,
-    /intent\.action === 'home' \? '\/onboarding' : getPostAuthRoute\(intent\)/,
-    'saving the first username from the home intent must enter onboarding',
+    /ONBOARDING_INTENTS\.has\(intent\.action\) \? '\/onboarding' : getPostAuthRoute\(intent\)/,
+    'saving the first username from an onboarding intent must enter onboarding',
   );
 
   // 2) Onboarding -> Pick finder -> choose screen.
