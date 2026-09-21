@@ -89,6 +89,7 @@ function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemReques
     </View>
     <Text style={styles.requestName}>{item.item.name}</Text>
     <Text style={styles.requestDescription}>{state.description}</Text>
+    {item.item.requestedCategoryLabel ? <Text style={styles.requestDescription}>요청한 카테고리: {item.item.requestedCategoryLabel}</Text> : null}
     {state.targetId ? <Text style={styles.requestAction}>정식 제품 보기 ›</Text> : null}
   </View>;
   return <View style={styles.requestCard}>

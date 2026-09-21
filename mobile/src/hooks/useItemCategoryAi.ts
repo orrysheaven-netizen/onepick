@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import { itemCategoryAiService } from '@/services/itemCategoryAiService';
+import { registrationService } from '@/services';
 
 const suggestionKey = (itemId: string) => ['item-category-ai', itemId] as const;
 
@@ -25,5 +26,17 @@ export function useApplyItemCategory(itemId?: string) {
       invalidatePickData(client);
       if (itemId) await client.invalidateQueries({ queryKey: suggestionKey(itemId) });
     },
+  });
+}
+
+/** Free-text category hint for a pending request when no suggested category fits. */
+export function useSetItemCategoryHint(itemId?: string, userId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (label: string) => {
+      if (!itemId || !userId) throw new Error('ITEM_REQUIRED');
+      return registrationService.setCategoryHint({ userId, itemId, label });
+    },
+    onSuccess: () => invalidatePickData(client),
   });
 }

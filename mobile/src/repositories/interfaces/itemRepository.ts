@@ -12,6 +12,8 @@ export interface ItemRepository {
   attachPhoto(input: AttachItemPhotoInput): Promise<Item>;
   submitItem(input: SubmitItemInput): Promise<Item>;
   submitUnclassifiedItem(input: SubmitUnclassifiedItemInput): Promise<Item>;
+  /** Writes (or clears, with null) the requester's free-text category hint on their own pending request. */
+  setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
   getById(itemId: string): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;
