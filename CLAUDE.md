@@ -27,3 +27,7 @@ supabase test db
 ```
 
 An existing local Docker volume can be behind the migration files after a pull or branch change. `migration up --local --include-all` applies migrations missing from the local migration history without rebuilding the database. Do not use `supabase stop --no-backup` just to catch up migrations; that removes local data. See `docs/development-start.md`.
+
+# Role division
+
+ChatGPT/Codex is the primary builder for feature implementation, migrations, and deployment work. Claude Code is the independent reviewer/QA and should avoid duplicating feature work already owned by the builder. GitHub `main`, PRs, migrations, and test results are the source of truth. See `docs/ai-role-division.md`.
