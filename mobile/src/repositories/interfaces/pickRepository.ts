@@ -1,12 +1,20 @@
 import type { Pick } from '@/types/domain/pick';
 
-export interface ChangePickInput {
+// purchaseUrl / purchaseTip follow the RPC contract: undefined leaves the
+// stored value alone, '' clears it. A caller that only edits the review must
+// not wipe a link the person saved earlier.
+export interface PurchaseLinkInput {
+  purchaseUrl?: string;
+  purchaseTip?: string;
+}
+
+export interface ChangePickInput extends PurchaseLinkInput {
   categoryId: string;
   itemId: string;
   oneLineReview: string;
 }
 
-export interface UpdatePickReviewInput {
+export interface UpdatePickReviewInput extends PurchaseLinkInput {
   pickId: string;
   oneLineReview: string;
 }
