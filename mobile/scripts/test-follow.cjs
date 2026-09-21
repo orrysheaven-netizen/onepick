@@ -136,7 +136,7 @@ async function main() {
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /follow: false/, 'Follow stays dormant until an explicit product rollout decision');
+  assert.match(featureSource, /follow: true/, 'Restaurant-first MVP keeps follow exposed');
   assert.match(publicProfile, /action: 'view_profile'/);
 
   console.log('Follow checks passed: service guards, login return intent, button states, home scope and profile placement.');
