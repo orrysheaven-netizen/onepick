@@ -64,8 +64,14 @@ export const OnePickSpace = {
 } as const;
 
 
-// Features that require database migrations not yet present in the linked dev DB.
-// Keep the code paths intact, but do not expose them until the schema is synchronized.
+// Feature exposure gates. Database support can be ready while an MVP feature
+// remains intentionally hidden until an explicit product rollout decision.
+//
+// follow: schema and code paths are ready, but the current MVP product policy
+// keeps follow, the following feed, follower counts, and follow notifications hidden.
+//
+// purchaseLinks: schema is ready too, but the feed/profile surfaces that make
+// purchase links useful are not fully rolled out yet.
 export const OnePickFeatures = {
   follow: false,
   purchaseLinks: false,
