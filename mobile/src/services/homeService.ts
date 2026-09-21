@@ -13,18 +13,29 @@ export class HomeService {
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
   async getHomeData(userId?: string, cursor: ReadCursor | null = null) {
-    const openCategories = await this.categoryRepository.getOpenCategories();
-    const [currentPicks, feed, editorialItems] = await Promise.all([
-      userId
+    // Everything here is independent, so it goes out in one round trip rather
+    // than waiting for the category list first: on the first screen people see,
+    // a sequential read added a full request to time-to-content.
+    // Only the first page's categories, collection and editorial list are read;
+    // later pages contribute feed rows only, and the Home query keeps the first
+    // page's values for the rest.
+    const firstPage = cursor === null;
+    const [openCategories, currentPicks, feed, editorialItems] = await Promise.all([
+      firstPage
+        ? this.categoryRepository.getOpenCategories()
+        : Promise.resolve([] as Awaited<ReturnType<CategoryRepository['getOpenCategories']>>),
+      firstPage && userId
         ? this.readRepository.getPicks({
             userId,
             statuses: ['active', 'needs_review'],
             orderBy: 'updated_at',
             limit: 100,
           })
-        : Promise.resolve([]),
+        : Promise.resolve([] as Awaited<ReturnType<ReadRepository['getPicks']>>),
       this.readRepository.getHomePicks(cursor),
-      cursor ? Promise.resolve([]) : this.readRepository.getEditorialHomeItems(6),
+      firstPage
+        ? this.readRepository.getEditorialHomeItems(6)
+        : Promise.resolve([] as Awaited<ReturnType<ReadRepository['getEditorialHomeItems']>>),
     ]);
 
     return {

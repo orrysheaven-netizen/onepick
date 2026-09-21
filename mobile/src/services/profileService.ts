@@ -37,15 +37,20 @@ export class ProfileService {
   }
 
   async getMyProfile(userId: string) {
-    const profile = await this.profileRepository.getById(userId);
+    // Both reads are keyed by the same user id, so the collection does not wait
+    // for the profile row. A user without a profile yet is the transient
+    // onboarding state: the collection read comes back empty and this still
+    // fails with PROFILE_NOT_FOUND, at the cost of one wasted read there.
+    const [profile, currentPicks] = await Promise.all([
+      this.profileRepository.getById(userId),
+      this.readRepository.getPicks({
+        userId,
+        statuses: ['active', 'needs_review'],
+        orderBy: 'updated_at',
+        limit: 100,
+      }),
+    ]);
     if (!profile) throw new AppError('PROFILE_NOT_FOUND');
-
-    const currentPicks = await this.readRepository.getPicks({
-      userId,
-      statuses: ['active', 'needs_review'],
-      orderBy: 'updated_at',
-      limit: 100,
-    });
 
     return { profile, currentPicks };
   }

@@ -4,12 +4,28 @@
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://image.tmdb.org https://images.igdb.com https://coverartarchive.org https://archive.org https://*.archive.org https://raw.githubusercontent.com https://i.ytimg.com https://*.ytimg.com https://yt3.ggpht.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   Referrer-Policy: strict-origin-when-cross-origin
 
+# Expo writes the JavaScript, CSS and imported images under these two prefixes
+# with a content hash in every filename, so a given URL can never change: a new
+# release publishes new filenames and index.html points at them. Caching them
+# for a year turns a repeat visit into zero requests for the ~3 MB bundle
+# instead of a full re-download.
+#
+# Nothing else may set Cache-Control. Cloudflare Pages joins the values of
+# every matching rule with a comma, so a second Cache-Control rule covering
+# these paths would produce a self-contradicting header rather than overriding
+# this one. Everything not listed here -- index.html above all -- keeps the
+# Pages default of `public, max-age=0, must-revalidate` plus an ETag, which
+# revalidates on every load and can never serve an old release's HTML.
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
 # Ask search engines not to index the test host or its preview deployments.
 # This is not authentication; anyone with the URL can still open the site.
 https://:project.pages.dev/*
   X-Robots-Tag: noindex
-  Cache-Control: no-store, max-age=0
 
 https://:version.:project.pages.dev/*
   X-Robots-Tag: noindex
-  Cache-Control: no-store, max-age=0

@@ -105,10 +105,13 @@ assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.match(publicProfile, /<ProfilePickGroups/);
 assert.match(publicProfile, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
-assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
+// A shared profile link is a cold open for a new reader: the public category
+// list goes out with the profile read, not behind it.
+assert.match(publicProfile, /useExploreCategories\(\)/);
 
 assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
-assert.match(exploreHook, /enabled \}\);/);
+// Both profile screens pass their own gate, so the hook has to honour it.
+assert.match(exploreHook, /useQuery\(\{[\s\S]*?\n\s+enabled,\n[\s\S]*?\}\);/);
 
 console.log('Profile Pick groups checks passed: parent grouping, stable sort, 6/7 collapse boundary, fallback, controls, and owner/public reuse.');

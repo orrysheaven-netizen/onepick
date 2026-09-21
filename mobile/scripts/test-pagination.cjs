@@ -146,7 +146,11 @@ async function main() {
   assert.equal(calls.length - before, 1, 'Consumers of the basic profile must not fetch unneeded history or requests');
   before = calls.length;
   await assert.rejects(() => profileService.getMyProfile(id(9999)), (error) => error.code === 'PROFILE_NOT_FOUND');
-  assert.equal(calls.length, before);
+  // The collection read is keyed by the same user id, so it goes out with the
+  // profile read instead of behind it. A user who has no profile yet is the
+  // transient onboarding state: it costs exactly one extra read that comes back
+  // empty, and the call still fails the same way.
+  assert.equal(calls.length - before, 1, 'A missing profile must not fetch history or requests either');
   const historyFirst = await profileService.getMyPickHistory(owner);
   assert.equal(historyFirst.items.length, 20); assert.equal(historyFirst.nextCursor.id, id(42));
   picks = picks.filter((item) => item.id !== id(42));

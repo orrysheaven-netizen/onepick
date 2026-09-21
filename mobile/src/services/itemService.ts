@@ -18,14 +18,20 @@ export class ItemService {
   ) {}
 
   async getItemDetail(itemId: string, userId?: string, focusPickId?: string) {
-    const item = await this.itemRepository.getById(itemId);
-    if (!item) throw new AppError('ITEM_NOT_FOUND');
-
-    const [category, currentPick, picks, openCategories] = await Promise.all([
-      this.categoryRepository.getById(item.categoryId),
-      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
+    // Only the category row and the viewer's current Pick need the item first;
+    // the review page, the selectable category list and a shared link's focused
+    // Pick are all addressable up front, so they go out in the same round.
+    const [item, picks, openCategories, focused] = await Promise.all([
+      this.itemRepository.getById(itemId),
       this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 }),
       this.categoryRepository.getOpenCategories(),
+      focusPickId ? this.readRepository.getPickById(focusPickId) : Promise.resolve(null),
+    ]);
+    if (!item) throw new AppError('ITEM_NOT_FOUND');
+
+    const [category, currentPick] = await Promise.all([
+      this.categoryRepository.getById(item.categoryId),
+      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
     ]);
 
     let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
@@ -54,8 +60,7 @@ export class ItemService {
     // Shared links can reference a review beyond the first page or a previous choice.
     // Read through the same permission-checked repository and verify its product.
     if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
-      const focused = await this.readRepository.getPickById(focusPickId);
-      if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
+      if (focused && focused.pick.id === focusPickId && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
         reviews.splice(ownReview.length, 0, {
           pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
         });
