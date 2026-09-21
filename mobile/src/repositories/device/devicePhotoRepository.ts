@@ -1,13 +1,11 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { AppError } from '@/errors/appError';
-import { MAX_PICK_PHOTO_BYTES, MAX_THUMBNAIL_BYTES, type PickPhotoDraft } from '@/types/domain/photo';
+import type { PickPhotoDraft } from '@/types/domain/photo';
 
 const FULL_PHOTO_MAX_SIDE = 1200;
-const FULL_PHOTO_MIN_SIDE = 480;
 const THUMBNAIL_MAX_SIDE = 320;
-const THUMBNAIL_MIN_SIDE = 160;
-const COMPRESSION_LEVELS = [0.82, 0.68, 0.54, 0.4, 0.3] as const;
+const JPEG_QUALITY = 0.82;
 
 export class DevicePhotoRepository {
   async choosePhoto(): Promise<PickPhotoDraft | null> {
@@ -25,25 +23,11 @@ export class DevicePhotoRepository {
       original = await context.renderAsync();
       if (!original.width || !original.height) throw new AppError('PHOTO_INVALID');
 
-      // Source pixel dimensions are never a rejection reason. We first create the
-      // normal app-sized image, then automatically reduce dimensions further only
-      // when the encoded JPEG would exceed the upload byte budget.
-      const full = await this.optimize(
-        uri,
-        original.width,
-        original.height,
-        FULL_PHOTO_MAX_SIDE,
-        FULL_PHOTO_MIN_SIDE,
-        MAX_PICK_PHOTO_BYTES,
-      );
-      const thumbnail = await this.optimize(
-        full.uri,
-        full.width,
-        full.height,
-        THUMBNAIL_MAX_SIDE,
-        THUMBNAIL_MIN_SIDE,
-        MAX_THUMBNAIL_BYTES,
-      );
+      // Large source dimensions are normalized for display/egress, but byte size
+      // is never a rejection reason. Storage's project-wide limit remains the
+      // infrastructure ceiling.
+      const full = await this.optimize(uri, original.width, original.height, FULL_PHOTO_MAX_SIDE);
+      const thumbnail = await this.optimize(full.uri, full.width, full.height, THUMBNAIL_MAX_SIDE);
 
       return {
         uri: full.uri,
@@ -66,37 +50,22 @@ export class DevicePhotoRepository {
     width: number,
     height: number,
     maxSide: number,
-    minSide: number,
-    maxBytes: number,
   ) {
     const sourceMaxSide = Math.max(width, height);
-    let targetSide = Math.min(sourceMaxSide, maxSide);
-    const floorSide = Math.min(targetSide, minSide);
-
-    while (true) {
-      const context = ImageManipulator.manipulate(uri);
-      let image: Awaited<ReturnType<typeof context.renderAsync>> | undefined;
-      try {
-        if (sourceMaxSide > targetSide) {
-          context.resize(width >= height ? { width: targetSide } : { height: targetSide });
-        }
-        image = await context.renderAsync();
-
-        for (const compress of COMPRESSION_LEVELS) {
-          const result = await image.saveAsync({ format: SaveFormat.JPEG, compress, base64: true });
-          if (result.base64 && result.base64.length * 0.75 <= maxBytes) return result;
-        }
-      } finally {
-        image?.release();
-        context.release();
+    const targetSide = Math.min(sourceMaxSide, maxSide);
+    const context = ImageManipulator.manipulate(uri);
+    let image: Awaited<ReturnType<typeof context.renderAsync>> | undefined;
+    try {
+      if (sourceMaxSide > targetSide) {
+        context.resize(width >= height ? { width: targetSide } : { height: targetSide });
       }
-
-      if (targetSide <= floorSide) break;
-      const nextSide = Math.max(floorSide, Math.floor(targetSide * 0.75));
-      if (nextSide === targetSide) break;
-      targetSide = nextSide;
+      image = await context.renderAsync();
+      const result = await image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY, base64: true });
+      if (!result.base64) throw new AppError('PHOTO_INVALID');
+      return result;
+    } finally {
+      image?.release();
+      context.release();
     }
-
-    throw new AppError('PHOTO_TOO_LARGE');
   }
 }
