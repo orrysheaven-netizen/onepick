@@ -121,7 +121,7 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
 
   ctx.fillStyle = OnePick.accent;
   ctx.font = '800 34px system-ui, sans-serif';
-  ctx.fillText('ONE PICK', 130, 160);
+  ctx.fillText('원픽', 130, 160);
 
   ctx.fillStyle = OnePick.muted;
   ctx.font = '700 28px system-ui, sans-serif';
@@ -140,7 +140,7 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
 
   ctx.fillStyle = OnePick.accent;
   ctx.font = '700 25px system-ui, sans-serif';
-  ctx.fillText('WHY THIS ONE', 130, 620);
+  ctx.fillText('고른 이유', 130, 620);
 
   ctx.fillStyle = OnePick.muted;
   ctx.font = '500 42px system-ui, sans-serif';

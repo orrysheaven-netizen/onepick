@@ -78,7 +78,6 @@ export function PickShareCard(props: PickShareCardProps) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>SHARE THIS PICK</Text>
       <Text style={styles.title}>이 원픽을 공유해보세요</Text>
       <Text style={styles.description}>
         이 원픽과 선택한 이유를 카드나 링크로 전해보세요.
@@ -86,12 +85,12 @@ export function PickShareCard(props: PickShareCardProps) {
 
       {Platform.OS === 'web' ? <View style={styles.preview}>
         <View style={styles.previewTop}>
-          <Text style={styles.previewBrand}>ONE PICK</Text>
+          <Text style={styles.previewBrand}>원픽</Text>
         </View>
         <Text style={styles.previewCategory}>{props.categoryName}</Text>
         <Text numberOfLines={2} style={styles.previewItem}>{props.itemName}</Text>
         <View style={styles.previewDivider} />
-        <Text style={styles.previewLabel}>WHY THIS ONE</Text>
+        <Text style={styles.previewLabel}>고른 이유</Text>
         <Text numberOfLines={4} style={styles.previewReview}>“{props.oneLineReview}”</Text>
         <Text style={styles.previewUser}>@{props.username}</Text>
       </View> : null}
@@ -130,7 +129,6 @@ export function PickShareCard(props: PickShareCardProps) {
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 14 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
   title: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 6 },
   description: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   preview: { borderRadius: 18, backgroundColor: OnePick.accentSoft, borderWidth: 1, borderColor: OnePick.accentSoft, padding: 18, marginTop: 16 },
