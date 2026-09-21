@@ -129,10 +129,17 @@ $function$;
 revoke all on function private.is_marketplace_shop_url(text) from public, anon, authenticated;
 
 -- 3. 전문몰 카테고리 판별 ----------------------------------------------------
+-- SECURITY DEFINER for two reasons. Trigger functions below are not executed
+-- by the system with extra rights: their bodies run as the writing user, who is
+-- `authenticated` on every admin and user write, and that role has no execute
+-- right on these helpers. It also keeps the answer independent of what the
+-- writer can see through RLS, so a category row hidden from the writer cannot
+-- silently turn the specialty-shop rules off.
 create or replace function private.is_specialty_shop_category(p_category_id uuid)
 returns boolean
 language sql
 stable
+security definer
 set search_path = ''
 as $function$
   with recursive ancestors as (
@@ -160,6 +167,7 @@ revoke all on function private.is_specialty_shop_category(uuid) from public, ano
 create or replace function private.enforce_specialty_shop_item()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $function$
 declare
@@ -248,6 +256,7 @@ grant execute on function private.review_contains_promotion(text) to authenticat
 create or replace function private.enforce_pick_review_policy()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $function$
 begin

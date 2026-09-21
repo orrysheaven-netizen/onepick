@@ -56,8 +56,10 @@ begin
   insert into public.items(id,category_id,name,normalized_name,status,official_url)
     values(item_c,shop_cat,'다른 입점몰','다른입점몰','active',
            'https://smartstore.naver.com/OtherBeans');
-  assert (select count(*) from public.items
-          where category_id=shop_cat and status='active')=3,
+  -- 이 테스트가 만든 행만 센다. 카테고리 전체를 세면 시딩이나 다른 데이터에
+  -- 따라 결과가 달라진다.
+  assert (select count(distinct official_url) from public.items
+          where id in (item_a, item_b, item_c))=3,
     '같은 호스트라도 세그먼트가 다르면 다른 몰이다';
 
   begin
@@ -140,8 +142,46 @@ begin
     select pg_get_constraintdef(oid) like '%self_promotion%'
     from pg_constraint where conname='content_reports_reason_check'
   ), '신고 사유에 self_promotion이 있다';
+
+  -- 여기까지는 소유자 권한으로 돌았다. 실제 쓰기는 모두 authenticated가
+  -- 하므로 그 역할로 다시 확인한다. 트리거 본문은 쓰는 사람의 권한으로
+  -- 실행되고, authenticated에는 private 헬퍼 실행 권한이 없다.
+  insert into private.admin_users(user_id) values(owner_id) on conflict do nothing;
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform set_config('request.jwt.claims', '{"aal":"aal2"}', true);
+  set local role authenticated;
+
+  -- 전문몰이 아닌 카테고리의 상품 등록이 이 트리거 때문에 막히면 안 된다.
+  insert into public.items(id,category_id,name,normalized_name,status)
+    values(gen_random_uuid(),other_cat,'관리자 일반 상품','관리자일반상품','active');
+
+  insert into public.items(id,category_id,name,normalized_name,status,official_url)
+    values(gen_random_uuid(),shop_cat,'관리자 전문몰','관리자전문몰','active',
+           'https://admin-added-shop.example/?ref=x');
+  assert (select official_url from public.items where normalized_name='관리자전문몰')
+         = 'https://admin-added-shop.example',
+    'authenticated 경로에서도 정규화된다';
+
+  begin
+    insert into public.items(id,category_id,name,normalized_name,status,official_url)
+      values(gen_random_uuid(),shop_cat,'관리자 마트','관리자마트','active','https://www.coupang.com');
+    raise exception 'authenticated 경로에서도 마트형은 막혀야 한다';
+  exception when others then
+    assert sqlerrm like '%SHOP_URL_NOT_SPECIALTY%', 'authenticated 마트형 거부: '||sqlerrm;
+  end;
+
+  -- 앱이 실제로 쓰는 원픽 등록 경로.
+  perform public.change_pick(other_cat, plain_item, '평범한 이유로 고른다');
+  begin
+    perform public.change_pick(other_cat, plain_item, '여기서 사세요 https://myshop.example');
+    raise exception 'authenticated 경로에서도 광고 한줄평은 막혀야 한다';
+  exception when others then
+    assert sqlerrm like '%REVIEW_PROMOTIONAL%', 'authenticated 광고 한줄평 거부: '||sqlerrm;
+  end;
+
+  reset role;
 end;
 $flow$;
-$test$, '전문몰 카테고리, URL 정규화와 중복 방지, 마트형 차단, 한줄평 광고 차단, 신고 사유');
+$test$, '전문몰 카테고리, URL 정규화와 중복 방지, 마트형 차단, 한줄평 광고 차단, 신고 사유, authenticated 경로');
 select * from finish();
 rollback;
