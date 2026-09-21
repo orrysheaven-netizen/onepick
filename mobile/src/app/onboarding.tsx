@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useOnboarding';
 import { categoryPath } from '@/lib/categories/categoryTree';
 import { chooseOnboardingCategory } from '@/lib/onboarding/categorySequence';
+import { Button, StateCard } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 
 export default function OnboardingScreen() {
@@ -80,17 +81,16 @@ export default function OnboardingScreen() {
     router.replace('/profile');
   };
 
-  if (loading) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><ActivityIndicator /><Text style={styles.stateText}>취향 카테고리를 준비하고 있어요.</Text></View></SafeAreaView>;
+  if (loading) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="취향 카테고리를 준비하고 있어요." /></View></SafeAreaView>;
   if (!user || profile.isError || !profile.data) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
-    <Text style={styles.title}>프로필을 먼저 만들어주세요</Text>
-    <Pressable onPress={() => router.replace('/auth/login')} style={styles.primary}><Text style={styles.primaryText}>로그인하기</Text></Pressable>
+    <StateCard title="프로필을 먼저 만들어주세요" action={{ label: '로그인하기', variant: 'primary', onPress: () => router.replace('/auth/login') }} />
   </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.content}>
       <View style={styles.topRow}>
-        <View><Text style={styles.eyebrow}>TASTE ONBOARDING</Text><Text style={styles.title}>내 취향부터 가볍게</Text></View>
-        <Pressable accessibilityRole="button" onPress={() => void exit()} style={styles.exit}><Text style={styles.exitText}>나중에 하기</Text></Pressable>
+        <Text style={styles.title}>내 취향부터 가볍게</Text>
+        <Button variant="ghost" size="sm" label="나중에 하기" onPress={() => void exit()} />
       </View>
       <Text style={styles.subtitle}>마음이 가는 카테고리만 고르세요. 관심 없으면 넘겨도 되고, 언제든 이어서 할 수 있어요.</Text>
 
@@ -101,9 +101,8 @@ export default function OnboardingScreen() {
         </View>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, pickCount * 10)}%` }]} /></View>
         <View style={styles.marker}><Text style={styles.markerText}>5</Text><Text style={styles.markerText}>10</Text></View>
-        {canEvaluate ? <Pressable accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.aiButton}>
-          <Text style={styles.aiButtonText}>{reachedRecommended ? '더 풍부한 AI 평가 보기' : '지금 AI 평가 보기'}</Text>
-        </Pressable> : null}
+        {canEvaluate ? <Button variant="soft" size="sm" fullWidth style={styles.aiButton} onPress={() => router.push('/profile')}
+          label={reachedRecommended ? '더 풍부한 AI 평가 보기' : '지금 AI 평가 보기'} /> : null}
       </View>
 
       {current ? <View style={styles.categoryCard}>
@@ -111,21 +110,14 @@ export default function OnboardingScreen() {
         {currentParentName ? <View style={styles.parentPill}><Text style={styles.parentPillText}>{currentParentName}</Text></View> : null}
         <Text style={styles.categoryName}>{currentCategoryName}</Text>
         <Text style={styles.cardText}>여기서 지금 가장 좋아하는 하나가 떠오르나요?</Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={setCurrent.isPending}
-          onPress={() => router.push({ pathname: '/pick/find', params: { categoryId: current.id, onboarding: '1' } })}
-          style={({ pressed }) => [styles.primary, setCurrent.isPending && styles.disabled, pressed && styles.pressed]}>
-          <Text style={styles.primaryText}>이 카테고리에서 원픽 고르기</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" disabled={setCurrent.isPending || recordAction.isPending} onPress={() => void skip()}
-          style={({ pressed }) => [styles.skip, (setCurrent.isPending || recordAction.isPending) && styles.disabled, pressed && styles.pressed]}>
-          <Text style={styles.skipText}>{setCurrent.isPending ? '준비 중…' : recordAction.isPending ? '넘기는 중…' : '넘기기'}</Text>
-        </Pressable>
+        <Button size="lg" fullWidth style={styles.primary} disabled={setCurrent.isPending} label="이 카테고리에서 원픽 고르기"
+          onPress={() => router.push({ pathname: '/pick/find', params: { categoryId: current.id, onboarding: '1' } })} />
+        <Button variant="ghost" style={styles.skip} disabled={setCurrent.isPending || recordAction.isPending} onPress={() => void skip()}
+          label={setCurrent.isPending ? '준비 중…' : recordAction.isPending ? '넘기는 중…' : '넘기기'} />
       </View> : <View style={styles.categoryCard}>
         <Text style={styles.categoryName}>지금 보여드릴 카테고리를 모두 봤어요</Text>
         <Text style={styles.cardText}>새 카테고리가 열리면 다시 이어서 고를 수 있어요.</Text>
-        <Pressable onPress={() => void finish()} style={styles.primary}><Text style={styles.primaryText}>프로필로 이동</Text></Pressable>
+        <Button size="lg" fullWidth style={styles.primary} label="프로필로 이동" onPress={() => void finish()} />
       </View>}
 
       <Text style={styles.footer}>넘기기는 추천 순서를 다듬는 신호로만 사용하고, AI 평가의 성격 판단 근거로 사용하지 않아요.</Text>
@@ -135,36 +127,28 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 24, paddingBottom: 28 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { color: OnePick.muted, fontSize: 13, marginTop: 10 },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 },
-  eyebrow: { color: OnePick.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
-  title: { color: OnePick.text, fontSize: 27, lineHeight: 34, fontWeight: '900', marginTop: 7 },
-  subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 12 },
-  exit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  exitText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
+  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
+  center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', padding: 20 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
+  title: { flex: 1, color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   progressCard: { backgroundColor: OnePick.surface, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, padding: 18, marginTop: 24 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  progressLabel: { color: OnePick.text, fontSize: 19, fontWeight: '900' },
-  progressHint: { color: OnePick.muted, fontSize: 11, flex: 1, textAlign: 'right' },
+  progressLabel: { color: OnePick.text, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
+  progressHint: { color: OnePick.muted, fontSize: 12, lineHeight: 16, flex: 1, textAlign: 'right' },
   track: { height: 9, backgroundColor: OnePick.sunken, borderRadius: 999, overflow: 'hidden', marginTop: 14 },
   fill: { height: '100%', backgroundColor: OnePick.accent, borderRadius: 999 },
   marker: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
-  markerText: { color: OnePick.hint, fontSize: 10 },
-  aiButton: { minHeight: 44, borderRadius: 14, backgroundColor: OnePick.accentSoft, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  aiButtonText: { color: OnePick.accent, fontSize: 12, fontWeight: '900' },
-  categoryCard: { backgroundColor: OnePick.surface, borderRadius: 24, borderWidth: 1, borderColor: OnePick.border, padding: 22, marginTop: 18 },
-  cardKicker: { color: OnePick.accent, fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  markerText: { color: OnePick.hint, fontSize: 12, lineHeight: 16 },
+  aiButton: { marginTop: 14 },
+  categoryCard: { backgroundColor: OnePick.surface, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, padding: 20, marginTop: 16 },
+  cardKicker: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600' },
   parentPill: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 10, paddingVertical: 5, marginTop: 12 },
-  parentPillText: { color: OnePick.accent, fontSize: 10, fontWeight: '900' },
-  categoryName: { color: OnePick.text, fontSize: 25, lineHeight: 32, fontWeight: '900', marginTop: 8 },
-  cardText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 9 },
-  primary: { minHeight: 52, borderRadius: 16, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 22, paddingHorizontal: 16 },
-  primaryText: { color: OnePick.onAccent, fontSize: 14, fontWeight: '900' },
-  skip: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  skipText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
-  footer: { color: OnePick.hint, fontSize: 10, lineHeight: 16, marginTop: 18 },
-  disabled: { opacity: 0.45 },
+  parentPillText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  categoryName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, marginTop: 8 },
+  cardText: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  primary: { marginTop: 20 },
+  skip: { alignSelf: 'center', marginTop: 6 },
+  footer: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 18 },
   pressed: { opacity: 0.72 },
 });
