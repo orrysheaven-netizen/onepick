@@ -39,6 +39,10 @@ export interface HomeFeedPick {
   categoryName: string;
   oneLineReview: string;
   thumbnailUrl: string | null;
+  // Where the person bought it, and the buying advice that makes the card a
+  // 쇼핑꿀팁. There is no theme field: the badge derives from purchaseTip.
+  purchaseUrl: string | null;
+  purchaseTip: string | null;
   startedAt: string;
 }
 

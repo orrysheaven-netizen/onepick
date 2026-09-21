@@ -15,6 +15,8 @@ export type HomePickFeedRow = {
   thumbnail_path: string | null;
   image_path: string | null;
   image_source_url: string | null;
+  purchase_url: string | null;
+  purchase_tip: string | null;
   started_at: string;
 };
 

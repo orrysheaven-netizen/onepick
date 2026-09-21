@@ -1,5 +1,8 @@
+import { Platform, Linking } from 'react-native';
+
 import { Button, PickCard } from '@/components/ui';
 import { formatRelativeTime } from '@/lib/format/relativeTime';
+import { purchaseHost } from '@/lib/format/purchaseHost';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
@@ -18,6 +21,16 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenPick
   onChooseSame: () => void;
   onChooseOther: () => void;
 }) {
+  const host = purchaseHost(pick.purchaseUrl);
+  // Same pattern as the profile's SNS links: a new tab on web, the OS handler
+  // on native. Nothing here fetches the URL; it only hands it over.
+  const openLink = host && pick.purchaseUrl
+    ? () => {
+        const url = pick.purchaseUrl as string;
+        if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+        else void Linking.openURL(url).catch(() => {});
+      }
+    : undefined;
   return <PickCard
     categoryName={pick.categoryName}
     itemName={pick.name}
@@ -26,6 +39,7 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenPick
     person={{ username: pick.username, onPress: onOpenProfile }}
     timeLabel={formatRelativeTime(pick.startedAt)}
     badge={mine ? '내 원픽' : undefined}
+    purchase={host ? { host, tip: pick.purchaseTip, onOpenLink: openLink } : undefined}
     onPress={onOpenItem}
     accessibilityLabel={pick.name + ' 제품 상세 보기'}
     footer={<>

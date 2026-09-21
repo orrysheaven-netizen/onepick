@@ -1557,6 +1557,8 @@ export type Database = {
           one_line_review: string
           pick_id: string
           profile_image_url: string
+          purchase_tip: string | null
+          purchase_url: string | null
           started_at: string
           thumbnail_path: string
           user_id: string

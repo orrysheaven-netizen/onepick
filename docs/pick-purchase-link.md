@@ -1,6 +1,6 @@
 # 원픽 구매처 링크와 쇼핑꿀팁
 
-상태: 구현됨(등록 흐름) — `picks.purchase_url` / `purchase_tip`, `shopping_domains`, `is_shopping_url`, 확장된 `change_pick` / `update_pick_review`, `/pick/choose`의 링크·팁 입력. 카드 표시와 `register_pick`은 아직이다. `pick-themes.md`의 1단계(선택형 테마 라벨)를 이 설계로 대체한다. 테마를 고르게 하는 대신, 링크를 남기는 행동에서 쇼핑꿀팁만 끌어낸다.
+상태: 구현됨(등록 흐름) — `picks.purchase_url` / `purchase_tip`, `shopping_domains`, `is_shopping_url`, 확장된 `change_pick` / `update_pick_review`, `/pick/choose`의 링크·팁 입력, 홈·팔로잉 카드의 쇼핑꿀팁 배지·팁·호스트 표시. `register_pick` 경로와 프로필 카드 표시는 아직이다. `pick-themes.md`의 1단계(선택형 테마 라벨)를 이 설계로 대체한다. 테마를 고르게 하는 대신, 링크를 남기는 행동에서 쇼핑꿀팁만 끌어낸다.
 
 ## 왜 이 형태인가
 
@@ -70,6 +70,7 @@
 - 쇼핑몰 도메인 목록은 `shopping_domains` 테이블로 두고 관리자만 쓸 수 있게 한다(`taste_dimensions`와 같은 RLS 형태). 앱 배포 없이 목록을 고칠 수 있어야 한다.
 - 매칭은 호스트 정확 일치 또는 명시한 접미사 항목으로만 한다. 상위 도메인을 통째로 쇼핑몰로 보지 않는다(쇼핑몰이 아닌 서비스가 같은 도메인에 있다).
 - 홈 RPC(`home_pick_feed_page`, `home_following_feed_page`)의 공개 조건과 커서 규칙은 바꾸지 않는다. 링크와 팁은 반환 필드 추가로만 붙인다. 기존 차단·정지·비공개 제외가 그대로 적용된다.
+- `returns table`의 컬럼을 바꾸려면 drop이 필요하다. 컬럼을 **더하기만** 하므로 배포 중인 클라이언트는 깨지지 않는다: 이 RPC를 부르는 쪽은 컬럼을 나열하지 않고 받은 행에서 아는 필드만 읽는다. 쓰지 않는 `home_pick_feed_page_v2`는 그대로 둔다.
 
 ## 이 설계가 답하는 것
 
