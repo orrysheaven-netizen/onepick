@@ -10,7 +10,7 @@ import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
 import { Button, StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
   if (error instanceof AppError && error.code === 'ACCOUNT_DELETE_FAILED') {
@@ -25,8 +25,8 @@ export default function SettingsScreen() {
   const blocked = useBlockedUsers(user?.id);
   const safety = useSafetyActions();
   const deleteAccount = useDeleteAccount();
-  const preferences = useNotificationPreferences(user?.id);
-  const setFolloweePickChange = useSetFolloweePickChange(user?.id);
+  const preferences = useNotificationPreferences(OnePickFeatures.follow ? user?.id : undefined);
+  const setFolloweePickChange = useSetFolloweePickChange(OnePickFeatures.follow ? user?.id : undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteAccount = async () => {
@@ -60,6 +60,7 @@ export default function SettingsScreen() {
 
         {user ? (
           <>
+            {OnePickFeatures.follow ? <>
             <Text style={styles.sectionLabel}>알림</Text>
             <View style={styles.card}>
               <View style={styles.switchRow}>
@@ -78,6 +79,7 @@ export default function SettingsScreen() {
               {preferences.isError ? <Text style={styles.error}>알림 설정을 불러오지 못했어요. 기본값(켜짐)으로 동작합니다.</Text> : null}
               {setFolloweePickChange.isError ? <Text style={styles.error}>알림 설정을 저장하지 못했어요. 다시 시도해주세요.</Text> : null}
             </View>
+            </> : null}
 
             <Text style={styles.sectionLabel}>차단한 사용자</Text>
             <View style={styles.card}>

@@ -62,3 +62,11 @@ export const OnePickSpace = {
   xl: 24,
   xxl: 32,
 } as const;
+
+
+// Features that require database migrations not yet present in the linked dev DB.
+// Keep the code paths intact, but do not expose them until the schema is synchronized.
+export const OnePickFeatures = {
+  follow: false,
+  purchaseLinks: false,
+} as const;
