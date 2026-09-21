@@ -43,7 +43,7 @@ async function main() {
     '카테고리마다 하나의 원픽을 고르고, 한줄평과 함께 나의 취향을 보여주세요.');
   assert.match(metaContent('property="og:image"') ?? '', /^https:\/\/[^\s]+\/og-default\.png$/,
     'Default OG image must be an absolute HTTPS URL');
-  assert.equal(metaContent('name="twitter:card"'), 'summary_large_image');
+  assert.equal(metaContent('name="twitter:card"'), 'summary');
   assert.equal(metaContent('name="twitter:image"'), metaContent('property="og:image"'));
   const defaultOgImage = path.join(dist, 'og-default.png');
   assert.ok(fs.existsSync(defaultOgImage), 'Default OG image must be copied into the export');
