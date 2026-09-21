@@ -58,7 +58,36 @@ jobs:
         run: supabase migration list --linked
 
       - name: Preview pending migrations
-        run: supabase db push --linked --dry-run --include-all
+        id: preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          log_file="$(mktemp)"
+          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+
+          if grep -q '^Would push these migrations:' "$log_file"; then
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Database drift detected"
+              echo
+              echo "GitHub main contains migrations that are not yet applied to the linked Supabase project."
+              echo "Review the preview above, then run this workflow manually with `mode=apply`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Database is synchronized"
+              echo
+              echo "No pending migrations were found."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail visible drift check
+        if: steps.preview.outputs.pending == 'true' && (github.event_name != 'workflow_dispatch' || inputs.mode != 'apply')
+        shell: bash
+        run: |
+          echo "::error::Pending Supabase migrations detected. Review the dry-run output, then rerun Deploy Database Migrations with mode=apply."
+          exit 1
 
       - name: Apply pending migrations
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
@@ -67,3 +96,27 @@ jobs:
       - name: Show migration status after deploy
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
         run: supabase migration list --linked
+
+      - name: Verify no pending migrations remain
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log_file="$(mktemp)"
+          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+
+          if grep -q '^Would push these migrations:' "$log_file"; then
+            echo "::error::Database apply completed, but pending migrations still remain."
+            {
+              echo "### Database apply verification failed"
+              echo
+              echo "Pending migrations still remain after apply. Inspect the workflow log before continuing."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          {
+            echo "### Database apply verified"
+            echo
+            echo "Local migration history and the linked Supabase project are synchronized."
+          } >> "$GITHUB_STEP_SUMMARY"
