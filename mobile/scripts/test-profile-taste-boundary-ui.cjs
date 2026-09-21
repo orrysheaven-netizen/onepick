@@ -66,12 +66,12 @@ const { ProfileAiPanel } = load('components/profile-ai-panel.tsx', {
   '@/hooks/useProfileAi': aiHooks,
 });
 
-function renderAi(status, currentPickCount) {
+function renderAi(status, tastePickCount) {
   aiStatus = status;
   aiComment = null;
   buttons = [];
   const html = renderToStaticMarkup(
-    React.createElement(ProfileAiPanel, { profileId: 'qa-profile', currentPickCount }),
+    React.createElement(ProfileAiPanel, { profileId: 'qa-profile', tastePickCount }),
   );
   const button = (label) => buttons.find((props) => textOf(props.children).includes(label));
   return { html, button };
@@ -79,6 +79,7 @@ function renderAi(status, currentPickCount) {
 
 const nineStatus = {
   currentPickCount: 9,
+  tastePickCount: 9,
   minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: false,
@@ -96,12 +97,13 @@ const nineStatus = {
 let rendered = renderAi(nineStatus, 9);
 assert.match(rendered.html, /AI 취향평가/);
 assert.match(rendered.html, /구성 → 해석/);
-assert.match(rendered.html, /9\/10 · 원픽 1개만 더 고르면 AI 평가가 열려요/);
+assert.match(rendered.html, /취향 카테고리 원픽 9\/10 · 1개를 채우면 AI 평가가 열려요/);
 assert.ok(rendered.button('AI 평가 보기'), '9-pick state keeps the AI CTA visible');
 assert.equal(rendered.button('AI 평가 보기').disabled, true, '9-pick AI review CTA must stay disabled');
 
 const tenFirstStatus = {
   currentPickCount: 10,
+  tastePickCount: 10,
   minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: false,
@@ -123,6 +125,7 @@ assert.equal(rendered.button('AI 평가 보기').disabled, false, '10-pick AI re
 
 const legacyUpgradeStatus = {
   currentPickCount: 10,
+  tastePickCount: 10,
   minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: true,
@@ -138,7 +141,7 @@ const legacyUpgradeStatus = {
 };
 
 rendered = renderAi(legacyUpgradeStatus, 10);
-assert.match(rendered.html, /10개의 원픽이 모였어요\. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요/);
+assert.match(rendered.html, /10개의 취향 원픽이 모였어요\. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요/);
 assert.ok(rendered.button('AI가 다시 본 나'), 'legacy review below ten picks must keep its one-time upgrade CTA');
 assert.equal(rendered.button('AI가 다시 본 나').disabled, false, 'legacy 10-pick upgrade CTA must be enabled');
 
