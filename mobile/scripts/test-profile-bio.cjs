@@ -173,8 +173,10 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
+    '@/hooks/useProfileAi': { useProfileAiComment: () => ({ data: null }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
+    '@/lib/share/shareProfileCard': { shareProfileCardImage: async () => 'shared' },
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
   });
   const publicMarkup = renderToStaticMarkup(React.createElement(PublicProfile));

@@ -61,6 +61,11 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ['신라면'] })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ' '.repeat(101) })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
+  same(getAuthIntent({ action: 'join_from_profile' }), { action: 'join_from_profile' });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'join_from_profile' })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: ['join_from_profile'] })), '/');
+  same(getAuthIntent({ action: 'join_from_profile', username: 'someone' }), { action: 'join_from_profile' },
+    'the join intent must not carry the profile that was being read');
 
   for (const params of [
     {}, { action: 'choose_pick' }, { ...choose, categoryId: '' },
@@ -68,7 +73,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, comment, { action: 'profile' }, { action: 'home' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
