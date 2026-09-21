@@ -68,11 +68,15 @@ export const OnePickSpace = {
 // remains intentionally hidden until an explicit product rollout decision.
 //
 // follow: schema and code paths are ready, and the restaurant-first MVP
-// explicitly exposes follow, the following feed, follower counts, and follow notifications.
+// explicitly exposes follow, the following feed, and follow notifications.
+//
+// followCounts: the relationship data remains available, but the early MVP hides
+// follower/following numbers so the product does not optimize around popularity.
 //
 // purchaseLinks: schema is ready too, but the feed/profile surfaces that make
 // purchase links useful are not fully rolled out yet.
 export const OnePickFeatures = {
   follow: true,
+  followCounts: false,
   purchaseLinks: false,
 } as const;
