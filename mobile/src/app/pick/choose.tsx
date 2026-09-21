@@ -46,6 +46,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const itemQuery = useItemDetail(params.itemId, user?.id);
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
+  // null means "not touched on this screen". The stored link is not read back
+  // here yet, so an untouched field must send nothing rather than an empty
+  // string, or editing only the review would wipe a link saved earlier.
+  const [draftUrl, setDraftUrl] = useState<string | null>(null);
+  const [draftTip, setDraftTip] = useState<string | null>(null);
+  const [tipAnswer, setTipAnswer] = useState<'unanswered' | 'yes' | 'no'>('unanswered');
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
@@ -61,6 +67,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
+  const trimmedUrl = (draftUrl ?? '').trim();
+  const trimmedTip = (draftTip ?? '').trim();
+  const hasUrlDraft = trimmedUrl.length > 0;
+  const isValidUrl = !hasUrlDraft || (trimmedUrl.length <= 2048 && /^https:\/\/[^\s]+$/.test(trimmedUrl));
+  const showTipQuestion = hasUrlDraft && isValidUrl;
+  const showTipInput = showTipQuestion && tipAnswer === 'yes';
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
@@ -76,10 +88,17 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
       || choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
+    if (!isValidUrl) return;
     if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
-      const result = await choosePick.mutateAsync({ categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview });
+      const result = await choosePick.mutateAsync({
+        categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
+        // An untouched field is left out so the stored value survives; '' clears it.
+        ...(draftUrl === null ? {} : { purchaseUrl: trimmedUrl }),
+        ...(draftUrl === null && draftTip === null ? {}
+          : { purchaseTip: showTipInput ? trimmedTip : '' }),
+      });
       // A later normal pick overrides an earlier onboarding skip signal too.
       await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
       submitPhase.current = 'saved';
@@ -170,6 +189,31 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
+          <View style={styles.inputHeader}><Text style={styles.inputLabel}>산 곳 링크 <Text style={styles.optional}>선택</Text></Text></View>
+          <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!choosePick.isPending}
+            inputMode="url" maxLength={2048}
+            onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftUrl(value); }}
+            placeholder="https://" placeholderTextColor={OnePick.hint}
+            style={[styles.linkInput, hasUrlDraft && !isValidUrl && styles.reviewInputError]} value={draftUrl ?? ''} />
+          <Text style={styles.helperText}>안 남겨도 괜찮아요. 제휴 링크는 저장할 때 추적 정보를 떼고 보관해요.</Text>
+          {hasUrlDraft && !isValidUrl ? <Text accessibilityRole="alert" style={styles.reviewError}>https:// 로 시작하는 주소만 남길 수 있어요.</Text> : null}
+          {showTipQuestion ? <View style={styles.tipAsk}>
+            <Text style={styles.tipAskText}>여기서 살 때 알아두면 좋은 게 있나요?</Text>
+            <View style={styles.tipAskRow}>
+              <Button size="sm" variant={tipAnswer === 'yes' ? 'primary' : 'soft'} label="있어요"
+                disabled={choosePick.isPending} onPress={() => setTipAnswer('yes')} />
+              <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 제품 링크예요"
+                disabled={choosePick.isPending} onPress={() => { setTipAnswer('no'); setDraftTip(''); }} />
+            </View>
+          </View> : null}
+          {showTipInput ? <>
+            <View style={styles.inputHeader}><Text style={styles.inputLabel}>살 때 팁</Text><Text style={styles.counter}>{(draftTip ?? '').length}/100</Text></View>
+            <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!choosePick.isPending}
+              onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftTip(value); }}
+              placeholder="예: 6개입이 낱개보다 싸요" placeholderTextColor={OnePick.hint}
+              style={styles.linkInput} value={draftTip ?? ''} />
+            <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
+          </> : null}
           {choosePick.isError ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
             {choosePick.error instanceof AppError && choosePick.error.code === 'PROFILE_NOT_FOUND' ?
@@ -232,6 +276,11 @@ const styles = StyleSheet.create({
   counter: { color: OnePick.muted, fontSize: 12 },
   reviewInput: { minHeight: 124, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 16, paddingVertical: 14, color: OnePick.text, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   reviewInputError: { borderColor: OnePick.danger },
+  linkInput: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 16, paddingVertical: 12, color: OnePick.text, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  optional: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
+  tipAsk: { backgroundColor: OnePick.accentSoft, borderRadius: 12, padding: 14, marginTop: 12 },
+  tipAskText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },
+  tipAskRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   submit: { marginTop: 24 },
   footnote: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 8 },
   errorAction: { marginTop: 10 },

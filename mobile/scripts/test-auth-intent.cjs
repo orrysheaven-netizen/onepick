@@ -97,6 +97,7 @@ async function main() {
   };
   const { default: Login } = loadSource('app/auth/login.tsx', {
     ...baseImports,
+    '@/components/onepick-brand': { OnePickBrand: () => null },
     'expo-linking': { createURL: (_path, options) => { callbackParams = options.queryParams; return 'onepick://auth/callback'; } },
     '@/errors/appError': { AppError: Error },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({
