@@ -20,7 +20,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 -- 트리 모양 --------------------------------------------------------------
 
@@ -48,6 +48,16 @@ select is(
   '온라인 아래에는 선택 가능한 말단이 하나 있다'
 );
 
+select ok(
+  not exists (
+    select 1
+    from public.categories c
+    join public.categories p on p.id = c.parent_id
+    where c.slug = 'shopping-mall' and p.slug = 'online'
+  ),
+  '기존 먹을것 쇼핑몰(slug=shopping-mall)은 온라인 아래로 이동하지 않는다'
+);
+
 -- change_pick의 카테고리 검사와 같은 조건. 멈춘 말단이 여기서 걸러져야 한다.
 select is(
   (select count(*)::int
@@ -55,7 +65,7 @@ select is(
    where c.status = 'open' and c.is_pickable
      and not exists (select 1 from public.categories ch where ch.parent_id = c.id)
      and c.slug in (
-       'shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
+       'online-shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
      )),
   1,
   'change_pick 조건(status·is_pickable·말단)을 통과하는 것은 쇼핑몰뿐이다'
@@ -83,7 +93,7 @@ select is(
 -- category_is_open_leaf는 원픽 등록이 실제로 통과하는지를 결정한다.
 select ok(
   public.category_is_open_leaf(
-    (select id from public.categories where slug = 'shopping-mall')
+    (select id from public.categories where slug = 'online-shopping-mall')
   ),
   '쇼핑몰은 원픽을 등록할 수 있는 열린 말단이다'
 );
