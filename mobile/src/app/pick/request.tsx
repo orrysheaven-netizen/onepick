@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Chip, StateCard } from '@/components/ui';
+import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions } from '@/hooks/useItemCategoryAi';
@@ -271,7 +271,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
         </Pressable>
-        <View style={styles.markRow}><View style={styles.mark}><Text style={styles.markText}>1</Text></View><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
+        <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>제품 등록 요청</Text>
         <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 먼저 등록합니다. 일반 상품은 등록 뒤 AI가 기존 카테고리 후보를 제안하고, 최종 카테고리는 직접 선택합니다. 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
 
@@ -351,8 +351,6 @@ const styles = StyleSheet.create({
   primaryAction: { marginTop: 22 },
   laterRow: { alignItems: 'center', marginTop: 12 },
   markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-  mark: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accent },
-  markText: { color: OnePick.onAccent, fontSize: 14, lineHeight: 16, fontWeight: '900' },
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },

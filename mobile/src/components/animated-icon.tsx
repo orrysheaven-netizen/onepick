@@ -33,7 +33,7 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <View style={{ width: 64, height: 64, backgroundColor: '#4945ED', borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFFFFF', fontSize: 48, fontWeight: '900' }}>1</Text></View>;
+  const image = <View style={{ height: 64, paddingHorizontal: 18, backgroundColor: '#4945ED', borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '900', letterSpacing: -1.2 }}>원픽</Text></View>;
 
   return animate ? (
     <Animated.View

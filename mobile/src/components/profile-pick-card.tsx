@@ -15,6 +15,8 @@ type Props = {
   statusText?: string | null;
   onPressPick: () => void;
   onPressItem?: () => void;
+  /** `tile` is the 2-column collection card: square photo on top, one press opens the Pick. */
+  layout?: 'row' | 'tile';
 };
 
 export function ProfilePickCard({
@@ -29,7 +31,25 @@ export function ProfilePickCard({
   statusText,
   onPressPick,
   onPressItem,
+  layout = 'row',
 }: Props) {
+  if (layout === 'tile') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
+        onPress={onPressPick}
+        style={({ pressed }) => [styles.tile, muted && styles.cardMuted, pressed && styles.pressed]}>
+        <PickPhoto square uri={imageUri} label={itemName} itemId={itemId} itemStatus={itemStatus} hasPhoto={hasPhoto} />
+        <View style={styles.tileCopy}>
+          <Text numberOfLines={1} style={styles.tileCategory}>{categoryName}</Text>
+          <Text numberOfLines={2} style={styles.tileName}>{itemName}</Text>
+          <Text numberOfLines={2} style={styles.tileReview}>“{review}”</Text>
+          {statusText ? <Text style={styles.status}>{statusText}</Text> : null}
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <View style={[styles.card, muted && styles.cardMuted]}>
       <PickPhoto
@@ -86,6 +106,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardMuted: { opacity: 0.68 },
+  tile: { flexGrow: 1, flexBasis: '46%', maxWidth: '48.5%', gap: 10, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12 },
+  tileCopy: { gap: 2 },
+  tileCategory: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  tileName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700', letterSpacing: -0.3 },
+  tileReview: { color: OnePick.muted, fontSize: 13, lineHeight: 18 },
   body: { flex: 1, minWidth: 0, paddingLeft: 12 },
   mainAction: { minHeight: 76 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

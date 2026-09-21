@@ -83,6 +83,7 @@ async function main() {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
+    '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
