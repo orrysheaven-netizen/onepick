@@ -11,13 +11,13 @@ function hoursFromSeconds(seconds: number) {
   return Math.max(1, Math.ceil(seconds / 3600));
 }
 
-// AI 평가는 취향 기반이므로 취향 카테고리의 원픽만 센다. 생활 서비스(단골)
-// 원픽은 평가 대상이 아니다. 그래서 개수만 보여주지 않고 무엇을 셌는지
+// AI 평가는 취향 기반이므로 취향 카테고리의 원픽만 센다. 온라인·오프라인
+// 생활 서비스 원픽은 평가 대상이 아니다. 그래서 개수만 보여주지 않고 무엇을 셌는지
 // 밝힌다. 원픽이 7개인데 2/5를 보는 사람에게 "원픽 2개"는 틀린 말이다.
 // 조건은 알려주되 재촉하지 않는다. 채울지는 사용자가 정한다.
 function progressCopy(status: ProfileAiStatus) {
   const excluded = status.currentPickCount > status.tastePickCount
-    ? ' 생활 서비스 원픽은 취향 평가에 넣지 않아요.'
+    ? ' 온라인·오프라인 카테고리 원픽은 취향 평가에 넣지 않아요.'
     : '';
   if (!status.hasReview) {
     if (status.tastePickCount < status.minimumPicks) {
@@ -53,7 +53,7 @@ export function ProfileAiPanel({
    * Picks in taste-mapped categories, from the taste composition's
    * mappedPickCount. The fallback below runs when the status function is
    * unavailable, and it must not offer generation on a count the AI would
-   * reject — 단골 Picks are not taste material.
+   * reject — online/offline service Picks are not taste material.
    */
   tastePickCount: number;
   previewStatus?: ProfileAiStatus;

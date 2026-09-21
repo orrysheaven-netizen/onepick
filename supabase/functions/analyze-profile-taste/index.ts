@@ -180,9 +180,9 @@ Deno.serve(async (req: Request) => {
     // profile_taste_picks carries the same conditions this read used to spell
     // out, plus the taste-dimension requirement, and profile-ai-status calls
     // the very same function for its gate. Categories with no primary taste
-    // dimension — living-service 단골 among them — are not taste material and
-    // stay out of both. The function is security invoker, so this keeps
-    // reading as the public client against the public-pick policy.
+    // dimension — the online/offline living services among them — are not
+    // taste material and stay out of both. The function is security invoker,
+    // so this keeps reading as the public client against the public-pick policy.
     const readSnapshot = async () => {
       const { data, error } = await publicClient.rpc('profile_taste_picks', { p_profile_id: user.id });
       if (error) throw new Error('AI_SOURCE_READ_FAILED');

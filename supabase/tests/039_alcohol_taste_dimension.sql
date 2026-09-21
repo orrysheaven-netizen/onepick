@@ -1,13 +1,16 @@
--- 주류 카테고리의 취향 차원 매핑. docs/dangol-entry-direction.md 참조.
+-- 주류 카테고리의 취향 차원 매핑. docs/life-service-entry-direction.md 참조.
 --
 -- 확인하는 것 셋: 맥주·소주가 food 차원에 하나씩 붙는가, 취향 구성이 주류
 -- 원픽을 이제 세는가, 그리고 열려 있고 선택 가능한 카테고리에 매핑이 빠진
 -- 것이 남아 있지 않은가.
 --
--- 마지막 검사가 이 누락의 재발을 막는 자리다. 취향 평가에서 일부러 제외할
--- 카테고리(단골 등)를 열 때는 이 검사를 의식적으로 고쳐야 하며, 그것이
--- 의도된 마찰이다. 매핑 유무가 취향 평가 포함 여부의 스위치이므로
--- 매핑을 빼먹은 카테고리는 조용히 평가에서 사라진다.
+-- 마지막 검사가 이 누락의 재발을 막는 자리다. 매핑 유무가 취향 평가 포함
+-- 여부의 스위치이므로, 매핑을 빼먹은 카테고리는 조용히 평가에서 사라진다.
+--
+-- 일부러 제외하는 묶음은 최상위 슬러그로 면제한다(지금은 online·offline).
+-- 면제를 최상위에 두면 그 아래 말단을 더 여는 것은 검사를 고치지 않아도
+-- 되고, **새 최상위 묶음**을 취향 평가에서 빼려면 이 목록을 의식적으로
+-- 고쳐야 한다. 결정이 내려지는 층과 마찰이 걸리는 층을 맞춘 것이다.
 begin;
 
 create extension if not exists pgtap with schema extensions;
@@ -35,19 +38,30 @@ select is(
   '소주의 primary 취향 차원은 food다'
 );
 
+with recursive tree as (
+  select c.id, c.slug as root_slug
+  from public.categories c
+  where c.parent_id is null
+  union all
+  select c.id, t.root_slug
+  from public.categories c
+  join tree t on c.parent_id = t.id
+)
 select is(
   (select count(*)::int
    from public.categories c
+   join tree t on t.id = c.id
    where c.status = 'open'
      and c.is_visible
      and c.is_pickable
+     and t.root_slug not in ('online', 'offline')
      and not exists (
        select 1
        from public.category_taste_dimensions td
        where td.category_id = c.id and td.is_primary
      )),
   0,
-  '열려 있고 선택 가능한 카테고리에 취향 차원 매핑이 빠진 것이 없다'
+  '취향 평가 대상 카테고리에 취향 차원 매핑이 빠진 것이 없다'
 );
 
 -- 취향 구성 ---------------------------------------------------------------

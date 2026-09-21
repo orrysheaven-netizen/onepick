@@ -1,9 +1,9 @@
--- 취향 평가가 읽는 원픽 한 벌. docs/dangol-entry-direction.md 참조.
+-- 취향 평가가 읽는 원픽 한 벌. docs/life-service-entry-direction.md 참조.
 --
 -- profile_taste_picks는 profile-ai-status의 자격 판정과
 -- analyze-profile-taste의 재료를 같은 정의로 묶는다. 그래서 여기서 확인할
 -- 것은 "취향 차원 매핑이 없는 카테고리의 원픽은 이 함수를 통과하지 못한다"
--- 하나다. 그것이 생활 서비스(단골)를 취향 평가에서 빼는 방법이며,
+-- 하나다. 그것이 온라인·오프라인 생활 서비스를 취향 평가에서 빼는 방법이며,
 -- 자격 개수와 재료가 같은 분모를 쓴다는 보장이다.
 --
 -- 기존 두 질의가 갖고 있던 조건(본인, active 픽, 보이는 카테고리,
@@ -18,7 +18,7 @@ select plan(9);
 insert into public.categories (id, name, slug, status, is_visible, is_pickable)
 values
   ('40a04040-a040-4040-8040-a04040404040', '취향 테스트', 'taste-picks-test', 'open', true, true),
-  ('40b04040-b040-4040-8040-b04040404040', '단골 테스트', 'taste-picks-dangol', 'open', true, true),
+  ('40b04040-b040-4040-8040-b04040404040', '서비스 테스트', 'taste-picks-service', 'open', true, true),
   ('40c04040-c040-4040-8040-c04040404040', '숨은 테스트', 'taste-picks-hidden', 'open', false, true);
 
 insert into public.category_taste_dimensions (category_id, dimension_code, weight, is_primary)
@@ -45,7 +45,7 @@ values
   ('40404040-4040-4040-8040-404040404041', 'taste_picks_a', true),
   ('40404040-4040-4040-8040-404040404042', 'taste_picks_b', true);
 
--- A: 취향 픽 하나(단종 아이템), 단골 픽 하나, 숨은 카테고리 픽 하나,
+-- A: 취향 픽 하나(단종 아이템), 생활 서비스 픽 하나, 숨은 카테고리 픽 하나,
 --    숨긴 아이템 픽 하나, 그리고 교체된 과거 픽 하나.
 insert into public.picks (user_id, category_id, item_id, one_line_review, status, started_at, ended_at)
 values
