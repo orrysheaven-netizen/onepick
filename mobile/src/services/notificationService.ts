@@ -10,8 +10,25 @@ export type NotificationPreferences = { followeePickChange: boolean };
 
 function missingUnifiedRpc(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false;
-  return error.code === 'PGRST202'
-    || /notification_(count|page)/i.test(error.message ?? '');
+  if (error.code === 'PGRST202' || error.code === '42883') return true;
+  const message = error.message ?? '';
+  return /(could not find the function|function .* does not exist).*notification_(count|page)/i.test(message);
+}
+
+function normalizeNotification(row: unknown): AppNotification | null {
+  if (!row || typeof row !== 'object') return null;
+  const value = row as Partial<AppNotification>;
+  if ((value.kind !== 'comment' && value.kind !== 'pick_change')
+    || typeof value.id !== 'string' || !value.id
+    || typeof value.pick_id !== 'string' || !value.pick_id
+    || typeof value.created_at !== 'string' || !value.created_at) return null;
+  return {
+    ...value,
+    username: typeof value.username === 'string' && value.username ? value.username : '알 수 없는 사용자',
+    item_name: typeof value.item_name === 'string' && value.item_name ? value.item_name : '원픽',
+    body: typeof value.body === 'string' ? value.body : null,
+    read_at: typeof value.read_at === 'string' ? value.read_at : null,
+  } as AppNotification;
 }
 
 export class NotificationService {
@@ -36,11 +53,13 @@ export class NotificationService {
     });
 
     if (!unified.error) {
-      const rows = unified.data ?? [];
-      const last = rows[19];
+      const rawRows = (unified.data ?? []) as unknown[];
+      const rows = rawRows.slice(0, 20).map(normalizeNotification)
+        .filter((row): row is AppNotification => Boolean(row));
+      const last = rows.at(-1);
       return {
-        items: rows.slice(0, 20),
-        nextCursor: rows.length > 20 && last ? { timestamp: last.created_at, id: last.id } : null,
+        items: rows,
+        nextCursor: rawRows.length > 20 && last ? { timestamp: last.created_at, id: last.id } : null,
       };
     }
     if (!missingUnifiedRpc(unified.error)) throw mapSupabaseError(unified.error);
