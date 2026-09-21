@@ -18,10 +18,6 @@ function object(value: unknown): Record<string, unknown> {
 function text(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
-function relation(value: unknown) {
-  return object(Array.isArray(value) ? value[0] : value);
-}
-
 function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): number {
   const previousRows = Array.isArray(previousValue) ? previousValue.map(object) : [];
   const hasIds = previousRows.some((row) => text(row.categoryId).length > 0);
@@ -40,10 +36,8 @@ function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): 
   const current = new Map<string, string>();
   for (const value of currentRows) {
     const row = object(value);
-    const category = relation(row.categories);
-    const item = relation(row.items);
-    const categoryName = text(category.name);
-    const itemName = text(item.name);
+    const categoryName = text(row.category_name);
+    const itemName = text(row.item_name);
     const categoryKey = hasIds && text(row.category_id)
       ? text(row.category_id) : categoryName ? `name:${categoryName}` : '';
     const itemKey = hasIds && text(row.item_id)
@@ -82,14 +76,15 @@ Deno.serve(async (req: Request) => {
   // current_user_is_admin reads auth.uid() from the caller's own JWT, so it
   // must run on userClient (the service-role admin client carries no real
   // end-user identity).
-  const [picksResult, reviewResult, adminResult] = await Promise.all([
+  const [picksResult, tasteResult, reviewResult, adminResult] = await Promise.all([
     admin.from('picks')
-      .select('category_id,item_id,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
+      .select('id,categories!picks_category_id_fkey!inner(is_visible),items!picks_item_category_fk!inner(status)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .eq('categories.is_visible', true)
       .in('items.status', ['active', 'discontinued'])
       .limit(50),
+    admin.rpc('profile_taste_picks', { p_profile_id: user.id }),
     admin.from('profile_ai_reviews')
       .select('generated_at,pick_snapshot,is_visible,is_stale')
       .eq('profile_id', user.id)
@@ -97,17 +92,21 @@ Deno.serve(async (req: Request) => {
     userClient.rpc('current_user_is_admin'),
   ]);
 
-  if (picksResult.error || reviewResult.error || adminResult.error) return reply({ error: 'AI_STATUS_FAILED' }, 500);
+  if (picksResult.error || tasteResult.error || reviewResult.error || adminResult.error) {
+    return reply({ error: 'AI_STATUS_FAILED' }, 500);
+  }
   const isAdmin = adminResult.data === true;
 
-  const currentRows = picksResult.data ?? [];
-  const currentPickCount = currentRows.length;
+  const currentPickCount = (picksResult.data ?? []).length;
+  const tasteRows = tasteResult.data ?? [];
+  const tastePickCount = tasteRows.length;
   const review = reviewResult.data;
 
   if (!review) {
-    const canGenerate = currentPickCount >= 10;
+    const canGenerate = tastePickCount >= 10;
     return reply({
       currentPickCount,
+      tastePickCount,
       minimumPicks: 10,
       recommendedPicks: 10,
       hasReview: false,
@@ -125,13 +124,13 @@ Deno.serve(async (req: Request) => {
 
   const snapshot = Array.isArray(review.pick_snapshot) ? review.pick_snapshot : [];
   const reviewPickCount = snapshot.length;
-  const changedCount = meaningfulChangeCount(snapshot, currentRows);
+  const changedCount = meaningfulChangeCount(snapshot, tasteRows);
   let retryAfterSeconds = 0;
   let canGenerate = false;
   let reason = 'NEED_CHANGES';
 
   if (reviewPickCount < 10) {
-    canGenerate = currentPickCount >= 10;
+    canGenerate = tastePickCount >= 10;
     reason = canGenerate ? 'READY_TEN_PICK_UPGRADE' : 'NEED_TEN_PICKS';
   } else if (isAdmin) {
     // Admins skip the elapsed-time cooldown only — they still need the
@@ -151,6 +150,7 @@ Deno.serve(async (req: Request) => {
 
   return reply({
     currentPickCount,
+    tastePickCount,
     minimumPicks: 10,
     recommendedPicks: 10,
     hasReview: true,

@@ -11,34 +11,40 @@ function retryCopy(seconds: number) {
 }
 
 function progressCopy(status: ProfileAiStatus) {
+  const excluded = status.currentPickCount > status.tastePickCount
+    ? ' 온라인·오프라인 카테고리 원픽은 취향 평가에 넣지 않아요.'
+    : '';
+
   if (!status.hasReview) {
-    if (status.currentPickCount < status.minimumPicks) {
-      return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
+    if (status.tastePickCount < status.minimumPicks) {
+      return `취향 카테고리 원픽 ${status.tastePickCount}/${status.minimumPicks} · ${status.minimumPicks - status.tastePickCount}개를 채우면 AI 평가가 열려요.${excluded}`;
     }
-    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.`;
+    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${excluded}`;
   }
+
   if (status.reviewPickCount < status.recommendedPicks) {
-    if (status.currentPickCount < status.recommendedPicks) {
-      return `${status.currentPickCount}/${status.recommendedPicks} · ${status.recommendedPicks - status.currentPickCount}개 더 고르면 더 풍부한 평가로 갱신할 수 있어요.`;
+    if (status.tastePickCount < status.recommendedPicks) {
+      return `취향 카테고리 원픽 ${status.tastePickCount}/${status.recommendedPicks} · ${status.recommendedPicks - status.tastePickCount}개 더 고르면 더 풍부한 평가로 갱신할 수 있어요.${excluded}`;
     }
-    return '10개의 원픽이 모였어요. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요.';
+    return `10개의 취향 원픽이 모였어요. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요.${excluded}`;
   }
+
   const changeText = `새로운 취향 변화 ${Math.min(status.changedCount, status.minimumChanges)}/${status.minimumChanges}`;
   if (status.retryAfterSeconds > 0) {
     return `${changeText} · 다음 재평가까지 ${retryCopy(status.retryAfterSeconds)}`;
   }
   return status.changedCount >= status.minimumChanges
     ? `${changeText} · 다시 평가할 수 있어요.`
-    : `${changeText} · 원픽을 더 추가하거나 바꾸면 AI가 다시 읽어요.`;
+    : `${changeText} · 취향 원픽을 더 추가하거나 바꾸면 AI가 다시 읽어요.`;
 }
 
 export function ProfileAiPanel({
   profileId,
-  currentPickCount,
+  tastePickCount,
   previewStatus,
 }: {
   profileId: string;
-  currentPickCount: number;
+  tastePickCount: number;
   previewStatus?: ProfileAiStatus;
 }) {
   const preview = Boolean(previewStatus);
@@ -52,7 +58,7 @@ export function ProfileAiPanel({
     !status.isPending &&
     !comment.isPending &&
     comment.data === null &&
-    currentPickCount >= 10;
+    tastePickCount >= 10;
 
   return <View style={styles.section}>
     <View style={styles.headingRow}>
@@ -71,7 +77,7 @@ export function ProfileAiPanel({
     {value ? <View style={styles.progressCard}>
       <Text style={styles.progressText}>{progressCopy(value)}</Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(value.currentPickCount, 10) / 10) * 100)}%` }]} />
+        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(value.tastePickCount, 10) / 10) * 100)}%` }]} />
       </View>
       <Pressable
         accessibilityRole="button"
@@ -84,7 +90,7 @@ export function ProfileAiPanel({
     </View> : fallbackReadyForFirstReview ? <View style={styles.progressCard}>
       <Text style={styles.progressText}>10/10개를 채웠으니 AI 평가가 가능합니다.</Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
+        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(tastePickCount, 10) / 10) * 100)}%` }]} />
       </View>
       <Pressable
         accessibilityRole="button"

@@ -17,8 +17,10 @@ assert.match(generate, /changedCount < PROFILE_AI_MIN_CHANGES/);
 assert.match(generate, /WEEKLY_REANALYSIS_LIMIT/);
 assert.match(generate, /current_user_is_admin/);
 assert.match(generate, /!isAdmin && existing\.generated_at/);
-assert.match(status, /currentPickCount >= 10/);
-assert.match(status, /currentPickCount >= 10/);
+assert.match(status, /rpc\('profile_taste_picks'/);
+assert.match(generate, /rpc\('profile_taste_picks'/);
+assert.match(status, /tastePickCount >= 10/);
+assert.match(status, /meaningfulChangeCount\(snapshot, tasteRows\)/);
 assert.match(status, /changedCount >= 5/);
 assert.match(status, /7 \* 24 \* 60 \* 60 \* 1000/);
 assert.match(status, /READY_TEN_PICK_UPGRADE/);
@@ -26,4 +28,4 @@ assert.match(status, /READY_REANALYSIS/);
 assert.match(status, /current_user_is_admin/);
 assert.match(status, /isAdmin/);
 
-console.log('Profile AI policy checks passed: 10-pick first read, legacy 10-pick upgrade, then 5 changes + 7 days (admins bypass the wait).');
+console.log('Profile AI policy checks passed: 10 taste Picks for first read, taste-only changes, legacy upgrade, then 5 changes + 7 days.');

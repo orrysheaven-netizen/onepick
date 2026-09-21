@@ -12,7 +12,10 @@ export type ProfileAiReason =
   | 'READY_REANALYSIS';
 
 export type ProfileAiStatus = {
+  /** Every visible active Pick. Shown for context; it does not open the gate. */
   currentPickCount: number;
+  /** Picks in taste-mapped categories. This is what the AI gate counts. */
+  tastePickCount: number;
   minimumPicks: number;
   recommendedPicks: number;
   hasReview: boolean;
@@ -66,6 +69,7 @@ class ProfileAiService {
     const value = data as Record<string, unknown>;
     return {
       currentPickCount: numberValue(value.currentPickCount),
+      tastePickCount: numberValue(value.tastePickCount, numberValue(value.currentPickCount)),
       minimumPicks: numberValue(value.minimumPicks, 10),
       recommendedPicks: numberValue(value.recommendedPicks, 10),
       hasReview: booleanValue(value.hasReview),
