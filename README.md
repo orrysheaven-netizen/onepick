@@ -69,3 +69,6 @@ SPA routing, hosting environment, OAuth callbacks and release verification.
 
 For the small tester group, use [테스트 호스팅 연결 안내](docs/test-hosting.md)
 and [테스터 안내문](docs/tester-guide.md).
+
+For the first invitation round, use [MVP 초기 홍보 운영 기준](docs/mvp-launch-promotion.md)
+together with [MVP 콘텐츠 시딩 운영 기준](docs/content-seeding.md).
