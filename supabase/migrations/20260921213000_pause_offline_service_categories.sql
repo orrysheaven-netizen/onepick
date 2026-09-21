@@ -28,15 +28,20 @@
 -- 1번(장소 식별자)을 설계해야 한다. 039의 취향 매핑 면제는 최상위
 -- 슬러그(offline)에 걸려 있으므로 다시 열 때 검사를 고칠 필요는 없다.
 
-update public.categories
+-- 슬러그로 직접 찾지 않고 `오프라인`의 자식으로 한정한다. 같은 슬러그가
+-- 트리의 다른 자리에 있어도 그 행을 멈추지 않는다. 20260921212000이 기존
+-- 노드를 입양하던 것과 같은 계열의 실수를 여기서도 막는다.
+update public.categories c
 set status = 'paused',
     is_visible = false,
     updated_at = now()
-where slug in ('auto-repair', 'optician', 'repair-technician', 'interior-construction');
+where c.parent_id = (select id from public.categories where slug = 'offline')
+  and c.slug in ('auto-repair', 'optician', 'repair-technician', 'interior-construction');
 
 -- 말단이 모두 멈췄으므로 묶음은 탐색에서 빈 칸으로 남는다. 트리에서는
 -- 지우지 않는다. 다시 여는 것이 플래그 몇 개여야 한다.
 update public.categories
 set is_visible = false,
     updated_at = now()
-where slug = 'offline';
+where slug = 'offline'
+  and parent_id is null;

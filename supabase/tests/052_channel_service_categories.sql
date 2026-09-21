@@ -20,7 +20,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- 트리 모양 --------------------------------------------------------------
 
@@ -106,6 +106,19 @@ select ok(
      'auto-repair', 'optician', 'repair-technician', 'interior-construction'
    )),
   '묶음과 멈춘 오프라인 말단에는 원픽을 등록할 수 없다'
+);
+
+-- 온라인·오프라인의 자식은 모두 말단이어야 한다. 기존 노드를 입양해 옮기면
+-- 그 자식까지 이 묶음 아래로 들어와 이 불변식이 깨진다. 특정 슬러그를
+-- 확인하는 위 검사와 달리, 이것은 어떤 슬러그로 같은 실수를 해도 걸린다.
+select is(
+  (select count(*)::int
+   from public.categories c
+   join public.categories p on p.id = c.parent_id
+   where p.slug in ('online', 'offline')
+     and exists (select 1 from public.categories ch where ch.parent_id = c.id)),
+  0,
+  '온라인·오프라인 아래에는 자식을 가진 노드가 없다'
 );
 
 -- 취향 평가에서 빠지는 방법 ----------------------------------------------
