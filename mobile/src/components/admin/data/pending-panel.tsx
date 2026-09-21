@@ -95,8 +95,13 @@ export function PendingPanel() {
   useEffect(() => {
     setMergeCandidates([]);
     setMergeQuery(selected?.name ?? '');
-    setReviewCategoryId(selected && selected.categories?.slug !== 'pending-product' ? selected.category_id : '');
-  }, [selectedId]);
+    const ownCategoryIsSelectable = Boolean(
+      selected
+      && selected.categories?.slug !== 'pending-product'
+      && reviewCategories.some((category) => category.id === selected.category_id),
+    );
+    setReviewCategoryId(ownCategoryIsSelectable && selected ? selected.category_id : '');
+  }, [selectedId, reviewCategories]);
 
   const removeSelected = (name: string, resultMessage: string) => {
     if (!selected) return;
