@@ -6,10 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useApplyItemCategory, useItemCategorySuggestions } from '@/hooks/useItemCategoryAi';
+import { useApplyItemCategory, useItemCategorySuggestions, useSetItemCategoryHint } from '@/hooks/useItemCategoryAi';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
+import { CATEGORY_HINT_MAX_LENGTH } from '@/services/registrationService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { OnePick } from '@/constants/onepick';
 
@@ -26,6 +27,15 @@ function errorMessage(error: unknown) {
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
   return '상품을 등록하지 못했어요. 다시 시도해주세요.';
+}
+
+function hintErrorMessage(error: unknown) {
+  if (error instanceof AppError) {
+    if (error.code === 'CATEGORY_LABEL_INVALID') return `카테고리 힌트는 1~${CATEGORY_HINT_MAX_LENGTH}자로 적어주세요.`;
+    if (error.code === 'ITEM_NOT_ELIGIBLE') return '이 요청은 이미 검수가 끝나 힌트를 바꿀 수 없어요.';
+    if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인해주세요.';
+  }
+  return '카테고리 힌트를 보내지 못했어요. 적은 내용은 그대로 있으니 다시 시도해주세요.';
 }
 
 type Params = { categoryId?: string; itemName?: string };
@@ -50,8 +60,16 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [appliedCategoryLabel, setAppliedCategoryLabel] = useState<string | null>(null);
-  const categorySuggestions = useItemCategorySuggestions(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
-  const applyCategory = useApplyItemCategory(!categoryId && !appliedCategoryLabel ? submittedItem?.id : undefined);
+  const [hintMode, setHintMode] = useState(false);
+  const [hintText, setHintText] = useState('');
+  const [savedHint, setSavedHint] = useState<string | null>(null);
+  const classifying = !categoryId && !appliedCategoryLabel && !savedHint;
+  const categorySuggestions = useItemCategorySuggestions(classifying ? submittedItem?.id : undefined);
+  const applyCategory = useApplyItemCategory(classifying ? submittedItem?.id : undefined);
+  const categoryHint = useSetItemCategoryHint(classifying ? submittedItem?.id : undefined, auth.user?.id);
+  const normalizedHint = hintText.trim().replace(/\s+/g, ' ');
+  const canSendHint = normalizedHint.length >= 1 && normalizedHint.length <= CATEGORY_HINT_MAX_LENGTH
+    && !categoryHint.isPending && !applyCategory.isPending;
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [imageLink, setImageLink] = useState('');
   const submitting = registration.isPending || photoPicker.isPending || imageImport.isPending;
@@ -144,6 +162,16 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     }
   };
 
+  const sendCategoryHint = async () => {
+    if (!submittedItem || !canSendHint) return;
+    try {
+      await categoryHint.mutateAsync(normalizedHint);
+      setSavedHint(normalizedHint);
+    } catch {
+      // Mutation state renders the error; keep the typed hint for retry.
+    }
+  };
+
   if (auth.isLoading) {
     return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
   }
@@ -187,6 +215,18 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
             <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 확인 후 승인된 제품을 원픽으로 선택할 수 있어요.`}
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+            <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    if (savedHint) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.center}>
+            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 승인된 제품은 내 프로필에서 원픽으로 선택할 수 있어요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -256,6 +296,29 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
             </View>
           ) : null}
 
+          <View style={styles.hintCard}>
+            <Text style={styles.suggestionTitle}>맞는 카테고리가 없나요?</Text>
+            <Text style={styles.helper}>원하는 카테고리를 직접 적어주세요. 관리자가 힌트를 참고해 실제 카테고리를 정합니다.</Text>
+            {hintMode ? <>
+              <TextInput
+                accessibilityLabel="원하는 카테고리"
+                editable={!categoryHint.isPending}
+                maxLength={CATEGORY_HINT_MAX_LENGTH}
+                onChangeText={(value) => { setHintText(value); if (categoryHint.isError) categoryHint.reset(); }}
+                placeholder="예: 텀블러, 캠핑 의자, 반려동물 간식"
+                placeholderTextColor={OnePick.hint}
+                style={[styles.input, styles.hintInput]}
+                value={hintText}
+              />
+              <Text style={styles.helper}>{normalizedHint.length}/{CATEGORY_HINT_MAX_LENGTH}</Text>
+              {categoryHint.isError ? <Text accessibilityRole="alert" style={styles.error}>{hintErrorMessage(categoryHint.error)}</Text> : null}
+              <Button size="lg" fullWidth label="카테고리 힌트 보내기" disabled={!canSendHint} loading={categoryHint.isPending}
+                onPress={() => void sendCategoryHint()} style={styles.hintSubmit} />
+            </> : (
+              <Button variant="ghost" size="sm" style={styles.inlineAction} label="카테고리 직접 적기" onPress={() => setHintMode(true)} />
+            )}
+          </View>
+
           <View style={styles.laterRow}>
             <Button variant="ghost" label="카테고리는 나중에 정하기" onPress={() => router.replace('/(tabs)/profile')} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} />
@@ -297,7 +360,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 카테고리는 등록 후 선택할 수 있어요.</Text>
+          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>
@@ -371,6 +434,9 @@ const styles = StyleSheet.create({
   photoPreview: { width: '100%', height: 220, backgroundColor: OnePick.sunken, borderRadius: 12, marginTop: 12 },
   photoLoading: { alignItems: 'center', paddingVertical: 10 },
   suggestionCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginTop: 22 },
+  hintCard: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginTop: 14 },
+  hintInput: { marginTop: 12 },
+  hintSubmit: { marginTop: 14 },
   suggestionTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 4 },
   suggestionOption: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, padding: 14, marginTop: 10 },
   suggestionOptionSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
