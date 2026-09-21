@@ -24,6 +24,8 @@ export interface Item {
   releaseYear: number | null;
   creatorName?: string | null;
   collectionName?: string | null;
+  /** Free-text category hint left by the requester on a pending request; reviewed by an administrator. */
+  requestedCategoryLabel: string | null;
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

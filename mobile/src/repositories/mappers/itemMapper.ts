@@ -26,6 +26,7 @@ export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbna
     releaseYear: row.release_year,
     creatorName: row.creator_name ?? null,
     collectionName: row.collection_name ?? null,
+    requestedCategoryLabel: row.requested_category_label ?? null,
     status: row.status as ItemStatus,
     mergedIntoItemId: row.merged_into_item_id,
     createdBy: row.created_by,

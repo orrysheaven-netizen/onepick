@@ -71,6 +71,10 @@ async function main() {
           imagePath: input.imagePath ?? null,
         });
       },
+      setPendingCategoryHint: async (itemId, label) => {
+        calls.push(['hint', itemId, label]);
+        return itemRecord({ id: itemId, name: '힌트 제품', categoryId: 'pending-product', status: 'pending', requestedCategoryLabel: label });
+      },
       submitUnclassifiedItem: async (input) => {
         calls.push(['submit-unclassified', input]);
         return itemRecord({
@@ -154,11 +158,21 @@ async function main() {
   assert.equal(calls.length, 0, 'Validate category availability before uploading or submitting');
   category.isVisible = true;
 
+  // Step 5 of search-first registration: a free-text category hint on the staged request.
+  calls = [];
+  await assert.rejects(() => service.setCategoryHint({ userId: '', itemId: 'staged', label: '텀블러' }), (error) => error.code === 'AUTH_REQUIRED');
+  await assert.rejects(() => service.setCategoryHint({ userId: 'me', itemId: 'staged', label: '   ' }), (error) => error.code === 'CATEGORY_LABEL_INVALID');
+  await assert.rejects(() => service.setCategoryHint({ userId: 'me', itemId: 'staged', label: '가'.repeat(61) }), (error) => error.code === 'CATEGORY_LABEL_INVALID');
+  assert.equal(calls.length, 0, 'Invalid hints never reach the repository');
+  const hinted = await service.setCategoryHint({ userId: 'me', itemId: 'staged', label: '  텀블러 /  보온병 ' });
+  assert.deepEqual(calls, [['hint', 'staged', '텀블러 / 보온병']], 'The hint is normalized before it is stored');
+  assert.equal(hinted.requestedCategoryLabel, '텀블러 / 보온병');
+
   await assert.rejects(() => service.importPhoto('http://localhost/test'), (error) => error.code === 'IMAGE_SOURCE_UNSUPPORTED');
   const imported = await service.importPhoto('https://www.otoki.com/item');
   assert.equal(imported.sourceUrl, 'https://www.otoki.com/item');
 
-  console.log('Registration checks passed: category-free product staging, fixed-category requests, existing-item picks, photo reuse, validation and URL import.');
+  console.log('Registration checks passed: category-free product staging, category hints, fixed-category requests, existing-item picks, photo reuse, validation and URL import.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

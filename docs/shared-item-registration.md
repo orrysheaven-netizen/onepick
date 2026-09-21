@@ -66,19 +66,28 @@ The MVP Admin dashboard provides:
 ## User submission flow
 
 ```text
-Search item
+Search item (no category needed)
   ↓
 Existing item found ──→ Select item ──→ Write one-line reason ──→ Pick
   ↓ no result
-Submit missing item
+Submit missing item by name only
   ↓
-items.status = pending
+items.status = pending, category = hidden 'pending-product' staging bucket
   ↓
-Admin review
-  ├─ Approve ─→ active ─→ user can select it as a Pick
+AI suggests up to three existing categories (suggest-item-categories)
+  ├─ User applies one ──────────→ classify_pending_item moves it to that category
+  ├─ User picks from the full list → same
+  ├─ No category fits ──────────→ user writes a free-text hint
+  │                                 (set_pending_item_category_hint → items.requested_category_label)
+  └─ User leaves it for later
+  ↓
+Admin review (데이터 관리 › 검수 대기)
+  ├─ Approve ─→ reviewer assigns a real category (required for staged items) ─→ active
   ├─ Merge ───→ merged_into_item_id
   └─ Reject ──→ rejected
 ```
+
+The free-text hint is advice for the reviewer, never a category row: the taxonomy stays administrator-owned, so a hint like `텀블러` results in either an existing category assignment or a new category created by the administrator before approval. Hints are 1–60 characters, only the requester can write or change one, and only while the request is still `pending`. The hint is kept on the approved item so recurring hints can inform future category additions.
 
 A user submitting a missing item does **not** need to write a Pick review yet. The review is requested after the item has been approved and the user actually selects it as their OnePick.
 
