@@ -47,6 +47,13 @@ const native = {
 };
 const pickPhoto = { PickPhoto: () => null };
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto });
+const onepickConstants = load('constants/onepick.ts');
+const followingQuery = {
+  data: { items: [query.data.picks[0]], nextCursor: null },
+  isPending: false, isError: false, isFetching: false, isRefetching: false,
+  hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false,
+  refetch: async () => {}, fetchNextPage: async () => {},
+};
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': native,
@@ -55,10 +62,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
   '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
-  '@/hooks/useFollow': { useFollowingFeed: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, isRefetching: false, hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false, refetch: async () => {}, fetchNextPage: async () => {} }) },
+  '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
-  '@/constants/onepick': load('constants/onepick.ts'),
+  '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
     { id: 'food', parentId: null, name: '음식', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
@@ -81,6 +88,17 @@ const press = (label) => {
   const button = presses.find((p) => p.accessibilityLabel === label || textOf(p.children) === label);
   assert.ok(button, label); button.onPress();
 };
+
+// Restaurant-first MVP: a signed-in member starts on the following feed.
+// Keep this assertion on the real enabled feature flag, then disable the flag
+// only inside this test so the existing exhaustive public-feed checks below
+// continue to exercise that secondary tab as a fresh mount.
+const followingFirstPage = render();
+assert.match(followingFirstPage, /팔로잉/);
+assert.match(followingFirstPage, /@friend/, 'Member Home renders the following feed first');
+assert.doesNotMatch(followingFirstPage, /@neighbor/, 'The default following feed does not silently fall back to the public feed');
+assert.doesNotMatch(followingFirstPage, /원픽 더 둘러보기/, 'Public-feed footer is not mixed into the following scope');
+onepickConstants.OnePickFeatures.follow = false;
 
 for (width of [390, 800, 1200]) {
   const page = render();
@@ -178,4 +196,4 @@ assert.match(render(), /아직 공개된 원픽이 없어요/);
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: people-first cards with reasons, same/other/discuss actions, product/profile routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: following-first member entry, public-feed cards/actions, routes, empty states, refresh recovery and session privacy.');
