@@ -1,6 +1,6 @@
 # 아는 사람의 원픽을 먼저 보는 팔로우
 
-상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `전체 / 팔로잉` 탭, 본인 팔로잉/팔로워 수(#137), 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
+상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `전체 / 팔로잉` 탭, 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. 팔로잉/팔로워 수 집계는 백엔드에 유지하되 초기 MVP UI에서는 노출하지 않는다. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
 
 ## 왜 필요한가
 - 홈은 모르는 사람의 최신 원픽을 시간순으로 보여준다. 사용자가 늘수록 낯선 사람의 이유를 읽을 동기가 약해진다. 아는 사람의 이유는 읽는다.
@@ -14,7 +14,7 @@
 - 팔로잉 탭 빈 상태: "아직 팔로우한 사람이 없어요" + 프로필 공유 안내 + 전체 탭으로 이동. 팔로우한 사람이 원픽을 아직 안 골랐으면 그 사실을 말해준다.
 - 프로필 `공유` 버튼: 프로필 딥링크를 OS 공유 시트로 보낸다. 비로그인으로 열면 둘러보기 가능, 팔로우는 기존 로그인 복귀 의도로 연결한다.
 - 알림: 팔로우한 사람이 원픽을 새로 고르거나 바꾸면 알림 목록에 항목이 생긴다. 기본 켜짐, 설정에서 끌 수 있다. 한줄평만 고친 경우는 알림하지 않는다.
-- 팔로워 수는 본인에게만 보인다. 타인 프로필에 팔로워 수, 팔로워 목록, 인기순 정렬, 팔로우 추천을 두지 않는다. 홈이 인기 기준을 쓰지 않는 원칙과 같은 이유다.
+- 초기 MVP에서는 본인을 포함해 팔로워/팔로잉 수를 UI에 표시하지 않는다. 타인 프로필에도 팔로워 수, 팔로워 목록, 인기순 정렬, 팔로우 추천을 두지 않는다. 홈이 인기 기준을 쓰지 않는 원칙과 같은 이유다.
 - 팔로우당한 사람에게는 알림을 보내지 않는다(초기). 팔로우 해제는 조용히 처리한다.
 - 차단하면 양방향 팔로우가 모두 해제되고 다시 팔로우할 수 없다. 계정 삭제 시 관계도 삭제된다.
 
@@ -30,14 +30,14 @@
 - RLS: select/insert/delete는 `follower_id = auth.uid()`인 행만. followee 쪽 조회는 본인 팔로워 수 RPC로만 노출한다. `user_blocks`와 같이 insert 트리거에서 `auth.uid()` 일치, 자기 자신 금지, 대상 프로필 존재, `private.users_blocked` 양방향 확인, 정지 계정 여부를 검사한다.
 - `user_blocks` insert 트리거(또는 별도 after 트리거)에서 두 방향의 `user_follows` 행을 삭제한다. 차단 해제해도 팔로우는 복구하지 않는다.
 - `home_following_feed_page(p_before_time, p_before_id)`: `home_pick_feed_page`와 같은 반환 컬럼, 같은 공개 조건(active 원픽, active/discontinued 상품, 정지되지 않은 등록자, 공개·선택 가능한 말단 카테고리), 같은 커서(`started_at desc, id desc`), 20개 + lookahead 1개. 여기에 `exists (select 1 from user_follows f where f.follower_id = auth.uid() and f.followee_id = p.user_id)`만 추가한다. SECURITY INVOKER, 검색 경로 고정, 사용자 ID를 인자로 받지 않는다. 비로그인 호출은 빈 결과.
-- `follow_counts()` : 호출자 본인의 팔로잉 수/팔로워 수만 반환한다. 타인 수를 주는 함수는 만들지 않는다.
+- `follow_counts()` : 호출자 본인의 팔로잉 수/팔로워 수만 반환한다. 초기 MVP에서는 UI가 이 값을 표시하지 않지만, 추후 독립 롤아웃을 위해 백엔드 계약은 유지한다. 타인 수를 주는 함수는 만들지 않는다.
 - 알림 테이블 `public.pick_change_notifications(pick_id, recipient_id, created_at, read_at)`: 댓글 알림과 같은 "참조만 저장, 텍스트 사본 없음" 원칙. `picks` insert 및 status가 active로 바뀔 때 trigger가 팔로워 전원에게 행을 만든다. 한줄평 수정은 트리거 대상이 아니다. 읽기 정책에서 차단·정지·비공개 조건을 다시 검사해 저장 이후 상태 변화도 숨긴다.
 - 알림 팬아웃 상한: 팔로워가 많은 계정의 원픽 변경 한 번이 큰 insert가 되므로 트리거는 `limit`을 두거나(예: 1,000) 그 이상은 배치 처리로 넘긴다. 초기 규모에서는 트리거 직접 insert로 충분하다.
 - 알림 설정은 `notification_preferences(user_id, followee_pick_change)` 본인 행으로 두고 트리거에서 확인한다. 행이 없으면 켜짐이다. `profiles`는 공개 조회가 가능해 설정을 두지 않는다.
 - 관리자 RLS 예외를 포함한 기존 정책은 바꾸지 않는다. 신고/정지 흐름은 그대로이며 정지된 계정의 원픽은 팔로잉 피드에서도 빠진다.
 
 ## 하지 않는 것
-- 맞팔 요청/승인, 비공개 계정, 팔로워 목록 공개, 팔로워 수 공개.
+- 맞팔 요청/승인, 비공개 계정, 팔로워 목록 공개, 초기 MVP의 팔로워/팔로잉 수 표시.
 - 팔로우 추천, 연락처 동기화, 인기순 정렬, 추천 알고리즘.
 - 팔로우당했을 때 알림(수요가 확인되면 추가).
 - 다른 상품을 골랐을 때 상대에게 알림을 보내는 것(기존 원칙 유지).
