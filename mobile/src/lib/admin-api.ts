@@ -111,6 +111,15 @@ export type PendingItem = {
   categories: { name: string; slug: string } | null;
 };
 
+export type AdminItemCategorySuggestion = {
+  item_id: string;
+  item_name: string;
+  suggestions: Array<{ categoryId: string; label: string; reason: string; confidence: 'high' | 'medium' | 'low' }>;
+  needs_new_category: boolean;
+  model_name: string;
+  updated_at: string;
+};
+
 export type AdminReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
 
 export type AdminReport = {
@@ -501,6 +510,13 @@ export function deleteItemAlias(id: string) {
 
 export function getPendingItems(offset = 0) {
   return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+}
+
+export function getPendingItemCategorySuggestion(itemId: string) {
+  return adminRequest<AdminItemCategorySuggestion | null>('/rest/v1/rpc/admin_item_category_suggestion', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: itemId }),
+  });
 }
 
 export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
