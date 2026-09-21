@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 
 const MODEL = 'gpt-5.6-terra';
-const PROMPT_VERSION = 'item-category-v1-existing-only';
+const PROMPT_VERSION = 'item-category-v2-taxonomy-search-terms';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -132,12 +132,13 @@ Deno.serve(async (req: Request) => {
       return reply({ error: 'ITEM_CATEGORY_ALREADY_SET' }, 409);
     }
 
-    const [categoriesResult, sourcesResult] = await Promise.all([
+    const [categoriesResult, sourcesResult, termsResult] = await Promise.all([
       admin.from('categories').select('id,name,parent_id,status,is_visible,is_pickable'),
       admin.from('category_catalog_sources').select('category_id,mode,is_enabled')
         .eq('mode', 'internal').eq('is_enabled', true),
+      admin.from('category_search_terms').select('category_id,term,kind'),
     ]);
-    if (categoriesResult.error || sourcesResult.error) throw new Error('CATEGORY_READ_FAILED');
+    if (categoriesResult.error || sourcesResult.error || termsResult.error) throw new Error('CATEGORY_READ_FAILED');
 
     const rows = categoriesResult.data ?? [];
     const byId = new Map(rows.map((category) => [category.id, category]));
@@ -169,7 +170,9 @@ Deno.serve(async (req: Request) => {
 
     if (categories.length === 0) return reply({ error: 'CATEGORY_OPTIONS_EMPTY' }, 409);
 
-    const fingerprint = await sha256(categories);
+    const categoryIds = new Set(categories.map((category) => category.categoryId));
+    const terms = (termsResult.data ?? []).filter((term) => categoryIds.has(term.category_id));
+    const fingerprint = await sha256({ categories, terms });
     const { data: cached, error: cacheError } = await admin.from('item_category_ai_suggestions')
       .select('user_id,item_name,category_fingerprint,payload,model_name,prompt_version')
       .eq('item_id', itemId).maybeSingle();
@@ -201,6 +204,7 @@ Deno.serve(async (req: Request) => {
           'Do not force weak matches. If none of the supplied categories is a reasonable fit, return an empty suggestions array and needsNewCategory=true.',
           'Never invent or rewrite a category ID. Use only category IDs supplied in candidates.',
           'Rank the most semantically appropriate category first.',
+          'Candidate searchTerms are semantic hints: alias means equivalent wording; tag means a narrower subtype that maps to that category.',
           'Write each reason in concise Korean, based only on the product identity, not on assumptions about the user.',
           'The AI only suggests. A human user makes the final category decision.',
         ].join('\n'),
@@ -210,7 +214,11 @@ Deno.serve(async (req: Request) => {
             officialUrlHost: hostname(item.official_url),
             imageSourceHost: hostname(item.image_source_url),
           },
-          candidates: categories,
+          candidates: categories.map((category) => ({
+            ...category,
+            searchTerms: terms.filter((term) => term.category_id === category.categoryId)
+              .map((term) => ({ term: term.term, kind: term.kind })),
+          })),
         }),
         text: {
           format: {

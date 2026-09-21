@@ -4,6 +4,20 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 
+const edgeSource = fs.readFileSync(
+  path.join(__dirname, '../../supabase/functions/suggest-item-categories/index.ts'),
+  'utf8',
+);
+
+assert.match(edgeSource, /PROMPT_VERSION\s*=\s*'item-category-v2-taxonomy-search-terms'/);
+assert.match(edgeSource, /from\('category_search_terms'\)/,
+  'AI category suggestions must read taxonomy search terms');
+assert.match(edgeSource, /searchTerms:\s*terms\.filter/,
+  'Prompt candidates must carry matching taxonomy search terms');
+assert.match(edgeSource, /sha256\(\{\s*categories,\s*terms\s*\}\)/,
+  'Cache fingerprint must change when taxonomy search terms change');
+
+
 function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
@@ -71,7 +85,7 @@ async function main() {
   functionData = { itemId: 'item-a', suggestions: [{ categoryId: '', label: '', reason: '', confidence: 'high' }], categories: [] };
   await assert.rejects(() => itemCategoryAiService.suggest('item-a'), /ITEM_CATEGORY_AI_INVALID/);
 
-  console.log('Item category AI checks passed: suggestions are parsed, category writes require explicit apply, and invalid payloads fail closed.');
+  console.log('Item category AI checks passed: taxonomy search terms feed the prompt/fingerprint, suggestions are parsed, category writes require explicit apply, and invalid payloads fail closed.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
