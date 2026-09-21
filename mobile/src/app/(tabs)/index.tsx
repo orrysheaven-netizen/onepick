@@ -42,9 +42,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
-  // 전체 / 팔로잉: the second scope only exists for signed-in people and never
-  // changes what the public feed shows.
-  const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
+  // 팔로잉 / 전체: signed-in people start from the social feed. Visitors still
+  // see the public feed because showFollowing also requires a session.
+  const [feedScope, setFeedScope] = useState<'all' | 'following'>(
+    OnePickFeatures.follow ? 'following' : 'all',
+  );
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
   const followingItems = followingQuery.data?.items ?? [];
@@ -128,7 +130,7 @@ export default function HomeScreen() {
       onSelect={openItem} />
 
     {OnePickFeatures.follow && user ? <View style={styles.scopeRow}>
-      {(['all', 'following'] as const).map((scope) => {
+      {(['following', 'all'] as const).map((scope) => {
         const selected = feedScope === scope;
         return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}
           accessibilityLabel={scope === 'all' ? '전체 원픽 보기' : '팔로잉 원픽 보기'}
