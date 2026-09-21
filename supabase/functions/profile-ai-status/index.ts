@@ -105,10 +105,10 @@ Deno.serve(async (req: Request) => {
   const review = reviewResult.data;
 
   if (!review) {
-    const canGenerate = currentPickCount >= 5;
+    const canGenerate = currentPickCount >= 10;
     return reply({
       currentPickCount,
-      minimumPicks: 5,
+      minimumPicks: 10,
       recommendedPicks: 10,
       hasReview: false,
       reviewPickCount: 0,
@@ -140,18 +140,18 @@ Deno.serve(async (req: Request) => {
     reason = canGenerate ? 'READY_REANALYSIS' : 'NEED_CHANGES';
   } else {
     const generated = new Date(review.generated_at).getTime();
-    const dailyMs = 24 * 60 * 60 * 1000;
-    const remainingMs = generated + dailyMs - Date.now();
+    const weeklyMs = 7 * 24 * 60 * 60 * 1000;
+    const remainingMs = generated + weeklyMs - Date.now();
     retryAfterSeconds = Number.isFinite(remainingMs) && remainingMs > 0
       ? Math.max(1, Math.ceil(remainingMs / 1000)) : 0;
     canGenerate = changedCount >= 5 && retryAfterSeconds === 0;
     reason = changedCount < 5 ? 'NEED_CHANGES'
-      : retryAfterSeconds > 0 ? 'WAIT_DAY' : 'READY_REANALYSIS';
+      : retryAfterSeconds > 0 ? 'WAIT_WEEK' : 'READY_REANALYSIS';
   }
 
   return reply({
     currentPickCount,
-    minimumPicks: 5,
+    minimumPicks: 10,
     recommendedPicks: 10,
     hasReview: true,
     reviewPickCount,
