@@ -19,7 +19,12 @@ insert into public.categories (id, name, slug, status, is_visible, is_pickable)
 values
   ('40a04040-a040-4040-8040-a04040404040', '취향 테스트', 'taste-picks-test', 'open', true, true),
   ('40b04040-b040-4040-8040-b04040404040', '서비스 테스트', 'taste-picks-service', 'open', true, true),
-  ('40c04040-c040-4040-8040-c04040404040', '숨은 테스트', 'taste-picks-hidden', 'open', false, true);
+  -- 처음에는 보이는 상태로 만든다. private.check_pick_category 트리거가
+  -- active 픽에 category_accepts_picks를 강제하므로, 숨겨진 카테고리에는
+  -- 애초에 active 픽을 만들 수 없다. 아래에서 픽을 넣은 뒤 숨긴다. 그것이
+  -- 실제로 일어나는 순서이기도 하다 — 픽이 이미 있는 카테고리를 나중에
+  -- 숨기며, 그때 이 함수가 그 픽을 재료에서 빼야 한다.
+  ('40c04040-c040-4040-8040-c04040404040', '숨은 테스트', 'taste-picks-hidden', 'open', true, true);
 
 insert into public.category_taste_dimensions (category_id, dimension_code, weight, is_primary)
 values ('40a04040-a040-4040-8040-a04040404040', 'food', 100, true);
@@ -58,6 +63,11 @@ values
   ('40404040-4040-4040-8040-404040404041', '40a04040-a040-4040-8040-a04040404040',
    '40d04040-d040-4040-8040-d04040404043', '숨긴 아이템', 'replaced', now() - interval '2 days', now());
 
+-- 픽을 만든 뒤에 카테고리를 숨긴다. 이제 이 픽은 존재하지만 재료가 아니다.
+update public.categories
+set is_visible = false
+where id = '40c04040-c040-4040-8040-c04040404040';
+
 -- B: 취향 픽 하나. A의 결과에 섞이지 않아야 한다.
 insert into public.picks (user_id, category_id, item_id, one_line_review, status, started_at)
 values
@@ -91,7 +101,7 @@ select ok(
     select 1 from public.profile_taste_picks('40404040-4040-4040-8040-404040404041')
     where category_id = '40c04040-c040-4040-8040-c04040404040'
   ),
-  '매핑이 있어도 보이지 않는 카테고리는 빠진다'
+  '픽을 만든 뒤 숨겨진 카테고리는, 매핑이 있어도 빠진다'
 );
 
 select ok(
