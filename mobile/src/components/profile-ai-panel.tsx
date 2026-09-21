@@ -5,10 +5,9 @@ import { useGenerateProfileAi, useProfileAiComment, useProfileAiStatus, useSetPr
 import type { ProfileAiStatus } from '@/services/profileAiService';
 import { OnePick } from '@/constants/onepick';
 
-// The cooldown is at most 24h, so day-granularity would read as "약 1일" for
-// anything from 1 minute to 24 hours remaining. Hours stay meaningful throughout.
-function hoursFromSeconds(seconds: number) {
-  return Math.max(1, Math.ceil(seconds / 3600));
+function retryCopy(seconds: number) {
+  if (seconds >= 24 * 60 * 60) return `약 ${Math.max(1, Math.ceil(seconds / (24 * 60 * 60)))}일`;
+  return `약 ${Math.max(1, Math.ceil(seconds / 3600))}시간`;
 }
 
 function progressCopy(status: ProfileAiStatus) {
@@ -16,10 +15,7 @@ function progressCopy(status: ProfileAiStatus) {
     if (status.currentPickCount < status.minimumPicks) {
       return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
     }
-    const extra = status.currentPickCount > status.minimumPicks
-      ? ` 현재 원픽 ${status.currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
-      : ' 10개까지 채우면 해석이 더 풍부해져요.';
-    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${extra}`;
+    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.`;
   }
   if (status.reviewPickCount < status.recommendedPicks) {
     if (status.currentPickCount < status.recommendedPicks) {
@@ -29,7 +25,7 @@ function progressCopy(status: ProfileAiStatus) {
   }
   const changeText = `새로운 취향 변화 ${Math.min(status.changedCount, status.minimumChanges)}/${status.minimumChanges}`;
   if (status.retryAfterSeconds > 0) {
-    return `${changeText} · 다음 재평가까지 약 ${hoursFromSeconds(status.retryAfterSeconds)}시간`;
+    return `${changeText} · 다음 재평가까지 ${retryCopy(status.retryAfterSeconds)}`;
   }
   return status.changedCount >= status.minimumChanges
     ? `${changeText} · 다시 평가할 수 있어요.`
@@ -56,7 +52,7 @@ export function ProfileAiPanel({
     !status.isPending &&
     !comment.isPending &&
     comment.data === null &&
-    currentPickCount >= 5;
+    currentPickCount >= 10;
 
   return <View style={styles.section}>
     <View style={styles.headingRow}>
@@ -86,7 +82,7 @@ export function ProfileAiPanel({
       </Pressable>
       {generate.isError ? <Text accessibilityRole="alert" style={styles.error}>AI 평가를 만들지 못했어요. 잠시 후 다시 시도해주세요.</Text> : null}
     </View> : fallbackReadyForFirstReview ? <View style={styles.progressCard}>
-      <Text style={styles.progressText}>5/5개를 채웠으니 AI 평가가 가능합니다.{currentPickCount > 5 ? ` 현재 원픽 ${currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.` : ' 10개까지 채우면 해석이 더 풍부해져요.'}</Text>
+      <Text style={styles.progressText}>10/10개를 채웠으니 AI 평가가 가능합니다.</Text>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
       </View>

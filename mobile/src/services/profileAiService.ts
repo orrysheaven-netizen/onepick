@@ -8,7 +8,7 @@ export type ProfileAiReason =
   | 'READY_TEN_PICK_UPGRADE'
   | 'NEED_TEN_PICKS'
   | 'NEED_CHANGES'
-  | 'WAIT_DAY'
+  | 'WAIT_WEEK'
   | 'READY_REANALYSIS';
 
 export type ProfileAiStatus = {
@@ -66,7 +66,7 @@ class ProfileAiService {
     const value = data as Record<string, unknown>;
     return {
       currentPickCount: numberValue(value.currentPickCount),
-      minimumPicks: numberValue(value.minimumPicks, 5),
+      minimumPicks: numberValue(value.minimumPicks, 10),
       recommendedPicks: numberValue(value.recommendedPicks, 10),
       hasReview: booleanValue(value.hasReview),
       reviewPickCount: numberValue(value.reviewPickCount),

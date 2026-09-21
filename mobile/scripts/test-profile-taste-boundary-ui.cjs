@@ -77,9 +77,32 @@ function renderAi(status, currentPickCount) {
   return { html, button };
 }
 
-const fiveStatus = {
-  currentPickCount: 5,
-  minimumPicks: 5,
+const nineStatus = {
+  currentPickCount: 9,
+  minimumPicks: 10,
+  recommendedPicks: 10,
+  hasReview: false,
+  reviewPickCount: 0,
+  changedCount: 0,
+  minimumChanges: 5,
+  retryAfterSeconds: 0,
+  canGenerate: false,
+  reason: 'NEED_FIRST_PICKS',
+  generatedAt: null,
+  isVisible: false,
+  isStale: false,
+};
+
+let rendered = renderAi(nineStatus, 9);
+assert.match(rendered.html, /AI 취향평가/);
+assert.match(rendered.html, /구성 → 해석/);
+assert.match(rendered.html, /9\/10 · 원픽 1개만 더 고르면 AI 평가가 열려요/);
+assert.ok(rendered.button('AI 평가 보기'), '9-pick state keeps the AI CTA visible');
+assert.equal(rendered.button('AI 평가 보기').disabled, true, '9-pick AI review CTA must stay disabled');
+
+const tenFirstStatus = {
+  currentPickCount: 10,
+  minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: false,
   reviewPickCount: 0,
@@ -93,18 +116,14 @@ const fiveStatus = {
   isStale: false,
 };
 
-let rendered = renderAi(fiveStatus, 5);
-assert.match(rendered.html, /AI 취향평가/);
-assert.match(rendered.html, /구성 → 해석/);
-assert.match(rendered.html, /5\/5개를 채웠으니 AI 평가가 가능합니다/);
-assert.match(rendered.html, /10개까지 채우면 해석이 더 풍부해져요/);
-assert.doesNotMatch(rendered.html, /5개부터 평가 가능 · 10개는 권장 목표/);
-assert.ok(rendered.button('AI 평가 보기'), '5-pick state must show first AI review CTA');
-assert.equal(rendered.button('AI 평가 보기').disabled, false, '5-pick AI review CTA must be enabled');
+rendered = renderAi(tenFirstStatus, 10);
+assert.match(rendered.html, /10\/10개를 채웠으니 AI 평가가 가능합니다/);
+assert.ok(rendered.button('AI 평가 보기'), '10-pick state must show the first AI review CTA');
+assert.equal(rendered.button('AI 평가 보기').disabled, false, '10-pick AI review CTA must be enabled');
 
-const tenUpgradeStatus = {
+const legacyUpgradeStatus = {
   currentPickCount: 10,
-  minimumPicks: 5,
+  minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: true,
   reviewPickCount: 5,
@@ -118,10 +137,10 @@ const tenUpgradeStatus = {
   isStale: true,
 };
 
-rendered = renderAi(tenUpgradeStatus, 10);
+rendered = renderAi(legacyUpgradeStatus, 10);
 assert.match(rendered.html, /10개의 원픽이 모였어요\. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요/);
-assert.ok(rendered.button('AI가 다시 본 나'), '10-pick upgrade state must show refresh CTA');
-assert.equal(rendered.button('AI가 다시 본 나').disabled, false, '10-pick upgrade CTA must be enabled');
+assert.ok(rendered.button('AI가 다시 본 나'), 'legacy review below ten picks must keep its one-time upgrade CTA');
+assert.equal(rendered.button('AI가 다시 본 나').disabled, false, 'legacy 10-pick upgrade CTA must be enabled');
 
 let tasteValue;
 const { ProfileTasteComposition } = load('components/profile-taste-composition.tsx', {
@@ -233,4 +252,4 @@ const publicTasteHtml = renderTaste(tenComposition, 'public');
 assert.match(publicTasteHtml, />취향 구성</);
 assert.doesNotMatch(publicTasteHtml, /내 취향 구성/);
 
-console.log('Profile taste boundary UI checks passed: 5-pick first review, 10-pick upgrade, and matching taste composition rendering.');
+console.log('Profile taste boundary UI checks passed: 9-pick wait, 10-pick first review, legacy upgrade, and matching taste composition rendering.');
