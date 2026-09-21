@@ -49,10 +49,10 @@ export function pickShareMeta(input: {
     return null;
   }
   const itemName = clean(input.itemName, 100);
-  const username = clean(input.username, 20);
+  const username = clean(input.username, 20).toLowerCase();
   const categoryName = clean(input.categoryName, 80);
   const review = clean(input.review, 180);
-  if (!itemName || !username) return null;
+  if (!itemName || !/^[a-z0-9_]{3,20}$/.test(username)) return null;
   return {
     title: `${itemName} · @${username}의 원픽 | OnePick`,
     description: review || `${categoryName || '이 카테고리'}에서 고른 @${username}의 원픽을 확인해보세요.`,
