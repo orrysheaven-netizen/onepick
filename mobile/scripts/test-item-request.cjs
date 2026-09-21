@@ -235,7 +235,7 @@ async function main() {
   assert.equal(suggestionItemId, 'general-pending');
   assert.equal(applyItemId, 'general-pending');
   assert.match(aiPage, /AI가 카테고리를 추천했어요/);
-  assert.match(aiPage, /실제 적용은 직접 선택해야 합니다/);
+  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않습니다/);
   assert.equal(appliedCategoryId, undefined, 'AI suggestions never apply automatically');
 
   press('먹을것 › 라면'); render();
