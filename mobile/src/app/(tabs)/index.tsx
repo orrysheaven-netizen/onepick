@@ -50,7 +50,10 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  const categoriesQuery = useExploreCategories(Boolean(data));
+  // The visible category list is public and identical for every reader, so it
+  // is requested alongside the feed instead of after it. Waiting for the feed
+  // put a third request in series on the first screen of every launch.
+  const categoriesQuery = useExploreCategories();
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);

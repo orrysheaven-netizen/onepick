@@ -122,6 +122,16 @@ Use HTTPS and host at the domain root. Do not redirect all URLs to `/` with 301/
 - Set the project/root directory to `mobile`, install with `npm ci`, build with
   `npm run build:web:release`, and publish `dist-release` relative to that root.
 - Revalidate HTML on new releases; avoid long-lived caching of `index.html`.
+- `_headers` caches the content-hashed export prefixes `/_expo/static/*` and
+  `/assets/*` for a year as `immutable`, so a repeat visit does not re-download
+  the multi-megabyte bundle. Nothing else may set `Cache-Control`: Pages joins
+  the values of every matching rule with a comma rather than letting a later
+  rule win, so a second rule covering those paths produces a self-contradicting
+  header. `index.html` deliberately has no rule and keeps the Pages default
+  (`public, max-age=0, must-revalidate` plus an ETag). `npm run check:web`
+  asserts both halves, including that every JS/CSS asset the page references
+  sits under a long-cached prefix. See
+  [접속·이동 로딩 시간 개선](loading-performance.md).
 
 The SPA choice does not generate per-Pick search-engine/social-preview HTML.
 Rich link previews and server rendering are separate follow-up work.

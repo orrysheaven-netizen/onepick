@@ -57,6 +57,11 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item 
 - `search_items()` ranks canonical exact, alias exact, prefix, contains and similarity matches.
 - Home / Explore / Profile / Pick Detail / Item Detail / Comments avoid per-item hydration queries.
 - Explore and Comments load 20 items at a time.
+- Home issues its reads in parallel, and later feed pages fetch the feed only.
+- The web export's content-hashed assets are cached across visits; `index.html` is always revalidated.
+
+See [접속·이동 로딩 시간 개선](docs/loading-performance.md) for the startup request
+path and [검색 응답 속도 보완](docs/search-responsiveness.md) for the search path.
 
 ## Validation
 

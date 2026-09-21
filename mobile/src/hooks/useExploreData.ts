@@ -4,8 +4,19 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { exploreService } from '@/services';
 
+// Categories only change when an Admin edits them, and every Admin mutation
+// already invalidates queryKeys.categories. Holding the list fresh for longer
+// than the global default keeps Home → Explore → Profile from re-requesting the
+// same rows on each navigation; invalidation still refetches immediately.
+const CATEGORY_FRESH_MS = 10 * 60_000;
+
 export function useExploreCategories(enabled = true) {
-  return useQuery({ queryKey: queryKeys.categories.browse, queryFn: () => exploreService.getCategories(), enabled });
+  return useQuery({
+    queryKey: queryKeys.categories.browse,
+    queryFn: () => exploreService.getCategories(),
+    enabled,
+    staleTime: CATEGORY_FRESH_MS,
+  });
 }
 
 export function useCategoryTopItems(categoryId?: string) {
