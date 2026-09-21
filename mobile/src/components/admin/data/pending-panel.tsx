@@ -2,13 +2,34 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { ADMIN_PAGE_SIZE, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
-import type { AdminItem, PendingItem } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, getCategories, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
+import type { AdminCategory, AdminItem, PendingItem } from '@/lib/admin-api';
+import { selectableCategories } from '@/lib/categories/categoryTree';
+import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
+
+function toDomainCategory(category: AdminCategory): Category {
+  return {
+    id: category.id,
+    parentId: category.parent_id,
+    name: category.name,
+    slug: category.slug,
+    status: category.status,
+    isVisible: category.is_visible,
+    isPickable: category.is_pickable,
+    rankingMinSample: category.ranking_min_sample,
+    sortOrder: category.sort_order,
+    imageUrl: category.image_url,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
 
 export function PendingPanel() {
   const [items, setItems] = useState<PendingItem[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reviewCategoryId, setReviewCategoryId] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -25,8 +46,9 @@ export function PendingPanel() {
     setLoading(true);
     setError('');
     try {
-      const result = await getPendingItems();
+      const [result, categoryResult] = await Promise.all([getPendingItems(), getCategories()]);
       setItems(result);
+      setCategories(categoryResult);
       setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
@@ -62,10 +84,16 @@ export function PendingPanel() {
   }, [items, query]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const reviewCategories = useMemo(() => {
+    const selectableIds = new Set(selectableCategories(categories.map(toDomainCategory)).map((category) => category.id));
+    return categories.filter((category) => selectableIds.has(category.id));
+  }, [categories]);
+  const isUnclassified = selected?.categories?.slug === 'pending-product';
 
   useEffect(() => {
     setMergeCandidates([]);
     setMergeQuery(selected?.name ?? '');
+    setReviewCategoryId(selected && selected.categories?.slug !== 'pending-product' ? selected.category_id : '');
   }, [selectedId]);
 
   const removeSelected = (name: string, resultMessage: string) => {
@@ -78,12 +106,16 @@ export function PendingPanel() {
 
   const process = async (status: 'active' | 'rejected') => {
     if (!selected || processing) return;
+    if (status === 'active' && !reviewCategoryId) {
+      setError('승인할 실제 카테고리를 먼저 선택해 주세요.');
+      return;
+    }
     if (status === 'rejected' && !window.confirm(`${selected.name} 상품을 반려하시겠습니까?`)) return;
     setProcessing(true);
     setError('');
     setMessage('');
     try {
-      await updatePendingItem(selected.id, status);
+      await updatePendingItem(selected.id, status, status === 'active' ? reviewCategoryId : undefined);
       removeSelected(selected.name, `상품을 ${status === 'active' ? '승인' : '반려'}했습니다.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '상품 검수 처리에 실패했습니다.');
@@ -94,10 +126,15 @@ export function PendingPanel() {
 
   const searchMergeCandidates = async () => {
     if (!selected) return;
+    const categoryId = reviewCategoryId || (!isUnclassified ? selected.category_id : '');
+    if (!categoryId) {
+      setError('중복 상품을 찾기 전에 실제 카테고리를 선택해 주세요.');
+      return;
+    }
     setMergeSearching(true);
     setError('');
     try {
-      const result = await getMergeCandidates(mergeQuery, selected.category_id);
+      const result = await getMergeCandidates(mergeQuery, categoryId);
       setMergeCandidates(result.filter((item) => item.id !== selected.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '병합 후보를 검색하지 못했습니다.');
@@ -192,6 +229,24 @@ export function PendingPanel() {
                 <Meta label="이미지 경로" value={selected.image_path ?? '없음'} />
               </View>
 
+              <View style={styles.classifyBox}>
+                <Text style={styles.mergeTitle}>승인 카테고리</Text>
+                <Text style={styles.note}>{isUnclassified ? '사용자가 카테고리 없이 등록한 요청입니다. 승인 전에 실제 카테고리를 지정해야 합니다.' : '필요하면 승인 전에 카테고리를 바로잡을 수 있습니다.'}</Text>
+                <View style={styles.categoryChoices}>
+                  {reviewCategories.map((category) => (
+                    <Pressable
+                      key={category.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: reviewCategoryId === category.id }}
+                      onPress={() => { setReviewCategoryId(category.id); setMergeCandidates([]); }}
+                      style={[styles.categoryChoice, reviewCategoryId === category.id && styles.categoryChoiceSelected]}
+                    >
+                      <Text style={[styles.categoryChoiceText, reviewCategoryId === category.id && styles.categoryChoiceTextSelected]}>{category.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
               <View style={styles.mergeBox}>
                 <Text style={styles.mergeTitle}>기존 상품과 병합</Text>
                 <Text style={styles.note}>같은 카테고리의 활성/단종 상품을 검색합니다. 병합되면 이 pending 항목은 merged 상태가 됩니다.</Text>
@@ -224,7 +279,12 @@ export function PendingPanel() {
               </View>
 
               <View style={adminStyles.row}>
-                <Pressable disabled={processing || !!mergingId} onPress={() => process('active')} style={[adminStyles.primaryButton, (processing || !!mergingId) && { opacity: 0.5 }]}>
+                <Pressable
+                  accessibilityState={{ disabled: processing || !!mergingId || !reviewCategoryId }}
+                  disabled={processing || !!mergingId || !reviewCategoryId}
+                  onPress={() => process('active')}
+                  style={[adminStyles.primaryButton, (processing || !!mergingId || !reviewCategoryId) && { opacity: 0.5 }]}
+                >
                   <Text style={adminStyles.primaryButtonText}>{processing ? '처리 중' : '승인'}</Text>
                 </Pressable>
                 <Pressable disabled={processing || !!mergingId} onPress={() => process('rejected')} style={[adminStyles.dangerButton, (processing || !!mergingId) && { opacity: 0.5 }]}>
@@ -276,6 +336,12 @@ const styles = StyleSheet.create({
   metaLabel: { width: 82, color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   metaValue: { flex: 1, color: OnePick.muted, fontSize: 12 },
   note: { color: OnePick.muted, fontSize: 12, lineHeight: 19 },
+  classifyBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
+  categoryChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryChoice: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8, backgroundColor: OnePick.surface },
+  categoryChoiceSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
+  categoryChoiceText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  categoryChoiceTextSelected: { color: OnePick.accent },
   mergeBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.sunken },
   mergeTitle: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
   mergeSearchRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
