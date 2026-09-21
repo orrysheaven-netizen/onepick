@@ -29,6 +29,7 @@ export type AuthIntent =
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
   | { action: 'view_profile'; username: string }
+  | { action: 'join_from_profile' }
   | { action: 'profile' }
   | { action: 'home' };
 
@@ -103,6 +104,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
+  if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
 
@@ -122,6 +124,8 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
+    // A visitor who came to make their own Picks lands on the feed, not back on the profile they read.
+    case 'join_from_profile': return '/';
     case 'profile': return '/profile';
     default: return '/';
   }

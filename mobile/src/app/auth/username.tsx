@@ -23,6 +23,12 @@ function getMessage(error: unknown) {
   return '사용자명을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
+// Intents with no action left in flight: a brand-new account starts taste onboarding instead.
+// view_profile belongs here because following still needs a second press after returning, so a
+// new account would otherwise land on a stranger's profile owning nothing itself. Intents that do
+// carry an action (comment_pick, choose_*, request_item) keep resuming it.
+const ONBOARDING_INTENTS = new Set<AuthIntent['action']>(['home', 'join_from_profile', 'view_profile']);
+
 export default function UsernameScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<AuthReturnParams>();
@@ -52,7 +58,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   const continueToIntent = () => {
     if (!available() || phase.current !== 'saved' || navigated.current) return;
     navigated.current = true;
-    router.replace(intent.action === 'home' ? '/onboarding' : getPostAuthRoute(intent));
+    router.replace(ONBOARDING_INTENTS.has(intent.action) ? '/onboarding' : getPostAuthRoute(intent));
   };
 
   const handleSave = async () => {

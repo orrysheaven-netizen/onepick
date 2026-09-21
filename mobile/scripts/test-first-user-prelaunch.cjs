@@ -50,8 +50,8 @@ async function main() {
   );
   assert.match(
     usernameSource,
-    /intent\.action === 'home' \? '\/onboarding' : getPostAuthRoute\(intent\)/,
-    'saving the first username from the home intent must enter onboarding',
+    /ONBOARDING_INTENTS\.has\(intent\.action\) \? '\/onboarding' : getPostAuthRoute\(intent\)/,
+    'saving the first username from an onboarding intent must enter onboarding',
   );
 
   // 2) Onboarding -> Pick finder -> choose screen.
@@ -190,8 +190,8 @@ async function main() {
   );
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: query\.data\.profile\.username, pickCount: query\.data\.currentPicks\.length }\)/,
-    'the public profile must share the loaded username and current Pick count',
+    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    'the public profile fallback must share the loaded username and current Pick count',
   );
   assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
 
