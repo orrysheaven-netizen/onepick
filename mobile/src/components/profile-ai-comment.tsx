@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { SectionHeader } from '@/components/ui';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
 import { OnePick } from '@/constants/onepick';
 
@@ -25,7 +26,7 @@ export function ProfileAiComment({
   const comment = query.data;
   return <>
     {sectionTitle ? <View style={styles.sectionHeading}>
-      <Text style={styles.sectionTitle}>{sectionTitle}</Text>
+      <SectionHeader title={sectionTitle} />
       {sectionDescription ? <View style={styles.bridgeCard}>
         <Text style={styles.bridgeBadge}>구성 → 해석</Text>
         <Text style={styles.bridgeText}>{sectionDescription}</Text>
@@ -55,26 +56,25 @@ export function ProfileAiComment({
 
 const styles = StyleSheet.create({
   sectionHeading: { marginBottom: 10 },
-  sectionTitle: { color: OnePick.text, fontSize: 19, fontWeight: '900' },
-  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: OnePick.hairline, paddingHorizontal: 11, paddingVertical: 9, marginTop: 9 },
-  bridgeBadge: { color: OnePick.accent, fontSize: 10, fontWeight: '900', paddingTop: 1 },
-  bridgeText: { flex: 1, color: OnePick.muted, fontSize: 11, lineHeight: 16 },
-  card: { borderWidth: 1, borderColor: OnePick.accentSoft, backgroundColor: OnePick.accentSoft, borderRadius: 18, padding: 16, marginBottom: 18 },
+  bridgeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, backgroundColor: OnePick.sunken, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 },
+  bridgeBadge: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  bridgeText: { flex: 1, color: OnePick.muted, fontSize: 12, lineHeight: 16 },
+  card: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
-  loadingText: { color: OnePick.muted, fontSize: 12 },
+  loadingText: { color: OnePick.muted, fontSize: 13, lineHeight: 18 },
   header: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 36, height: 36, borderRadius: 11, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
-  name: { color: OnePick.text, fontSize: 14, fontWeight: '900' },
-  badge: { color: OnePick.accent, backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '800' },
-  privateBadge: { color: OnePick.muted, backgroundColor: OnePick.sunken, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '800' },
-  meta: { color: OnePick.muted, fontSize: 11, marginTop: 3 },
-  summary: { color: OnePick.text, fontSize: 16, lineHeight: 23, fontWeight: '900', marginTop: 16 },
-  body: { color: OnePick.muted, fontSize: 13, lineHeight: 21, marginTop: 9 },
+  name: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  badge: { color: OnePick.accentDeep, backgroundColor: OnePick.surface, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  privateBadge: { color: OnePick.muted, backgroundColor: OnePick.surface, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  meta: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 2 },
+  summary: { color: OnePick.accentDeep, fontSize: 17, lineHeight: 24, fontWeight: '700', letterSpacing: -0.3, marginTop: 14 },
+  body: { color: OnePick.text, fontSize: 14, lineHeight: 20, marginTop: 8 },
   keywords: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
-  keyword: { backgroundColor: OnePick.surface, borderRadius: 999, borderWidth: 1, borderColor: OnePick.border, paddingHorizontal: 10, paddingVertical: 6 },
-  keywordText: { color: OnePick.accent, fontSize: 11, fontWeight: '800' },
-  stale: { color: OnePick.muted, fontSize: 11, lineHeight: 17, marginTop: 12 },
+  keyword: { backgroundColor: OnePick.surface, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  keywordText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  stale: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 12 },
 });

@@ -36,7 +36,8 @@ assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/
 assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{query\.data\.currentPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
 assert.doesNotMatch(publicProfile, /sectionTitle:/);
 
-assert.match(aiComment, /sectionTitle: \{ color: OnePick\.text, fontSize: 19, fontWeight: '900' \}/);
-assert.match(aiComment, /borderRadius: 18, padding: 16, marginBottom: 18/);
+assert.match(aiComment, /<SectionHeader title=\{sectionTitle\} \/>/, 'AI section title uses the same kit header as the collection sections');
+assert.doesNotMatch(aiComment, /sectionTitle:/);
+assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 \}/, 'AI card is an accent-soft card on the shared radius');
 
 console.log('Profile core hierarchy checks passed: header refresh, focused summary, and consistent section hierarchy.');

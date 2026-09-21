@@ -115,6 +115,7 @@ async function main() {
     '@/components/pick-replies': { PickReplies: () => null },
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/pick-management': { PickManagement },
     '@/components/report-action': { ReportAction: () => null },
     '@/errors/appError': { AppError },

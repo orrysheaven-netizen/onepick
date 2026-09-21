@@ -67,7 +67,7 @@ async function main() {
   assert.equal(shared.files[0].type, 'image/png');
   assert.equal(shared.url, 'https://onepick.example/pick/pick-1');
   assert.match(shared.files[0].name, /^onepick-/);
-  assert.match(sharedCase.drawn.join('|'), /ONE PICK/);
+  assert.match(sharedCase.drawn.join('|'), /원픽/);
   assert.match(sharedCase.drawn.join('|'), /얼큰한 너구리/);
   assert.match(sharedCase.drawn.join('|'), /friend/);
 
@@ -100,7 +100,7 @@ async function main() {
   const source = fs.readFileSync(path.join(__dirname, '../src/components/pick-share-card.tsx'), 'utf8');
   assert.match(source, /이미지 카드 공유/);
   assert.match(source, /링크 공유/);
-  assert.match(source, /WHY THIS ONE/);
+  assert.match(source, /고른 이유/, 'the share preview labels the reason in Korean');
   assert.match(source, /Platform\.OS === 'web'/);
   assert.doesNotMatch(source, /DEMO DATA/);
 

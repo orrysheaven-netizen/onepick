@@ -8,6 +8,7 @@ import { AppError } from '@/errors/appError';
 import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
+import { OnePickBrand } from '@/components/onepick-brand';
 import { OnePick } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 
@@ -63,7 +64,7 @@ export default function LoginScreen() {
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
-        <Text style={styles.eyebrow}>ONEPICK</Text>
+        <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
         <Text style={styles.subtitle}>
           {intent.action === 'request_item'
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginTop: 5 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
+  brand: { marginTop: 28, marginBottom: 4 },
   title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
   card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 20, marginTop: 34 },
