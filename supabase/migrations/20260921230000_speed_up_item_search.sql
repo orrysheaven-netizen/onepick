@@ -41,7 +41,7 @@ stable
 security invoker
 set search_path = ''
 set pg_trgm.similarity_threshold = '0.2'
-as $
+as $$
   with params as (
     select
       lower(regexp_replace(btrim(coalesce(p_query,'')),'[[:space:]]+','','g')) as q,
