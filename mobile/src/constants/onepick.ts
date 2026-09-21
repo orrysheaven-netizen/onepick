@@ -64,9 +64,16 @@ export const OnePickSpace = {
 } as const;
 
 
-// Features that require database migrations not yet present in the linked dev DB.
-// Keep the code paths intact, but do not expose them until the schema is synchronized.
+// Feature exposure gates. The code paths stay intact either way; a flag only
+// flips once the feature works end to end against the linked dev DB.
+//
+// follow: the follow and notification migrations are applied, so the button,
+// the 팔로잉 scope and the follower counts are live.
+//
+// purchaseLinks: the schema is applied too, but the feed cards that surface a
+// purchase link are still unmerged, so the input would collect data nobody can
+// see. It stays closed until that lands.
 export const OnePickFeatures = {
-  follow: false,
+  follow: true,
   purchaseLinks: false,
 } as const;
