@@ -1,10 +1,18 @@
 -- 온라인·오프라인 서비스 카테고리. docs/life-service-entry-direction.md 참조.
 --
--- 확인하는 것 셋.
---   1. 다섯 말단이 실제로 선택 가능한 말단인가. 상위 두 묶음은 선택 불가인가.
---   2. 취향 차원 매핑이 없는가. 이것이 AI 취향 평가에서 빠지는 방법이므로,
+-- 지금 열려 있는 것은 온라인·쇼핑몰뿐이다. 오프라인 말단은 장소 식별자가
+-- 없어서 멈춘 상태다(20260921150000). 아이템 이름이 같으면
+-- submit_item_impl이 기존 아이템을 그대로 돌려주므로, 프랜차이즈 안경원에서
+-- 다른 지점을 자기 원픽으로 갖게 되는 조용한 오류가 난다.
+--
+-- 확인하는 것.
+--   1. 쇼핑몰은 원픽을 등록할 수 있는 열린 말단인가. 묶음은 아닌가.
+--   2. 오프라인 말단은 status='paused'로 멈춰 있는가. **is_visible=false만으로는
+--      부족하다**: change_pick의 카테고리 검사는 is_visible을 보지 않으므로
+--      숨기기만 하면 카테고리 ID를 아는 호출이 계속 저장할 수 있다.
+--   3. 취향 차원 매핑이 없는가. 이것이 AI 취향 평가에서 빠지는 방법이므로,
 --      누군가 나중에 매핑을 붙이면 이 검사가 잡아야 한다.
---   3. 내부 카탈로그 소스가 붙어 중복 이름 가드가 켜지는가. 행이 없으면
+--   4. 내부 카탈로그 소스가 붙어 중복 이름 가드가 켜지는가. 행이 없으면
 --      prevent_internal_catalog_duplicates가 조용히 꺼진다.
 --
 -- 의료·법률 카테고리가 열리지 않았다는 것도 함께 고정한다. 여는 결정은
@@ -12,7 +20,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(11);
 
 -- 트리 모양 --------------------------------------------------------------
 
@@ -20,10 +28,15 @@ select is(
   (select count(*)::int
    from public.categories c
    where c.slug in ('online', 'offline')
-     and c.status = 'open' and c.is_visible and not c.is_pickable
-     and c.parent_id is null),
+     and not c.is_pickable and c.parent_id is null),
   2,
   '온라인·오프라인은 선택 불가인 최상위 묶음이다'
+);
+
+select ok(
+  (select c.is_visible from public.categories c where c.slug = 'online')
+  and not (select c.is_visible from public.categories c where c.slug = 'offline'),
+  '온라인 묶음만 보인다. 오프라인은 말단이 멈춘 동안 탐색에 빈 칸으로 남지 않는다'
 );
 
 select is(
@@ -35,30 +48,54 @@ select is(
   '온라인 아래에는 선택 가능한 말단이 하나 있다'
 );
 
+-- change_pick의 카테고리 검사와 같은 조건. 멈춘 말단이 여기서 걸러져야 한다.
+select is(
+  (select count(*)::int
+   from public.categories c
+   where c.status = 'open' and c.is_pickable
+     and not exists (select 1 from public.categories ch where ch.parent_id = c.id)
+     and c.slug in (
+       'shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
+     )),
+  1,
+  'change_pick 조건(status·is_pickable·말단)을 통과하는 것은 쇼핑몰뿐이다'
+);
+
 select is(
   (select array_agg(c.slug order by c.sort_order)
    from public.categories c
    join public.categories p on p.id = c.parent_id
-   where p.slug = 'offline' and c.status = 'open' and c.is_visible and c.is_pickable),
+   where p.slug = 'offline'),
   array['auto-repair', 'optician', 'repair-technician', 'interior-construction'],
-  '오프라인 말단은 멀어도 갈 값어치가 있는 순서로 열린다'
+  '오프라인 말단은 멀어도 갈 값어치가 있는 순서로 트리에 남아 있다'
+);
+
+-- 멈춤은 status로 한다. is_visible만 내리면 change_pick이 통과시킨다.
+select is(
+  (select count(*)::int
+   from public.categories c
+   join public.categories p on p.id = c.parent_id
+   where p.slug = 'offline' and c.status = 'paused' and not c.is_visible),
+  4,
+  '오프라인 말단은 status=paused로 멈춰 있고 보이지 않는다'
 );
 
 -- category_is_open_leaf는 원픽 등록이 실제로 통과하는지를 결정한다.
 select ok(
-  (select bool_and(public.category_is_open_leaf(c.id))
-   from public.categories c
-   where c.slug in (
-     'shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
-   )),
-  '다섯 말단은 모두 원픽을 등록할 수 있는 열린 말단이다'
+  public.category_is_open_leaf(
+    (select id from public.categories where slug = 'shopping-mall')
+  ),
+  '쇼핑몰은 원픽을 등록할 수 있는 열린 말단이다'
 );
 
 select ok(
   (select bool_and(not public.category_is_open_leaf(c.id))
    from public.categories c
-   where c.slug in ('online', 'offline')),
-  '묶음 자체에는 원픽을 등록할 수 없다'
+   where c.slug in (
+     'online', 'offline',
+     'auto-repair', 'optician', 'repair-technician', 'interior-construction'
+   )),
+  '묶음과 멈춘 오프라인 말단에는 원픽을 등록할 수 없다'
 );
 
 -- 취향 평가에서 빠지는 방법 ----------------------------------------------
