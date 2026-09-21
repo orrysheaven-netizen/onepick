@@ -190,8 +190,8 @@ async function main() {
   );
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: query\.data\.profile\.username, pickCount: query\.data\.currentPicks\.length }\)/,
-    'the public profile must share the loaded username and current Pick count',
+    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    'the public profile fallback must share the loaded username and current Pick count',
   );
   assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
 
