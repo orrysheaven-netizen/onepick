@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PickManagement } from '@/components/pick-management';
 import { PickReplies } from '@/components/pick-replies';
 import { PickShareCard } from '@/components/pick-share-card';
+import { Avatar, Button } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
@@ -24,29 +25,25 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
       <View style={styles.header}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{(profile?.username ?? '?').slice(0, 1).toUpperCase()}</Text></View>
+        <Avatar name={profile?.username ?? '?'} size={32} />
         <View style={styles.author}>
-          {isMine ? <Text style={styles.badge}>{isCurrent ? '내 원픽' : '내 이전 원픽'}</Text> : null}
           {profile ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
               onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username } })} style={styles.profileLink}>
-              <Text style={styles.username}>@{profile.username} ›</Text>
+              <Text numberOfLines={1} style={styles.username}>@{profile.username} ›</Text>
             </Pressable>
           ) : <Text style={styles.username}>사용자</Text>}
         </View>
-        {!isCurrent ? <Text style={styles.history}>이전 원픽</Text> : null}
+        {isMine ? <View style={styles.badge}><Text style={styles.badgeText}>{isCurrent ? '내 원픽' : '내 이전 원픽'}</Text></View> : null}
+        {!isCurrent && !isMine ? <Text style={styles.history}>이전 원픽</Text> : null}
       </View>
       <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>
       {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 답글은 계속 볼 수 있어요.</Text> : null}
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: repliesOpen }}
-          onPress={() => setRepliesOpen((open) => !open)} style={styles.action}>
-          <Text style={styles.actionText}>{repliesOpen ? '답글 접기' : '답글 보기 · 쓰기'}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: sharingOpen }}
-          onPress={() => setSharingOpen((open) => !open)} style={styles.action}>
-          <Text style={styles.secondary}>{sharingOpen ? '공유 메뉴 접기' : isMine ? '공유' : '공유 · 신고'}</Text>
-        </Pressable>
+        <Button variant="ghost" size="sm" style={styles.action} onPress={() => setRepliesOpen((open) => !open)}
+          label={repliesOpen ? '답글 접기' : '답글 보기 · 쓰기'} />
+        <Button variant="ghost" size="sm" style={styles.action} onPress={() => setSharingOpen((open) => !open)}
+          label={sharingOpen ? '공유 메뉴 접기' : isMine ? '공유' : '공유 · 신고'} />
       </View>
       {!isLoading && isMine && isCurrent ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} />
@@ -66,22 +63,19 @@ function ReplyThread({ pickId, open }: { pickId: string; open: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginBottom: 12 },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 16, marginBottom: 12 },
   mine: { backgroundColor: OnePick.accentSoft, borderColor: OnePick.accentSoft },
   highlight: { borderColor: OnePick.accent, borderWidth: 2, backgroundColor: OnePick.accentSoft },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: OnePick.onAccent, fontSize: 16, fontWeight: '800' },
-  author: { flex: 1 },
-  badge: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
-  username: { color: OnePick.text, fontSize: 13, fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  author: { flex: 1, minWidth: 0 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: OnePick.surface },
+  badgeText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  username: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   profileLink: { minHeight: 44, justifyContent: 'center' },
-  review: { color: OnePick.muted, fontSize: 16, lineHeight: 25, marginVertical: 12 },
-  myReview: { fontWeight: '700' },
-  history: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  action: { minHeight: 44, justifyContent: 'center' },
-  actionText: { color: OnePick.accent, fontSize: 13, fontWeight: '700' },
-  secondary: { color: OnePick.muted, fontSize: 12 },
+  review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 12 },
+  myReview: { fontWeight: '600' },
+  history: { color: OnePick.muted, fontSize: 12, lineHeight: 16 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, marginLeft: -8 },
+  action: { alignSelf: 'auto' },
 });
 
