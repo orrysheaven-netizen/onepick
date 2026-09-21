@@ -297,47 +297,76 @@ item_channels
 
 한 아이템이 오프라인 매장이면서 온라인 주문도 지원할 수 있으므로 단일 `item_type` 컬럼보다 다중 채널 관계가 안전하다.
 
-### 제안 B: item_places
+### 제안 B: places + item_places
 
-오프라인 지점 정보는 별도 1:1 메타데이터로 둔다.
+물리적 지점 자체는 `places`에 한 번만 저장한다.
 
 ```text
-item_places
-- item_id                 PK/FK items(id)
-- branch_name             nullable
-- road_address            not null
-- address                 nullable
-- region_1                nullable
-- region_2                nullable
-- latitude                nullable
-- longitude               nullable
-- place_provider          not null
-- provider_place_id       not null
-- map_url                 nullable
+places
+- id
+- name
+- branch_name
+- road_address
+- address
+- region_1
+- region_2
+- latitude
+- longitude
+- place_provider
+- provider_place_id
+- map_url
+- is_visible
 - created_at
 - updated_at
 
 unique(place_provider, provider_place_id)
 ```
 
-MVP에서는 한 `item`을 “특정 지점” 단위로 본다.
+그리고 카테고리별 OnePick 후보인 `items`와 장소를 `item_places`로 연결한다.
+
+```text
+item_places
+- item_id
+- category_id
+- place_id
+- created_at
+
+primary key(item_id)
+unique(place_id, category_id)
+foreign key(item_id, category_id) -> items(id, category_id)
+```
+
+이 분리가 필요한 이유는 한 물리적 맛집이 여러 세부 음식 카테고리의 후보가 될 수 있기 때문이다.
 
 예:
-- OO곱창 강남점
-- OO곱창 마포점
 
-두 지점은 이름이 비슷해도 다른 item이다.
+```
+OO곱창 강남점 (place 1개)
+  ├─ 곱창 category item
+  └─ 대창 category item
+```
+
+사용자는 곱창과 대창에서 각각 원픽을 고를 수 있지만, 두 item은 같은 내부 맛집 상세의 장소 정보를 공유한다.
+
+반대로 같은 상호라도 실제 지점이 다르면 다른 place다.
+
+- OO곱창 강남점
+- OO곱창 부산점
 
 ### 외부 식별자
 
-현재 `items.external_source + external_id`는 하나의 외부 식별자를 저장할 수 있다.
-맛집 MVP에서는 아래 원칙을 적용한다.
+현재 `items.external_source + external_id`에는 전역 unique 제약이 있다. 따라서 실제 장소 provider identity를 category item마다 그대로 복제하면 한 장소를 여러 카테고리에 연결할 수 없다.
 
-- 장소 승인에는 안정적인 장소 식별자를 요구한다.
-- `item_places.place_provider + provider_place_id`를 지점 중복 판정의 기준으로 삼는다.
-- 이름만 같다는 이유로 기존 item을 자동 재사용하지 않는다.
-- `items.external_source/external_id`는 필요하면 대표 외부 카탈로그 identity로 유지한다.
-- 다중 지도 제공자 identity가 실제로 필요해질 때 별도 `item_external_refs`로 확장한다.
+맛집 MVP에서는 다음처럼 분리한다.
+
+- 실제 장소 identity: `places.place_provider + provider_place_id`
+- category item의 내부 identity: `items.external_source='onepick_place'`
+- category item의 `external_id`: `<place_uuid>:<category_uuid>`
+- 같은 place + 같은 category는 하나의 item만 허용한다.
+- 같은 place + 다른 category는 다른 item이지만 같은 `places.id`를 공유한다.
+- 같은 이름 + 다른 provider place id는 별도 place/item으로 허용한다.
+- 일반 온라인 상품의 이름 중복 판정과 place-backed item의 이름 중복 판정은 서로 간섭하지 않는다.
+- 다중 지도 제공자 identity가 실제로 필요해질 때 별도 `place_external_refs`로 확장한다.
 
 ## 6. 반드시 해결해야 할 P0: 동일 상호 다른 지점
 
@@ -480,8 +509,9 @@ DB:
 - 카테고리 추가 목록 확정
 
 ### Phase 2 — DB
-- `item_channels`
+- `places`
 - `item_places`
+- `item_channels`
 - 승인/중복 판정 함수
 - 세분 음식 카테고리 seed
 - search terms
