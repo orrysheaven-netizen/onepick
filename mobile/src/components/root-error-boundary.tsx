@@ -1,6 +1,7 @@
 import React, { type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { OnePickBrand } from '@/components/onepick-brand';
 import { observabilityService } from '@/services';
 import { OnePick } from '@/constants/onepick';
 
@@ -35,7 +36,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.kicker}>ONEPICK</Text>
+          <View style={styles.brand}><OnePickBrand compact /></View>
           <Text style={styles.title}>화면을 표시하는 중 문제가 발생했어요</Text>
           <Text style={styles.description}>입력하던 내용은 그대로일 수 있습니다. 다시 시도해보고, 같은 문제가 반복되면 앱을 다시 열어주세요.</Text>
           <Pressable accessibilityRole="button" onPress={this.retry} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
@@ -56,7 +57,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.background, paddingHorizontal: 28 },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  brand: { marginBottom: 12 },
   title: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '900', textAlign: 'center', marginTop: 12 },
   description: { maxWidth: 460, color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 10 },
   button: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, marginTop: 22 },

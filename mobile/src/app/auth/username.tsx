@@ -7,6 +7,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
 import { getAuthIntent, getPostAuthRoute, type AuthIntent, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { OnePickBrand } from '@/components/onepick-brand';
 import { OnePick } from '@/constants/onepick';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -76,7 +77,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>ONEPICK</Text>
+        <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
         <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
 
@@ -144,7 +145,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 62 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
+  brand: { marginBottom: 4 },
   title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
   statusText: { color: OnePick.muted, fontSize: 13, marginTop: 34 },

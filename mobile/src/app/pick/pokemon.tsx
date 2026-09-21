@@ -167,7 +167,6 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-      <Text style={styles.kicker}>YOUR POKÉMON ONE PICK</Text>
       <Text style={styles.title}>나의 포켓몬 원픽</Text>
       <Text style={styles.subtitle}>한국어·영문 이름이나 전국도감 번호로 가장 좋아하는 포켓몬 하나를 골라보세요.</Text>
       <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않습니다.</Text>
@@ -249,7 +248,6 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 12 },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

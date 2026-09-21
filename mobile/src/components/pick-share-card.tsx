@@ -78,7 +78,6 @@ export function PickShareCard(props: PickShareCardProps) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>SHARE THIS PICK</Text>
       <Text style={styles.title}>이 원픽을 공유해보세요</Text>
       <Text style={styles.description}>
         이 원픽과 선택한 이유를 카드나 링크로 전해보세요.
@@ -86,12 +85,12 @@ export function PickShareCard(props: PickShareCardProps) {
 
       {Platform.OS === 'web' ? <View style={styles.preview}>
         <View style={styles.previewTop}>
-          <Text style={styles.previewBrand}>ONE PICK</Text>
+          <View style={styles.previewBrandRow}><View style={styles.previewMark}><Text style={styles.previewMarkText}>원픽</Text></View><Text style={styles.previewBrand}>one pick</Text></View>
         </View>
         <Text style={styles.previewCategory}>{props.categoryName}</Text>
         <Text numberOfLines={2} style={styles.previewItem}>{props.itemName}</Text>
         <View style={styles.previewDivider} />
-        <Text style={styles.previewLabel}>WHY THIS ONE</Text>
+        <Text style={styles.previewLabel}>고른 이유</Text>
         <Text numberOfLines={4} style={styles.previewReview}>“{props.oneLineReview}”</Text>
         <Text style={styles.previewUser}>@{props.username}</Text>
       </View> : null}
@@ -130,12 +129,14 @@ export function PickShareCard(props: PickShareCardProps) {
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 14 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
   title: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 6 },
   description: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   preview: { borderRadius: 18, backgroundColor: OnePick.accentSoft, borderWidth: 1, borderColor: OnePick.accentSoft, padding: 18, marginTop: 16 },
   previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  previewBrand: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7 },
+  previewBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  previewMark: { height: 22, paddingHorizontal: 6, borderRadius: 7, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
+  previewMarkText: { color: OnePick.onAccent, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: -0.5 },
+  previewBrand: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '800', letterSpacing: -0.3 },
   previewCategory: { color: OnePick.muted, fontSize: 11, fontWeight: '700', marginTop: 14 },
   previewItem: { color: OnePick.text, fontSize: 24, lineHeight: 31, fontWeight: '900', marginTop: 6 },
   previewDivider: { height: 1, backgroundColor: OnePick.border, marginVertical: 16 },

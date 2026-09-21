@@ -52,7 +52,7 @@ function harness(file, imports) {
   const Screen = load(file, {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
-    '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
+    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/onepick-brand': { OnePickBrand: 'OnePickBrand' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,

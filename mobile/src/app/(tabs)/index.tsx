@@ -24,7 +24,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
   return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
-      <Text style={styles.editorialKicker}>ONEPICK 추천</Text>
+      <Text style={styles.editorialKicker}>원픽 추천</Text>
       <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
     </View>
     <View style={styles.editorialBody}>
