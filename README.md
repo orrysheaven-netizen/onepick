@@ -55,6 +55,7 @@ Read-heavy social screens use a dedicated `ReadRepository` to fetch Pick + Item 
 - `item_aliases` keeps alternate search phrases mapped to one canonical `item_id`.
 - PostgreSQL `pg_trgm` + GIN indexes support scalable fuzzy / contains search.
 - `search_items()` ranks canonical exact, alias exact, prefix, contains and similarity matches.
+- `search_items()` collects candidates from both trigram indexes, so it no longer scans every item in every open category.
 - Home / Explore / Profile / Pick Detail / Item Detail / Comments avoid per-item hydration queries.
 - Explore and Comments load 20 items at a time.
 - Home, Item Detail and My Profile issue their reads in parallel; later feed pages fetch the feed only.
