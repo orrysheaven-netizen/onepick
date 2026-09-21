@@ -21,6 +21,9 @@ function getMessage(error: unknown) {
   return '사용자명을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
+// Intents that carry no destination of their own: a brand-new account starts taste onboarding instead.
+const ONBOARDING_INTENTS = new Set<AuthIntent['action']>(['home', 'join_from_profile']);
+
 export default function UsernameScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<AuthReturnParams>();
@@ -50,7 +53,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   const continueToIntent = () => {
     if (!available() || phase.current !== 'saved' || navigated.current) return;
     navigated.current = true;
-    router.replace(intent.action === 'home' ? '/onboarding' : getPostAuthRoute(intent));
+    router.replace(ONBOARDING_INTENTS.has(intent.action) ? '/onboarding' : getPostAuthRoute(intent));
   };
 
   const handleSave = async () => {

@@ -80,6 +80,13 @@ export default function PublicProfileScreen() {
               onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
             />
           ) : <StateCard title="아직 공개된 원픽이 없어요" text="이 사용자가 원픽을 고르면 여기에 표시됩니다." />}
+          {!user ? <View style={styles.joinCard}>
+            <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
+            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요. 5개를 고르면 AI가 취향을 읽어줘요.</Text>
+            <Button fullWidth style={styles.joinButton} label="내 원픽 만들기"
+              accessibilityLabel="로그인하고 내 원픽 만들기"
+              onPress={() => router.push({ pathname: '/auth/login', params: { action: 'join_from_profile' } })} />
+          </View> : null}
           {!query.data.isMine && user && !isSeed ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
@@ -120,6 +127,10 @@ const styles = StyleSheet.create({
   safetyText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 5 },
   safetyActions: { gap: 10, marginTop: 12 },
   sectionHeader: { marginBottom: 10 },
+  joinCard: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 18, marginTop: 22 },
+  joinTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
+  joinText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  joinButton: { marginTop: 14 },
   shareCard: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 18, marginTop: 22 },
   shareTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
   shareText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
