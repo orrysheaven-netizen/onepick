@@ -86,6 +86,19 @@ assert.match(component, /모두 펼치기/);
 assert.match(component, /모두 접기/);
 assert.match(component, /accessibilityState=\{\{ expanded: !isCollapsed \}\}/);
 assert.match(component, /<ProfilePickCard/);
+assert.match(component, /layout="tile"/, 'current Picks render as 2-column tiles');
+assert.match(component, /groupBody: \{ flexDirection: 'row', flexWrap: 'wrap'/, 'tiles wrap into a grid');
+assert.match(component, /remainingProfileCategories\(group\.id, pickedCategoryIds, categories\)/);
+assert.match(component, /onPressCategory \? /, 'the remaining tile is owner-only');
+
+// Owner tile for categories still without a Pick: pickable open leaves of the group only, in catalog order.
+const open = categories.map((category) => ({ ...category, status: 'open', isVisible: true, isPickable: category.parentId !== null }));
+open.push({ id: 'ost', parentId: 'culture', name: 'OST', sortOrder: 4, status: 'open', isVisible: true, isPickable: true });
+open.push({ id: 'draft', parentId: 'culture', name: '준비 중', sortOrder: 5, status: 'draft', isVisible: false, isPickable: true });
+const picked = new Set(['movie', 'drama']);
+assert.deepEqual(Array.from(grouping.remainingProfileCategories('culture', picked, open), (c) => c.id), ['game', 'ost'], 'remaining = open pickable leaves minus picked, sorted');
+assert.deepEqual(grouping.remainingProfileCategories('food', new Set(['snacks', 'ramen']), open), [], 'a full group has no remaining tile');
+assert.deepEqual(Array.from(grouping.remainingProfileCategories('tech', new Set(), open), (c) => c.id), ['phone']);
 
 assert.match(owner, /<ProfilePickGroups/);
 assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
