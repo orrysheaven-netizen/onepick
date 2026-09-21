@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, StateCard } from '@/components/ui';
+import { BrandMark, Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -173,7 +173,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
         {hasItem && item && canChoose && user && !isSuccess ? <>
-          <View style={styles.markRow}><View style={styles.mark}><Text style={styles.markText}>1</Text></View><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
+          <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
           <Text style={styles.title}>{formTitle}</Text>
           <View style={styles.itemCard}>
             {itemPhoto}
@@ -225,7 +225,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
-          <View style={styles.successIcon}><Text style={styles.successIconText}>1</Text></View>
+          <BrandMark size="lg" soft />
           <Text style={[styles.title, styles.successTitle]}>원픽이 선택됐어요</Text>
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
@@ -258,8 +258,6 @@ const styles = StyleSheet.create({
   stateArea: { marginTop: 34, gap: 12, alignItems: 'stretch' },
   centered: { alignSelf: 'center' },
   markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-  mark: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accent },
-  markText: { color: OnePick.onAccent, fontSize: 14, lineHeight: 16, fontWeight: '900' },
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
@@ -293,8 +291,6 @@ const styles = StyleSheet.create({
   panelAction: { marginTop: 20, marginBottom: 4 },
   errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18 },
   successCard: { alignItems: 'center', paddingTop: 58 },
-  successIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: OnePick.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  successIconText: { color: OnePick.accent, fontSize: 34, fontWeight: '900' },
   successTitle: { textAlign: 'center', marginTop: 20 },
   successItem: { color: OnePick.text, fontSize: 17, lineHeight: 24, fontWeight: '700', marginTop: 20 },
   savedReview: { color: OnePick.text, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 8, paddingHorizontal: 18 },
