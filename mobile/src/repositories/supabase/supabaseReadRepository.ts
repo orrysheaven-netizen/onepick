@@ -108,6 +108,7 @@ export class SupabaseReadRepository implements ReadRepository {
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
+        purchaseUrl: row.purchase_url, purchaseTip: row.purchase_tip,
         thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
       })),
     };
