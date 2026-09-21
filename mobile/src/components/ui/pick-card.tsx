@@ -19,13 +19,15 @@ type Props = {
   timeLabel?: string;
   /** Small pill next to the category, e.g. "내 원픽". */
   badge?: string;
+  /** Optional purchase destination and buying advice. A tip is what makes it 쇼핑꿀팁. */
+  purchase?: { host: string; tip?: string | null; onOpenLink?: () => void };
   onPress: () => void;
   accessibilityLabel: string;
   /** Action row under the body (Buttons, comment count). */
   footer?: ReactNode;
 };
 
-export function PickCard({ categoryName, itemName, review, fallbackText, photo, person, timeLabel, badge, onPress, accessibilityLabel, footer }: Props) {
+export function PickCard({ categoryName, itemName, review, fallbackText, photo, person, timeLabel, badge, purchase, onPress, accessibilityLabel, footer }: Props) {
   return (
     <View style={styles.card}>
       {person ? (
@@ -56,6 +58,23 @@ export function PickCard({ categoryName, itemName, review, fallbackText, photo, 
         </View>
       </Pressable>
 
+      {purchase ? (
+        <View style={purchase.tip ? styles.tipBox : styles.purchaseBox}>
+          {purchase.tip ? <View style={styles.tipBadge}><Text style={styles.tipBadgeText}>쇼핑꿀팁</Text></View> : null}
+          {purchase.tip ? <Text style={styles.tipText}>{purchase.tip}</Text> : null}
+          {purchase.onOpenLink ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`${itemName} 산 곳 ${purchase.host} 열기`}
+              onPress={purchase.onOpenLink}
+              style={({ pressed }) => [styles.hostRow, pressed && styles.pressed]}
+            >
+              <Text numberOfLines={1} style={styles.hostText}>{purchase.host} ↗</Text>
+            </Pressable>
+          ) : <Text numberOfLines={1} style={styles.hostText}>{purchase.host}</Text>}
+        </View>
+      ) : null}
+
       {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
@@ -76,6 +95,13 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 17, lineHeight: 24, fontWeight: '700', letterSpacing: -0.4, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.label, color: OnePick.muted },
+  purchaseBox: { alignItems: 'flex-start' },
+  tipBox: { gap: 6, padding: 12, borderRadius: OnePickRadius.small, backgroundColor: OnePick.accentSoft },
+  tipBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.surface },
+  tipBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: OnePick.accentDeep },
+  tipText: { ...OnePickType.label, color: OnePick.accentDeep },
+  hostRow: { alignSelf: 'flex-start' },
+  hostText: { ...OnePickType.caption, color: OnePick.muted },
   footer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   pressed: { opacity: 0.6 },
 });
