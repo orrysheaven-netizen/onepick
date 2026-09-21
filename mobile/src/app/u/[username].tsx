@@ -23,7 +23,9 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
-  const categoriesQuery = useExploreCategories(Boolean(query.data));
+  // A shared profile link is often someone's first page. The public category
+  // list does not depend on the profile, so it is not queued behind it.
+  const categoriesQuery = useExploreCategories();
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));

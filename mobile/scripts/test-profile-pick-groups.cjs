@@ -92,7 +92,9 @@ assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.match(publicProfile, /<ProfilePickGroups/);
 assert.match(publicProfile, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
-assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
+// A shared profile link is a cold open for a new reader: the public category
+// list goes out with the profile read, not behind it.
+assert.match(publicProfile, /useExploreCategories\(\)/);
 
 assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
