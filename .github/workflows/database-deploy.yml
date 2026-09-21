@@ -1,6 +1,11 @@
 name: Deploy Database Migrations
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/database-deploy.yml"
   workflow_dispatch:
     inputs:
       mode:
@@ -56,9 +61,9 @@ jobs:
         run: supabase db push --linked --dry-run
 
       - name: Apply pending migrations
-        if: inputs.mode == 'apply'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
         run: supabase db push --linked
 
       - name: Show migration status after deploy
-        if: inputs.mode == 'apply'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
         run: supabase migration list --linked
