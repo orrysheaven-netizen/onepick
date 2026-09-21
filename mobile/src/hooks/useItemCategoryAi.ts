@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import { itemCategoryAiService } from '@/services/itemCategoryAiService';
-import { registrationService } from '@/services/registrationService';
+import { registrationService } from '@/services';
 
 const suggestionKey = (itemId: string) => ['item-category-ai', itemId] as const;
 
