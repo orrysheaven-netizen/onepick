@@ -64,7 +64,7 @@ export default function OnboardingScreen() {
 
   const pickCount = profile.data?.currentPicks.length ?? 0;
   const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending;
-  const canEvaluate = pickCount >= 5;
+  const canEvaluate = pickCount >= 10;
   const reachedRecommended = pickCount >= 10;
 
   const skip = async () => {
@@ -97,12 +97,12 @@ export default function OnboardingScreen() {
       <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
           <Text style={styles.progressLabel}>{Math.min(pickCount, 10)}/10</Text>
-          <Text style={styles.progressHint}>{pickCount < 5 ? '5개부터 AI 평가' : reachedRecommended ? '권장 목표 달성' : '더 고르면 해석이 더 풍부해져요'}</Text>
+          <Text style={styles.progressHint}>{pickCount < 10 ? '10개부터 AI 평가' : 'AI 평가 가능'}</Text>
         </View>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, pickCount * 10)}%` }]} /></View>
-        <View style={styles.marker}><Text style={styles.markerText}>5</Text><Text style={styles.markerText}>10</Text></View>
+        <View style={styles.marker}><Text style={styles.markerText}>10</Text></View>
         {canEvaluate ? <Button variant="soft" size="sm" fullWidth style={styles.aiButton} onPress={() => router.push('/profile')}
-          label={reachedRecommended ? '더 풍부한 AI 평가 보기' : '지금 AI 평가 보기'} /> : null}
+          label="AI 평가 보기" /> : null}
       </View>
 
       {current ? <View style={styles.categoryCard}>
