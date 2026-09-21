@@ -125,3 +125,32 @@ export function profileShareMeta(input: {
     url: `${origin}/u/${encodeURIComponent(username)}`,
   };
 }
+
+
+export function itemShareMeta(input: {
+  origin: string;
+  itemId: string;
+  itemName: unknown;
+  categoryName: unknown;
+  image: unknown;
+}): ShareMeta | null {
+  if (!validShareUuid(input.itemId)) return null;
+  let origin: string;
+  try {
+    const parsed = new URL(input.origin);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    origin = parsed.origin;
+  } catch {
+    return null;
+  }
+  const itemName = clean(input.itemName, 100);
+  const categoryName = clean(input.categoryName, 80);
+  if (!itemName) return null;
+  return {
+    title: `${itemName} | OnePick`,
+    description: `${categoryName || '이 카테고리'}에서 이 항목을 원픽으로 고른 사람들의 한줄평을 확인해보세요.`,
+    image: absoluteImage(input.image, origin),
+    type: 'website',
+    url: `${origin}/item/${encodeURIComponent(input.itemId)}`,
+  };
+}

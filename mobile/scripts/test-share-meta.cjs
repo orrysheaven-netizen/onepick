@@ -12,7 +12,7 @@ function load(file) {
   return exports;
 }
 
-const { pickShareMeta, profileShareMeta, injectShareMeta, validShareUuid, validShareUsername } = load('functions/_lib/share-meta.ts');
+const { pickShareMeta, profileShareMeta, itemShareMeta, injectShareMeta, validShareUuid, validShareUsername } = load('functions/_lib/share-meta.ts');
 const id = '661201d7-ad86-444f-b280-6c964b309c78';
 assert.equal(validShareUuid(id), true);
 assert.equal(validShareUuid('find'), false);
@@ -69,4 +69,18 @@ const profileHtml = injectShareMeta(shell, profileMeta);
 assert.match(profileHtml, /og:type" content="profile"/);
 assert.doesNotMatch(profileHtml, /<script>/);
 assert.equal(profileShareMeta({ origin: 'http://onepick.example', username: 'onepick_qa', pickCount: 1, representativeItems: [], image: '' }), null);
-console.log('H-1B meta checks passed: Pick/Profile validation, escaping, fallback image, canonical URL and dynamic OG tags.');
+const itemMeta = itemShareMeta({
+  origin: 'https://onepick.example',
+  itemId: id,
+  itemName: '인터스텔라 <script>',
+  categoryName: '영화',
+  image: '',
+});
+assert.equal(itemMeta.type, 'website');
+assert.equal(itemMeta.url, 'https://onepick.example/item/' + id);
+assert.match(itemMeta.description, /영화에서 이 항목을 원픽으로 고른/);
+const itemHtml = injectShareMeta(shell, itemMeta);
+assert.doesNotMatch(itemHtml, /<script>/);
+assert.match(itemHtml, /인터스텔라 &lt;script&gt;/);
+assert.equal(itemShareMeta({ origin: 'https://onepick.example', itemId: 'bad', itemName: 'x', categoryName: 'c', image: '' }), null);
+console.log('H-1B meta checks passed: Pick/Profile/Item validation, escaping, fallback image, canonical URL and dynamic OG tags.');
