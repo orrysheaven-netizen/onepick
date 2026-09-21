@@ -677,6 +677,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -702,6 +703,7 @@ export type Database = {
           official_url?: string | null
           original_name?: string | null
           release_year?: number | null
+          requested_category_label?: string | null
           status?: string
           thumbnail_path?: string | null
           updated_at?: string
@@ -727,6 +729,7 @@ export type Database = {
           official_url?: string | null
           original_name?: string | null
           release_year?: number | null
+          requested_category_label?: string | null
           status?: string
           thumbnail_path?: string | null
           updated_at?: string
@@ -1288,6 +1291,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -1323,6 +1327,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -1407,6 +1412,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -1736,6 +1742,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -1794,6 +1801,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
@@ -1804,6 +1812,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_pending_item_category_hint: {
+        Args: { p_item_id: string; p_label?: string }
+        Returns: Database["public"]["Tables"]["items"]["Row"]
       }
       submit_unclassified_item: {
         Args: {
@@ -1833,6 +1845,7 @@ export type Database = {
           official_url: string | null
           original_name: string | null
           release_year: number | null
+          requested_category_label: string | null
           status: string
           thumbnail_path: string | null
           updated_at: string
