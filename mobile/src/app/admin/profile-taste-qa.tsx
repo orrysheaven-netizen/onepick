@@ -10,7 +10,23 @@ import { OnePick } from '@/constants/onepick';
 
 const FIVE_STATUS: ProfileAiStatus = {
   currentPickCount: 5,
-  minimumPicks: 5,
+  minimumPicks: 10,
+  recommendedPicks: 10,
+  hasReview: false,
+  reviewPickCount: 0,
+  changedCount: 0,
+  minimumChanges: 5,
+  retryAfterSeconds: 0,
+  canGenerate: false,
+  reason: 'NEED_FIRST_PICKS',
+  generatedAt: null,
+  isVisible: false,
+  isStale: false,
+};
+
+const TEN_STATUS: ProfileAiStatus = {
+  currentPickCount: 10,
+  minimumPicks: 10,
   recommendedPicks: 10,
   hasReview: false,
   reviewPickCount: 0,
@@ -22,22 +38,6 @@ const FIVE_STATUS: ProfileAiStatus = {
   generatedAt: null,
   isVisible: false,
   isStale: false,
-};
-
-const TEN_STATUS: ProfileAiStatus = {
-  currentPickCount: 10,
-  minimumPicks: 5,
-  recommendedPicks: 10,
-  hasReview: true,
-  reviewPickCount: 5,
-  changedCount: 5,
-  minimumChanges: 5,
-  retryAfterSeconds: 0,
-  canGenerate: true,
-  reason: 'READY_TEN_PICK_UPGRADE',
-  generatedAt: '2026-09-19T00:00:00.000Z',
-  isVisible: false,
-  isStale: true,
 };
 
 const FIVE_COMPOSITION: ProfileTasteCompositionValue = {
@@ -116,7 +116,7 @@ export default function AdminProfileTasteQaScreen() {
       <View>
         <Text style={adminStyles.pageTitle}>프로필 취향 QA</Text>
         <Text style={adminStyles.pageDescription}>
-          실제 사용자 데이터와 네트워크 호출 없이 5개 최초 평가와 10개 업그레이드 상태를 동일 컴포넌트로 비교합니다.
+          실제 사용자 데이터와 네트워크 호출 없이 5개 대기 상태와 10개 최초 평가 상태를 동일 컴포넌트로 비교합니다.
         </Text>
       </View>
 
@@ -129,11 +129,11 @@ export default function AdminProfileTasteQaScreen() {
 
       <Text style={styles.sectionTitle}>모바일 폭 · 390px</Text>
       <View style={styles.previewGrid}>
-        <PreviewFrame title="5개 · 최초 AI 평가" width={390}>
+        <PreviewFrame title="5개 · AI 평가 대기" width={390}>
           <ProfileTasteComposition profileId="qa-five" previewValue={FIVE_COMPOSITION} />
           <ProfileAiPanel profileId="qa-five" currentPickCount={5} previewStatus={FIVE_STATUS} />
         </PreviewFrame>
-        <PreviewFrame title="10개 · 즉시 업그레이드" width={390}>
+        <PreviewFrame title="10개 · 최초 AI 평가" width={390}>
           <ProfileTasteComposition profileId="qa-ten" previewValue={TEN_COMPOSITION} />
           <ProfileAiPanel profileId="qa-ten" currentPickCount={10} previewStatus={TEN_STATUS} />
         </PreviewFrame>
@@ -141,11 +141,11 @@ export default function AdminProfileTasteQaScreen() {
 
       <Text style={styles.sectionTitle}>데스크톱 폭 · 640px</Text>
       <View style={styles.previewGrid}>
-        <PreviewFrame title="5개 · 최초 AI 평가" width={640}>
+        <PreviewFrame title="5개 · AI 평가 대기" width={640}>
           <ProfileTasteComposition profileId="qa-five-desktop" previewValue={FIVE_COMPOSITION} />
           <ProfileAiPanel profileId="qa-five-desktop" currentPickCount={5} previewStatus={FIVE_STATUS} />
         </PreviewFrame>
-        <PreviewFrame title="10개 · 즉시 업그레이드" width={640}>
+        <PreviewFrame title="10개 · 최초 AI 평가" width={640}>
           <ProfileTasteComposition profileId="qa-ten-desktop" previewValue={TEN_COMPOSITION} />
           <ProfileAiPanel profileId="qa-ten-desktop" currentPickCount={10} previewStatus={TEN_STATUS} />
         </PreviewFrame>
