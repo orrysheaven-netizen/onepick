@@ -92,11 +92,46 @@ language sql
 stable
 security invoker
 set search_path = ''
+set pg_trgm.similarity_threshold = '0.2'
 as $$
   with params as (
     select
       lower(regexp_replace(btrim(coalesce(p_query,'')),'[[:space:]]+','','g')) as q,
       least(greatest(coalesce(p_limit,20),1),50) as safe_limit
+  ),
+  candidates as materialized (
+    select i.id
+    from public.items i
+    cross join params
+    where params.q<>''
+      and (
+        i.normalized_name like '%'||params.q||'%'
+        or i.normalized_name operator(extensions.%) params.q
+      )
+    union
+    select ia.item_id
+    from public.item_aliases ia
+    cross join params
+    where params.q<>''
+      and (
+        ia.normalized_alias like '%'||params.q||'%'
+        or ia.normalized_alias operator(extensions.%) params.q
+      )
+  ),
+  scoped as materialized (
+    select i.*
+    from candidates c
+    join public.items i on i.id=c.id
+    where i.status in ('active','discontinued')
+      and (p_category_ids is null or i.category_id=any(p_category_ids))
+  ),
+  candidate_categories as materialized (
+    select distinct i.category_id from scoped i
+  ),
+  open_leaf_categories as materialized (
+    select cc.category_id
+    from candidate_categories cc
+    where public.category_is_open_leaf(cc.category_id)
   ),
   ranked as (
     select
@@ -114,8 +149,8 @@ as $$
         extensions.similarity(i.normalized_name,params.q),
         coalesce(alias_match.best_similarity,0)
       ) as similarity_score
-    from public.items i
-    join public.categories c on c.id=i.category_id
+    from scoped i
+    join open_leaf_categories o on o.category_id=i.category_id
     cross join params
     left join lateral (
       select
@@ -130,18 +165,12 @@ as $$
           or ia.normalized_alias operator(extensions.%) params.q
         )
     ) alias_match on true
-    where params.q<>''
-      and i.status in ('active','discontinued')
-      and (p_category_ids is null or i.category_id=any(p_category_ids))
-      and public.category_is_open_leaf(c.id)
-      and (
-        i.normalized_name like '%'||params.q||'%'
-        or i.normalized_name operator(extensions.%) params.q
-        or coalesce(alias_match.exact_match,false)
-        or coalesce(alias_match.prefix_match,false)
-        or coalesce(alias_match.contains_match,false)
-        or coalesce(alias_match.best_similarity,0)>=0.2
-      )
+    where i.normalized_name like '%'||params.q||'%'
+      or i.normalized_name operator(extensions.%) params.q
+      or coalesce(alias_match.exact_match,false)
+      or coalesce(alias_match.prefix_match,false)
+      or coalesce(alias_match.contains_match,false)
+      or coalesce(alias_match.best_similarity,0)>=0.2
   )
   select
     id,category_id,brand_id,name,normalized_name,model_code,official_url,status,
