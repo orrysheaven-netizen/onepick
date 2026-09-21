@@ -45,3 +45,12 @@ export function defaultCollapsedProfilePickGroups(groups: ProfilePickGroup[], to
   if (totalPickCount <= 6) return new Set<string>();
   return new Set(groups.slice(2).map((group) => group.id));
 }
+
+/** Pickable leaves in a top-level group that have no current Pick yet (the owner's dashed "remaining" tile). */
+export function remainingProfileCategories(groupId: string, pickedCategoryIds: Set<string>, categories: Category[]) {
+  return categories
+    .filter((category) => category.isPickable && category.status === 'open' && category.isVisible)
+    .filter((category) => (category.parentId ?? category.id) === groupId)
+    .filter((category) => !pickedCategoryIds.has(category.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+}
