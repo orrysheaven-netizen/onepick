@@ -22,7 +22,6 @@ function load(file, imports = {}) {
 
 async function main() {
   const { AppError } = load('errors/appError.ts');
-  const limits = load('types/domain/photo.ts');
   const resizeCalls = [];
 
   function dimensions(uri) {
@@ -78,7 +77,7 @@ async function main() {
     'expo-image-manipulator': { ImageManipulator, SaveFormat: { JPEG: 'jpeg' } },
     'expo-image-picker': { launchImageLibraryAsync: async () => ({ canceled: true }) },
     '@/errors/appError': { AppError },
-    '@/types/domain/photo': limits,
+    '@/types/domain/photo': {},
   });
 
   const repository = new DevicePhotoRepository();
@@ -104,12 +103,13 @@ async function main() {
     resizeCalls.some((call) => call.uri === 'file://huge.jpg' && call.width === 1200),
     'Large sources are optimized automatically instead of asking the user to resize them',
   );
-  assert.ok(
-    resizeCalls.some((call) => call.uri === 'file://huge.jpg' && call.width === 900),
-    'If compression alone cannot fit the byte budget, dimensions are reduced and retried automatically',
+  assert.equal(
+    resizeCalls.filter((call) => call.uri === 'file://huge.jpg').length,
+    1,
+    'Large sources are resized once to the display limit; byte size does not trigger extra shrinking',
   );
 
-  console.log('Photo preparation checks passed: 769px images are accepted and oversized sources are auto-optimized.');
+  console.log('Photo preparation checks passed: dimensions are normalized without a byte-budget rejection loop.');
 }
 
 main().catch((error) => {

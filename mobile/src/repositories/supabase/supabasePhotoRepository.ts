@@ -3,7 +3,7 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { PhotoRepository } from '@/repositories/interfaces/photoRepository';
-import { MAX_PICK_PHOTO_BYTES, MAX_THUMBNAIL_BYTES, type PickPhotoDraft } from '@/types/domain/photo';
+import type { PickPhotoDraft } from '@/types/domain/photo';
 
 export class SupabasePhotoRepository implements PhotoRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -23,7 +23,6 @@ export class SupabasePhotoRepository implements PhotoRepository {
   async upload(userId: string, photo: PickPhotoDraft) {
     const full = decode(photo.base64), thumb = decode(photo.thumbnailBase64);
     if (!full.byteLength || !thumb.byteLength) throw new AppError('PHOTO_REQUIRED');
-    if (full.byteLength > MAX_PICK_PHOTO_BYTES || thumb.byteLength > MAX_THUMBNAIL_BYTES) throw new AppError('PHOTO_TOO_LARGE');
     const imagePath = `${userId}/${photo.uploadId}.jpg`, thumbnailPath = `${userId}/${photo.uploadId}-thumb.jpg`;
     for (const [path, bytes] of [[imagePath, full], [thumbnailPath, thumb]] as const) {
       const { error } = await this.client.storage.from('item-photos').upload(path, bytes, {
