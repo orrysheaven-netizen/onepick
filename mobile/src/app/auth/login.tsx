@@ -8,6 +8,7 @@ import { AppError } from '@/errors/appError';
 import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
+import { OnePickBrand } from '@/components/onepick-brand';
 import { OnePick } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 
@@ -63,7 +64,7 @@ export default function LoginScreen() {
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
-        <Text style={styles.eyebrow}>ONEPICK</Text>
+        <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
         <Text style={styles.subtitle}>
           {intent.action === 'request_item'
@@ -128,25 +129,25 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24 },
+  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginTop: 5 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8, marginTop: 36 },
-  title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 22, padding: 20, marginTop: 34 },
-  cardTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
-  providerStack: { gap: 10, marginTop: 16 },
-  providerButton: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  brand: { marginTop: 28, marginBottom: 4 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 10 },
+  subtitle: { color: OnePick.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 20, marginTop: 28 },
+  cardTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  providerStack: { gap: 10, marginTop: 14 },
+  providerButton: { minHeight: 52, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   kakaoButton: { backgroundColor: OnePick.kakao },
-  kakaoButtonText: { color: OnePick.kakaoText, fontSize: 15, fontWeight: '800' },
+  kakaoButtonText: { color: OnePick.kakaoText, fontSize: 15, fontWeight: '700' },
   googleButton: { backgroundColor: OnePick.google, borderWidth: 1, borderColor: OnePick.googleBorder },
-  googleButtonText: { color: OnePick.googleText, fontSize: 15, fontWeight: '800' },
+  googleButtonText: { color: OnePick.googleText, fontSize: 15, fontWeight: '700' },
   naverButton: { backgroundColor: OnePick.naver },
-  naverButtonText: { color: OnePick.naverText, fontSize: 15, fontWeight: '800' },
-  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18 },
-  note: { color: OnePick.muted, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
+  naverButtonText: { color: OnePick.naverText, fontSize: 15, fontWeight: '700' },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 12, padding: 14, marginTop: 14 },
+  errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18 },
+  note: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 16 },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.7 },
 });

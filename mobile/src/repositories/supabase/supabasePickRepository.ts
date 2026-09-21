@@ -4,11 +4,22 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type {
   ChangePickInput,
   PickRepository,
+  PurchaseLinkInput,
   RecentPicksInput,
   UpdatePickReviewInput,
   RegisterPickRecordInput,
 } from '@/repositories/interfaces/pickRepository';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
+
+// An omitted argument is not the same as an empty one. The RPC keeps what is
+// stored when a field is absent and clears it on '', so a caller that only
+// edits the review never wipes a link the person saved earlier.
+function purchaseArgs(input: PurchaseLinkInput) {
+  return {
+    ...(input.purchaseUrl === undefined ? {} : { p_purchase_url: input.purchaseUrl }),
+    ...(input.purchaseTip === undefined ? {} : { p_purchase_tip: input.purchaseTip }),
+  };
+}
 
 export class SupabasePickRepository implements PickRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -138,6 +149,8 @@ export class SupabasePickRepository implements PickRepository {
       p_category_id: input.categoryId,
       p_item_id: input.itemId,
       p_one_line_review: input.oneLineReview,
+      // Omitted arguments leave the stored link and tip alone; '' clears them.
+      ...purchaseArgs(input),
     });
 
     if (error) {
@@ -155,6 +168,7 @@ export class SupabasePickRepository implements PickRepository {
     const { data, error } = await this.client.rpc('update_pick_review', {
       p_pick_id: input.pickId,
       p_one_line_review: input.oneLineReview,
+      ...purchaseArgs(input),
     });
 
     if (error) {

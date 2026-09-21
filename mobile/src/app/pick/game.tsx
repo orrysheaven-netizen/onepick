@@ -167,7 +167,6 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-      <Text style={styles.kicker}>YOUR GAME ONE PICK</Text>
       <Text style={styles.title}>나의 게임 원픽 찾기</Text>
       <Text style={styles.subtitle}>게임 이름으로 찾고, 가장 좋아하는 게임 하나를 골라보세요.</Text>
       <Text style={styles.notice}>플랫폼별 동일 게임은 하나로 보고, 일반판·컬렉터스 에디션 같은 버전은 제외해요. 리메이크·리마스터·확장팩은 IGDB에서 별도 게임이면 따로 선택할 수 있어요.</Text>
@@ -252,7 +251,6 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 12 },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

@@ -163,7 +163,6 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-      <Text style={styles.kicker}>YOUR MUSIC ONE PICK</Text>
       <Text style={styles.title}>나의 노래 원픽 찾기</Text>
       <Text style={styles.subtitle}>곡명과 가수명으로 찾고, 가장 좋아하는 녹음 버전 하나를 골라보세요.</Text>
       <Text style={styles.notice}>같은 곡의 여러 앨범 수록은 하나의 녹음으로 묶고, 라이브·리믹스·다른 가수의 녹음은 별도로 구분해요.</Text>
@@ -252,7 +251,6 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
-  kicker: { color: OnePick.accent, fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 12 },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

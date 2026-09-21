@@ -1,5 +1,6 @@
 // OnePick UI kit. Screens compose these instead of restyling View/Text/Pressable per screen.
 export { Avatar } from './avatar';
+export { BrandMark } from './brand-mark';
 export { Button } from './button';
 export type { ButtonSize, ButtonVariant } from './button';
 export { Chip } from './chip';

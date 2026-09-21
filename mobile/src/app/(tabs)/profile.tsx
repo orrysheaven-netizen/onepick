@@ -19,6 +19,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { categoryLabel } from '@/lib/categories/categoryTree';
+import { registrationRoute } from '@/lib/categories/registrationRoute';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
@@ -192,6 +193,7 @@ export default function ProfileScreen() {
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
+            onPressCategory={(category) => router.push(registrationRoute(category))}
           />
         ) : (
           <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."

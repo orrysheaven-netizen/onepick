@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
 import { getAuthIntent, getPostAuthRoute, type AuthIntent, type AuthReturnParams } from '@/lib/auth/authIntent';
+import { OnePickBrand } from '@/components/onepick-brand';
+import { Button } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -76,7 +78,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>ONEPICK</Text>
+        <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
         <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
 
@@ -84,20 +86,14 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
         {!isLoading && (sessionError || !user) ? (
           <>
             <Text style={styles.errorText}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인이 필요해요.'}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => sessionError ? retrySession() : router.replace({ pathname: '/auth/login', params: { ...intent } })}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>{sessionError ? '다시 확인하기' : '로그인하고 계속'}</Text>
-            </Pressable>
+            <Button size="lg" fullWidth style={styles.primaryAction} label={sessionError ? '다시 확인하기' : '로그인하고 계속'}
+              onPress={() => sessionError ? retrySession() : router.replace({ pathname: '/auth/login', params: { ...intent } })} />
           </>
         ) : null}
 
         {!isLoading && !sessionError && user && saved ? <>
           <Text accessibilityLiveRegion="polite" style={styles.statusText}>사용자명 설정을 확인했어요.</Text>
-          <Pressable accessibilityRole="button" onPress={continueToIntent} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>원래 작업으로 계속</Text>
-          </Pressable>
+          <Button size="lg" fullWidth style={styles.primaryAction} label="원래 작업으로 계속" onPress={continueToIntent} />
         </> : null}
         {!isLoading && !sessionError && user && !saved ? (
           <>
@@ -123,17 +119,12 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
             <Text style={styles.helper}>영문 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.</Text>
 
             {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" style={styles.errorText}>{getMessage(error)}</Text></View> : null}
-            {error instanceof AppError && error.code === 'AUTH_REQUIRED' ? <Pressable accessibilityRole="button"
-              onPress={() => router.replace({ pathname: '/auth/login', params: { ...intent } })} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>다시 로그인하고 계속</Text>
-            </Pressable> : null}
-            <Pressable
-              accessibilityRole="button"
+            {error instanceof AppError && error.code === 'AUTH_REQUIRED' ? <Button variant="secondary" size="sm" style={styles.recovery} label="다시 로그인하고 계속"
+              onPress={() => router.replace({ pathname: '/auth/login', params: { ...intent } })} /> : null}
+            <Button size="lg" fullWidth style={styles.primaryAction}
               disabled={!valid || createProfile.isPending || phase.current !== 'idle'}
-              onPress={() => void handleSave()}
-              style={({ pressed }) => [styles.primaryButton, (!valid || createProfile.isPending || phase.current !== 'idle') && styles.disabled, pressed && valid && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>{createProfile.isPending || phase.current === 'saving' ? '사용자명 저장 중...' : '이 사용자명으로 시작'}</Text>
-            </Pressable>
+              label={createProfile.isPending || phase.current === 'saving' ? '사용자명 저장 중...' : '이 사용자명으로 시작'}
+              onPress={() => void handleSave()} />
           </>
         ) : null}
       </View>
@@ -143,20 +134,19 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 62 },
-  eyebrow: { color: OnePick.accent, fontSize: 12, fontWeight: '800', letterSpacing: 2.8 },
-  title: { color: OnePick.text, fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10 },
-  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 13, maxWidth: 380 },
-  statusText: { color: OnePick.muted, fontSize: 13, marginTop: 34 },
-  inputHeader: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 34, marginBottom: 10 },
-  label: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
+  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 56 },
+  brand: { marginBottom: 4 },
+  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 10 },
+  subtitle: { color: OnePick.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
+  statusText: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 28 },
+  inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 28, marginBottom: 8 },
+  label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
   counter: { color: OnePick.muted, fontSize: 12 },
-  input: { minHeight: 54, borderRadius: 16, backgroundColor: OnePick.surface, paddingHorizontal: 16, color: OnePick.text, fontSize: 16 },
-  helper: { color: OnePick.muted, fontSize: 12, marginTop: 8 },
-  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
-  primaryButtonText: { color: OnePick.onAccent, fontSize: 15, fontWeight: '800' },
-  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 14, padding: 13, marginTop: 14 },
-  errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
-  disabled: { opacity: 0.4 },
+  input: { minHeight: 52, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 16, color: OnePick.text, fontSize: 16 },
+  helper: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 8 },
+  primaryAction: { marginTop: 24 },
+  recovery: { alignSelf: 'flex-start', marginTop: 12 },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 12, padding: 14, marginTop: 14 },
+  errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18, marginTop: 12 },
   pressed: { opacity: 0.7 },
 });

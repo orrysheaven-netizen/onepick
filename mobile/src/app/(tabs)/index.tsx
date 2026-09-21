@@ -7,7 +7,7 @@ import { OnePickBrand } from '@/components/onepick-brand';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
+import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -24,7 +24,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
   return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
-      <Text style={styles.editorialKicker}>ONEPICK 추천</Text>
+      <Text style={styles.editorialKicker}>원픽 추천</Text>
       <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
     </View>
     <View style={styles.editorialBody}>
@@ -196,7 +196,7 @@ export default function HomeScreen() {
         {listHeader}
 
         {user ? null : <View style={styles.signinStrip}>
-          <View style={styles.signinMark}><Text style={styles.signinMarkText}>1</Text></View>
+          <BrandMark soft />
           <View style={styles.signinCopy}>
             <Text style={styles.signinTitle}>하나만 추천한다면 무엇인가요?</Text>
             <Text style={styles.signinText}>카테고리마다 하나를 고르고 이유를 남겨보세요</Text>
@@ -274,7 +274,7 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
           </Pressable> : null}
 
-          <View style={styles.footer}><Text style={styles.footerMark}>1</Text><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
+          <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
         </> : null}
       />}
     </SafeAreaView>
@@ -286,8 +286,6 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 28 },
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginTop: 8, marginBottom: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
-  signinMark: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
-  signinMarkText: { color: OnePick.accent, fontSize: 16, fontWeight: '800' },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { color: OnePick.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
   signinText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
@@ -326,7 +324,6 @@ const styles = StyleSheet.create({
   refreshRow: { alignItems: 'flex-end', marginBottom: 12 },
   refreshError: { alignSelf: 'stretch', color: OnePick.danger, fontSize: 13, lineHeight: 20 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: OnePick.border, marginTop: 30, paddingTop: 20 },
-  footerMark: { color: OnePick.accent, fontSize: 22, fontWeight: '800' },
   footerText: { color: OnePick.muted, fontSize: 13, lineHeight: 21, flex: 1 },
   pressed: { opacity: 0.65 },
 });

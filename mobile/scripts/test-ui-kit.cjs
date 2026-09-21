@@ -88,11 +88,11 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
 {
   let retried = 0;
   const empty = render(React.createElement(ui.StateCard, { title: '아직 고른 원픽이 없어요', text: '하나만 골라보세요.', action: { label: '원픽 고르기', onPress: () => retried++ } }));
-  assert.match(empty, /아직 고른 원픽이 없어요/); assert.match(empty, /하나만 골라보세요/); assert.match(empty, />1</, 'Empty state carries the brand mark');
+  assert.match(empty, /아직 고른 원픽이 없어요/); assert.match(empty, /하나만 골라보세요/); assert.match(empty, />원픽</, 'Empty state carries the 원픽 brand tag');
   pressable('원픽 고르기').onPress(); assert.equal(retried, 1);
 
   const loading = render(React.createElement(ui.StateCard, { title: '불러오는 중', loading: true }));
-  assert.equal(spinners, 1); assert.doesNotMatch(loading, />1</, 'Loading shows a spinner instead of the mark');
+  assert.equal(spinners, 1); assert.doesNotMatch(loading, />원픽</, 'Loading shows a spinner instead of the mark');
 
   const failed = render(React.createElement(ui.StateCard, { title: '불러오지 못했어요', tone: 'danger', accessibilityRole: 'alert', action: { label: '다시 불러오기', onPress() {}, disabled: true } }));
   assert.match(failed, /role="alert"/);
@@ -104,7 +104,16 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.equal(pressable('로그인하기').resolved.minHeight, 48);
 
   const compact = render(React.createElement(ui.StateCard, { text: '다음 제품을 불러오지 못했어요.', compact: true }));
-  assert.doesNotMatch(compact, />1</); assert.equal(spinners, 0);
+  assert.doesNotMatch(compact, />원픽</); assert.equal(spinners, 0);
+}
+
+// BrandMark: the 원픽 tag on its own, solid or soft, three sizes.
+{
+  const solid = render(React.createElement(ui.BrandMark));
+  assert.match(solid, />원픽</); assert.match(solid, new RegExp(`backgroundColor&quot;:&quot;${OnePick.accent}`));
+  const soft = render(React.createElement(ui.BrandMark, { soft: true, size: 'lg' }));
+  assert.match(soft, new RegExp(`backgroundColor&quot;:&quot;${OnePick.accentSoft}`)); assert.match(soft, /&quot;height&quot;:48/);
+  assert.match(render(React.createElement(ui.BrandMark, { size: 'sm' })), /&quot;height&quot;:22/);
 }
 
 // Avatar: initial from the name; pressable only when a handler is given.
