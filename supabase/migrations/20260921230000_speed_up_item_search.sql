@@ -16,7 +16,9 @@
 --      (items_normalized_name_trgm_idx, item_aliases_normalized_trgm_idx).
 --      It is a superset of what the ranking step can keep: the alias tests
 --      below are all narrower than the alias filter here, and the name tests
---      are the same ones. The original WHERE clause is re-applied afterwards,
+--      are the same ones. The function-local pg_trgm threshold is 0.2 so the
+--      indexed % operator includes every row the final >= 0.2 similarity
+--      branch can accept; the default 0.3 threshold would silently drop them. The original WHERE clause is re-applied afterwards,
 --      so a candidate that does not qualify is still dropped.
 --   2. category_is_open_leaf walks the category tree with a recursive CTE, so
 --      it is evaluated once per distinct category the candidates actually use
@@ -38,7 +40,8 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $$
+set pg_trgm.similarity_threshold = '0.2'
+as $
   with params as (
     select
       lower(regexp_replace(btrim(coalesce(p_query,'')),'[[:space:]]+','','g')) as q,
