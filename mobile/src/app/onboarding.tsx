@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   progressHint: { color: OnePick.muted, fontSize: 12, lineHeight: 16, flex: 1, textAlign: 'right' },
   track: { height: 9, backgroundColor: OnePick.sunken, borderRadius: 999, overflow: 'hidden', marginTop: 14 },
   fill: { height: '100%', backgroundColor: OnePick.accent, borderRadius: 999 },
-  marker: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
+  marker: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 5 },
   markerText: { color: OnePick.hint, fontSize: 12, lineHeight: 16 },
   aiButton: { marginTop: 14 },
   categoryCard: { backgroundColor: OnePick.surface, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, padding: 20, marginTop: 16 },
