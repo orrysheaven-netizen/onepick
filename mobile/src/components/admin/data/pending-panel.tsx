@@ -7,11 +7,6 @@ import type { AdminCategory, AdminItem, AdminItemCategorySuggestion, PendingItem
 import { toDomainCategory } from '@/lib/admin/adminCategory';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { OnePick } from '@/constants/onepick';
-import type { Category } from '@/types/domain/category';
-
-// Unclassified requests are parked in this hidden category until review; the
-// review RPC refuses to approve into it, so a real leaf must be chosen first.
-const UNCLASSIFIED_SLUG = 'pending-product';
 
 type SuggestionConfidence = AdminItemCategorySuggestion['suggestions'][number]['confidence'];
 
@@ -21,6 +16,7 @@ function confidenceRank(confidence: SuggestionConfidence) {
   return confidence === 'high' ? 2 : confidence === 'medium' ? 1 : 0;
 }
 
+// The review RPC raises short codes; show the admin what to do instead.
 function reviewErrorMessage(caught: unknown, fallback: string) {
   const message = caught instanceof Error ? caught.message : '';
   if (message.includes('CATEGORY_NOT_PICKABLE')) return '선택한 카테고리는 원픽 대상이 아닙니다. 운영 중인 하위 카테고리를 골라 주세요.';
@@ -32,7 +28,9 @@ function reviewErrorMessage(caught: unknown, fallback: string) {
 
 export function PendingPanel() {
   const [items, setItems] = useState<PendingItem[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reviewCategoryId, setReviewCategoryId] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -44,30 +42,17 @@ export function PendingPanel() {
   const [mergeCandidates, setMergeCandidates] = useState<AdminItem[]>([]);
   const [mergeSearching, setMergeSearching] = useState(false);
   const [mergingId, setMergingId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [reviewCategoryId, setReviewCategoryId] = useState<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState('');
   const [suggestion, setSuggestion] = useState<AdminItemCategorySuggestion | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
-
-  const domainCategories = useMemo(() => categories.map(toDomainCategory), [categories]);
-  const leafCategories = useMemo(() => selectableCategories(domainCategories), [domainCategories]);
-  const labelOf = (category: Category) => categoryLabel(category, domainCategories);
-
-  useEffect(() => {
-    let active = true;
-    getCategories()
-      .then((result) => { if (active) setCategories(result); })
-      .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : '카테고리를 불러오지 못했습니다.'); });
-    return () => { active = false; };
-  }, []);
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      const result = await getPendingItems();
+      const [result, categoryResult] = await Promise.all([getPendingItems(), getCategories()]);
       setItems(result);
+      setCategories(categoryResult);
       setHasMore(result.length === ADMIN_PAGE_SIZE);
       setSelectedId((current) => current && result.some((item) => item.id === current) ? current : result[0]?.id ?? null);
     } catch (caught) {
@@ -103,45 +88,51 @@ export function PendingPanel() {
   }, [items, query]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const domainCategories = useMemo(() => categories.map(toDomainCategory), [categories]);
+  const reviewCategories = useMemo(() => {
+    const selectableIds = new Set(selectableCategories(domainCategories).map((category) => category.id));
+    return categories.filter((category) => selectableIds.has(category.id));
+  }, [categories, domainCategories]);
+  const reviewCategoryLabel = (category: AdminCategory) => categoryLabel(toDomainCategory(category), domainCategories);
+  const isUnclassified = selected?.categories?.slug === 'pending-product';
 
-  const selectedIsUnclassified = selected?.categories?.slug === UNCLASSIFIED_SLUG;
-
-  // On selection: the item's own category is the default when it is a real
-  // leaf; an unclassified request defaults to the strongest AI suggestion.
   useEffect(() => {
     setMergeCandidates([]);
     setMergeQuery(selected?.name ?? '');
     setCategoryQuery('');
     setSuggestion(null);
-    if (!selected) {
-      setReviewCategoryId(null);
-      return;
-    }
-    const ownIsLeaf = leafCategories.some((category) => category.id === selected.category_id);
-    setReviewCategoryId(ownIsLeaf ? selected.category_id : null);
+    const ownCategoryIsSelectable = Boolean(
+      selected
+      && selected.categories?.slug !== 'pending-product'
+      && reviewCategories.some((category) => category.id === selected.category_id),
+    );
+    setReviewCategoryId(ownCategoryIsSelectable && selected ? selected.category_id : '');
+    if (!selected) return;
 
+    // An unclassified request defaults to the strongest AI suggestion that is
+    // still a selectable leaf; the admin can always override it below.
     let active = true;
     setSuggestionLoading(true);
     getPendingItemCategorySuggestion(selected.id)
       .then((result) => {
         if (!active) return;
         setSuggestion(result);
-        if (ownIsLeaf || !result) return;
+        if (ownCategoryIsSelectable || !result) return;
         const ranked = [...result.suggestions].sort((a, b) => confidenceRank(b.confidence) - confidenceRank(a.confidence));
-        const first = ranked.find((entry) => leafCategories.some((category) => category.id === entry.categoryId));
+        const first = ranked.find((entry) => reviewCategories.some((category) => category.id === entry.categoryId));
         if (first) setReviewCategoryId(first.categoryId);
       })
       .catch(() => { if (active) setSuggestion(null); })
       .finally(() => { if (active) setSuggestionLoading(false); });
     return () => { active = false; };
-  }, [selectedId, leafCategories]);
+  }, [selectedId, reviewCategories]);
 
-  const reviewCategory = leafCategories.find((category) => category.id === reviewCategoryId) ?? null;
-  const visibleLeafCategories = useMemo(() => {
+  const reviewCategory = reviewCategories.find((category) => category.id === reviewCategoryId) ?? null;
+  const visibleReviewCategories = useMemo(() => {
     const keyword = categoryQuery.trim().toLowerCase();
-    if (!keyword) return leafCategories;
-    return leafCategories.filter((category) => `${categoryLabel(category, domainCategories)} ${category.slug}`.toLowerCase().includes(keyword));
-  }, [leafCategories, categoryQuery, domainCategories]);
+    if (!keyword) return reviewCategories;
+    return reviewCategories.filter((category) => `${categoryLabel(toDomainCategory(category), domainCategories)} ${category.slug}`.toLowerCase().includes(keyword));
+  }, [reviewCategories, categoryQuery, domainCategories]);
 
   const removeSelected = (name: string, resultMessage: string) => {
     if (!selected) return;
@@ -153,8 +144,8 @@ export function PendingPanel() {
 
   const process = async (status: 'active' | 'rejected') => {
     if (!selected || processing) return;
-    if (status === 'active' && !reviewCategory) {
-      setError('승인하려면 상품을 등록할 카테고리를 먼저 선택해 주세요.');
+    if (status === 'active' && !reviewCategoryId) {
+      setError('승인할 실제 카테고리를 먼저 선택해 주세요.');
       return;
     }
     if (status === 'rejected' && !window.confirm(`${selected.name} 상품을 반려하시겠습니까?`)) return;
@@ -162,10 +153,10 @@ export function PendingPanel() {
     setError('');
     setMessage('');
     try {
-      await updatePendingItem(selected.id, status, status === 'active' ? reviewCategory?.id : undefined);
+      await updatePendingItem(selected.id, status, status === 'active' ? reviewCategoryId : undefined);
       removeSelected(
         selected.name,
-        status === 'active' && reviewCategory ? `상품을 ${labelOf(reviewCategory)} 카테고리로 승인했습니다.` : '상품을 반려했습니다.',
+        status === 'active' && reviewCategory ? `상품을 ${reviewCategoryLabel(reviewCategory)} 카테고리로 승인했습니다.` : '상품을 반려했습니다.',
       );
     } catch (caught) {
       setError(reviewErrorMessage(caught, '상품 검수 처리에 실패했습니다.'));
@@ -176,11 +167,15 @@ export function PendingPanel() {
 
   const searchMergeCandidates = async () => {
     if (!selected) return;
+    const categoryId = reviewCategoryId || (!isUnclassified ? selected.category_id : '');
+    if (!categoryId) {
+      setError('중복 상품을 찾기 전에 실제 카테고리를 선택해 주세요.');
+      return;
+    }
     setMergeSearching(true);
     setError('');
     try {
-      // Search where the item will live after review, not the staging category.
-      const result = await getMergeCandidates(mergeQuery, reviewCategory?.id ?? selected.category_id);
+      const result = await getMergeCandidates(mergeQuery, categoryId);
       setMergeCandidates(result.filter((item) => item.id !== selected.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '병합 후보를 검색하지 못했습니다.');
@@ -275,15 +270,11 @@ export function PendingPanel() {
                 <Meta label="이미지 경로" value={selected.image_path ?? '없음'} />
               </View>
 
-              <View style={styles.categoryBox}>
-                <View style={styles.categoryHeader}>
-                  <View style={styles.categoryHeaderText}>
-                    <Text style={styles.mergeTitle}>등록할 카테고리</Text>
-                    <Text style={styles.note}>
-                      {selectedIsUnclassified
-                        ? '사용자가 카테고리를 고르지 않은 요청입니다. 승인 전에 카테고리를 정해 주세요.'
-                        : '요청된 카테고리 그대로 승인하거나 다른 하위 카테고리로 옮길 수 있습니다.'}
-                    </Text>
+              <View style={styles.classifyBox}>
+                <View style={styles.classifyHeader}>
+                  <View style={styles.classifyHeaderText}>
+                    <Text style={styles.mergeTitle}>승인 카테고리</Text>
+                    <Text style={styles.note}>{isUnclassified ? '사용자가 카테고리 없이 등록한 요청입니다. 승인 전에 실제 카테고리를 지정해야 합니다.' : '필요하면 승인 전에 카테고리를 바로잡을 수 있습니다.'}</Text>
                   </View>
                   {suggestionLoading && <ActivityIndicator size="small" />}
                 </View>
@@ -291,7 +282,7 @@ export function PendingPanel() {
                 <View style={styles.categoryCurrent}>
                   <Text style={styles.categoryCurrentLabel}>선택됨</Text>
                   <Text style={[styles.categoryCurrentValue, !reviewCategory && styles.categoryCurrentMissing]}>
-                    {reviewCategory ? labelOf(reviewCategory) : '아직 선택되지 않음'}
+                    {reviewCategory ? reviewCategoryLabel(reviewCategory) : '아직 선택되지 않음'}
                   </Text>
                 </View>
 
@@ -299,7 +290,7 @@ export function PendingPanel() {
                   <View style={styles.suggestionBlock}>
                     <Text style={styles.suggestionTitle}>AI 추천 · {suggestion.model_name}</Text>
                     {suggestion.suggestions.map((entry) => {
-                      const category = leafCategories.find((candidate) => candidate.id === entry.categoryId);
+                      const category = reviewCategories.find((candidate) => candidate.id === entry.categoryId);
                       const active = reviewCategoryId === entry.categoryId;
                       return (
                         <Pressable
@@ -307,11 +298,11 @@ export function PendingPanel() {
                           accessibilityRole="button"
                           accessibilityState={{ selected: active, disabled: !category }}
                           disabled={!category}
-                          onPress={() => setReviewCategoryId(entry.categoryId)}
+                          onPress={() => { setReviewCategoryId(entry.categoryId); setMergeCandidates([]); }}
                           style={[styles.suggestionRow, active && styles.suggestionRowActive, !category && styles.suggestionRowDisabled]}
                         >
                           <View style={styles.suggestionBody}>
-                            <Text style={[styles.suggestionLabel, active && styles.suggestionLabelActive]}>{category ? labelOf(category) : entry.label}</Text>
+                            <Text style={[styles.suggestionLabel, active && styles.suggestionLabelActive]}>{category ? reviewCategoryLabel(category) : entry.label}</Text>
                             <Text style={styles.suggestionReason}>{entry.reason}{category ? '' : ' · 현재 선택 불가한 카테고리'}</Text>
                           </View>
                           <Text style={[styles.confidence, confidenceStyle(entry.confidence)]}>확신도 {CONFIDENCE_LABELS[entry.confidence]}</Text>
@@ -323,7 +314,7 @@ export function PendingPanel() {
                 {suggestion?.needs_new_category && (
                   <Text style={styles.suggestionWarning}>AI가 맞는 카테고리를 찾지 못했습니다. 새 카테고리가 필요할 수 있습니다.</Text>
                 )}
-                {!suggestionLoading && !suggestion && selectedIsUnclassified && (
+                {!suggestionLoading && !suggestion && isUnclassified && (
                   <Text style={styles.note}>이 요청에는 AI 추천 기록이 없습니다.</Text>
                 )}
 
@@ -334,22 +325,19 @@ export function PendingPanel() {
                   placeholder="카테고리 이름 검색"
                   style={adminStyles.input}
                 />
-                <View style={styles.categoryChips}>
-                  {visibleLeafCategories.length === 0 && <Text style={styles.mergeEmpty}>조건에 맞는 카테고리가 없습니다.</Text>}
-                  {visibleLeafCategories.map((category) => {
-                    const active = reviewCategoryId === category.id;
-                    return (
-                      <Pressable
-                        key={category.id}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                        onPress={() => setReviewCategoryId(category.id)}
-                        style={[styles.categoryChip, active && styles.categoryChipActive]}
-                      >
-                        <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{labelOf(category)}</Text>
-                      </Pressable>
-                    );
-                  })}
+                <View style={styles.categoryChoices}>
+                  {visibleReviewCategories.length === 0 && <Text style={styles.mergeEmpty}>조건에 맞는 카테고리가 없습니다.</Text>}
+                  {visibleReviewCategories.map((category) => (
+                    <Pressable
+                      key={category.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: reviewCategoryId === category.id }}
+                      onPress={() => { setReviewCategoryId(category.id); setMergeCandidates([]); }}
+                      style={[styles.categoryChoice, reviewCategoryId === category.id && styles.categoryChoiceSelected]}
+                    >
+                      <Text style={[styles.categoryChoiceText, reviewCategoryId === category.id && styles.categoryChoiceTextSelected]}>{reviewCategoryLabel(category)}</Text>
+                    </Pressable>
+                  ))}
                 </View>
               </View>
 
@@ -386,12 +374,12 @@ export function PendingPanel() {
 
               <View style={adminStyles.row}>
                 <Pressable
-                  accessibilityState={{ disabled: processing || !!mergingId || !reviewCategory }}
-                  disabled={processing || !!mergingId || !reviewCategory}
+                  accessibilityState={{ disabled: processing || !!mergingId || !reviewCategoryId }}
+                  disabled={processing || !!mergingId || !reviewCategoryId}
                   onPress={() => process('active')}
-                  style={[adminStyles.primaryButton, (processing || !!mergingId || !reviewCategory) && { opacity: 0.5 }]}
+                  style={[adminStyles.primaryButton, (processing || !!mergingId || !reviewCategoryId) && { opacity: 0.5 }]}
                 >
-                  <Text style={adminStyles.primaryButtonText}>{processing ? '처리 중' : reviewCategory ? '승인' : '카테고리를 선택하세요'}</Text>
+                  <Text style={adminStyles.primaryButtonText}>{processing ? '처리 중' : '승인'}</Text>
                 </Pressable>
                 <Pressable disabled={processing || !!mergingId} onPress={() => process('rejected')} style={[adminStyles.dangerButton, (processing || !!mergingId) && { opacity: 0.5 }]}>
                   <Text style={adminStyles.dangerButtonText}>반려</Text>
@@ -446,17 +434,9 @@ const styles = StyleSheet.create({
   metaLabel: { width: 82, color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   metaValue: { flex: 1, color: OnePick.muted, fontSize: 12 },
   note: { color: OnePick.muted, fontSize: 12, lineHeight: 19 },
-  mergeBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.sunken },
-  mergeTitle: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
-  mergeSearchRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  mergeInput: { flexGrow: 1, flexBasis: 210 },
-  candidateRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: OnePick.sunken },
-  candidateBody: { flex: 1, minWidth: 0 },
-  candidateName: { color: OnePick.text, fontSize: 13, fontWeight: '700', marginBottom: 3 },
-  mergeEmpty: { color: OnePick.hint, fontSize: 12, paddingTop: 4 },
-  categoryBox: { gap: 12, borderWidth: 1, borderColor: OnePick.accent, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
-  categoryHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  categoryHeaderText: { flex: 1, gap: 4 },
+  classifyBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
+  classifyHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  classifyHeaderText: { flex: 1, gap: 4 },
   categoryCurrent: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: OnePick.accentSoft, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9 },
   categoryCurrentLabel: { color: OnePick.accentDeep, fontSize: 11, fontWeight: '800' },
   categoryCurrentValue: { flex: 1, color: OnePick.text, fontSize: 13, fontWeight: '700' },
@@ -475,9 +455,17 @@ const styles = StyleSheet.create({
   confidenceHigh: { color: OnePick.success, backgroundColor: OnePick.successSoft },
   confidenceMedium: { color: OnePick.warning, backgroundColor: OnePick.warningSoft },
   confidenceLow: { color: OnePick.muted, backgroundColor: OnePick.sunken },
-  categoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  categoryChip: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface },
-  categoryChipActive: { backgroundColor: OnePick.text, borderColor: OnePick.text },
-  categoryChipText: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
-  categoryChipTextActive: { color: OnePick.onAccent },
+  categoryChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryChoice: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8, backgroundColor: OnePick.surface },
+  categoryChoiceSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
+  categoryChoiceText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  categoryChoiceTextSelected: { color: OnePick.accent },
+  mergeBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.sunken },
+  mergeTitle: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
+  mergeSearchRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  mergeInput: { flexGrow: 1, flexBasis: 210 },
+  candidateRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: OnePick.sunken },
+  candidateBody: { flex: 1, minWidth: 0 },
+  candidateName: { color: OnePick.text, fontSize: 13, fontWeight: '700', marginBottom: 3 },
+  mergeEmpty: { color: OnePick.hint, fontSize: 12, paddingTop: 4 },
 });

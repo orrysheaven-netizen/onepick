@@ -25,7 +25,7 @@ function errorMessage(error: unknown) {
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
-  return '제품 등록 요청을 보내지 못했어요. 다시 시도해주세요.';
+  return '상품을 등록하지 못했어요. 다시 시도해주세요.';
 }
 
 type Params = { categoryId?: string; itemName?: string };
@@ -174,7 +174,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="제품 등록 요청을 보냈어요" text={`${submittedItem.name}\n내 프로필에서 승인 상태를 확인할 수 있어요. 승인된 항목을 열어 원픽으로 선택해주세요.`}
+            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n확인 후 원픽으로 선택할 수 있어요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -199,9 +199,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>AI가 카테고리를 추천해요</Text>
+          <Text style={styles.title}>AI가 카테고리를 추천했어요</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
-          <Text style={styles.subtitle}>상품은 먼저 등록됐습니다. AI는 기존 카테고리 후보만 제안하며, 실제 적용은 직접 선택해야 합니다.</Text>
+          <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않습니다.</Text>
 
           {categorySuggestions.isPending ? (
             <View style={styles.block}><StateCard loading title="상품명과 기존 카테고리를 비교하고 있어요" /></View>
@@ -272,8 +272,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
-        <Text style={styles.title}>제품 등록 요청</Text>
-        <Text style={styles.subtitle}>검색에서 찾지 못한 상품명을 먼저 등록합니다. 일반 상품은 등록 뒤 AI가 기존 카테고리 후보를 제안하고, 최종 카테고리는 직접 선택합니다. 콘텐츠는 선택한 종류를 그대로 사용합니다.</Text>
+        <Text style={styles.title}>원픽 등록</Text>
+        <Text style={styles.subtitle}>찾는 상품이 없나요? 상품명을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.</Text>
 
         <Text style={styles.label}>제품명</Text>
         <TextInput
@@ -297,7 +297,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 등록이 끝나면 AI가 몇 가지 카테고리를 제안하고, 원하는 카테고리를 직접 적용할 수 있어요.</Text>
+          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 카테고리는 등록 후 선택할 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>
@@ -336,7 +336,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
 
         <Button size="lg" fullWidth disabled={!canSubmit && !registration.isPending} loading={registration.isPending}
-          label={auth.user ? '제품 등록 요청 보내기' : '로그인하고 요청하기'} onPress={() => void submit()} style={styles.primaryAction} />
+          label={auth.user ? '상품 등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
     </SafeAreaView>
   );

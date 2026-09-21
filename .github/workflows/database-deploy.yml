@@ -58,11 +58,11 @@ jobs:
         run: supabase migration list --linked
 
       - name: Preview pending migrations
-        run: supabase db push --linked --dry-run
+        run: supabase db push --linked --dry-run --include-all
 
       - name: Apply pending migrations
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase db push --linked
+        run: supabase db push --linked --include-all
 
       - name: Show migration status after deploy
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
