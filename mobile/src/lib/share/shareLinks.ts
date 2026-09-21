@@ -32,3 +32,19 @@ export function createProfileShareUrl(username: string) {
 
   return `onepick://u/${encodedUsername}`;
 }
+
+/**
+ * Invite link for one category: it opens the existing Pick finder already
+ * scoped to that category, so the ask in a chat is "여기서 하나 눌러" instead of
+ * "가입해서 찾아서 골라". The slug keeps the link readable when it is pasted.
+ */
+export function createCategoryInviteUrl(categorySlug: string) {
+  const slug = encodeURIComponent(categorySlug.trim().toLowerCase());
+  const baseUrl = getShareBaseUrl();
+
+  if (baseUrl) {
+    return `${baseUrl}/pick/find?category=${slug}`;
+  }
+
+  return `onepick://pick/find?category=${slug}`;
+}
