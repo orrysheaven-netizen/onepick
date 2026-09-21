@@ -40,7 +40,14 @@ export function pickShareMeta(input: {
   image: unknown;
 }): ShareMeta | null {
   if (!validShareUuid(input.pickId)) return null;
-  const origin = input.origin.replace(/\/+$/, '');
+  let origin: string;
+  try {
+    const parsed = new URL(input.origin);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    origin = parsed.origin;
+  } catch {
+    return null;
+  }
   const itemName = clean(input.itemName, 100);
   const username = clean(input.username, 20);
   const categoryName = clean(input.categoryName, 80);
