@@ -12,7 +12,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -70,7 +70,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const trimmedUrl = (draftUrl ?? '').trim();
   const trimmedTip = (draftTip ?? '').trim();
   const hasUrlDraft = trimmedUrl.length > 0;
-  const isValidUrl = !hasUrlDraft || (trimmedUrl.length <= 2048 && /^https:\/\/[^\s]+$/.test(trimmedUrl));
+  const isValidUrl = !OnePickFeatures.purchaseLinks || !hasUrlDraft || (trimmedUrl.length <= 2048 && /^https:\/\/[^\s]+$/.test(trimmedUrl));
   const showTipQuestion = hasUrlDraft && isValidUrl;
   const showTipInput = showTipQuestion && tipAnswer === 'yes';
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
@@ -95,7 +95,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
         // An untouched field is left out so the stored value survives; '' clears it.
-        ...(draftUrl === null ? {} : { purchaseUrl: trimmedUrl }),
+        ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
         ...(draftUrl === null && draftTip === null ? {}
           : { purchaseTip: showTipInput ? trimmedTip : '' }),
       });
@@ -189,6 +189,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
+          {OnePickFeatures.purchaseLinks ? <>
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>산 곳 링크 <Text style={styles.optional}>선택</Text></Text></View>
           <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!choosePick.isPending}
             inputMode="url" maxLength={2048}
@@ -213,6 +214,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               placeholder="예: 6개입이 낱개보다 싸요" placeholderTextColor={OnePick.hint}
               style={styles.linkInput} value={draftTip ?? ''} />
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
+          </> : null}
           </> : null}
           {choosePick.isError ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
