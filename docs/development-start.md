@@ -31,8 +31,13 @@ From the repository root:
 
 ```bash
 supabase db start
+supabase migration up --local --include-all
 supabase test db
 ```
+
+An existing local database can be behind the migration files after a pull or branch change. Before running pgTAP locally, `supabase migration up --local --include-all` applies migration files that are missing from the local `supabase_migrations.schema_migrations` history. The `--include-all` flag also permits older pending migrations when a newer migration is already present in that history.
+
+Use `supabase migration list --local` when you need to inspect what is pending. Avoid `supabase stop --no-backup` merely to catch up migrations because it removes local database data.
 
 Database CI recreates the project from migrations and runs every pgTAP suite under `supabase/tests`.
 
