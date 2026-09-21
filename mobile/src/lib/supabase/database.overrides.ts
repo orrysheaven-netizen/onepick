@@ -126,7 +126,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
-    Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
+    Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'home_pick_feed_page' | 'home_following_feed_page'> & {
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
         Returns: (CategoryTopItems['Returns'][number] & {
           image_path: string | null;
