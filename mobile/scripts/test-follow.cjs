@@ -127,13 +127,16 @@ async function main() {
   // Home: the 팔로잉 scope only exists for members and is a separate query from the public feed.
   const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
   assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing/);
-  assert.match(home, /const showFollowing = Boolean\(user\) && feedScope === 'following'/);
+  assert.match(home, /const showFollowing = OnePickFeatures\.follow && Boolean\(user\) && feedScope === 'following'/);
+  assert.match(home, /OnePickFeatures\.follow && user \? <View style=\{styles\.scopeRow\}>/);
   assert.match(home, /아직 팔로잉 원픽이 없어요/);
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
-  assert.match(publicProfile, /\{!query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
+  assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
+  const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
+  assert.match(featureSource, /follow: false/, 'Follow stays dormant until the linked DB has the follow schema');
   assert.match(publicProfile, /action: 'view_profile'/);
 
   console.log('Follow checks passed: service guards, login return intent, button states, home scope and profile placement.');

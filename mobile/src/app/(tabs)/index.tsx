@@ -8,7 +8,7 @@ import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
 import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
@@ -45,7 +45,7 @@ export default function HomeScreen() {
   // 전체 / 팔로잉: the second scope only exists for signed-in people and never
   // changes what the public feed shows.
   const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
-  const showFollowing = Boolean(user) && feedScope === 'following';
+  const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
@@ -127,7 +127,7 @@ export default function HomeScreen() {
       onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
       onSelect={openItem} />
 
-    {user ? <View style={styles.scopeRow}>
+    {OnePickFeatures.follow && user ? <View style={styles.scopeRow}>
       {(['all', 'following'] as const).map((scope) => {
         const selected = feedScope === scope;
         return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}

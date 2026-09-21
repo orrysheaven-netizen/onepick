@@ -22,7 +22,7 @@ import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
 import { categoryLabel } from '@/lib/categories/categoryTree';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import type { Category } from '@/types/domain/category';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
           <Text style={styles.summaryLabel}>현재 원픽</Text>
           <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
         </View>
-        <ProfileFollowCounts userId={user.id} />
+        {OnePickFeatures.follow ? <ProfileFollowCounts userId={user.id} /> : null}
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} tastePickCount={tasteCompositionQuery.data?.mappedPickCount ?? 0} />
         <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>

@@ -15,8 +15,8 @@ function load(file, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
-    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
+    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);
@@ -52,6 +52,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ replace() {}, push() {}, back() {}, canGoBack: () => true }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   '@/components/pick-photo': { PickPhoto: () => null }, '@/errors/appError': { AppError },
+  '@/constants/onepick': { ...require('./design-tokens.cjs'), OnePickFeatures: { follow: false, purchaseLinks: true } },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
@@ -188,6 +189,8 @@ function checkServiceGuards() {
 }
 
 async function main() {
+  assert.equal(require('./design-tokens.cjs').OnePickFeatures.purchaseLinks, false,
+    'Purchase-link UI stays dormant until the linked DB has the purchase schema');
   await checkUntouchedLinkIsNotSent();
   await checkQuestionOnlyAfterALink();
   await checkTipIsSavedWhenOffered();
