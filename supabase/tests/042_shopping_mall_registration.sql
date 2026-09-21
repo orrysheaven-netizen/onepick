@@ -2,7 +2,7 @@
 -- docs/life-service-entry-direction.md 참조.
 --
 -- 다른 흐름 검사와 다른 점 하나: 이 파일은 픽스처 카테고리를 만들지 않고
--- 20260921140000이 만든 **진짜 `shopping-mall` 카테고리**를 쓴다. 새로 연
+-- 20260921140000이 만든 **진짜 `online-shopping-mall` 카테고리**를 쓴다. 새로 연
 -- 카테고리가 아이템이 0개인 상태에서 실제로 등록까지 통과하는지는 플래그를
 -- 보는 것만으로는 알 수 없다. 카탈로그 소스가 없으면 중복 가드가 꺼지고,
 -- category_accepts_picks가 막으면 요청 자체가 안 되고, 취향 매핑이 붙어
@@ -33,7 +33,7 @@ declare
   v_taste_rows integer;
   v_composition jsonb;
 begin
-  select id into v_mall from public.categories where slug = 'shopping-mall';
+  select id into v_mall from public.categories where slug = 'online-shopping-mall';
   assert v_mall is not null, '쇼핑몰 카테고리가 있어야 한다';
   select id into v_garage from public.categories where slug = 'auto-repair';
   assert v_garage is not null, '정비소 카테고리가 트리에 남아 있어야 한다';
