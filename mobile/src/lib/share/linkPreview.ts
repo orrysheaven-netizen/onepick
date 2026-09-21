@@ -93,7 +93,11 @@ export function profilePreview(input: ProfilePreviewInput, origin?: string | nul
   let description = lines.join(' · ');
   if (description && keywords.length) description = `${description} · ${keywords.map((word) => `#${word}`).join(' ')}`;
   if (!description) description = summary || keywords.map((word) => `#${word}`).join(' ');
-  if (!description) description = '아직 고른 원픽이 없어요. 카테고리마다 하나씩 골라 보세요.';
+  if (!description) {
+    description = count > 0
+      ? '무엇을 골랐는지, 왜 골랐는지 보러 오세요.'
+      : '아직 고른 원픽이 없어요. 카테고리마다 하나씩 골라 보세요.';
+  }
 
   return {
     title: clampText(title, TITLE_LIMIT),

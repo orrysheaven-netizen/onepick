@@ -33,7 +33,13 @@ export default function PublicProfileScreen() {
     setIsSharing(true);
     setShareError(false);
     try {
-      await shareProfile({ username: query.data.profile.username, pickCount: query.data.currentPicks.length });
+      await shareProfile({
+        username: query.data.profile.username,
+        pickCount: query.data.currentPicks.length,
+        picks: query.data.currentPicks.map((entry) => ({
+          categoryName: entry.category?.name, itemName: entry.item?.name,
+        })),
+      });
     } catch { setShareError(true); }
     finally { setIsSharing(false); }
   };

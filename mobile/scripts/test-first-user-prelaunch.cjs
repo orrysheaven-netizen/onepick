@@ -190,8 +190,8 @@ async function main() {
   );
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: query\.data\.profile\.username, pickCount: query\.data\.currentPicks\.length }\)/,
-    'the public profile must share the loaded username and current Pick count',
+    /shareProfile\({\s*username: query\.data\.profile\.username,\s*pickCount: query\.data\.currentPicks\.length,\s*picks: query\.data\.currentPicks\.map/,
+    'the public profile must share the loaded username, current Pick count and the Picks themselves',
   );
   assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
 
@@ -212,12 +212,18 @@ async function main() {
         },
       },
       './shareLinks': shareLinks,
+      './linkPreview': load('src/lib/share/linkPreview.ts', {}),
       '../demoProfile': { demoSharePrefix: () => '' },
     });
 
-    await shareProfile({ username: 'First_User', pickCount: 5 });
+    await shareProfile({
+      username: 'First_User', pickCount: 5,
+      picks: [{ categoryName: '라면', itemName: '신라면' }, { categoryName: '영화', itemName: '괴물' }],
+    });
     assert.equal(sharePayload.url, 'https://onepick.example/u/first_user');
-    assert.match(sharePayload.message, /현재 원픽 5개/);
+    assert.match(sharePayload.message, /@First_User의 원픽 5개/);
+    assert.match(sharePayload.message, /라면 신라면 · 영화 괴물/,
+      'the shared message names the actual Picks, not only how many there are');
     assert.match(sharePayload.message, /https:\/\/onepick\.example\/u\/first_user/);
   } finally {
     if (oldShareBase === undefined) delete process.env.EXPO_PUBLIC_SHARE_BASE_URL;

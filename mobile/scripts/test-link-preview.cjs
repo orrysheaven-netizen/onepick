@@ -49,6 +49,10 @@ assert.equal(emptyProfile.title, '@New_User의 OnePick');
 assert.match(emptyProfile.description, /아직 고른 원픽이 없어요/);
 assert.equal(emptyProfile.url, 'https://onepick.example/u/new_user', 'Profile links stay lowercase like shareLinks');
 
+const countedOnly = preview.profilePreview({ username: 'a', pickCount: 3 });
+assert.equal(countedOnly.description, '무엇을 골랐는지, 왜 골랐는지 보러 오세요.',
+  'A profile that has Picks never reads as empty just because no rows were passed');
+
 const summaryOnly = preview.profilePreview({ username: 'a', pickCount: 2, aiSummary: '고른 이유가 한결같아요' });
 assert.equal(summaryOnly.description, '고른 이유가 한결같아요', 'A published AI summary fills in for missing pick rows');
 assert.equal(summaryOnly.url, null, 'Without a canonical origin the card omits og:url rather than emitting a relative one');

@@ -45,6 +45,7 @@ let profilePayload;
 const shareProfile = load('lib/share/shareProfile.ts', {
   'react-native': { Share: { share: async (payload) => { profilePayload = payload; return payload; } } },
   './shareLinks': { createProfileShareUrl: () => 'https://onepick.example/u/moodarchive' },
+  './linkPreview': load('lib/share/linkPreview.ts', {}),
 });
 shareProfile.shareProfile({ username: 'moodarchive', pickCount: 3 });
 assert.doesNotMatch(profilePayload.title, /DEMO/i);
