@@ -18,6 +18,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
+import { useProfileTasteComposition } from '@/hooks/useProfileTasteComposition';
 import { categoryLabel } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -108,6 +109,10 @@ export default function ProfileScreen() {
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
+  // Same query key as the composition section rendered below, so this shares
+  // that fetch instead of adding one. mappedPickCount is the taste-mapped Pick
+  // count, the same denominator the AI gate uses.
+  const tasteCompositionQuery = useProfileTasteComposition(profileQuery.data?.profile.id, user?.id);
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -184,7 +189,7 @@ export default function ProfileScreen() {
         </View>
         <ProfileFollowCounts userId={user.id} />
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
-        <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
+        <ProfileAiPanel profileId={profile.id} tastePickCount={tasteCompositionQuery.data?.mappedPickCount ?? 0} />
         <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups

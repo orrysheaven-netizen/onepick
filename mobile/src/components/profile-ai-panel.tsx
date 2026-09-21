@@ -11,19 +11,26 @@ function hoursFromSeconds(seconds: number) {
   return Math.max(1, Math.ceil(seconds / 3600));
 }
 
+// AI 평가는 취향 기반이므로 취향 카테고리의 원픽만 센다. 생활 서비스(단골)
+// 원픽은 평가 대상이 아니다. 그래서 개수만 보여주지 않고 무엇을 셌는지
+// 밝힌다. 원픽이 7개인데 2/5를 보는 사람에게 "원픽 2개"는 틀린 말이다.
+// 조건은 알려주되 재촉하지 않는다. 채울지는 사용자가 정한다.
 function progressCopy(status: ProfileAiStatus) {
+  const excluded = status.currentPickCount > status.tastePickCount
+    ? ' 생활 서비스 원픽은 취향 평가에 넣지 않아요.'
+    : '';
   if (!status.hasReview) {
-    if (status.currentPickCount < status.minimumPicks) {
-      return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
+    if (status.tastePickCount < status.minimumPicks) {
+      return `취향 카테고리 원픽 ${status.tastePickCount}/${status.minimumPicks} · ${status.minimumPicks - status.tastePickCount}개를 채우면 AI 평가가 열려요.${excluded}`;
     }
-    const extra = status.currentPickCount > status.minimumPicks
-      ? ` 현재 원픽 ${status.currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
+    const extra = status.tastePickCount > status.minimumPicks
+      ? ` 현재 취향 원픽 ${status.tastePickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.`
       : ' 10개까지 채우면 해석이 더 풍부해져요.';
     return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.${extra}`;
   }
   if (status.reviewPickCount < status.recommendedPicks) {
-    if (status.currentPickCount < status.recommendedPicks) {
-      return `${status.currentPickCount}/${status.recommendedPicks} · ${status.recommendedPicks - status.currentPickCount}개 더 고르면 더 풍부한 평가로 갱신할 수 있어요.`;
+    if (status.tastePickCount < status.recommendedPicks) {
+      return `취향 카테고리 원픽 ${status.tastePickCount}/${status.recommendedPicks} · ${status.recommendedPicks - status.tastePickCount}개 더 고르면 더 풍부한 평가로 갱신할 수 있어요.${excluded}`;
     }
     return '10개의 원픽이 모였어요. 더 풍부한 AI 평가로 한 번 바로 갱신할 수 있어요.';
   }
@@ -38,11 +45,17 @@ function progressCopy(status: ProfileAiStatus) {
 
 export function ProfileAiPanel({
   profileId,
-  currentPickCount,
+  tastePickCount,
   previewStatus,
 }: {
   profileId: string;
-  currentPickCount: number;
+  /**
+   * Picks in taste-mapped categories, from the taste composition's
+   * mappedPickCount. The fallback below runs when the status function is
+   * unavailable, and it must not offer generation on a count the AI would
+   * reject — 단골 Picks are not taste material.
+   */
+  tastePickCount: number;
   previewStatus?: ProfileAiStatus;
 }) {
   const preview = Boolean(previewStatus);
@@ -56,7 +69,7 @@ export function ProfileAiPanel({
     !status.isPending &&
     !comment.isPending &&
     comment.data === null &&
-    currentPickCount >= 5;
+    tastePickCount >= 5;
 
   return <View style={styles.section}>
     <View style={styles.headingRow}>
@@ -75,7 +88,7 @@ export function ProfileAiPanel({
     {value ? <View style={styles.progressCard}>
       <Text style={styles.progressText}>{progressCopy(value)}</Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(value.currentPickCount, 10) / 10) * 100)}%` }]} />
+        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(value.tastePickCount, 10) / 10) * 100)}%` }]} />
       </View>
       <Pressable
         accessibilityRole="button"
@@ -86,9 +99,9 @@ export function ProfileAiPanel({
       </Pressable>
       {generate.isError ? <Text accessibilityRole="alert" style={styles.error}>AI 평가를 만들지 못했어요. 잠시 후 다시 시도해주세요.</Text> : null}
     </View> : fallbackReadyForFirstReview ? <View style={styles.progressCard}>
-      <Text style={styles.progressText}>5/5개를 채웠으니 AI 평가가 가능합니다.{currentPickCount > 5 ? ` 현재 원픽 ${currentPickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.` : ' 10개까지 채우면 해석이 더 풍부해져요.'}</Text>
+      <Text style={styles.progressText}>5/5개를 채웠으니 AI 평가가 가능합니다.{tastePickCount > 5 ? ` 현재 취향 원픽 ${tastePickCount}개 · 10개까지 채우면 해석이 더 풍부해져요.` : ' 10개까지 채우면 해석이 더 풍부해져요.'}</Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
+        <View style={[styles.fill, { width: `${Math.min(100, (Math.min(tastePickCount, 10) / 10) * 100)}%` }]} />
       </View>
       <Pressable
         accessibilityRole="button"

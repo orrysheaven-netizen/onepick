@@ -81,6 +81,7 @@ async function main() {
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
+    '@/hooks/useProfileTasteComposition': { useProfileTasteComposition: () => ({ data: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/hooks/useMyProfileLists': {

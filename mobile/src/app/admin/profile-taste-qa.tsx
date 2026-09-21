@@ -10,6 +10,7 @@ import { OnePick } from '@/constants/onepick';
 
 const FIVE_STATUS: ProfileAiStatus = {
   currentPickCount: 5,
+  tastePickCount: 5,
   minimumPicks: 5,
   recommendedPicks: 10,
   hasReview: false,
@@ -26,6 +27,7 @@ const FIVE_STATUS: ProfileAiStatus = {
 
 const TEN_STATUS: ProfileAiStatus = {
   currentPickCount: 10,
+  tastePickCount: 10,
   minimumPicks: 5,
   recommendedPicks: 10,
   hasReview: true,
@@ -131,11 +133,11 @@ export default function AdminProfileTasteQaScreen() {
       <View style={styles.previewGrid}>
         <PreviewFrame title="5개 · 최초 AI 평가" width={390}>
           <ProfileTasteComposition profileId="qa-five" previewValue={FIVE_COMPOSITION} />
-          <ProfileAiPanel profileId="qa-five" currentPickCount={5} previewStatus={FIVE_STATUS} />
+          <ProfileAiPanel profileId="qa-five" tastePickCount={5} previewStatus={FIVE_STATUS} />
         </PreviewFrame>
         <PreviewFrame title="10개 · 즉시 업그레이드" width={390}>
           <ProfileTasteComposition profileId="qa-ten" previewValue={TEN_COMPOSITION} />
-          <ProfileAiPanel profileId="qa-ten" currentPickCount={10} previewStatus={TEN_STATUS} />
+          <ProfileAiPanel profileId="qa-ten" tastePickCount={10} previewStatus={TEN_STATUS} />
         </PreviewFrame>
       </View>
 
@@ -143,11 +145,11 @@ export default function AdminProfileTasteQaScreen() {
       <View style={styles.previewGrid}>
         <PreviewFrame title="5개 · 최초 AI 평가" width={640}>
           <ProfileTasteComposition profileId="qa-five-desktop" previewValue={FIVE_COMPOSITION} />
-          <ProfileAiPanel profileId="qa-five-desktop" currentPickCount={5} previewStatus={FIVE_STATUS} />
+          <ProfileAiPanel profileId="qa-five-desktop" tastePickCount={5} previewStatus={FIVE_STATUS} />
         </PreviewFrame>
         <PreviewFrame title="10개 · 즉시 업그레이드" width={640}>
           <ProfileTasteComposition profileId="qa-ten-desktop" previewValue={TEN_COMPOSITION} />
-          <ProfileAiPanel profileId="qa-ten-desktop" currentPickCount={10} previewStatus={TEN_STATUS} />
+          <ProfileAiPanel profileId="qa-ten-desktop" tastePickCount={10} previewStatus={TEN_STATUS} />
         </PreviewFrame>
       </View>
     </View>

@@ -164,20 +164,26 @@
 
 `supabase/functions/analyze-profile-taste/index.ts`는 `picks`를 `categories!inner` / `items!inner`로만 조회한다. 취향 차원 조건이 없다. 지금 그대로 두면 **단골 한줄평이 취향 분석 재료로 그대로 들어간다.** 여기에 `category_taste_dimensions` 조건을 더해야 한다.
 
-### 분모는 세 곳이다 — 하나만 고치면 P0가 난다
+### 분모는 네 곳이었고, 그중 하나는 클라이언트에 있었다
 
-`profile_ai_status`(`20260919141318_add_onboarding_and_ai_progress.sql`)와 생성 함수를 읽어보면 취향 차원과 무관하게 픽을 세는 곳이 셋이다. 재료 쪽만 필터를 걸면 셋이 서로 어긋난다.
+초안에서 `public.profile_ai_status()`를 고치라고 쓴 것을 정정한다. **그 함수는 `20260919142647_move_profile_ai_status_to_edge.sql`에서 drop됐다.** 자격 판정은 Edge Function `profile-ai-status`에 있고, 거기에 TypeScript로 다시 쓰인 `meaningfulChangeCount`가 재평가 변경 건수를 센다.
 
-1. **자격 판정의 픽 수** — `v_current_count`는 보이는 카테고리의 active 픽을 전부 센다. 첫 평가의 `>= 5`와 10픽 업그레이드의 `>= 10` 판정에 같은 값이 쓰인다.
-2. **재평가의 변경 건수** — `current_values` CTE가 역시 필터 없이 현재 픽을 모아 `pick_snapshot`과 `full join`으로 비교하고, 그 차이가 `v_changed_count`다.
-3. **AI 생성의 재료** — `supabase/functions/analyze-profile-taste/index.ts`는 `picks`를 `categories!inner` / `items!inner`로만 조회한다. 취향 차원 조건이 없다.
+실제로 읽어보면 이렇다.
 
-세 곳에서 각각 다른 방식으로 깨진다.
+1. **자격 개수**와 2. **재평가 변경 건수**는 `profile-ai-status`의 **같은 `currentRows` 질의**에서 나온다. 초안은 이 둘을 별개의 수정 지점으로 셌지만 한 질의다.
+3. **AI 생성의 재료**는 `analyze-profile-taste`의 `readSnapshot()`이 따로 읽는다.
+4. **클라이언트 낙관 게이트.** `mobile/src/components/profile-ai-panel.tsx`의 `fallbackReadyForFirstReview`가 원픽 수 ≥ 5이면 상태 조회 없이도 생성 버튼을 켠다. 서버만 고치면 상태 조회가 흔들릴 때마다 단골만 가진 사용자가 실패가 확정된 버튼을 누른다. 초안이 놓친 곳이다.
 
-- **3번만 고치면**: 단골만 5개 등록한 사용자에게 자격 판정이 `canGenerate: true`를 주고 화면은 "5/5 완료"로 버튼을 켠다. 생성 함수는 재료 0개를 보고 `not_enough_picks`로 실패한다. `prelaunch-first-user-journey.md`의 5·6단계가 P0로 지정한 실패다("5 Picks still show an ineligible/stale state", "request cannot complete").
-- **2번을 빼먹으면**: 필터를 거친 `pick_snapshot`에는 단골이 없고 `current_values`에는 있으므로, 단골 카테고리마다 `old_item`이 null인 행이 생겨 전부 변경으로 집계된다. **단골 5개를 등록하면 재료가 전혀 바뀌지 않았는데 재평가가 열린다.** `minimumChanges`가 5이므로 정확히 5개에서 열린다.
+그래서 서버 쪽 읽기는 두 곳이고, 두 곳이 같아야 한다는 것을 규칙으로 두지 않고 **정의를 하나로 합쳤다**: `public.profile_taste_picks(uuid)`(`20260921130000`). 기존 두 질의의 조건(본인, active 픽, 보이는 카테고리, active/discontinued 아이템, 상한 50)을 그대로 옮기고 취향 차원 매핑 조건만 더한 함수이며, 두 Edge Function이 같은 함수를 호출한다. 분모가 갈리는 것이 가능하지 않은 형태다.
 
-결정: 세 곳에 같은 `category_taste_dimensions` 조건을 **한 PR에서 함께** 넣는다. 하나만 고치는 변경은 내지 않는다.
+한쪽만 고쳤을 때 무엇이 깨지는지는 그대로 기록해 둔다.
+
+- **재료만 고치면**: 자격 판정이 `canGenerate: true`를 주고 화면은 "5/5 완료"로 버튼을 켜는데, 생성은 재료 0개를 보고 `not_enough_picks`로 실패한다. `prelaunch-first-user-journey.md`의 5·6단계가 P0로 지정한 실패다.
+- **변경 건수를 빼먹으면**: 필터를 거친 `pick_snapshot`에는 단골이 없고 현재 행에는 있으므로 단골 카테고리마다 변경으로 집계된다. `minimumChanges`가 5이므로 **단골 5개를 등록하면 취향 재료가 하나도 바뀌지 않았는데 재평가가 열린다.**
+
+기존 `pick_snapshot`은 손대지 않는다. 지금 저장된 스냅샷은 전부 취향 픽이다. 주류가 1단계에서 매핑되었고 단골 카테고리는 아직 없으므로, 소급 정리할 데이터가 없다.
+
+클라이언트 게이트는 `profile_taste_composition`의 `mappedPickCount`로 바꿨다. 두 값의 판정 조건(primary 매핑 존재)이 같아서 서버 게이트와 어긋날 수 없고, 프로필 화면이 이미 같은 질의를 쓰고 있어 조회가 늘지 않는다.
 
 ### 자격이 열리지 않는 것은 정상 상태로 두고, 조건만 알려준다
 
@@ -194,7 +200,7 @@
 
 여기서 실제 작업이 하나 생긴다. 지금 `profile_ai_status`가 돌려주는 `currentPickCount`는 전체 픽 수다. 필터를 걸면 **화면에 보여야 하는 수와 사용자가 가진 원픽 수가 달라진다.** 단골 5개 + 영화 2개인 사용자는 원픽이 7개인데 "2/5"를 봐야 한다. 그냥 "원픽 2개"라고 쓰면 틀린 말이 된다.
 
-- `currentPickCount`의 뜻은 **바꾸지 않고**, 자격 판정에 쓰는 취향 픽 수를 반환 필드로 따로 더한다. 뜻을 바꾸면 구버전 클라이언트가 다른 수를 보여준다.
+- `currentPickCount`의 뜻은 **바꾸지 않고**, 자격 판정에 쓰는 취향 픽 수를 `tastePickCount`로 따로 더했다. 뜻을 바꾸면 구버전 클라이언트가 다른 수를 보여준다. 앱에서 이 필드가 없으면 `currentPickCount`로 떨어뜨려, 앱이 함수보다 새로운 구간에서 자신 있게 0을 보여주지 않게 한다.
 - 구버전 클라이언트는 새 필드를 모르므로 개수를 전체 픽 수로 표시한다. 다만 `canGenerate`는 서버가 계산하므로 **생성 버튼이 잘못 열리지는 않는다.** 숫자만 어긋나는 P1이며, P0로 번지지 않는다.
 - 문구는 "원픽 N개"가 아니라 **어떤 원픽인지**를 말해야 한다. "취향 카테고리 원픽 2/5"처럼 센 대상을 밝힌다.
 - 목표 개수를 5로 하드코딩하지 않는다. 상태에 따라 기준이 셋이다 — 첫 평가 5개(`NEED_FIRST_PICKS`), 10픽 업그레이드 10개(`NEED_TEN_PICKS`), 재평가 변경 5건(`NEED_CHANGES`). 문구는 `reason`과 함께 돌려주는 기준값을 읽어서 만든다.
@@ -220,13 +226,21 @@
 
 `039_alcohol_taste_dimension.sql`의 세 번째 검사가 이 누락의 재발을 막는다. 열려 있고 선택 가능한 카테고리에 primary 매핑이 빠진 것이 있으면 실패하므로, 취향 평가에서 일부러 제외할 카테고리(단골)를 열 때는 이 검사를 의식적으로 고쳐야 한다. 매핑 유무가 제외 스위치인 이상, 매핑을 빼먹은 카테고리는 조용히 평가에서 사라진다. 그 마찰은 의도된 것이다.
 
-### 2단계 — 취향 평가 제외 규칙 (위 "AI 취향 평가에서 제외한다" 절)
+### 2단계 (완료) — 취향 평가 제외 규칙
 
-세 분모를 한 PR에서 함께 고친다. 1단계 덕분에 현재 열린 카테고리에 대해서는 동작이 바뀌지 않아야 하며, 그것이 이 PR의 회귀 검사 기준이다. 단골 카테고리를 열기 전에 끝나 있어야 한다.
+`20260921130000_add_profile_taste_picks_rpc.sql`, 회귀 검사 `040_profile_taste_picks.sql`, 그리고 두 Edge Function과 모바일 화면.
 
-### 3단계 — 0단계 인터뷰 (아래)
+위 "AI 취향 평가에서 제외한다" 절이 설계이며, 네 곳을 한 번에 고쳤다. 1단계 덕분에 현재 열린 카테고리 15개는 모두 매핑되어 있어 기존 사용자의 동작은 바뀌지 않는다. 바뀐 것은 취향이 아닌 카테고리가 생겼을 때의 동작이고, 그것이 3단계의 전제다.
 
-코드와 무관하므로 1·2단계와 병렬로 진행한다. 이후의 모든 것(카테고리 개설, 찜, 팔로잉 카테고리 조회, 지역 범위)은 이 결과를 입력으로 받는다.
+`test-profile-ai-policy.cjs`가 두 Edge Function이 같은 `profile_taste_picks`를 호출하는지, 그리고 변경 건수가 전체 픽이 아니라 취향 행에서 세어지는지를 검사한다. 뒤쪽이 조용히 깨지는 쪽이라 검사로 묶어 둔다.
+
+### 3단계 — 단골 카테고리 개설
+
+이제 막는 것이 없다. `039_alcohol_taste_dimension.sql`의 세 번째 검사를 단골 말단을 예외로 두도록 고치는 것이 이 단계의 의식적인 관문이다.
+
+### 4단계 — 0단계 인터뷰 (아래)
+
+코드와 무관하므로 병렬로 진행한다. 카테고리를 여는 것과 달리 찜, 팔로잉 카테고리 조회, 지역 범위는 이 결과를 입력으로 받는다.
 
 ## 0단계 — 코드/스키마 변경 없이 검증
 

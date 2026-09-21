@@ -25,24 +25,21 @@ function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown> : {};
 }
-function relation(value: unknown) { return record(Array.isArray(value) ? value[0] : value); }
 function textOrNull(value: unknown, maximum = 300) {
   return typeof value === 'string' ? value.trim().slice(0, maximum) : null;
 }
 function buildSnapshot(rows: unknown[]) {
   return rows.map((value) => {
     const pick = record(value);
-    const category = relation(pick.categories);
-    const item = relation(pick.items);
     return {
-      pickId: textOrNull(pick.id, 36),
-      categoryId: textOrNull(category.id, 36),
-      category: textOrNull(category.name),
-      itemId: textOrNull(item.id, 36),
-      item: textOrNull(item.name),
-      originalName: textOrNull(item.original_name),
-      releaseYear: typeof item.release_year === 'number' ? item.release_year : null,
-      creatorName: textOrNull(item.creator_name), collectionName: textOrNull(item.collection_name),
+      pickId: textOrNull(pick.pick_id, 36),
+      categoryId: textOrNull(pick.category_id, 36),
+      category: textOrNull(pick.category_name),
+      itemId: textOrNull(pick.item_id, 36),
+      item: textOrNull(pick.item_name),
+      originalName: textOrNull(pick.item_original_name),
+      releaseYear: typeof pick.item_release_year === 'number' ? pick.item_release_year : null,
+      creatorName: textOrNull(pick.item_creator_name), collectionName: textOrNull(pick.item_collection_name),
       review: textOrNull(pick.one_line_review, 100), updatedAt: textOrNull(pick.updated_at, 40),
     };
   }).filter((pick) =>
@@ -180,11 +177,14 @@ Deno.serve(async (req: Request) => {
         return Math.max(1, Math.min(PROFILE_AI_COOLDOWN_SECONDS, Math.ceil(remainingMs / 1000)));
       } catch { return PROFILE_AI_COOLDOWN_SECONDS; }
     };
+    // profile_taste_picks carries the same conditions this read used to spell
+    // out, plus the taste-dimension requirement, and profile-ai-status calls
+    // the very same function for its gate. Categories with no primary taste
+    // dimension — living-service 단골 among them — are not taste material and
+    // stay out of both. The function is security invoker, so this keeps
+    // reading as the public client against the public-pick policy.
     const readSnapshot = async () => {
-      const { data, error } = await publicClient.from('picks')
-        .select('id,one_line_review,updated_at,categories!picks_category_id_fkey!inner(id,name),items!picks_item_category_fk!inner(id,name,original_name,release_year,creator_name,collection_name)')
-        .eq('user_id', user.id).eq('status', 'active').eq('categories.is_visible', true)
-        .in('items.status', ['active', 'discontinued']).order('id', { ascending: true }).limit(50);
+      const { data, error } = await publicClient.rpc('profile_taste_picks', { p_profile_id: user.id });
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
       return buildSnapshot(data ?? []);
     };
