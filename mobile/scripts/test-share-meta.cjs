@@ -12,7 +12,7 @@ function load(file) {
   return exports;
 }
 
-const { pickShareMeta, injectShareMeta, validShareUuid } = load('functions/_lib/share-meta.ts');
+const { pickShareMeta, profileShareMeta, injectShareMeta, validShareUuid, validShareUsername } = load('functions/_lib/share-meta.ts');
 const id = '661201d7-ad86-444f-b280-6c964b309c78';
 assert.equal(validShareUuid(id), true);
 assert.equal(validShareUuid('find'), false);
@@ -51,4 +51,22 @@ assert.equal(pickShareMeta({ origin: 'https://onepick.example', pickId: 'bad', i
 assert.equal(pickShareMeta({ origin: 'javascript:alert(1)', pickId: id, itemName: 'x', username: 'user_name', categoryName: 'c', review: '', image: '' }), null);
 assert.equal(pickShareMeta({ origin: 'http://onepick.example', pickId: id, itemName: 'x', username: 'user_name', categoryName: 'c', review: '', image: '' }), null);
 assert.equal(pickShareMeta({ origin: 'https://onepick.example', pickId: id, itemName: 'x', username: '<bad>', categoryName: 'c', review: '', image: '' }), null);
-console.log('H-1B Pick meta checks passed: validation, escaping, fallback image, canonical URL and dynamic OG tags.');
+assert.equal(validShareUsername('onepick_qa'), true);
+assert.equal(validShareUsername('<bad>'), false);
+const profileMeta = profileShareMeta({
+  origin: 'https://onepick.example',
+  username: 'onepick_qa',
+  pickCount: 12,
+  representativeItems: ['인터스텔라', '아리랑', '<script>게임</script>', '네번째'],
+  image: '',
+});
+assert.equal(profileMeta.type, 'profile');
+assert.equal(profileMeta.url, 'https://onepick.example/u/onepick_qa');
+assert.match(profileMeta.title, /@onepick_qa/);
+assert.match(profileMeta.description, /현재 원픽 12개/);
+assert.match(profileMeta.description, /인터스텔라/);
+const profileHtml = injectShareMeta(shell, profileMeta);
+assert.match(profileHtml, /og:type" content="profile"/);
+assert.doesNotMatch(profileHtml, /<script>/);
+assert.equal(profileShareMeta({ origin: 'http://onepick.example', username: 'onepick_qa', pickCount: 1, representativeItems: [], image: '' }), null);
+console.log('H-1B meta checks passed: Pick/Profile validation, escaping, fallback image, canonical URL and dynamic OG tags.');

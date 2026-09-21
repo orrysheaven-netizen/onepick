@@ -91,3 +91,37 @@ export function injectShareMeta(html: string, meta: ShareMeta) {
     ? output.replace(/<meta\b[^>]*property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${url}" />`)
     : output.replace('</head>', `    ${canonical}\n  </head>`);
 }
+
+
+export function validShareUsername(value: string) {
+  return /^[a-z0-9_]{3,20}$/.test(value.trim().toLowerCase());
+}
+
+export function profileShareMeta(input: {
+  origin: string;
+  username: unknown;
+  pickCount: number;
+  representativeItems: unknown[];
+  image: unknown;
+}): ShareMeta | null {
+  let origin: string;
+  try {
+    const parsed = new URL(input.origin);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    origin = parsed.origin;
+  } catch {
+    return null;
+  }
+  const username = clean(input.username, 20).toLowerCase();
+  if (!validShareUsername(username)) return null;
+  const count = Number.isSafeInteger(input.pickCount) && input.pickCount >= 0 ? Math.min(input.pickCount, 100) : 0;
+  const items = input.representativeItems.map((value) => clean(value, 60)).filter(Boolean).slice(0, 3);
+  const suffix = items.length ? ` · ${items.join(' · ')}` : '';
+  return {
+    title: `@${username}의 OnePick | 취향 컬렉션`,
+    description: `현재 원픽 ${count}개${suffix}`,
+    image: absoluteImage(input.image, origin),
+    type: 'profile',
+    url: `${origin}/u/${encodeURIComponent(username)}`,
+  };
+}
