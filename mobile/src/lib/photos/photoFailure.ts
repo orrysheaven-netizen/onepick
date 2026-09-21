@@ -9,7 +9,7 @@ export function photoFailureMessage(error: unknown) {
       case 'PHOTO_INVALID':
         return '선택한 사진을 읽을 수 없어요. 다른 이미지 파일을 선택해주세요.';
       case 'PHOTO_TOO_LARGE':
-        return '사진 용량이 너무 커요. 더 작은 사진을 선택해주세요.';
+        return '사진이 서버의 최대 저장 용량을 초과했어요. 다른 사진을 선택해주세요.';
       case 'NETWORK_ERROR':
         return '인터넷 연결이 끊겼거나 불안정해 사진을 전송하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.';
       case 'FORBIDDEN':

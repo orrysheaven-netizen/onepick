@@ -40,7 +40,7 @@ web.showPhotoFailure(tooLarge, 'item_photo_upload');
 assert.equal(web.calls.alert.length, 0, 'Web must not rely on the no-op Alert.alert');
 assert.equal(web.calls.browser.length, 1, 'Web shows exactly one browser dialog');
 assert.match(web.calls.browser[0], /^사진을 업로드하지 못했어요\n\n/);
-assert.match(web.calls.browser[0], /더 작은 사진을 선택해주세요/);
+assert.match(web.calls.browser[0], /서버의 최대 저장 용량/);
 assert.doesNotMatch(web.calls.browser[0], /PHOTO_TOO_LARGE/, 'Error codes never reach the user');
 assert.deepEqual(web.calls.captured, [[tooLarge, 'item_photo_upload']], 'The failure is still logged with its context');
 

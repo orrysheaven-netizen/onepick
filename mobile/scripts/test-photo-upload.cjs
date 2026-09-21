@@ -15,12 +15,11 @@ function load(file, imports = {}) {
 }
 async function main() {
   const { AppError } = load('errors/appError.ts');
-  const limits = load('types/domain/photo.ts');
   const { SupabasePhotoRepository } = load('repositories/supabase/supabasePhotoRepository.ts', {
     'base64-arraybuffer': require('base64-arraybuffer'),
     '@/errors/appError': { AppError },
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => new AppError(error.message) },
-    '@/types/domain/photo': limits,
+    '@/types/domain/photo': {},
   });
   const saved = new Map();
   let failThumbnail = true, duplicateStatus = '400', uploadCount = 0;
@@ -47,11 +46,18 @@ async function main() {
   duplicateStatus = '409';
   await repository.upload('user', photo);
   assert.equal(saved.size, 2, 'Current duplicate response also reuses the immutable pair');
-  const callsBeforeInvalidPhoto = uploadCount;
-  await assert.rejects(() => repository.upload('user', { ...photo, thumbnailBase64: Buffer.alloc(limits.MAX_THUMBNAIL_BYTES + 1).toString('base64') }), (e) => e.code === 'PHOTO_TOO_LARGE');
-  assert.equal(uploadCount, callsBeforeInvalidPhoto, 'Oversized thumbnails fail before any network upload');
+  const largePhoto = {
+    uploadId: 'large-draft',
+    base64: Buffer.alloc(1024 * 1024 + 1, 1).toString('base64'),
+    thumbnailBase64: Buffer.alloc(200 * 1024, 1).toString('base64'),
+  };
+  await repository.upload('user', largePhoto);
+  assert.equal(saved.get('user/large-draft.jpg').byteLength, 1024 * 1024 + 1,
+    'Client does not reject an optimized JPEG because it exceeds the old 768 KiB cap');
+  assert.equal(saved.get('user/large-draft-thumb.jpg').byteLength, 200 * 1024,
+    'Thumbnail is not rejected by the old 96 KiB cap');
   const invalid = new SupabasePhotoRepository({ storage: { from: () => ({ upload: async () => ({ error: { statusCode: '400', message: 'Invalid request' } }) }) } });
   await assert.rejects(() => invalid.upload('user', photo), (e) => e.code === 'PHOTO_UPLOAD_FAILED');
-  console.log('Photo upload checks passed: partial failure/retry, current and legacy duplicates, immutable paths and byte limits.');
+  console.log('Photo upload checks passed: partial failure/retry, immutable paths, duplicate retries and no client byte cap.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
