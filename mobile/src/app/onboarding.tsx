@@ -65,7 +65,6 @@ export default function OnboardingScreen() {
   const pickCount = profile.data?.currentPicks.length ?? 0;
   const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending;
   const canEvaluate = pickCount >= 10;
-  const reachedRecommended = pickCount >= 10;
 
   const skip = async () => {
     if (!current || setCurrent.isPending || recordAction.isPending) return;
