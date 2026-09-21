@@ -17,6 +17,7 @@ type ItemSearchProps = {
   onSearchBook?: (query: string) => void;
   onSearchYouTube?: (query: string) => void;
   onSearchPokemon?: (query: string) => void;
+  showExternalActionsWithResults?: boolean;
   onSelect: (itemId: string) => void;
 };
 
@@ -39,6 +40,7 @@ export function ItemSearch({
   onSearchBook,
   onSearchYouTube,
   onSearchPokemon,
+  showExternalActionsWithResults = false,
   onSelect,
 }: ItemSearchProps) {
   const [searchText, setSearchText] = useState(() => initialQuery.slice(0, 100));
@@ -161,10 +163,25 @@ export function ItemSearch({
             itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 상세 보기`} onPress={() => onSelect(item.id)}
             style={({ pressed }) => [styles.resultAction, pressed && styles.pressed]}>
-            <View style={styles.resultCopy}><Text style={styles.itemName}>{item.name}</Text><Text style={styles.description}>상세 보기</Text></View>
+            <View style={styles.resultCopy}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              {item.creatorName || item.collectionName || item.releaseYear ? <Text numberOfLines={2} style={styles.itemMeta}>
+                {[item.creatorName, item.collectionName, item.releaseYear].filter(Boolean).join(' · ')}
+              </Text> : null}
+              <Text style={styles.description}>상세 보기</Text>
+            </View>
             <Text style={styles.arrow}>›</Text>
           </Pressable>
         </View>)}
+        {showExternalActionsWithResults && query.data.length > 0 && externalActions.length > 0 ? <View style={styles.moreSearch}>
+          <Text style={styles.moreSearchTitle}>외부 DB에서 더 정확히 찾기</Text>
+          <Text style={styles.description}>원하는 항목이 아니라면 외부 카탈로그에서 같은 검색어로 계속 찾아보세요.</Text>
+          {externalActions.map((action) => <Pressable key={action.key} accessibilityRole="button"
+            accessibilityLabel={action.accessibilityLabel} onPress={action.run}
+            style={({ pressed }) => [styles.externalSearchButton, pressed && styles.pressed]}>
+            <Text style={styles.externalSearchText}>{action.label}</Text>
+          </Pressable>)}
+        </View> : null}
       </> : null}
     </View>
   );
@@ -193,6 +210,9 @@ const styles = StyleSheet.create({
   resultAction: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center', paddingLeft: 12 },
   resultCopy: { flex: 1 },
   itemName: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
+  itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  moreSearch: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
+  moreSearchTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 10 },
   pressed: { opacity: 0.7 },
 });
