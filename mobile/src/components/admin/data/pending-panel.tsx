@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { ADMIN_PAGE_SIZE, getCategories, getMergeCandidates, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminCategory, AdminItem, PendingItem } from '@/lib/admin-api';
-import { selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
@@ -84,10 +84,12 @@ export function PendingPanel() {
   }, [items, query]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const domainCategories = useMemo(() => categories.map(toDomainCategory), [categories]);
   const reviewCategories = useMemo(() => {
-    const selectableIds = new Set(selectableCategories(categories.map(toDomainCategory)).map((category) => category.id));
+    const selectableIds = new Set(selectableCategories(domainCategories).map((category) => category.id));
     return categories.filter((category) => selectableIds.has(category.id));
-  }, [categories]);
+  }, [categories, domainCategories]);
+  const reviewCategoryLabel = (category: AdminCategory) => categoryLabel(toDomainCategory(category), domainCategories);
   const isUnclassified = selected?.categories?.slug === 'pending-product';
 
   useEffect(() => {
@@ -241,7 +243,7 @@ export function PendingPanel() {
                       onPress={() => { setReviewCategoryId(category.id); setMergeCandidates([]); }}
                       style={[styles.categoryChoice, reviewCategoryId === category.id && styles.categoryChoiceSelected]}
                     >
-                      <Text style={[styles.categoryChoiceText, reviewCategoryId === category.id && styles.categoryChoiceTextSelected]}>{category.name}</Text>
+                      <Text style={[styles.categoryChoiceText, reviewCategoryId === category.id && styles.categoryChoiceTextSelected]}>{reviewCategoryLabel(category)}</Text>
                     </Pressable>
                   ))}
                 </View>
