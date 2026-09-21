@@ -22,7 +22,6 @@ function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
   const router = useRouter();
   return <Pressable accessibilityRole="button" accessibilityLabel={`${label} 사진 등록`}
     onPress={(event) => {
-      // A photo action must not also activate the enclosing product/selection card.
       event.stopPropagation();
       router.push({ pathname: '/item/[itemId]', params: { itemId, photo: '1' } });
     }} style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
@@ -47,7 +46,6 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
   return <View style={[styles.frame, large && styles.large, square && styles.square]}>
     {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode={square ? 'cover' : 'contain'} onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
-        <Text style={styles.emptyText}>사진 없음</Text>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
       : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
@@ -75,7 +73,6 @@ const styles = StyleSheet.create({
   placeholderHint: { color: OnePick.hint, fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
   fallback: { color: OnePick.muted, fontSize: 12, textAlign: 'center', padding: 8 },
   empty: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: OnePick.muted, fontSize: 11, marginTop: 5 },
   addButton: { minHeight: 44, minWidth: 76, alignItems: 'center', justifyContent: 'center' },
   addText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 },
