@@ -41,8 +41,8 @@ select throws_ok($$select public.register_pick((select category_id from shared_s
 select throws_ok($$select public.submit_item((select category_id from shared_state),'사진실패라면',
   '55555555-5555-5555-5555-555555555555/missing.jpg','55555555-5555-5555-5555-555555555555/thumb.jpg')$$,
   'P0001','PHOTO_INVALID','missing object rejected');
-select lives_ok($select public.submit_item((select category_id from shared_state),'큰사진라면',
-  '55555555-5555-5555-5555-555555555555/large-full.jpg','55555555-5555-5555-5555-555555555555/large-thumb.jpg')$,
+select lives_ok($test$select public.submit_item((select category_id from shared_state),'큰사진라면',
+  '55555555-5555-5555-5555-555555555555/large-full.jpg','55555555-5555-5555-5555-555555555555/large-thumb.jpg')$test$,
   'large JPEG metadata is accepted without the old byte-size cap');
 select throws_ok($$select public.submit_item((select id from public.categories where slug='alcohol'),'주류제품')$$,
   'P0001','CATEGORY_NOT_PICKABLE','parent cannot receive requests');
