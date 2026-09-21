@@ -1,6 +1,6 @@
 # 아는 사람의 원픽을 먼저 보는 팔로우
 
-상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `전체 / 팔로잉` 탭, 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. 팔로잉/팔로워 수 집계는 백엔드에 유지하되 초기 MVP UI에서는 노출하지 않는다. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
+상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `팔로잉 / 전체` 탭(로그인 사용자는 팔로잉 기본), 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. 팔로잉/팔로워 수 집계는 백엔드에 유지하되 초기 MVP UI에서는 노출하지 않는다. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
 
 ## 왜 필요한가
 - 홈은 모르는 사람의 최신 원픽을 시간순으로 보여준다. 사용자가 늘수록 낯선 사람의 이유를 읽을 동기가 약해진다. 아는 사람의 이유는 읽는다.
