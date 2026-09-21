@@ -184,7 +184,7 @@ export default function ProfileScreen() {
           <Text style={styles.summaryLabel}>현재 원픽</Text>
           <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
         </View>
-        {OnePickFeatures.follow ? <ProfileFollowCounts userId={user.id} /> : null}
+        {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
         <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
