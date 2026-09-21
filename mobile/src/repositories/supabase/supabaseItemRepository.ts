@@ -69,6 +69,16 @@ export class SupabaseItemRepository implements ItemRepository {
     return this.mapRow(data);
   }
 
+  async setPendingCategoryHint(itemId: string, label: string | null) {
+    const { data, error } = await this.client.rpc('set_pending_item_category_hint', {
+      p_item_id: itemId,
+      p_label: label ?? undefined,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data) throw new AppError('INTERNAL_ERROR');
+    return this.mapRow(data);
+  }
+
   async getSubmissionsByUser(userId: string, limit = 20) {
     const { data, error } = await this.client.from('items').select('*')
       .eq('created_by', userId).order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 50));
