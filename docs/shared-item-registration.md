@@ -46,6 +46,7 @@ The MVP Admin dashboard provides:
 1. **Pending item review**
    - requester username
    - the approval category. Categoryless requests remain staged until an admin chooses a selectable leaf category.
+   - an optional requester-written category hint when none of the existing categories fit. The hint never creates or assigns taxonomy by itself.
    - when a stored AI category suggestion exists, the review screen highlights the strongest still-selectable suggestion, but the admin makes the final choice.
    - likely duplicate items, searched in the chosen category
    - approve as a new official item
@@ -74,6 +75,10 @@ Existing item found ──→ Select item ──→ Write one-line reason ──
 Submit missing item
   ↓
 items.status = pending
+  ↓
+AI suggests existing categories
+  ├─ User applies a matching category
+  └─ No match → user may leave a free-text category hint
   ↓
 Admin review
   ├─ Approve ─→ active ─→ user can select it as a Pick

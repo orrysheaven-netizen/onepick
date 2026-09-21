@@ -29,6 +29,8 @@ export type RegistrationResult =
   | { type: 'pending_item'; item: Item }
   | { type: 'existing_item'; item: Item };
 
+export const CATEGORY_HINT_MAX_LENGTH = 60;
+
 export function formatItemName(name: string, variant: string) {
   return [name, variant].map((part) => part.trim().replace(/\s+/g, ' ')).filter(Boolean).join(' ');
 }
@@ -92,6 +94,14 @@ export class RegistrationService {
       await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       throw error;
     }
+  }
+
+  /** Describe a missing category without creating taxonomy data directly. */
+  async setCategoryHint(input: { userId: string; itemId: string; label: string }) {
+    if (!input.userId) throw new AppError('AUTH_REQUIRED');
+    const label = input.label.trim().replace(/\s+/g, ' ');
+    if (!label || label.length > CATEGORY_HINT_MAX_LENGTH) throw new AppError('CATEGORY_LABEL_INVALID');
+    return this.itemRepository.setPendingCategoryHint(input.itemId, label);
   }
 
   async register(input: RegisterPickInput): Promise<RegistrationResult> {

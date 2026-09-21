@@ -281,6 +281,7 @@ export function PendingPanel() {
                 <Meta label="상품 ID" value={selected.id} />
                 <Meta label="등록일" value={new Date(selected.created_at).toLocaleString('ko-KR')} />
                 <Meta label="이미지 경로" value={selected.image_path ?? '없음'} />
+                <Meta label="요청 카테고리" value={selected.requested_category_label ?? '없음'} />
               </View>
 
               <View style={styles.classifyBox}>
@@ -291,6 +292,10 @@ export function PendingPanel() {
                   </View>
                   {suggestionLoading && <ActivityIndicator size="small" />}
                 </View>
+
+                {selected.requested_category_label ? (
+                  <Text style={styles.requestHint}>사용자 힌트: {selected.requested_category_label}</Text>
+                ) : null}
 
                 <View style={styles.categoryCurrent}>
                   <Text style={styles.categoryCurrentLabel}>선택됨</Text>
@@ -450,6 +455,7 @@ const styles = StyleSheet.create({
   classifyBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
   classifyHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   classifyHeaderText: { flex: 1, gap: 4 },
+  requestHint: { color: OnePick.warning, backgroundColor: OnePick.warningSoft, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 12, fontWeight: '700' },
   categoryCurrent: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: OnePick.accentSoft, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9 },
   categoryCurrentLabel: { color: OnePick.accentDeep, fontSize: 11, fontWeight: '800' },
   categoryCurrentValue: { flex: 1, color: OnePick.text, fontSize: 13, fontWeight: '700' },

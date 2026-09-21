@@ -1,9 +1,10 @@
 import type { Database } from '@/lib/supabase/database.types';
 import type { Item, ItemStatus } from '@/types/domain/item';
 
-type ItemRow = Database['public']['Tables']['items']['Row'] & {
+type ItemRow = Omit<Database['public']['Tables']['items']['Row'], 'requested_category_label'> & {
   creator_name?: string | null;
   collection_name?: string | null;
+  requested_category_label?: string | null;
 };
 
 export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbnailUrl: string | null = null): Item {
@@ -26,6 +27,7 @@ export function mapItemRow(row: ItemRow, imageUrl: string | null = null, thumbna
     releaseYear: row.release_year,
     creatorName: row.creator_name ?? null,
     collectionName: row.collection_name ?? null,
+    requestedCategoryLabel: row.requested_category_label ?? null,
     status: row.status as ItemStatus,
     mergedIntoItemId: row.merged_into_item_id,
     createdBy: row.created_by,

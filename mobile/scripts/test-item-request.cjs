@@ -26,6 +26,7 @@ async function main() {
   let state = [], index = 0, presses = [], inputs = [], destination, payload, calls = 0;
   let sessionRetries = 0, categoryRetries = 0, profileRetries = 0;
   let suggestionItemId, applyItemId, appliedCategoryId, categorySuggestionRetries = 0;
+  let hintItemId, hintUserId, sentHint, hintOutcome = async (label) => label;
   const fakeReact = { ...React, useState: (initial) => {
     const slot = index++;
     if (!(slot in state)) state[slot] = typeof initial === 'function' ? initial() : initial;
@@ -86,7 +87,15 @@ async function main() {
       return { type: 'classified', itemId: 'general-pending', categoryId };
     },
   };
+  const hintMutation = {
+    isPending: false,
+    isError: false,
+    error: null,
+    reset() { this.isError = false; this.error = null; },
+    mutateAsync: async (label) => { sentHint = label; return hintOutcome(label); },
+  };
   const { default: Request } = load('app/pick/request.tsx', {
+    '@/services/registrationService': { CATEGORY_HINT_MAX_LENGTH: 60 },
     react: fakeReact, 'react-native': native,
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     'react-native-safe-area-context': { SafeAreaView: component('section') },
@@ -104,6 +113,11 @@ async function main() {
       useApplyItemCategory: (itemId) => {
         applyItemId = itemId;
         return applyMutation;
+      },
+      useSetItemCategoryHint: (itemId, userId) => {
+        hintItemId = itemId;
+        hintUserId = userId;
+        return hintMutation;
       },
     },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
@@ -251,6 +265,28 @@ async function main() {
   press('AI 추천 다시 받기'); assert.equal(categorySuggestionRetries, 1);
   press('카테고리는 나중에 정하기'); assert.equal(destination, '/(tabs)/profile', 'AI failure never blocks the saved product request');
 
-  console.log('Item request checks passed: fixed content categories, category-free product requests, user-applied AI categories, photos and recovery routes.');
+  const hintInput = () => inputs.find((p) => p.accessibilityLabel === '원하는 카테고리');
+  assert.equal(hintItemId, 'general-pending', 'The hint targets the staged request');
+  assert.equal(hintUserId, 'owner');
+  assert.equal(hintInput(), undefined, 'The hint field stays collapsed until requested');
+  press('카테고리 직접 적기'); render();
+  assert.equal(button('카테고리 힌트 보내기').disabled, true, 'An empty hint cannot be sent');
+  hintInput().onChangeText('  텀블러 /  보온병 '); render();
+  assert.match(render(), /9\/60/, 'The counter reflects the normalized hint length');
+  hintOutcome = async () => { throw new AppError('CATEGORY_LABEL_INVALID'); };
+  press('카테고리 힌트 보내기'); await settle();
+  assert.equal(sentHint, '텀블러 / 보온병', 'The hint is sent with collapsed whitespace');
+  hintMutation.isError = true; hintMutation.error = new AppError('CATEGORY_LABEL_INVALID');
+  assert.match(render(), /1~60자로 적어주세요/);
+  assert.equal(hintInput().value, '  텀블러 /  보온병 ', 'A failed hint keeps the typed text');
+  hintMutation.isError = false; hintMutation.error = null; hintOutcome = async (label) => label;
+  press('카테고리 힌트 보내기'); await settle();
+  const hintDone = render();
+  assert.match(hintDone, /카테고리 힌트를 남겼어요/);
+  assert.match(hintDone, /텀블러 \/ 보온병/);
+  assert.equal(hintItemId, undefined, 'A saved hint stops further classification queries');
+  press('내 등록 요청 보기'); assert.equal(destination, '/(tabs)/profile');
+
+  console.log('Item request checks passed: fixed content categories, category-free product requests, user-applied AI categories, free-text category hints, photos and recovery routes.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
