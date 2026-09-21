@@ -18,6 +18,10 @@
 -- 카테고리를 걸러내므로, 매핑을 두지 않는 것만으로 자격 개수·재평가 변경
 -- 건수·AI 재료 세 곳에서 모두 빠진다. 화면이나 함수에 카테고리를
 -- 하드코딩하지 않는다.
+--
+-- 주의: 기존 `먹을것 → 쇼핑몰(slug=shopping-mall)`은 상품 분류 트리다.
+-- 온라인 서비스용 쇼핑몰은 `online-shopping-mall`로 별도 생성해 기존 노드의
+-- parent_id나 자식 카테고리를 절대 이동시키지 않는다.
 
 insert into public.categories (
   id, parent_id, name, slug, status, is_visible, is_pickable, sort_order
@@ -40,7 +44,7 @@ insert into public.categories (
 select gen_random_uuid(), p.id, v.name, v.slug, 'open', true, true, v.sort_order
 from (
   values
-    ('online',  '쇼핑몰',        'shopping-mall',         61),
+    ('online',  '쇼핑몰',        'online-shopping-mall',  61),
     ('offline', '정비소',        'auto-repair',           71),
     ('offline', '안경원',        'optician',              72),
     ('offline', '수리 기사',     'repair-technician',     73),
@@ -68,7 +72,7 @@ insert into public.category_catalog_sources (
 select c.id, 'internal', null, null, null, 'OnePick master catalog'
 from public.categories c
 where c.slug in (
-  'shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
+  'online-shopping-mall', 'auto-repair', 'optician', 'repair-technician', 'interior-construction'
 )
 on conflict (category_id) do update
 set
