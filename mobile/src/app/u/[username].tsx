@@ -16,7 +16,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { isSeedProfileId } from '@/lib/seedProfiles';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -54,7 +54,7 @@ export default function PublicProfileScreen() {
               {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
             </View>
           </View>
-          {!query.data.isMine ? <View style={styles.followRow}>
+          {OnePickFeatures.follow && !query.data.isMine ? <View style={styles.followRow}>
             <FollowButton
               viewerUserId={user?.id}
               profileUserId={query.data.profile.id}
