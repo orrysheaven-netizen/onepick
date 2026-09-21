@@ -28,6 +28,27 @@ async function main() {
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
 
+  const metaContent = (needle) => {
+    const tag = [...html.matchAll(/<meta\b[^>]*>/g)].map((match) => match[0]).find((candidate) => candidate.includes(needle));
+    return tag?.match(/content=["']([^"']+)["']/)?.[1] ?? null;
+  };
+  assert.match(html, /<title>OnePick \| 나의 원픽으로 취향을 보여주세요<\/title>/,
+    'The static app shell needs a useful default title for JS-less crawlers');
+  assert.equal(metaContent('name="description"'),
+    '카테고리마다 하나의 원픽을 고르고, 한줄평과 함께 나의 취향을 보여주세요.');
+  assert.equal(metaContent('property="og:title"'), 'OnePick | 나의 원픽으로 취향을 보여주세요');
+  assert.equal(metaContent('property="og:site_name"'), 'OnePick');
+  assert.equal(metaContent('property="og:type"'), 'website');
+  assert.equal(metaContent('property="og:description"'),
+    '카테고리마다 하나의 원픽을 고르고, 한줄평과 함께 나의 취향을 보여주세요.');
+  assert.match(metaContent('property="og:image"') ?? '', /^https:\/\/[^\s]+\/og-default\.png$/,
+    'Default OG image must be an absolute HTTPS URL');
+  assert.equal(metaContent('name="twitter:card"'), 'summary_large_image');
+  assert.equal(metaContent('name="twitter:image"'), metaContent('property="og:image"'));
+  const defaultOgImage = path.join(dist, 'og-default.png');
+  assert.ok(fs.existsSync(defaultOgImage), 'Default OG image must be copied into the export');
+  assert.ok(fs.statSync(defaultOgImage).size > 10_000, 'Default OG image must be a real image, not an empty placeholder');
+
   const deploymentPath = path.join(dist, 'deployment.json');
   if (fs.existsSync(deploymentPath)) {
     const deployment = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
