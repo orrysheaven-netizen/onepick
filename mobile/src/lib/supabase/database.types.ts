@@ -770,6 +770,8 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          purchase_tip: string | null
+          purchase_url: string | null
           replaced_by_pick_id: string | null
           started_at: string
           status: string
@@ -783,6 +785,8 @@ export type Database = {
           id?: string
           item_id: string
           one_line_review: string
+          purchase_tip?: string | null
+          purchase_url?: string | null
           replaced_by_pick_id?: string | null
           started_at?: string
           status?: string
@@ -796,6 +800,8 @@ export type Database = {
           id?: string
           item_id?: string
           one_line_review?: string
+          purchase_tip?: string | null
+          purchase_url?: string | null
           replaced_by_pick_id?: string | null
           started_at?: string
           status?: string
@@ -1454,6 +1460,8 @@ export type Database = {
           p_category_id: string
           p_item_id: string
           p_one_line_review: string
+          p_purchase_tip?: string | null
+          p_purchase_url?: string | null
         }
         Returns: {
           category_id: string
@@ -1462,6 +1470,8 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          purchase_tip: string | null
+          purchase_url: string | null
           replaced_by_pick_id: string | null
           started_at: string
           status: string
@@ -1664,6 +1674,8 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          purchase_tip: string | null
+          purchase_url: string | null
           replaced_by_pick_id: string | null
           started_at: string
           status: string
@@ -1833,7 +1845,12 @@ export type Database = {
         }
       }
       update_pick_review: {
-        Args: { p_one_line_review: string; p_pick_id: string }
+        Args: {
+          p_one_line_review: string
+          p_pick_id: string
+          p_purchase_tip?: string | null
+          p_purchase_url?: string | null
+        }
         Returns: {
           category_id: string
           created_at: string
@@ -1841,6 +1858,8 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          purchase_tip: string | null
+          purchase_url: string | null
           replaced_by_pick_id: string | null
           started_at: string
           status: string

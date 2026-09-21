@@ -27,10 +27,12 @@ const categoryId = 'b2222222-2222-4222-8222-222222222222';
 const newPickId = 'c3333333-3333-4333-8333-333333333333';
 const { AppError } = load('errors/appError.ts');
 let auth, params, query, mutation, result, states, stateIndex, mountedKey;
-let buttons, input, destinations, attempts, mode, pending, retries = 0;
+let buttons, input, inputs, destinations, attempts, mode, pending, retries = 0;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
-  TextInput: (props) => { input = props; return null; },
+  // The screen now renders the review, the purchase link and the tip. Keep
+  // `input` on the review field so typing a reason still targets the reason.
+  TextInput: (props) => { inputs.push(props); if (props.accessibilityLabel === '원픽 한줄평') input = props; return null; },
   Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
   StyleSheet: { create: (styles) => styles },
 };
@@ -82,7 +84,7 @@ function arrange(status = { type: 'not_selected' }) {
 function render() {
   const element = Choose();
   if (element.key !== mountedKey) { mountedKey = element.key; states = []; }
-  stateIndex = 0; buttons = []; input = undefined;
+  stateIndex = 0; buttons = []; inputs = []; input = undefined;
   return renderToStaticMarkup(element);
 }
 function button(label) {
