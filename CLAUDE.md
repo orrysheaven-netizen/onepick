@@ -15,3 +15,15 @@ Several agent sessions (Claude Code, ChatGPT/Codex) work on this repository at t
 - Remove your worktree when the PR is merged (`git worktree remove <path>`). Don't remove or reset worktrees you didn't create.
 - `mobile/node_modules` is large; link it into a worktree instead of reinstalling (Windows PowerShell: `New-Item -ItemType Junction -Path <worktree>/mobile/node_modules -Target <primary>/mobile/node_modules`), and unlink it (`(Get-Item <worktree>/mobile/node_modules).Delete()`) before removing the worktree so the real folder is untouched.
 - Uncommitted changes you find in the primary checkout belong to someone else. Leave them alone and don't include them in your commits.
+
+
+# Local database tests
+
+Before `supabase test db`, make sure the restored local database has every migration from the current branch:
+
+```bash
+supabase migration up --local --include-all
+supabase test db
+```
+
+An existing local Docker volume can be behind the migration files after a pull or branch change. `migration up --local --include-all` applies migrations missing from the local migration history without rebuilding the database. Do not use `supabase stop --no-backup` just to catch up migrations; that removes local data. See `docs/development-start.md`.
