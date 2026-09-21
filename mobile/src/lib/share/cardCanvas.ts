@@ -1,3 +1,5 @@
+import { OnePick } from '@/constants/onepick';
+
 // Canvas helpers shared by the Pick card and the profile card. Both cards draw on the same
 // surface at the same size, so the drawing primitives live here rather than in each card.
 
@@ -75,6 +77,19 @@ export function roundedRect(ctx: any, x: number, y: number, width: number, heigh
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
+}
+
+// The brand lockup: an indigo 원픽 tag followed by "one pick". Both cards draw the same one.
+export function drawBrandLockup(ctx: any, x: number, baselineY: number) {
+  ctx.fillStyle = OnePick.accent;
+  roundedRect(ctx, x, baselineY - 42, 104, 56, 16);
+  ctx.fill();
+  ctx.fillStyle = OnePick.onAccent;
+  ctx.font = '900 30px system-ui, sans-serif';
+  ctx.fillText('원픽', x + 18, baselineY);
+  ctx.fillStyle = OnePick.text;
+  ctx.font = '800 34px system-ui, sans-serif';
+  ctx.fillText('one pick', x + 122, baselineY);
 }
 
 export function drawLines(ctx: any, lines: string[], x: number, startY: number, lineHeight: number) {

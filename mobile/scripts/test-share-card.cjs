@@ -13,7 +13,13 @@ function transpile(file) {
 // The canvas primitives are shared with the profile card, so they load as their own module.
 function loadCardCanvas() {
   const exports = {};
-  vm.runInNewContext(transpile('lib/share/cardCanvas.ts'), { exports, Uint8Array });
+  vm.runInNewContext(transpile('lib/share/cardCanvas.ts'), {
+    exports, Uint8Array,
+    require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      throw new Error(name);
+    },
+  });
   return exports;
 }
 

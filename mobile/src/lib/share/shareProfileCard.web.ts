@@ -3,7 +3,7 @@ import type {
   ShareProfileCardAi, ShareProfileCardInput, ShareProfileCardResult,
 } from './shareProfileCard';
 import {
-  cardFileName, clean, createCardContext, dataUrlFile, downloadCard, drawLines, fitLine,
+  cardFileName, clean, createCardContext, dataUrlFile, downloadCard, drawBrandLockup, drawLines, fitLine,
   roundedRect, toCardDataUrl, wrapLines, CARD_HEIGHT, CARD_WIDTH,
 } from './cardCanvas';
 import { OnePick } from '@/constants/onepick';
@@ -34,9 +34,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
   roundedRect(ctx, 72, 72, 936, 1206, 42);
   ctx.fill();
 
-  ctx.fillStyle = OnePick.accent;
-  ctx.font = '800 34px system-ui, sans-serif';
-  ctx.fillText('ONE PICK', 130, 160);
+  drawBrandLockup(ctx, 130, 160);
 
   ctx.fillStyle = OnePick.text;
   ctx.font = '800 70px system-ui, sans-serif';
@@ -51,7 +49,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
 
   ctx.fillStyle = OnePick.accent;
   ctx.font = '700 25px system-ui, sans-serif';
-  ctx.fillText('CURRENT PICKS', 130, 380);
+  ctx.fillText('현재 원픽', 130, 380);
 
   if (picks.length === 0) {
     ctx.fillStyle = OnePick.muted;

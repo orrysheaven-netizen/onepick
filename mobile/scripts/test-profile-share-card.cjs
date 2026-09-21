@@ -12,7 +12,13 @@ function transpile(file) {
 
 function loadCardCanvas() {
   const exports = {};
-  vm.runInNewContext(transpile('lib/share/cardCanvas.ts'), { exports, Uint8Array });
+  vm.runInNewContext(transpile('lib/share/cardCanvas.ts'), {
+    exports, Uint8Array,
+    require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      throw new Error(name);
+    },
+  });
   return exports;
 }
 
@@ -71,6 +77,9 @@ async function main() {
   const withAi = loadWeb(silentNavigator());
   await withAi.exports.shareProfileCardImage({ username: 'tester', picks, aiComment: visibleAi });
   assert.ok(withAi.drawn.includes('@tester'), 'the username must be printed whole, not clipped');
+  assert.ok(withAi.drawn.includes('원픽') && withAi.drawn.includes('one pick'), 'the card must carry the brand lockup');
+  assert.ok(withAi.drawn.includes('현재 원픽'), 'section labels stay Korean');
+  assert.ok(!withAi.drawn.some((line) => /^[A-Z ]+$/.test(line)), 'no English kicker belongs on the card');
   assert.ok(withAi.drawn.includes('진라면 매운맛'));
   assert.ok(withAi.drawn.includes('꼬북칩'));
   assert.ok(!withAi.drawn.includes('나의 아저씨'), 'only the first four Picks are printed');
