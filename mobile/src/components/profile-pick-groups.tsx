@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProfilePickCard } from '@/components/profile-pick-card';
-import { buildProfilePickGroups, defaultCollapsedProfilePickGroups } from '@/lib/profile/profilePickGroups';
+import { buildProfilePickGroups, defaultCollapsedProfilePickGroups, remainingProfileCategories } from '@/lib/profile/profilePickGroups';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -12,10 +12,13 @@ type Props = {
   categories: Category[];
   onPressPick: (pickId: string) => void;
   onPressItem: (itemId: string) => void;
+  /** Owner only: a dashed tile per group lists the pickable categories still without a Pick. */
+  onPressCategory?: (category: Category) => void;
 };
 
-export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem }: Props) {
+export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem, onPressCategory }: Props) {
   const groups = useMemo(() => buildProfilePickGroups(picks, categories), [picks, categories]);
+  const pickedCategoryIds = useMemo(() => new Set(picks.map((item) => item.pick.categoryId)), [picks]);
   const groupSignature = groups.map((group) => group.id).join('|');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => defaultCollapsedProfilePickGroups(groups, picks.length));
 
@@ -77,6 +80,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
                 {group.items.map((item) => (
                   <ProfilePickCard
                     key={item.pick.id}
+                    layout="tile"
                     categoryName={item.category?.name ?? '카테고리'}
                     itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
                     review={item.pick.oneLineReview}
@@ -88,6 +92,19 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
                     onPressItem={item.item ? () => onPressItem(item.pick.itemId) : undefined}
                   />
                 ))}
+                {onPressCategory ? (() => {
+                  const remaining = remainingProfileCategories(group.id, pickedCategoryIds, categories);
+                  if (!remaining.length) return null;
+                  return <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${group.name}에서 ${remaining[0].name} 원픽 고르기`}
+                    onPress={() => onPressCategory(remaining[0])}
+                    style={({ pressed }) => [styles.remainingTile, pressed && styles.pressed]}>
+                    <View style={styles.remainingMark}><Text style={styles.remainingPlus}>+</Text></View>
+                    <Text style={styles.remainingTitle}>{group.name}에 {remaining.length}개 남았어요</Text>
+                    <Text numberOfLines={2} style={styles.remainingText}>{remaining.map((category) => category.name).join(' · ')}</Text>
+                  </Pressable>;
+                })() : null}
               </View>
             ) : null}
           </View>
@@ -118,6 +135,11 @@ const styles = StyleSheet.create({
   countPill: { borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 7, paddingVertical: 2 },
   countText: { color: OnePick.muted, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   groupChevron: { color: OnePick.hint, fontSize: 16, lineHeight: 18, marginLeft: 8 },
-  groupBody: { paddingLeft: 6 },
+  groupBody: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  remainingTile: { flexGrow: 1, flexBasis: '46%', maxWidth: '48.5%', minHeight: 160, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12 },
+  remainingMark: { width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  remainingPlus: { color: OnePick.accent, fontSize: 24, lineHeight: 28, fontWeight: '700' },
+  remainingTitle: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700', textAlign: 'center' },
+  remainingText: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center' },
   pressed: { opacity: 0.68 },
 });
