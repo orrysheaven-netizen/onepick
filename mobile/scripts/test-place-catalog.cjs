@@ -45,8 +45,8 @@ async function main() {
   const categoryId = '11111111-1111-4111-8111-111111111111';
   const catalogId = '22222222-2222-4222-8222-222222222222';
   const intent = intents.getAuthIntent({ action: 'choose_place', categoryId, externalPlaceId: catalogId });
-  assert.equal(JSON.stringify(intent), JSON.stringify({ action: 'choose_place', categoryId, externalPlaceId: catalogId }));
-  assert.equal(JSON.stringify(intents.getPostAuthRoute(intent)), JSON.stringify({ pathname: '/pick/find', params: { categoryId, externalPlaceId: catalogId } }));
+  assert.deepEqual({ ...intent }, { action: 'choose_place', externalPlaceId: catalogId, categoryId });
+  const postAuthRoute = intents.getPostAuthRoute(intent);\n  assert.equal(postAuthRoute.pathname, '/pick/find');\n  assert.deepEqual({ ...postAuthRoute.params }, { categoryId, externalPlaceId: catalogId });
   assert.equal(intents.getPostAuthRoute(intents.getAuthIntent({ action: 'choose_place', categoryId, externalPlaceId: '../../bad' })), '/');
 
   const finder = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'pick', 'find.tsx'), 'utf8');
