@@ -68,3 +68,7 @@ verify_jwt = false
 [storage.buckets.item-photos]
 public = true
 allowed_mime_types = ["image/jpeg"]
+
+[functions.sbiz-place-catalog]
+# Admin-only bootstrap endpoint; handler validates the caller and keeps the provider key server-side.
+verify_jwt = false
