@@ -13,6 +13,7 @@ export type AuthReturnParams = {
   externalBookId?: string | string[];
   externalYouTubeId?: string | string[];
   externalPokemonId?: string | string[];
+  placeCatalogId?: string | string[];
 };
 
 export type AuthIntent =
@@ -26,6 +27,7 @@ export type AuthIntent =
   | { action: 'choose_book'; externalBookId: string; categoryId: string }
   | { action: 'choose_youtube'; externalYouTubeId: string; categoryId: string }
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
+  | { action: 'choose_place'; placeCatalogId: string; categoryId: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
   | { action: 'view_profile'; username: string }
@@ -101,6 +103,9 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalPokemonId = getExternalPokemonId(params.externalPokemonId);
     if (externalPokemonId) return { action: 'choose_pokemon', externalPokemonId, categoryId: params.categoryId };
   }
+  if (params.action === 'choose_place' && isId(params.categoryId) && isId(params.placeCatalogId)) {
+    return { action: 'choose_place', placeCatalogId: params.placeCatalogId, categoryId: params.categoryId };
+  }
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
@@ -121,6 +126,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_book': return { pathname: '/pick/book', params: { categoryId: intent.categoryId, externalBookId: intent.externalBookId } };
     case 'choose_youtube': return { pathname: '/pick/youtube', params: { categoryId: intent.categoryId, externalYouTubeId: intent.externalYouTubeId } };
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
+    case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };

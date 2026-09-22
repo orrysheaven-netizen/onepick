@@ -84,6 +84,11 @@ const imports = {
     },
     useImportMovieCatalogItem: (mediaType) => { mutationMediaType = mediaType; return { isPending: false, isError: false, mutateAsync: async () => ({}) }; },
   },
+  '@/hooks/usePlaceCatalog': {
+    usePlaceCatalogCapability: () => ({ data: false, isSuccess: true, isError: false, isFetching: false, refetch() {} }),
+    usePlaceCatalogSearch: () => ({ data: [], isWaiting: false, isFetching: false, isError: false, refetch() {} }),
+    useSelectPlaceCatalogItem: () => ({ isPending: false, isError: false, mutateAsync: async () => { throw new Error('Unexpected place selection'); } }),
+  },
   '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: categories, isPending: false, isError: false, refetch() {} }) },
 };
 const { default: Find } = load('app/pick/find.tsx', imports);

@@ -12,16 +12,31 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
+import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalogItem } from '@/hooks/usePlaceCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
+import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
 import { OnePick } from '@/constants/onepick';
 
-type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
+type Params = {
+  categoryId?: string | string[];
+  externalMovieId?: string | string[];
+  externalDramaId?: string | string[];
+  placeCatalogId?: string | string[];
+  query?: string | string[];
+  onboarding?: string | string[];
+};
 type Selection = { externalId: string; replace: boolean } & (
   | { phase: 'loading' | 'paused' }
   | { phase: 'failed'; error: unknown }
   | { phase: 'ready'; item: ImportedMovieItem }
 );
+type PlaceSelection = { catalogId: string; replace: boolean } & (
+  | { phase: 'loading' | 'paused' }
+  | { phase: 'failed'; error: unknown }
+  | { phase: 'ready'; item: ImportedPlaceItem }
+);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 function movieErrorMessage(error: unknown, label: string) {
   if (error instanceof AppError) {
@@ -32,11 +47,20 @@ function movieErrorMessage(error: unknown, label: string) {
   }
   return `${label} 정보를 불러오지 못했어요. 선택한 ${label}로 다시 시도할 수 있어요.`;
 }
+function placeErrorMessage(error: unknown) {
+  if (error instanceof AppError) {
+    if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인한 뒤 선택한 장소를 이어가주세요.';
+    if (error.code === 'ITEM_NOT_FOUND') return '이 장소는 현재 원픽 장소 목록에서 찾을 수 없어요. 다시 검색해주세요.';
+    if (error.code === 'ITEM_NOT_ELIGIBLE') return '지금은 이 장소를 선택할 수 없어요. 다른 지점을 찾아주세요.';
+    if (error.code === 'CATEGORY_NOT_FOUND' || error.code === 'CATEGORY_NOT_PICKABLE' || error.code === 'ITEM_CATEGORY_MISMATCH') return '맛집 카테고리 정보를 확인하지 못했어요. 카테고리를 다시 불러와주세요.';
+  }
+  return '장소 정보를 불러오지 못했어요. 선택한 장소로 다시 시도할 수 있어요.';
+}
 
 export default function FindPickItemScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.placeCatalogId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <FindPickItemContent key={key} auth={auth} params={params} />;
 }
 
@@ -46,11 +70,16 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const authReady = !sessionLoading && !sessionError;
   const [query, setQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [placeSelection, setPlaceSelection] = useState<PlaceSelection | null>(null);
   const categories = useRegistrationCategories();
   const requestedCategoryId = scalar(params.categoryId);
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
-  const search = useItemSearch(authReady && categoryScopeReady ? query : '', selectedCategory?.id);
+  const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
+  const categoryCapabilityReady = !selectedCategory || placeCapability.isSuccess;
+  const isPlaceCategory = placeCapability.data === true;
+  const hasSearchScope = authReady && categoryScopeReady && categoryCapabilityReady;
+  const search = useItemSearch(hasSearchScope ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const isDramaCategory = selectedCategory?.slug === 'drama';
   const isMusicCategory = selectedCategory?.slug === 'music';
@@ -62,38 +91,53 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const label = isDramaCategory ? '드라마' : '영화';
   const mediaType = isDramaCategory ? 'tv' : 'movie';
   const source = isDramaCategory ? 'tmdb_tv' : 'tmdb';
-  const movieCatalog = useMovieCatalogSearch(query, Boolean(authReady && isCatalogCategory), mediaType);
+  const movieCatalog = useMovieCatalogSearch(query, Boolean(hasSearchScope && isCatalogCategory), mediaType);
   const importMovie = useImportMovieCatalogItem(mediaType);
+  const placeCatalog = usePlaceCatalogSearch(query, selectedCategory?.id, Boolean(hasSearchScope && isPlaceCategory));
+  const selectPlace = useSelectPlaceCatalogItem();
   const normalizedQuery = query.trim().replace(/\s+/g, ' ');
   const hasQuery = normalizedQuery.length > 0;
   const canSearchMovieCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 60;
-  const localItems = authReady && categoryScopeReady && !search.isWaiting && !search.isError
+  const canSearchPlaceCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 100;
+  const searchedItems = hasSearchScope && !search.isWaiting && !search.isError
     ? (search.data ?? []).filter((item) => !selectedCategory || item.categoryId === selectedCategory.id) : [];
+  const localItems = isPlaceCategory ? searchedItems.filter((item) => item.externalSource === 'onepick_place') : searchedItems;
   const externalMovies = (movieCatalog.data ?? []).filter((movie) => movie.source === source &&
     !localItems.some((item) => item.externalSource === movie.source && item.externalId === movie.externalId));
+  const externalPlaces = (placeCatalog.data ?? []).filter((place) => !place.existingItemId || !localItems.some((item) => item.id === place.existingItemId));
   const isSearching = search.isWaiting || search.isFetching
-    || (isCatalogCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching));
-  const hasSearchScope = authReady && categoryScopeReady;
-  const noResults = hasQuery && hasSearchScope && (!isCatalogCategory || canSearchMovieCatalog)
-    && !isSearching && !search.isError && (!isCatalogCategory || !movieCatalog.isError)
-    && localItems.length === 0 && (!isCatalogCategory || externalMovies.length === 0);
+    || (isCatalogCategory && canSearchMovieCatalog && (movieCatalog.isWaiting || movieCatalog.isFetching))
+    || (isPlaceCategory && canSearchPlaceCatalog && (placeCatalog.isWaiting || placeCatalog.isFetching));
+  const noResults = hasQuery && hasSearchScope
+    && (!isCatalogCategory || canSearchMovieCatalog)
+    && (!isPlaceCategory || canSearchPlaceCatalog)
+    && !isSearching && !search.isError
+    && (!isCatalogCategory || !movieCatalog.isError)
+    && (!isPlaceCategory || !placeCatalog.isError)
+    && localItems.length === 0
+    && (!isCatalogCategory || externalMovies.length === 0)
+    && (!isPlaceCategory || externalPlaces.length === 0);
 
   const focused = useRef(false);
   const generation = useRef(0);
   const busy = useRef(false);
   const navigating = useRef(false);
   const attemptedReturn = useRef<string | null>(null);
-  const latest = useRef({ authReady, userId: user?.id, categoryId: selectedCategory?.id, isCatalogCategory });
-  latest.current = { authReady, userId: user?.id, categoryId: selectedCategory?.id, isCatalogCategory };
+  const attemptedPlaceReturn = useRef<string | null>(null);
+  const latest = useRef({ authReady, userId: user?.id, categoryId: selectedCategory?.id, isCatalogCategory, isPlaceCategory });
+  latest.current = { authReady, userId: user?.id, categoryId: selectedCategory?.id, isCatalogCategory, isPlaceCategory };
   useFocusEffect(useCallback(() => {
     focused.current = true;
     navigating.current = false;
     return () => {
       focused.current = false; generation.current++; busy.current = false;
       setSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
+      setPlaceSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
     };
   }, []));
-  const importing = selection?.phase === 'loading';
+  const movieImporting = selection?.phase === 'loading';
+  const placeImporting = placeSelection?.phase === 'loading';
+  const importing = movieImporting || placeImporting;
   const canAct = () => focused.current && latest.current.authReady && !busy.current && !navigating.current;
   const chooseItem = (itemId: string, categoryId: string) => {
     if (!canAct()) return;
@@ -103,7 +147,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   };
   const requestItem = () => {
     if (!canAct() || !hasQuery) return;
-    if (selectedCategory && (isCatalogCategory || isMusicCategory || isGameCategory || isYoutubeCategory || isBookCategory || isPokemonCategory)) return;
+    if (selectedCategory && (!placeCapability.isSuccess || isPlaceCategory || isCatalogCategory || isMusicCategory || isGameCategory || isYoutubeCategory || isBookCategory || isPokemonCategory)) return;
     navigating.current = true;
     router.push({
       pathname: '/pick/request',
@@ -115,7 +159,18 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     navigating.current = true;
     router.push({ pathname: '/auth/login', params: { action: isDramaCategory ? 'choose_drama' : 'choose_movie', externalId, categoryId: selectedCategory.id } });
   };
+  const loginForPlace = (catalogId: string) => {
+    if (!canAct() || !selectedCategory || !isPlaceCategory || !UUID_PATTERN.test(catalogId)) return;
+    navigating.current = true;
+    router.push({ pathname: '/auth/login', params: { action: 'choose_place', placeCatalogId: catalogId, categoryId: selectedCategory.id } });
+  };
   const continueMovie = (item: ImportedMovieItem, replace: boolean) => {
+    if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
+    navigating.current = true;
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
+    if (replace) router.replace(route); else router.push(route);
+  };
+  const continuePlace = (item: ImportedPlaceItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
     const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
@@ -140,26 +195,60 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       if (token === generation.current && focused.current && latest.current.userId === owner) setSelection({ phase: 'failed', externalId, replace, error });
     } finally { if (token === generation.current) busy.current = false; }
   };
+  const loadPlace = async (catalogId: string, replace = false) => {
+    if (!canAct() || !isPlaceCategory || !selectedCategory || !UUID_PATTERN.test(catalogId)) return;
+    if (!user) { loginForPlace(catalogId); return; }
+    busy.current = true;
+    const token = ++generation.current;
+    const owner = user.id;
+    const categoryId = selectedCategory.id;
+    setPlaceSelection({ phase: 'loading', catalogId, replace });
+    try {
+      const item = await selectPlace.mutateAsync({ categoryId, catalogId });
+      if (token !== generation.current || !focused.current || latest.current.userId !== owner) return;
+      if (item.categoryId !== categoryId) throw new AppError('ITEM_CATEGORY_MISMATCH');
+      busy.current = false;
+      setPlaceSelection({ phase: 'ready', catalogId, replace, item });
+      continuePlace(item, replace);
+    } catch (error) {
+      if (token === generation.current && focused.current && latest.current.userId === owner) setPlaceSelection({ phase: 'failed', catalogId, replace, error });
+    } finally { if (token === generation.current) busy.current = false; }
+  };
   const chooseMovie = (movie: MovieCatalogEntry) => {
     if (!canAct() || !selectedCategory || !isCatalogCategory || movie.source !== source) return;
     if (movie.existingItemId) { chooseItem(movie.existingItemId, selectedCategory.id); return; }
     void loadMovie(movie.externalId);
+  };
+  const choosePlace = (place: PlaceCatalogEntry) => {
+    if (!canAct() || !selectedCategory || !isPlaceCategory) return;
+    if (place.existingItemId) { chooseItem(place.existingItemId, selectedCategory.id); return; }
+    void loadPlace(place.id);
   };
   // Media-specific login returns cannot accidentally treat a movie ID as a TV ID.
   const hasReturn = params.externalMovieId !== undefined || params.externalDramaId !== undefined;
   const externalId = scalar(isDramaCategory ? params.externalDramaId : params.externalMovieId);
   const wrongReturn = isDramaCategory ? params.externalMovieId !== undefined : params.externalDramaId !== undefined;
   const validReturn = Boolean(isCatalogCategory && !wrongReturn && externalId && /^\d{1,12}$/.test(externalId));
+  const hasPlaceReturn = params.placeCatalogId !== undefined;
+  const placeCatalogId = scalar(params.placeCatalogId);
+  const validPlaceReturn = Boolean(isPlaceCategory && placeCatalogId && UUID_PATTERN.test(placeCatalogId));
   useEffect(() => {
     if (!authReady || !user || !isCatalogCategory || !selectedCategory || !validReturn || !externalId
       || attemptedReturn.current === externalId || !canAct()) return;
     attemptedReturn.current = externalId;
     void loadMovie(externalId, true);
   });
+  useEffect(() => {
+    if (!authReady || !user || !isPlaceCategory || !selectedCategory || !validPlaceReturn || !placeCatalogId
+      || attemptedPlaceReturn.current === placeCatalogId || !canAct()) return;
+    attemptedPlaceReturn.current = placeCatalogId;
+    void loadPlace(placeCatalogId, true);
+  });
   const back = () => {
     if (!focused.current || navigating.current) return;
     generation.current++; busy.current = false; navigating.current = true;
     setSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
+    setPlaceSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
     if (router.canGoBack()) router.back(); else router.replace('/');
   };
 
@@ -176,23 +265,29 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
+      <Text style={styles.subtitle}>{isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 상품 등록만 진행합니다.</Text> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 상품 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
+      {selectedCategory && placeCapability.isError ? <View style={styles.block}><StateCard compact tone="danger" title="검색 방식을 확인하지 못했어요" text="장소형 카테고리인지 확인될 때까지 일반 상품 등록으로 우회하지 않습니다."
+        action={{ label: '검색 방식 다시 확인', disabled: placeCapability.isFetching, onPress: () => { if (!placeCapability.isFetching) void placeCapability.refetch(); } }} /></View> : null}
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
-      <TextInput autoFocus={!validReturn} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
-        maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); } }}
-        placeholder={isCatalogCategory ? `${label} 제목 검색` : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
+      {hasPlaceReturn && categoryCapabilityReady && !validPlaceReturn ? <Text accessibilityRole="alert" style={styles.errorText}>장소 선택 링크와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
+      <TextInput autoFocus={!validReturn && !validPlaceReturn} accessibilityLabel={isPlaceCategory ? '원픽 맛집 검색' : isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
+        maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); setPlaceSelection(null); } }}
+        placeholder={isPlaceCategory ? '맛집 이름 검색' : isCatalogCategory ? `${label} 제목 검색` : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
       {isCatalogCategory && normalizedQuery.length > 60 ? <Text accessibilityRole="alert" style={styles.stateText}>{label} DB 검색어는 60자 이내로 입력해주세요. 등록된 상품 검색은 계속 사용할 수 있어요.</Text> : null}
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isCatalogCategory ? `등록된 ${label}와 TMDB를 함께 찾고 있어요` : '등록된 제품을 찾고 있어요'}</Text></View> : null}
-      {search.isError ? <View style={styles.block}><StateCard compact tone="danger" title="제품 검색을 불러오지 못했어요" action={{ label: '다시 검색', disabled: search.isFetching, onPress: () => { if (!search.isFetching) void search.refetch(); } }} /></View> : null}
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isPlaceCategory ? '등록된 장소와 원픽을 함께 찾고 있어요' : isCatalogCategory ? `등록된 ${label}와 TMDB를 함께 찾고 있어요` : '등록된 제품을 찾고 있어요'}</Text></View> : null}
+      {search.isError ? <View style={styles.block}><StateCard compact tone="danger" title={isPlaceCategory ? '등록된 맛집 검색을 불러오지 못했어요' : '제품 검색을 불러오지 못했어요'} action={{ label: '다시 검색', disabled: search.isFetching, onPress: () => { if (!search.isFetching) void search.refetch(); } }} /></View> : null}
       {isCatalogCategory && canSearchMovieCatalog && movieCatalog.isError ? <View style={styles.block}><StateCard compact tone="danger" title={`외부 ${label} 검색을 불러오지 못했어요`} text={`등록된 ${label} 검색은 계속 사용할 수 있어요.`}
         action={{ label: 'TMDB 다시 검색', disabled: movieCatalog.isFetching, onPress: () => { if (!movieCatalog.isFetching) void movieCatalog.refetch(); } }} /></View> : null}
-      {hasSearchScope && !hasQuery && !validReturn ? <View style={styles.block}><StateCard title={isCatalogCategory ? `${label} 제목만 입력하면 됩니다` : selectedCategory ? '이름을 입력하면 됩니다' : '상품명만 입력하면 됩니다'} text="검색 결과가 있으면 바로 선택하고, 상품이 없으면 입력한 상품명으로 등록 요청을 이어갈 수 있어요." /></View> : null}
+      {isPlaceCategory && canSearchPlaceCatalog && placeCatalog.isError ? <View style={styles.block}><StateCard compact tone="danger" title="장소 검색을 불러오지 못했어요" text="등록된 원픽 검색은 계속 사용할 수 있어요."
+        action={{ label: '장소 다시 검색', disabled: placeCatalog.isFetching, onPress: () => { if (!placeCatalog.isFetching) void placeCatalog.refetch(); } }} /></View> : null}
+      {hasSearchScope && !hasQuery && !validReturn && !validPlaceReturn ? <View style={styles.block}><StateCard title={isPlaceCategory ? '맛집 이름을 입력하면 됩니다' : isCatalogCategory ? `${label} 제목만 입력하면 됩니다` : selectedCategory ? '이름을 입력하면 됩니다' : '상품명만 입력하면 됩니다'} text={isPlaceCategory ? '같은 이름의 가게도 지점과 주소를 확인해 정확한 장소를 선택할 수 있어요.' : '검색 결과가 있으면 바로 선택하고, 상품이 없으면 입력한 상품명으로 등록 요청을 이어갈 수 있어요.'} /></View> : null}
       {isCatalogCategory && hasQuery && normalizedQuery.length < 2 ? <View style={styles.block}><StateCard compact title="두 글자 이상 입력해주세요" text="한국어 제목과 원제를 함께 검색합니다." /></View> : null}
+      {isPlaceCategory && hasQuery && normalizedQuery.length < 2 ? <View style={styles.block}><StateCard compact title="두 글자 이상 입력해주세요" text="가게 이름으로 장소를 검색합니다." /></View> : null}
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 {label} 정보를 불러오고 있어요</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.block}><StateCard compact accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} tone={selection.phase === 'failed' ? 'danger' : 'default'}
         text={selection.phase === 'failed' ? movieErrorMessage(selection.error, label) : selection.phase === 'ready' ? `선택한 ${label} 정보가 준비됐어요.` : `이전 ${label} 선택을 다시 이어갈 수 있어요.`}
@@ -200,16 +295,25 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
           : selection.phase === 'failed' && selection.error instanceof AppError && selection.error.code === 'AUTH_REQUIRED'
             ? { label: `다시 로그인하고 ${label} 선택 계속`, variant: 'secondary', onPress: () => loginForMovie(selection.externalId) }
             : { label: `선택한 ${label} 다시 불러오기`, variant: 'secondary', onPress: () => void loadMovie(selection.externalId, selection.replace) }} /></View> : null}
+      {placeSelection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 장소를 원픽에 연결하고 있어요</Text></View> : null}
+      {placeSelection && placeSelection.phase !== 'loading' ? <View style={styles.block}><StateCard compact accessibilityRole={placeSelection.phase === 'failed' ? 'alert' : undefined} tone={placeSelection.phase === 'failed' ? 'danger' : 'default'}
+        text={placeSelection.phase === 'failed' ? placeErrorMessage(placeSelection.error) : placeSelection.phase === 'ready' ? '선택한 장소가 원픽 후보로 준비됐어요.' : '이전 장소 선택을 다시 이어갈 수 있어요.'}
+        action={placeSelection.phase === 'ready' ? { label: '선택한 장소로 계속', variant: 'secondary', onPress: () => continuePlace(placeSelection.item, placeSelection.replace) }
+          : placeSelection.phase === 'failed' && placeSelection.error instanceof AppError && placeSelection.error.code === 'AUTH_REQUIRED'
+            ? { label: '다시 로그인하고 장소 선택 계속', variant: 'secondary', onPress: () => loginForPlace(placeSelection.catalogId) }
+            : { label: '선택한 장소 다시 불러오기', variant: 'secondary', onPress: () => void loadPlace(placeSelection.catalogId, placeSelection.replace) }} /></View> : null}
       {validReturn && isCatalogCategory && !user && !selection ? <View style={styles.block}><StateCard compact text={`선택한 ${label}를 이어가려면 로그인이 필요해요.`}
         action={{ label: `로그인하고 ${label} 선택 계속`, variant: 'secondary', onPress: () => loginForMovie(externalId!) }} /></View> : null}
+      {validPlaceReturn && isPlaceCategory && !user && !placeSelection ? <View style={styles.block}><StateCard compact text="선택한 장소를 이어가려면 로그인이 필요해요."
+        action={{ label: '로그인하고 장소 선택 계속', variant: 'secondary', onPress: () => loginForPlace(placeCatalogId!) }} /></View> : null}
       {hasQuery && localItems.map((item) => {
         const category = categories.data?.find((category) => category.id === item.categoryId);
         return <View key={item.id} style={styles.itemCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name} itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing} onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
-            {selectedCategory ? <Text style={styles.itemCategory}>{category?.label ?? '등록된 카테고리'}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
+            {selectedCategory ? <Text style={styles.itemCategory}>{isPlaceCategory ? `맛집 › ${category?.name ?? '등록된 카테고리'}` : category?.label ?? '등록된 카테고리'}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
             {isCatalogCategory ? <Text style={styles.movieMeta}>{[item.releaseYear, item.originalName !== item.name ? item.originalName : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text> : null}
-            <Text style={styles.itemAction}>이 제품을 원픽으로 선택 ›</Text>
+            <Text style={styles.itemAction}>{isPlaceCategory ? '이 지점을 원픽으로 선택 ›' : '이 제품을 원픽으로 선택 ›'}</Text>
           </Pressable>
         </View>;
       })}
@@ -218,11 +322,20 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
         <View style={styles.itemCopy}><Text style={styles.itemCategory}>콘텐츠 › {label} · TMDB</Text><Text style={styles.itemName}>{movie.title}</Text>
           <Text style={styles.movieMeta}>{[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && importing ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && movieImporting ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
         </View>
       </Pressable>)}
-      {noResults && (!selectedCategory || (!isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 상품이 없나요?" text="검색한 상품명을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 상품명만 먼저 등록합니다."
+      {!placeCatalog.isWaiting && !placeCatalog.isError && isPlaceCategory && canSearchPlaceCatalog && externalPlaces.map((place) => <Pressable key={`${place.placeProvider}:${place.providerPlaceId}`} accessibilityRole="button"
+        accessibilityLabel={`${place.name} ${place.branchName ?? ''} 맛집 선택`} accessibilityState={{ disabled: importing }} disabled={importing} onPress={() => choosePlace(place)} style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
+        <View style={styles.placeMarker}><Text style={styles.placeMarkerText}>장소</Text></View>
+        <View style={styles.itemCopy}><Text style={styles.itemCategory}>맛집 · {place.region1 ?? '지역 정보 없음'}{place.region2 ? ` ${place.region2}` : ''}</Text><Text style={styles.itemName}>{place.name}{place.branchName ? ` ${place.branchName}` : ''}</Text>
+          <Text style={styles.movieMeta}>{place.roadAddress ?? place.address ?? '주소 정보 없음'}</Text>
+          <Text style={styles.itemAction}>{placeSelection?.catalogId === place.id && placeImporting ? '장소를 원픽에 연결하고 있어요…' : '이 지점을 원픽으로 선택 ›'}</Text>
+        </View>
+      </Pressable>)}
+      {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 상품이 없나요?" text="검색한 상품명을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 상품명만 먼저 등록합니다."
         action={{ label: '이 상품명으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
+      {noResults && isPlaceCategory ? <View style={styles.block}><StateCard compact title="일치하는 장소를 찾지 못했어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다." /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>
         <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
@@ -271,6 +384,8 @@ const styles = StyleSheet.create({
   itemName: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 5 },
   itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
   movieMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  placeMarker: { width: 72, height: 72, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  placeMarkerText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
   attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 }, disabled: { opacity: 0.5 },

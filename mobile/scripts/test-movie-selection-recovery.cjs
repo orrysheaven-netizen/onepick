@@ -90,6 +90,11 @@ function setup(overrides = {}) {
     '@/lib/categories/categoryTree': categoryTree,
     '@/hooks/useItemSearch': { useItemSearch: (...args) => { queries.push(args); return local; } },
     '@/hooks/useMovieCatalog': { useMovieCatalogSearch: () => catalog, useImportMovieCatalogItem: () => mutation },
+    '@/hooks/usePlaceCatalog': {
+      usePlaceCatalogCapability: () => ({ data: false, isSuccess: true, isError: false, isFetching: false, refetch: async () => {} }),
+      usePlaceCatalogSearch: () => ({ data: [], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} }),
+      useSelectPlaceCatalogItem: () => ({ isPending: false, isError: false, mutateAsync: async () => { throw new Error('Unexpected place selection'); } }),
+    },
   });
   function walk(value, location) {
     if (value == null || typeof value !== 'object') return value;
