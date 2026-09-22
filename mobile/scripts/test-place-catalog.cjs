@@ -32,14 +32,14 @@ async function main() {
   const service = new PlaceCatalogService(fakeRepository);
   const signal = new AbortController().signal;
 
-  assert.deepEqual(await service.search(' '), []);
-  assert.deepEqual(await service.search(' a '), []);
+  assert.equal((await service.search(' ')).length, 0);
+  assert.equal((await service.search(' a ')).length, 0);
   assert.equal(calls.length, 0, 'invalid place queries never reach the repository');
   assert.equal((await service.search('  을지로   냉면  ', signal))[0].catalogId, 'catalog');
   assert.equal(calls[0][1], '을지로 냉면');
   assert.equal(calls[0][2], signal);
   assert.equal((await service.selectPlace('catalog-id', 'category-id')).created, true);
-  assert.deepEqual(calls[1], ['select', 'catalog-id', 'category-id']);
+  assert.equal(JSON.stringify(calls[1]), JSON.stringify(['select', 'catalog-id', 'category-id']));
 
   const intents = load('lib/auth/authIntent.ts', { 'expo-router': {} });
   const categoryId = '11111111-1111-4111-8111-111111111111';
