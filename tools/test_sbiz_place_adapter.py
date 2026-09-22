@@ -35,6 +35,11 @@ def main():
     rr=subprocess.run(["python3",str(ADAPTER),str(dd),"--output",str(d/"ddo"),"--report",str(d/"ddr"),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True)
     assert rr.returncode!=0 and "duplicate-row ratio" in rr.stderr
     assert not (d/"ddo").exists(), "failed duplicate gate must not publish JSONL"
+    # Multiple blocking gates are all reported in one run.
+    multi=d/"multi.csv";write(multi,[base("MUL1",도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명=""),base("MUL1",도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명="")])
+    rr=subprocess.run(["python3",str(ADAPTER),str(multi),"--output",str(d/"multio"),"--report",str(d/"multir"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True)
+    assert rr.returncode!=0 and "missing-field ratio" in rr.stderr and "duplicate-row ratio" in rr.stderr
+    assert not (d/"multio").exists()
     # default quality gate rejects missing category/address/region.
     q=d/"q.csv";write(q,[base(도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명="")])
     qo=d/"qo";qr=d/"qr";rr=run(q,qo,qr,ok=False);assert "quality gate failed" in rr.stderr and not qo.exists()
