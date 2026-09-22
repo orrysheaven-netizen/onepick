@@ -19,6 +19,7 @@ function loadSource(relativePath, imports = {}) {
   });
   return exports;
 }
+const plain = (value) => JSON.parse(JSON.stringify(value));
 
 class AppError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -40,25 +41,25 @@ async function main() {
 
   assert.equal(await service.isEnabled('bad'), false);
   assert.equal(calls.length, 0, 'Invalid category ids never reach the repository');
-  assert.deepEqual(await service.search(categoryId, ' 한 ', undefined), []);
+  assert.deepEqual(plain(await service.search(categoryId, ' 한 ', undefined)), []);
   assert.equal(calls.length, 0, 'One-character place queries stay local');
-  assert.deepEqual(await service.search(categoryId, '  원픽   식당  ', undefined), [{ id: 'row' }]);
-  assert.deepEqual(calls.pop().slice(0, 3), ['search', categoryId, '원픽 식당']);
-  assert.deepEqual(await service.select(categoryId, catalogId), { itemId: 'item', categoryId });
-  assert.deepEqual(calls.pop(), ['select', categoryId, catalogId]);
+  assert.deepEqual(plain(await service.search(categoryId, '  원픽   식당  ', undefined)), [{ id: 'row' }]);
+  assert.deepEqual(plain(calls.pop().slice(0, 3)), ['search', categoryId, '원픽 식당']);
+  assert.deepEqual(plain(await service.select(categoryId, catalogId)), { itemId: 'item', categoryId });
+  assert.deepEqual(plain(calls.pop()), ['select', categoryId, catalogId]);
   assert.throws(() => service.select(categoryId, 'not-a-uuid'), (error) => error.code === 'ITEM_NOT_FOUND');
 
   const auth = loadSource('lib/auth/authIntent.ts');
   const placeIntent = { action: 'choose_place', categoryId, placeCatalogId: catalogId };
-  assert.deepEqual(JSON.parse(JSON.stringify(auth.getAuthIntent(placeIntent))), placeIntent);
-  assert.deepEqual(JSON.parse(JSON.stringify(auth.getPostAuthRoute(auth.getAuthIntent(placeIntent)))), {
+  assert.deepEqual(plain(auth.getAuthIntent(placeIntent)), placeIntent);
+  assert.deepEqual(plain(auth.getPostAuthRoute(auth.getAuthIntent(placeIntent))), {
     pathname: '/pick/find', params: { categoryId, placeCatalogId: catalogId },
   });
   assert.equal(auth.getPostAuthRoute(auth.getAuthIntent({ ...placeIntent, placeCatalogId: '../../bad' })), '/');
   const onboarding = auth.getPostAuthRoute(auth.getAuthIntent(placeIntent), true);
   assert.equal(onboarding.pathname, '/auth/username');
   assert.deepEqual(
-    JSON.parse(JSON.stringify(auth.getPostAuthRoute(auth.getAuthIntent(onboarding.params)))),
+    plain(auth.getPostAuthRoute(auth.getAuthIntent(onboarding.params))),
     { pathname: '/pick/find', params: { categoryId, placeCatalogId: catalogId } },
     'Place selection survives username onboarding as well as ordinary OAuth return',
   );
