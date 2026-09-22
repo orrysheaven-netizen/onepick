@@ -7,6 +7,7 @@ import { OnePick } from '@/constants/onepick';
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: '원픽 대시보드', hint: '서비스 지표 · 추이' },
   { href: '/admin/data', label: '데이터 관리', hint: '카테고리 · 상품 · 홈 추천 · 사용자 · 신고' },
+  { href: '/admin/place-catalog-qa', label: '맛집 데이터 QA', hint: 'SBIZ 서울 샘플 확인' },
   { href: '/admin/profile-taste-qa', label: '취향 QA', hint: '프로필 취향 경계 시각 확인' },
 ] as const;
 

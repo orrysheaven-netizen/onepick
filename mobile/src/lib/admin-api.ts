@@ -153,6 +153,31 @@ export type AdminClientErrorEvent = {
   created_at: string;
 };
 
+export type AdminSbizPlaceSampleRow = {
+  provider_place_id: string;
+  payload: {
+    name: string;
+    branch_name: string | null;
+    road_address: string | null;
+    address: string | null;
+    region_1: string | null;
+    region_2: string | null;
+    longitude: number | null;
+    latitude: number | null;
+    provider_category: string | null;
+    business_status: 'open';
+  };
+};
+
+export type AdminSbizPlaceSample = {
+  ok: true;
+  provider: 'sbiz';
+  region: string;
+  requested: number;
+  received: number;
+  rows: AdminSbizPlaceSampleRow[];
+};
+
 // Shape of public.admin_onepick_dashboard(). Every user-activity number here
 // already excludes demo_* profiles and admin-allowlisted accounts.
 export type AdminOnePickDashboardWindow = 7 | 30 | 90;
@@ -266,7 +291,10 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = typeof data?.message === 'string' ? data.message : typeof data?.hint === 'string' ? data.hint : '관리자 요청에 실패했습니다.';
+    const message = typeof data?.message === 'string' ? data.message
+      : typeof data?.hint === 'string' ? data.hint
+        : typeof data?.error === 'string' ? data.error
+          : '관리자 요청에 실패했습니다.';
     throw new Error(message);
   }
   return data as T;
@@ -336,6 +364,14 @@ export function getAuditLogs(limit = 8, offset = 0) {
 
 export function getClientErrorEvents(limit = 30) {
   return adminRequest<AdminClientErrorEvent[]>(`/rest/v1/client_error_events?select=id,context,error_code,platform,app_version,created_at&order=created_at.desc&limit=${Math.min(Math.max(limit, 1), 200)}`);
+}
+
+export function getSbizPlaceSample(limit = 20) {
+  const normalizedLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20;
+  return adminRequest<AdminSbizPlaceSample>('/functions/v1/sbiz-place-catalog', {
+    method: 'POST',
+    body: JSON.stringify({ limit: normalizedLimit }),
+  });
 }
 
 export function getCategories() {
