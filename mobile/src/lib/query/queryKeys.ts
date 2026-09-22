@@ -32,6 +32,10 @@ export const queryKeys = {
   bookCatalog: { search: (title: string, author = '') => ['book-catalog', 'search', title, author] as const },
   youtubeCatalog: { search: (query: string) => ['youtube-catalog', 'search', query] as const },
   pokemonCatalog: { search: (query: string) => ['pokemon-catalog', 'search', query] as const },
+  placeCatalog: {
+    enabled: (categoryId: string) => ['place-catalog', 'enabled', categoryId] as const,
+    search: (categoryId: string, query: string) => ['place-catalog', 'search', categoryId, query] as const,
+  },
   picks: {
     all: ['picks'] as const,
     detail: (pickId: string, userId?: string) => ['picks', 'detail', pickId, userId ?? 'public'] as const,
