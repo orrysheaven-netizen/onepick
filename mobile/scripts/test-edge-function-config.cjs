@@ -21,6 +21,7 @@ const expected = new Map([
   ['music-catalog', false],
   ['pokemon-catalog', false],
   ['profile-ai-status', false],
+  ['sbiz-place-catalog', false],
   ['suggest-item-categories', false],
   ['youtube-catalog', false],
 ]);
