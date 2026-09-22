@@ -75,7 +75,7 @@ def main():
             churn.setdefault(key,set()).add(pid)
     except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {args.encoding}; try --encoding cp949")
     dup={k:n for k,n in ids.items() if n>1}; accepted_candidates=counts["rows"]-counts["rejected_identity"]-counts["malformed_rows"]
-    fd,tmp=tempfile.mkstemp(prefix="sbiz-",suffix=".jsonl"); os.close(fd); tmp=Path(tmp)
+    out_path=Path(args.output); out_path.parent.mkdir(parents=True,exist_ok=True)\n    fd,tmp=tempfile.mkstemp(prefix=".sbiz-",suffix=".jsonl",dir=out_path.parent); os.close(fd); tmp=Path(tmp)
     try:
       with tmp.open("w",encoding="utf-8") as out:
         for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
