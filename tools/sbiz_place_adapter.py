@@ -49,11 +49,12 @@ def main():
     counts,ids,cats,churn=Counter(),Counter(),Counter(),{}; winners={}
     try:
       with inp.open("r",encoding=args.encoding,newline="") as f:
-        reader=csv.DictReader(f)
+        sentinel=object()
+        reader=csv.DictReader(f,restval=sentinel)
         for idx,row in enumerate(reader,start=2):
           if args.limit is not None and counts["rows"]>=args.limit:break
           counts["rows"]+=1
-          if None in row or len(row)!=len(reader.fieldnames or []):counts["malformed_rows"]+=1;continue
+          if None in row or sentinel in row.values():counts["malformed_rows"]+=1;continue
           pid,name=val(row,cols["provider_place_id"]),val(row,cols["name"])
           if pid:ids[pid]+=1
           if not pid or not name or len(pid)>200 or len(name)>200:counts["rejected_identity"]+=1;continue
