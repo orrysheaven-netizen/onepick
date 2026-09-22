@@ -134,7 +134,7 @@ begin
 
     insert into public.item_channels(item_id,channel,target_url,is_primary)
     values(v_item.id,'offline',null,true)
-    on conflict(item_id,channel) do update
+    on conflict on constraint item_channels_pkey do update
     set is_primary=true,
         updated_at=now();
 
