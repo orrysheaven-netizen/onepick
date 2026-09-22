@@ -13,6 +13,7 @@ import {
   bookCatalogRepository,
   youtubeCatalogRepository,
   pokemonCatalogRepository,
+  placeCatalogRepository,
   profileRepository,
   photoRepository,
   readRepository,
@@ -35,6 +36,7 @@ import { GameCatalogService } from './gameCatalogService';
 import { BookCatalogService } from './bookCatalogService';
 import { YouTubeCatalogService } from './youtubeCatalogService';
 import { PokemonCatalogService } from './pokemonCatalogService';
+import { PlaceCatalogService } from './placeCatalogService';
 import { ProfileService } from './profileService';
 import { RegistrationService } from './registrationService';
 import { SafetyService } from './safetyService';
@@ -79,6 +81,7 @@ export const gameCatalogService = new GameCatalogService(gameCatalogRepository);
 export const bookCatalogService = new BookCatalogService(bookCatalogRepository);
 export const youtubeCatalogService = new YouTubeCatalogService(youtubeCatalogRepository);
 export const pokemonCatalogService = new PokemonCatalogService(pokemonCatalogRepository);
+export const placeCatalogService = new PlaceCatalogService(placeCatalogRepository);
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
@@ -100,6 +103,7 @@ export {
   BookCatalogService,
   YouTubeCatalogService,
   PokemonCatalogService,
+  PlaceCatalogService,
   ProfileService,
   SafetyService,
 };
