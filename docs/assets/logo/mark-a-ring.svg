@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="원픽">
+  <!-- Candidate A: 원 · 픽 — an open ring with one dot lifted out of the gap. -->
+  <path d="M12.48 4.43 A7.8 7.8 0 1 0 19.57 11.52" fill="none" stroke="#4945ED" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="17.88" cy="6.12" r="3.6" fill="#4945ED"/>
+</svg>

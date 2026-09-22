@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="원픽">
+  <!-- iOS / master app icon: full-bleed indigo, the system applies the mask.
+       Mark box = 68% of the canvas, centred. -->
+  <rect width="1024" height="1024" fill="#4945ED"/>
+  <g transform="translate(163.85 163.85) scale(29.013)">
+    <path d="M12.48 4.43 A7.8 7.8 0 1 0 19.57 11.52" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="17.88" cy="6.12" r="3.6" fill="#FFFFFF"/>
+  </g>
+</svg>
