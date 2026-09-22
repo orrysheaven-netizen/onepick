@@ -1,22 +1,14 @@
 # SBIZ place adapter
 
-The first bootstrap step is intentionally offline and deterministic. It does not fetch a provider URL and it does not write Supabase.
+Offline-first bootstrap validator. It never fetches a network resource and never writes Supabase, `place_catalog`, `places`, `items`, or `picks`.
 
-## Input
+## Inspect the source first
 
-Download the current official SBIZ 상가(상권)정보 CSV and start with the Seoul file/sample. Keep the downloaded source outside git.
+```bash
+python3 tools/sbiz_place_adapter.py seoul.csv --print-header
+```
 
-Required columns:
-
-- 상가업소번호
-- 상호명
-- 경도
-- 위도
-
-Optional metadata consumed when present:
-
-- 지점명, 도로명주소, 지번주소, 시도명, 시군구명
-- 상권업종소분류명 (fallback: 상권업종중분류명)
+The validation report records the complete `headers` array and `resolved_columns` mapping so provider schema changes cannot silently degrade metadata to null.
 
 ## Run
 
@@ -27,20 +19,30 @@ python3 tools/sbiz_place_adapter.py seoul.csv \
   --report /tmp/sbiz-seoul-report.json
 ```
 
-The timestamp must represent the downloaded snapshot/release, not the time the adapter happened to run.
+Use the actual source snapshot/release timestamp. Future timestamps are rejected. Existing output/report files require `--force`.
 
-## Outputs
+For a review sample without editing the source file, use `--limit N`; the report still hashes the original input file.
 
-The JSONL file matches the `private.place_import_raw` contract. The report records the input SHA-256 and deterministic quality metrics:
+## Validation gates
 
-- total / accepted / rejected rows
-- missing address count
-- missing coordinate count
-- duplicate provider IDs
-- distinct and top provider categories
+Default `--max-missing-ratio 0.2` applies independently to address, region, category, and coordinates. `--max-duplicate-ratio` defaults to 0 for bootstrap: any duplicate row makes the command non-zero until reviewed. Thresholds can be explicitly changed for diagnosis.
 
-Review the report before staging any rows. Duplicate provider IDs or unexpectedly high missing-field counts are stop conditions for bootstrap until the source is inspected.
+Coordinates must be WGS84 inside the Korea bootstrap bounding box: longitude 124–132, latitude 33–39. Blank coordinates and invalid/out-of-range coordinates are reported separately, which helps detect a wrong CRS.
 
-## Safety
+Duplicate provider IDs are deduplicated before JSONL output. Winner selection is deterministic: highest coordinate/address/metadata completeness first; ties keep the earlier CSV row. The report separates `duplicate_provider_id_count`, `duplicate_row_count`, `dropped_duplicate_rows`, `max_occurrences`, and sample IDs.
 
-This adapter never writes `place_catalog`, `places`, `items`, or `picks`. Database staging is a separate reviewed step.
+The report also includes an `identity_churn_collision_count`: distinct provider IDs sharing normalized name + coordinates rounded to four decimals. This is a warning signal for provider-ID regeneration, not an automatic merge rule.
+
+Malformed field-count rows, overlong identity fields, encoding failures, and missing required identity/coordinate headers fail or are counted explicitly. CP949 input is supported with `--encoding cp949`.
+
+## Output contract
+
+JSONL rows match `private.place_import_raw`: `place_provider`, `provider_place_id`, `source_updated_at`, and `payload`. Zero accepted rows produce a truly empty JSONL file.
+
+The report contains source/output paths, source SHA-256, source timestamp, row/rejection counts, schema resolution, coordinate/address quality, duplicate metrics, and category coverage.
+
+## Known limitation
+
+SBIZ bootstrap rows are emitted as `business_status=open`. **Closure detection is not implemented in this adapter.** Closed/closed_at synchronization belongs to the later provider freshness/reconciliation stage.
+
+Database staging and promotion remain a separate reviewed step.
