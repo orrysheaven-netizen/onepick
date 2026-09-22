@@ -18,7 +18,7 @@ assert.match(edge, /rpc\('current_user_is_admin'\)/, 'Allowlist membership must 
 
 assert.match(api, /getSbizPlaceSample/);
 assert.match(api, /\/functions\/v1\/sbiz-place-catalog/);
-assert.match(screen, /서울 20개 샘플 불러오기/);
+assert.match(screen, /const SAMPLE_SIZE = 20;/);\nassert.match(screen, /서울 \\${SAMPLE_SIZE}개 샘플 불러오기/);
 assert.match(screen, /OnePick DB에 장소를 저장하지 않습니다/);
 assert.doesNotMatch(screen, /place_import_raw|select_place_catalog_item|change_pick/, 'QA screen must not stage, promote or pick rows');
 assert.match(shell, /\/admin\/place-catalog-qa/);
