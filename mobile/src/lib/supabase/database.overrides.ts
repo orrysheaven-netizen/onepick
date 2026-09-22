@@ -90,6 +90,27 @@ export type NotificationPageRow = {
   read_at: string | null;
 };
 
+type PlaceCatalogRow = {
+  id: string;
+  place_provider: string;
+  provider_place_id: string;
+  name: string;
+  normalized_name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  provider_category: string | null;
+  business_status: 'open' | 'closed';
+  source_updated_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -123,6 +144,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
       pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
+      place_catalog: TableShape<PlaceCatalogRow, never, never>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
@@ -174,6 +196,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
       profile_taste_composition: {
         Args: { p_profile_id: string };
         Returns: Json;
+      };
+      select_place_catalog_item: {
+        Args: { p_catalog_id: string; p_category_id: string };
+        Returns: { item_id: string; category_id: string; created: boolean }[];
       };
     };
   };
