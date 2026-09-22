@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { PlaceCatalogResults } from '@/components/place-catalog-results';
 import { Button, StateCard } from '@/components/ui';
 import { GameSearchLink } from '@/components/game-search-link';
 import { MusicSearchLink } from '@/components/music-search-link';
@@ -16,7 +17,7 @@ import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import { OnePick } from '@/constants/onepick';
 
-type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
+type Params = { categoryId?: string | string[]; externalMovieId?: string | string[]; externalDramaId?: string | string[]; externalPlaceId?: string | string[]; query?: string | string[]; onboarding?: string | string[] };
 type Selection = { externalId: string; replace: boolean } & (
   | { phase: 'loading' | 'paused' }
   | { phase: 'failed'; error: unknown }
@@ -36,7 +37,7 @@ function movieErrorMessage(error: unknown, label: string) {
 export default function FindPickItemScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.externalPlaceId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <FindPickItemContent key={key} auth={auth} params={params} />;
 }
 
@@ -58,6 +59,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const isYoutubeCategory = selectedCategory?.slug === 'youtube';
   const isBookCategory = selectedCategory?.slug === 'book';
   const isPokemonCategory = selectedCategory?.slug === 'pokemon';
+  const isPlaceCategory = Boolean(selectedCategory?.label?.startsWith('먹을것 ›'));
   const isCatalogCategory = isMovieCategory || isDramaCategory;
   const label = isDramaCategory ? '드라마' : '영화';
   const mediaType = isDramaCategory ? 'tv' : 'movie';
@@ -145,7 +147,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     if (movie.existingItemId) { chooseItem(movie.existingItemId, selectedCategory.id); return; }
     void loadMovie(movie.externalId);
   };
-  // Media-specific login returns cannot accidentally treat a movie ID as a TV ID.
   const hasReturn = params.externalMovieId !== undefined || params.externalDramaId !== undefined;
   const externalId = scalar(isDramaCategory ? params.externalDramaId : params.externalMovieId);
   const wrongReturn = isDramaCategory ? params.externalMovieId !== undefined : params.externalDramaId !== undefined;
@@ -176,22 +177,23 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
+      <Text style={styles.subtitle}>{isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : isPlaceCategory ? '좋아하는 음식점 상호를 검색하고 정확한 지점을 골라보세요.' : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 상품 등록만 진행합니다.</Text> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 상품 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
-      <TextInput autoFocus={!validReturn} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
+      <TextInput autoFocus={!validReturn && !scalar(params.externalPlaceId)} accessibilityLabel={isCatalogCategory ? `원픽 ${label} 검색` : isPlaceCategory ? '원픽 음식점 검색' : selectedCategory ? '원픽 항목 검색' : '원픽 상품 검색'} autoCapitalize="none"
         maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); } }}
-        placeholder={isCatalogCategory ? `${label} 제목 검색` : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
+        placeholder={isCatalogCategory ? `${label} 제목 검색` : isPlaceCategory ? '음식점 상호 검색' : selectedCategory ? '이름 검색' : '상품명 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
       {isCatalogCategory && normalizedQuery.length > 60 ? <Text accessibilityRole="alert" style={styles.stateText}>{label} DB 검색어는 60자 이내로 입력해주세요. 등록된 상품 검색은 계속 사용할 수 있어요.</Text> : null}
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isCatalogCategory ? `등록된 ${label}와 TMDB를 함께 찾고 있어요` : '등록된 제품을 찾고 있어요'}</Text></View> : null}
       {search.isError ? <View style={styles.block}><StateCard compact tone="danger" title="제품 검색을 불러오지 못했어요" action={{ label: '다시 검색', disabled: search.isFetching, onPress: () => { if (!search.isFetching) void search.refetch(); } }} /></View> : null}
       {isCatalogCategory && canSearchMovieCatalog && movieCatalog.isError ? <View style={styles.block}><StateCard compact tone="danger" title={`외부 ${label} 검색을 불러오지 못했어요`} text={`등록된 ${label} 검색은 계속 사용할 수 있어요.`}
         action={{ label: 'TMDB 다시 검색', disabled: movieCatalog.isFetching, onPress: () => { if (!movieCatalog.isFetching) void movieCatalog.refetch(); } }} /></View> : null}
-      {hasSearchScope && !hasQuery && !validReturn ? <View style={styles.block}><StateCard title={isCatalogCategory ? `${label} 제목만 입력하면 됩니다` : selectedCategory ? '이름을 입력하면 됩니다' : '상품명만 입력하면 됩니다'} text="검색 결과가 있으면 바로 선택하고, 상품이 없으면 입력한 상품명으로 등록 요청을 이어갈 수 있어요." /></View> : null}
+      {hasSearchScope && !hasQuery && !validReturn && !isPlaceCategory ? <View style={styles.block}><StateCard title={isCatalogCategory ? `${label} 제목만 입력하면 됩니다` : selectedCategory ? '이름을 입력하면 됩니다' : '상품명만 입력하면 됩니다'} text="검색 결과가 있으면 바로 선택하고, 상품이 없으면 입력한 상품명으로 등록 요청을 이어갈 수 있어요." /></View> : null}
+      {hasSearchScope && !hasQuery && isPlaceCategory && !scalar(params.externalPlaceId) ? <View style={styles.block}><StateCard title="음식점 상호를 입력하면 됩니다" text="등록된 상품과 실제 음식점 지점을 함께 찾고, 지점 주소를 확인한 뒤 원픽으로 선택할 수 있어요." /></View> : null}
       {isCatalogCategory && hasQuery && normalizedQuery.length < 2 ? <View style={styles.block}><StateCard compact title="두 글자 이상 입력해주세요" text="한국어 제목과 원제를 함께 검색합니다." /></View> : null}
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 {label} 정보를 불러오고 있어요</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.block}><StateCard compact accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} tone={selection.phase === 'failed' ? 'danger' : 'default'}
@@ -213,6 +215,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
           </Pressable>
         </View>;
       })}
+      {isPlaceCategory && selectedCategory ? <PlaceCatalogResults query={query} categoryId={selectedCategory.id} userId={user?.id}
+        externalPlaceId={scalar(params.externalPlaceId)} onboarding={scalar(params.onboarding) === '1'} localItemCount={localItems.length} onRequestItem={requestItem} /> : null}
       {!movieCatalog.isWaiting && !movieCatalog.isError && isCatalogCategory && canSearchMovieCatalog && externalMovies.map((movie) => <Pressable key={`${movie.source}:${movie.externalId}`} accessibilityRole="button"
         accessibilityLabel={`${movie.title} ${label} 선택`} accessibilityState={{ disabled: importing }} disabled={importing} onPress={() => chooseMovie(movie)} style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
@@ -221,7 +225,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
           <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && importing ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
         </View>
       </Pressable>)}
-      {noResults && (!selectedCategory || (!isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 상품이 없나요?" text="검색한 상품명을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 상품명만 먼저 등록합니다."
+      {noResults && !isPlaceCategory && (!selectedCategory || (!isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 상품이 없나요?" text="검색한 상품명을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 상품명만 먼저 등록합니다."
         action={{ label: '이 상품명으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>
