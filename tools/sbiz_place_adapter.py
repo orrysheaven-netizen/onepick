@@ -1,113 +1,91 @@
 #!/usr/bin/env python3
-"""Validate and normalize an SBIZ CSV into OnePick place staging rows.
-
-No network or database writes. Input/output are explicit files so the report is
-repeatable and can be reviewed before anything reaches Supabase.
-"""
-import argparse, csv, hashlib, json
+"""Offline SBIZ CSV validator/normalizer for OnePick place staging."""
+import argparse, csv, hashlib, json, os, tempfile
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-ALIASES = {
-    "provider_place_id": ["상가업소번호"],
-    "name": ["상호명"],
-    "branch_name": ["지점명"],
-    "road_address": ["도로명주소"],
-    "address": ["지번주소"],
-    "region_1": ["시도명"],
-    "region_2": ["시군구명"],
-    "longitude": ["경도"],
-    "latitude": ["위도"],
-    "provider_category": ["상권업종소분류명", "상권업종중분류명"],
-}
-
-def pick(row, keys):
-    for key in keys:
-        value=(row.get(key) or "").strip()
-        if value:
-            return value
-    return None
-
-def parse_coord(value, low, high):
-    if value is None: return None
-    try: number=float(value)
-    except ValueError: return None
-    return number if low <= number <= high else None
-
+ALIASES={"provider_place_id":["상가업소번호"],"name":["상호명"],"branch_name":["지점명"],"road_address":["도로명주소"],"address":["지번주소"],"region_1":["시도명"],"region_2":["시군구명"],"longitude":["경도"],"latitude":["위도"],"provider_category":["상권업종소분류명","상권업종중분류명"]}
+REQUIRED={"provider_place_id","name","longitude","latitude"}
+def sha256_file(p):
+    h=hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+    return h.hexdigest()
+def resolved(headers): return {k:next((a for a in v if a in headers),None) for k,v in ALIASES.items()}
+def val(row,col):
+    x=row.get(col) if col else None
+    return x.strip() if isinstance(x,str) and x.strip() else None
+def coord(raw,lo,hi):
+    if raw is None:return None,"blank"
+    try:n=float(raw)
+    except ValueError:return None,"invalid"
+    return (n,"ok") if lo<=n<=hi else (None,"invalid")
+def score(c):
+    p=c["payload"]; return sum((p["latitude"] is not None,p["road_address"] is not None,p["address"] is not None,p["region_1"] is not None,p["region_2"] is not None,p["provider_category"] is not None,p["branch_name"] is not None))
+def timestamp(raw):
+    try:t=datetime.fromisoformat(raw.replace("Z","+00:00"))
+    except ValueError as e:raise SystemExit(f"invalid --source-updated-at: {e}")
+    if t.tzinfo is None:raise SystemExit("--source-updated-at must include timezone")
+    t=t.astimezone(timezone.utc)
+    if t>datetime.now(timezone.utc):raise SystemExit("--source-updated-at cannot be in the future")
+    return t
+def header(path,enc):
+    try:
+        with path.open("r",encoding=enc,newline="") as f:return next(csv.reader(f),[])
+    except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {enc}; try --encoding cp949")
 def main():
-    p=argparse.ArgumentParser()
-    p.add_argument("input_csv")
-    p.add_argument("--output", required=True)
-    p.add_argument("--report", required=True)
-    p.add_argument("--encoding", default="utf-8-sig")
-    p.add_argument("--source-updated-at", required=True,
-                   help="ISO-8601 timestamp for the source snapshot")
-    args=p.parse_args()
-    source_ts=datetime.fromisoformat(args.source_updated_at.replace("Z","+00:00"))
-    if source_ts.tzinfo is None: raise SystemExit("--source-updated-at must include timezone")
-
-    inp=Path(args.input_csv)
-    digest=hashlib.sha256(inp.read_bytes()).hexdigest()
-    counts=Counter()
-    ids=Counter()
-    categories=Counter()
-    output=[]
-
-    with inp.open("r",encoding=args.encoding,newline="") as f:
+    a=argparse.ArgumentParser(); a.add_argument("input_csv"); a.add_argument("--output"); a.add_argument("--report"); a.add_argument("--encoding",default="utf-8-sig"); a.add_argument("--source-updated-at"); a.add_argument("--print-header",action="store_true"); a.add_argument("--max-missing-ratio",type=float,default=.2); a.add_argument("--max-duplicate-ratio",type=float,default=0); a.add_argument("--limit",type=int); a.add_argument("--force",action="store_true"); args=a.parse_args()
+    inp=Path(args.input_csv); headers=header(inp,args.encoding)
+    if args.print_header: print(json.dumps(headers,ensure_ascii=False)); return
+    if not args.output or not args.report or not args.source_updated_at:raise SystemExit("--output, --report and --source-updated-at are required")
+    if not 0<=args.max_missing_ratio<=1 or not 0<=args.max_duplicate_ratio<=1:raise SystemExit("ratio thresholds must be between 0 and 1")
+    if args.limit is not None and args.limit<1:raise SystemExit("--limit must be >= 1")
+    for p in map(Path,(args.output,args.report)):
+        if p.exists() and not args.force:raise SystemExit(f"refusing to overwrite {p}; pass --force")
+    ts=timestamp(args.source_updated_at); cols=resolved(headers)
+    missing=sorted(k for k in REQUIRED if not cols[k])
+    if missing:raise SystemExit("missing required SBIZ columns: "+", ".join(missing))
+    counts,ids,cats,churn=Counter(),Counter(),Counter(),{}; winners={}
+    try:
+      with inp.open("r",encoding=args.encoding,newline="") as f:
         reader=csv.DictReader(f)
-        headers=set(reader.fieldnames or [])
-        missing=[name for name,aliases in ALIASES.items()
-                 if name in {"provider_place_id","name","longitude","latitude"}
-                 and not any(a in headers for a in aliases)]
-        if missing:
-            raise SystemExit("missing required SBIZ columns: "+", ".join(missing))
-        for row in reader:
-            counts["rows"]+=1
-            pid=pick(row,ALIASES["provider_place_id"])
-            name=pick(row,ALIASES["name"])
-            if not pid or not name:
-                counts["rejected_missing_identity"]+=1; continue
-            lon=parse_coord(pick(row,ALIASES["longitude"]),-180,180)
-            lat=parse_coord(pick(row,ALIASES["latitude"]),-90,90)
-            if (lon is None) != (lat is None):
-                lon=lat=None
-            if lon is None: counts["missing_coordinates"]+=1
-            road=pick(row,ALIASES["road_address"])
-            addr=pick(row,ALIASES["address"])
-            if not road and not addr: counts["missing_address"]+=1
-            cat=pick(row,ALIASES["provider_category"])
-            if cat: categories[cat]+=1
-            ids[pid]+=1
-            payload={
-                "name":name,
-                "branch_name":pick(row,ALIASES["branch_name"]),
-                "road_address":road,
-                "address":addr,
-                "region_1":pick(row,ALIASES["region_1"]),
-                "region_2":pick(row,ALIASES["region_2"]),
-                "latitude":lat,
-                "longitude":lon,
-                "provider_category":cat,
-                "business_status":"open",
-            }
-            output.append({"place_provider":"sbiz","provider_place_id":pid,
-                           "source_updated_at":source_ts.astimezone(timezone.utc).isoformat(),
-                           "payload":payload})
-            counts["accepted"]+=1
-
-    duplicate_ids=sum(1 for n in ids.values() if n>1)
-    report={
-        "input":inp.name,"sha256":digest,"rows":counts["rows"],
-        "accepted":counts["accepted"],
-        "rejected_missing_identity":counts["rejected_missing_identity"],
-        "missing_address":counts["missing_address"],
-        "missing_coordinates":counts["missing_coordinates"],
-        "duplicate_provider_ids":duplicate_ids,
-        "distinct_provider_categories":len(categories),
-        "top_provider_categories":categories.most_common(20),
-    }
-    Path(args.output).write_text("\n".join(json.dumps(x,ensure_ascii=False) for x in output)+"\n",encoding="utf-8")
+        for idx,row in enumerate(reader,start=2):
+          if args.limit is not None and counts["rows"]>=args.limit:break
+          counts["rows"]+=1
+          if None in row or len(row)!=len(reader.fieldnames or []):counts["malformed_rows"]+=1;continue
+          pid,name=val(row,cols["provider_place_id"]),val(row,cols["name"])
+          if pid:ids[pid]+=1
+          if not pid or not name or len(pid)>200 or len(name)>200:counts["rejected_identity"]+=1;continue
+          rawlon,rawlat=val(row,cols["longitude"]),val(row,cols["latitude"])
+          lon,ls=coord(rawlon,124,132); lat,ts_=coord(rawlat,33,39)
+          if ls=="blank" and ts_=="blank":counts["blank_coordinates"]+=1
+          elif ls!="ok" or ts_!="ok":counts["invalid_coordinates"]+=1;lon=lat=None
+          road,addr=val(row,cols["road_address"]),val(row,cols["address"]); r1,r2=val(row,cols["region_1"]),val(row,cols["region_2"]); cat=val(row,cols["provider_category"])
+          if not road and not addr:counts["missing_address"]+=1
+          if not r1 or not r2:counts["missing_region"]+=1
+          if not cat:counts["missing_category"]+=1
+          else:cats[cat]+=1
+          payload={"name":name,"branch_name":val(row,cols["branch_name"]),"road_address":road,"address":addr,"region_1":r1,"region_2":r2,"latitude":lat,"longitude":lon,"provider_category":cat,"business_status":"open"}
+          cand={"place_provider":"sbiz","provider_place_id":pid,"source_updated_at":ts.isoformat(),"payload":payload,"_row":idx}
+          old=winners.get(pid)
+          if old is None or score(cand)>score(old):winners[pid]=cand
+          if lat is not None and lon is not None:
+            key=(name.casefold().replace(" ",""),round(lat,4),round(lon,4))
+            churn.setdefault(key,set()).add(pid)
+    except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {args.encoding}; try --encoding cp949")
+    dup={k:n for k,n in ids.items() if n>1}; accepted_candidates=counts["rows"]-counts["rejected_identity"]-counts["malformed_rows"]
+    fd,tmp=tempfile.mkstemp(prefix="sbiz-",suffix=".jsonl"); os.close(fd); tmp=Path(tmp)
+    try:
+      with tmp.open("w",encoding="utf-8") as out:
+        for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
+      os.replace(tmp,args.output)
+    finally:
+      if tmp.exists():tmp.unlink()
+    denom=max(1,counts["rows"])
+    report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
     Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-
-if __name__=="__main__": main()
+    ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
+    if max(ratios)>args.max_missing_ratio:raise SystemExit("quality gate failed: missing-field ratio exceeds --max-missing-ratio")
+    if report["duplicate_row_count"]/denom>args.max_duplicate_ratio:raise SystemExit("quality gate failed: duplicate-row ratio exceeds --max-duplicate-ratio")
+if __name__=="__main__":main()
