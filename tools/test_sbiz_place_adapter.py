@@ -1,0 +1,49 @@
+import csv, json, subprocess, tempfile
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]; ADAPTER=ROOT/"tools"/"sbiz_place_adapter.py"
+FIELDS=["상가업소번호","상호명","지점명","도로명주소","지번주소","시도명","시군구명","경도","위도","상권업종소분류명"]
+def write(path,rows,encoding="utf-8-sig",fields=FIELDS):
+    with path.open("w",encoding=encoding,newline="") as f:
+        w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
+def run(src,out,rep,*extra,ok=True):
+    cmd=["python3",str(ADAPTER),str(src),"--output",str(out),"--report",str(rep),"--source-updated-at","2026-09-01T00:00:00Z","--max-duplicate-ratio","1",*extra]
+    r=subprocess.run(cmd,capture_output=True,text=True)
+    assert (r.returncode==0)==ok,(r.stdout,r.stderr);return r
+def base(pid="S1",**kw):
+    r={"상가업소번호":pid,"상호명":"원픽곱창","지점명":"","도로명주소":"서울 강남구 테스트로 1","지번주소":"","시도명":"서울특별시","시군구명":"강남구","경도":"127.01","위도":"37.50","상권업종소분류명":"한식"};r.update(kw);return r
+def main():
+  with tempfile.TemporaryDirectory() as td:
+    d=Path(td);src=d/"s.csv";out=d/"o.jsonl";rep=d/"r.json"
+    write(src,[base(),base(도로명주소="",경도="",위도=""),base(pid="",상호명="없음")])
+    run(src,out,rep,"--max-missing-ratio","1")
+    data=[json.loads(x) for x in out.read_text().splitlines()];r=json.loads(rep.read_text())
+    assert len(data)==1 and data[0]["payload"]["latitude"]==37.5
+    assert r["duplicate_provider_id_count"]==1 and r["duplicate_row_count"]==1 and r["dropped_duplicate_rows"]==1
+    assert "headers" in r and r["resolved_columns"]["provider_category"]=="상권업종소분류명"
+    # Korean bbox: 0,0 is invalid, not blank.
+    out.unlink();rep.unlink();write(src,[base(경도="0",위도="0")]);run(src,out,rep,"--max-missing-ratio","1");assert json.loads(rep.read_text())["invalid_coordinates"]==1
+    # cp949 is supported explicitly.
+    out.unlink();rep.unlink();write(src,[base()],encoding="cp949");run(src,out,rep,"--encoding","cp949")
+    # missing logical required header fails.
+    bad=d/"bad.csv";write(bad,[{k:v for k,v in base().items() if k!="경도"}],fields=[x for x in FIELDS if x!="경도"])
+    subprocess.run(["python3",str(ADAPTER),str(bad),"--print-header"],check=True,capture_output=True,text=True)
+    rr=subprocess.run(["python3",str(ADAPTER),str(bad),"--output",str(d/"x"),"--report",str(d/"y"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
+    # future source timestamp fails.
+    rr=subprocess.run(["python3",str(ADAPTER),str(src),"--output",str(d/"f"),"--report",str(d/"fr"),"--source-updated-at","2099-01-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
+    # Default duplicate gate is strict.\n    dd=d/"dd.csv";write(dd,[base("D1"),base("D1")])\n    rr=subprocess.run(["python3",str(ADAPTER),str(dd),"--output",str(d/"ddo"),"--report",str(d/"ddr"),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True);assert rr.returncode!=0 and "duplicate-row ratio" in rr.stderr\n    # default quality gate rejects missing category/address/region.
+    q=d/"q.csv";write(q,[base(도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명="")])
+    qo=d/"qo";qr=d/"qr";rr=run(q,qo,qr,ok=False);assert "quality gate failed" in rr.stderr and not qo.exists()
+    # Truncated and over-wide rows are both malformed and never staged.
+    malformed=d/"malformed.csv"
+    with malformed.open("w",encoding="utf-8-sig",newline="") as fh:
+        w=csv.writer(fh);w.writerow(FIELDS)
+        good=base("M1");w.writerow([good[k] for k in FIELDS])
+        short=base("M2");w.writerow([short[k] for k in FIELDS[:-2]])
+        wide=base("M3");w.writerow([wide[k] for k in FIELDS]+["EXTRA"])
+    run(malformed,d/"mo",d/"mr","--max-missing-ratio","1")
+    mr=json.loads((d/"mr").read_text());assert mr["malformed_rows"]==2
+    assert [json.loads(x)["provider_place_id"] for x in (d/"mo").read_text().splitlines()]==["M1"]
+    # limit keeps original hash/report but emits only N rows.
+    l=d/"l.csv";write(l,[base("L1"),base("L2")]);run(l,d/"lo",d/"lr","--limit","1");assert len((d/"lo").read_text().splitlines())==1
+    print("sbiz adapter tests: ok")
+if __name__=="__main__":main()

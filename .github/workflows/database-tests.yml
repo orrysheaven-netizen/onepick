@@ -40,6 +40,9 @@ jobs:
           print(f"Checked {len(files)} migrations: all version prefixes are unique.")
           PY
 
+      - name: Test SBIZ place adapter
+        run: python3 tools/test_sbiz_place_adapter.py
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
