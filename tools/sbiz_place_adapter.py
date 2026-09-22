@@ -75,17 +75,18 @@ def main():
             churn.setdefault(key,set()).add(pid)
     except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {args.encoding}; try --encoding cp949")
     dup={k:n for k,n in ids.items() if n>1}; accepted_candidates=counts["rows"]-counts["rejected_identity"]-counts["malformed_rows"]
-    out_path=Path(args.output); out_path.parent.mkdir(parents=True,exist_ok=True)\n    fd,tmp=tempfile.mkstemp(prefix=".sbiz-",suffix=".jsonl",dir=out_path.parent); os.close(fd); tmp=Path(tmp)
+    out_path=Path(args.output); out_path.parent.mkdir(parents=True,exist_ok=True)
+    fd,tmp=tempfile.mkstemp(prefix=".sbiz-",suffix=".jsonl",dir=out_path.parent); os.close(fd); tmp=Path(tmp)
     try:
       with tmp.open("w",encoding="utf-8") as out:
         for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
-      os.replace(tmp,args.output)
+      denom=max(1,counts["rows"])
+      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
+      Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+      ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
+      if max(ratios)>args.max_missing_ratio:raise SystemExit("quality gate failed: missing-field ratio exceeds --max-missing-ratio")
+      if report["duplicate_row_count"]/denom>args.max_duplicate_ratio:raise SystemExit("quality gate failed: duplicate-row ratio exceeds --max-duplicate-ratio")
+      os.replace(tmp,out_path)
     finally:
       if tmp.exists():tmp.unlink()
-    denom=max(1,counts["rows"])
-    report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
-    Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
-    if max(ratios)>args.max_missing_ratio:raise SystemExit("quality gate failed: missing-field ratio exceeds --max-missing-ratio")
-    if report["duplicate_row_count"]/denom>args.max_duplicate_ratio:raise SystemExit("quality gate failed: duplicate-row ratio exceeds --max-duplicate-ratio")
 if __name__=="__main__":main()
