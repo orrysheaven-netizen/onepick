@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 select has_table('public','place_catalog','place_catalog exists');
 select has_table('private','place_import_raw','private staging exists');
