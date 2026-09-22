@@ -115,10 +115,6 @@ as $$
 declare
   v_count integer;
 begin
-  if current_user <> 'service_role' then
-    raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501';
-  end if;
-
   with latest as (
     select distinct on (r.place_provider,r.provider_place_id)
       r.place_provider,
