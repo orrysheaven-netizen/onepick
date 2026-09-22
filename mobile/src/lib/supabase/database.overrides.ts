@@ -1,6 +1,7 @@
 import type { Database, Json } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
+type ItemRow = Database['public']['Tables']['items']['Row'];
 
 export type HomePickFeedRow = {
   pick_id: string;
@@ -16,6 +17,22 @@ export type HomePickFeedRow = {
   image_path: string | null;
   image_source_url: string | null;
   started_at: string;
+};
+
+export type PlaceCatalogSearchRow = {
+  catalog_id: string;
+  place_provider: string;
+  provider_place_id: string;
+  name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  provider_category: string | null;
+  existing_item_id: string | null;
 };
 
 type OnboardingStateRow = {
@@ -174,6 +191,18 @@ export type AppDatabase = Omit<Database, 'public'> & {
       profile_taste_composition: {
         Args: { p_profile_id: string };
         Returns: Json;
+      };
+      category_uses_place_catalog: {
+        Args: { p_category_id: string };
+        Returns: boolean;
+      };
+      search_place_catalog: {
+        Args: { p_category_id: string; p_query: string; p_limit?: number };
+        Returns: PlaceCatalogSearchRow[];
+      };
+      select_place_catalog_item: {
+        Args: { p_category_id: string; p_catalog_id: string };
+        Returns: ItemRow;
       };
     };
   };
