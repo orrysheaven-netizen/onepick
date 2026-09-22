@@ -30,7 +30,7 @@ begin
   insert into auth.users(id,aud,role,created_at,updated_at)
   values(v_user,'authenticated','authenticated',now(),now());
   insert into public.profiles(id,username,onboarding_completed)
-  values(v_user,'place_select_'||v_suffix,true);
+  values(v_user,'pls_'||v_suffix,true);
 
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable,sort_order)
   values(v_group,v_food,'장소 선택 테스트 분류','place-select-group-'||v_suffix,'open',true,false,900);
