@@ -159,8 +159,8 @@ declare
   v_user uuid := auth.uid();
   v_catalog public.place_catalog%rowtype;
   v_place public.places%rowtype;
-  v_match public.places%rowtype;
   v_item public.items%rowtype;
+  v_match_id uuid;
   v_road text;
   v_address text;
   v_normalized text;
@@ -220,7 +220,7 @@ begin
     -- canonical place, reuse one same-provider place only when exact metadata
     -- identifies a single unambiguous candidate. Ambiguous matches remain for
     -- administrator reconciliation instead of silently merging branches.
-    select count(*), min(p.id) into v_match_count, v_match.id
+    select count(*) into v_match_count
     from public.places p
     where p.place_provider=v_catalog.place_provider
       and lower(regexp_replace(btrim(p.name),'[[:space:]]+','','g'))=v_normalized
@@ -237,7 +237,22 @@ begin
     if v_match_count>1 then
       raise exception 'ITEM_NOT_ELIGIBLE' using errcode='P0001';
     elsif v_match_count=1 then
-      select * into v_place from public.places where id=v_match.id for update;
+      select p.id into v_match_id
+      from public.places p
+      where p.place_provider=v_catalog.place_provider
+        and lower(regexp_replace(btrim(p.name),'[[:space:]]+','','g'))=v_normalized
+        and (
+          nullif(btrim(p.road_address),'')=v_road
+          or (v_address is not null and nullif(btrim(p.address),'')=v_address)
+          or (
+            v_catalog.latitude is not null
+            and p.latitude=v_catalog.latitude
+            and p.longitude=v_catalog.longitude
+          )
+        )
+      limit 1;
+
+      select * into v_place from public.places where id=v_match_id for update;
       if not v_place.is_visible then
         raise exception 'ITEM_NOT_ELIGIBLE' using errcode='P0001';
       end if;
