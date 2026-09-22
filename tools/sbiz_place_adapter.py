@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Offline SBIZ CSV validator/normalizer for OnePick place staging."""
-import argparse, csv, hashlib, json, os, tempfile
+import argparse, csv, hashlib, json, os, sqlite3, tempfile
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +46,10 @@ def main():
     ts=timestamp(args.source_updated_at); cols=resolved(headers)
     missing=sorted(k for k in REQUIRED if not cols[k])
     if missing:raise SystemExit("missing required SBIZ columns: "+", ".join(missing))
-    counts,ids,cats,churn=Counter(),Counter(),Counter(),{}; winners={}
+    counts,ids,cats=Counter(),Counter(),Counter(); winners={}
+    churn_db=sqlite3.connect("")
+    churn_db.execute("pragma journal_mode=off"); churn_db.execute("pragma synchronous=off"); churn_db.execute("pragma cache_size=-1024")
+    churn_db.execute("create table churn (name text not null, lat real not null, lon real not null, first_pid text, primary key(name,lat,lon)) without rowid")
     try:
       with inp.open("r",encoding=args.encoding,newline="") as f:
         sentinel=object()
@@ -73,8 +76,15 @@ def main():
           if old is None or score(cand)>score(old):winners[pid]=cand
           if lat is not None and lon is not None:
             key=(name.casefold().replace(" ",""),round(lat,4),round(lon,4))
-            churn.setdefault(key,set()).add(pid)
+            try:churn_db.execute("insert into churn values (?,?,?,?)",(*key,pid))
+            except sqlite3.IntegrityError:
+              first_pid=churn_db.execute("select first_pid from churn where name=? and lat=? and lon=?",key).fetchone()[0]
+              if first_pid is not None and first_pid!=pid:
+                counts["identity_churn_collision_count"]+=1
+                churn_db.execute("update churn set first_pid=null where name=? and lat=? and lon=?",key)
     except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {args.encoding}; try --encoding cp949")
+    finally:
+      churn_db.close()
     dup={k:n for k,n in ids.items() if n>1}; accepted_candidates=counts["rows"]-counts["rejected_identity"]-counts["malformed_rows"]
     out_path=Path(args.output); out_path.parent.mkdir(parents=True,exist_ok=True)
     fd,tmp=tempfile.mkstemp(prefix=".sbiz-",suffix=".jsonl",dir=out_path.parent); os.close(fd); tmp=Path(tmp)
@@ -82,7 +92,7 @@ def main():
       with tmp.open("w",encoding="utf-8") as out:
         for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
       denom=max(1,counts["rows"])
-      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
+      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":counts["identity_churn_collision_count"],"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
       Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
       ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
       if max(ratios)>args.max_missing_ratio:raise SystemExit("quality gate failed: missing-field ratio exceeds --max-missing-ratio")
