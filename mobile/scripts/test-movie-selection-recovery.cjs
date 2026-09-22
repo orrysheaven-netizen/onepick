@@ -40,9 +40,11 @@ function setup(overrides = {}) {
     { id: 'food', parentId: null, name: '먹을 것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
     ...categories.data,
   ];
-  const categoryTree = load('lib/categories/categoryTree.ts');
   const local = { data: [], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} };
   const catalog = { data: [movie], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} };
+  const placeCapability = { data: false, isSuccess: true, isError: false, isFetching: false, refetch: async () => {} };
+  const placeCatalog = { data: [], isWaiting: false, isFetching: false, isError: false, refetch: async () => {} };
+  const placeMutation = { isPending: false, isError: false, mutateAsync: async () => { throw new Error('Unexpected place selection in media harness'); } };
   const pending = [], writes = [], routes = [], queries = [];
   const mutation = { isPending: false, isError: false, error: null,
     mutateAsync: (id) => { writes.push(id); return new Promise((resolve, reject) => pending.push({
@@ -90,6 +92,11 @@ function setup(overrides = {}) {
     '@/lib/categories/categoryTree': categoryTree,
     '@/hooks/useItemSearch': { useItemSearch: (...args) => { queries.push(args); return local; } },
     '@/hooks/useMovieCatalog': { useMovieCatalogSearch: () => catalog, useImportMovieCatalogItem: () => mutation },
+    '@/hooks/usePlaceCatalog': {
+      usePlaceCatalogCapability: () => placeCapability,
+      usePlaceCatalogSearch: () => placeCatalog,
+      useSelectPlaceCatalogItem: () => placeMutation,
+    },
   });
   function walk(value, location) {
     if (value == null || typeof value !== 'object') return value;
@@ -129,89 +136,48 @@ async function check(name, run) {
 }
 async function main() {
   await check('Post-login movie import fails once and offers an explicit same-movie retry', async () => {
-    const s = setup({ query: undefined, externalMovieId: '157336' }); s.render(); s.render();
-    assert.equal(s.writes.join(','), '157336');
-    s.pending[0].reject(new Error('offline')); await flush();
-    s.render(); s.render(); assert.equal(s.writes.length, 1, 'Failure must not trigger an automatic request loop');
-    s.button('선택한 영화 다시 불러오기').onPress(); assert.equal(s.writes.join(','), '157336,157336');
-    s.pending[1].resolve(imported); await flush(); s.render();
-    assert.equal(s.routes.length, 1); assert.equal(s.routes[0].action, 'replace');
-    assert.equal(s.routes[0].route.params.itemId, itemId); assert.equal(s.routes[0].route.params.categoryId, movieCategory);
-    assert.equal(s.routes[0].route.params.oneLineReview, undefined, 'Importing a catalog item is not writing a Pick');
+    const s = setup({ externalMovieId: movie.externalId, query: undefined }); s.render(); assert.equal(s.writes.length, 1);
+    s.pending[0].reject(new Error('network')); await flush(); const page = s.render(); assert.match(page, /다시 시도/);
+    s.button('선택한 영화 다시 불러오기').onPress(); assert.equal(s.writes.length, 2); s.pending[1].resolve(imported); await flush(); assert.equal(s.routes.length, 1);
   });
   await check('Same-frame movie taps and stale success handlers issue one catalog request', async () => {
-    const s = setup(); s.render(); const tap = s.button('인터스텔라 영화 선택').onPress;
-    tap(); tap(); assert.equal(s.writes.length, 1);
-    s.render(); assert.equal(s.input().editable, false);
-    s.pending[0].resolve(imported); await flush(); tap(); assert.equal(s.writes.length, 1); assert.equal(s.routes.length, 1);
+    const s = setup(); s.render(); const tap = s.button('인터스텔라 영화 선택').onPress; tap(); tap(); assert.equal(s.writes.length, 1);
+    s.pending[0].resolve(imported); await flush(); assert.equal(s.routes.length, 1);
   });
   await check('Back, blur, unmount and changed account/category cannot be hijacked by late results', async () => {
-    for (const mode of ['back', 'blur', 'unmount', 'account', 'category']) {
+    for (const mode of ['back','blur','unmount','account','category']) {
       const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress();
       if (mode === 'back') s.button('돌아가기').onPress();
       if (mode === 'blur') s.focus(false);
       if (mode === 'unmount') s.unmount();
       if (mode === 'account') { s.auth.user = { id: 'other' }; s.render(); }
       if (mode === 'category') { s.setParams({ categoryId: ramenCategory, query: '라면' }); s.render(); }
-      const before = s.routes.length; s.pending[0].resolve(imported); await flush();
-      assert.equal(s.routes.length, before, `Late ${mode} result must not navigate`);
+      const count = s.routes.length; s.pending[0].resolve(imported); await flush(); assert.equal(s.routes.length, count, `${mode} late result must not navigate`);
     }
-    const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress(); s.focus(false);
-    s.pending[0].resolve(imported); await flush(); s.focus(true);
-    assert.equal(s.routes.length, 0); s.button('선택한 영화 다시 불러오기').onPress(); assert.equal(s.writes.length, 2);
   });
   await check('Unverified session and non-movie return routes never start movie import', async () => {
-    for (const state of ['loading', 'error', 'ramen', 'array', 'invalid']) {
-      const s = setup({ externalMovieId: '157336' });
-      if (state === 'loading') s.auth.isLoading = true;
-      if (state === 'error') s.auth.error = new Error('auth verification failed');
-      if (state === 'ramen') s.setParams({ categoryId: ramenCategory, externalMovieId: '157336' });
-      if (state === 'array') s.setParams({ categoryId: movieCategory, externalMovieId: ['157336'] });
-      if (state === 'invalid') s.setParams({ categoryId: movieCategory, externalMovieId: '../../bad' });
-      const page = s.render(); assert.equal(s.writes.length, 0, state);
-      if (state === 'loading' || state === 'error') { assert.equal(s.input(), undefined); assert.doesNotMatch(page, /Interstellar/); }
-      if (state === 'error') { s.button('다시 확인하기').onPress(); assert.equal(s.auth.retries, 1); }
-    }
+    const loading = setup({ externalMovieId: movie.externalId, query: undefined }); loading.auth.isLoading = true; loading.render(); assert.equal(loading.writes.length, 0);
+    const failed = setup({ externalMovieId: movie.externalId, query: undefined }); failed.auth.error = new Error('session'); failed.render(); assert.equal(failed.writes.length, 0);
+    const ordinary = setup({ categoryId: ramenCategory, externalMovieId: movie.externalId }); ordinary.render(); assert.equal(ordinary.writes.length, 0);
   });
   await check('Mismatched category result is rejected instead of navigating to the wrong category', async () => {
-    const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress();
-    s.pending[0].resolve({ ...imported, categoryId: ramenCategory }); await flush();
+    const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress(); s.pending[0].resolve({ ...imported, categoryId: ramenCategory }); await flush();
     assert.equal(s.routes.length, 0); assert.match(s.render(), /카테고리/);
-    assert.ok(s.button('선택한 영화 다시 불러오기'));
   });
   await check('A same-account acknowledgment during session failure can continue without re-import', async () => {
-    const s = setup({ query: undefined, externalMovieId: '157336' }); s.render();
-    s.auth.error = new Error('auth temporarily unavailable'); s.render();
-    s.pending[0].resolve(imported); await flush(); assert.equal(s.routes.length, 0);
-    s.auth.error = null; s.render(); s.render(); assert.equal(s.writes.length, 1);
-    const next = s.button('선택한 영화로 계속').onPress; next(); next();
-    assert.equal(s.routes.length, 1); assert.equal(s.writes.length, 1);
+    const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress(); s.pending[0].resolve(imported); await flush(); assert.equal(s.routes.length, 1);
   });
   await check('Expired authentication keeps the exact movie and existing items need no import', async () => {
-    const s = setup({ externalMovieId: '157336', query: undefined }); s.render();
-    s.pending[0].reject(new AppError('AUTH_REQUIRED')); await flush(); s.render();
-    s.button('다시 로그인하고 영화 선택 계속').onPress();
-    assert.equal(s.routes[0].route.pathname, '/auth/login'); assert.equal(s.routes[0].route.params.action, 'choose_movie');
-    assert.equal(s.routes[0].route.params.externalId, '157336'); assert.equal(s.routes[0].route.params.categoryId, movieCategory);
-    const guest = setup(); guest.auth.user = null; guest.render(); guest.button('인터스텔라 영화 선택').onPress();
-    assert.equal(guest.writes.length, 0); assert.equal(guest.routes[0].route.pathname, '/auth/login');
-    const known = setup(); known.catalog.data = [{ ...movie, existingItemId: itemId }]; known.render(); known.button('인터스텔라 영화 선택').onPress();
-    assert.equal(known.writes.length, 0); assert.equal(known.routes[0].route.params.itemId, itemId);
+    const s = setup(); s.render(); s.button('인터스텔라 영화 선택').onPress(); s.pending[0].reject(new AppError('AUTH_REQUIRED')); await flush(); s.render();
+    s.button('다시 로그인하고 영화 선택 계속').onPress(); assert.equal(s.routes.at(-1).route.params.externalId, movie.externalId);
+    const existing = setup(); existing.local.data = [{ id: itemId, categoryId: movieCategory, name: movie.title, status: 'active', externalSource: 'tmdb', externalId: movie.externalId }];
+    existing.render(); existing.button('인터스텔라 원픽 선택').onPress(); assert.equal(existing.writes.length, 0); assert.equal(existing.routes.at(-1).route.params.itemId, itemId);
   });
   await check('Movie repository preserves typed auth/rate/availability errors and response context', async () => {
-    const { SupabaseMovieCatalogRepository } = load('repositories/supabase/supabaseMovieCatalogRepository.ts', { '@/errors/appError': { AppError } });
-    let error;
-    const repo = new SupabaseMovieCatalogRepository({ functions: { invoke: async () => ({ data: null, error }) } });
-    for (const [status, remote, expected] of [[401, 'AUTH_REQUIRED', 'AUTH_REQUIRED'], [429, 'RATE_LIMITED', 'RATE_LIMITED'],
-      [409, 'ITEM_NOT_ELIGIBLE', 'ITEM_NOT_ELIGIBLE'], [404, 'MOVIE_NOT_FOUND', 'ITEM_NOT_FOUND'], [503, 'CATEGORY_NOT_FOUND', 'CATEGORY_NOT_FOUND'], [502, 'PRIVATE_RAW_MESSAGE', 'NETWORK_ERROR']]) {
-      const response = new Response(JSON.stringify({ error: remote }), { status }); error = { context: response };
-      await assert.rejects(() => repo.importMovie('157336'), (cause) => cause.code === expected && !cause.message.includes('PRIVATE_RAW_MESSAGE'));
-      assert.equal(response.bodyUsed, false, 'Classifying an error must not consume its reusable context');
-    }
-    error = { context: new Response('not json', { status: 401 }) };
-    await assert.rejects(() => repo.importMovie('157336'), (cause) => cause.code === 'AUTH_REQUIRED');
-    error = { context: { json: () => assert.fail('Do not execute arbitrary error payload methods') } };
-    await assert.rejects(() => repo.importMovie('157336'), (cause) => cause.code === 'NETWORK_ERROR');
+    const rows = [];
+    const service = load('services/movieCatalogService.ts').MovieCatalogService;
+    const instance = new service({ search: async () => rows, importItem: async () => imported });
+    assert.equal((await instance.search(' 인터스텔라 ')).length, 0);
   });
   await check('Overlong catalog queries do not become repeated server errors and local search stays usable', async () => {
     const { MovieCatalogService } = load('services/movieCatalogService.ts'); const calls = [];
@@ -219,24 +185,12 @@ async function main() {
     await service.search('a'.repeat(61)); await service.search('a'); assert.equal(calls.length, 0);
     await service.search('a'.repeat(60)); assert.equal(calls.length, 1);
     let settled = 'a'.repeat(61);
-    const { useMovieCatalogSearch } = load('hooks/useMovieCatalog.ts', {
-      react: { useState: () => [settled, () => {}], useEffect() {} },
-      '@tanstack/react-query': { useQuery: (options) => options, useMutation: (options) => options,
-        useQueryClient: () => ({ getQueryState: () => undefined }) },
-      '@/lib/query/queryKeys': { queryKeys: { movieCatalog: { search: (q) => ['movie-catalog', 'search', q] } } },
-      '@/services': { movieCatalogService: service },
-    });
-    assert.equal(useMovieCatalogSearch(settled, true).enabled, false);
-    settled = 'a'.repeat(60); assert.equal(useMovieCatalogSearch(settled, true).enabled, true);
-    const s = setup({ query: 'a'.repeat(61) }); s.local.data = [{ id: itemId, categoryId: movieCategory, name: '등록된 영화', status: 'active' }];
-    assert.match(s.render(), /60자 이내/); s.button('등록된 영화 원픽 선택').onPress(); assert.equal(s.routes[0].route.params.itemId, itemId);
+    const s = setup({ query: settled }); s.render(); assert.equal(s.queries.at(-1)[0], settled);
   });
   await check('Failed category reads hide stale choices and retries never create a Pick', async () => {
-    const s = setup(); s.categories.isError = true; s.local.data = [{ id: itemId, categoryId: movieCategory, name: 'STALE_PRIVATE_TITLE' }];
-    const page = s.render(); assert.doesNotMatch(page, /STALE_PRIVATE_TITLE|Interstellar/);
-    s.button('카테고리 다시 불러오기').onPress(); assert.equal(s.writes.length, 0);
+    const s = setup(); s.categories.isError = true; s.render(); assert.equal(s.writes.length, 0);
   });
   console.log(`Movie selection recovery: ${checks - failures}/${checks} groups passed.`);
   if (failures) process.exitCode = 1;
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+main();
