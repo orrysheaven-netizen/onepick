@@ -30,7 +30,16 @@ def main():
     rr=subprocess.run(["python3",str(ADAPTER),str(bad),"--output",str(d/"x"),"--report",str(d/"y"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
     # future source timestamp fails.
     rr=subprocess.run(["python3",str(ADAPTER),str(src),"--output",str(d/"f"),"--report",str(d/"fr"),"--source-updated-at","2099-01-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
-    # Default duplicate gate is strict.\n    dd=d/"dd.csv";write(dd,[base("D1"),base("D1")])\n    rr=subprocess.run(["python3",str(ADAPTER),str(dd),"--output",str(d/"ddo"),"--report",str(d/"ddr"),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True);assert rr.returncode!=0 and "duplicate-row ratio" in rr.stderr\n    # default quality gate rejects missing category/address/region.
+    # Default duplicate gate is strict.
+    dd=d/"dd.csv";write(dd,[base("D1"),base("D1")])
+    ddo=d/"ddo";ddr=d/"ddr"
+    rr=subprocess.run(["python3",str(ADAPTER),str(dd),"--output",str(ddo),"--report",str(ddr),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True)
+    assert rr.returncode!=0 and "duplicate-row ratio" in rr.stderr and not ddo.exists()
+    # Identity churn counts a normalized name/coordinate key once, regardless of later pids.
+    ch=d/"ch.csv";cho=d/"cho";chr_=d/"chr"
+    write(ch,[base("C1"),base("C2"),base("C3")]);run(ch,cho,chr_)
+    assert json.loads(chr_.read_text())["identity_churn_collision_count"]==1
+    # default quality gate rejects missing category/address/region.
     q=d/"q.csv";write(q,[base(도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명="")])
     qo=d/"qo";qr=d/"qr";rr=run(q,qo,qr,ok=False);assert "quality gate failed" in rr.stderr and not qo.exists()
     # Truncated and over-wide rows are both malformed and never staged.
