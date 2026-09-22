@@ -42,7 +42,7 @@ begin
   insert into auth.users(id,aud,role,created_at,updated_at)
   values(v_user,'authenticated','authenticated',now(),now());
   insert into public.profiles(id,username,onboarding_completed)
-  values(v_user,'place_search_'||substr(replace(v_user::text,'-',''),1,8),true);
+  values(v_user,'ps_'||substr(replace(v_user::text,'-',''),1,8),true);
 
   insert into public.categories(id,name,slug,status,is_visible,is_pickable) values
     (v_cat_a,'맛집 검색 A','place-search-a-'||substr(replace(v_cat_a::text,'-',''),1,8),'open',true,true),
@@ -64,8 +64,6 @@ begin
     '한식','open',now()
   );
 
-  -- The normalized name intentionally includes the district token so the search
-  -- contract is proved against the catalog field rather than display-only text.
   update public.place_catalog set normalized_name='원픽식당' where id=v_catalog;
 
   insert into public.place_catalog(
