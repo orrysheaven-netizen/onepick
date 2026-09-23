@@ -1,27 +1,53 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { homeService } from '@/services';
 
+const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
+const HOME_MAX_PAGES = 3;
+
 export function useHomeData(userId?: string, enabled = true) {
-  return useInfiniteQuery({
+  const context = useQuery({
+    enabled,
+    queryKey: [...queryKeys.home.data(userId), 'context'],
+    queryFn: () => homeService.getHomeContext(userId),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+
+  const feed = useInfiniteQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'infinite'],
     initialPageParam: null as ReadCursor | null,
-    queryFn: ({ pageParam }) => homeService.getHomeData(userId, pageParam),
+    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    getPreviousPageParam: () => undefined,
+    maxPages: HOME_MAX_PAGES,
     select: (data) => {
-      const first = data.pages[0];
       const seen = new Set<string>();
       return {
-        ...first,
-        // A Pick can move between pages while the user scrolls; show each once.
         picks: data.pages.flatMap((page) => page.picks).filter((pick) => {
+          // A Pick can move between pages while the user scrolls; show each once.
           if (seen.has(pick.pickId)) return false;
           seen.add(pick.pickId);
           return true;
         }),
+        nextCursor: data.pages.at(-1)?.nextCursor ?? null,
       };
     },
   });
+
+  const data = context.data && feed.data ? { ...context.data, ...feed.data } : undefined;
+  const refetch = (options?: Parameters<typeof feed.refetch>[0]) =>
+    Promise.all([context.refetch(options), feed.refetch(options)]);
+
+  return {
+    ...feed,
+    data,
+    error: context.error ?? feed.error,
+    isError: context.isError || feed.isError,
+    isPending: context.isPending || feed.isPending,
+    isFetching: context.isFetching || feed.isFetching,
+    isRefetching: context.isRefetching || feed.isRefetching,
+    refetch,
+  };
 }

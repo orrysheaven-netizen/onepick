@@ -49,8 +49,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.youtube-catalog]
-# Public channel search; selected-channel import verifies a real user JWT internally.
-verify_jwt = false
+# Search and import require a real user JWT. The handler also applies per-user/IP search quotas.
+verify_jwt = true
 
 
 [functions.pokemon-catalog]
@@ -65,8 +65,14 @@ verify_jwt = false
 # Authenticated users only; the handler validates the caller JWT and item ownership.
 verify_jwt = false
 
+[functions.cleanup-item-photos]
+# Daily maintenance endpoint is public at the gateway, but a DB lease makes it
+# idempotent and it can only remove server-selected stale, unreferenced paths.
+verify_jwt = false
+
 [storage.buckets.item-photos]
 public = true
+file_size_limit = "5MiB"
 allowed_mime_types = ["image/jpeg"]
 
 [functions.sbiz-place-catalog]
