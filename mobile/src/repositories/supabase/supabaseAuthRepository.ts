@@ -74,23 +74,9 @@ export class SupabaseAuthRepository implements AuthRepository {
       return data.user ? mapAuthUser(data.user) : null;
     }
 
-    const accessToken = getUrlParam(url, 'access_token');
-    const refreshToken = getUrlParam(url, 'refresh_token');
-
-    if (!accessToken || !refreshToken) {
-      throw new AppError('AUTH_FAILED');
-    }
-
-    const { data, error } = await this.client.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    if (error) {
-      throw new AppError('AUTH_FAILED', error.message, error);
-    }
-
-    return data.user ? mapAuthUser(data.user) : null;
+    // PKCE callbacks must contain a short-lived authorization code.
+    // URL fragments carrying access/refresh tokens are intentionally rejected.
+    throw new AppError('AUTH_FAILED');
   }
 
   async signInWithProvider(provider: SocialAuthProvider, redirectTo: string) {
