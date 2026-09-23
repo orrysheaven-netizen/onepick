@@ -99,11 +99,18 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
     return null;
   }
   const url = new URL('https://id.twitch.tv/oauth2/token');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('client_secret', clientSecret);
-  url.searchParams.set('grant_type', 'client_credentials');
+  const form = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'client_credentials',
+  });
   try {
-    const response = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(8_000) });
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!response.ok) {
       console.error('IGDB Twitch token request failed', response.status);
       await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'http_error', status: response.status });
@@ -127,7 +134,7 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
     await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'ok' });
     return token;
   } catch (error) {
-    console.error('IGDB Twitch token request error', error instanceof Error ? error.message : 'unknown');
+    console.error('IGDB Twitch token request error', error instanceof Error ? error.name : 'unknown');
     await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'network_error' });
     return null;
   }
@@ -170,7 +177,7 @@ async function requestIgdb(query: string, client: SupabaseClient, forceToken = f
     await writeDiagnostic(client, { stage: 'igdb', outcome: 'ok' });
     return { data } as const;
   } catch (error) {
-    console.error('IGDB request error', error instanceof Error ? error.message : 'unknown');
+    console.error('IGDB request error', error instanceof Error ? error.name : 'unknown');
     await writeDiagnostic(client, { stage: 'igdb', outcome: 'network_error' });
     return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
   }
