@@ -1,11 +1,12 @@
 // Summarizes what real testers hit in the last 24h / 8 days from
 // client_error_events and product_analytics_events (aggregates only).
-// Needs SUPABASE_ACCESS_TOKEN; without it the section says so and exits 0.
+// Needs a separately provisioned least-privilege QA credential. Never fall back
+// to the deployment token; without the QA token this section says so and exits 0.
 import fs from 'node:fs';
 import path from 'node:path';
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'ygoipwzakzdnkaaxyrgb';
-const TOKEN = process.env.SUPABASE_ACCESS_TOKEN?.trim();
+const TOKEN = process.env.SUPABASE_QA_ACCESS_TOKEN?.trim();
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SQL = fs.readFileSync(new URL('./real-user-errors.sql', import.meta.url), 'utf8');
 
@@ -50,7 +51,7 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   let markdown;
   if (!TOKEN) {
-    markdown = '## 실사용자 오류·이벤트\n\n`SUPABASE_ACCESS_TOKEN` 시크릿이 없어 건너뜀.\n';
+    markdown = '## 실사용자 오류·이벤트\n\n`SUPABASE_QA_ACCESS_TOKEN` 시크릿이 없어 건너뜀.\n';
   } else {
     try {
       markdown = toMarkdown(await runQuery());

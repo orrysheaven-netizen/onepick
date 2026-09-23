@@ -7,6 +7,7 @@ on:
       - 'mobile/**'
       # Regression tests in mobile/scripts load Edge Function sources directly.
       - 'supabase/functions/**'
+      - 'tools/qa/**'
       - '.github/workflows/mobile-ci.yml'
   # No path filter on pull_request: these jobs are required status checks on main,
   # and a filtered-out check never reports, which leaves such a PR unmergeable.
@@ -41,4 +42,8 @@ jobs:
         run: npm run typecheck
 
       - name: Regression tests
+        run: npm test
+
+      - name: QA credential regression tests
+        working-directory: tools/qa
         run: npm test

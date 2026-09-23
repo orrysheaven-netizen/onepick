@@ -25,7 +25,9 @@ Claude 클라우드 세션은 네트워크 정책 때문에 `onepick-5cl.pages.d
 
 기준값은 `live-qa.mjs`의 `LIMITS`에서만 조정한다. URL은 쿼리스트링을 지우고 기록한다. 쿼리스트링에 토큰이나 필터가 들어갈 수 있기 때문이다.
 
-`tools/qa/real-user-errors.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다.
+`tools/qa/real-user-errors.mjs`는 `daily-qa` 환경의 별도 `SUPABASE_QA_ACCESS_TOKEN`으로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다. 배포용 `SUPABASE_ACCESS_TOKEN`으로 대체하지 않으며, QA 자격 증명이 없으면 이 집계만 명시적으로 건너뛴다. 공개 웹 측정은 계속 실행한다.
+
+QA 자격 증명은 최소 읽기 권한으로 별도 발급하고, 공급자 권한 설정에서 쓰기·배포가 허용되지 않는지 확인한 뒤 등록한다. 시크릿 이름과 `/query/read-only` 엔드포인트만으로 토큰 권한이 제한되는 것은 아니다. `daily-qa` 환경은 `main` 브랜치만 허용한다. 배포 환경의 설정·이전 절차는 `docs/database-deployment.md`를 따른다.
 
 로컬에서는 다음처럼 실행한다.
 
