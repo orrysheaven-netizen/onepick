@@ -72,6 +72,34 @@ async function main() {
   assert.equal(contextRefetches, 1, 'Manual refresh updates context once, not once per page');
   assert.equal(feedRefetches, 1);
 
+  // Preserve the existing repository cursor/lookahead regression coverage.
+  const { AppError } = load('errors/appError.ts');
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (e) => e } };
+  for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
+    imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
+  }
+  const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
+  let rows = Array.from({ length: 21 }, (_, i) => ({
+    item_id: 'item-'+i, last_picked_at: cursor.timestamp, pick_count: 3,
+    latest_pick_id: i === 0 ? 'pick-0' : null,
+    latest_picker_username: i === 0 ? 'friend' : null,
+    latest_pick_review: i === 0 ? '친구의 선택 이유' : null,
+  }));
+  const repo = new SupabaseReadRepository({ storage: {} }, { rpc: (name, params) => {
+    assert.equal(name, 'home_showcase_page');
+    assert.equal(params.p_before_time, cursor.timestamp); assert.equal(params.p_after_id, cursor.id);
+    return { single: async () => ({ data: { minimum_pick_count: 3, items: rows } }) };
+  } });
+  let page = await repo.getHomeShowcase(cursor);
+  assert.equal(page.items.length, 20);
+  assert.equal(page.nextCursor.id, 'item-19');
+  assert.equal(page.nextCursor.timestamp, cursor.timestamp, 'Preserve microsecond cursor precision');
+  assert.equal(page.items[0].latestPickId, 'pick-0');
+  assert.equal(page.items[0].latestPickerUsername, 'friend');
+  assert.equal(page.items[0].latestPickReview, '친구의 선택 이유');
+  rows = rows.slice(0, 20); page = await repo.getHomeShowcase(cursor);
+  assert.equal(page.nextCursor, null, 'Exact last page does not request another page');
+
   // Feed cards label when a Pick was made, relative to now, in short Korean.
   const { formatRelativeTime } = load('lib/format/relativeTime.ts');
   const now = new Date('2026-09-21T12:00:00+09:00');
