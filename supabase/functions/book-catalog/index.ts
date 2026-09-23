@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createBookCatalogHandler } from './bookCatalog.ts';
+import { guardCatalogSearch } from '../catalogSearchGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,6 +194,12 @@ Deno.serve(async (req: Request) => {
     body = await req.json();
   } catch {
     return json({ error: 'BODY_INVALID' }, 400);
+  }
+  if (body.action === 'search') {
+    const client = adminClient();
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    const limited = await guardCatalogSearch(req, client, 'google_books', json);
+    if (limited) return limited;
   }
   return handler(body, req);
 });
