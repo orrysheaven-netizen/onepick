@@ -44,7 +44,8 @@ async function main() {
   assert.equal(result.picks[1].pick.id, 'older', 'Shared review outside the first page remains reachable');
   assert.equal(result.focusAvailable, true);
   assert.equal(fetchedFocus, 1);
-  result = await service.getItemDetail('item', 'me', 'older', focused);
+  const prefetchedFocused = { ...focused, item, category: { id: 'category' } };
+  result = await service.getItemDetail('item', 'me', 'older', prefetchedFocused);
   assert.equal(result.picks[1].pick.id, 'older', 'A prefetched shared Pick is reused by item detail');
   assert.equal(fetchedFocus, 1, 'A prefetched shared Pick must not be fetched again');
   result = await service.getItemDetail('item', 'me', 'other-0');
