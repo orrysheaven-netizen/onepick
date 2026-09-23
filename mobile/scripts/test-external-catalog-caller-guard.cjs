@@ -13,9 +13,9 @@ const source = fs.readFileSync(
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const exports = {};
+const moduleExports = {};
 vm.runInNewContext(compiled, {
-  exports, Request, TextEncoder, Uint8Array, crypto: webcrypto,
+  exports: moduleExports, Request, TextEncoder, Uint8Array, crypto: webcrypto,
   require: (name) => name === '@supabase/supabase-js' ? {} : require(name),
 });
 
@@ -41,7 +41,7 @@ async function main() {
   });
 
   assert.equal(
-    await exports.reserveExternalCatalogCaller(client,'tmdb',req),
+    await moduleExports.reserveExternalCatalogCaller(client,'tmdb',req),
     true,
   );
   assert.equal(calls[0][0],'reserve_external_catalog_caller');
@@ -66,7 +66,7 @@ async function main() {
     headers: { 'x-forwarded-for': '198.51.100.8, 10.0.0.1' },
   });
   assert.equal(
-    await exports.reserveExternalCatalogCaller(
+    await moduleExports.reserveExternalCatalogCaller(
       anonymousClient,'google_books',anonymousReq
     ),
     true,
@@ -76,7 +76,7 @@ async function main() {
 
   client.rpc = async () => ({ data:false, error:null });
   assert.equal(
-    await exports.reserveExternalCatalogCaller(client,'igdb',req),
+    await moduleExports.reserveExternalCatalogCaller(client,'igdb',req),
     false,
     'over-quota caller is rejected before provider work',
   );
