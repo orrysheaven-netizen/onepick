@@ -21,3 +21,7 @@ Claude Code files a QA report every morning at 07:00 KST as a GitHub issue title
 5. Don't close the report issue yourself. The next morning's run re-measures, marks each item 해결됨 or 미해결, and rolls the leftovers into a new issue.
 
 Full flow and report format: `docs/daily-qa.md`.
+
+## Automation plan (check with the QA report)
+
+Also open the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
