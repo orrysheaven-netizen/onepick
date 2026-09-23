@@ -67,8 +67,9 @@ begin
   reset role;
 
   -- A comment on the viewer's own pick lands in the same inbox, newest first.
-  -- now() is constant inside this transaction, so age the pick-change row explicitly.
-  update public.pick_change_notifications set created_at=now()-interval '1 minute' where pick_id=pick2;
+  -- Age the earlier pick-change notification past the 15-minute dedupe window so
+  -- the later real replacement is eligible to notify again.
+  update public.pick_change_notifications set created_at=now()-interval '16 minutes' where pick_id=pick2;
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   insert into public.picks(id,user_id,category_id,item_id,one_line_review,status,started_at)
     values(own_pick,viewer,cat,product,'Own reason','active',now());
