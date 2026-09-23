@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'supabase/**'
+      - 'tools/deploy/**'
       - '.github/workflows/database-tests.yml'
   # No path filter on pull_request: these jobs are required status checks on main,
   # and a filtered-out check never reports, which leaves such a PR unmergeable.
   pull_request:
+
+permissions:
+  contents: read
 
 concurrency:
   group: database-tests-${{ github.ref }}
@@ -46,13 +50,22 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.117.0
 
       - name: Start local database
         run: supabase db start
 
       - name: Run database tests
         run: supabase test db
+
+      - name: Setup Node for deployment integration tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+
+      - name: Test approval reservation across real DB sessions
+        timeout-minutes: 5
+        run: node tools/deploy/ledger.integration.mjs
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2

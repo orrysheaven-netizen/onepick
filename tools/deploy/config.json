@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "repositoryId": 1371316072,
+  "repository": "orrysheaven-netizen/onepick",
+  "projectRef": "ygoipwzakzdnkaaxyrgb",
+  "environment": "Production",
+  "workflowPath": ".github/workflows/database-deploy.yml",
+  "cliVersion": "2.117.0",
+  "approvalIssueNumber": 225,
+  "automationActorId": null,
+  "approverUserIds": [329510562],
+  "readiness": {
+    "identitySeparated": false,
+    "environmentSecretsOnly": false,
+    "mainProtected": false,
+    "ledgerBootstrapped": false,
+    "exclusiveSchemaControl": false,
+    "disposableApplyVerified": false,
+    "humanFlowVerified": false
+  }
+}
