@@ -7,7 +7,7 @@ const functionsDir = path.join(root, 'supabase', 'functions');
 const config = fs.readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8');
 
 const directories = fs.readdirSync(functionsDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
+  .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
   .map((entry) => entry.name)
   .sort();
 
