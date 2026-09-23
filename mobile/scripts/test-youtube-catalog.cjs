@@ -53,7 +53,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 function setup() {
   const state = {
     rows: [], writes: [], updates: [], upstream: [], cache: new Map(), auth: true, suspended: false,
-    apiKey: 'server-key',
+    searchAllowed: true, searchQuotaCalls: 0, apiKey: 'server-key',
     categories: [
       { id:'youtube',parent_id:'content',slug:'youtube',status:'open',is_visible:true,is_pickable:true },
       { id:'content',parent_id:null,slug:'content',status:'open',is_visible:true,is_pickable:false },
@@ -65,8 +65,12 @@ function setup() {
   const client = {
     auth: { getUser: async () => ({ data:{ user: state.auth ? { id:'user' } : null }, error:null }) },
     rpc: async (name) => {
-      assert.equal(name, 'catalog_user_is_suspended');
-      return { data: state.suspended, error: null };
+      if (name === 'catalog_user_is_suspended') return { data: state.suspended, error: null };
+      if (name === 'consume_youtube_catalog_search') {
+        state.searchQuotaCalls++;
+        return { data: state.searchAllowed, error: null };
+      }
+      throw new Error('Unexpected RPC: ' + name);
     },
     from(table) {
       assert.ok(['categories','items'].includes(table));
@@ -149,7 +153,7 @@ async function main() {
   assert.equal(ranked[0].title,'최재천의 아마존','exact normalized channel title ranks first');
 
   const s=setup();
-  const search=await (await s.request('search',{},false)).json();
+  const search=await (await s.request('search')).json();
   assert.equal(search.channels.length,2);
   assert.equal(s.state.writes.length,0,'search never creates OnePick items');
   assert.equal(s.state.upstream.length,1);
@@ -162,17 +166,35 @@ async function main() {
   assert.equal(searchUrl.searchParams.get('maxResults'),'25');
   assert.equal(searchUrl.searchParams.get('part'),'snippet');
   assert.equal(searchUrl.searchParams.has('statistics'),false);
-  await s.request('search',{},false);
+  await s.request('search');
   assert.equal(s.state.upstream.length,1,'10-minute server cache avoids another search request');
+  assert.equal(s.state.searchQuotaCalls,1,'cache hits do not consume another provider-search quota slot');
+
+  const normalizedCache=setup();
+  await normalizedCache.request('search',{query:'  테스트   채널  '});
+  await normalizedCache.request('search',{query:'테스트 채널'});
+  assert.equal(normalizedCache.state.upstream.length,1,'case/whitespace-equivalent searches share one cache entry');
+
+  const anonymous=setup();
+  const anonymousSearch=await anonymous.request('search');
+  assert.equal(anonymousSearch.status,401,'anonymous YouTube search is rejected');
+  assert.equal(anonymous.state.upstream.length,0,'anonymous search never reaches YouTube');
+
+  const limited=setup();
+  limited.state.searchAllowed=false;
+  const limitedSearch=await limited.request('search',{query:'새 검색어'});
+  assert.equal(limitedSearch.status,429,'exhausted user search quota returns RATE_LIMITED');
+  assert.equal((await limitedSearch.json()).error,'RATE_LIMITED');
+  assert.equal(limited.state.upstream.length,0,'rate-limited search never reaches YouTube');
 
   const direct=setup();
-  await direct.request('search',{query:'@GoogleDevelopers'},false);
+  await direct.request('search',{query:'@GoogleDevelopers'});
   assert.equal(direct.state.upstream[0].pathname,'/youtube/v3/channels');
   assert.equal(direct.state.upstream[0].searchParams.get('forHandle'),'@GoogleDevelopers');
 
   const byVideo=setup();
   const longVideoUrl='https://www.youtube.com/watch?v='+videoId+'&si='+'x'.repeat(140);
-  const videoSearch=await (await byVideo.request('search',{query:longVideoUrl},false)).json();
+  const videoSearch=await (await byVideo.request('search',{query:longVideoUrl})).json();
   assert.equal(videoSearch.channels.length,1);
   assert.equal(videoSearch.channels[0].externalId,channelId);
   assert.equal(byVideo.state.upstream.length,2,'video links resolve through videos.list then channels.list');
@@ -202,7 +224,7 @@ async function main() {
   assert.equal(s.state.rows[0].name,'갱신된 채널');
   assert.ok(Date.now()-Date.parse(s.state.rows[0].external_refreshed_at)<60_000);
 
-  const known=await (await s.request('search',{},false)).json();
+  const known=await (await s.request('search')).json();
   assert.equal(known.channels.find((entry)=>entry.externalId===channelId).existingItemId,saved.itemId);
 
   for(const mode of ['no-auth','expired','suspended','hidden-category','hidden-parent','non-leaf','bad-id','bad-query','no-key']){
