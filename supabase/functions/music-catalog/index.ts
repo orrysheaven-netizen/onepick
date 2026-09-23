@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createMusicCatalogHandler, secureCoverUrl, type CoverLookup } from './musicCatalog.ts';
+import { guardCatalogSearch } from '../catalogSearchGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,5 +119,11 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: 'BODY_INVALID' }, 400); }
+  if (body.action === 'search') {
+    const client = adminClient();
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    const limited = await guardCatalogSearch(req, client, 'musicbrainz', json);
+    if (limited) return limited;
+  }
   return handler(body, req);
 });
