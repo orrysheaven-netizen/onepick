@@ -154,6 +154,14 @@ The pure policy, runtime-boundary and apply-order tests run in Mobile CI using
 `node --test tools/deploy/*.test.mjs`. The private ledger's constraints, role
 access and one-use reservation are covered by
 `supabase/tests/067_database_deployment_approvals.sql` in Database Tests.
+That workflow also runs `node tools/deploy/ledger.integration.mjs` against only
+its disposable local PostgreSQL server at `127.0.0.1:54322`. Separate real
+connections contend on one approval; the test observes a transaction lock,
+then verifies exactly one committed reservation, rejection across plan/target
+changes, persistence after a separate failed transaction, and application-role
+access denial. It removes only its own synthetic fixture. No production token
+or configurable connection URL is accepted. This tests the reservation's
+transaction boundary, not a remote Supabase CLI apply or human identity flow.
 Full disposable-target and human-flow verification remain activation conditions
 in `tools/deploy/config.json`; unit tests must not set those flags automatically.
 

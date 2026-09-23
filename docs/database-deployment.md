@@ -13,6 +13,8 @@ Both DB-access jobs use the existing main-only `Production` environment. All
 jobs check out the event's exact SHA; an approval for an older main is rejected.
 The implementation and its limitations are described in
 `docs/database-deployment-approval-design.md`.
+The account transition and current configuration findings are recorded in
+`docs/database-deployment-activation.md`.
 
 ## Prerequisites before activation
 
@@ -28,6 +30,10 @@ The implementation and its limitations are described in
 3. Require human review of main changes, especially workflows, approval code,
    identities and configuration. No direct main pushes or admin bypass. Verify
    the protection actually applies; an unchecked setting is not evidence.
+   The current required approval count is zero even though the three CI checks
+   and admin enforcement are enabled. Establish a separate PR author and human
+   reviewer before requiring one approval; the owner cannot approve owner-authored
+   PR #245. Do not lock that PR or bypass protection to complete the transition.
 4. Register `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as **environment
    secrets** in `Production` using GitHub's secret UI or a trusted secret manager.
    Verify registration, then remove the repository-scoped copies. GitHub cannot
