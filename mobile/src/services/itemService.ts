@@ -18,7 +18,9 @@ export class ItemService {
   ) {}
 
   async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem) {
-    const cachedFocus = prefetchedFocus?.pick.id === focusPickId && prefetchedFocus.item?.id === itemId
+    const cachedFocus = prefetchedFocus
+      && prefetchedFocus.pick.id === focusPickId
+      && prefetchedFocus.item?.id === itemId
       ? prefetchedFocus
       : undefined;
     // Shared links already fetched the focused Pick. Reuse that item/category when
