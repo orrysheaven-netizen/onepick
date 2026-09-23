@@ -18,10 +18,11 @@ select
   'pickitem'||i,
   'active'
 from generate_series(1,12) i;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','f9400000-0000-4000-8000-000000000002',true);
 insert into public.user_follows(follower_id,followee_id)
 values('f9400000-0000-4000-8000-000000000002','f9400000-0000-4000-8000-000000000001');
 
-set local role authenticated;
 select set_config('request.jwt.claim.sub','f9400000-0000-4000-8000-000000000001',true);
 
 select lives_ok(
