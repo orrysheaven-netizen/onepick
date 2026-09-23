@@ -16,6 +16,12 @@ environment protections. A manual workflow dispatch alone is not an approval.
    a supported protected environment or separately review an equivalent
    approval design before proceeding. Do not make the repository public to
    unlock the feature.
+
+   After the native reviewer setting was rejected, the user selected the
+   separate design in `docs/database-deployment-approval-design.md`. That gate
+   is **not implemented** by this PR. Identity separation, implementation and
+   its acceptance tests are prerequisites; the existing `mode=apply` input is
+   not a replacement for approval.
 3. Register `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as **environment
    secrets** in `Production`. Re-enter the original values directly in GitHub's
    secret UI or use a trusted local secret manager. GitHub cannot return stored
