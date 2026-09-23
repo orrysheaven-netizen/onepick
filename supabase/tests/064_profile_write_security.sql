@@ -14,8 +14,12 @@ select ok(
   'authenticated users retain the intended bio update privilege'
 );
 select ok(
-  has_column_privilege('authenticated','public.profiles','profile_image_url','update'),
-  'authenticated users retain the intended profile-image update privilege'
+  not has_column_privilege('authenticated','public.profiles','profile_image_url','update'),
+  'clients cannot write the dormant public image field'
+);
+select ok(
+  not has_column_privilege('authenticated','public.profiles','profile_image_url','insert'),
+  'clients cannot seed an arbitrary profile image during profile creation'
 );
 select ok(
   not has_column_privilege('authenticated','public.profiles','created_at','update'),
@@ -57,47 +61,29 @@ select throws_ok(
   null,
   'bio longer than 100 characters is rejected by the DB'
 );
-
 select throws_ok(
   $$update public.profiles set profile_image_url='https://tracker.example/pixel.jpg'
     where id='f9700000-0000-4000-8000-000000000001'$$,
-  '23514',
+  '42501',
   null,
-  'arbitrary HTTPS tracking image is rejected'
+  'client cannot PATCH an arbitrary tracking image URL'
 );
-select throws_ok(
-  $$update public.profiles set profile_image_url='http://ygoipwzakzdnkaaxyrgb.supabase.co/storage/v1/object/public/profile-images/f9700000-0000-4000-8000-000000000001/avatar.jpg'
-    where id='f9700000-0000-4000-8000-000000000001'$$,
-  '23514',
-  null,
-  'non-HTTPS profile image URL is rejected'
-);
-select throws_ok(
-  $$update public.profiles set profile_image_url='javascript:alert(1)'
-    where id='f9700000-0000-4000-8000-000000000001'$$,
-  '23514',
-  null,
-  'non-URL script value is rejected'
-);
-select throws_ok(
-  $$update public.profiles set profile_image_url='https://ygoipwzakzdnkaaxyrgb.supabase.co/storage/v1/object/public/profile-images/f9700000-0000-4000-8000-000000000002/avatar.jpg'
-    where id='f9700000-0000-4000-8000-000000000001'$$,
-  '23514',
-  null,
-  'another user storage prefix is rejected'
-);
-select lives_ok(
-  $$update public.profiles set profile_image_url='https://ygoipwzakzdnkaaxyrgb.supabase.co/storage/v1/object/public/profile-images/f9700000-0000-4000-8000-000000000001/avatar.jpg'
-    where id='f9700000-0000-4000-8000-000000000001'$$,
-  'own OnePick Storage profile-image URL is accepted'
-);
-
 select throws_ok(
   $$update public.profiles set created_at=clock_timestamp()
     where id='f9700000-0000-4000-8000-000000000001'$$,
   '42501',
   null,
   'column privileges block direct timestamp rewrites'
+);
+reset role;
+
+set local role service_role;
+select throws_ok(
+  $$update public.profiles set profile_image_url='https://tracker.example/pixel.jpg'
+    where id='f9700000-0000-4000-8000-000000000001'$$,
+  '23514',
+  null,
+  'DB constraint keeps the dormant image field null even for privileged writes'
 );
 reset role;
 
