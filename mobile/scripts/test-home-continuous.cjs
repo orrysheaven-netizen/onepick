@@ -72,6 +72,15 @@ async function main() {
   assert.equal(contextRefetches, 1, 'Manual refresh updates context once, not once per page');
   assert.equal(feedRefetches, 1);
 
+  const contextOnly = useHomeData('me', true, false);
+  assert.equal(contextOptions.enabled, true, 'Following Home still loads shared context');
+  assert.equal(feedOptions.enabled, false, 'Following Home does not load the hidden public feed');
+  assert.equal(contextOnly.data.currentPicks[0], 'current');
+  assert.equal(contextOnly.data.picks.length, 0, 'Disabled public feed never leaks cached rows into following Home');
+  await contextOnly.refetch({ cancelRefetch: false });
+  assert.equal(contextRefetches, 2, 'Following refresh may refresh shared context');
+  assert.equal(feedRefetches, 1, 'Following refresh does not refetch the hidden public feed');
+
   // Preserve the existing repository cursor/lookahead regression coverage.
   const { AppError } = load('errors/appError.ts');
   const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (e) => e } };

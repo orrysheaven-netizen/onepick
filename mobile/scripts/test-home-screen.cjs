@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps, homeDataArgs;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -76,7 +76,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
-  '@/hooks/useHomeData': { useHomeData: () => query },
+  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
@@ -98,7 +98,10 @@ assert.match(followingFirstPage, /팔로잉/);
 assert.match(followingFirstPage, /@friend/, 'Member Home renders the following feed first');
 assert.doesNotMatch(followingFirstPage, /@neighbor/, 'The default following feed does not silently fall back to the public feed');
 assert.doesNotMatch(followingFirstPage, /원픽 더 둘러보기/, 'Public-feed footer is not mixed into the following scope');
+assert.equal(homeDataArgs[2], false, 'Following Home disables only the invisible public feed');
 onepickConstants.OnePickFeatures.follow = false;
+render();
+assert.equal(homeDataArgs[2], true, 'All Home enables the public feed');
 
 for (width of [390, 800, 1200]) {
   const page = render();

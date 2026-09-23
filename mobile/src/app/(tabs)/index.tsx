@@ -41,13 +41,15 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
-  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError);
   // 팔로잉 / 전체: signed-in people start from the social feed. Visitors still
   // see the public feed because showFollowing also requires a session.
   const [feedScope, setFeedScope] = useState<'all' | 'following'>(
     OnePickFeatures.follow ? 'following' : 'all',
   );
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
+  // Keep shared Home context (categories/current Picks) available for search and
+  // badges, but do not download the invisible public feed while following is shown.
+  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError, !showFollowing);
   const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
