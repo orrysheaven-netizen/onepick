@@ -9,20 +9,25 @@ const TOKEN = process.env.SUPABASE_ACCESS_TOKEN?.trim();
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SQL = fs.readFileSync(new URL('./real-user-errors.sql', import.meta.url), 'utf8');
 
+// Read-only endpoint only: never fall back to the read-write query endpoint.
 async function runQuery() {
-  // Prefer the read-only endpoint; the SQL is SELECT-only either way.
-  for (const suffix of ['/read-only', '']) {
-    const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query${suffix}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: SQL }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (res.status === 404 && suffix) continue;
-    if (!res.ok) throw new Error(`Supabase Management API ${res.status}`);
-    return res.json();
-  }
-  throw new Error('Supabase Management API query endpoint not found');
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query/read-only`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: SQL }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Supabase Management API ${res.status}`);
+  return res.json();
+}
+
+// context/error_code/platform are written by signed-in clients, so any tester
+// can put arbitrary text there. This report feeds an automated Claude -> Codex
+// chain; keep only identifier-shaped values so free text can never reach it.
+const SAFE_CELL = /^[A-Za-z0-9_:./-]{1,80}$/;
+function cell(value) {
+  const text = String(value ?? '');
+  return SAFE_CELL.test(text) ? text : '(비정상 값 — 원문 생략)';
 }
 
 function toMarkdown(rows) {
@@ -31,12 +36,12 @@ function toMarkdown(rows) {
   const lines = ['## 실사용자 오류·이벤트 (Supabase, 집계만)', ''];
   lines.push(errors.length
     ? ['| 화면/맥락 | 오류 코드 | 플랫폼 | 24시간 | 8일 |', '| --- | --- | --- | --- | --- |',
-      ...errors.map((r) => `| ${r.name} | ${r.detail} | ${r.platform} | ${r.last_24h} | ${r.last_8d} |`)].join('\n')
+      ...errors.map((r) => `| ${cell(r.name)} | ${cell(r.detail)} | ${cell(r.platform)} | ${Number(r.last_24h)} | ${Number(r.last_8d)} |`)].join('\n')
     : '최근 8일 client_error_events 기록 없음.');
   lines.push('', '### 제품 이벤트 (사용량 참고)', '');
   lines.push(events.length
     ? ['| 이벤트 | 플랫폼 | 24시간 | 8일 |', '| --- | --- | --- | --- |',
-      ...events.map((r) => `| ${r.name} | ${r.platform} | ${r.last_24h} | ${r.last_8d} |`)].join('\n')
+      ...events.map((r) => `| ${cell(r.name)} | ${cell(r.platform)} | ${Number(r.last_24h)} | ${Number(r.last_8d)} |`)].join('\n')
     : '최근 8일 product_analytics_events 기록 없음.');
   return `${lines.join('\n')}\n`;
 }
