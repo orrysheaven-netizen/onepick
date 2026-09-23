@@ -34,6 +34,16 @@ cd tools/qa && npm ci && npx playwright install chromium
 QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/qa-output/
 ```
 
+## 로그인 상태 QA 계정 규칙
+
+결정일: 2026-09-23. 사용자 화면을 로그인 상태로 QA할 때(Actions, Claude, ChatGPT/Codex, 사람 모두) 다음을 지킨다.
+
+- **QA 전용 일반 사용자 계정만 쓴다.** 관리자 계정, 개인 카카오 계정, Supabase service-role·secret key는 사용자 화면 QA에 쓰지 않는다. 관리자 화면 점검이나 DB 검증은 이 QA의 범위가 아니다.
+- **자격 증명은 실행환경 Secret에서만 읽는다.** GitHub Actions는 repository/environment secret, Claude 클라우드 세션은 환경 Secret을 쓴다. 코드, 문서, 워크플로 입력(`workflow_dispatch` inputs), 커밋, `.env` 파일에 넣지 않는다.
+- **어디에도 기록하지 않는다.** 이메일·비밀번호·세션 토큰·쿠키는 콘솔 출력, 로그, `report.md`/`report.json`, 스크린샷, 아티팩트, GitHub 이슈·PR·댓글에 남기지 않는다. 로그인 폼을 입력한 상태나 계정 정보가 보이는 화면은 캡처하지 않고, 필요하면 해당 영역을 가린다. Actions에서는 값을 `::add-mask::`로 가린다.
+- **Secret이 없으면 로그인 측정을 건너뛴다.** 다른 계정으로 대체하지 않고, 리포트에 "로그인 QA 건너뜀: QA 계정 Secret 없음"으로만 적는다.
+- **노출이 의심되면** 해당 로그·아티팩트·이슈 내용을 지우고, 리포트에는 위치만 적고 "QA 계정 비밀번호 교체 필요(사용자 조치)"로 표시한다.
+
 ## Claude 루틴 절차
 
 1. **Actions 결과 확인**: 오늘 06:00 KST 이후 `main`에서 실행된 `Daily QA`를 찾는다(`actions_list`). 없거나 실패했으면 `workflow_dispatch`로 한 번 실행한다. 끝나지 않았으면 몇 분 기다린다. 그래도 결과가 없으면 리포트에 "라이브 측정 없음"과 그 이유를 적는다.
