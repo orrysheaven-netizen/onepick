@@ -1,6 +1,6 @@
 # Database deployment protection
 
-Refs #225 (항목 9). PR #245 implements a separate human approval gate because
+Refs #225 (항목 9). App-authored PR #247 succeeds the closed, unmerged #245 and implements a separate human approval gate because
 GitHub rejected native required environment reviewers on this private repository.
 **Apply is disabled by default.** The reviewed configuration in
 `tools/deploy/config.json` has `enabled: false`, no automation actor ID, and all
@@ -15,6 +15,8 @@ The implementation and its limitations are described in
 `docs/database-deployment-approval-design.md`.
 The account transition and current configuration findings are recorded in
 `docs/database-deployment-activation.md`.
+The plan for preserving unrelated account connections while isolating OnePick
+automation is in `docs/database-deployment-isolation.md`.
 
 ## Prerequisites before activation
 
@@ -23,8 +25,11 @@ The account transition and current configuration findings are recorded in
    workflow gate does not provide native withholding of environment secrets.
 2. Separate the automation identity from the human approver. The current agent
    connection and CLI both use `orrysheaven-netizen`; they cannot independently
-   prove a human approval. Provision a scoped automation identity, remove the
-   human credential from the agent runtime, and record its numeric actor ID in
+   prove a human approval. The scoped App identity is verified, but a separate
+   automation environment and approval-access boundary remain necessary. Preserve
+   existing connections used by other work; do not globally log out or disconnect
+   them. Exclude the human credential and equivalent approval capabilities from
+   the OnePick automation runtime, and record its numeric actor ID in
    reviewed configuration. Both the apply dispatch actor and rerun actor must
    match it. The human must personally post approval from an allowlisted account.
 3. Require human review of main changes, especially workflows, approval code,
@@ -33,7 +38,8 @@ The account transition and current configuration findings are recorded in
    The current required approval count is zero even though the three CI checks
    and admin enforcement are enabled. Establish a separate PR author and human
    reviewer before requiring one approval; the owner cannot approve owner-authored
-   PR #245. Do not lock that PR or bypass protection to complete the transition.
+   PR #245. That PR has been replaced by App-authored #247; user approval of
+   App-authored #246 has verified the review route. Do not bypass protection.
 4. Register `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as **environment
    secrets** in `Production` using GitHub's secret UI or a trusted secret manager.
    Verify registration, then remove the repository-scoped copies. GitHub cannot

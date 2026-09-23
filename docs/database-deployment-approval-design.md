@@ -2,7 +2,7 @@
 
 Status: **implemented, disabled pending external activation prerequisites**. The user selected a
 separate approval design after GitHub rejected native required reviewers on
-this private repository. PR #245 must remain Draft until identity separation,
+this private repository. The App-authored successor PR #247 must remain Draft until identity separation,
 credential migration and the activation tests below are complete. This document does not
 authorize a deployment or replace an approval with a workflow input.
 
@@ -29,15 +29,21 @@ data fetched by a manually dispatched workflow from `main`.
 
 ## Approval identity is a prerequisite
 
-The current agent connection and GitHub CLI act as `orrysheaven-netizen`, the
-same account that would approve. A comment's author cannot prove whether the
+The legacy agent connection and GitHub CLI still have access as `orrysheaven-netizen`,
+the same account that would approve. App-scoped PR and dispatch operations have
+been verified, but they do not remove those legacy capabilities. A comment's author cannot prove whether the
 human or an agent using that account wrote it. Therefore **a same-account
 comment is insufficient as an independent approval gate**.
 
 Before enabling this design, separate the automation identity from the human
 approver. Use a dedicated automation account/GitHub App with scoped permissions
 for code and workflow operations; keep the human approver's credential out of
-the agent runtime. Store approved numeric GitHub user IDs in reviewed main
+the automation runtime. Existing connections used by other work are not to be
+globally disconnected as part of this transition. Follow
+`docs/database-deployment-isolation.md`: a separate runner alone is insufficient
+while an agent can still publish OnePick approvals as the allowlisted human.
+Record the actual credential/access boundary before marking identity separation
+complete. Store approved numeric GitHub user IDs in reviewed main
 configuration and reject bots and the requesting automation identity.
 
 Changes to approval code, approved identities and deployment workflows also
