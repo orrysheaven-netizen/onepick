@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { mapTmdbMovie, normalizeItemName, TMDB_SOURCE, type MovieCatalogEntry } from './movieCatalog.ts';
 import { createDramaHandler } from './dramaCatalog.ts';
+import { guardCatalogSearch } from '../catalogSearchGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -180,11 +181,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return json({ error: 'BODY_INVALID' }, 400);
     body = value as Record<string, unknown>;
   } catch { return json({ error: 'BODY_INVALID' }, 400); }
+  if (body.mediaType !== undefined && body.mediaType !== 'movie' && body.mediaType !== 'tv') {
+    return json({ error: 'MEDIA_TYPE_INVALID' }, 400);
+  }
+  if (body.action === 'search') {
+    const client = adminClient();
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    const limited = await guardCatalogSearch(req, client, TMDB_CACHE_PROVIDER, json);
+    if (limited) return limited;
+  }
   if (body.mediaType === 'tv') {
     try { return await handleDrama(body, req); }
     catch { return json({ error: 'CATALOG_UNAVAILABLE' }, 503); }
   }
-  if (body.mediaType !== undefined && body.mediaType !== 'movie') return json({ error: 'MEDIA_TYPE_INVALID' }, 400);
   if (body.action === 'search') return searchMovies(body.query);
   if (body.action === 'import') return importMovie(body.externalId, req);
   return json({ error: 'ACTION_INVALID' }, 400);
