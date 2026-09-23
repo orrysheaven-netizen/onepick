@@ -49,8 +49,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.youtube-catalog]
-# Public channel search; selected-channel import verifies a real user JWT internally.
-verify_jwt = false
+# Search and import require a real user JWT. The handler also applies per-user/IP search quotas.
+verify_jwt = true
 
 
 [functions.pokemon-catalog]
