@@ -11,6 +11,7 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
+import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -31,6 +32,7 @@ export default function PublicProfileScreen() {
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
+  const isProfileNotFound = query.error instanceof AppError && query.error.code === 'PROFILE_NOT_FOUND';
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -71,8 +73,20 @@ export default function PublicProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요" /></View> : null}
-        {!query.isPending && (query.isError || !query.data) ? <View style={styles.stateArea}>
+        {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard title="프로필을 찾을 수 없어요" text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요." />
+        </View> : null}
+        {!query.isPending && query.isError && !isProfileNotFound ? <View style={styles.stateArea}>
+          <StateCard
+            tone="danger"
+            title="프로필을 불러오지 못했어요"
+            text="연결 상태를 확인한 뒤 다시 시도해주세요."
+            action={{
+              label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기',
+              disabled: query.isFetching,
+              onPress: () => { if (!query.isFetching) void query.refetch(); },
+            }}
+          />
         </View> : null}
         {query.data ? <>
           <View style={styles.header}>
