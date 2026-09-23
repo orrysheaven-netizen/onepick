@@ -17,7 +17,7 @@ select
   'Pick item '||i,
   'pickitem'||i,
   'active'
-from generate_series(1,11) i;
+from generate_series(1,12) i;
 insert into public.user_follows(follower_id,followee_id)
 values('f9400000-0000-4000-8000-000000000002','f9400000-0000-4000-8000-000000000001');
 
@@ -26,32 +26,52 @@ select set_config('request.jwt.claim.sub','f9400000-0000-4000-8000-000000000001'
 
 select lives_ok(
   $sql$
+  select public.change_pick(
+    'f9410000-0000-4000-8000-000000000001',
+    'f9420000-0000-4000-8000-000000000001',
+    'Initial Pick'
+  )
+  $sql$,
+  'initial Pick remains free for onboarding'
+);
+
+select ok(
+  not exists(
+    select 1 from private.community_write_limits
+    where user_id='f9400000-0000-4000-8000-000000000001'
+      and action='pick'
+  ),
+  'initial Pick does not consume replacement quota'
+);
+
+select lives_ok(
+  $sql$
   do $block$
   declare i integer;
   begin
-    for i in 1..10 loop
+    for i in 2..11 loop
       perform public.change_pick(
         'f9410000-0000-4000-8000-000000000001',
         ('f9420000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
-        'Pick review '||i
+        'Replacement '||i
       );
     end loop;
   end
   $block$
   $sql$,
-  'ten Pick changes per ten-minute window are allowed'
+  'ten replacements per hour are allowed'
 );
 
 select throws_ok(
   $sql$
   select public.change_pick(
     'f9410000-0000-4000-8000-000000000001',
-    'f9420000-0000-4000-8000-000000000011',
+    'f9420000-0000-4000-8000-000000000012',
     'Over quota'
   )
   $sql$,
   'P0001','RATE_LIMITED',
-  'eleventh Pick change is rejected'
+  'eleventh replacement in one hour is rejected'
 );
 reset role;
 
@@ -69,10 +89,10 @@ select is(
 );
 
 update private.community_write_limits
-set window_start=clock_timestamp()-interval '11 minutes'
+set window_start=clock_timestamp()-interval '61 minutes'
 where user_id='f9400000-0000-4000-8000-000000000001' and action='pick';
 update public.pick_change_notifications
-set created_at=clock_timestamp()-interval '11 minutes'
+set created_at=clock_timestamp()-interval '16 minutes'
 where recipient_id='f9400000-0000-4000-8000-000000000002';
 
 set local role authenticated;
@@ -81,11 +101,11 @@ select lives_ok(
   $sql$
   select public.change_pick(
     'f9410000-0000-4000-8000-000000000001',
-    'f9420000-0000-4000-8000-000000000011',
+    'f9420000-0000-4000-8000-000000000012',
     'Window reset'
   )
   $sql$,
-  'Pick quota resets after ten minutes'
+  'Pick replacement quota resets after one hour'
 );
 reset role;
 
@@ -93,7 +113,7 @@ select is(
   (select count(*)::integer from public.pick_change_notifications
    where recipient_id='f9400000-0000-4000-8000-000000000002'),
   2,
-  'a later category change can notify the follower again'
+  'a later same-category change can notify the follower again after the dedupe window'
 );
 select ok(
   not has_function_privilege('authenticated','private.limit_pick_change()','execute'),
