@@ -112,17 +112,28 @@ grant execute on function public.claim_item_photo_cleanup() to service_role;
 grant execute on function public.stale_item_photo_paths(integer) to service_role;
 
 create extension if not exists pg_net with schema extensions;
-create extension if not exists pg_cron;
 
-select cron.schedule(
-  'onepick-item-photo-cleanup',
-  '29 4 * * *',
-  $cron$
-    select net.http_post(
-      url:='https://ygoipwzakzdnkaaxyrgb.supabase.co/functions/v1/cleanup-item-photos',
-      headers:='{"Content-Type":"application/json"}'::jsonb,
-      body:='{}'::jsonb,
-      timeout_milliseconds:=10000
-    );
-  $cron$
-);
+-- Hosted OnePick already has pg_cron enabled. Local Supabase test images may
+-- pre-create cron objects/privileges in a way that makes CREATE EXTENSION fail,
+-- so do not attempt to install or relocate pg_cron from this feature migration.
+-- Schedule only when cron.schedule is available.
+do $do$
+begin
+  if to_regprocedure('cron.schedule(text,text,text)') is not null then
+    execute $sql$
+      select cron.schedule(
+        'onepick-item-photo-cleanup',
+        '29 4 * * *',
+        $cron$
+          select net.http_post(
+            url:='https://ygoipwzakzdnkaaxyrgb.supabase.co/functions/v1/cleanup-item-photos',
+            headers:='{"Content-Type":"application/json"}'::jsonb,
+            body:='{}'::jsonb,
+            timeout_milliseconds:=10000
+          );
+        $cron$
+      )
+    $sql$;
+  end if;
+end
+$do$;
