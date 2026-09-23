@@ -7,13 +7,14 @@ const functionsDir = path.join(root, 'supabase', 'functions');
 const config = fs.readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8');
 
 const directories = fs.readdirSync(functionsDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
+  .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
   .map((entry) => entry.name)
   .sort();
 
 const expected = new Map([
   ['analyze-profile-taste', false],
   ['book-catalog', false],
+  ['cleanup-item-photos', false],
   ['delete-account', false],
   ['game-catalog', false],
   ['import-item-image', true],
@@ -42,4 +43,13 @@ for (const [name, verifyJwt] of expected) {
 assert.doesNotMatch(config, /\[functions\.import-product-image\]/,
   'Legacy image-import function name must not return');
 
-console.log('Edge Function config checks passed: every function has an explicit, reviewed verify_jwt mode.');
+const photoBucketStart = config.indexOf('[storage.buckets.item-photos]');
+assert.notEqual(photoBucketStart, -1, 'item-photos bucket config must exist');
+const photoBucketNext = config.indexOf('\n[', photoBucketStart + 1);
+const photoBucket = config.slice(photoBucketStart, photoBucketNext === -1 ? config.length : photoBucketNext);
+assert.match(photoBucket, /file_size_limit\s*=\s*"5MiB"/,
+  'public item photos must have a five-MiB bucket-level upload ceiling');
+assert.match(photoBucket, /allowed_mime_types\s*=\s*\["image\/jpeg"\]/,
+  'item photos remain restricted to declared JPEG uploads');
+
+console.log('Edge Function config checks passed: every function has an explicit auth mode and item photos have bounded uploads.');

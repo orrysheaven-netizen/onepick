@@ -1,0 +1,84 @@
+name: Daily QA
+
+# Collects the data for the daily Claude QA report (docs/daily-qa.md).
+# Runs at 06:00 KST so results are ready before the 07:00 KST Claude routine.
+# Not a required check and never runs on pull requests.
+on:
+  schedule:
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Site to test (default: tester site)'
+        required: false
+        default: 'https://onepick-5cl.pages.dev'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-qa
+  cancel-in-progress: false
+
+jobs:
+  live-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+
+      - name: Install Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run live QA
+        env:
+          QA_BASE_URL: ${{ inputs.base_url || 'https://onepick-5cl.pages.dev' }}
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+        run: node live-qa.mjs
+
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-qa-live-web
+          path: qa-output
+          retention-days: 14
+
+  real-user-errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Summarize real-user errors
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+        run: node tools/qa/real-user-errors.mjs
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-qa-real-user-errors
+          path: qa-output
+          retention-days: 14
