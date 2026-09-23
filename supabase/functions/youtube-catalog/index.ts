@@ -77,7 +77,7 @@ async function fetchYouTube(url: URL) {
     if (client) await writeDiagnostic(client, { stage: 'youtube', outcome: 'ok' });
     return { data } as const;
   } catch (error) {
-    console.error('YouTube Data API request error', error instanceof Error ? error.message : 'unknown');
+    console.error('YouTube Data API request error', error instanceof Error ? error.name : 'unknown');
     if (client) await writeDiagnostic(client, { stage: 'youtube', outcome: 'network_error' });
     return { error: json({ error: 'CATALOG_UNAVAILABLE' }, 502) } as const;
   }

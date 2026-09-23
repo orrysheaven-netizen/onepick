@@ -14,6 +14,7 @@ export const supabase = createClient<AppDatabase>(url, publishableKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
   },
 });
 
