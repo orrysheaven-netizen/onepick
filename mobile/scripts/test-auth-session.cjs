@@ -94,7 +94,7 @@ async function main() {
 
   const { AppError } = loadSource('errors/appError.ts');
   let sessionResult = { data: { session: null }, error: { message: 'storage failed' } }, signOutOptions, oauthOptions;
-  let browserCalls = 0, sessionCalls = 0, oauthError = null;
+  let browserCalls = 0, exchangeCalls = 0, setSessionCalls = 0, oauthError = null;
   const platform = { OS: 'ios' };
   const { SupabaseAuthRepository } = loadSource('repositories/supabase/supabaseAuthRepository.ts', {
     'expo-web-browser': { openAuthSessionAsync: async () => { browserCalls++; return { type: 'cancel' }; } },
@@ -105,7 +105,11 @@ async function main() {
     getSession: async () => sessionResult,
     signOut: async (options) => { signOutOptions = options; return { error: null }; },
     signInWithOAuth: async (options) => { oauthOptions = options; return { data: { url: 'https://example.com/auth' }, error: oauthError }; },
-    setSession: async () => { sessionCalls++; return { data: { user: { id: 'signed-in', email: null } }, error: null }; },
+    exchangeCodeForSession: async (code) => {
+      exchangeCalls++;
+      return { data: { user: { id: code === 'pkce-code' ? 'signed-in' : 'unexpected', email: null } }, error: null };
+    },
+    setSession: async () => { setSessionCalls++; return { data: { user: { id: 'should-not-sign-in', email: null } }, error: null }; },
   } });
   await assert.rejects(() => repository.getCurrentUser(), (error) => error.code === 'AUTH_FAILED');
   sessionResult = { data: { session: null }, error: null };
@@ -138,11 +142,17 @@ async function main() {
   assert.equal(oauthOptions.options.redirectTo, callback);
   assert.equal(oauthOptions.options.skipBrowserRedirect, false, 'Web lets Supabase navigate in the current tab');
   assert.equal(browserCalls, 4, 'Web never opens an authentication popup');
-  const completed = await repository.completeOAuthFromUrl(callback + '#access_token=test-access&refresh_token=test-refresh');
+  await assert.rejects(
+    () => repository.completeOAuthFromUrl(callback + '#access_token=test-access&refresh_token=test-refresh'),
+    (error) => error.code === 'AUTH_FAILED',
+    'Token-bearing callback fragments must never establish a session',
+  );
+  assert.equal(setSessionCalls, 0, 'OAuth completion never calls setSession with URL tokens');
+  const completed = await repository.completeOAuthFromUrl(callback + '&code=pkce-code');
   assert.equal(completed.id, 'signed-in');
-  assert.equal(sessionCalls, 1, 'The web callback completes the session');
+  assert.equal(exchangeCalls, 1, 'PKCE callback code is exchanged exactly once');
   await assert.rejects(() => repository.completeOAuthFromUrl(callback + '&error=access_denied'), (error) => error.code === 'AUTH_FAILED');
-  assert.equal(sessionCalls, 1, 'Provider rejection must not establish a session');
+  assert.equal(setSessionCalls, 0, 'Provider rejection must not establish a session');
   oauthError = { message: 'unavailable' };
   await assert.rejects(() => repository.signInWithKakao(callback), (error) => error.code === 'AUTH_FAILED');
   assert.equal(browserCalls, 4);
