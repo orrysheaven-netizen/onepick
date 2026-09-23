@@ -11,6 +11,10 @@ on:
   # No path filter on pull_request: these jobs are required status checks on main,
   # and a filtered-out check never reports, which leaves such a PR unmergeable.
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: mobile-ci-${{ github.ref }}
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
