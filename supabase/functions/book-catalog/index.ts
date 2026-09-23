@@ -160,7 +160,7 @@ async function fetchGoogleBooks(url: URL, client: SupabaseClient) {
       }
       console.error(
         'Google Books request error',
-        error instanceof Error ? error.message : 'unknown',
+        error instanceof Error ? error.name : 'unknown',
       );
       await writeDiagnostic(client, {
         stage: 'google_books',
