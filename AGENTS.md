@@ -22,6 +22,10 @@ Claude Code files a QA report every morning at 07:00 KST as a GitHub issue title
 
 Full flow and report format: `docs/daily-qa.md`.
 
+## QA accounts
+
+User-facing QA uses only the dedicated QA general-user account. Never use an admin account, a personal Kakao account, or a Supabase service-role/secret key for it. Read login credentials only from the execution environment's secrets, and never write them to output, logs, screenshots, GitHub issues or PRs. See "로그인 상태 QA 계정 규칙" in `docs/daily-qa.md`.
+
 ## Automation plan (check with the QA report)
 
 Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Anything labeled `security-urgent` comes first, and security Medium and above come before new features. Then check the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
