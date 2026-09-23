@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
+import { useCategoryTopItems, useExploreCategories, useSeasonalCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -22,6 +22,7 @@ export default function ExploreScreen() {
   const [childId, setChildId] = useState<string | undefined>();
   const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
   const categories = useExploreCategories();
+  const seasonal = useSeasonalCategories();
   const categoryCatalog = categories.data ?? [];
   const groups = useMemo(() => browseCategoryGroups(categoryCatalog), [categoryCatalog]);
   const group = groups.find((entry) => entry.category.id === parentId);
@@ -60,14 +61,22 @@ export default function ExploreScreen() {
 
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
+    if (!seasonal.isFetching) void seasonal.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
+  };
+  const selectCategory = (categoryId: string) => {
+    const nextGroup = groups.find((entry) =>
+      entry.category.id === categoryId || entry.children.some((child) => child.id === categoryId));
+    if (!nextGroup) return;
+    setParentId(nextGroup.category.id);
+    setChildId(nextGroup.category.id === categoryId ? undefined : categoryId);
   };
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || seasonal.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>카테고리 탐색</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
@@ -103,6 +112,21 @@ export default function ExploreScreen() {
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
             onSelect={openItem} />
+        </View> : null}
+        {seasonal.data?.length ? <View style={styles.seasonalSection}>
+          <View style={styles.seasonalHeader}>
+            <View>
+              <Text style={styles.seasonalTitle}>제철 원픽</Text>
+              <Text style={styles.seasonalSubtitle}>지금 시즌에 맞고, 선택할 데이터가 쌓인 세부 카테고리예요.</Text>
+            </View>
+          </View>
+          <View style={styles.seasonalList}>
+            {seasonal.data.map((entry) => <Chip key={entry.categoryId}
+              label={entry.categoryName + ' · ' + entry.seasonLabel}
+              accessibilityLabel={entry.categoryName + ' ' + entry.seasonLabel + ' 카테고리 보기'}
+              selected={selectedCategoryId === entry.categoryId}
+              onPress={() => selectCategory(entry.categoryId)} />)}
+          </View>
         </View> : null}
         <Text style={styles.levelTitle}>상위 카테고리</Text>
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
@@ -178,6 +202,11 @@ const styles = StyleSheet.create({
   searchScope: { fontSize: 12, color: OnePick.muted },
   searchHint: { color: OnePick.muted, fontSize: 11, lineHeight: 17 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  seasonalSection: { marginTop: 24, padding: 16, borderRadius: 18, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
+  seasonalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  seasonalTitle: { color: OnePick.text, fontSize: 16, fontWeight: '900' },
+  seasonalSubtitle: { color: OnePick.muted, fontSize: 11, lineHeight: 17, marginTop: 4 },
+  seasonalList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   levelTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800', marginTop: 28, marginBottom: 10 },
   parentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 5 },
   childPanel: { padding: 16, marginTop: 18, borderRadius: 18, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
