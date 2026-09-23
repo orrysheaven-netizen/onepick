@@ -36,6 +36,8 @@ select lives_ok(
   'initial Pick remains free for onboarding'
 );
 
+reset role;
+
 select ok(
   not exists(
     select 1 from private.community_write_limits
@@ -44,6 +46,9 @@ select ok(
   ),
   'initial Pick does not consume replacement quota'
 );
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','f9400000-0000-4000-8000-000000000001',true);
 
 select lives_ok(
   $sql$
