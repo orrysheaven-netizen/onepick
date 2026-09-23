@@ -79,7 +79,7 @@ function choice() {
   const mutation = { isPending: false, isError: false, mutateAsync: (p) => { writes.push(p); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
   const view = harness('app/pick/choose.tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => destinations.push(r), replace: (r) => destinations.push(r), canGoBack: () => true, back() {} }) },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation },
   });
   const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('내 원픽으로 선택').onPress(); };
@@ -169,7 +169,7 @@ async function main() {
     picks: [{ pick: { id: pickId }, profile: null }], myPickStatus: { type: 'not_selected' }, canChoose: true }, photoCredit: credit };
   const view = harness('app/item/[itemId].tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => routes.push(r), replace() {}, canGoBack: () => true, back() {} }) },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => ({}), useAttachItemPhoto: () => ({}) },
   });
   assert.match(view.render(), /사진 등록 · @photo_owner/);
