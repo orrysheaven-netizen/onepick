@@ -4,18 +4,25 @@ on:
   push:
     branches: [main]
     paths:
-      - "supabase/migrations/**"
-      - ".github/workflows/database-deploy.yml"
+      - 'supabase/migrations/**'
+      - 'tools/deploy/**'
+      - '.github/workflows/database-deploy.yml'
   workflow_dispatch:
     inputs:
       mode:
-        description: "Choose dry-run first. Apply only after reviewing the migration list."
+        description: 'Create a plan first; apply requires separate human approval.'
         required: true
         default: dry-run
         type: choice
         options:
           - dry-run
           - apply
+      preview_run_id:
+        description: 'Apply only: successful preview run ID'
+        type: string
+      approval_comment_id:
+        description: 'Apply only: human approval comment ID in the configured issue'
+        type: string
 
 permissions:
   contents: read
@@ -25,104 +32,98 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main'
+  plan:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.mode == 'dry-run')
     runs-on: ubuntu-latest
-    # Both preview and apply use deployment credentials. Configure main-only
-    # branches, required reviewers and environment-only secrets before enabling
-    # this workflow; see docs/database-deployment.md.
+    timeout-minutes: 15
+    # Preview needs DB credentials too. Environment secrets must be main-only.
     environment: Production
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
-
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout the workflow commit
         uses: actions/checkout@v4
         with:
-          # A queued approval must not silently deploy a newer main commit.
           ref: ${{ github.sha }}
           persist-credentials: false
-
-      - name: Require deployment secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
-          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
-
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.117.0
+      - name: Build and verify immutable migration plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node tools/deploy/runtime.mjs plan
+      - name: Upload plan data
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-deployment-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/db-deployment-plan/plan.json
+          retention-days: 2
+          if-no-files-found: error
 
-      - name: Link onepick-dev
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+  verify:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # No environment or DB secrets. A failed check prevents the apply job.
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    steps:
+      - name: Checkout the workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+      - name: Verify independent approval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
+          APPROVAL_COMMENT_ID: ${{ inputs.approval_comment_id }}
+        run: node tools/deploy/runtime.mjs verify
 
-      - name: Show migration status before deploy
-        run: supabase migration list --linked
-
-      - name: Preview pending migrations
-        id: preview
-        shell: bash
-        run: |
-          set -euo pipefail
-          log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
-
-          if grep -q '^Would push these migrations:' "$log_file"; then
-            echo "pending=true" >> "$GITHUB_OUTPUT"
-            {
-              echo "### Database drift detected"
-              echo
-              echo "GitHub main contains migrations that are not yet applied to the linked Supabase project."
-              echo 'Review the preview above, then run this workflow manually with `mode=apply`.'
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "pending=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "### Database is synchronized"
-              echo
-              echo "No pending migrations were found."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Fail visible drift check
-        if: steps.preview.outputs.pending == 'true' && (github.event_name != 'workflow_dispatch' || inputs.mode != 'apply')
-        shell: bash
-        run: |
-          echo "::error::Pending Supabase migrations detected. Review the dry-run output, then rerun Deploy Database Migrations with mode=apply."
-          exit 1
-
-      - name: Apply pending migrations
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase db push --linked --include-all
-
-      - name: Show migration status after deploy
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase migration list --linked
-
-      - name: Verify no pending migrations remain
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        shell: bash
-        run: |
-          set -euo pipefail
-          log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
-
-          if grep -q '^Would push these migrations:' "$log_file"; then
-            echo "::error::Database apply completed, but pending migrations still remain."
-            {
-              echo "### Database apply verification failed"
-              echo
-              echo "Pending migrations still remain after apply. Inspect the workflow log before continuing."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-
-          {
-            echo "### Database apply verified"
-            echo
-            echo "Local migration history and the linked Supabase project are synchronized."
-          } >> "$GITHUB_STEP_SUMMARY"
+  apply:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: Production
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    steps:
+      - name: Checkout the approved workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: Recheck, consume approval, apply and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
+          APPROVAL_COMMENT_ID: ${{ inputs.approval_comment_id }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node tools/deploy/runtime.mjs apply

@@ -1,22 +1,22 @@
 # DB deployment approval without native environment reviewers
 
-Status: **proposed design, not implemented or enabled**. The user selected a
+Status: **implemented, disabled pending external activation prerequisites**. The user selected a
 separate approval design after GitHub rejected native required reviewers on
-this private repository. PR #245 must remain Draft until the approval gate,
-credential migration and the tests below are complete. This document does not
+this private repository. PR #245 must remain Draft until identity separation,
+credential migration and the activation tests below are complete. This document does not
 authorize a deployment or replace an approval with a workflow input.
 
 ## Operator flow
 
 1. A `main` preview produces an immutable deployment plan: exact commit,
    Supabase project, ordered pending migrations, file hashes and the observed
-   remote migration history. Its Actions summary links the plan artifact and
+   remote migration history. Its Actions run contains the plan artifact and
    shows a generated, single-line approval statement.
 2. The designated human reviews that plan and personally posts the exact
    statement in the repository's designated DB approval issue. Neither an
    agent nor a workflow may generate an approval comment on the human's behalf.
    Preparing the statement as data is allowed; publishing approval is not.
-3. An operator starts apply with only the preview run ID and approval comment
+3. The separate automation identity starts apply with only the preview run ID and approval comment
    ID. A job without database credentials checks the evidence. Invalid or
    missing evidence stops the run before the deployment job starts.
 4. The `Production` job rechecks the evidence and the live pending plan,
@@ -72,9 +72,8 @@ text, issue titles or artifact strings into shell code.
 
 ## Verification and replay protection
 
-- Introduce a dedicated successful `plan` job/artifact. The current workflow
-  deliberately fails its drift check when changes are pending, so arbitrary
-  failed preview runs must not qualify as approval evidence.
+- A dedicated successful `plan` job/artifact replaces the previous deliberately
+  failing drift check. Arbitrary failed preview runs do not qualify as evidence.
 - Accept only a successful plan from the configured workflow in this
   repository, triggered on `main` by push or manual dispatch. The run attempt
   and artifact must be the exact approved ones. Reject PR/fork artifacts,
@@ -150,6 +149,13 @@ also needs its own proven least-privilege credential. No stored secret values
 can be recovered through GitHub's secrets API.
 
 ## Implementation acceptance tests
+
+The pure policy, runtime-boundary and apply-order tests run in Mobile CI using
+`node --test tools/deploy/*.test.mjs`. The private ledger's constraints, role
+access and one-use reservation are covered by
+`supabase/tests/067_database_deployment_approvals.sql` in Database Tests.
+Full disposable-target and human-flow verification remain activation conditions
+in `tools/deploy/config.json`; unit tests must not set those flags automatically.
 
 1. A fresh approval for the exact plan passes; no approval stops before any
    database-secret job starts.

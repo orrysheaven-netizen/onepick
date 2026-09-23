@@ -1,69 +1,92 @@
 # Database deployment protection
 
-Refs #225 (항목 9). `Deploy Database Migrations` deploys only from `main` and
-binds both dry-run and apply to the existing `Production` environment. Both
-modes currently use the same write-capable credentials, so both need the
-environment protections. A manual workflow dispatch alone is not an approval.
+Refs #225 (항목 9). PR #245 implements a separate human approval gate because
+GitHub rejected native required environment reviewers on this private repository.
+**Apply is disabled by default.** The reviewed configuration in
+`tools/deploy/config.json` has `enabled: false`, no automation actor ID, and all
+readiness conditions false. Do not enable it merely to make a workflow pass.
 
-## Required configuration before merging or applying
+`Deploy Database Migrations` has three jobs: `plan` creates a successful immutable
+preview artifact, `verify` checks approval without DB secrets, and dependent
+`apply` rechecks the evidence and live DB state before consuming the approval.
+Both DB-access jobs use the existing main-only `Production` environment. All
+jobs check out the event's exact SHA; an approval for an older main is rejected.
+The implementation and its limitations are described in
+`docs/database-deployment-approval-design.md`.
 
-1. In repository **Settings → Environments → Production**, allow only the
-   `main` branch (selected branches, type **branch**, not tags).
-2. Configure required deployment reviewers. Confirm that a run waits for
-   approval before any job step can access secrets. Do not bypass this gate.
-   GitHub limits required reviewers on private repositories by plan; if the
-   setting is rejected, keep this change in Draft and do not run apply. Choose
-   a supported protected environment or separately review an equivalent
-   approval design before proceeding. Do not make the repository public to
-   unlock the feature.
+## Prerequisites before activation
 
-   After the native reviewer setting was rejected, the user selected the
-   separate design in `docs/database-deployment-approval-design.md`. That gate
-   is **not implemented** by this PR. Identity separation, implementation and
-   its acceptance tests are prerequisites; the existing `mode=apply` input is
-   not a replacement for approval.
-3. Register `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as **environment
-   secrets** in `Production`. Re-enter the original values directly in GitHub's
-   secret UI or use a trusted local secret manager. GitHub cannot return stored
-   secret values for copying. Never print values in Actions logs, issues, chat,
-   or a temporary file.
-4. Provision a separate least-privilege QA credential as
-   `SUPABASE_QA_ACCESS_TOKEN` in the `daily-qa` environment, which also allows
-   only `main`. Confirm its actual provider permissions prohibit writes and
-   deployment; a name or a read-only request URL does not reduce permissions.
-   Until this credential is available, Daily QA explicitly skips error
-   aggregation while its public web checks continue.
-5. After verifying the two deployment secrets exist in `Production`, remove
-   the repository-scoped copies. Environment names in YAML do not prevent a
-   different branch from using repository secrets. Confirm no deployment
-   credentials remain at repository scope before merging this change.
+1. Keep `Production` restricted to the selected **branch** `main`, not tags.
+   Native required reviewers were rejected by GitHub's plan restrictions; this
+   workflow gate does not provide native withholding of environment secrets.
+2. Separate the automation identity from the human approver. The current agent
+   connection and CLI both use `orrysheaven-netizen`; they cannot independently
+   prove a human approval. Provision a scoped automation identity, remove the
+   human credential from the agent runtime, and record its numeric actor ID in
+   reviewed configuration. Both the apply dispatch actor and rerun actor must
+   match it. The human must personally post approval from an allowlisted account.
+3. Require human review of main changes, especially workflows, approval code,
+   identities and configuration. No direct main pushes or admin bypass. Verify
+   the protection actually applies; an unchecked setting is not evidence.
+4. Register `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as **environment
+   secrets** in `Production` using GitHub's secret UI or a trusted secret manager.
+   Verify registration, then remove the repository-scoped copies. GitHub cannot
+   return stored values for copying. Never put them in chat, logs or temporary
+   files. As of preparation, Production has no secrets and the repository copies
+   still exist; this prerequisite is not complete.
+5. Bootstrap `20260923155002_add_database_deployment_approval_ledger.sql` with a
+   reviewed normal migration run by the human using credentials outside the
+   agent. Review and explicitly authorize the **entire** pending set first;
+   approving this ledger alone does not authorize other pending migrations.
+   Never alter `supabase_migrations.schema_migrations` or release a reservation
+   to work around a failure. The ledger's absence blocks automated apply.
+6. Establish exclusive schema control during deployment: pause or coordinate
+   other SQL writers, repositories and integrations. A fresh preview and CLI
+   apply are not one atomic database transaction.
+7. Run the complete flow against a disposable target with its own reviewed
+   configuration, credentials and ledger, including two simultaneous attempts
+   to consume one approval. Verify the actual artifact download, CLI output and
+   migration behavior. The included unit tests and DB tests do not establish
+   that live end-to-end condition. Have a human verify the final protected flow.
+8. Only after recording evidence for every readiness field, submit the numeric
+   automation ID, readiness flags and `enabled: true` in a separately reviewed
+   main PR. Keep this PR in Draft while the external prerequisites remain unmet.
+
+QA separately needs a proven least-privilege `SUPABASE_QA_ACCESS_TOKEN` in the
+main-only `daily-qa` environment. Its provider permissions must prohibit writes
+and deployment. Until available, error aggregation explicitly skips while public
+web checks continue. Do not reuse the deployment token for QA.
 
 Settings: https://github.com/orrysheaven-netizen/onepick/settings/environments
 
-GitHub's plan restrictions and environment behavior:
-https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+## Deploy after activation
 
-## Deploy and verify
+1. Run `mode=dry-run` on current main. A push affecting migrations or deployment
+   code also creates a plan. Read the successful `plan` job summary and its
+   `db-deployment-plan-<run>-<attempt>` artifact. Review the SHA, target, all
+   pending SQL and history hashes. A pending set is a successful preview, not a
+   drift-check failure. No migrations are applied by this mode.
+2. Within 24 hours of the plan job completing, the designated human personally
+   posts its exact generated approval statement in issue #225. Do not edit it.
+   The agent must not post approval on the human's behalf. An empty plan needs
+   no apply and cannot consume an approval.
+3. The separate automation identity dispatches `mode=apply` on the same main
+   SHA, supplying `preview_run_id` and `approval_comment_id`. The verifier needs
+   no DB secrets. The dependent Production job revalidates current main, the
+   comment, artifact, local SQL, live history and a pinned CLI dry-run.
+4. An atomic insert into `private.database_deployment_approvals` commits the
+   approval reservation before the CLI runs. Only one returned row permits
+   apply. Failure, timeout or cancellation consumes the approval permanently if
+   the insert committed. Inspect the result, then obtain a fresh plan and human
+   approval; never delete the ledger row or reuse an uncertain approval.
+5. Check the final history and no-pending result, Security Advisor, and logged-in
+   user checks in #165. Keep feature PR #242 in Draft until that gate passes.
+   Storage validation must reflect the 5 MiB policy from #233.
 
-1. Merge the reviewed workflow PR with all required checks passing. Run a
-   protected dry-run on `main` and review every pending migration, including
-   migrations merged by other sessions. A drift failure means migrations are
-   pending; it does not mean deployment credentials are missing.
-2. Dispatch `mode=apply` on the intended `main` commit. The job checks out the
-   event's exact `github.sha`, so advancing `main` while approval is pending
-   cannot silently change the migrations being approved. Verify that SHA is
-   still the intended deployment before approving the run.
-3. A designated reviewer approves the environment deployment after inspecting
-   the pending migration list. The job applies migrations using the normal
-   Supabase CLI and checks history and dry-run output again. Never edit
-   `supabase_migrations.schema_migrations` directly.
-4. Confirm no pending migrations remain, run Security Advisor, and perform the
-   logged-in user checks listed in stabilization issue #165. Keep feature PR
-   #242 in Draft until those conditions are satisfied. Storage validation must
-   reflect the newer 5 MiB security policy from #233; do not blindly restore
-   the older unrestricted-upload proposal.
+After DB restore/reset, suspend automated apply and invalidate all pre-restore
+approvals before reactivation: restoring the DB can restore the replay ledger.
 
-The new client-error CHECKs from #244 intentionally remain `NOT VALID` until
-legacy identifiers are remediated. They still enforce new INSERT/UPDATE writes;
-correct invalid identifiers before updating historical rows, including updates
-caused by deleting their owning user.
+The client-error CHECKs from #244 intentionally remain `NOT VALID` until legacy
+identifiers are remediated. They enforce new INSERT/UPDATE writes; correct
+invalid identifiers before updating historical rows, including updates caused
+by deleting their owning user.
