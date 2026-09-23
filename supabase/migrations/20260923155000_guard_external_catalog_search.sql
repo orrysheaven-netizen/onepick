@@ -109,13 +109,24 @@ $$;
 revoke all on function private.prune_external_catalog_cache() from public, anon, authenticated;
 grant execute on function private.prune_external_catalog_cache() to service_role;
 
-create extension if not exists pg_cron;
-select cron.unschedule(jobid)
-from cron.job
-where jobname = 'onepick-prune-external-catalog-cache';
-
-select cron.schedule(
-  'onepick-prune-external-catalog-cache',
-  '17 * * * *',
-  $$select private.prune_external_catalog_cache();$$
-);
+-- Hosted OnePick already has pg_cron enabled. Local Supabase test images may
+-- pre-create cron objects/privileges, so this migration only schedules the job
+-- when cron.schedule is available.
+do $do$
+begin
+  if to_regprocedure('cron.schedule(text,text,text)') is not null then
+    execute $sql$
+      select cron.unschedule(jobid)
+      from cron.job
+      where jobname = 'onepick-prune-external-catalog-cache'
+    $sql$;
+    execute $sql$
+      select cron.schedule(
+        'onepick-prune-external-catalog-cache',
+        '17 * * * *',
+        $select private.prune_external_catalog_cache();$
+      )
+    $sql$;
+  end if;
+end
+$do$;
