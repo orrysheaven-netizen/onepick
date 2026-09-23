@@ -109,7 +109,7 @@ $$;
 revoke all on function private.prune_external_catalog_cache() from public, anon, authenticated;
 grant execute on function private.prune_external_catalog_cache() to service_role;
 
-create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_cron;
 select cron.unschedule(jobid)
 from cron.job
 where jobname = 'onepick-prune-external-catalog-cache';
