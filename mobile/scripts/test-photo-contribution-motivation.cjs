@@ -134,7 +134,10 @@ async function main() {
   const creditQuery = { data: credit, isPending: false, isError: false, isFetching: false };
   let options = [], index = 0;
   const { useItemDetail } = load('hooks/useItemDetail.ts', {
-    '@tanstack/react-query': { useQuery: (o) => { options.push(o); return index++ % 2 === 0 ? detail : creditQuery; } },
+    '@tanstack/react-query': {
+      useQuery: (o) => { options.push(o); return index++ % 2 === 0 ? detail : creditQuery; },
+      useQueryClient: () => ({ getQueryData: () => undefined }),
+    },
     '@/errors/appError': { AppError },
     '@/lib/query/queryKeys': { queryKeys }, '@/services': { itemService: { getItemDetail: async () => detail.data } },
     '@/services/itemPhotoCreditService': { itemPhotoCreditService: service },

@@ -2,7 +2,7 @@ import { AppError } from '@/errors/appError';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
-import type { ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { PickReadItem, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export type MyItemPickStatus =
   | { type: 'not_selected' }
@@ -17,15 +17,27 @@ export class ItemService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getItemDetail(itemId: string, userId?: string, focusPickId?: string) {
-    const item = await this.itemRepository.getById(itemId);
+  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem) {
+    const cachedFocus = prefetchedFocus
+      && prefetchedFocus.pick.id === focusPickId
+      && prefetchedFocus.item?.id === itemId
+      ? prefetchedFocus
+      : undefined;
+    // Shared links already fetched the focused Pick. Reuse that item/category when
+    // available, and start independent list/category reads while the item resolves.
+    const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
+    const picksPromise = this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 });
+    const openCategoriesPromise = this.categoryRepository.getOpenCategories();
+    const item = await itemPromise;
     if (!item) throw new AppError('ITEM_NOT_FOUND');
 
     const [category, currentPick, picks, openCategories] = await Promise.all([
-      this.categoryRepository.getById(item.categoryId),
+      cachedFocus?.category?.id === item.categoryId
+        ? Promise.resolve(cachedFocus.category)
+        : this.categoryRepository.getById(item.categoryId),
       userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
-      this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 }),
-      this.categoryRepository.getOpenCategories(),
+      picksPromise,
+      openCategoriesPromise,
     ]);
 
     let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
@@ -54,7 +66,7 @@ export class ItemService {
     // Shared links can reference a review beyond the first page or a previous choice.
     // Read through the same permission-checked repository and verify its product.
     if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
-      const focused = await this.readRepository.getPickById(focusPickId);
+      const focused = cachedFocus ?? await this.readRepository.getPickById(focusPickId);
       if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
         reviews.splice(ownReview.length, 0, {
           pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
