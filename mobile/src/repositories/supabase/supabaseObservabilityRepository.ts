@@ -27,16 +27,15 @@ export class SupabaseObservabilityRepository implements ObservabilityRepository 
   }
 
   async captureProductEvent(input: CaptureProductEventInput) {
-    const table = this.client.from as unknown as (name: 'product_analytics_events') => any;
-    const { error } = await table('product_analytics_events').insert({
-      event_name: input.eventName,
-      pick_id: input.pickId ?? null,
-      item_id: input.itemId ?? null,
-      category_id: input.categoryId ?? null,
-      source: input.source ?? null,
-      path: input.path ?? null,
-      platform: input.platform ?? null,
-      app_version: input.appVersion ?? null,
+    const { error } = await this.client.rpc('capture_product_event', {
+      p_event_name: input.eventName,
+      p_pick_id: input.pickId ?? null,
+      p_item_id: input.itemId ?? null,
+      p_category_id: input.categoryId ?? null,
+      p_source: input.source ?? null,
+      p_path: input.path ?? null,
+      p_platform: input.platform ?? null,
+      p_app_version: input.appVersion ?? null,
     });
 
     if (error) throw mapSupabaseError(error);
