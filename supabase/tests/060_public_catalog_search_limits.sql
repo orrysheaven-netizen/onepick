@@ -87,6 +87,11 @@ select ok(
   ),
   'fresh search cache is retained'
 );
+
+-- cron metadata is intentionally not granted to service_role; inspect it as
+-- the test runner rather than widening runtime privileges.
+reset role;
+
 select ok(
   exists(
     select 1 from cron.job
@@ -94,8 +99,6 @@ select ok(
   ),
   'hourly external-catalog cache prune is scheduled'
 );
-
-reset role;
 
 select * from finish();
 rollback;
