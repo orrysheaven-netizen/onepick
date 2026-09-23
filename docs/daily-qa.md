@@ -88,9 +88,10 @@ ChatGPT/Codex가 리포트를 확인하는 경로는 세 가지다. 어느 하�
 3. **ChatGPT 예약 작업**: 매일 07:30 KST에 아래 프롬프트를 실행하도록 ChatGPT의 예약 작업(Tasks)에 등록한다. GitHub 커넥터가 켜져 있어야 한다.
 
 ```text
-매일 07:30(한국 시간)에 실행. GitHub 저장소 orrysheaven-netizen/onepick에서 라벨 qa-report가 붙은
-가장 최근의 열린 이슈("[Daily QA] YYYY-MM-DD")를 읽어라. 없으면 "오늘 QA 리포트 없음"이라고만 답한다.
-있으면 다음을 한국어로 정리한다.
+매일 07:30(한국 시간)에 실행. GitHub 저장소 orrysheaven-netizen/onepick에서 가장 최근의 열린 이슈 두 개를 읽어라.
+라벨 security의 "[Security QA] YYYY-MM-DD"와 라벨 qa-report의 "[Daily QA] YYYY-MM-DD"다.
+둘 다 없으면 "오늘 리포트 없음"이라고만 답한다. 있으면 두 이슈를 합쳐 다음을 한국어로 정리한다.
+보안 Critical/High(security-urgent 라벨)를 맨 앞에 두고, 보안 Medium 이상을 성능 항목보다 앞에 둔다.
 1) 요약 줄의 High/Medium/Low 건수, 전날 대비 해결·신규 건수
 2) "수정 요청"의 High·Medium 항목마다: 제목, 위치(파일:줄), 완료 기준, 상태(신규/미해결 n일째/진행 중)
 3) 오늘 착수할 순서(High 우선, 같은 파일을 건드리는 항목은 묶기)와 항목별 Codex 작업 지시문 한 단락
