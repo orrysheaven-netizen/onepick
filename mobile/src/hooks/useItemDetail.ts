@@ -10,15 +10,21 @@ function retryItemDetail(failureCount: number, error: unknown) {
   return failureCount < 1;
 }
 
-export function useItemDetail(itemId: string | undefined, userId?: string, focusPickId?: string, includePhotoCredit = false) {
+export function useItemDetail(
+  itemId: string | undefined,
+  userId?: string,
+  focusPickId?: string,
+  includePhotoCredit = false,
+  enabled = true,
+) {
   const detail = useQuery({
     queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null],
     queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId),
-    enabled: Boolean(itemId),
+    enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });
   const item = detail.data?.item;
-  const canReadCredit = Boolean(includePhotoCredit && itemId && item && item.id === itemId && item.imagePath
+  const canReadCredit = Boolean(enabled && includePhotoCredit && itemId && item && item.id === itemId && item.imagePath
     && !detail.isPending && !detail.isError && !detail.isFetching);
   // Attribution is optional and never delays or fails the product/review query.
   // Viewer and exact image revision stay under the existing items invalidation.
