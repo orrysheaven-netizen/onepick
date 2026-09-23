@@ -10,13 +10,14 @@ const { url, publishableKey } = getSupabaseEnv();
 
 export const supabase = createClient<AppDatabase>(url, publishableKey, {
   // Keep retries in one layer. TanStack Query owns the app-level retry policy,
-  // so PostgREST must not add its own exponential 1s/2s/4s retry chain.
+  // so PostgREST must not add its own exponential retry chain.
   db: { retry: false },
   auth: {
     storage: authStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
   },
 });
 
