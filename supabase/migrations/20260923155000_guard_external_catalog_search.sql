@@ -115,18 +115,13 @@ grant execute on function private.prune_external_catalog_cache() to service_role
 do $do$
 begin
   if to_regprocedure('cron.schedule(text,text,text)') is not null then
-    execute $sql$
-      select cron.unschedule(jobid)
-      from cron.job
-      where jobname = 'onepick-prune-external-catalog-cache'
-    $sql$;
-    execute $sql$
-      select cron.schedule(
+    execute 'select cron.unschedule(jobid) from cron.job where jobname = $1'
+      using 'onepick-prune-external-catalog-cache';
+    execute 'select cron.schedule($1,$2,$3)'
+      using
         'onepick-prune-external-catalog-cache',
         '17 * * * *',
-        $select private.prune_external_catalog_cache();$
-      )
-    $sql$;
+        $cmd$select private.prune_external_catalog_cache();$cmd$;
   end if;
 end
 $do$;
