@@ -51,16 +51,23 @@ select ok(
 
 insert into public.categories(id,name,slug,status,is_visible,is_pickable)
 values('f9510000-0000-4000-8000-000000000001','Photo cleanup','photo-cleanup','open',true,true);
-insert into public.items(id,category_id,name,normalized_name,status,image_path)
+insert into public.items(id,category_id,name,normalized_name,status,image_path,thumbnail_path)
 values(
   'f9520000-0000-4000-8000-000000000001',
   'f9510000-0000-4000-8000-000000000001',
   'Referenced photo item','referencedphotoitem','active',
-  'f9500000-0000-4000-8000-000000000001/referenced.jpg'
+  'f9500000-0000-4000-8000-000000000001/referenced.jpg',
+  'f9500000-0000-4000-8000-000000000001/referenced-thumb.jpg'
 );
 insert into storage.objects(bucket_id,name,owner_id,created_at,updated_at,metadata) values
 (
   'item-photos','f9500000-0000-4000-8000-000000000001/referenced.jpg',
+  'f9500000-0000-4000-8000-000000000001',
+  clock_timestamp()-interval '25 hours',clock_timestamp()-interval '25 hours',
+  '{"mimetype":"image/jpeg","size":100}'::jsonb
+),
+(
+  'item-photos','f9500000-0000-4000-8000-000000000001/referenced-thumb.jpg',
   'f9500000-0000-4000-8000-000000000001',
   clock_timestamp()-interval '25 hours',clock_timestamp()-interval '25 hours',
   '{"mimetype":"image/jpeg","size":100}'::jsonb
