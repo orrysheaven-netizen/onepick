@@ -1,6 +1,7 @@
 import type { Database, Json } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
+type CategoryRow = Database['public']['Tables']['categories']['Row'];
 type ItemRow = Database['public']['Tables']['items']['Row'];
 
 export type HomePickFeedRow = {
@@ -142,6 +143,21 @@ export type AppDatabase = Omit<Database, 'public'> & {
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
+      browse_categories: {
+        Args: never;
+        Returns: CategoryRow[];
+      };
+      seasonal_category_recommendations: {
+        Args: { p_on_date?: string; p_limit?: number };
+        Returns: {
+          category_id: string;
+          category_name: string;
+          category_slug: string;
+          season_label: string;
+          item_count: number;
+          active_pick_count: number;
+        }[];
+      };
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
         Returns: (CategoryTopItems['Returns'][number] & {
           image_path: string | null;

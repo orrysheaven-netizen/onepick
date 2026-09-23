@@ -8,6 +8,14 @@ export function useExploreCategories(enabled = true) {
   return useQuery({ queryKey: queryKeys.categories.browse, queryFn: () => exploreService.getCategories(), enabled });
 }
 
+export function useSeasonalCategories(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.categories.seasonal,
+    queryFn: () => exploreService.getSeasonalRecommendations(),
+    enabled,
+  });
+}
+
 export function useCategoryTopItems(categoryId?: string) {
   return useQuery({
     queryKey: queryKeys.explore.topItems(categoryId),

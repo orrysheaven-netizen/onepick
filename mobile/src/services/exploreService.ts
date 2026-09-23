@@ -11,6 +11,10 @@ export class ExploreService {
 
   getCategories() { return this.categoryRepository.getBrowseCategories(); }
 
+  getSeasonalRecommendations(limit = 8) {
+    return this.categoryRepository.getSeasonalRecommendations(limit);
+  }
+
   getCategoryTopItems(categoryId: string) {
     return this.readRepository.getCategoryTopItems(categoryId);
   }

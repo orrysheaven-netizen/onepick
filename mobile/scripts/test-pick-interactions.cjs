@@ -230,7 +230,11 @@ async function main() {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
+    '@/hooks/useExploreData': {
+      useExploreCategories: () => ({ data: browseCategories, isFetching: false, isRefetching: false, refetch() {} }),
+      useSeasonalCategories: () => ({ data: [], isFetching: false, isRefetching: false, refetch() {} }),
+      useCategoryTopItems: () => rankingQuery,
+    },
   });
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);
