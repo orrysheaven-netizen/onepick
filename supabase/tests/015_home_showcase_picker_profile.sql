@@ -29,9 +29,8 @@ begin
     v_user := gen_random_uuid();
     insert into auth.users(id, aud, role, created_at, updated_at)
       values(v_user, 'authenticated', 'authenticated', now(), now());
-    insert into public.profiles(id, username, profile_image_url, onboarding_completed)
-      values(v_user, 'picker_' || i || '_' || substr(replace(v_user::text, '-', ''), 1, 8),
-        case when i = 3 then 'https://example.com/latest.jpg' else null end, true);
+    insert into public.profiles(id, username, onboarding_completed)
+      values(v_user, 'picker_' || i || '_' || substr(replace(v_user::text, '-', ''), 1, 8), true);
     insert into public.picks(user_id, category_id, item_id, one_line_review, status, started_at)
       values(v_user, v_category, v_item, '이유 ' || i, 'active', now() + interval '10 days' + i * interval '1 second');
 
@@ -51,7 +50,7 @@ begin
   assert v_card is not null, 'Qualified product appears on Home';
   assert v_card->>'latest_picker_username' = v_latest_username, 'Newest selector profile is returned';
   assert v_card->>'latest_pick_review' = v_latest_review, 'Newest selector review is returned';
-  assert v_card->>'latest_picker_profile_image_url' = v_latest_image, 'Newest selector profile image is returned';
+  assert v_card->>'latest_picker_profile_image_url' is null, 'Dormant profile image remains null in Home';
   reset role;
 end;
 $flow$;

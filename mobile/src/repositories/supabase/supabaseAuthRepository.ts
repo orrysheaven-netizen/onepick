@@ -15,13 +15,7 @@ function mapAuthUser(user: User): AuthUser {
 }
 
 function getUrlParam(url: string, key: string) {
-  const parsed = new URL(url);
-  const queryValue = parsed.searchParams.get(key);
-
-  if (queryValue) return queryValue;
-
-  const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
-  return new URLSearchParams(hash).get(key);
+  return new URL(url).searchParams.get(key);
 }
 
 const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'google' | 'custom:naver'> = {
@@ -74,23 +68,9 @@ export class SupabaseAuthRepository implements AuthRepository {
       return data.user ? mapAuthUser(data.user) : null;
     }
 
-    const accessToken = getUrlParam(url, 'access_token');
-    const refreshToken = getUrlParam(url, 'refresh_token');
-
-    if (!accessToken || !refreshToken) {
-      throw new AppError('AUTH_FAILED');
-    }
-
-    const { data, error } = await this.client.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    if (error) {
-      throw new AppError('AUTH_FAILED', error.message, error);
-    }
-
-    return data.user ? mapAuthUser(data.user) : null;
+    // PKCE callbacks are code-only. Fragment/query access tokens are never accepted
+    // as a login completion mechanism because they are not bound to this browser's verifier.
+    throw new AppError('AUTH_FAILED');
   }
 
   async signInWithProvider(provider: SocialAuthProvider, redirectTo: string) {

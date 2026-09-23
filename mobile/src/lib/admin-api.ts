@@ -249,10 +249,8 @@ async function completeAdminOAuthRedirect() {
   const location = browserLocation();
   if (!location || (!location.hash && !location.search)) return;
 
-  const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
   const queryParams = new URLSearchParams(location.search.replace(/^\?/, ''));
-  const oauthError = hashParams.get('error_description') ?? hashParams.get('error')
-    ?? queryParams.get('error_description') ?? queryParams.get('error');
+  const oauthError = queryParams.get('error_description') ?? queryParams.get('error');
   if (oauthError) {
     browserHistory()?.replaceState(null, '', location.pathname);
     throw new Error(oauthError);
@@ -266,13 +264,11 @@ async function completeAdminOAuthRedirect() {
     return;
   }
 
-  const accessToken = hashParams.get('access_token');
-  const refreshToken = hashParams.get('refresh_token');
-  if (!accessToken || !refreshToken) return;
-
-  const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-  browserHistory()?.replaceState(null, '', location.pathname);
-  if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
+  // PKCE does not accept token-bearing fragments. Clear any leftover OAuth
+  // material from the address bar and leave the session signed out.
+  if (location.hash || location.search) {
+    browserHistory()?.replaceState(null, '', location.pathname);
+  }
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

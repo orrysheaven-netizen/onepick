@@ -45,4 +45,6 @@ PR 리뷰는 다음 항목을 본다.
 - 장기 통합 브랜치를 실제 trunk처럼 사용하기
 - GitHub 상태를 확인하지 않고 대화 기록만으로 완료됐다고 판단하기
 
+매일 아침 자동 QA와 ChatGPT/Codex 인계 절차는 `docs/daily-qa.md`를 따른다.
+
 브랜치·worktree·CI·DB 테스트의 구체 규칙은 루트 `CLAUDE.md`와 `AGENTS.md`를 따른다.
