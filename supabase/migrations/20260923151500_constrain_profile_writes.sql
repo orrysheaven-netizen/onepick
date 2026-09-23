@@ -1,20 +1,13 @@
 -- Security QA #225 item 8: constrain public profile text/image values and
 -- narrow authenticated writes to the columns the app intentionally owns.
 
--- Public profile images must never be arbitrary remote tracking URLs. Existing
--- values outside OnePick-owned Storage are removed instead of being grandfathered.
+-- Profile-photo upload is not implemented yet and there is no dedicated owned
+-- avatar bucket. Keep this dormant public field null instead of accepting
+-- arbitrary remote/tracking URLs. A future avatar feature can replace this with
+-- an owned-storage-only constraint in its own migration.
 update public.profiles
 set profile_image_url=null
-where profile_image_url is not null
-  and not (
-    profile_image_url ~ (
-      '^https://ygoipwzakzdnkaaxyrgb\\.supabase\\.co/storage/v1/object/public/profile-images/'
-      || id::text
-      || '/[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
-    )
-    and position('/../' in profile_image_url)=0
-    and position('/./' in profile_image_url)=0
-  );
+where profile_image_url is not null;
 
 alter table public.profiles
   drop constraint if exists profiles_bio_length,
@@ -24,30 +17,20 @@ alter table public.profiles
 
 alter table public.profiles
   drop constraint if exists profiles_image_own_storage,
-  add constraint profiles_image_own_storage
-    check (
-      profile_image_url is null
-      or (
-        char_length(profile_image_url)<=320
-        and profile_image_url ~ (
-          '^https://ygoipwzakzdnkaaxyrgb\\.supabase\\.co/storage/v1/object/public/profile-images/'
-          || id::text
-          || '/[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
-        )
-        and position('/../' in profile_image_url)=0
-        and position('/./' in profile_image_url)=0
-      )
-    );
+  drop constraint if exists profiles_profile_image_disabled,
+  add constraint profiles_profile_image_disabled
+    check (profile_image_url is null);
 
--- Keep historic >100-character bios intact, matching the existing product rule.
--- NOT VALID still enforces the check for every new or updated row.
+-- Keep historic >100-character bios intact. NOT VALID still enforces this check
+-- for new/updated rows, so the next profile edit must bring an old long bio back
+-- within the product's existing 100-character rule.
 comment on constraint profiles_bio_length on public.profiles is
-  'New/updated bios are limited to 100 characters; historic longer bios are not rewritten.';
-comment on constraint profiles_image_own_storage on public.profiles is
-  'Profile images must be null or an HTTPS public profile-images object under the same user UUID.';
+  'New/updated bios are limited to the existing 100-character product rule; historic longer bios are not rewritten.';
+comment on constraint profiles_profile_image_disabled on public.profiles is
+  'Dormant public profile image field remains null until OnePick ships an owned-storage avatar flow.';
 
 revoke insert, update on public.profiles from authenticated;
-grant insert (id,username,profile_image_url,bio,onboarding_completed)
+grant insert (id,username,bio,onboarding_completed)
   on public.profiles to authenticated;
-grant update (username,profile_image_url,bio,onboarding_completed)
+grant update (username,bio,onboarding_completed)
   on public.profiles to authenticated;
