@@ -177,7 +177,7 @@ async function main() {
   assert.equal(itemDetailArgs[4], true, 'Resolved session enables the detail query');
   auth.isLoading = true; view.render();
   assert.equal(itemDetailArgs[4], false, 'Loading session keeps the detail query disabled');
-  auth.isLoading = false;
+  auth.isLoading = false; view.render();
   view.button('사진 등록자 @photo_owner 프로필 보기').onPress(); assert.equal(routes[0].params.username, 'photo_owner');
   assert.doesNotMatch(view.render(), /사진 선택/);
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
