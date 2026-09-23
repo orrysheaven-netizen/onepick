@@ -24,4 +24,4 @@ Full flow and report format: `docs/daily-qa.md`.
 
 ## Automation plan (check with the QA report)
 
-Also open the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
+Also open issues labeled `security` (Medium and above come before new features) and the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
