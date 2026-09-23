@@ -6,7 +6,7 @@ import { homeService } from '@/services';
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
 const HOME_MAX_PAGES = 3;
 
-export function useHomeData(userId?: string, enabled = true) {
+export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled) {
   const context = useQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'context'],
@@ -14,8 +14,9 @@ export function useHomeData(userId?: string, enabled = true) {
     staleTime: HOME_CONTEXT_STALE_TIME,
   });
 
+  const shouldFetchFeed = enabled && feedEnabled;
   const feed = useInfiniteQuery({
-    enabled,
+    enabled: shouldFetchFeed,
     queryKey: [...queryKeys.home.data(userId), 'infinite'],
     initialPageParam: null as ReadCursor | null,
     queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam),
@@ -36,18 +37,22 @@ export function useHomeData(userId?: string, enabled = true) {
     },
   });
 
-  const data = context.data && feed.data ? { ...context.data, ...feed.data } : undefined;
+  const feedData = feedEnabled ? feed.data : { picks: [], nextCursor: null };
+  const data = context.data && feedData ? { ...context.data, ...feedData } : undefined;
   const refetch = (options?: Parameters<typeof feed.refetch>[0]) =>
-    Promise.all([context.refetch(options), feed.refetch(options)]);
+    Promise.all([
+      context.refetch(options),
+      ...(feedEnabled ? [feed.refetch(options)] : []),
+    ]);
 
   return {
     ...feed,
     data,
-    error: context.error ?? feed.error,
-    isError: context.isError || feed.isError,
-    isPending: context.isPending || feed.isPending,
-    isFetching: context.isFetching || feed.isFetching,
-    isRefetching: context.isRefetching || feed.isRefetching,
+    error: context.error ?? (feedEnabled ? feed.error : null),
+    isError: context.isError || (feedEnabled && feed.isError),
+    isPending: context.isPending || (feedEnabled && feed.isPending),
+    isFetching: context.isFetching || (feedEnabled && feed.isFetching),
+    isRefetching: context.isRefetching || (feedEnabled && feed.isRefetching),
     refetch,
   };
 }
