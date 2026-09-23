@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createGameCatalogHandler } from './gameCatalog.ts';
+import { reserveExternalCatalogCaller } from '../_shared/externalCatalogGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -196,5 +197,12 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: 'BODY_INVALID' }, 400); }
+  if (body.action === 'search') {
+    const client = adminClient();
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    if (!await reserveExternalCatalogCaller(client, 'igdb', req)) {
+      return json({ error: 'RATE_LIMITED' }, 429);
+    }
+  }
   return handler(body, req);
 });
