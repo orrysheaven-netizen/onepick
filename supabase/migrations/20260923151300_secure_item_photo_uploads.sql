@@ -112,7 +112,7 @@ grant execute on function public.claim_item_photo_cleanup() to service_role;
 grant execute on function public.stale_item_photo_paths(integer) to service_role;
 
 create extension if not exists pg_net with schema extensions;
-create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_cron;
 
 select cron.schedule(
   'onepick-item-photo-cleanup',
