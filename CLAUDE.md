@@ -28,6 +28,10 @@ supabase test db
 
 An existing local Docker volume can be behind the migration files after a pull or branch change. `migration up --local --include-all` applies migrations missing from the local migration history without rebuilding the database. Do not use `supabase stop --no-backup` just to catch up migrations; that removes local data. See `docs/development-start.md`.
 
+# QA accounts
+
+User-facing QA uses only the dedicated QA general-user account. Never use an admin account, a personal Kakao account, or a Supabase service-role/secret key for it. Read login credentials only from the execution environment's secrets, and never write them to output, logs, screenshots, GitHub issues or PRs. See "로그인 상태 QA 계정 규칙" in `docs/daily-qa.md`.
+
 # Role division
 
 ChatGPT/Codex is the primary builder for feature implementation, migrations, and deployment work. Claude Code is the independent reviewer/QA and should avoid duplicating feature work already owned by the builder. GitHub `main`, PRs, migrations, and test results are the source of truth. See `docs/ai-role-division.md`.
