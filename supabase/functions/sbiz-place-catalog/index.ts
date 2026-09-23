@@ -114,8 +114,11 @@ Deno.serve(async (req) => {
     const rows = await fetchSeoul(limit);
     return json({ ok: true, provider: 'sbiz', region: '서울특별시', requested: limit, received: rows.length, rows });
   } catch (error) {
-    const code = error instanceof Error ? error.message : 'SBIZ_UNAVAILABLE';
-    console.error('SBIZ fetch failed', code);
-    return json({ error: code === 'SBIZ_NOT_CONFIGURED' ? code : 'SBIZ_UNAVAILABLE' }, code === 'SBIZ_NOT_CONFIGURED' ? 503 : 502);
+    const configured = error instanceof Error && error.message === 'SBIZ_NOT_CONFIGURED';
+    console.error('SBIZ fetch failed', error instanceof Error ? error.name : 'unknown');
+    return json(
+      { error: configured ? 'SBIZ_NOT_CONFIGURED' : 'SBIZ_UNAVAILABLE' },
+      configured ? 503 : 502,
+    );
   }
 });
