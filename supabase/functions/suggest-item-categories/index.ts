@@ -185,6 +185,11 @@ Deno.serve(async (req: Request) => {
       return reply({ itemId, ...clean, categories, reused: true });
     }
 
+    const { data: reserved, error: reservationError } = await admin
+      .rpc('reserve_item_category_ai_generation', { p_user_id: user.id });
+    if (reservationError) throw new Error('AI_CATEGORY_RESERVATION_FAILED');
+    if (reserved !== true) return reply({ error: 'RATE_LIMITED' }, 429);
+
     const allowed = new Map(categories.map((category) => [category.categoryId, category]));
     const modelResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
