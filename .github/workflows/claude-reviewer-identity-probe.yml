@@ -8,8 +8,8 @@ on:
         required: true
         type: string
 
-# This workflow uses only the reviewer GitHub App token. The default GITHUB_TOKEN
-# has no repository permissions.
+# The default GITHUB_TOKEN has no repository permissions. The reviewer App token
+# is short-lived, scoped to this repository, and requests only review-time access.
 permissions: {}
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
           permission-pull-requests: write
           permission-statuses: read
 
-      - name: Verify installation scope and permissions
+      - name: Verify token repository scope
         env:
           GH_TOKEN: ${{ steps.reviewer-token.outputs.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
@@ -52,30 +52,21 @@ jobs:
             exit 1
           }
 
-          installation_json="$(gh api /installation)"
-          selection="$(jq -r '.repository_selection' <<<"$installation_json")"
-          test "$selection" = "selected" || {
-            echo "Reviewer App must use selected-repository installation scope" >&2
+          repositories_json="$(gh api /installation/repositories --paginate)"
+          count="$(jq '[.repositories[]] | length' <<<"$repositories_json")"
+          full_name="$(jq -r '.repositories[0].full_name // empty' <<<"$repositories_json")"
+
+          test "$count" = "1" || {
+            echo "Reviewer token must be scoped to exactly one repository; got $count" >&2
             exit 1
           }
 
-          jq -e '
-            .permissions.contents == "read" and
-            .permissions.issues == "read" and
-            .permissions.pull_requests == "write" and
-            .permissions.actions == "read" and
-            .permissions.checks == "read" and
-            .permissions.statuses == "read" and
-            ([.permissions | to_entries[]
-              | select((.value == "write" or .value == "admin") and .key != "pull_requests")]
-             | length) == 0
-          ' <<<"$installation_json" >/dev/null || {
-            echo "Reviewer App permissions are broader than the approved review-only profile" >&2
-            jq '.permissions' <<<"$installation_json"
+          test "$full_name" = "$REPOSITORY" || {
+            echo "Reviewer token is scoped to unexpected repository: $full_name" >&2
             exit 1
           }
 
-          echo "Reviewer App installation scope and permissions match the approved profile."
+          echo "Reviewer token is scoped to $REPOSITORY only."
 
       - name: Submit COMMENT-only identity probe
         id: review
