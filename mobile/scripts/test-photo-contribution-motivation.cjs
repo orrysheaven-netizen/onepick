@@ -79,7 +79,7 @@ function choice() {
   const mutation = { isPending: false, isError: false, mutateAsync: (p) => { writes.push(p); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
   const view = harness('app/pick/choose.tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => destinations.push(r), replace: (r) => destinations.push(r), canGoBack: () => true, back() {} }) },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation },
   });
   const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('내 원픽으로 선택').onPress(); };
@@ -139,7 +139,7 @@ async function main() {
     '@/lib/query/queryKeys': { queryKeys }, '@/services': { itemService: { getItemDetail: async () => detail.data } },
     '@/services/itemPhotoCreditService': { itemPhotoCreditService: service },
   });
-  const read = (user = 'viewer', include = true) => { options = []; index = 0; return useItemDetail(itemId, user, pickId, include); };
+  const read = (user = 'viewer', include = true, enabled = true) => { options = []; index = 0; return useItemDetail(itemId, user, pickId, include, enabled); };
   assert.equal(read().photoCredit, credit); assert.equal(options[1].enabled, true);
   assert.equal(typeof options[0].retry, 'function');
   assert.equal(options[0].retry(0, new AppError('ITEM_NOT_FOUND')), false, 'Missing item links must fail immediately instead of staying pending through a retry');
@@ -148,6 +148,9 @@ async function main() {
   const firstKey = JSON.stringify(options[1].queryKey);
   read('other'); assert.notEqual(JSON.stringify(options[1].queryKey), firstKey, 'Credit caches are viewer-specific');
   read(undefined, false); assert.equal(options[1].enabled, false, 'Non-detail callers do not fetch attribution');
+  read('viewer', true, false);
+  assert.equal(options[0].enabled, false, 'Session-gated detail reads stay disabled until auth resolves');
+  assert.equal(options[1].enabled, false, 'Photo credit cannot start before the detail query is enabled');
   for (const field of ['isPending','isError','isFetching']) {
     creditQuery[field] = true; assert.equal(read().photoCredit, null); assert.equal(read().isError, false, 'Credit failure never fails the product'); creditQuery[field] = false;
     detail[field] = true; assert.equal(read().photoCredit, null); assert.equal(options[1].enabled, false); detail[field] = false;
@@ -160,6 +163,7 @@ async function main() {
   assert.equal(cache.getQueryState(options[1].queryKey).isInvalidated, true); cache.clear();
 
   const auth = { user: { id: 'viewer' }, isLoading: false, error: null };
+  let itemDetailArgs;
   const params = { itemId, pickId, photo: '1' }; const routes = [];
   const query = { ...detail, data: { item: { ...baseItem, imagePath: good.image_path, imageUrl: 'https://storage.test/full.jpg' }, category: { name: '라면' },
     picks: [{ pick: { id: pickId }, profile: null }], myPickStatus: { type: 'not_selected' }, canChoose: true }, photoCredit: credit };
@@ -169,6 +173,11 @@ async function main() {
     '@/hooks/useRegisterPick': { useChoosePhoto: () => ({}), useAttachItemPhoto: () => ({}) },
   });
   assert.match(view.render(), /사진 등록 · @photo_owner/);
+  assert.equal(itemDetailArgs[3], true, 'Item detail screen requests photo attribution');
+  assert.equal(itemDetailArgs[4], true, 'Resolved session enables the detail query');
+  auth.isLoading = true; view.render();
+  assert.equal(itemDetailArgs[4], false, 'Loading session keeps the detail query disabled');
+  auth.isLoading = false;
   view.button('사진 등록자 @photo_owner 프로필 보기').onPress(); assert.equal(routes[0].params.username, 'photo_owner');
   assert.doesNotMatch(view.render(), /사진 선택/);
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
