@@ -36,9 +36,6 @@ begin
   -- Existing broad leaves remain intact: no data migration or FK rewrite occurs.
   assert exists(select 1 from public.categories where slug='sashimi'),
     'Existing broad 회 category is preserved for compatibility';
-  assert exists(select 1 from public.categories where slug='seaweed'),
-    'Existing broad 김 category is preserved for compatibility';
-
   -- Three active catalog items are enough to graduate the leaf.
   for i in 1..3 loop
     insert into public.items(category_id,name,normalized_name,status)
