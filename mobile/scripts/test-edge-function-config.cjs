@@ -24,7 +24,7 @@ const expected = new Map([
   ['profile-ai-status', false],
   ['sbiz-place-catalog', false],
   ['suggest-item-categories', false],
-  ['youtube-catalog', false],
+  ['youtube-catalog', true],
 ]);
 
 assert.deepEqual(directories, [...expected.keys()].sort(),
