@@ -98,12 +98,18 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
     });
     return null;
   }
-  const url = new URL('https://id.twitch.tv/oauth2/token');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('client_secret', clientSecret);
-  url.searchParams.set('grant_type', 'client_credentials');
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'client_credentials',
+  });
   try {
-    const response = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(8_000) });
+    const response = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!response.ok) {
       console.error('IGDB Twitch token request failed', response.status);
       await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'http_error', status: response.status });
@@ -127,7 +133,7 @@ async function fetchAccessToken(client: SupabaseClient, force = false) {
     await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'ok' });
     return token;
   } catch (error) {
-    console.error('IGDB Twitch token request error', error instanceof Error ? error.message : 'unknown');
+    console.error('IGDB Twitch token request error', error instanceof Error ? error.name : 'unknown');
     await writeDiagnostic(client, { stage: 'twitch_oauth', outcome: 'network_error' });
     return null;
   }
