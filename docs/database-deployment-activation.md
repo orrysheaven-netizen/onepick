@@ -1,14 +1,16 @@
 # 별도 DB 승인 절차 활성화 준비
 
-2026-09-23 설정 재확인 기준입니다. PR #245의 새 승인 절차는 아직 비활성이고,
-운영 DB와 계정 연결은 변경하지 않았습니다.
+2026-09-23 설정 재확인 기준입니다. PR #245에서 준비한 새 승인 절차는 아직
+비활성입니다. 이 브랜치는 해당 구현을 최신 main에 통합해 App 명의로 검토받는
+후속 PR을 위한 것입니다. 운영 DB에는 적용하지 않았습니다.
 
 ## 현재 확인한 상태
 
 | 항목 | 확인 결과 | 남은 작업 |
 | --- | --- | --- |
 | 사람 승인 계정 | `orrysheaven-netizen` / 사용자 ID `329510562` | 사람 승인용으로 유지 |
-| 현재 자동화 연결 | CLI와 GitHub 커넥터 모두 위와 같은 계정 | 다른 실행 주체로 전환 |
+| App 작업 연결 | `onepick-deployment-automation[bot]` / 사용자 ID `332931387` | App 설치 토큰으로 PR 작성·병합·실행 |
+| 기존 사용자 연결 | CLI와 GitHub 커넥터에 승인자 연결이 남아 있음 | 전환 범위를 확인하고 제거·분리 |
 | main 보호 | 필수 CI 3개, 최신 main 반영, 관리자 우회 금지 | 사람 필수 승인 수가 0명이므로 전환 후 1명 필요 |
 | Production 환경 | branch `main`만 허용 | 설정 유지 |
 | Production 시크릿 | 비어 있음 | 원본을 안전하게 재등록한 뒤 저장소 복사본 제거 |
@@ -18,14 +20,16 @@
 `orrysheaven-netizen`을 자동화 계정명으로 다시 입력해도 계정 분리는 이루어지지
 않습니다. 사용자가 기존 자동화 계정으로 알려준 이름도 이 계정이었습니다.
 
-## 자동화용 비공개 GitHub App 설정안
+## 생성·설치한 자동화용 비공개 GitHub App
 
-[GitHub App 생성 화면](https://github.com/settings/apps/new)에서 다음 설정을
-검토합니다. 이 문서가 App을 생성하거나 설치한 것은 아닙니다.
+[App 설정](https://github.com/settings/apps/onepick-deployment-automation)에서
+다음 구성을 확인했습니다. App ID는 `5046807`, 설치 ID는 `164051563`입니다.
+사용자가 저장한 개인키로 인증했고, 단일 저장소로 제한한 임시 설치 토큰을
+작업마다 발급해 사용 후 폐기했습니다. 비밀값은 로그·PR·저장소에 기록하지 않습니다.
 
 | 설정 | 값 |
 | --- | --- |
-| 이름 제안 | `onepick-deployment-automation` (중복이면 소유자 식별자를 붙임) |
+| 이름 | `onepick-deployment-automation` |
 | Homepage URL | `https://github.com/orrysheaven-netizen/onepick` |
 | 설치 가능 계정 | Only on this account |
 | 설치 대상 | Only select repositories → `onepick` |
@@ -43,20 +47,33 @@ App의 개인 키와 설치 토큰은 안전한 자격 증명 저장소에서 �
 PR, 로그나 저장소 파일에 넣지 않습니다. **App ID, client ID, installation ID와
 봇 사용자 ID는 다릅니다.** 설정에 넣을 숫자는 `<app-slug>[bot]`의 사용자 ID이며,
 비밀값 없는 시험 실행의 `actor.id`와 `triggering_actor.id`로 실제 동작을 확인합니다.
-아직 확인되지 않은 ID나 임의 숫자를 `automationActorId`에 넣지 않습니다.
+확인된 ID라도 전체 준비 조건을 충족하기 전까지 활성화 설정에 반영하지 않습니다.
+
+## 확인한 사람 승인과 App 실행 경로
+
+- [PR #246](https://github.com/orrysheaven-netizen/onepick/pull/246)은 App이 작성했습니다.
+- 사용자가 본인 계정으로 [승인 기록](https://github.com/orrysheaven-netizen/onepick/pull/246#pullrequestreview-5291461067)을
+  제출했고, 승인한 커밋 `5cadf01`과 필수 CI 성공을 확인한 뒤 App이 정상 PR 병합을 수행했습니다.
+- 병합 커밋은 `d03969b3243a62938355429f86428a9bd97eb413`입니다.
+- DB 비밀값을 사용하지 않는 Mobile CI의 [수동 실행](https://github.com/orrysheaven-netizen/onepick/actions/runs/35866087697)으로
+  첫 시도와 [재실행](https://github.com/orrysheaven-netizen/onepick/actions/runs/35866087697/attempts/2)이 모두 성공했습니다.
+  두 시도의 `actor.id`와 `triggering_actor.id`는 모두 `332931387`입니다.
+- 이 증거는 App 인증 및 실행 경로 검증입니다. 기존 승인자 연결 제거,
+  운영 비밀값 이관, 실제 DB 승인·적용 흐름을 대신하지 않습니다.
+  `enabled`, `identitySeparated`, `humanFlowVerified` 등 준비 플래그는 false로 유지합니다.
 
 ## 전환 순서
 
-1. App을 생성·설치하고 위 권한과 단일 저장소 범위를 확인합니다.
-2. 자동화 실행 환경이 App installation token을 사용하도록 전환합니다. 소유자
+1. App 생성·설치, 위 권한과 단일 저장소 범위 확인은 완료했습니다.
+2. 이 작업의 PR 작성·병합·실행은 App installation token을 사용합니다. 소유자
    명의 토큰을 쓰는 App user authentication은 계정 분리가 아닙니다.
 3. 이 에이전트에서 소유자 계정의 CLI·커넥터 쓰기 연결을 제거하거나 전환합니다.
    App 연결을 추가했더라도 기존 소유자 자격 증명으로 승인 댓글을 쓸 수 있으면
    분리가 끝난 것이 아닙니다. 다른 작업의 연결을 끊지 않도록 사용자가 전환 범위를 확인합니다.
-4. DB 시크릿을 쓰지 않는 시험 실행과 재실행에서 실제 실행 계정 ID를 확인합니다.
-5. App이 작성한 PR을 사람이 승인할 수 있는 경로를 만듭니다. 현재 #245는 소유자
-   명의로 작성돼 소유자가 직접 승인할 수 없습니다. 별도 실제 사람 검토자를
-   추가하거나, 같은 변경을 자동화 명의의 후속 PR로 옮기고 기존 PR에 연결합니다.
+4. DB 시크릿을 쓰지 않는 시험 실행과 재실행의 실제 계정 ID 확인은 완료했습니다.
+5. App이 작성한 PR을 사람이 승인하는 경로는 #246에서 확인했습니다. #245는 소유자
+   명의이므로 같은 구현을 최신 main에 통합해 App 명의의 후속 PR로 옮깁니다.
+   기존 PR에 후속 링크를 남기고, 최종 활성화 전까지 Draft 상태를 유지합니다.
    후속 PR이 준비되기 전에 기존 PR을 닫거나 필수 승인 수를 올려 막지 않습니다.
 6. 그 경로가 준비되면 사람 필수 승인 수를 1명으로 설정합니다. 기존 필수 CI,
    관리자 우회 금지, 오래된 승인 취소, 최신 main 요구 조건은 보존합니다.
