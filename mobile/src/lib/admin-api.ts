@@ -266,13 +266,10 @@ async function completeAdminOAuthRedirect() {
     return;
   }
 
-  const accessToken = hashParams.get('access_token');
-  const refreshToken = hashParams.get('refresh_token');
-  if (!accessToken || !refreshToken) return;
-
-  const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-  browserHistory()?.replaceState(null, '', location.pathname);
-  if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
+  if (hashParams.has('access_token') || hashParams.has('refresh_token')) {
+    browserHistory()?.replaceState(null, '', location.pathname);
+    throw new Error('지원되지 않는 로그인 응답입니다. 다시 로그인해 주세요.');
+  }
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
