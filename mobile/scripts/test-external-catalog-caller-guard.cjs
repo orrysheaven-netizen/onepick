@@ -81,19 +81,24 @@ async function main() {
     'over-quota caller is rejected before provider work',
   );
 
-  for (const [fileName, provider] of [
-    ['movie-catalog/index.ts','tmdb'],
-    ['music-catalog/index.ts','musicbrainz'],
-    ['game-catalog/index.ts','igdb'],
-    ['book-catalog/index.ts','google_books'],
+  for (const [fileName, providerExpression] of [
+    ['movie-catalog/index.ts','TMDB_CACHE_PROVIDER'],
+    ['music-catalog/index.ts',"'musicbrainz'"],
+    ['game-catalog/index.ts',"'igdb'"],
+    ['book-catalog/index.ts',"'google_books'"],
   ]) {
     const catalog = fs.readFileSync(
       path.join(root,'supabase/functions',fileName),
       'utf8',
     );
     assert.match(catalog,/body\.action === 'search'/,fileName);
-    assert.ok(
+    const escaped = providerExpression.replace(/[.*+?^${}()|[\]\\]/g, '\\    assert.ok(
       catalog.includes("reserveExternalCatalogCaller(client, '" + provider + "', req)"),
+      fileName + ' must reserve caller quota before its search handler',
+    );');
+    assert.match(
+      catalog,
+      new RegExp('reserveExternalCatalogCaller\\(client,\\s*' + escaped + ',\\s*req\\)'),
       fileName + ' must reserve caller quota before its search handler',
     );
   }
