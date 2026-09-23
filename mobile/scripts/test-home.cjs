@@ -27,6 +27,7 @@ const feed = { nextCursor: { timestamp: '2026-09-21T09:00:00.000000+00:00', id: 
   oneLineReview: '친구의 이유', thumbnailUrl: null, startedAt: '2026-09-21T10:00:00.000000+00:00',
 }] };
 let calls = [];
+const categoryRepository = { getOpenCategories: async () => { calls.push(['categories']); return categories; } };
 const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
@@ -34,40 +35,51 @@ const readRepository = {
   getEditorialHomeItems: async () => { calls.push(['editorial']); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
 const itemRepository = { getByCategory: async () => assert.fail('Home must not list unqualified catalog products') };
-const service = new HomeService({ getOpenCategories: async () => categories }, itemRepository, readRepository);
+const service = new HomeService(categoryRepository, itemRepository, readRepository);
 
 async function main() {
-  const home = await service.getHomeData('me');
-  assert.equal(home.currentPicks.length, 2);
-  assert.equal(home.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
-  assert.equal('categoriesToPick' in home, false, 'Home no longer computes unselected categories');
-  assert.equal('minimumPickCount' in home, false, 'People-first Home has no minimum pick count');
-  assert.equal(home.picks[0].pickId, 'friend-pick');
-  assert.equal(home.picks[0].username, 'friend');
-  assert.equal(home.picks[0].oneLineReview, '친구의 이유', 'Each card carries that person’s own reason');
-  assert.equal(home.nextCursor.id, 'pick-20');
-  assert.equal(home.editorialItems[0].itemId, 'editorial');
-  assert.equal(calls.filter(([kind]) => kind === 'feed').length, 1, 'One feed page per request');
-  assert.equal(calls.find(([kind]) => kind === 'feed')[1], null, 'First page starts without a cursor');
+  const context = await service.getHomeContext('me');
+  assert.equal(context.currentPicks.length, 2);
+  assert.equal(context.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
+  assert.equal(context.openCategories.length, 3);
+  assert.equal(context.editorialItems[0].itemId, 'editorial');
+  assert.equal(calls.filter(([kind]) => kind === 'categories').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
+  assert.equal(calls.some(([kind]) => kind === 'feed'), false, 'Context never fetches a feed page');
+
   calls = [];
-  const publicHome = await service.getHomeData();
-  assert.equal(publicHome.currentPicks.length, 0);
-  assert.equal(publicHome.picks, home.picks, 'Visitors browse the same people feed (the server decides self/block exclusion)');
-  assert.equal(calls.length, 2, 'Visitors fetch the feed and editorial recommendations only');
+  const firstPage = await service.getHomePicks();
+  assert.equal(firstPage.picks[0].pickId, 'friend-pick');
+  assert.equal(firstPage.picks[0].username, 'friend');
+  assert.equal(firstPage.picks[0].oneLineReview, '친구의 이유', 'Each card carries that person’s own reason');
+  assert.equal(firstPage.nextCursor.id, 'pick-20');
+  assert.deepEqual(calls, [['feed', null]], 'A feed page performs exactly one repository read');
+
+  calls = [];
+  await service.getHomePicks(feed.nextCursor);
+  assert.equal(calls.length, 1, 'Later pages never repeat categories, private Picks or editorial reads');
+  assert.equal(calls[0][0], 'feed');
+  assert.equal(calls[0][1], feed.nextCursor, 'Later pages pass the cursor through');
+
+  calls = [];
+  const publicContext = await service.getHomeContext();
+  assert.equal(publicContext.currentPicks.length, 0);
   assert.equal(calls.some(([kind]) => kind === 'private'), false);
-  calls = [];
-  const nextPage = await service.getHomeData('me', feed.nextCursor);
-  assert.equal(calls.find(([kind]) => kind === 'feed')[1], feed.nextCursor, 'Later pages pass the cursor through');
-  assert.equal(nextPage.editorialItems.length, 0, 'Editorial picks load once, on the first page');
-  categories.splice(0, categories.length, category('only'));
+  assert.equal(calls.filter(([kind]) => kind === 'categories').length, 1);
+  assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
+
   feed.items = []; feed.nextCursor = null;
-  const empty = await service.getHomeData();
+  const empty = await service.getHomePicks();
   assert.equal(empty.picks.length, 0);
   assert.equal(empty.nextCursor, null);
-  const failure = new HomeService({ getOpenCategories: async () => { throw new Error('offline'); } });
-  await assert.rejects(() => failure.getHomeData('me'), /offline/);
-  console.log('Home checks passed: people-first feed rows with reasons, cursor pass-through, no catalog fallback, private collection and empty state.');
+
+  const failure = new HomeService(
+    { getOpenCategories: async () => { throw new Error('offline'); } },
+    itemRepository,
+    readRepository,
+  );
+  await assert.rejects(() => failure.getHomeContext('me'), /offline/);
+  console.log('Home checks passed: cached context is separate from single-read feed pages, with cursor pass-through and empty state.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
