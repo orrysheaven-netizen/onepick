@@ -206,16 +206,14 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
-    if (body.action === 'import') {
-      const authorization = req.headers.get('Authorization') ?? '';
-      const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-      if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
-      const { data, error } = await client.auth.getUser(token);
-      if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
-      const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
-      if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-    }
+    const authorization = req.headers.get('Authorization') ?? '';
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
+    const { data: authData, error: authError } = await client.auth.getUser(token);
+    if (authError || !authData.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+    const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: authData.user.id });
+    if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
 
     const category = await catalogCategory(client);
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
@@ -223,11 +221,20 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
     if (body.action === 'search') {
-      const cacheKey = lookup ? `direct:\n${lookup.type}:\n${lookup.value}` : `search:\n${query}`;
+      const normalizedQuery = query.normalize('NFKC').toLocaleLowerCase('ko-KR').replace(/\s+/g, ' ').trim();
+      const lookupCacheValue = lookup?.type === 'handle'
+        ? lookup.value.normalize('NFKC').toLocaleLowerCase('ko-KR')
+        : lookup?.value;
+      const cacheKey = lookup
+        ? `direct:\n${lookup.type}:\n${lookupCacheValue}`
+        : `search:\n${normalizedQuery}`;
       const cached = await readCache(client, cacheKey, 10 * 60_000);
       let rawItems: unknown[] | null = Array.isArray(cached) ? cached : null;
       let fetchedNow = false;
       if (!rawItems) {
+        const quota = await client.rpc('consume_youtube_catalog_search', { p_user_id: authData.user.id });
+        if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+        if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
         if (lookup?.type === 'video') {
           const videoRemote = await fetchYouTube(videosUrl(key, lookup.value));
           if (videoRemote.error) return videoRemote.error;
