@@ -27,23 +27,19 @@ const feed = { nextCursor: { timestamp: '2026-09-21T09:00:00.000000+00:00', id: 
   oneLineReview: '친구의 이유', thumbnailUrl: null, startedAt: '2026-09-21T10:00:00.000000+00:00',
 }] };
 let calls = [];
-const categoryRepository = { getOpenCategories: async () => { calls.push(['categories']); return categories; } };
 const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
   getHomeShowcase: async () => assert.fail('Home no longer reads the aggregate product showcase'),
   getEditorialHomeItems: async () => { calls.push(['editorial']); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
-const itemRepository = { getByCategory: async () => assert.fail('Home must not list unqualified catalog products') };
-const service = new HomeService(categoryRepository, itemRepository, readRepository);
+const service = new HomeService(readRepository);
 
 async function main() {
   const context = await service.getHomeContext('me');
   assert.equal(context.currentPicks.length, 2);
   assert.equal(context.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
-  assert.equal(context.openCategories.length, 3);
   assert.equal(context.editorialItems[0].itemId, 'editorial');
-  assert.equal(calls.filter(([kind]) => kind === 'categories').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
   assert.equal(calls.some(([kind]) => kind === 'feed'), false, 'Context never fetches a feed page');
@@ -66,7 +62,6 @@ async function main() {
   const publicContext = await service.getHomeContext();
   assert.equal(publicContext.currentPicks.length, 0);
   assert.equal(calls.some(([kind]) => kind === 'private'), false);
-  assert.equal(calls.filter(([kind]) => kind === 'categories').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
 
   feed.items = []; feed.nextCursor = null;
@@ -75,11 +70,9 @@ async function main() {
   assert.equal(empty.nextCursor, null);
 
   const failure = new HomeService(
-    { getOpenCategories: async () => { throw new Error('offline'); } },
-    itemRepository,
-    readRepository,
+    { ...readRepository, getEditorialHomeItems: async () => { throw new Error('offline'); } },
   );
   await assert.rejects(() => failure.getHomeContext('me'), /offline/);
-  console.log('Home checks passed: cached context is separate from single-read feed pages, with cursor pass-through and empty state.');
+  console.log('Home checks passed: context skips duplicate categories and stays separate from single-read feed pages.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
