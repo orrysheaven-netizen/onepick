@@ -51,7 +51,7 @@ Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이
    - Email: **켜둔다.** `tools/qa`의 QA 계정이 이메일/비밀번호로 로그인한다. 새 이메일 가입은 아래 훅이 막는다.
 2. **Supabase Dashboard → Authentication → Hooks → Before User Created**
    - Postgres function `public.hook_before_user_created`를 연결한다
-     (`supabase/migrations/20260924150000_restrict_signup_providers.sql`).
+     (`supabase/migrations/20260924235900_restrict_signup_providers.sql`).
    - 이 함수는 provider가 `kakao`/`apple`이고 익명이 아닌 경우만 통과시키고, 그 외에는 403으로 가입을 거절한다.
    - 기존 사용자의 로그인에는 영향이 없다. 새 `auth.users` row가 만들어질 때만 실행된다.
    - 로컬 스택은 `supabase/config.toml`의 `[auth.hook.before_user_created]`로 같은 훅을 켠다.
