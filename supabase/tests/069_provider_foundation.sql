@@ -391,9 +391,10 @@ begin
   begin
     set constraints all immediate;
     update public.item_providers set provider_id=v_online where item_id=v_gangnam_b_item;
-    assert false,'An online provider cannot own an item that has a place';
+    assert false,'An offline-source item cannot move to an online provider';
   exception when check_violation then
-    assert sqlerrm='ONLINE_PROVIDER_ITEM_HAS_PLACE','Online provider items have no place mapping';
+    assert sqlerrm='ONLINE_PROVIDER_ITEM_SOURCE_INVALID',
+      'Online provider items require onepick_provider source';
   end;
   set constraints all deferred;
 
