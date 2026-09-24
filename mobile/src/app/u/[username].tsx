@@ -11,7 +11,6 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
-import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -32,7 +31,8 @@ export default function PublicProfileScreen() {
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
-  const isProfileNotFound = query.error instanceof AppError && query.error.code === 'PROFILE_NOT_FOUND';
+  const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
+    && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
