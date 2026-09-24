@@ -213,6 +213,9 @@ begin
     if v_item.external_source is distinct from 'onepick_provider' then
       raise exception 'ONLINE_PROVIDER_ITEM_SOURCE_INVALID' using errcode='23514';
     end if;
+    if v_item.external_id is distinct from v_provider_id::text||':'||v_item.category_id::text then
+      raise exception 'ONLINE_PROVIDER_ITEM_EXTERNAL_ID_INVALID' using errcode='23514';
+    end if;
     if exists (select 1 from public.item_places where item_id=p_item_id) then
       raise exception 'ONLINE_PROVIDER_ITEM_HAS_PLACE' using errcode='23514';
     end if;
@@ -239,7 +242,7 @@ revoke all on function private.check_item_row_provider_consistency()
   from public, anon, authenticated;
 
 create constraint trigger items_provider_consistency
-after insert or update of brand_id, external_source, status, category_id on public.items
+after insert or update of brand_id, external_source, external_id, status, category_id on public.items
 deferrable initially deferred
 for each row execute function private.check_item_row_provider_consistency();
 
