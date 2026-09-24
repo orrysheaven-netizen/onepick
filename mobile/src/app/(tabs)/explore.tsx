@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useCategoryTopItems, useExploreCategories, useSeasonalCategories } from '@/hooks/useExploreData';
+import { useBrowseCategories, useCategoryTopItems, useSeasonalCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -21,7 +21,7 @@ export default function ExploreScreen() {
   const [parentId, setParentId] = useState<string | undefined>();
   const [childId, setChildId] = useState<string | undefined>();
   const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
-  const categories = useExploreCategories();
+  const categories = useBrowseCategories();
   const seasonal = useSeasonalCategories();
   const categoryCatalog = categories.data ?? [];
   const groups = useMemo(() => browseCategoryGroups(categoryCatalog), [categoryCatalog]);
