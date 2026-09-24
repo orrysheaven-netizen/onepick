@@ -34,12 +34,16 @@ select ok(
   'first twenty catalog import reservations in 24 hours are allowed'
 );
 
+reset role;
+
 select is(
   (select used_count from private.external_catalog_import_limits
    where user_id='f9700000-0000-4000-8000-000000000001'),
   20,
   'the shared counter tracks total imports across providers'
 );
+
+set local role service_role;
 
 select ok(
   not public.reserve_external_catalog_import(
@@ -48,9 +52,13 @@ select ok(
   'twenty-first catalog import reservation in 24 hours is denied'
 );
 
+reset role;
+
 update private.external_catalog_import_limits
 set window_started_at=statement_timestamp()-interval '25 hours'
 where user_id='f9700000-0000-4000-8000-000000000001';
+
+set local role service_role;
 
 select ok(
   public.reserve_external_catalog_import(
@@ -58,6 +66,8 @@ select ok(
   ),
   'catalog import quota resets after the rolling 24-hour window'
 );
+
+reset role;
 
 select is(
   (select used_count from private.external_catalog_import_limits
