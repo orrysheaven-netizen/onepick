@@ -244,6 +244,11 @@ export function createBookCatalogHandler(deps: Dependencies) {
       if (suspended.data === true) {
         return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
       }
+      const quota = await client.rpc('reserve_external_catalog_import', {
+        p_user_id: data.user.id,
+      });
+      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     }
 
     const category = await catalogCategory(client);
