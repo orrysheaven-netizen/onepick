@@ -43,22 +43,39 @@ Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이
 
 ## 가입 제한 (Before User Created 훅)
 
-앱에서 버튼을 숨기는 것만으로는 부족하다. 공개 anon key만 있으면 `/auth/v1/signup`(이메일/전화)이나 익명 로그인을 직접 호출할 수 있다. 그래서 서버에서 두 겹으로 막는다.
+앱에서 버튼을 숨기는 것만으로는 부족하다. 공개 anon key만 있으면 `/auth/v1/signup`(이메일/전화)이나 익명 로그인을 직접 호출할 수 있다. 서버 훅을 먼저 검증한 뒤 provider를 정리한다.
 
-1. **Supabase Dashboard → Authentication → Sign In / Providers**
+호스팅 프로젝트 적용 순서는 다음과 같다.
+
+1. **migration 적용**
+   - `supabase/migrations/20260924235900_restrict_signup_providers.sql`을 정상 배포 절차로 적용한다.
+2. **함수와 권한 확인**
+   - `public.hook_before_user_created(jsonb)`가 존재하는지 확인한다.
+   - `supabase_auth_admin`만 EXECUTE 가능하고 `anon`·`authenticated`는 불가능한지 확인한다.
+3. **기존 계정 provider 확인**
+   - 아래 쿼리로 Google/Naver 등 기존 계정 수를 먼저 확인한다.
+4. **Apple provider 설정**
+   - Apple Services ID/Key/Team ID를 설정하고 Apple provider를 켠다.
+   - 이 단계에서는 기존 Google/Naver provider를 아직 끄지 않는다.
+5. **Before User Created 훅 연결**
+   - Authentication → Hooks → Before User Created에 `public.hook_before_user_created`를 연결한다.
+   - provider가 `kakao`/`apple`이고 익명이 아닌 신규 사용자만 통과하며, 그 외 신규 가입은 403으로 거절한다.
+   - 기존 사용자 로그인에는 영향이 없다. 새 `auth.users` row가 만들어질 때만 실행된다.
+6. **스모크 테스트**
+   - Kakao 신규 가입 성공
+   - Apple 신규 가입 성공
+   - 이메일/비밀번호 직접 신규 가입 → 403
+   - 기존 QA 이메일/비밀번호 계정 로그인 성공
+7. **불필요 provider 비활성화**
    - Kakao, Apple: 켬
    - Google, `custom:naver`: 끔
    - Phone: 끔
    - Allow anonymous sign-ins: 끔
-   - Email: **켜둔다.** `tools/qa`의 QA 계정이 이메일/비밀번호로 로그인한다. 새 이메일 가입은 아래 훅이 막는다.
-2. **Supabase Dashboard → Authentication → Hooks → Before User Created**
-   - Postgres function `public.hook_before_user_created`를 연결한다
-     (`supabase/migrations/20260924235900_restrict_signup_providers.sql`).
-   - 이 함수는 provider가 `kakao`/`apple`이고 익명이 아닌 경우만 통과시키고, 그 외에는 403으로 가입을 거절한다.
-   - 기존 사용자의 로그인에는 영향이 없다. 새 `auth.users` row가 만들어질 때만 실행된다.
-   - 로컬 스택은 `supabase/config.toml`의 `[auth.hook.before_user_created]`로 같은 훅을 켠다.
+   - Email: **켜둔다.** 새 이메일 가입은 훅이 막고 기존 QA 계정 로그인은 유지한다.
 
-Supabase Auth의 현재 Admin user creation 경로는 Before User Created 훅을 거치지 않고 직접 사용자를 만든다. 따라서 Dashboard의 Add user 또는 신뢰된 Auth Admin API로 QA 이메일 계정을 만드는 작업은 훅을 잠시 끌 필요가 없다. 단, 이 경로는 관리자 자격증명으로만 사용하고 일반 클라이언트에는 노출하지 않는다.
+로컬 스택은 `supabase/config.toml`의 `[auth.hook.before_user_created]`로 같은 훅을 켠다.
+
+Supabase Auth의 현재 Admin user creation 경로는 일반 클라이언트 signup과 별개인 관리자 경로다. Dashboard의 Add user 또는 신뢰된 Auth Admin API로 QA 이메일 계정을 만드는 경우에도 일반 클라이언트에 관리자 자격증명을 노출해서는 안 된다.
 
 ## 기존 Google/Naver 사용자
 
