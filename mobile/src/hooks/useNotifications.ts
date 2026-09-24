@@ -25,9 +25,9 @@ export function useNotificationCount(userId?: string, enabled = true) {
     queryKey: notificationKeys.count(userId),
     enabled: Boolean(userId) && enabled && active,
     queryFn: () => notificationService.unreadCount(userId!),
-    refetchInterval: 20000,
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
-    staleTime: 0,
+    staleTime: 20_000,
     retry: 1,
   });
 }
@@ -40,9 +40,8 @@ export function useNotifications(userId?: string, enabled = true) {
     initialPageParam: null as NotificationCursor | null,
     queryFn: ({ pageParam }) => notificationService.page(userId!, pageParam),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    refetchInterval: 20000,
     refetchIntervalInBackground: false,
-    staleTime: 0,
+    staleTime: 30_000,
     retry: 1,
   });
 }
