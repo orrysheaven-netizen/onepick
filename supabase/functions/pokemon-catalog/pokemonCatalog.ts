@@ -199,6 +199,7 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
@@ -206,6 +207,7 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
@@ -261,6 +263,7 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       official_url: null,
       image_source_url: pokemonArtworkUrl(id),
       external_source: POKEAPI_SOURCE,
+      created_by: importUserId,
       external_id: id,
       original_name: species.english,
       release_year: null,
@@ -271,6 +274,9 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
 
     if (!inserted.error && inserted.data) {
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
+    }
+    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
+      return json({ error: 'RATE_LIMITED' }, 429);
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
