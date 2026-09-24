@@ -89,9 +89,9 @@ async function main() {
   let renderedImage;
   const part = (tag) => ({ children }) => React.createElement(tag, null, children);
   const { PickPhoto } = load('components/pick-photo.tsx', {
+    'expo-image': { Image: (props) => { renderedImage = props; return React.createElement('img', { src: props.source.uri, alt: props.accessibilityLabel }); } },
     'expo-router': { useRouter: () => ({ push: () => assert.fail('No upload route for existing image') }) },
-    'react-native': { View: part('div'), Text: part('span'), StyleSheet: { create: (styles) => styles },
-      Image: (props) => { renderedImage = props; return React.createElement('img', { src: props.source.uri, alt: props.accessibilityLabel }); } },
+    'react-native': { View: part('div'), Text: part('span'), StyleSheet: { create: (styles) => styles } },
   });
   const markup = renderToStaticMarkup(React.createElement(PickPhoto, { uri: poster, label: base.name }));
   assert.equal(renderedImage.source.uri, poster);
