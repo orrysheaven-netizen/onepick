@@ -68,9 +68,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
-    { id: 'food', parentId: null, name: '음식', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+    { id: 'food', parentId: null, name: '먹을것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+    { id: 'noodles', parentId: 'food', name: '면류', slug: 'noodles', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
     { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
-    { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+    { id: 'ramen', parentId: 'noodles', name: '라면', slug: 'ramen', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
     { id: 'snacks', parentId: 'food', name: '과자', slug: 'snacks', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
     { id: 'movie', parentId: 'culture', name: '영화', slug: 'movie', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
@@ -113,7 +114,7 @@ for (width of [390, 800, 1200]) {
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
-  assert.match(page, /전체/); assert.match(page, /음식/); assert.match(page, /문화/);
+  assert.match(page, /전체/); assert.match(page, /먹을것/); assert.match(page, /문화/);
   assert.equal(typeof itemSearchProps.onSearchBook, 'function');
   assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
   assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
