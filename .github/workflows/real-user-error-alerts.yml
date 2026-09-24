@@ -1,0 +1,108 @@
+name: Real-user Error Alerts
+
+# Hourly read-only monitoring for tester/user error spikes (docs/automation-plan.md D).
+# This workflow never mutates the database and is not a required PR check.
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/qa/real-user-errors.sql'
+      - 'tools/qa/real-user-error-spikes.sql'
+      - 'tools/qa/check-real-user-error-spike.mjs'
+      - 'tools/qa/check-real-user-error-spike.test.mjs'
+      - 'tools/qa/publish-real-user-error-alerts.mjs'
+      - '.github/workflows/real-user-error-alerts.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-user-error-alerts
+  cancel-in-progress: false
+
+jobs:
+  unit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test evaluator
+        run: node --test tools/qa/check-real-user-error-spike.test.mjs
+
+  monitor:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: daily-qa
+    permissions:
+      contents: read
+      issues: write
+    env:
+      QA_ALERT_OUTPUT: ${{ github.workspace }}/qa-output/real-user-error-alerts.json
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Evaluate the last completed hour
+        id: evaluate
+        continue-on-error: true
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node tools/qa/check-real-user-error-spike.mjs
+
+      - name: Open or update monitor-unavailable alert
+        if: steps.evaluate.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create qa-alert --repo "$REPOSITORY" --color D73A4A \
+            --description "Automated QA or deployment mismatch requiring attention" --force
+
+          marker='<!-- onepick-real-user-error:monitor-unavailable -->'
+          body="${marker}
+
+          The hourly real-user error monitor could not complete its read-only evaluation.
+
+          Workflow: ${GITHUB_SERVER_URL}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          No database mutation was attempted. Check the workflow configuration and the read-only QA credential; do not paste secret values into issues or logs."
+
+          issue_number="$(gh issue list --repo "$REPOSITORY" --state open --label qa-alert \
+            --json number,body --jq ".[] | select((.body // \"\") | contains(\"$marker\")) | .number" | head -n1)"
+
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$REPOSITORY" --title "[qa-alert] Real-user error monitor unavailable" \
+              --label qa-alert --body "$body"
+          fi
+
+      - name: Open or update error-code alerts
+        if: steps.evaluate.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/qa/publish-real-user-error-alerts.mjs
+
+      - name: Fail when monitoring is unavailable
+        if: steps.evaluate.outcome == 'failure'
+        run: exit 1
