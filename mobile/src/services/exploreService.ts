@@ -9,7 +9,9 @@ export class ExploreService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  getCategories() { return this.categoryRepository.getBrowseCategories(); }
+  getCategories() { return this.categoryRepository.getVisibleCategories(); }
+
+  getBrowseCategories() { return this.categoryRepository.getBrowseCategories(); }
 
   getSeasonalRecommendations(limit = 8) {
     return this.categoryRepository.getSeasonalRecommendations(limit);
