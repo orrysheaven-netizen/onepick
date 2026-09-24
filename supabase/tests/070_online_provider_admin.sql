@@ -263,6 +263,23 @@ begin
   end;
   reset role;
 
+  -- Provider-backed online item external identity cannot be rewritten directly.
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  set local role authenticated;
+  begin
+    update public.items
+    set external_id='tampered:'||v_item::text
+    where id=v_item;
+    set constraints all immediate;
+    assert false,'provider-backed item external identity update must fail';
+  exception when check_violation then
+    assert sqlerrm='ONLINE_PROVIDER_ITEM_EXTERNAL_ID_INVALID',
+      'online provider item external identity is derived from provider/category';
+  end;
+  set constraints all deferred;
+  reset role;
+
   -- Active onepick_provider rows cannot commit without item_providers.
   begin
     insert into public.items(
