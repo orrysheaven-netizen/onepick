@@ -231,7 +231,7 @@ async function main() {
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/components/item-search': { ItemSearch: () => null },
     '@/hooks/useExploreData': {
-      useExploreCategories: () => ({ data: browseCategories, isFetching: false, isRefetching: false, refetch() {} }),
+      useBrowseCategories: () => ({ data: browseCategories, isFetching: false, isRefetching: false, refetch() {} }),
       useSeasonalCategories: () => ({ data: [], isFetching: false, isRefetching: false, refetch() {} }),
       useCategoryTopItems: () => rankingQuery,
     },
