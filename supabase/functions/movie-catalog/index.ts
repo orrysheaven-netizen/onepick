@@ -156,9 +156,13 @@ async function importMovie(externalId: unknown, req: Request): Promise<Response>
     category_id: category.id, name: movie.title, normalized_name: normalizeItemName(movie.title),
     official_url: `https://www.themoviedb.org/movie/${movie.externalId}`,
     image_source_url: movie.posterUrl, external_source: TMDB_SOURCE, external_id: movie.externalId,
+    created_by: authData.user.id,
     original_name: movie.originalTitle, release_year: movie.releaseYear, status: 'active',
   }).select('id, category_id').maybeSingle();
   if (!insertError && inserted) return json({ itemId: inserted.id, categoryId: inserted.category_id, created: true });
+  if (insertError?.code === 'P0001' && insertError.message?.includes('RATE_LIMITED')) {
+    return json({ error: 'RATE_LIMITED' }, 429);
+  }
   if (insertError?.code !== '23505') {
     console.error('Movie insert failed', insertError?.code ?? 'empty_result');
     return json({ error: 'CATALOG_UNAVAILABLE' }, 500);
