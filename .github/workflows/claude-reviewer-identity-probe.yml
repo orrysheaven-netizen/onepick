@@ -101,11 +101,11 @@ jobs:
           }
 
           {
-            echo "### Claude reviewer identity probe"
-            echo "- Author: `$author`"
-            echo "- State: `$state`"
-            echo "- PR: #$PR_NUMBER"
+            printf '%s\n' '### Claude reviewer identity probe'
+            printf '%s\n' "- Author: $author"
+            printf '%s\n' "- State: $state"
+            printf '%s\n' "- PR: #$PR_NUMBER"
             if [ -n "$url" ]; then
-              echo "- Review: $url"
+              printf '%s\n' "- Review: $url"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
