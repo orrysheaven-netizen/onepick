@@ -1,4 +1,4 @@
--- Bound authenticated external-catalog item creation across all providers.
+-- Bound authenticated external-catalog imports across all providers.
 -- Manual item submission already uses the same 20 items / rolling 24h policy.
 create table private.external_catalog_import_limits (
   user_id uuid primary key references public.profiles(id) on delete cascade,
@@ -10,8 +10,8 @@ create table private.external_catalog_import_limits (
 alter table private.external_catalog_import_limits enable row level security;
 revoke all on table private.external_catalog_import_limits from public, anon, authenticated;
 
-create or replace function private.enforce_external_catalog_import_limit()
-returns trigger
+create or replace function public.reserve_external_catalog_import(p_user_id uuid)
+returns boolean
 language plpgsql
 security definer
 set search_path = ''
@@ -21,32 +21,31 @@ declare
   v_window timestamptz;
   v_count integer;
 begin
-  -- Trusted maintenance/seed rows that have no requesting user remain outside
-  -- the end-user quota. Edge catalog imports set created_by from the validated JWT.
-  if new.external_source is null or new.created_by is null then
-    return new;
+  if p_user_id is null
+     or not exists(select 1 from public.profiles p where p.id = p_user_id) then
+    return false;
   end if;
 
   perform pg_advisory_xact_lock(
-    hashtextextended('external-catalog-import:' || new.created_by::text, 0)
+    hashtextextended('external-catalog-import:' || p_user_id::text, 0)
   );
 
   select window_started_at, used_count
     into v_window, v_count
   from private.external_catalog_import_limits
-  where user_id = new.created_by
+  where user_id = p_user_id
   for update;
 
   if found
      and v_window > v_now - interval '24 hours'
      and v_count >= 20 then
-    raise exception 'RATE_LIMITED' using errcode = 'P0001';
+    return false;
   end if;
 
   insert into private.external_catalog_import_limits(
     user_id, window_started_at, used_count, updated_at
   )
-  values(new.created_by, v_now, 1, v_now)
+  values(p_user_id, v_now, 1, v_now)
   on conflict(user_id) do update
   set window_started_at = case
         when private.external_catalog_import_limits.window_started_at <= v_now - interval '24 hours'
@@ -60,16 +59,11 @@ begin
       end,
       updated_at = v_now;
 
-  return new;
+  return true;
 end;
 $$;
 
-revoke all on function private.enforce_external_catalog_import_limit()
+revoke all on function public.reserve_external_catalog_import(uuid)
   from public, anon, authenticated;
-
-drop trigger if exists items_external_catalog_import_limit on public.items;
-create trigger items_external_catalog_import_limit
-before insert on public.items
-for each row
-when (new.external_source is not null and new.created_by is not null)
-execute function private.enforce_external_catalog_import_limit();
+grant execute on function public.reserve_external_catalog_import(uuid)
+  to service_role;
