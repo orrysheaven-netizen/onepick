@@ -3,6 +3,11 @@ name: Deployment Consistency
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - 'tools/qa/check-deployment-consistency.mjs'
+      - 'tools/qa/check-deployment-consistency.test.mjs'
+      - '.github/workflows/deployment-consistency.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +19,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  unit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test deployment evaluator
+        run: node tools/qa/check-deployment-consistency.test.mjs
+
   verify:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -104,11 +121,10 @@ jobs:
 
           gh label create qa-alert --repo "$REPOSITORY" --color D73A4A             --description "Automated QA or deployment mismatch requiring attention" --force
 
-          report="Deployment consistency failed for main `$MAIN_SHA`.
-
-          Workflow: $GITHUB_SERVER_URL/$REPOSITORY/actions/runs/$GITHUB_RUN_ID
-
-          The check waited for Cloudflare deployment metadata and, when Edge Function source changed, Supabase function deployment status. Inspect the workflow summary for the exact mismatch. No deployment or database mutation was attempted by this check."
+          report="$(printf '%s\n\n%s\n\n%s' \
+            "Deployment consistency failed for main $MAIN_SHA." \
+            "Workflow: $GITHUB_SERVER_URL/$REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            "The check waited for Cloudflare deployment metadata and, when Edge Function source changed, Supabase function deployment status. Inspect the workflow summary for the exact mismatch. No deployment or database mutation was attempted by this check.")"
 
           issue_number="$(gh issue list --repo "$REPOSITORY" --state open --label qa-alert             --search '"[qa-alert] Deployment mismatch" in:title' --json number,title             --jq '.[] | select(.title == "[qa-alert] Deployment mismatch") | .number' | head -n1)"
 
