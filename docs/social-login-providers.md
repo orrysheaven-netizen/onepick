@@ -35,7 +35,9 @@ Client Secret은 GitHub, Expo public env, 문서, 채팅에 저장하지 않는�
    - Client IDs: Services ID (iOS 네이티브 로그인을 추가하면 앱 Bundle ID도 추가)
    - Secret Key (for OAuth): `.p8`, Team ID, Key ID, Services ID로 만든 client secret JWT
 3. **Apple client secret은 최대 6개월 뒤 만료된다.** 만료되면 Apple 로그인이 전부 실패하므로, 만료일을 캘린더에 적어두고 그 전에 새로 만들어 Supabase에 다시 넣는다.
-4. 저장 후 실제 Apple ID로 로그인 → OnePick `/auth/callback` → 사용자명/원래 작업 복귀를 확인한다.\n\n현재 OnePick은 Kakao와 같은 `signInWithOAuth` + PKCE 흐름을 Apple에도 사용한다. Supabase는 React Native/Expo에서도 이 방식이 동작한다고 안내하지만 iOS에서는 네이티브 Sign in with Apple을 모범 사례로 권장한다. 네이티브 전환은 이번 범위에 포함하지 않으며, 추후 전환 시 앱 Bundle ID를 Apple provider의 Client IDs에 추가하고 `signInWithIdToken` 경로를 별도로 검증한다.
+4. 저장 후 실제 Apple ID로 로그인 → OnePick `/auth/callback` → 사용자명/원래 작업 복귀를 확인한다.
+
+현재 OnePick은 Kakao와 같은 `signInWithOAuth` + PKCE 흐름을 Apple에도 사용한다. Supabase는 React Native/Expo에서도 이 방식이 동작한다고 안내하지만 iOS에서는 네이티브 Sign in with Apple을 모범 사례로 권장한다. 네이티브 전환은 이번 범위에 포함하지 않으며, 추후 전환 시 앱 Bundle ID를 Apple provider의 Client IDs에 추가하고 `signInWithIdToken` 경로를 별도로 검증한다.
 
 Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이메일을 회원 식별 키로 쓰지 않으므로 이 경우에도 로그인은 그대로 동작한다.
 
