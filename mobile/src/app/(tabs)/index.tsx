@@ -13,7 +13,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
-import { categoryLabel } from '@/lib/categories/categoryTree';
+import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory } from '@/lib/home/homeCategoryFilters';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -54,7 +54,9 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  const categoriesQuery = useExploreCategories(Boolean(data));
+  // Home search, category filters and Explore share one cached category-tree query.
+  // Start it alongside Home context instead of waiting for Home to finish first.
+  const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -64,7 +66,10 @@ export default function HomeScreen() {
     [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const searchCategories = data?.openCategories ?? [];
+  const searchCategories = useMemo(() => selectableCategories(categoryCatalog).map((category) => ({
+    ...category,
+    label: categoryLabel(category, categoryCatalog),
+  })), [categoryCatalog]);
   const categories = user ? [] : searchCategories;
   const movieCategory = searchCategories.find((category) => category.slug === 'movie');
   const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
