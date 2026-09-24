@@ -15,10 +15,16 @@ const files = [
 
 for (const relative of files) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8');
+  const authIndex = source.indexOf('auth.getUser');
+  const quotaIndex = source.indexOf('reserve_external_catalog_import');
+
   assert.match(source, /action\s*===\s*['"]import['"]/,
     relative + ' must expose an import path');
-  assert.match(source, /reserve_external_catalog_import/,
-    relative + ' must reserve the shared authenticated import quota');
+  assert.ok(authIndex >= 0, relative + ' must authenticate catalog imports');
+  assert.ok(quotaIndex > authIndex,
+    relative + ' must reserve import quota only after caller authentication');
+  assert.match(source, /created_by:\s*(?:authData\.user\.id|importUserId)/,
+    relative + ' must attribute newly imported items to the authenticated user');
   assert.match(source, /RATE_LIMITED/,
     relative + ' must map exhausted quota to a rate-limited response');
 }
@@ -32,5 +38,6 @@ assert.match(migration, /v_count >= 20/);
 assert.match(migration, /pg_advisory_xact_lock/);
 assert.match(migration, /revoke all on function public\.reserve_external_catalog_import\(uuid\)/);
 assert.match(migration, /grant execute on function public\.reserve_external_catalog_import\(uuid\)\s+to service_role/);
+assert.doesNotMatch(migration, /grant execute[\s\S]*?reserve_external_catalog_import[\s\S]*?to authenticated/);
 
 console.log('External catalog import quota checks passed for all import providers.');
