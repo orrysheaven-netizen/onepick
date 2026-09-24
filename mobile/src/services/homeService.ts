@@ -1,13 +1,7 @@
-import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
-import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export class HomeService {
-  constructor(
-    _categoryRepository: CategoryRepository,
-    _itemRepository: ItemRepository,
-    private readonly readRepository: ReadRepository,
-  ) {}
+  constructor(private readonly readRepository: ReadRepository) {}
 
   // Home context changes much less often than feed pages. Keep it outside the
   // infinite query so pagination/refetching never repeats these broad reads.
