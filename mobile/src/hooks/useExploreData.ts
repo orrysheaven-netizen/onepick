@@ -8,8 +8,17 @@ const CATEGORY_BROWSE_STALE_TIME = 5 * 60_000;
 
 export function useExploreCategories(enabled = true) {
   return useQuery({
-    queryKey: queryKeys.categories.browse,
+    queryKey: queryKeys.categories.visible,
     queryFn: () => exploreService.getCategories(),
+    enabled,
+    staleTime: CATEGORY_BROWSE_STALE_TIME,
+  });
+}
+
+export function useBrowseCategories(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.categories.browse,
+    queryFn: () => exploreService.getBrowseCategories(),
     enabled,
     staleTime: CATEGORY_BROWSE_STALE_TIME,
   });
