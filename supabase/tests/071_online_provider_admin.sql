@@ -80,10 +80,10 @@ reset role;
 
 set local role anon;
 select throws_ok(
-  $select * from public.admin_upsert_online_provider_item(
+  $sql$select * from public.admin_upsert_online_provider_item(
       (select id from op_ids where key='cat_a'),
       '익명 거부 테스트','official_site','https://anon-shop.example'
-    )$,
+    )$sql$,
   '42501',
   null,
   'Anonymous users cannot call the online provider admin RPC'
@@ -98,10 +98,10 @@ select set_config(
 select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 set local role authenticated;
 select throws_ok(
-  $select * from public.admin_upsert_online_provider_item(
+  $sql$select * from public.admin_upsert_online_provider_item(
       (select id from op_ids where key='cat_a'),
       '일반 사용자 거부 테스트','official_site','https://user-shop.example'
-    )$,
+    )$sql$,
   '42501',
   null,
   'Non-admin AAL2 users cannot call the online provider admin RPC'
