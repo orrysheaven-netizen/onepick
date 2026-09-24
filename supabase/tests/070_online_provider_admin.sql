@@ -17,6 +17,7 @@ declare
   v_cat_a uuid := gen_random_uuid();
   v_cat_b uuid := gen_random_uuid();
   v_brand uuid := gen_random_uuid();
+  v_brand2 uuid := gen_random_uuid();
 begin
   insert into auth.users(id,aud,role,created_at,updated_at) values
     (v_admin,'authenticated','authenticated',now(),now()),
@@ -40,11 +41,13 @@ begin
     (v_cat_a,'internal',true,false,'online provider admin test'),
     (v_cat_b,'internal',true,false,'online provider admin test');
 
-  insert into public.brands(id,name,normalized_name)
-  values(v_brand,'온라인테스트브랜드','op-brand-'||substr(replace(v_brand::text,'-',''),1,8));
+  insert into public.brands(id,name,normalized_name) values
+    (v_brand,'온라인테스트브랜드','op-brand-'||substr(replace(v_brand::text,'-',''),1,8)),
+    (v_brand2,'온라인테스트브랜드2','op-brand2-'||substr(replace(v_brand2::text,'-',''),1,8));
 
   insert into op_ids values
-    ('admin',v_admin),('user',v_user),('cat_a',v_cat_a),('cat_b',v_cat_b),('brand',v_brand);
+    ('admin',v_admin),('user',v_user),('cat_a',v_cat_a),('cat_b',v_cat_b),
+    ('brand',v_brand),('brand2',v_brand2);
 end;
 $fixtures$;
 
@@ -114,6 +117,7 @@ declare
   v_cat_a uuid := (select id from op_ids where key='cat_a');
   v_cat_b uuid := (select id from op_ids where key='cat_b');
   v_brand uuid := (select id from op_ids where key='brand');
+  v_brand2 uuid := (select id from op_ids where key='brand2');
   v_first record;
   v_again record;
   v_second_category record;
@@ -218,9 +222,42 @@ begin
     where id=v_platform.online_store_id
   ), 'Known platform store identity is accepted';
 
+  -- A later failure must roll back an earlier official_url refresh in the same RPC.
+  begin
+    perform public.admin_upsert_online_provider_item(
+      v_cat_a,
+      'A 공식몰',
+      'official_site',
+      'https://shop-a.example/changed',
+      null,
+      null,
+      v_brand2
+    );
+    assert false,'Conflicting brand upsert must fail';
+  exception when sqlstate 'P0001' then
+    assert sqlerrm='PROVIDER_BRAND_CONFLICT',
+      'Existing provider cannot be silently moved to a different brand';
+  end;
+  assert (
+    select official_url from public.online_stores
+    where id=v_first.online_store_id
+  )='https://shop-a.example',
+    'Failed upsert rolls back the earlier store URL update';
+
   perform public.admin_set_provider_status(v_first.provider_id,'hidden');
   assert (select status from public.providers where id=v_first.provider_id)='hidden',
     'Status RPC hides provider';
+
+  select * into v_again
+  from public.admin_upsert_online_provider_item(
+    v_cat_a,
+    'A 공식몰',
+    'official_site',
+    'https://shop-a.example'
+  );
+  assert v_again.provider_id=v_first.provider_id
+     and (select status from public.providers where id=v_first.provider_id)='hidden',
+    'Upsert reuses a hidden provider without implicitly reactivating it';
 
   perform public.admin_set_provider_status(v_first.provider_id,'active');
   perform public.admin_set_provider_brand(v_first.provider_id,null);
