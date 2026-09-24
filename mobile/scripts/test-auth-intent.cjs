@@ -119,10 +119,11 @@ async function main() {
   assert.equal(analytics.at(-1).eventName, 'auth_started');
   assert.equal(analytics.at(-1).path, '/auth/login');
   await login({ action: 'profile' }, { profile: {} }, 2);
-  assert.equal(mutationInput.provider, 'google');
+  assert.equal(mutationInput.provider, 'apple');
   assert.equal(destination, '/profile');
-  await login(comment, { profile: null }, 3);
-  assert.equal(mutationInput.provider, 'naver');
+  assert.equal(presses.length, 3, 'Only back, Kakao and Apple are offered');
+  await login(comment, { profile: null }, 2);
+  assert.equal(mutationInput.provider, 'apple');
   same(destination, getPostAuthRoute(comment, true));
   same(callbackParams, comment);
   await login(choose, { profile: {} });
@@ -158,6 +159,6 @@ async function main() {
   await flush();
   presses[0]();
   same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
-  console.log('Auth return checks passed: Kakao/Google/Naver preserve choose/comment/profile/home/item-request intents, onboarding, cancellation and callback retry.');
+  console.log('Auth return checks passed: Kakao/Apple preserve choose/comment/profile/home/item-request intents, onboarding, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

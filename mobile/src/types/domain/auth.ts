@@ -1,4 +1,4 @@
-export type SocialAuthProvider = 'kakao' | 'google' | 'naver';
+export type SocialAuthProvider = 'kakao' | 'apple';
 
 export interface AuthUser {
   id: string;
