@@ -51,7 +51,8 @@ Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이
    - `supabase/migrations/20260924235900_restrict_signup_providers.sql`을 정상 배포 절차로 적용한다.
 2. **함수와 권한 확인**
    - `public.hook_before_user_created(jsonb)`가 존재하는지 확인한다.
-   - `supabase_auth_admin`만 EXECUTE 가능하고 `anon`·`authenticated`는 불가능한지 확인한다.
+   - `supabase_auth_admin`에 `public` schema USAGE가 있는지 확인한다.
+   - `supabase_auth_admin`만 함수 EXECUTE 가능하고 `anon`·`authenticated`는 불가능한지 확인한다.
 3. **기존 계정 provider 확인**
    - 아래 쿼리로 Google/Naver 등 기존 계정 수를 먼저 확인한다.
 4. **Apple provider 설정**
@@ -63,17 +64,22 @@ Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이
    - 기존 사용자 로그인에는 영향이 없다. 새 `auth.users` row가 만들어질 때만 실행된다.
 6. **스모크 테스트**
    - Kakao 신규 가입 성공
+   - 기존 Kakao 사용자 로그인 성공
    - Apple 신규 가입 성공
    - 이메일/비밀번호 직접 신규 가입 → 403
    - 기존 QA 이메일/비밀번호 계정 로그인 성공
+   - Dashboard의 Add user로 테스트용 사용자를 만들 수 있는지 확인한다. 이 경로가 훅에 막히면 훅을 임시 비활성화하지 말고 운영 절차를 다시 정리한다.
 7. **불필요 provider 비활성화**
    - Kakao, Apple: 켬
-   - Google, `custom:naver`: 끔
    - Phone: 끔
    - Allow anonymous sign-ins: 끔
    - Email: **켜둔다.** 새 이메일 가입은 훅이 막고 기존 QA 계정 로그인은 유지한다.
+   - Google 또는 `custom:naver` 기존 사용자가 **0명일 때만** 해당 provider를 바로 끈다.
+   - 기존 사용자가 있으면 provider를 즉시 끄지 말고, 사용자 안내·계정 전환/재가입·유예 기간 중 어떤 방식으로 처리할지 먼저 결정한 뒤 별도 rollout으로 비활성화한다.
 
 로컬 스택은 `supabase/config.toml`의 `[auth.hook.before_user_created]`로 같은 훅을 켠다.
+
+훅은 Supabase의 현재 payload에 `user.app_metadata.provider`와 `user.is_anonymous`가 항상 포함된다는 계약을 전제로 fail-closed로 동작한다. Supabase Auth/GoTrue를 업그레이드한 뒤에는 Kakao·Apple 신규 가입과 email 403 스모크 테스트를 다시 실행해 payload 회귀를 확인한다.
 
 Supabase Auth의 현재 Admin user creation 경로는 일반 클라이언트 signup과 별개인 관리자 경로다. Dashboard의 Add user 또는 신뢰된 Auth Admin API로 QA 이메일 계정을 만드는 경우에도 일반 클라이언트에 관리자 자격증명을 노출해서는 안 된다.
 
