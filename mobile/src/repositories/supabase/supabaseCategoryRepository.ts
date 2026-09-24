@@ -11,7 +11,7 @@ function isMissingRpc(error: { code?: string | null } | null) {
 export class SupabaseCategoryRepository implements CategoryRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  private async getVisibleCategories() {
+  async getVisibleCategories() {
     const { data, error } = await this.client
       .from('categories')
       .select('*')
