@@ -59,6 +59,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/onepick-brand': { OnePickBrand: () => null },
+  '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
   '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
@@ -96,6 +97,8 @@ const press = (label) => {
 // continue to exercise that secondary tab as a fresh mount.
 const followingFirstPage = render();
 assert.match(followingFirstPage, /팔로잉/);
+assert.match(followingFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
+assert.match(followingFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
 assert.match(followingFirstPage, /@friend/, 'Member Home renders the following feed first');
 assert.doesNotMatch(followingFirstPage, /@neighbor/, 'The default following feed does not silently fall back to the public feed');
 assert.doesNotMatch(followingFirstPage, /원픽 더 둘러보기/, 'Public-feed footer is not mixed into the following scope');
@@ -154,6 +157,7 @@ assert.match(render(), /모두 확인했어요/);
 auth.user = null;
 const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
+assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
 assert.match(publicPage, /어떤 취향부터 골라볼까요/);
 assert.match(publicPage, /먹을것 › 면류 › 라면/);
 press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');

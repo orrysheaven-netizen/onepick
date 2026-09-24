@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
+import { NotificationButton } from '@/components/notification-button';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
@@ -122,7 +123,10 @@ export default function HomeScreen() {
   const listHeader = <>
     <View style={styles.nativeHeader}>
       <OnePickBrand />
-      <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} />
+      <View style={styles.headerActions}>
+        {user ? <NotificationButton userId={user.id} /> : null}
+        <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} />
+      </View>
     </View>
 
     <ItemSearch compact
@@ -291,6 +295,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 28 },
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginTop: 8, marginBottom: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { color: OnePick.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
