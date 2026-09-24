@@ -82,6 +82,7 @@ begin
   join public.categories c on c.id = p.category_id
   where p.status = 'active'
     and p.user_id is distinct from (select auth.uid())
+    and not private.user_is_suspended(p.user_id)
     and i.status in ('active', 'discontinued')
     and (
       p_before_time is null
@@ -178,6 +179,7 @@ begin
   join public.categories c on c.id = p.category_id
   where p.status = 'active'
     and p.user_id is distinct from (select auth.uid())
+    and not private.user_is_suspended(p.user_id)
     and i.status in ('active', 'discontinued')
     and (
       p_before_time is null
