@@ -280,14 +280,8 @@ where c.slug in (
   'flatfish-sashimi','rockfish-sashimi','flounder-sashimi',
   'mineo-sashimi','jeoneo-sashimi','yellowtail-sashimi'
 )
-on conflict(category_id) do update set
-  mode='internal',
-  provider=null,
-  edge_function_slug=null,
-  external_source=null,
-  is_enabled=true,
-  notes=excluded.notes,
-  updated_at=now();
+-- An existing catalog source for a pre-existing slug is left as configured.
+on conflict(category_id) do nothing;
 
 -- The old broad 김 search tag must not steal the exact fine-leaf result.
 delete from public.category_search_terms t
