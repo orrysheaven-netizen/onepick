@@ -412,7 +412,7 @@ begin
 
   insert into public.item_channels(item_id,channel,target_url,is_primary)
   values(v_item.id,'online',v_url,true)
-  on conflict(item_id,channel) do update
+  on conflict on constraint item_channels_pkey do update
   set target_url=excluded.target_url,
       is_primary=true,
       updated_at=now();
