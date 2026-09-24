@@ -7,21 +7,25 @@ select ok(
   'Active home-feed ordering index exists'
 );
 
-select like(
-  pg_get_indexdef('public.picks_active_started_id_idx'::regclass),
-  '%(started_at DESC, id DESC)%WHERE (status = ''active''::text)%',
+select ok(
+  position('(started_at DESC, id DESC)' in pg_get_indexdef('public.picks_active_started_id_idx'::regclass)) > 0
+  and position('WHERE (status = ''active''::text)' in pg_get_indexdef('public.picks_active_started_id_idx'::regclass)) > 0,
   'Home-feed index matches active status and cursor order'
 );
 
-select like(
-  pg_get_functiondef('public.home_pick_feed_page(timestamptz,uuid)'::regprocedure),
-  '%open_leaf_categories AS MATERIALIZED%',
+select ok(
+  position(
+    'open_leaf_categories as materialized'
+    in lower(pg_get_functiondef('public.home_pick_feed_page(timestamptz,uuid)'::regprocedure))
+  ) > 0,
   'Home feed materializes open leaf categories once'
 );
 
-select like(
-  pg_get_functiondef('public.home_pick_feed_page_v2(timestamptz,uuid)'::regprocedure),
-  '%open_leaf_categories AS MATERIALIZED%',
+select ok(
+  position(
+    'open_leaf_categories as materialized'
+    in lower(pg_get_functiondef('public.home_pick_feed_page_v2(timestamptz,uuid)'::regprocedure))
+  ) > 0,
   'Home feed v2 materializes open leaf categories once'
 );
 
