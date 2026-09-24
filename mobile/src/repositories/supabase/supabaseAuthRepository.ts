@@ -18,10 +18,11 @@ function getUrlParam(url: string, key: string) {
   return new URL(url).searchParams.get(key);
 }
 
-const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'google' | 'custom:naver'> = {
+// Keep in sync with public.hook_before_user_created, which rejects sign-ups
+// from any other Supabase Auth provider.
+const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'apple'> = {
   kakao: 'kakao',
-  google: 'google',
-  naver: 'custom:naver',
+  apple: 'apple',
 };
 
 export class SupabaseAuthRepository implements AuthRepository {
@@ -80,8 +81,8 @@ export class SupabaseAuthRepository implements AuthRepository {
         redirectTo,
         ...(provider === 'kakao'
           ? {
-              // Keep the existing privacy-minimal Kakao scope. Google and Naver
-              // use the scopes configured on their Supabase Auth providers.
+              // Keep the existing privacy-minimal Kakao scope. Apple uses the
+              // scopes configured on its Supabase Auth provider.
               queryParams: { scope: 'profile_nickname' },
             }
           : {}),

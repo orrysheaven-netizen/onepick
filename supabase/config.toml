@@ -21,6 +21,12 @@ enabled = true
 site_url = "http://localhost:8081"
 additional_redirect_urls = ["http://localhost:8081"]
 
+[auth.hook.before_user_created]
+# Only Kakao and Apple may create accounts. The hosted project must enable the
+# same hook under Authentication -> Hooks (config.toml only covers local).
+enabled = true
+uri = "pg-functions://postgres/public/hook_before_user_created"
+
 [functions.import-item-image]
 verify_jwt = true
 
