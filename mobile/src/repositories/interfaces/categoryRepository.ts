@@ -10,6 +10,7 @@ export interface SeasonalCategoryRecommendation {
 }
 
 export interface CategoryRepository {
+  getVisibleCategories(): Promise<Category[]>;
   getOpenCategories(): Promise<Category[]>;
   getBrowseCategories(): Promise<Category[]>;
   getSeasonalRecommendations(limit?: number): Promise<SeasonalCategoryRecommendation[]>;
