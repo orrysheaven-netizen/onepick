@@ -349,6 +349,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       official_url: channel.channelUrl,
       image_source_url: channel.thumbnailUrl,
       external_source: YOUTUBE_SOURCE,
+      created_by: authData.user.id,
       external_id: id,
       original_name: channel.title,
       release_year: null,
@@ -359,6 +360,9 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) {
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
+    }
+    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
+      return json({ error: 'RATE_LIMITED' }, 429);
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
