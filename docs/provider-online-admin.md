@@ -347,7 +347,7 @@ PR 0a의 `069_provider_foundation.sql` 다음 별도 pgTAP 파일을 추가한�
 예상:
 
 ```
-supabase/tests/070_online_provider_admin.sql
+supabase/tests/071_online_provider_admin.sql
 ```
 
 ### 권한
@@ -424,7 +424,7 @@ PR 0b 구현 시 예상 변경 파일:
 
 ```
 supabase/migrations/<timestamp>_add_online_provider_admin_workflow.sql
-supabase/tests/070_online_provider_admin.sql
+supabase/tests/071_online_provider_admin.sql
 docs/provider-online-admin.md
 mobile/src/lib/supabase/database.types.ts   # RPC/generated schema type 반영 시
 ```
