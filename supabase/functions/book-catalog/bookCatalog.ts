@@ -223,6 +223,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
@@ -234,6 +235,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
 
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
 
       const suspended = await client.rpc('catalog_user_is_suspended', {
         p_user_id: data.user.id,
@@ -432,6 +434,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
         official_url: book.infoUrl,
         image_source_url: book.coverUrl,
         external_source: GOOGLE_BOOKS_SOURCE,
+        created_by: importUserId,
         external_id: id,
         original_name: book.title,
         release_year: book.releaseYear,
@@ -450,6 +453,9 @@ export function createBookCatalogHandler(deps: Dependencies) {
       });
     }
 
+    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
+      return json({ error: 'RATE_LIMITED' }, 429);
+    }
     if (inserted.error?.code !== '23505') {
       console.error('Google Books item insert failed', inserted.error?.code);
       return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
