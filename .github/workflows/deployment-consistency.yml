@@ -1,0 +1,123 @@
+name: Deployment Consistency
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: deployment-consistency
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DEPLOYMENT_BASE_URL: https://onepick-5cl.pages.dev
+      SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
+      DEPLOYMENT_CHECK_OUTPUT: ${{ github.workspace }}/deployment-consistency.json
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Detect Edge Function changes
+        id: edge
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
+            before="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+
+          if [ -z "$before" ]; then
+            changed_files="$(git ls-files 'supabase/functions/**')"
+          else
+            changed_files="$(git diff --name-only "$before" "$GITHUB_SHA" -- supabase/functions supabase/config.toml)"
+          fi
+
+          if grep -qx 'supabase/config.toml' <<<"$changed_files" || grep -q '^supabase/functions/_shared/' <<<"$changed_files"; then
+            slugs="$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' -printf '%f\n' | sort -u | paste -sd, -)"
+          else
+            slugs="$(awk -F/ '/^supabase\/functions\/[^_][^/]*\// {print $3}' <<<"$changed_files" | sort -u | paste -sd, -)"
+          fi
+
+          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
+          echo "Changed Edge Functions: ${slugs:-none}"
+
+      - name: Compute main commit timestamp
+        id: commit
+        shell: bash
+        run: echo "timestamp_ms=$(( $(git show -s --format=%ct "$GITHUB_SHA") * 1000 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployment consistency
+        id: verify
+        continue-on-error: true
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_BRANCH: main
+          COMMIT_TIMESTAMP_MS: ${{ steps.commit.outputs.timestamp_ms }}
+          CHANGED_EDGE_FUNCTIONS: ${{ steps.edge.outputs.slugs }}
+          SUPABASE_QA_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: node tools/qa/check-deployment-consistency.mjs
+
+      - name: Write summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "$DEPLOYMENT_CHECK_OUTPUT" ]; then
+            node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync(process.env.DEPLOYMENT_CHECK_OUTPUT, 'utf8'));
+          console.log('### Deployment consistency');
+          console.log(`- main: \`${r.expectedSha}\``);
+          console.log(`- Cloudflare: ${r.cloudflare.ok ? 'OK' : 'MISMATCH'} — ${r.cloudflare.reason}`);
+          console.log(`- Edge Functions: ${r.edge.ok ? 'OK' : 'MISMATCH'} — ${r.edge.reason}`);
+          for (const fn of r.edge.functions ?? []) {
+            console.log(`  - ${fn.slug}: ${fn.ok ? 'OK' : 'MISMATCH'} — ${fn.reason}`);
+          }
+          NODE
+          else
+            echo "### Deployment consistency" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Verification report was not produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Open or update qa-alert
+        if: steps.verify.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          MAIN_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh label create qa-alert --repo "$REPOSITORY" --color D73A4A             --description "Automated QA or deployment mismatch requiring attention" --force
+
+          report="Deployment consistency failed for main `$MAIN_SHA`.
+
+          Workflow: $GITHUB_SERVER_URL/$REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          The check waited for Cloudflare deployment metadata and, when Edge Function source changed, Supabase function deployment status. Inspect the workflow summary for the exact mismatch. No deployment or database mutation was attempted by this check."
+
+          issue_number="$(gh issue list --repo "$REPOSITORY" --state open --label qa-alert             --search '"[qa-alert] Deployment mismatch" in:title' --json number,title             --jq '.[] | select(.title == "[qa-alert] Deployment mismatch") | .number' | head -n1)"
+
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$report"
+          else
+            gh issue create --repo "$REPOSITORY" --title "[qa-alert] Deployment mismatch"               --label qa-alert --body "$report"
+          fi
+
+      - name: Fail on mismatch
+        if: steps.verify.outcome == 'failure'
+        run: exit 1
