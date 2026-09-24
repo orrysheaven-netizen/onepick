@@ -27,15 +27,13 @@ const feed = { nextCursor: { timestamp: '2026-09-21T09:00:00.000000+00:00', id: 
   oneLineReview: '친구의 이유', thumbnailUrl: null, startedAt: '2026-09-21T10:00:00.000000+00:00',
 }] };
 let calls = [];
-const categoryRepository = { getOpenCategories: async () => assert.fail('Home context must use the shared category query') };
 const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
   getHomeShowcase: async () => assert.fail('Home no longer reads the aggregate product showcase'),
   getEditorialHomeItems: async () => { calls.push(['editorial']); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
-const itemRepository = { getByCategory: async () => assert.fail('Home must not list unqualified catalog products') };
-const service = new HomeService(categoryRepository, itemRepository, readRepository);
+const service = new HomeService(readRepository);
 
 async function main() {
   const context = await service.getHomeContext('me');
@@ -72,8 +70,6 @@ async function main() {
   assert.equal(empty.nextCursor, null);
 
   const failure = new HomeService(
-    categoryRepository,
-    itemRepository,
     { ...readRepository, getEditorialHomeItems: async () => { throw new Error('offline'); } },
   );
   await assert.rejects(() => failure.getHomeContext('me'), /offline/);
