@@ -44,7 +44,7 @@ jobs:
         run: python3 tools/test_sbiz_place_adapter.py
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: latest
 
