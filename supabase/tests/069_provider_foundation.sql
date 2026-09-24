@@ -380,7 +380,7 @@ begin
   begin
     set constraints all immediate;
     insert into public.items(id,category_id,name,normalized_name,status,external_source,external_id,brand_id)
-    values (v_branded_item,v_cat_b,'브랜드 상품','브랜드상품','active','onepick_provider','branded-'||v_branded_item::text,v_brand);
+    values (v_branded_item,v_cat_b,'브랜드 상품','브랜드상품','pending','onepick_provider','branded-'||v_branded_item::text,v_brand);
     insert into public.item_providers(item_id,category_id,provider_id) values (v_branded_item,v_cat_b,v_online);
     assert false,'A branded item must not be mapped to a provider';
   exception when check_violation then
@@ -391,9 +391,10 @@ begin
   begin
     set constraints all immediate;
     update public.item_providers set provider_id=v_online where item_id=v_gangnam_b_item;
-    assert false,'An online provider cannot own an item that has a place';
+    assert false,'An offline-source item cannot move to an online provider';
   exception when check_violation then
-    assert sqlerrm='ONLINE_PROVIDER_ITEM_HAS_PLACE','Online provider items have no place mapping';
+    assert sqlerrm='ONLINE_PROVIDER_ITEM_SOURCE_INVALID',
+      'Online provider items require onepick_provider source';
   end;
   set constraints all deferred;
 
