@@ -111,7 +111,8 @@ async function main() {
     await api.getOnlineProviders({ query: ' 공식 몰 ' });
     assert.match(mock.calls[0].url, /\/rest\/v1\/providers\?/);
     assert.match(mock.calls[0].url, /kind=eq.online_store/);
-    assert.match(decodeURIComponent(mock.calls[0].url), /name=ilike\.\*공식 몰\*/);
+    const providerUrl = new URL(mock.calls[0].url);
+    assert.equal(providerUrl.searchParams.get('name'), 'ilike.*공식 몰*');
   }
 
   {
