@@ -10,6 +10,7 @@ export const queryKeys = {
   },
   categories: {
     all: ['categories'] as const,
+    visible: ['categories', 'visible'] as const,
     browse: ['categories', 'browse'] as const,
     seasonal: ['categories', 'seasonal'] as const,
     open: ['categories', 'open'] as const,
