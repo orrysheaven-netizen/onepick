@@ -1,0 +1,111 @@
+name: Claude Reviewer Identity Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Open PR number to receive a COMMENT-only identity probe'
+        required: true
+        type: string
+
+# The default GITHUB_TOKEN has no repository permissions. The reviewer App token
+# is short-lived, scoped to this repository, and requests only review-time access.
+permissions: {}
+
+jobs:
+  probe:
+    if: ${{ vars.ONEPICK_CLAUDE_REVIEWER_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Create reviewer App token
+        id: reviewer-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.ONEPICK_CLAUDE_REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.ONEPICK_CLAUDE_REVIEWER_PRIVATE_KEY }}
+          permission-actions: read
+          permission-checks: read
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: write
+          permission-statuses: read
+
+      - name: Verify token repository scope
+        env:
+          GH_TOKEN: ${{ steps.reviewer-token.outputs.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || {
+            echo "pr_number must be a positive integer" >&2
+            exit 1
+          }
+
+          pr_state="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" --jq '.state')"
+          test "$pr_state" = "open" || {
+            echo "Identity probe requires an open pull request" >&2
+            exit 1
+          }
+
+          repositories_json="$(gh api /installation/repositories --paginate)"
+          count="$(jq '[.repositories[]] | length' <<<"$repositories_json")"
+          full_name="$(jq -r '.repositories[0].full_name // empty' <<<"$repositories_json")"
+
+          test "$count" = "1" || {
+            echo "Reviewer token must be scoped to exactly one repository; got $count" >&2
+            exit 1
+          }
+
+          test "$full_name" = "$REPOSITORY" || {
+            echo "Reviewer token is scoped to unexpected repository: $full_name" >&2
+            exit 1
+          }
+
+          echo "Reviewer token is scoped to $REPOSITORY only."
+
+      - name: Submit COMMENT-only identity probe
+        id: review
+        env:
+          GH_TOKEN: ${{ steps.reviewer-token.outputs.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+          APP_SLUG: ${{ steps.reviewer-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          body="OnePick Claude reviewer identity probe. COMMENT only; no approval, merge, code change, workflow dispatch, or database action was performed."
+
+          response="$(
+            gh api               --method POST               "repos/$REPOSITORY/pulls/$PR_NUMBER/reviews"               -f event=COMMENT               -f body="$body"
+          )"
+
+          author="$(jq -r '.user.login' <<<"$response")"
+          state="$(jq -r '.state' <<<"$response")"
+          url="$(jq -r '.html_url // empty' <<<"$response")"
+          expected_author="${APP_SLUG}[bot]"
+
+          test "$author" = "$expected_author" || {
+            echo "Unexpected review author: $author (expected $expected_author)" >&2
+            exit 1
+          }
+
+          test "$state" = "COMMENTED" || {
+            echo "Unexpected review state: $state" >&2
+            exit 1
+          }
+
+          {
+            printf '%s\n' '### Claude reviewer identity probe'
+            printf '%s\n' "- Author: $author"
+            printf '%s\n' "- State: $state"
+            printf '%s\n' "- PR: #$PR_NUMBER"
+            if [ -n "$url" ]; then
+              printf '%s\n' "- Review: $url"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

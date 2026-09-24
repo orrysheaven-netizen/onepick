@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'tools/qa/**'
       - '.github/workflows/web-build.yml'
 
 concurrency:
@@ -30,6 +31,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      - name: Check QA script syntax
+        working-directory: .
+        run: |
+          find tools/qa -type f -name '*.mjs' -print0 | sort -z | xargs -0 -r -n1 node --check
 
       - name: Install dependencies
         run: npm ci

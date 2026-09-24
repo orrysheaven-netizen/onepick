@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { OnePick } from '@/constants/onepick';
 
 type Props = {
@@ -37,14 +38,14 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
   if (tall) {
     return <View style={[styles.frame, styles.tall]}>
       {uri && !failed
-        ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode="cover" onError={() => setFailedUri(uri)} />
+        ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} contentFit="cover" cachePolicy="memory-disk" recyclingKey={uri} onError={() => setFailedUri(uri)} />
         : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.tallPlaceholder}>
             <Text numberOfLines={3} style={styles.tallPlaceholderName}>{label}</Text>
           </View>}
     </View>;
   }
   return <View style={[styles.frame, large && styles.large, square && styles.square]}>
-    {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} resizeMode={square ? 'cover' : 'contain'} onError={() => setFailedUri(uri)} />
+    {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} contentFit={square ? 'cover' : 'contain'} cachePolicy="memory-disk" recyclingKey={uri} onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>

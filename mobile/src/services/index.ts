@@ -58,11 +58,7 @@ export const exploreService = new ExploreService(
   categoryRepository,
   readRepository,
 );
-export const homeService = new HomeService(
-  categoryRepository,
-  itemRepository,
-  readRepository,
-);
+export const homeService = new HomeService(readRepository);
 export const pickService = new PickService(
   pickRepository,
   categoryRepository,

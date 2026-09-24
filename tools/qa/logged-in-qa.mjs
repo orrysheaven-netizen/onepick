@@ -117,6 +117,13 @@ async function actionable(locator) {
   await locator.first().click({ trial: true, timeout: STEP_TIMEOUT_MS });
 }
 
+// Bottom tab bar items are `Pressable accessibilityRole="tab"` wrapped in
+// expo-router `Link asChild`, which injects `role="link"` on web; RN gives `role`
+// precedence, so the DOM exposes them as links. Accept either role.
+function bottomTab(page, label) {
+  return page.getByRole('tab', { name: label, exact: true }).or(page.getByRole('link', { name: label, exact: true }));
+}
+
 async function noErrorCopy(page) {
   const body = await page.locator('body').innerText().catch(() => '');
   const match = body.match(ERROR_COPY);
@@ -223,7 +230,7 @@ async function main() {
       await noErrorCopy(page);
     });
     for (const label of ['홈', '탐색', '내 프로필']) {
-      await check(flow, `하단 탭 "${label}"`, () => actionable(page.getByRole('tab', { name: label, exact: true })));
+      await check(flow, `하단 탭 "${label}"`, () => actionable(bottomTab(page, label)));
     }
     await check(flow, '하단 "원픽 등록" 버튼', () => actionable(page.getByRole('button', { name: '원픽 등록', exact: true })));
     await check(flow, '팔로잉/전체 피드 전환(로그인 전용)', async () => {
@@ -289,7 +296,7 @@ async function main() {
     flow = '프로필';
     await check(flow, '내 프로필 탭 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await page.getByRole('tab', { name: '내 프로필', exact: true }).click();
+      await bottomTab(page, '내 프로필').first().click();
       await page.waitForURL(/\/profile/, { timeout: STEP_TIMEOUT_MS });
       await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
     });
@@ -353,27 +360,61 @@ async function main() {
     await shot(page, 'notifications');
 
     flow = '공유/딥링크';
-    let pickPath = null;
+    let pickId = null;
     await check(flow, '피드 → 원픽 상세 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       const open = page.getByRole('button', { name: /의 원픽에 의견 나누기$/ });
       await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await open.first().click();
-      await page.waitForURL(/\/pick\/[^/]+$/, { timeout: STEP_TIMEOUT_MS });
-      pickPath = new URL(page.url()).pathname;
+      // The card links to /pick/:id, which (since #250) redirects to /item/:itemId?pickId=:id.
+      await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
+      const url = new URL(page.url());
+      const focusedPickId = url.searchParams.get('pickId');
+      if (!focusedPickId) throw new Error('원픽 상세 리다이렉트 URL에 pickId가 없음');
+      pickId = focusedPickId;
+      return '/pick/:id → /item/:id?pickId=:id';
     });
-    if (pickPath) {
+    if (pickId) {
       await check(flow, '원픽 딥링크 직접 열기 + 공유 버튼', async () => {
         const fresh = await context.newPage();
+        const requestedPickId = pickId;
+        let landed = null;
         try {
-          await fresh.goto(`${BASE_URL}${pickPath}`, { waitUntil: 'networkidle' });
+          await fresh.goto(`${BASE_URL}/pick/${encodeURIComponent(requestedPickId)}`, { waitUntil: 'networkidle' });
+          await fresh.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
+          landed = new URL(fresh.url());
+          const landedPickId = landed.searchParams.get('pickId');
+          if (landedPickId !== requestedPickId) {
+            throw new Error(`원픽 딥링크 pickId 불일치: 요청 ${requestedPickId}, 도착 ${landedPickId ?? '없음'}`);
+          }
+          await noErrorCopy(fresh);
+
+          // The focused review opens its reply thread automatically. Match its
+          // position to the corresponding share toggle so another review cannot satisfy this check.
+          const replyToggles = fresh.getByRole('button', { name: /^(답글 접기|답글 보기 · 쓰기)$/ });
+          await fresh.getByRole('button', { name: '답글 접기', exact: true }).first()
+            .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+          const replyLabels = await replyToggles.evaluateAll((els) =>
+            els.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim() ?? ''));
+          const focusedIndex = replyLabels.findIndex((label) => label === '답글 접기');
+          if (focusedIndex < 0) throw new Error('요청한 원픽의 포커스된 한줄평을 찾지 못함');
+
+          const shareToggles = fresh.getByRole('button', { name: /^공유( · 신고)?$/ });
+          const shareCount = await shareToggles.count();
+          if (shareCount !== replyLabels.length || focusedIndex >= shareCount) {
+            throw new Error(`한줄평/공유 버튼 매핑 불일치: 한줄평 ${replyLabels.length}, 공유 ${shareCount}`);
+          }
+          await shareToggles.nth(focusedIndex).click(); // opens an in-page menu only; nothing is shared
+
           await fresh.getByText('이 원픽을 공유해보세요').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+          const shareLink = fresh.getByText(`/pick/${requestedPickId}`, { exact: false });
+          await shareLink.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
           await actionable(fresh.getByRole('button', { name: '이미지 카드 공유' }));
           await noErrorCopy(fresh);
           await shot(fresh, 'pick_deeplink');
         } finally { await fresh.close(); }
-        return '/pick/:id (공유하지 않음)';
+        return `${landed.pathname.replace(/[^/]+$/, ':id')}?pickId=:id (공유하지 않음)`;
       });
     }
     if (otherProfilePath) {

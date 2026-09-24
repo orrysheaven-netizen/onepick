@@ -13,13 +13,13 @@ async function main() {
   const mine = { id: 'mine', itemId: 'item', userId: 'me', status: 'active', oneLineReview: 'My older review' };
   const entry = (pick) => ({ pick, profile: { id: pick.userId, username: pick.userId } });
   const others = Array.from({ length: 20 }, (_, i) => entry({ id: `other-${i}`, itemId: 'item', userId: `person-${i}`, status: 'active' }));
-  let current = mine, fetchedMine = 0, focused = null;
+  let current = mine, fetchedMine = 0, fetchedFocus = 0, focused = null;
   const service = new exportsObject.ItemService(
     { getById: async () => item }, { getCurrentPick: async () => current },
     { getById: async () => ({ id: 'category' }), getOpenCategories: async () => [{ id: 'category' }] },
     {
       getPicks: async () => [...others, entry(mine)], // Defensive duplicate removal even if an adapter returns self.
-      getPickById: async (id) => { if (id !== mine.id) return focused; fetchedMine++; return entry(mine); },
+      getPickById: async (id) => { if (id !== mine.id) { fetchedFocus++; return focused; } fetchedMine++; return entry(mine); },
     },
   );
   let result = await service.getItemDetail('item', 'me');
@@ -43,6 +43,11 @@ async function main() {
   assert.equal(result.picks[0].pick.id, 'mine');
   assert.equal(result.picks[1].pick.id, 'older', 'Shared review outside the first page remains reachable');
   assert.equal(result.focusAvailable, true);
+  assert.equal(fetchedFocus, 1);
+  const prefetchedFocused = { ...focused, item, category: { id: 'category' } };
+  result = await service.getItemDetail('item', 'me', 'older', prefetchedFocused);
+  assert.equal(result.picks[1].pick.id, 'older', 'A prefetched shared Pick is reused by item detail');
+  assert.equal(fetchedFocus, 1, 'A prefetched shared Pick must not be fetched again');
   result = await service.getItemDetail('item', 'me', 'other-0');
   assert.equal(result.picks.filter((p) => p.pick.id === 'other-0').length, 1);
   focused.pick.status = 'replaced';
@@ -54,6 +59,29 @@ async function main() {
     assert.equal(result.focusAvailable, false);
     assert.ok(!result.picks.some((p) => p.pick.id === 'older'));
   }
-  console.log('Item reviews passed: own-first order, focused older review, history, deduplication, product isolation and unavailable links.');
+
+  const started = [];
+  let releaseItem;
+  const slowItem = new Promise((resolve) => { releaseItem = resolve; });
+  const parallelService = new exportsObject.ItemService(
+    { getById: async () => { started.push('item'); return slowItem; } },
+    { getCurrentPick: async () => null },
+    {
+      getById: async () => { started.push('category'); return { id: 'category' }; },
+      getOpenCategories: async () => { started.push('open'); return [{ id: 'category' }]; },
+    },
+    {
+      getPicks: async () => { started.push('picks'); return []; },
+      getPickById: async () => null,
+    },
+  );
+  const pending = parallelService.getItemDetail('item');
+  await Promise.resolve();
+  assert.deepEqual(started, ['item', 'picks', 'open'], 'Independent list/category reads start before item lookup finishes');
+  releaseItem(item);
+  await pending;
+  assert.ok(started.includes('category'), 'Category detail starts after the item category is known');
+
+  console.log('Item reviews passed: own-first order, focused older review reuse, parallel reads, history, deduplication, product isolation and unavailable links.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

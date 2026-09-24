@@ -32,7 +32,8 @@ const native = {
   StyleSheet: { create: (styles) => styles },
 };
 const router = { push: (route) => { destination = route; }, replace() {}, back() {}, canGoBack: () => true, setParams() {} };
-const { PickPhoto } = load('components/pick-photo.tsx', { 'expo-router': { useRouter: () => router }, 'react-native': native });
+const expoImage = { Image: (props) => { image = props; return React.createElement('img', { src: props.source.uri, alt: props.accessibilityLabel }); } };
+const { PickPhoto } = load('components/pick-photo.tsx', { 'expo-image': expoImage, 'expo-router': { useRouter: () => router }, 'react-native': native });
 function renderPhoto(props) { buttons = []; image = null; return renderToStaticMarkup(React.createElement(PickPhoto, { label: '라면', itemId: uuid, ...props })); }
 
 async function main() {
@@ -50,7 +51,7 @@ async function main() {
   assert.doesNotMatch(renderPhoto({ itemId: undefined }), /사진 등록/, 'No upload target for draft or unimported external entry');
   assert.doesNotMatch(renderPhoto({ hasPhoto: true }), /사진 등록/, 'Missing display URL must not unlock existing image');
   const { PickPhoto: FailedPhoto } = load('components/pick-photo.tsx', {
-    'expo-router': { useRouter: () => router }, 'react-native': native,
+    'expo-image': expoImage, 'expo-router': { useRouter: () => router }, 'react-native': native,
     react: { ...React, useState: () => [poster, () => {}] },
   });
   const failed = renderToStaticMarkup(React.createElement(FailedPhoto, { uri: poster, itemId: uuid, label: '영화' }));

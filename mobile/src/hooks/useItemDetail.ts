@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { AppError } from '@/errors/appError';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { itemService } from '@/services';
+import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+import { itemService, pickService } from '@/services';
 import { itemPhotoCreditService } from '@/services/itemPhotoCreditService';
 
 function retryItemDetail(failureCount: number, error: unknown) {
@@ -17,9 +18,24 @@ export function useItemDetail(
   includePhotoCredit = false,
   enabled = true,
 ) {
+  const queryClient = useQueryClient();
+  type PickDetail = Awaited<ReturnType<typeof pickService.getPickDetail>>;
+  const cachedFocus = focusPickId
+    ? queryClient.getQueryData<PickDetail>(queryKeys.picks.detail(focusPickId, userId))
+      ?? queryClient.getQueryData<PickDetail>(queryKeys.picks.detail(focusPickId))
+    : undefined;
+  const prefetchedFocus: PickReadItem | undefined = cachedFocus
+    ? {
+        pick: cachedFocus.pick,
+        profile: cachedFocus.profile,
+        category: cachedFocus.category,
+        item: cachedFocus.item,
+      }
+    : undefined;
+
   const detail = useQuery({
     queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null],
-    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId),
+    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus),
     enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });

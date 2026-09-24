@@ -109,6 +109,6 @@ assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 
 assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
-assert.match(exploreHook, /enabled \}\);/);
+assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
 console.log('Profile Pick groups checks passed: parent grouping, stable sort, 6/7 collapse boundary, fallback, controls, and owner/public reuse.');
