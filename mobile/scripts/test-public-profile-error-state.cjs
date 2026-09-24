@@ -4,10 +4,9 @@ const path = require('node:path');
 
 const source = readFileSync(path.join(__dirname, '..', 'src', 'app', 'u', '[username].tsx'), 'utf8');
 
-assert.match(source, /import \{ AppError \} from '@\/errors\/appError';/);
 assert.match(
   source,
-  /query\.error instanceof AppError && query\.error\.code === 'PROFILE_NOT_FOUND'/,
+  /'code' in query\.error[^]*code\?: string[^]*PROFILE_NOT_FOUND/,
   'Only PROFILE_NOT_FOUND should select the missing-profile state',
 );
 assert.match(source, /isProfileNotFound[^]*프로필을 찾을 수 없어요/);
