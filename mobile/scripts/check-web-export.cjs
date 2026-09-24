@@ -13,6 +13,11 @@ async function main() {
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   assert.equal(config.expo.web.output, 'single', 'Dynamic user content needs the configured SPA fallback');
+  const routerPlugin = config.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-router');
+  assert.equal(routerPlugin?.[1]?.asyncRoutes?.web, true,
+    'SDK 57 web exports must keep Expo Router async routes enabled for route-level code splitting');
+  assert.equal(routerPlugin?.[1]?.asyncRoutes?.default, false,
+    'Async routes remain web-only so native behavior is unchanged');
   // Cloudflare Pages has a native SPA fallback, but redirects take priority over
   // real assets. A catch-all rewrite would also intercept the app's JS and CSS.
   const redirects = fs.readFileSync(path.join(dist, '_redirects'), 'utf8');
