@@ -15,19 +15,14 @@ function mapAuthUser(user: User): AuthUser {
 }
 
 function getUrlParam(url: string, key: string) {
-  const parsed = new URL(url);
-  const queryValue = parsed.searchParams.get(key);
-
-  if (queryValue) return queryValue;
-
-  const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
-  return new URLSearchParams(hash).get(key);
+  return new URL(url).searchParams.get(key);
 }
 
-const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'google' | 'custom:naver'> = {
+// Keep in sync with public.hook_before_user_created, which rejects sign-ups
+// from any other Supabase Auth provider.
+const OAUTH_PROVIDER: Record<SocialAuthProvider, 'kakao' | 'apple'> = {
   kakao: 'kakao',
-  google: 'google',
-  naver: 'custom:naver',
+  apple: 'apple',
 };
 
 export class SupabaseAuthRepository implements AuthRepository {
@@ -74,23 +69,9 @@ export class SupabaseAuthRepository implements AuthRepository {
       return data.user ? mapAuthUser(data.user) : null;
     }
 
-    const accessToken = getUrlParam(url, 'access_token');
-    const refreshToken = getUrlParam(url, 'refresh_token');
-
-    if (!accessToken || !refreshToken) {
-      throw new AppError('AUTH_FAILED');
-    }
-
-    const { data, error } = await this.client.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    if (error) {
-      throw new AppError('AUTH_FAILED', error.message, error);
-    }
-
-    return data.user ? mapAuthUser(data.user) : null;
+    // PKCE callbacks are code-only. Fragment/query access tokens are never accepted
+    // as a login completion mechanism because they are not bound to this browser's verifier.
+    throw new AppError('AUTH_FAILED');
   }
 
   async signInWithProvider(provider: SocialAuthProvider, redirectTo: string) {
@@ -100,8 +81,8 @@ export class SupabaseAuthRepository implements AuthRepository {
         redirectTo,
         ...(provider === 'kakao'
           ? {
-              // Keep the existing privacy-minimal Kakao scope. Google and Naver
-              // use the scopes configured on their Supabase Auth providers.
+              // Keep the existing privacy-minimal Kakao scope. Apple uses the
+              // scopes configured on its Supabase Auth provider.
               queryParams: { scope: 'profile_nickname' },
             }
           : {}),

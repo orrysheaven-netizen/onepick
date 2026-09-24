@@ -229,6 +229,24 @@ async function main() {
     assert.equal(options.options.queryParams.scope, 'profile_nickname');
   }
 
+  // --- Token-bearing fragments are ignored and cannot establish an admin session ---
+  {
+    const supabase = createSupabase({ session: null, isAdmin: true, aalLevel: 'aal2' });
+    let replaced;
+    const { checkAdminSession } = load(supabase, async () => assert.fail('should not fetch'), {
+      location: {
+        origin: 'https://admin.onepick.example',
+        pathname: '/admin',
+        search: '',
+        hash: '#access_token=attacker&refresh_token=attacker',
+      },
+      history: { replaceState: (_data, _unused, url) => { replaced = url; } },
+    });
+    assert.equal(await checkAdminSession(), 'signed-out');
+    assert.equal(supabase.calls.setSession.length, 0, 'URL tokens must never reach setSession');
+    assert.equal(replaced, '/admin', 'Rejected token fragments are removed from the URL');
+  }
+
   // --- The PKCE `?code=` return leg is exchanged on the shared client and the URL is cleaned up ---
   {
     const supabase = createSupabase({ session: null, isAdmin: true, aalLevel: 'aal2' });

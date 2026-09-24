@@ -20,11 +20,11 @@ function load(relativePath, imports = {}) {
 }
 
 async function main() {
-  const inserted = [];
+  const calls = [];
+  let rpcError = null;
   const fakeClient = {
-    from: (name) => ({
-      insert: async (payload) => { inserted.push([name, payload]); return { error: null }; },
-    }),
+    from: () => { throw new Error('Product events must use the rate-limited RPC'); },
+    rpc: async (name, payload) => { calls.push([name, payload]); return { error: rpcError }; },
     auth: { getUser: async () => ({ data: { user: { id: 'viewer' } }, error: null }) },
   };
   const { SupabaseObservabilityRepository } = load('repositories/supabase/supabaseObservabilityRepository.ts', {
@@ -39,11 +39,16 @@ async function main() {
     platform: 'web',
     appVersion: '1.0.0',
   });
-  assert.equal(inserted[0][0], 'product_analytics_events');
-  assert.equal(inserted[0][1].event_name, 'pick_link_opened');
-  assert.equal(inserted[0][1].pick_id, 'pick');
-  assert.equal(Object.hasOwn(inserted[0][1], 'user_id'), false,
-    'Client analytics must never choose another user id; DB auth context supplies it');
+  assert.equal(calls[0][0], 'capture_product_event');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0][1])), {
+    p_event_name: 'pick_link_opened', p_pick_id: 'pick', p_item_id: null,
+    p_category_id: null, p_source: 'shared_or_direct', p_path: '/pick/[pickId]',
+    p_platform: 'web', p_app_version: '1.0.0',
+  }, 'RPC payload includes event fields only; server supplies identity and time');
+  rpcError = { code: 'P0001', message: 'RATE_LIMITED' };
+  await assert.rejects(repository.captureProductEvent({ eventName: 'auth_started' }),
+    (error) => error === rpcError, 'quota errors follow the existing error mapping path');
+  rpcError = null;
 
   let mutationOptions, events = [], invalidations = 0;
   const reactQuery = {
@@ -92,13 +97,7 @@ async function main() {
   assert.match(source('app/auth/login.tsx'), /eventName: 'auth_started'/);
   assert.match(source('app/auth/callback.tsx'), /eventName: 'auth_completed'/);
 
-  const migration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260919001751_add_product_analytics_events.sql'), 'utf8');
-  assert.match(migration, /enable row level security/i);
-  assert.match(migration, /for insert\s+to anon, authenticated\s+with check \(user_id is not distinct from \(select auth\.uid\(\)\)\)/i);
-  assert.match(migration, /for select\s+to authenticated\s+using \(\(select private\.is_admin/i);
-  assert.doesNotMatch(migration, /grant\s+(update|delete)/i);
-
-  console.log('Product analytics checks passed: safe DB payload, Pick completion events, funnel instrumentation and insert-only RLS contract.');
+  console.log('Product analytics checks passed: rate-limited RPC payload, error propagation, Pick completion events and funnel instrumentation.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

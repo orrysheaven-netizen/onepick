@@ -14,8 +14,7 @@ import type { SocialAuthProvider } from '@/types/domain/auth';
 
 const PROVIDER_LABEL: Record<SocialAuthProvider, string> = {
   kakao: '카카오',
-  google: 'Google',
-  naver: '네이버',
+  apple: 'Apple',
 };
 
 function getMessage(error: unknown, provider: SocialAuthProvider | null) {
@@ -97,19 +96,11 @@ export default function LoginScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Google로 계속하기"
+              accessibilityLabel="Apple로 계속하기"
               disabled={socialSignIn.isPending}
-              onPress={() => void handleProvider('google')}
-              style={({ pressed }) => [styles.providerButton, styles.googleButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
-              <Text style={styles.googleButtonText}>{socialSignIn.isPending && activeProvider === 'google' ? 'Google 로그인 중...' : 'Google로 계속하기'}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="네이버로 계속하기"
-              disabled={socialSignIn.isPending}
-              onPress={() => void handleProvider('naver')}
-              style={({ pressed }) => [styles.providerButton, styles.naverButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
-              <Text style={styles.naverButtonText}>{socialSignIn.isPending && activeProvider === 'naver' ? '네이버 로그인 중...' : '네이버로 계속하기'}</Text>
+              onPress={() => void handleProvider('apple')}
+              style={({ pressed }) => [styles.providerButton, styles.appleButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+              <Text style={styles.appleButtonText}>{socialSignIn.isPending && activeProvider === 'apple' ? 'Apple 로그인 중...' : 'Apple로 계속하기'}</Text>
             </Pressable>
           </View>
 
@@ -143,10 +134,8 @@ const styles = StyleSheet.create({
   providerButton: { minHeight: 52, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   kakaoButton: { backgroundColor: OnePick.kakao },
   kakaoButtonText: { color: OnePick.kakaoText, fontSize: 15, fontWeight: '700' },
-  googleButton: { backgroundColor: OnePick.google, borderWidth: 1, borderColor: OnePick.googleBorder },
-  googleButtonText: { color: OnePick.googleText, fontSize: 15, fontWeight: '700' },
-  naverButton: { backgroundColor: OnePick.naver },
-  naverButtonText: { color: OnePick.naverText, fontSize: 15, fontWeight: '700' },
+  appleButton: { backgroundColor: OnePick.apple },
+  appleButtonText: { color: OnePick.appleText, fontSize: 15, fontWeight: '700' },
   errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 12, padding: 14, marginTop: 14 },
   errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18 },
   note: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 16 },

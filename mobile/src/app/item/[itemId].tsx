@@ -44,7 +44,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const itemId = typeof params.itemId === 'string' ? params.itemId : undefined;
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const query = useItemDetail(itemId, user?.id, focusPickId, !isSessionLoading && !sessionError);
+  const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError);
   const trackedItemId = useRef<string | undefined>(undefined);
 
   useEffect(() => {

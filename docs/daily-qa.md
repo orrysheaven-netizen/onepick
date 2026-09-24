@@ -25,6 +25,14 @@ Claude 클라우드 세션은 네트워크 정책 때문에 `onepick-5cl.pages.d
 
 기준값은 `live-qa.mjs`의 `LIMITS`에서만 조정한다. URL은 쿼리스트링을 지우고 기록한다. 쿼리스트링에 토큰이나 필터가 들어갈 수 있기 때문이다.
 
+`tools/qa/logged-in-qa.mjs`는 QA 전용 일반 사용자 계정으로 로그인한 상태를 390×844 모바일 뷰포트에서 측정한다(job `logged-in`).
+
+- **흐름**: 로그인 → 홈(하단 탭, 팔로잉/전체 피드, 카드) → 검색(즉시 결과, 검색 실행, 제품 상세) → 원픽 등록 화면(검색·선택 버튼) → 내 프로필(핵심 요소, 공개 프로필) → 다른 사용자 프로필의 팔로우 버튼 → 알림(진입 버튼, 알림 화면) → 원픽·프로필 딥링크 직접 열기와 공유 버튼
+- **읽기 전용**: 등록·팔로우·공유는 누르지 않는다. 버튼은 보이고 눌릴 수 있는지만 Playwright trial click으로 확인한다.
+- **로그인 방식**: 앱에는 소셜 로그인만 있으므로 Supabase 비밀번호 로그인으로 세션을 만들어 브라우저에 넣는다. 로그인 폼을 입력하지 않으므로 자격 증명이 화면에 나오지 않는다. 끝나면 그 세션을 폐기한다.
+- **Secret**: GitHub Environment `daily-qa`의 `ONEPICK_QA_EMAIL`, `ONEPICK_QA_PASSWORD`만 쓴다. 이 Environment는 `main`만 쓸 수 있고, job은 `main`의 schedule·workflow_dispatch에서만 돈다. Secret이 없으면 "건너뜀"을 기록하고 성공으로 끝난다. 확인 항목이 실패하면 job이 실패한다.
+- **기록**: 자기 프로필 화면은 캡처하지 않는다. 다른 스크린샷에서는 QA 사용자명을 가린다. 리포트에서는 자격 증명, 토큰, 이메일 형식 문자열, QA 사용자명을 지운다. 결과는 아티팩트 `daily-qa-logged-in`과 로그의 `===QA-LOGIN-REPORT-BEGIN===` 표시로 찾는다.
+
 `tools/qa/real-user-errors.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다.
 
 로컬에서는 다음처럼 실행한다.
@@ -34,10 +42,20 @@ cd tools/qa && npm ci && npx playwright install chromium
 QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/qa-output/
 ```
 
+## 로그인 상태 QA 계정 규칙
+
+결정일: 2026-09-23. 사용자 화면을 로그인 상태로 QA할 때(Actions, Claude, ChatGPT/Codex, 사람 모두) 다음을 지킨다.
+
+- **QA 전용 일반 사용자 계정만 쓴다.** 관리자 계정, 개인 카카오 계정, Supabase service-role·secret key는 사용자 화면 QA에 쓰지 않는다. 관리자 화면 점검이나 DB 검증은 이 QA의 범위가 아니다.
+- **자격 증명은 실행환경 Secret에서만 읽는다.** 현재 쓰는 곳은 GitHub Environment `daily-qa`의 secret(`ONEPICK_QA_EMAIL`, `ONEPICK_QA_PASSWORD`)이다. Claude 클라우드 환경의 "환경 변수" 칸은 그 환경을 쓰는 모든 사람에게 보이는 일반 설정이라 Secret이 아니므로 쓰지 않는다. "API 자격 증명" 칸은 세션이 값을 읽을 수 없어 로그인 폼 입력에 쓸 수 없다. 코드, 문서, 워크플로 입력(`workflow_dispatch` inputs), 커밋, `.env` 파일에 넣지 않는다.
+- **어디에도 기록하지 않는다.** 이메일·비밀번호·세션 토큰·쿠키는 콘솔 출력, 로그, `report.md`/`report.json`, 스크린샷, 아티팩트, GitHub 이슈·PR·댓글에 남기지 않는다. 로그인 폼을 입력한 상태나 계정 정보가 보이는 화면은 캡처하지 않고, 필요하면 해당 영역을 가린다. Actions에서는 값을 `::add-mask::`로 가린다.
+- **Secret이 없으면 로그인 측정을 건너뛴다.** 다른 계정으로 대체하지 않고, 리포트에 "로그인 QA 건너뜀: QA 계정 Secret 없음"으로만 적는다.
+- **노출이 의심되면** 해당 로그·아티팩트·이슈 내용을 지우고, 리포트에는 위치만 적고 "QA 계정 비밀번호 교체 필요(사용자 조치)"로 표시한다.
+
 ## Claude 루틴 절차
 
 1. **Actions 결과 확인**: 오늘 06:00 KST 이후 `main`에서 실행된 `Daily QA`를 찾는다(`actions_list`). 없거나 실패했으면 `workflow_dispatch`로 한 번 실행한다. 끝나지 않았으면 몇 분 기다린다. 그래도 결과가 없으면 리포트에 "라이브 측정 없음"과 그 이유를 적는다.
-2. **로그 추출**: `live-web`과 `real-user-errors` 두 잡의 로그에서 `===QA-REPORT-BEGIN===`부터 `END`까지를 가져온다(`get_job_logs`).
+2. **로그 추출**: `live-web`과 `real-user-errors` 잡 로그에서 `===QA-REPORT-BEGIN===`부터 `END`까지, `logged-in` 잡 로그에서 `===QA-LOGIN-REPORT-BEGIN===`부터 `END`까지를 가져온다(`get_job_logs`).
 3. **배포 확인**: 리포트의 배포 커밋을 `main` HEAD와 비교한다. 다르면 배포 지연 또는 실패로 기록한다. `main`의 필수 CI(`typecheck`, `verify-web`, `database-tests`)가 실패했는지도 확인한다.
 4. **최근 24시간 변경 검토**: `main`에 병합된 커밋과 PR의 diff를 읽는다. 다음 네 가지를 코드 근거와 함께 찾는다.
    - 사용자가 겪을 오류(예외 처리 누락, 오류 상태 누락, 무한 로딩)

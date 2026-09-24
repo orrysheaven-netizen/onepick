@@ -1,0 +1,54 @@
+name: Setup QA Profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_setup:
+        description: 'Create the dedicated QA account profile if missing (no existing profile changes)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+# Do not race the normal read-only QA run.
+concurrency:
+  group: daily-qa
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_setup == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: daily-qa
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+      - name: Install pinned QA dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Set up only the dedicated QA profile
+        env:
+          CONFIRM_QA_PROFILE_SETUP: ${{ inputs.confirm_setup }}
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node setup-qa-profile.mjs
+      - name: Verify logged-in user flows
+        env:
+          QA_BASE_URL: https://onepick-5cl.pages.dev
+          QA_OUT_DIR: ${{ runner.temp }}/qa-profile-verification
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node logged-in-qa.mjs

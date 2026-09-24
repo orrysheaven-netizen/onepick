@@ -4,8 +4,15 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { exploreService } from '@/services';
 
+const CATEGORY_BROWSE_STALE_TIME = 5 * 60_000;
+
 export function useExploreCategories(enabled = true) {
-  return useQuery({ queryKey: queryKeys.categories.browse, queryFn: () => exploreService.getCategories(), enabled });
+  return useQuery({
+    queryKey: queryKeys.categories.browse,
+    queryFn: () => exploreService.getCategories(),
+    enabled,
+    staleTime: CATEGORY_BROWSE_STALE_TIME,
+  });
 }
 
 export function useSeasonalCategories(enabled = true) {

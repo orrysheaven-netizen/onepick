@@ -1533,6 +1533,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      capture_product_event: {
+        Args: {
+          p_event_name: string
+          p_pick_id?: string | null
+          p_item_id?: string | null
+          p_category_id?: string | null
+          p_source?: string | null
+          p_path?: string | null
+          p_platform?: string | null
+          p_app_version?: string | null
+        }
+        Returns: undefined
+      }
       consume_image_import: { Args: never; Returns: undefined }
       current_user_is_admin: { Args: never; Returns: boolean }
       home_editorial_items: {

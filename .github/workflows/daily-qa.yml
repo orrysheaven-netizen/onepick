@@ -57,6 +57,52 @@ jobs:
           path: qa-output
           retention-days: 14
 
+  # Logged-in user-flow QA with the dedicated QA general-user account
+  # (docs/daily-qa.md "로그인 상태 QA 계정 규칙"). The credentials live only in the
+  # `daily-qa` Environment, which only `main` may use, and this job never runs for
+  # pull requests. Without the secrets the script records a skip and exits 0.
+  logged-in:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: daily-qa
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+
+      - name: Install Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run logged-in QA
+        env:
+          QA_BASE_URL: ${{ inputs.base_url || 'https://onepick-5cl.pages.dev' }}
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node logged-in-qa.mjs
+
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-qa-logged-in
+          path: qa-output
+          retention-days: 14
+
   real-user-errors:
     runs-on: ubuntu-latest
     timeout-minutes: 5

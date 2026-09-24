@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { AppError } from '@/errors/appError';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { itemService } from '@/services';
+import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+import { itemService, pickService } from '@/services';
 import { itemPhotoCreditService } from '@/services/itemPhotoCreditService';
 
 function retryItemDetail(failureCount: number, error: unknown) {
@@ -10,15 +11,36 @@ function retryItemDetail(failureCount: number, error: unknown) {
   return failureCount < 1;
 }
 
-export function useItemDetail(itemId: string | undefined, userId?: string, focusPickId?: string, includePhotoCredit = false) {
+export function useItemDetail(
+  itemId: string | undefined,
+  userId?: string,
+  focusPickId?: string,
+  includePhotoCredit = false,
+  enabled = true,
+) {
+  const queryClient = useQueryClient();
+  type PickDetail = Awaited<ReturnType<typeof pickService.getPickDetail>>;
+  const cachedFocus = focusPickId
+    ? queryClient.getQueryData<PickDetail>(queryKeys.picks.detail(focusPickId, userId))
+      ?? queryClient.getQueryData<PickDetail>(queryKeys.picks.detail(focusPickId))
+    : undefined;
+  const prefetchedFocus: PickReadItem | undefined = cachedFocus
+    ? {
+        pick: cachedFocus.pick,
+        profile: cachedFocus.profile,
+        category: cachedFocus.category,
+        item: cachedFocus.item,
+      }
+    : undefined;
+
   const detail = useQuery({
     queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null],
-    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId),
-    enabled: Boolean(itemId),
+    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus),
+    enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });
   const item = detail.data?.item;
-  const canReadCredit = Boolean(includePhotoCredit && itemId && item && item.id === itemId && item.imagePath
+  const canReadCredit = Boolean(enabled && includePhotoCredit && itemId && item && item.id === itemId && item.imagePath
     && !detail.isPending && !detail.isError && !detail.isFetching);
   // Attribution is optional and never delays or fails the product/review query.
   // Viewer and exact image revision stay under the existing items invalidation.

@@ -6,7 +6,7 @@ export function useItemPickCount(itemId: string) {
     queryKey: ['items', 'pick-count', itemId],
     queryFn: () => itemService.getPickCount(itemId),
     enabled: Boolean(itemId),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   });
 }
