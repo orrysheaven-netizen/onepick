@@ -124,8 +124,10 @@ begin
     'Visible place becomes an active offline provider with its name and branch';
   assert (select provider_id from public.item_providers where item_id=v_item)=v_provider.id,
     'Existing place item is linked to its place provider';
-  assert (select status from public.providers where place_id=v_hidden_place)='hidden',
-    'Invisible place becomes a hidden provider';
+  assert (select status from public.providers where place_id=v_hidden_place)='active',
+    'Place providers start active; visibility stays with the place';
+  assert not private.item_accepts_pick(v_hidden_item),
+    'Item at an invisible place stays unpickable, as before';
 
   select * into v_after from public.picks where id=v_pick.id;
   assert v_after.status='active' and v_after.item_id=v_item and v_after.category_id=v_cat_a
@@ -153,8 +155,8 @@ begin
 
   insert into pf_ids values
     ('legacy_place',v_place),('legacy_item',v_item),('legacy_provider',v_provider.id),
-    ('hidden_item',v_hidden_item),('legacy_food_item',v_legacy_item),('movie_item',v_movie_item),
-    ('legacy_pick',v_pick.id);
+    ('hidden_item',v_hidden_item),('hidden_place',v_hidden_place),('legacy_food_item',v_legacy_item),('movie_item',v_movie_item),
+    ('offline_pick',v_pick.id);
 end;
 $flow$;
 $test$, 'Backfill links existing place items to providers without touching items, picks or AI state');
@@ -250,10 +252,14 @@ declare
   v_cat_b uuid := (select id from pf_ids where key='cat_b');
   v_cat_movie uuid := (select id from pf_ids where key='cat_movie');
   v_legacy_item uuid := (select id from pf_ids where key='legacy_item');
-  v_legacy_pick uuid := (select id from pf_ids where key='legacy_pick');
+  v_offline_pick uuid := (select id from pf_ids where key='offline_pick');
   v_gangnam_item uuid := (select id from pf_ids where key='gangnam_item');
   v_busan_item uuid := (select id from pf_ids where key='busan_item');
   v_gangnam_b_item uuid := (select id from pf_ids where key='gangnam_b_item');
+  v_user2 uuid := (select id from pf_ids where key='user2');
+  v_cat_legacy uuid := (select id from pf_ids where key='cat_legacy');
+  v_catalog_item uuid := (select id from pf_ids where key='catalog_item');
+  v_branded_item uuid := gen_random_uuid();
   v_spare_place uuid := gen_random_uuid();
   v_gangnam_provider uuid := (select id from pf_ids where key='gangnam_provider');
   v_busan_provider uuid := (select id from pf_ids where key='busan_provider');
@@ -302,7 +308,7 @@ begin
   v_pick := public.change_pick(v_cat_a,v_online_item,'온라인으로 주문해서 먹는 게장');
   reset role;
   assert v_pick.status='active' and v_pick.item_id=v_online_item, 'Online provider item is pickable';
-  assert (select status from public.picks where id=v_legacy_pick)='replaced',
+  assert (select status from public.picks where id=v_offline_pick)='replaced',
     'Offline pick in the same category is replaced by the online pick';
   select count(*) into v_count from public.picks
   where user_id=v_user and category_id=v_cat_a and status in ('active','needs_review');
@@ -328,10 +334,29 @@ begin
   reset role;
   assert v_pick.status='active', 'Content items without a provider stay pickable';
 
-  update public.providers set status='hidden' where id=v_online;
-  assert (select status from public.picks where user_id=v_user and item_id=v_online_item and status='active')='active',
-    'Hiding a provider does not remove existing picks';
-  update public.providers set status='active' where id in (v_online,v_busan_provider);
+  update public.providers set status='active' where id=v_busan_provider;
+
+  -- Hiding and re-showing a place gates picks exactly as before providers.
+  update public.places set is_visible=false
+  where id=(select place_id from public.providers where id=v_gangnam_provider);
+  perform set_config('request.jwt.claim.sub',v_user2::text,true);
+  set local role authenticated;
+  begin
+    perform public.change_pick(v_cat_b,v_gangnam_b_item,'숨김 장소');
+    assert false,'Item at a hidden place must not accept picks';
+  exception when sqlstate 'P0001' then
+    assert sqlerrm='PLACE_IDENTITY_REQUIRED','Hidden place is rejected by the pick gate';
+  end;
+  assert not exists(select 1 from public.providers where id=v_gangnam_provider),
+    'Provider at a hidden place is not readable by signed-in users';
+  reset role;
+  update public.places set is_visible=true
+  where id=(select place_id from public.providers where id=v_gangnam_provider);
+  set local role authenticated;
+  v_pick := public.change_pick(v_cat_b,v_gangnam_b_item,'다시 공개된 장소');
+  reset role;
+  assert v_pick.status='active','Re-showing the place makes its items pickable again';
+  perform set_config('request.jwt.claim.sub',v_user::text,true);
 
   -- Structural invariants.
   begin
@@ -354,11 +379,41 @@ begin
 
   begin
     set constraints all immediate;
-    update public.items set brand_id=v_brand where id=v_online_item;
-    assert false,'Provider-backed item must not carry its own brand';
+    insert into public.items(id,category_id,name,normalized_name,status,external_source,external_id,brand_id)
+    values (v_branded_item,v_cat_b,'브랜드 상품','브랜드상품','active','onepick_provider','branded-'||v_branded_item::text,v_brand);
+    insert into public.item_providers(item_id,category_id,provider_id) values (v_branded_item,v_cat_b,v_online);
+    assert false,'A branded item must not be mapped to a provider';
   exception when check_violation then
     assert sqlerrm='ITEM_PROVIDER_BRAND_CONFLICT','Brand comes through the provider only';
   end;
+  set constraints all deferred;
+
+  begin
+    set constraints all immediate;
+    update public.item_providers set provider_id=v_online where item_id=v_gangnam_b_item;
+    assert false,'An online provider cannot own an item that has a place';
+  exception when check_violation then
+    assert sqlerrm='ONLINE_PROVIDER_ITEM_HAS_PLACE','Online provider items have no place mapping';
+  end;
+  set constraints all deferred;
+
+  -- Legacy name de-duplication is unchanged for provider-less items.
+  insert into public.items(category_id,name,normalized_name,status)
+  values (v_cat_legacy,'중복김치','중복김치','active');
+  begin
+    insert into public.items(category_id,name,normalized_name,status)
+    values (v_cat_legacy,'중복 김치','중복김치','active');
+    assert false,'Provider-less internal items still dedupe by name';
+  exception when unique_violation then
+    assert sqlerrm='ITEM_DUPLICATE','Expected ITEM_DUPLICATE';
+  end;
+
+  -- Deleting a place-backed item cascades its mappings without tripping the checks.
+  set constraints all immediate;
+  delete from public.items where id=v_catalog_item;
+  assert not exists(select 1 from public.item_providers where item_id=v_catalog_item)
+     and not exists(select 1 from public.item_places where item_id=v_catalog_item),
+    'Item deletion removes its place and provider mappings';
   set constraints all deferred;
 
   begin
@@ -438,6 +493,7 @@ declare
   v_store uuid := (select id from pf_ids where key='online_store');
   v_store_pending uuid := (select id from pf_ids where key='online_store_pending');
   v_hidden_item uuid := (select id from pf_ids where key='hidden_item');
+  v_hidden_place uuid := (select id from pf_ids where key='hidden_place');
   v_brand uuid := (select id from pf_ids where key='brand');
   v_count bigint;
 begin
@@ -471,8 +527,9 @@ begin
     'Pending provider is not public';
   assert not exists(select 1 from public.online_stores where id=v_store_pending),
     'Store of a pending provider is not public';
-  assert not exists(select 1 from public.item_providers where item_id=v_hidden_item),
-    'Mapping to a provider at an invisible place is not public';
+  assert not exists(select 1 from public.item_providers where item_id=v_hidden_item)
+     and not exists(select 1 from public.providers where place_id=v_hidden_place),
+    'Active provider at an invisible place and its mapping are not public';
   assert exists(select 1 from public.providers where brand_id=v_brand),
     'Inactive brand hides only the brand, not its providers';
   assert not exists(select 1 from public.brands where id=v_brand),

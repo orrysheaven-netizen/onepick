@@ -1,5 +1,9 @@
 begin;
 
+-- Block concurrent place selections until the backfill and the sync trigger
+-- are both in place, so no place item can be committed without a provider.
+lock table public.places, public.item_places in share row exclusive mode;
+
 -- Provider foundation for the restaurant-first MVP.
 --
 --   brand -> provider (offline_branch | online_store) -> place | online_store
@@ -90,7 +94,10 @@ create trigger providers_set_updated_at before update on public.providers
 for each row execute function private.set_updated_at();
 
 -- Idempotent: one offline provider per place, then map each place-backed item.
--- Provider visibility follows the place at creation time.
+-- Place providers start active; public visibility and pick eligibility keep
+-- following places.is_visible (RLS and item_accepts_pick check it), so hiding
+-- or re-showing a place behaves exactly as before. Provider status is only for
+-- explicit moderation.
 create or replace function private.backfill_place_providers()
 returns integer
 language plpgsql
@@ -101,8 +108,7 @@ declare
   v_linked integer;
 begin
   insert into public.providers(kind,name,branch_name,place_id,status)
-  select 'offline_branch', btrim(p.name), nullif(btrim(p.branch_name),''), p.id,
-         case when p.is_visible then 'active' else 'hidden' end
+  select 'offline_branch', btrim(p.name), nullif(btrim(p.branch_name),''), p.id, 'active'
   from public.places p
   on conflict (place_id) do nothing;
 
@@ -182,8 +188,7 @@ begin
 
     insert into public.providers(kind,name,branch_name,place_id,status)
     values(
-      'offline_branch', btrim(v_place.name), nullif(btrim(v_place.branch_name),''), v_place.id,
-      case when v_place.is_visible then 'active' else 'hidden' end
+      'offline_branch', btrim(v_place.name), nullif(btrim(v_place.branch_name),''), v_place.id, 'active'
     )
     returning id into v_provider;
   end if;
@@ -214,8 +219,10 @@ for each row execute function private.sync_place_item_provider();
 --   * a place-backed item has a provider
 --   * an offline provider item maps to exactly its provider's place
 --   * an online provider item has no place mapping
---   * a provider-backed item gets its brand only through the provider
-create or replace function private.assert_item_provider_consistency(p_item_id uuid)
+--   * a new provider mapping is only created for an item without its own brand
+--     (the brand comes through the provider). Existing items.brand_id writes are
+--     not constrained here, so current admin item edits behave as before.
+create or replace function private.assert_item_provider_consistency(p_item_id uuid, p_check_brand boolean default false)
 returns void
 language plpgsql
 security definer
@@ -248,7 +255,7 @@ begin
     return;
   end if;
 
-  if v_brand_id is not null then
+  if p_check_brand and v_brand_id is not null then
     raise exception 'ITEM_PROVIDER_BRAND_CONFLICT' using errcode='23514';
   end if;
 
@@ -265,7 +272,7 @@ begin
 end;
 $$;
 
-revoke all on function private.assert_item_provider_consistency(uuid) from public, anon, authenticated;
+revoke all on function private.assert_item_provider_consistency(uuid, boolean) from public, anon, authenticated;
 
 create or replace function private.check_item_provider_consistency()
 returns trigger
@@ -274,12 +281,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_table_name='items' then
-    perform private.assert_item_provider_consistency(new.id);
-  elsif tg_op='DELETE' then
+  if tg_op='DELETE' then
     perform private.assert_item_provider_consistency(old.item_id);
   else
-    perform private.assert_item_provider_consistency(new.item_id);
+    perform private.assert_item_provider_consistency(new.item_id, tg_table_name='item_providers');
     if tg_op='UPDATE' and old.item_id<>new.item_id then
       perform private.assert_item_provider_consistency(old.item_id);
     end if;
@@ -299,13 +304,6 @@ create constraint trigger item_places_provider_consistency
 after insert or update or delete on public.item_places
 deferrable initially deferred
 for each row execute function private.check_item_provider_consistency();
-
-create constraint trigger items_provider_brand_consistency
-after update of brand_id on public.items
-deferrable initially deferred
-for each row
-when (new.brand_id is not null)
-execute function private.check_item_provider_consistency();
 
 -- Moving a provider between places, or between offline and online, would
 -- silently re-home every mapped item. Provider identity is fixed once created.
@@ -373,8 +371,8 @@ revoke all on function private.item_accepts_pick(uuid)
   from public, anon, authenticated;
 
 -- Provider-backed items are identified by provider x category, never by name:
--- two different stores may share a display name. Online provider items use
--- external_source='onepick_provider' (PR 0b), mirroring 'onepick_place'.
+-- two different stores may share a display name. Provider items must carry
+-- external_source 'onepick_place' (offline) or 'onepick_provider' (online, PR 0b).
 create or replace function private.prevent_internal_item_duplicate()
 returns trigger
 language plpgsql
@@ -408,7 +406,6 @@ begin
         and i.status in ('pending','active','discontinued')
         and i.external_source is distinct from 'onepick_place'
         and i.external_source is distinct from 'onepick_provider'
-        and not exists (select 1 from public.item_providers ipr where ipr.item_id=i.id)
         and i.id<>new.id
     ) then
       raise exception 'ITEM_DUPLICATE' using errcode='23505';
