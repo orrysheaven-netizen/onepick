@@ -380,7 +380,7 @@ begin
   begin
     set constraints all immediate;
     insert into public.items(id,category_id,name,normalized_name,status,external_source,external_id,brand_id)
-    values (v_branded_item,v_cat_b,'브랜드 상품','브랜드상품','active','onepick_provider','branded-'||v_branded_item::text,v_brand);
+    values (v_branded_item,v_cat_b,'브랜드 상품','브랜드상품','pending','onepick_provider','branded-'||v_branded_item::text,v_brand);
     insert into public.item_providers(item_id,category_id,provider_id) values (v_branded_item,v_cat_b,v_online);
     assert false,'A branded item must not be mapped to a provider';
   exception when check_violation then
