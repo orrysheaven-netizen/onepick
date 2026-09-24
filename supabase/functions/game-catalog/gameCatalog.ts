@@ -151,6 +151,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
@@ -158,6 +159,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
@@ -227,6 +229,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
       official_url: game.igdbUrl,
       image_source_url: game.coverUrl,
       external_source: IGDB_SOURCE,
+      created_by: importUserId,
       external_id: id,
       original_name: game.title,
       release_year: game.releaseYear,
@@ -236,6 +239,9 @@ export function createGameCatalogHandler(deps: Dependencies) {
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) {
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
+    }
+    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
+      return json({ error: 'RATE_LIMITED' }, 429);
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
