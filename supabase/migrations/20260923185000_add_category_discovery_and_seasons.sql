@@ -267,14 +267,7 @@ insert into public.categories(parent_id,name,slug,status,is_visible,is_pickable,
 select p.id,s.name,s.slug,'open',true,true,s.sort_order
 from seed s
 join public.categories p on p.slug=s.parent_slug
-on conflict(slug) do update set
-  parent_id=excluded.parent_id,
-  name=excluded.name,
-  status='open',
-  is_visible=true,
-  is_pickable=true,
-  sort_order=excluded.sort_order,
-  updated_at=now();
+on conflict(slug) do nothing;
 
 insert into public.category_catalog_sources(
   category_id,mode,provider,edge_function_slug,external_source,is_enabled,notes
