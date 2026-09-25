@@ -177,7 +177,7 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 
   async countActivePicks(itemId: string) {
-    // One current pick per user/category plus the item/category FK prevents duplicate people.
+    // A person can hold an item as a current pick only once (picks_one_current_per_item), so rows are people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.
     const { count, error } = await this.countClient.from('picks')
       .select('id', { count: 'exact', head: true }).eq('item_id', itemId).eq('status', 'active');

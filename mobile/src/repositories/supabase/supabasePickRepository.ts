@@ -6,6 +6,7 @@ import type {
   PickRepository,
   PurchaseLinkInput,
   RecentPicksInput,
+  RemovePickInput,
   UpdatePickReviewInput,
   RegisterPickRecordInput,
 } from '@/repositories/interfaces/pickRepository';
@@ -50,20 +51,21 @@ export class SupabasePickRepository implements PickRepository {
     return data ? mapPickRow(data) : null;
   }
 
-  async getCurrentPick(userId: string, categoryId: string) {
+  async getCurrentPicks(userId: string, categoryId: string) {
     const { data, error } = await this.client
       .from('picks')
       .select('*')
       .eq('user_id', userId)
       .eq('category_id', categoryId)
-      .in('status', ['active', 'needs_review'])
-      .maybeSingle();
+      .in('status', ['active', 'needs_review']);
 
     if (error) {
       throw mapSupabaseError(error);
     }
 
-    return data ? mapPickRow(data) : null;
+    // Sorted here rather than with .order('position') so the read keeps working
+    // on a database that has not received the position column yet.
+    return data.map(mapPickRow).sort((a, b) => a.position - b.position || a.startedAt.localeCompare(b.startedAt));
   }
 
   async getActivePicksByUser(userId: string) {
@@ -151,6 +153,7 @@ export class SupabasePickRepository implements PickRepository {
       p_one_line_review: input.oneLineReview,
       // Omitted arguments leave the stored link and tip alone; '' clears them.
       ...purchaseArgs(input),
+      ...(input.replacePickId ? { p_replace_pick_id: input.replacePickId } : {}),
     });
 
     if (error) {
@@ -182,13 +185,28 @@ export class SupabasePickRepository implements PickRepository {
     return mapPickRow(data);
   }
 
-  async removePick(categoryId: string) {
+  async removePick(input: RemovePickInput) {
     const { error } = await this.client.rpc('remove_pick', {
-      p_category_id: categoryId,
+      p_category_id: input.categoryId,
+      p_pick_id: input.pickId,
     });
 
     if (error) {
       throw mapSupabaseError(error);
     }
+  }
+
+  async setRepresentative(pickId: string) {
+    const { data, error } = await this.client.rpc('set_representative_pick', { p_pick_id: pickId });
+
+    if (error) {
+      throw mapSupabaseError(error);
+    }
+
+    if (!data) {
+      throw new AppError('INTERNAL_ERROR');
+    }
+
+    return mapPickRow(data);
   }
 }

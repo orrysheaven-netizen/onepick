@@ -37,6 +37,7 @@ export type AdminCategory = {
   is_pickable: boolean;
   sort_order: number;
   ranking_min_sample: number;
+  max_picks: number;
   image_url: string | null;
 };
 
@@ -404,11 +405,11 @@ export function getSbizPlaceSample(limit = 20) {
 }
 
 export function getCategories() {
-  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
+  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,max_picks,image_url&order=sort_order.asc,name.asc');
 }
 
 export function createCategory(input: { name: string; slug: string; parentId?: string | null }) {
-  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
+  return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,max_picks,image_url', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -424,7 +425,7 @@ export function createCategory(input: { name: string; slug: string; parentId?: s
 }
 
 export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'name' | 'parent_id' | 'status' | 'is_visible' | 'is_pickable' | 'sort_order' | 'ranking_min_sample' | 'image_url'>>) {
-  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url`, {
+  return adminRequest<AdminCategory[]>(`/rest/v1/categories?id=eq.${encodeURIComponent(id)}&select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,max_picks,image_url`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),

@@ -25,6 +25,8 @@ function getErrorMessage(error: unknown) {
     case 'ITEM_CATEGORY_MISMATCH': return '제품과 카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
+    case 'PICK_LIMIT_REACHED': return '이 카테고리의 원픽이 가득 찼어요. 바꿀 원픽을 하나 골라주세요.';
+    case 'PICK_NOT_FOUND': return '바꾸려던 원픽이 이미 바뀌었어요. 화면을 새로고침한 뒤 다시 골라주세요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
 }
@@ -53,6 +55,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [draftTip, setDraftTip] = useState<string | null>(null);
   const [tipAnswer, setTipAnswer] = useState<'unanswered' | 'yes' | 'no'>('unanswered');
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
+  // Only used when a multi-pick category is full: which current pick to swap out.
+  const [replacePickId, setReplacePickId] = useState<string | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   const photoOfferClosed = useRef(false);
@@ -76,24 +80,40 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
+  const maxPicks = itemQuery.data?.category?.maxPicks ?? 1;
+  const isFull = pickStatus?.type === 'category_full';
+  const heldPicks = pickStatus?.type === 'category_full' ? pickStatus.heldPicks : [];
+  // A choice made before a refresh must still be one of the current picks.
+  const chosenReplacement = heldPicks.find((held) => held.pickId === replacePickId) ?? null;
+  const needsReplacement = isFull && !chosenReplacement;
   const formTitle = pickStatus?.type === 'selected_other' ? '이 제품으로 원픽을 바꿀까요?'
-    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이 제품을 내 원픽으로 정할까요?';
+    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?'
+      : pickStatus?.type === 'can_add' ? '이것도 내 원픽에 담을까요?'
+        : isFull ? '어떤 원픽과 바꿀까요?' : '이 제품을 내 원픽으로 정할까요?';
+  const itemStateText = pickStatus?.type === 'selected_other' ? '현재 원픽을 이 제품으로 변경합니다.'
+    : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.'
+      : pickStatus?.type === 'can_add' ? `지금 ${pickStatus.heldCount}개를 담았어요. ${pickStatus.maxPicks}개까지 담을 수 있어요.`
+        : isFull ? `원픽 ${maxPicks}개가 가득 찼어요. 아래에서 바꿀 원픽을 골라주세요.` : '이 제품을 새 원픽으로 선택합니다.';
   const submitLabel = useMemo(() => {
     if (pickStatus?.type === 'selected_other') return '이 제품으로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
+    if (pickStatus?.type === 'can_add') return '내 원픽에 추가';
+    if (pickStatus?.type === 'category_full') return chosenReplacement ? `${chosenReplacement.itemName} 대신 담기` : '바꿀 원픽을 골라주세요';
     return '내 원픽으로 선택';
-  }, [pickStatus]);
+  }, [pickStatus, chosenReplacement]);
 
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
       || choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
+    if (needsReplacement) return;
     if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
+        ...(chosenReplacement ? { replacePickId: chosenReplacement.pickId } : {}),
         // An untouched field is left out so the stored value survives; '' clears it.
         ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
         ...(draftUrl === null && draftTip === null ? {}
@@ -173,16 +193,30 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
         {hasItem && item && canChoose && user && !isSuccess ? <>
-          <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
+          <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>{maxPicks > 1 ? `이 카테고리는 ${maxPicks}개까지` : '카테고리마다 단 하나'}</Text></View>
           <Text style={styles.title}>{formTitle}</Text>
           <View style={styles.itemCard}>
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이 제품으로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이 제품을 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{itemStateText}</Text>
             </View>
           </View>
           {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이 제품으로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+          {isFull ? <View accessibilityRole="radiogroup" accessibilityLabel="바꿀 원픽 선택" style={styles.replaceList}>
+            {heldPicks.map((held) => {
+              const selected = held.pickId === chosenReplacement?.pickId;
+              return <Pressable key={held.pickId} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: choosePick.isPending }}
+                accessibilityLabel={`${held.itemName}${held.position === 1 ? ', 대표 원픽' : ''} 대신 담기`}
+                disabled={choosePick.isPending} onPress={() => { if (submitPhase.current !== 'saving') setReplacePickId(held.pickId); }}
+                style={[styles.replaceRow, selected && styles.replaceRowSelected]}>
+                <View style={[styles.radio, selected && styles.radioSelected]} />
+                <Text numberOfLines={1} style={styles.replaceName}>{held.itemName}</Text>
+                {held.position === 1 ? <Text style={styles.replaceBadge}>대표</Text> : null}
+              </Pressable>;
+            })}
+            <Text style={styles.helperText}>고른 원픽은 기록으로 남고, 새 원픽이 그 자리를 이어받아요.</Text>
+          </View> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
@@ -223,7 +257,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {choosePick.error instanceof AppError && choosePick.error.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={choosePick.isPending} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={choosePick.isPending} disabled={needsReplacement} onPress={() => void handleSubmit()} style={styles.submit} />
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
@@ -264,6 +298,13 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
+  replaceList: { gap: 8, marginTop: 14 },
+  replaceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 14 },
+  replaceRowSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: OnePick.border },
+  radioSelected: { borderColor: OnePick.accent, backgroundColor: OnePick.accent },
+  replaceName: { flex: 1, color: OnePick.text, fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  replaceBadge: { color: OnePick.accentDeep, fontSize: 11, fontWeight: '800' },
   notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 12 },
   noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },
   itemCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 14, marginTop: 20 },

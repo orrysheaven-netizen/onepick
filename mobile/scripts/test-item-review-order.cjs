@@ -15,7 +15,7 @@ async function main() {
   const others = Array.from({ length: 20 }, (_, i) => entry({ id: `other-${i}`, itemId: 'item', userId: `person-${i}`, status: 'active' }));
   let current = mine, fetchedMine = 0, fetchedFocus = 0, focused = null;
   const service = new exportsObject.ItemService(
-    { getById: async () => item }, { getCurrentPick: async () => current },
+    { getById: async () => item }, { getCurrentPicks: async () => (current ? [current] : []) },
     { getById: async () => ({ id: 'category' }), getOpenCategories: async () => [{ id: 'category' }] },
     {
       getPicks: async () => [...others, entry(mine)], // Defensive duplicate removal even if an adapter returns self.
@@ -65,7 +65,7 @@ async function main() {
   const slowItem = new Promise((resolve) => { releaseItem = resolve; });
   const parallelService = new exportsObject.ItemService(
     { getById: async () => { started.push('item'); return slowItem; } },
-    { getCurrentPick: async () => null },
+    { getCurrentPicks: async () => [] },
     {
       getById: async () => { started.push('category'); return { id: 'category' }; },
       getOpenCategories: async () => { started.push('open'); return [{ id: 'category' }]; },

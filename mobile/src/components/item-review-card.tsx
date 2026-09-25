@@ -34,7 +34,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
             </Pressable>
           ) : <Text style={styles.username}>사용자</Text>}
         </View>
-        {isMine ? <View style={styles.badge}><Text style={styles.badgeText}>{isCurrent ? '내 원픽' : '내 이전 원픽'}</Text></View> : null}
+        {isMine ? <View style={styles.badge}><Text style={styles.badgeText}>{!isCurrent ? '내 이전 원픽' : pick.position > 1 ? `내 원픽 ${pick.position}` : '내 원픽'}</Text></View> : null}
         {!isCurrent && !isMine ? <Text style={styles.history}>이전 원픽</Text> : null}
       </View>
       <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>

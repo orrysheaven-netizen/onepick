@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { countPickChanges, type PickSignature } from '../_shared/pickChangeCount.ts';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -26,35 +27,34 @@ function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): 
   const previousRows = Array.isArray(previousValue) ? previousValue.map(object) : [];
   const hasIds = previousRows.some((row) => text(row.categoryId).length > 0);
 
-  const previous = new Map<string, string>();
-  for (const row of previousRows) {
+  const previous: PickSignature[] = previousRows.map((row) => {
     const categoryName = text(row.category);
     const itemName = text(row.item);
-    const categoryKey = hasIds && text(row.categoryId)
-      ? text(row.categoryId) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.itemId)
-      ? text(row.itemId) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) previous.set(categoryKey, JSON.stringify([itemKey, text(row.review)]));
-  }
+    return {
+      categoryKey: hasIds && text(row.categoryId)
+        ? text(row.categoryId) : categoryName ? `name:${categoryName}` : '',
+      itemKey: hasIds && text(row.itemId)
+        ? text(row.itemId) : itemName ? `name:${itemName}` : '',
+      review: text(row.review),
+    };
+  });
 
-  const current = new Map<string, string>();
-  for (const value of currentRows) {
+  const current: PickSignature[] = currentRows.map((value) => {
     const row = object(value);
     const category = relation(row.categories);
     const item = relation(row.items);
     const categoryName = text(category.name);
     const itemName = text(item.name);
-    const categoryKey = hasIds && text(row.category_id)
-      ? text(row.category_id) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.item_id)
-      ? text(row.item_id) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) current.set(categoryKey, JSON.stringify([itemKey, text(row.one_line_review)]));
-  }
+    return {
+      categoryKey: hasIds && text(row.category_id)
+        ? text(row.category_id) : categoryName ? `name:${categoryName}` : '',
+      itemKey: hasIds && text(row.item_id)
+        ? text(row.item_id) : itemName ? `name:${itemName}` : '',
+      review: text(row.one_line_review),
+    };
+  });
 
-  const keys = new Set([...previous.keys(), ...current.keys()]);
-  let changed = 0;
-  for (const key of keys) if (previous.get(key) !== current.get(key)) changed += 1;
-  return changed;
+  return countPickChanges(previous, current);
 }
 
 Deno.serve(async (req: Request) => {

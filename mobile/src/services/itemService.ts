@@ -4,10 +4,18 @@ import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { PickReadItem, ReadRepository } from '@/repositories/interfaces/readRepository';
 
+/** One of my current picks in the item's category, for choosing which to replace. */
+export type HeldPick = { pickId: string; itemId: string; itemName: string; position: number };
+
 export type MyItemPickStatus =
   | { type: 'not_selected' }
   | { type: 'selected_this'; pickId: string; oneLineReview: string }
-  | { type: 'selected_other'; currentPickId: string; currentItemId: string };
+  // A single-pick category that already holds another item: saving replaces it.
+  | { type: 'selected_other'; currentPickId: string; currentItemId: string }
+  // A multi-pick category with a free slot: saving adds alongside the others.
+  | { type: 'can_add'; heldCount: number; maxPicks: number }
+  // A multi-pick category at its limit: the person picks which one to replace.
+  | { type: 'category_full'; maxPicks: number; heldPicks: HeldPick[] };
 
 export class ItemService {
   constructor(
@@ -31,23 +39,44 @@ export class ItemService {
     const item = await itemPromise;
     if (!item) throw new AppError('ITEM_NOT_FOUND');
 
-    const [category, currentPick, picks, openCategories] = await Promise.all([
+    const [category, heldPicks, picks, openCategories] = await Promise.all([
       cachedFocus?.category?.id === item.categoryId
         ? Promise.resolve(cachedFocus.category)
         : this.categoryRepository.getById(item.categoryId),
-      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
+      userId ? this.pickRepository.getCurrentPicks(userId, item.categoryId) : Promise.resolve([]),
       picksPromise,
       openCategoriesPromise,
     ]);
 
+    const currentPick = heldPicks.find((pick) => pick.itemId === item.id) ?? null;
+    const maxPicks = category?.maxPicks ?? 1;
     let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
-    if (currentPick?.itemId === item.id) {
+    if (currentPick) {
       myPickStatus = { type: 'selected_this', pickId: currentPick.id, oneLineReview: currentPick.oneLineReview };
-    } else if (currentPick) {
+    } else if (heldPicks.length > 0 && maxPicks <= 1) {
       myPickStatus = {
         type: 'selected_other',
-        currentPickId: currentPick.id,
-        currentItemId: currentPick.itemId,
+        currentPickId: heldPicks[0].id,
+        currentItemId: heldPicks[0].itemId,
+      };
+    } else if (heldPicks.length > 0 && heldPicks.length < maxPicks) {
+      myPickStatus = { type: 'can_add', heldCount: heldPicks.length, maxPicks };
+    } else if (heldPicks.length > 0 && userId) {
+      // Names come from the permission-checked read path; a hidden item keeps a
+      // neutral label so the pick can still be chosen for replacement.
+      const readable = await this.readRepository.getPicks({
+        userId, categoryId: item.categoryId, statuses: ['active', 'needs_review'], limit: 10,
+      });
+      const names = new Map(readable.map((entry) => [entry.pick.id, entry.item?.name ?? null]));
+      myPickStatus = {
+        type: 'category_full',
+        maxPicks,
+        heldPicks: heldPicks.map((pick) => ({
+          pickId: pick.id,
+          itemId: pick.itemId,
+          itemName: names.get(pick.id) ?? '지금은 볼 수 없는 항목',
+          position: pick.position,
+        })),
       };
     }
 

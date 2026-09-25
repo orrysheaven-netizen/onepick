@@ -176,6 +176,34 @@ async function main() {
   arrange(); query.data = undefined; query.isError = true;
   noSuccess(render()); assert.match(render(), /제품을 불러오지 못했어요/);
   arrange(); query.data.canChoose = false; noSuccess(render()); assert.equal(input, undefined);
-  console.log('Saved Pick confirmation passed: new/change/review save, exact result IDs, explicit home browsing, no extra writes, pending/failure/retry, refresh failure, session gates and account/item scope isolation.');
+
+  // Multi-pick category with a free slot: saving adds, never names a pick to replace.
+  arrange({ type: 'can_add', heldCount: 2, maxPicks: 5 }); query.data.category = { maxPicks: 5 };
+  page = render();
+  assert.match(page, /이것도 내 원픽에 담을까요\?/); assert.match(page, /지금 2개를 담았어요\. 5개까지/);
+  assert.match(page, /이 카테고리는 5개까지/);
+  submit('내 원픽에 추가'); await flush();
+  assert.equal(attempts.length, 1); assert.equal('replacePickId' in attempts[0], false, 'Adding must not replace anything');
+
+  // Full multi-pick category: nothing is saved until the person picks which one to swap out.
+  const heldPicks = [
+    { pickId: 'held-1', itemId: 'movie-1', itemName: '첫 번째 영화', position: 1 },
+    { pickId: 'held-2', itemId: 'movie-2', itemName: '두 번째 영화', position: 2 },
+  ];
+  arrange({ type: 'category_full', maxPicks: 2, heldPicks }); query.data.category = { maxPicks: 2 };
+  page = render();
+  assert.match(page, /어떤 원픽과 바꿀까요\?/); assert.match(page, /첫 번째 영화/); assert.match(page, /대표/);
+  input.onChangeText('새로 담는 이유'); render();
+  button('바꿀 원픽을 골라주세요').onPress(); await flush();
+  assert.equal(attempts.length, 0, 'A full category never saves without a chosen replacement');
+  buttons.find((props) => props.accessibilityRole === 'radio' && props.accessibilityLabel === '두 번째 영화 대신 담기').onPress();
+  render();
+  assert.equal(buttons.find((props) => props.accessibilityRole === 'radio' && props.accessibilityLabel === '두 번째 영화 대신 담기')
+    .accessibilityState.checked, true);
+  buttons.filter((props) => props.accessibilityRole !== 'radio' && textOf(props.children) === '두 번째 영화 대신 담기')[0].onPress();
+  await flush();
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0].replacePickId, 'held-2', 'The chosen pick is the one replaced');
+  console.log('Saved Pick confirmation passed: new/change/review save, exact result IDs, explicit home browsing, no extra writes, pending/failure/retry, refresh failure, session gates and account/item scope isolation, multi-pick add and chosen replacement.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

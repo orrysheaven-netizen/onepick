@@ -12,6 +12,7 @@ export function mapPickRow(row: PickRow): Pick {
     oneLineReview: row.one_line_review,
     purchaseUrl: row.purchase_url ?? null,
     purchaseTip: row.purchase_tip ?? null,
+    position: row.position ?? 1,
     status: row.status as PickStatus,
     startedAt: row.started_at,
     endedAt: row.ended_at,

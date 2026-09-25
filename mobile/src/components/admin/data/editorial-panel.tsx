@@ -15,6 +15,7 @@ const RECOMMENDED_CATEGORY_COUNT = 3;
 const domain = (c: AdminCategory): Category => ({
   id: c.id, parentId: c.parent_id, name: c.name, slug: c.slug, status: c.status,
   isVisible: c.is_visible, isPickable: c.is_pickable, rankingMinSample: c.ranking_min_sample,
+  maxPicks: c.max_picks,
   sortOrder: c.sort_order, imageUrl: c.image_url, createdAt: '', updatedAt: '',
 });
 

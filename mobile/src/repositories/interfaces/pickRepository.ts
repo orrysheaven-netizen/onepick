@@ -12,6 +12,15 @@ export interface ChangePickInput extends PurchaseLinkInput {
   categoryId: string;
   itemId: string;
   oneLineReview: string;
+  /** Which current pick the new item replaces. Omitted: fill a free slot, or
+   * replace the one pick of a single-pick category. A full multi-pick category
+   * rejects the save with PICK_LIMIT_REACHED until one is chosen. */
+  replacePickId?: string;
+}
+
+export interface RemovePickInput {
+  categoryId: string;
+  pickId: string;
 }
 
 export interface UpdatePickReviewInput extends PurchaseLinkInput {
@@ -38,7 +47,8 @@ export interface RecentPicksInput {
 
 export interface PickRepository {
   getById(pickId: string): Promise<Pick | null>;
-  getCurrentPick(userId: string, categoryId: string): Promise<Pick | null>;
+  /** Current picks in one category, representative (position 1) first. */
+  getCurrentPicks(userId: string, categoryId: string): Promise<Pick[]>;
   getCurrentPicksByUser(userId: string): Promise<Pick[]>;
   getActivePicksByUser(userId: string): Promise<Pick[]>;
   getHistoryByUser(userId: string, limit?: number): Promise<Pick[]>;
@@ -46,5 +56,6 @@ export interface PickRepository {
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
-  removePick(categoryId: string): Promise<void>;
+  removePick(input: RemovePickInput): Promise<void>;
+  setRepresentative(pickId: string): Promise<Pick>;
 }

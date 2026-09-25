@@ -35,6 +35,8 @@ export function buildProfilePickGroups(picks: PickReadItem[], categories: Catego
         if (aSort !== bSort) return aSort - bSort;
         const nameDiff = (a.category?.name ?? '').localeCompare(b.category?.name ?? '');
         if (nameDiff !== 0) return nameDiff;
+        // Several picks in one category: the representative (position 1) leads.
+        if (a.pick.position !== b.pick.position) return a.pick.position - b.pick.position;
         return b.pick.updatedAt.localeCompare(a.pick.updatedAt);
       }),
     }))

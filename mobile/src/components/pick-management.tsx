@@ -23,21 +23,24 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
   categoryName: string;
   onRemoved: () => void;
 }) {
-  const { updateReview, removePick } = useManagePick();
+  const { updateReview, removePick, setRepresentative } = useManagePick();
   const [mode, setMode] = useState<'idle' | 'edit' | 'remove'>('idle');
   const [review, setReview] = useState(pick.oneLineReview);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<'review' | 'representative' | null>(null);
   const submitting = useRef(false);
-  const isBusy = updateReview.isPending || removePick.isPending;
+  const isBusy = updateReview.isPending || removePick.isPending || setRepresentative.isPending;
   const trimmedReview = review.trim();
   const canSave = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const error = mode === 'edit' ? updateReview.error : mode === 'remove' ? removePick.error : null;
+  const error = mode === 'edit' ? updateReview.error : mode === 'remove' ? removePick.error : setRepresentative.error;
+  // Only multi-pick categories have positions past 1, so this never shows for a single pick.
+  const canMakeRepresentative = pick.position > 1 && saved !== 'representative';
 
   const open = (nextMode: 'edit' | 'remove') => {
     if (submitting.current) return;
     updateReview.reset();
     removePick.reset();
-    setSaved(false);
+    setRepresentative.reset();
+    setSaved(null);
     setReview(pick.oneLineReview);
     setMode(nextMode);
   };
@@ -48,7 +51,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
     try {
       await updateReview.mutateAsync({ pickId: pick.id, oneLineReview: trimmedReview });
       setMode('idle');
-      setSaved(true);
+      setSaved('review');
     } catch {
       // Keep the draft so the user can retry.
     } finally {
@@ -60,10 +63,23 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await removePick.mutateAsync(pick.categoryId);
+      await removePick.mutateAsync({ categoryId: pick.categoryId, pickId: pick.id });
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.
+    } finally {
+      submitting.current = false;
+    }
+  };
+
+  const makeRepresentative = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    try {
+      await setRepresentative.mutateAsync(pick.id);
+      setSaved('representative');
+    } catch {
+      // Mutation state displays the error.
     } finally {
       submitting.current = false;
     }
@@ -74,10 +90,19 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
       <Text style={styles.title}>내 원픽 관리</Text>
       {mode === 'idle' ? (
         <>
-          {saved ? <Text accessibilityLiveRegion="polite" style={styles.description}>한줄평을 저장했어요.</Text> : null}
+          {saved ? <Text accessibilityLiveRegion="polite" style={styles.description}>
+            {saved === 'review' ? '한줄평을 저장했어요.' : `${categoryName} 대표 원픽으로 정했어요.`}
+          </Text> : null}
           <Pressable accessibilityRole="button" onPress={() => open('edit')} style={styles.button}>
             <Text style={styles.buttonText}>한줄평 수정</Text>
           </Pressable>
+          {canMakeRepresentative ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`${categoryName} 대표 원픽으로 지정`} disabled={isBusy}
+              onPress={() => void makeRepresentative()} style={[styles.outlineButton, isBusy && styles.disabled]}>
+              {setRepresentative.isPending ? <ActivityIndicator color={OnePick.accentDeep} />
+                : <Text style={styles.outlineText}>대표 원픽으로 지정</Text>}
+            </Pressable>
+          ) : null}
           <Pressable accessibilityRole="button" onPress={() => open('remove')} style={styles.secondaryButton}>
             <Text style={styles.secondaryText}>원픽 선택 해제</Text>
           </Pressable>
@@ -105,7 +130,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
         </>
       ) : (
         <>
-          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 이전 선택 기록은 남고, 이 카테고리에서 다시 원픽을 고를 수 있어요.</Text>
+          <Text style={styles.description}>{categoryName}에서 이 원픽 선택을 해제할까요? 이전 선택 기록은 남고, 이 카테고리에서 다시 원픽을 고를 수 있어요.</Text>
           <Pressable
             accessibilityRole="button"
             disabled={isBusy}
@@ -133,6 +158,8 @@ const styles = StyleSheet.create({
   counter: { color: OnePick.muted, fontSize: 12, textAlign: 'right', marginTop: 6 },
   button: { minHeight: 46, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
   buttonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  outlineButton: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 8 },
+  outlineText: { color: OnePick.accentDeep, fontSize: 13, fontWeight: '800' },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
   secondaryText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
   removeButton: { backgroundColor: OnePick.danger },

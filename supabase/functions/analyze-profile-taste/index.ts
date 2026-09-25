@@ -13,6 +13,7 @@ import {
   type PopularityEntry, type PopularityMap,
 } from './quality.ts';
 import { readTasteTone, tasteInstructions, tastePromptVersion } from './tone.ts';
+import { countPickChanges, type PickSignature } from '../_shared/pickChangeCount.ts';
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = TASTE_PROMPT_VERSION;
@@ -54,31 +55,19 @@ function meaningfulChangeCount(previousValue: unknown, currentValue: unknown): n
   const previous = Array.isArray(previousValue) ? previousValue.map(record) : [];
   const current = Array.isArray(currentValue) ? currentValue.map(record) : [];
 
-  const signatureByCategory = (rows: Record<string, unknown>[]) => {
-    const result = new Map<string, string>();
-    for (const row of rows) {
-      const categoryId = textOrNull(row.categoryId, 36);
-      const category = textOrNull(row.category, 300);
-      const key = categoryId ?? (category ? `name:${category}` : null);
-      if (!key) continue;
+  const signatures = (rows: Record<string, unknown>[]): PickSignature[] => rows.map((row) => {
+    const categoryId = textOrNull(row.categoryId, 36);
+    const category = textOrNull(row.category, 300);
+    const itemId = textOrNull(row.itemId, 36);
+    const item = textOrNull(row.item, 300);
+    return {
+      categoryKey: categoryId ?? (category ? `name:${category}` : ''),
+      itemKey: itemId ?? (item ? `name:${item}` : ''),
+      review: textOrNull(row.review, 100) ?? '',
+    };
+  });
 
-      const itemId = textOrNull(row.itemId, 36);
-      const item = textOrNull(row.item, 300);
-      const review = textOrNull(row.review, 100) ?? '';
-      const itemKey = itemId ?? (item ? `name:${item}` : '');
-      result.set(key, JSON.stringify([itemKey, review]));
-    }
-    return result;
-  };
-
-  const before = signatureByCategory(previous);
-  const after = signatureByCategory(current);
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  let changed = 0;
-  for (const key of keys) {
-    if (before.get(key) !== after.get(key)) changed += 1;
-  }
-  return changed;
+  return countPickChanges(signatures(previous), signatures(current));
 }
 
 async function fingerprint(value: unknown) {

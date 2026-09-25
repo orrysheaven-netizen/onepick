@@ -18,6 +18,7 @@ function toDomainCategory(category: AdminCategory): Category {
     isVisible: category.is_visible,
     isPickable: category.is_pickable,
     rankingMinSample: category.ranking_min_sample,
+    maxPicks: category.max_picks,
     sortOrder: category.sort_order,
     imageUrl: category.image_url,
     createdAt: '',

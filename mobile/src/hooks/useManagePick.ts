@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
-import type { UpdatePickReviewInput } from '@/repositories/interfaces/pickRepository';
+import type { RemovePickInput, UpdatePickReviewInput } from '@/repositories/interfaces/pickRepository';
 import { pickService } from '@/services';
 
 export function useManagePick() {
@@ -13,9 +13,13 @@ export function useManagePick() {
     onSuccess,
   });
   const removePick = useMutation({
-    mutationFn: (categoryId: string) => pickService.removePick(categoryId),
+    mutationFn: (input: RemovePickInput) => pickService.removePick(input),
+    onSuccess,
+  });
+  const setRepresentative = useMutation({
+    mutationFn: (pickId: string) => pickService.setRepresentative(pickId),
     onSuccess,
   });
 
-  return { updateReview, removePick };
+  return { updateReview, removePick, setRepresentative };
 }

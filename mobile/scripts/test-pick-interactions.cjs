@@ -34,7 +34,7 @@ async function main() {
   let currentPick = null;
   const service = new ItemService(
     { getById: async () => item },
-    { getCurrentPick: async () => currentPick },
+    { getCurrentPicks: async () => (currentPick ? [currentPick] : []) },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
     { getPicks: async () => [], getPickById: async () => null },
   );
@@ -58,6 +58,40 @@ async function main() {
   currentPick = { id: 'mine', itemId: 'item', oneLineReview: '기존 한줄평' };
   let detail = await service.getItemDetail('item', 'owner');
   assert.equal(detail.myPickStatus.oneLineReview, '기존 한줄평');
+
+  // Multi-pick categories: add while there is room, choose a pick to replace when full.
+  const movie = { id: 'movies', status: 'open', isVisible: true, isPickable: true, maxPicks: 3 };
+  const film = { id: 'film', categoryId: 'movies', status: 'active', name: '새 영화' };
+  let held = [];
+  const heldPick = (n) => ({ id: `held-${n}`, itemId: `film-${n}`, oneLineReview: `이유 ${n}`, position: n });
+  const multiService = new ItemService(
+    { getById: async () => film },
+    { getCurrentPicks: async () => held },
+    { getById: async () => movie, getOpenCategories: async () => [movie] },
+    {
+      getPicks: async (input) => input.userId
+        ? held.filter((pick) => pick.id !== 'held-3').map((pick) => ({ pick, item: { name: `영화 ${pick.position}` } }))
+        : [],
+      getPickById: async () => null,
+    },
+  );
+  const statusOf = async () => JSON.parse(JSON.stringify((await multiService.getItemDetail('film', 'owner')).myPickStatus));
+  assert.deepEqual(await statusOf(), { type: 'not_selected' });
+  held = [heldPick(1), heldPick(2)];
+  assert.deepEqual(await statusOf(), { type: 'can_add', heldCount: 2, maxPicks: 3 });
+  held = [heldPick(1), { ...heldPick(2), itemId: 'film' }];
+  assert.equal((await multiService.getItemDetail('film', 'owner')).myPickStatus.pickId, 'held-2',
+    'An item already held in a multi-pick category is edited, not added again');
+  held = [heldPick(1), heldPick(2), heldPick(3)];
+  const full = await statusOf();
+  assert.equal(full.type, 'category_full');
+  assert.deepEqual(full.heldPicks.map((pick) => [pick.pickId, pick.itemName, pick.position]),
+    [['held-1', '영화 1', 1], ['held-2', '영화 2', 2], ['held-3', '지금은 볼 수 없는 항목', 3]],
+    'Every held pick can be chosen, even one whose item is no longer readable');
+  movie.maxPicks = 1;
+  held = [heldPick(1)];
+  assert.equal((await multiService.getItemDetail('film', 'owner')).myPickStatus.type, 'selected_other',
+    'A single-pick category keeps the classic replace flow');
 
   const presses = [], inputs = [];
   let destination, params = { itemId: 'item' }, pullToRefresh;

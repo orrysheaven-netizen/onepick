@@ -84,6 +84,7 @@ export type Database = {
           image_url: string | null
           is_pickable: boolean
           is_visible: boolean
+          max_picks: number
           name: string
           parent_id: string | null
           ranking_min_sample: number
@@ -98,6 +99,7 @@ export type Database = {
           image_url?: string | null
           is_pickable?: boolean
           is_visible?: boolean
+          max_picks?: number
           name: string
           parent_id?: string | null
           ranking_min_sample?: number
@@ -112,6 +114,7 @@ export type Database = {
           image_url?: string | null
           is_pickable?: boolean
           is_visible?: boolean
+          max_picks?: number
           name?: string
           parent_id?: string | null
           ranking_min_sample?: number
@@ -773,6 +776,7 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          position: number
           purchase_tip: string | null
           purchase_url: string | null
           replaced_by_pick_id: string | null
@@ -788,6 +792,7 @@ export type Database = {
           id?: string
           item_id: string
           one_line_review: string
+          position?: number
           purchase_tip?: string | null
           purchase_url?: string | null
           replaced_by_pick_id?: string | null
@@ -803,6 +808,7 @@ export type Database = {
           id?: string
           item_id?: string
           one_line_review?: string
+          position?: number
           purchase_tip?: string | null
           purchase_url?: string | null
           replaced_by_pick_id?: string | null
@@ -1468,6 +1474,7 @@ export type Database = {
           p_one_line_review: string
           p_purchase_tip?: string | null
           p_purchase_url?: string | null
+          p_replace_pick_id?: string | null
         }
         Returns: {
           category_id: string
@@ -1476,6 +1483,7 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          position: number
           purchase_tip: string | null
           purchase_url: string | null
           replaced_by_pick_id: string | null
@@ -1694,6 +1702,7 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          position: number
           purchase_tip: string | null
           purchase_url: string | null
           replaced_by_pick_id: string | null
@@ -1709,7 +1718,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      remove_pick: {
+        Args: { p_category_id: string; p_pick_id?: string | null }
+        Returns: boolean
+      }
       reserve_external_catalog_slot: {
         Args: { p_interval_ms: number; p_provider: string }
         Returns: number
@@ -1782,6 +1794,31 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profile_onboarding_state"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_representative_pick: {
+        Args: { p_pick_id: string }
+        Returns: {
+          category_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          item_id: string
+          one_line_review: string
+          position: number
+          purchase_tip: string | null
+          purchase_url: string | null
+          replaced_by_pick_id: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "picks"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1885,6 +1922,7 @@ export type Database = {
           id: string
           item_id: string
           one_line_review: string
+          position: number
           purchase_tip: string | null
           purchase_url: string | null
           replaced_by_pick_id: string | null

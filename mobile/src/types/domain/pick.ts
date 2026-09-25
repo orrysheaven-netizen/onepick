@@ -10,6 +10,8 @@ export interface Pick {
   // 쇼핑꿀팁. There is no theme field: the badge derives from purchaseTip.
   purchaseUrl: string | null;
   purchaseTip: string | null;
+  /** Order among the owner's current picks in the category; 1 is the representative. */
+  position: number;
   status: PickStatus;
   startedAt: string;
   endedAt: string | null;

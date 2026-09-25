@@ -38,6 +38,8 @@ const knownCodes = new Set<AppErrorCode>([
   'IMAGE_SOURCE_UNSUPPORTED',
   'PICK_CONFLICT',
   'PICK_NOT_FOUND',
+  'PICK_LIMIT_REACHED',
+  'PICK_ID_REQUIRED',
   'COMMENT_INVALID',
   'BLOCK_SELF',
   'FOLLOW_SELF',
@@ -78,7 +80,8 @@ export function mapSupabaseError(error: SupabaseLikeError): AppError {
     return new AppError('FORBIDDEN', 'FORBIDDEN', error);
   }
 
-  if (error.code === '23505') {
+  // 23P01: two current picks raced for the same position in one category.
+  if (error.code === '23505' || error.code === '23P01') {
     return new AppError('PICK_CONFLICT', 'PICK_CONFLICT', error);
   }
 

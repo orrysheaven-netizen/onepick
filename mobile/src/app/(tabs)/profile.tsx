@@ -204,7 +204,7 @@ export default function ProfileScreen() {
           })}
         </View>
         {showComments ? <ProfileMyComments query={commentsQuery} /> : <>
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
+        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나, 영화·책 등은 5개까지 · 바꾸면 기록으로 남아요' : '카테고리마다 하나, 영화·책 등은 5개까지'} /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups
             picks={currentPicks}

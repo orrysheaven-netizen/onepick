@@ -13,6 +13,7 @@ export function mapCategoryRow(row: CategoryRow): Category {
     isVisible: row.is_visible,
     isPickable: row.is_pickable,
     rankingMinSample: row.ranking_min_sample,
+    maxPicks: row.max_picks ?? 1,
     sortOrder: row.sort_order,
     imageUrl: row.image_url,
     createdAt: row.created_at,

@@ -235,7 +235,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
           {canChoose || myPickStatus.type === 'selected_this' ? (
             <Button size="lg" fullWidth onPress={openPickAction} style={styles.primaryAction}
-              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이 제품으로 원픽 바꾸기' : '이 제품으로 원픽 등록'} />
+              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정'
+                : myPickStatus.type === 'selected_other' ? '이 제품으로 원픽 바꾸기'
+                  : myPickStatus.type === 'can_add' ? '내 원픽에 추가'
+                    : myPickStatus.type === 'category_full' ? '내 원픽 하나와 바꾸기' : '이 제품으로 원픽 등록'} />
           ) : <Text style={styles.itemMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 

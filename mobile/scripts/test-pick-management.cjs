@@ -36,7 +36,8 @@ async function main() {
   const repositoryCalls = [];
   const service = new PickService({
     updateReview: async (input) => { repositoryCalls.push(input); return input; },
-    removePick: async (categoryId) => { repositoryCalls.push(categoryId); },
+    removePick: async (input) => { repositoryCalls.push(input); },
+    setRepresentative: async (pickId) => { repositoryCalls.push({ representative: pickId }); return { id: pickId, position: 1 }; },
   });
   const result = await service.updateReview({ pickId: 'pick-1', oneLineReview: '  바꾼 이유  ' });
   assert.equal(result.oneLineReview, '바꾼 이유');
@@ -45,8 +46,8 @@ async function main() {
       (error) => error.code === 'REVIEW_INVALID');
   }
   assert.equal(repositoryCalls.length, 1, 'Invalid reviews never reach the repository');
-  await service.removePick('category-1');
-  assert.equal(repositoryCalls[1], 'category-1');
+  await service.removePick({ categoryId: 'category-1', pickId: 'pick-1' });
+  assert.deepEqual(repositoryCalls[1], { categoryId: 'category-1', pickId: 'pick-1' }, 'Removal names the exact pick, not just its category');
 
   const { queryKeys } = loadSource('lib/query/queryKeys.ts');
   const { invalidatePickData } = loadSource('lib/query/invalidatePickData.ts', {
@@ -61,15 +62,21 @@ async function main() {
     '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);
-  const { updateReview, removePick } = useManagePick();
+  const { updateReview, removePick, setRepresentative } = useManagePick();
   await updateReview.mutationFn({ pickId: 'pick-1', oneLineReview: '수정' });
   await updateReview.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
   invalidated.length = 0;
-  await removePick.mutationFn('category-2');
+  await removePick.mutationFn({ categoryId: 'category-2', pickId: 'pick-2' });
   await removePick.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
-  assert.equal(repositoryCalls.at(-1), 'category-2');
+  assert.deepEqual(repositoryCalls.at(-1), { categoryId: 'category-2', pickId: 'pick-2' });
+  invalidated.length = 0;
+  await setRepresentative.mutationFn('pick-3');
+  await setRepresentative.onSuccess();
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles',
+    'Changing the representative refreshes rankings and profiles');
+  assert.deepEqual(repositoryCalls.at(-1), { representative: 'pick-3' });
 
   const { useChoosePick } = loadSource('hooks/useChoosePick.ts', hookImports);
   invalidated.length = 0;
@@ -100,7 +107,7 @@ async function main() {
   const { PickManagement } = loadSource('components/pick-management.tsx', {
     'react-native': native,
     '@/errors/appError': { AppError },
-    '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {} }) },
+    '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {}, setRepresentative: {} }) },
   });
   let session = { user: { id: 'owner' }, isLoading: false };
   const data = {
@@ -141,6 +148,12 @@ async function main() {
   data.isCurrent = true;
   data.pick.status = 'needs_review';
   assert.match(render(), /내 원픽 관리/);
+  data.pick.status = 'active';
+  data.pick.position = 1;
+  assert.doesNotMatch(render(), /대표 원픽으로 지정/, 'The representative (or a single pick) has nothing to promote');
+  data.pick.position = 3;
+  assert.match(render(), /대표 원픽으로 지정/, 'A later pick in a multi-pick category can become the representative');
+  assert.match(render(), /내 원픽 3/);
 
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }

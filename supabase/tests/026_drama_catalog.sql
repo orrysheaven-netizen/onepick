@@ -45,7 +45,7 @@ begin
   assert exists(select 1 from public.picks where id=first_pick and one_line_review='드라마 한줄평 수정'), 'Repeat choice reuses existing Pick';
   perform public.change_pick(drama,tv_other,'다른 드라마 선택');
   select count(*) into n from public.picks where user_id=member and category_id=drama and status='active';
-  assert n=1, 'Exactly one current drama Pick';
+  assert n=2, 'Drama is a culture category, so a second drama is added rather than replacing the first';
   assert exists(select 1 from public.picks where user_id=member and item_id=film and status='active'), 'Changing drama does not replace movie Pick';
   reset role;
   update public.categories set is_visible=false where id=drama;

@@ -4,6 +4,7 @@ import type {
   ChangePickInput,
   PickRepository,
   PurchaseLinkInput,
+  RemovePickInput,
   UpdatePickReviewInput,
 } from '@/repositories/interfaces/pickRepository';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
@@ -85,7 +86,11 @@ export class PickService {
     });
   }
 
-  removePick(categoryId: string) {
-    return this.pickRepository.removePick(categoryId);
+  removePick(input: RemovePickInput) {
+    return this.pickRepository.removePick(input);
+  }
+
+  setRepresentative(pickId: string) {
+    return this.pickRepository.setRepresentative(pickId);
   }
 }

@@ -26,6 +26,7 @@ function errorMessage(error: unknown) {
     if (error.code === 'ITEM_NAME_INVALID') return '제품명은 1~100자로 입력해주세요.';
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
+    if (error.code === 'PICK_LIMIT_REACHED') return '이 카테고리의 원픽이 가득 찼어요. 프로필에서 하나를 해제한 뒤 다시 등록해주세요.';
   }
   return '상품을 등록하지 못했어요. 다시 시도해주세요.';
 }
