@@ -74,7 +74,7 @@ async function main() {
   };
   const base = {
     '@/components/item-review-card': { ItemReviewCard: () => null },
-    '@/components/item-pick-count': { ItemPickCount: () => null },
+    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },

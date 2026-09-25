@@ -7,6 +7,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachItemPhoto, useChoosePhoto } from '@/hooks/useRegisterPick';
+import { ItemChannelLinks } from '@/components/item-channel-links';
 import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { PickPhoto } from '@/components/pick-photo';
@@ -231,6 +232,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <ItemPickCount itemId={item.id} />
+          <ItemChannelLinks itemId={item.id} />
           <Text style={styles.itemMeta}>이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
 
           {canChoose || myPickStatus.type === 'selected_this' ? (
