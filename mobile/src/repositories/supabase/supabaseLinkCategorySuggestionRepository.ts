@@ -18,7 +18,7 @@ async function functionError(error: unknown) {
   try { body = response ? await response.clone().json() : null; } catch { /* ignore */ }
   if (response?.status === 401 || body?.error === 'AUTH_REQUIRED') return new AppError('AUTH_REQUIRED');
   if (response?.status === 429 || body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
-  if (response?.status === 400 || body?.error === 'URL_INVALID') return new AppError('ITEM_NOT_ELIGIBLE');
+  if (response?.status === 400 || response?.status === 409 || body?.error === 'URL_INVALID' || body?.error === 'ITEM_NOT_ELIGIBLE') return new AppError('ITEM_NOT_ELIGIBLE');
   return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
 }
 
