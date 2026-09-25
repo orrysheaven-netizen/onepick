@@ -206,14 +206,47 @@ async function main() {
     assert.equal(calls.length, 0);
   }
 
-  // --- signOutAdmin ends the shared Supabase Auth session (local scope), not a private admin store ---
+  // --- signOutAdmin ends all shared Supabase Auth sessions, not only this browser session ---
   {
     const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
     let signOutOptions;
     supabase.auth.signOut = async (options) => { signOutOptions = options; supabase.session = null; return { error: null }; };
     const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
     await signOutAdmin();
-    assert.equal(signOutOptions.scope, 'local');
+    assert.equal(signOutOptions.scope, 'global');
+  }
+
+// --- signOutAdmin surfaces a fixed error instead of provider details ---
+  {
+    const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
+    supabase.auth.signOut = async () => ({ error: { message: 'provider_internal_secret_detail' } });
+    const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
+    await assert.rejects(
+      () => signOutAdmin(),
+      (error) => error.message === '관리자 로그아웃에 실패했습니다.'
+        && !error.message.includes('provider_internal_secret_detail'),
+    );
+  }
+
+  // --- OAuth provider errors are removed from the URL and never shown verbatim to admins ---
+  {
+    const supabase = createSupabase({ session: null });
+    let replaced;
+    const { checkAdminSession } = load(supabase, async () => assert.fail('should not fetch'), {
+      location: {
+        origin: 'https://admin.onepick.example',
+        pathname: '/admin',
+        search: '?error=access_denied&error_description=provider_internal_secret_detail',
+        hash: '',
+      },
+      history: { replaceState: (_data, _unused, url) => { replaced = url; } },
+    });
+    await assert.rejects(
+      () => checkAdminSession(),
+      (error) => error.message === '관리자 로그인을 완료하지 못했습니다.'
+        && !error.message.includes('provider_internal_secret_detail'),
+    );
+    assert.equal(replaced, '/admin', 'OAuth error details must be removed from the URL');
   }
 
   // --- beginKakaoAdminSignIn delegates to the shared client's OAuth flow, not a hand-built authorize URL ---
