@@ -41,18 +41,26 @@ function home(count = 20) {
   });
   view.render(); return { view, q, following, auth, calls };
 }
-function explore() {
+const recentQuery = (items) => ({ ...query(items), isFetchingNextPage: false });
+function explore({ chips = true } = {}) {
+  flags.categoryChips = chips;
   const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true }]);
+  const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z' }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
-    'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: '1' }) },
+    'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
-    '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; } },
+    '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
+      useRecentPickedItems: (ids, enabled) => { calls.recent = { ids, enabled }; return recent; } },
     '@/lib/categories/categoryTree': tree,
+    '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
-  view.render(); view.find('Chip', (p) => p.label === 'food').onPress(); view.render();
-  view.find('Chip', (p) => p.label === 'ramen').onPress(); view.render();
-  return { view, q, calls };
+  view.render();
+  if (chips) {
+    view.find('Chip', (p) => p.label === 'food').onPress(); view.render();
+    view.find('Chip', (p) => p.label === 'ramen').onPress(); view.render();
+  }
+  return { view, q, recent, calls };
 }
 function profile(isPublic = false) {
   const q = query({ profile: { id: 'owner', username: 'owner', bio: 'bio' }, currentPicks: [], isMine: false });
@@ -90,6 +98,7 @@ async function main() {
     assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
   });
   await test('Home hides at 19 and shows at 20 unfiltered loaded Picks', () => {
+    flags.categoryChips = true;
     const { view, q } = home(19); assert.equal(view.all('Chip').length, 0);
     q.data.picks = picks(20); view.render(); assert.equal(view.all('Chip').length, 3);
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render();
@@ -100,7 +109,31 @@ async function main() {
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
     assert.equal(view.find('Chip', (p) => p.label === '전체').selected, true);
   });
+  await test('MVP hides Home category chips even above the Pick threshold', () => {
+    flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
+    const { view } = home(20); assert.equal(view.all('Chip').length, 0);
+    assert.equal(view.find('FlatList').data.length, 20, 'Hidden chips never filter the feed');
+  });
+  await test('MVP Explore: no chips, search open, food-scoped recent places, no off-scope catalogs', () => {
+    const { view, recent, calls } = explore({ chips: false });
+    assert.equal(view.all('Chip').length, 0);
+    assert.match(view.text(), /맛집 찾기/); assert.doesNotMatch(view.text(), /상위 카테고리/);
+    assert.ok(view.find('ItemSearch'), 'Search starts open without a ?search=1 handoff');
+    assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
+    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true }));
+    assert.equal(calls.categoryId, undefined, 'Rankings stay idle without a chosen category');
+    assert.match(view.text(), /최근 원픽된 맛집/);
+    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen, 상세 보기').onPress();
+    assert.equal(calls.route.pathname, '/item/[itemId]'); assert.equal(calls.route.params.itemId, 'recent');
+    assert.equal(view.all('Button').filter((b) => b.accessibilityLabel === '최근 원픽 더 보기').length, 0);
+    recent.hasNextPage = true; view.render();
+    view.find('Button', (b) => b.accessibilityLabel === '최근 원픽 더 보기').onPress();
+    assert.equal(recent.nextPages, 1);
+    recent.data = []; recent.hasNextPage = false; view.render();
+    assert.ok(view.find('StateCard', (s) => s.title === '아직 원픽된 곳이 없어요'));
+  });
   await test('Home restoration threshold, signed-out avatar and editorial copy', () => {
+    flags.categoryChips = true;
     thresholds.homeCategoryFilterMinPicks = 0;
     const { view, q, auth } = home(2); assert.equal(view.all('Chip').length, 3); assert.equal(view.all('Avatar').length, 1);
     auth.user = null; q.data.editorialItems = [{ itemId: 'editorial', name: 'Editorial', categoryPath: 'food', pickCount: 0 }]; view.render();

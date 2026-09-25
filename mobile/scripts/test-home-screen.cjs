@@ -151,6 +151,10 @@ for (width of [390, 800, 1200]) {
 // Test the actual boundary using unique loaded records, without changing thresholds.
 const smallFeed = query.data.picks;
 query.data.picks = Array.from({ length: 19 }, (_, i) => ({ ...smallFeed[0], pickId: `pick-${i}`, itemId: `item-${i}` }));
+query.data.picks.push({ ...smallFeed[1], pickId: 'pick-mvp', itemId: 'item-mvp' });
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'MVP hides category chips at any feed size');
+query.data.picks.pop();
+onepickConstants.OnePickFeatures.categoryChips = true;
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
 query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
 render(); assert.ok(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'));

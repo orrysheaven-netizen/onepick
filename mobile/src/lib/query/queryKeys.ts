@@ -7,6 +7,8 @@ export const queryKeys = {
     all: ['explore'] as const,
     topItems: (categoryId?: string) => ['explore', categoryId ?? 'all', 'top-items'] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
+    recentItems: (categoryIds: string[] | null) =>
+      ['explore', 'recent-items', categoryIds ? [...categoryIds].sort().join(',') : 'all'] as const,
   },
   categories: {
     all: ['categories'] as const,
