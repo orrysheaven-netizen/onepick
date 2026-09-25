@@ -119,8 +119,9 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /전체/);
   assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
   assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
-  assert.equal(typeof itemSearchProps.onSearchBook, 'function');
-  assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
+  for (const shortcut of ['onSearchMovie', 'onSearchDrama', 'onSearchMusic', 'onSearchGame', 'onSearchBook', 'onSearchYouTube', 'onSearchPokemon']) {
+    assert.equal(itemSearchProps[shortcut], undefined, `MVP Home (food only) hides the ${shortcut} search shortcut`);
+  }
   assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
@@ -132,14 +133,7 @@ for (width of [390, 800, 1200]) {
   press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
-  assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');
-  itemSearchProps.onSearchBook('아리랑');
-  assert.equal(destination.pathname, '/pick/book');
-  assert.equal(destination.params.categoryId, 'book');
-  assert.equal(destination.params.query, '아리랑');
-  itemSearchProps.onSearchYouTube('최재천의 아마존');
-  assert.equal(destination.pathname, '/pick/youtube');
-  assert.equal(destination.params.categoryId, 'youtube');
+  assert.doesNotMatch(page, /라면 원픽 찾기/, 'Signed-in Home hides the category grid');
   itemSearchProps.onSubmitSearch('최재천의 아마존');
   assert.equal(destination.pathname, '/explore');
   assert.equal(destination.params.search, '1');
@@ -151,8 +145,8 @@ const smallFeed = query.data.picks;
 query.data.picks = Array.from({ length: 19 }, (_, i) => ({ ...smallFeed[0], pickId: `pick-${i}`, itemId: `item-${i}` }));
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
 query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
-render(); assert.ok(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'));
-assert.ok(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'));
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'A single food group needs no filter chips');
+assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
 render(); endReached(); assert.equal(pageCalls, 1);
@@ -167,9 +161,11 @@ const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Signed-out Home hides the own-profile avatar');
-assert.match(publicPage, /어떤 취향부터 골라볼까요/);
-assert.match(publicPage, /먹을것 › 면류 › 라면/);
-press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
+assert.match(publicPage, /어떤 맛집부터 골라볼까요/);
+assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home category cards show only the leaf name');
+assert.match(publicPage, /과자 원픽 찾기|>과자</);
+assert.doesNotMatch(publicPage, /영화|책 원픽 찾기|유튜브 원픽 찾기/, 'MVP Home starter cards are food only');
+press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
 press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');

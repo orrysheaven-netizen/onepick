@@ -15,7 +15,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
-import { buildHomeCategoryFilters, filterHomeFeedByCategory } from '@/lib/home/homeCategoryFilters';
+import { buildHomeCategoryFilters, filterHomeFeedByCategory, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
@@ -26,7 +26,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
       <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryName}</Text>
     </View>
     <View style={styles.editorialBody}>
       <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
@@ -74,14 +74,8 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  const categories = user ? [] : searchCategories;
-  const movieCategory = searchCategories.find((category) => category.slug === 'movie');
-  const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
-  const musicCategory = searchCategories.find((category) => category.slug === 'music');
-  const gameCategory = searchCategories.find((category) => category.slug === 'game');
-  const bookCategory = searchCategories.find((category) => category.slug === 'book');
-  const youtubeCategory = searchCategories.find((category) => category.slug === 'youtube');
-  const pokemonCategory = searchCategories.find((category) => category.slug === 'pokemon');
+  // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
+  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog), [user, categoryCatalog]);
   const openRegistration = (category: { id: string; slug: string }) => {
     const params = { categoryId: category.id };
     if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
@@ -128,13 +122,6 @@ export default function HomeScreen() {
 
     <ItemSearch compact
       onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
-      onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
-      onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
-      onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
-      onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
-      onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
-      onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
-      onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
       onSelect={openItem} />
 
     {OnePickFeatures.follow && user ? <View style={styles.scopeRow}>
@@ -225,10 +212,10 @@ export default function HomeScreen() {
         </View> : null}
 
         {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="어떤 취향부터 골라볼까요?" count={categories.length} /></View>
+          <View style={styles.nextSection}><SectionHeader title="어떤 맛집부터 골라볼까요?" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
-              const label = category.label ?? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name);
+              const label = category.name;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
                 onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
                 <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>

@@ -48,10 +48,12 @@ jobs:
       - name: Detect Edge Function changes
         id: edge
         shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
 
-          before="${{ github.event.before }}"
+          before="$BEFORE_SHA"
           if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
             before="$(git rev-parse HEAD^ 2>/dev/null || true)"
           fi
