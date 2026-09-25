@@ -48,7 +48,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
       browseCategoryGroups: (cs) => cs.map((c) => ({ category: c, children: [], directlySelectable: true })) },
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
-    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], filterHomeFeedByCategory: (picks) => picks },
+    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
   view.render();
