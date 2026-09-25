@@ -17,14 +17,17 @@ for (const relative of files) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8');
   const authIndex = source.indexOf('auth.getUser');
   const quotaIndex = source.indexOf('reserve_external_catalog_import');
+  const existingIndex = source.indexOf('const existing = await findExisting()');
 
   assert.match(source, /action\s*===\s*['"]import['"]/,
     relative + ' must expose an import path');
   assert.ok(authIndex >= 0, relative + ' must authenticate catalog imports');
-  assert.ok(quotaIndex > authIndex,
-    relative + ' must reserve import quota only after caller authentication');
-  assert.match(source, /created_by:\s*(?:authData\.user\.id|importUserId)/,
-    relative + ' must attribute newly imported items to the authenticated user');
+  assert.ok(existingIndex > authIndex,
+    relative + ' must check an existing external id after authentication');
+  assert.ok(quotaIndex > existingIndex,
+    relative + ' must not spend import quota on an idempotent reselect');
+  assert.doesNotMatch(source, /created_by:\s*(?:authData\.user\.id|importUserId)/,
+    relative + ' must not mix catalog imports into user item-request history');
   assert.match(source, /RATE_LIMITED/,
     relative + ' must map exhausted quota to a rate-limited response');
 }
