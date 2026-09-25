@@ -1,21 +1,31 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Link } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 
-import { OnePick } from '@/constants/onepick';
+type Props = { compact?: boolean; appearance?: 'light' | 'dark' };
 
-// Lockup: an indigo tag that reads 원픽 in Korean, with "one pick" beside it.
-export function OnePickBrand({ compact = false }: { compact?: boolean }) {
-  return <View style={styles.brand} accessibilityLabel="원픽">
-    <View style={[styles.mark, compact && styles.markCompact]}><Text style={[styles.markText, compact && styles.markTextCompact]}>원픽</Text></View>
-    <Text style={[styles.name, compact && styles.nameCompact]}>one pick</Text>
-  </View>;
+// Approved outlined originals. Do not rebuild the wordmark with live fonts.
+const logos = {
+  light: require('../../public/brand/onepick-logo-horizontal.svg'),
+  dark: require('../../public/brand/onepick-logo-horizontal-white.svg'),
+};
+
+export function OnePickBrand({ compact = false, appearance = 'light' }: Props) {
+  const height = compact ? 24 : 28;
+  // Original dot diameter: 508 units in a 931-unit-high viewBox.
+  const clearSpace = Math.ceil(height * 508 / 931);
+  return (
+    <Link href="/" asChild>
+      {/* Slot merges child style as `{ ...style }`: an array crashes web, a function is dropped. Pass one object. */}
+      <Pressable accessibilityRole="link" accessibilityLabel="원픽 홈"
+        style={StyleSheet.flatten([styles.brand, { padding: clearSpace }])}>
+        <Image source={logos[appearance]} alt="onepick 원픽" contentFit="contain"
+          style={{ height, width: height * 4883.77 / 931 }} />
+      </Pressable>
+    </Link>
+  );
 }
 
 const styles = StyleSheet.create({
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  mark: { height: 32, paddingHorizontal: 9, borderRadius: 10, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center' },
-  markCompact: { height: 26, paddingHorizontal: 7, borderRadius: 8 },
-  markText: { color: OnePick.onAccent, fontSize: 16, lineHeight: 20, fontWeight: '900', letterSpacing: -0.8 },
-  markTextCompact: { fontSize: 13, lineHeight: 16, letterSpacing: -0.6 },
-  name: { color: OnePick.text, fontSize: 19, lineHeight: 24, fontWeight: '800', letterSpacing: -0.6 },
-  nameCompact: { fontSize: 15, lineHeight: 20 },
+  brand: { alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 });

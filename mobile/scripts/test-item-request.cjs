@@ -10,7 +10,7 @@ function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText, { exports, require: (name) => {
+  }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
@@ -27,6 +27,7 @@ async function main() {
   let sessionRetries = 0, categoryRetries = 0, profileRetries = 0;
   let suggestionItemId, applyItemId, appliedCategoryId, categorySuggestionRetries = 0;
   let hintItemId, hintUserId, sentHint, hintOutcome = async (label) => label;
+  let attachedPendingLink;
   const fakeReact = { ...React, useState: (initial) => {
     const slot = index++;
     if (!(slot in state)) state[slot] = typeof initial === 'function' ? initial() : initial;
@@ -94,6 +95,12 @@ async function main() {
     reset() { this.isError = false; this.error = null; },
     mutateAsync: async (label) => { sentHint = label; return hintOutcome(label); },
   };
+  const linkAttachMutation = {
+    isPending: false,
+    isError: false,
+    error: null,
+    mutateAsync: async (input) => { attachedPendingLink = input; },
+  };
   const { default: Request } = load('app/pick/request.tsx', {
     '@/services/registrationService': { CATEGORY_HINT_MAX_LENGTH: 60 },
     react: fakeReact, 'react-native': native,
@@ -121,6 +128,7 @@ async function main() {
       },
     },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
+    '@/hooks/useLinkCategorySuggestions': { useAttachPendingItemLink: () => linkAttachMutation },
     '@/hooks/useRegisterPick': { useRegisterPick: () => mutation, useRegistrationCategories: () => categories,
       useChoosePhoto: () => picker, useImportItemPhoto: () => importer },
   });
@@ -232,6 +240,19 @@ async function main() {
   assert.equal(destination.params.action, 'request_item');
   assert.equal(destination.params.itemName, params.itemName);
   assert.equal(destination.params.categoryId, category.id);
+
+  // Link-first online requests keep the source URL attached to the caller's pending item.
+  state = []; auth.user = { id: 'owner' }; profile.data = { currentPicks: [] }; profile.isPending = false; profile.isError = false; profile.error = null;
+  categories.isError = false; categories.data = [category]; attachedPendingLink = undefined;
+  params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
+  outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
+  const onlinePage = render();
+  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
+    'The user sees which host will be attached before submitting');
+  press('상품 등록하기'); await settle();
+  assert.equal(attachedPendingLink.itemId, 'pending-online');
+  assert.equal(attachedPendingLink.url, 'https://shop.example/ramen');
+  assert.match(render(), /상품을 등록했어요/);
 
   // Ordinary products do not ask the user for a category. Even if the category
   // list is temporarily unavailable, the product-name request can still proceed.

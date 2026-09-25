@@ -227,16 +227,16 @@ Deno.serve(async (req: Request) => {
 
     // These reads are independent once a valid public snapshot exists. Running
     // them together removes serial PostgREST round trips without weakening
-    // the source-version check or public snapshot RLS. current_user_is_admin
-    // reads auth.uid() from the caller's own JWT, so it must run on userClient
-    // (publicClient/admin carry no real end-user identity).
-    const [latestSourceVersion, existingResult, actorResult, adminResult] = await Promise.all([
+    // the source-version check or public snapshot RLS. Admin cooldown bypass
+    // requires both allowlist membership and the caller's AAL2 session.
+    const [latestSourceVersion, existingResult, actorResult, assuranceResult, adminResult] = await Promise.all([
       readSourceVersion(),
       admin.from('profile_ai_reviews')
         .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
         .eq('profile_id', user.id).maybeSingle(),
       admin.from('system_actors')
         .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single(),
+      userClient.auth.mfa.getAuthenticatorAssuranceLevel(authorization.slice(7)),
       userClient.rpc('current_user_is_admin'),
     ]);
     if (latestSourceVersion !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
@@ -245,7 +245,8 @@ Deno.serve(async (req: Request) => {
     const { data: actor, error: actorError } = actorResult;
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
     if (adminResult.error) throw new Error('AI_ADMIN_CHECK_FAILED');
-    const isAdmin = adminResult.data === true;
+    const isAdmin = adminResult.data === true &&
+      !assuranceResult.error && assuranceResult.data.currentLevel === 'aal2';
 
     const sourceFingerprint = await fingerprint(snapshot);
 

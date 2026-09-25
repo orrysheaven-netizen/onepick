@@ -1,7 +1,8 @@
 // Logged-in user-flow QA of the OnePick tester site with the dedicated QA
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
-// registration → profile → follow → notifications → share/deep link.
+// registration → link category suggestion → profile → follow → notifications →
+// share/deep link.
 //
 // Credential rules (docs/daily-qa.md "로그인 상태 QA 계정 규칙"):
 // - ONEPICK_QA_EMAIL / ONEPICK_QA_PASSWORD come only from the environment
@@ -12,7 +13,8 @@
 // - No screenshot is taken of the own profile screens, and the QA username is
 //   masked in every screenshot and redacted from the report.
 // - Read-only: nothing is submitted, followed or shared. Buttons with side
-//   effects are only checked for actionability (Playwright trial click).
+//   effects are only checked for actionability (Playwright trial click). The
+//   link suggestion lookup is pressed because it only reads the taxonomy.
 //
 // Output: <out>/logged-in-report.json, <out>/logged-in-report.md, screenshots.
 import fs from 'node:fs';
@@ -22,11 +24,18 @@ import { chromium, devices } from 'playwright';
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
+// A non-Naver link keeps the check deterministic: the Edge Function does not fetch
+// it, so the suggestion comes only from the typed name matching the taxonomy.
+const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
+const LINK_NAME = process.env.QA_LINK_NAME || '도가니탕';
+const LINK_EXPECT_CATEGORY = process.env.QA_LINK_EXPECT_CATEGORY || '도가니탕';
 const EMAIL = process.env.ONEPICK_QA_EMAIL || '';
 const PASSWORD = process.env.ONEPICK_QA_PASSWORD || '';
 const STEP_TIMEOUT_MS = 15_000;
 const ERROR_COPY = /(오류가 발생|문제가 발생|불러오지 못|실패했|Something went wrong|Unexpected error)/;
 const SUPABASE_HOST = /\.supabase\.co$/;
+const DISCOVERY_ATTEMPTS = 3;
+const DISCOVERY_RETRY_MS = 30_000;
 
 // 390×844 phone viewport (iPhone 12/13/14 class).
 const device = { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } };
@@ -136,6 +145,20 @@ async function shot(page, name) {
 }
 
 async function discoverSupabase(browser) {
+  // A run started right after a merge can hit Pages mid-deploy and see no Supabase call,
+  // so try the page a few times before giving up.
+  for (let attempt = 1; attempt <= DISCOVERY_ATTEMPTS; attempt += 1) {
+    const found = await discoverSupabaseOnce(browser);
+    if (found) return found;
+    if (attempt < DISCOVERY_ATTEMPTS) {
+      console.log(`Supabase 호출을 찾지 못함 (${attempt}/${DISCOVERY_ATTEMPTS}), ${DISCOVERY_RETRY_MS / 1000}초 뒤 재시도`);
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_RETRY_MS));
+    }
+  }
+  return null;
+}
+
+async function discoverSupabaseOnce(browser) {
   // Use whatever project the deployed bundle talks to, so the token matches the site.
   const context = await browser.newContext({ ...device });
   const page = await context.newPage();
@@ -238,6 +261,8 @@ async function main() {
       await actionable(page.getByRole('tab', { name: '전체 원픽 보기' }));
     });
     await check(flow, '피드 카드 표시', async () => {
+      // Count on 전체 whatever tab Home opens on: 팔로잉 is empty while the QA account follows no one.
+      await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       const cards = page.getByRole('button', { name: /제품 상세 보기$/ });
       await cards.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await cards.count();
@@ -293,6 +318,92 @@ async function main() {
     });
     await shot(page, 'pick_find');
 
+    flow = '링크 추천';
+    await check(flow, '"링크로 카테고리 추천받기" → 링크 화면', async () => {
+      await page.goto(`${BASE_URL}/pick/find`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: '링크로 카테고리 추천받기', exact: true }).click();
+      await page.waitForURL(/\/pick\/link/, { timeout: STEP_TIMEOUT_MS });
+      if (await page.getByText('추천 요청 전에 로그인합니다').isVisible().catch(() => false)) throw new Error('비로그인 안내가 표시됨');
+      await noErrorCopy(page);
+    });
+    // A failure here must say which wait timed out and what the Edge Function answered (#315):
+    // a bare locator timeout cannot tell a slow/failed function from a rendering or locator problem.
+    const linkCalls = [];
+    const isLinkCall = (url) => url.includes('/functions/v1/link-category-suggestions');
+    const onLinkRequest = (request) => {
+      if (isLinkCall(request.url()) && request.method() === 'POST') linkCalls.push({ started: Date.now(), response: null, ms: 0 });
+    };
+    const onLinkResponse = (response) => {
+      const call = linkCalls[linkCalls.length - 1];
+      if (!isLinkCall(response.url()) || response.request().method() !== 'POST' || !call || call.response) return;
+      call.response = response;
+      call.ms = Date.now() - call.started;
+    };
+    page.on('request', onLinkRequest);
+    page.on('response', onLinkResponse);
+    const linkCallSummary = async () => {
+      if (linkCalls.length === 0) return 'Edge Function 호출 없음';
+      const { response, started, ms } = linkCalls[linkCalls.length - 1];
+      if (!response) return `Edge Function 응답 없음 (${Date.now() - started}ms 경과)`;
+      const parts = [`Edge Function HTTP ${response.status()} · ${ms}ms`];
+      const body = await Promise.race([
+        response.json().catch(() => null),
+        new Promise((resolve) => setTimeout(() => resolve(null), 3_000)),
+      ]);
+      if (body?.error) parts.push(`error=${String(body.error).slice(0, 40)}`);
+      if (body && Array.isArray(body.suggestions)) {
+        parts.push(`kind=${body.kind}`,
+          `suggestions=[${body.suggestions.slice(0, 4).map((s) => String(s?.name).slice(0, 20)).join(', ')}]`,
+          `categories=${Array.isArray(body.categories) ? body.categories.length : '?'}`);
+      }
+      return parts.join(' · ');
+    };
+    let linkPhase = '';
+    const linkSuggested = await check(flow, `링크 확인 → "${LINK_EXPECT_CATEGORY}" 추천`, async () => {
+      try {
+        linkPhase = '입력·요청';
+        await page.getByRole('textbox', { name: '원픽 링크' }).fill(LINK_URL);
+        await page.getByRole('textbox', { name: '가게 또는 상품 이름' }).fill(LINK_NAME);
+        await page.getByRole('button', { name: '링크 확인하고 추천받기', exact: true }).click();
+        linkPhase = '"추천 카테고리" 또는 오류 표시 대기';
+        const section = page.getByText('추천 카테고리', { exact: true });
+        const alert = page.getByRole('alert');
+        await section.or(alert).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if (await alert.isVisible().catch(() => false)) throw new Error(`추천 오류: "${(await alert.innerText()).slice(0, 80)}"`);
+        // The result title also echoes the typed name, so look only inside the suggestion card.
+        // React Native Web renders <Text> as a div, so "innermost div holding the heading" is the
+        // heading itself (#315). Also require the card's own "다른 카테고리 찾기" toggle, which is
+        // present with or without suggestions, so the innermost match is the whole card.
+        const card = page.locator('div', { has: section })
+          .filter({ has: page.getByText('다른 카테고리 찾기', { exact: true }) })
+          .last();
+        linkPhase = '추천 후보 유무 확인';
+        if (await card.getByText('자동 추천 후보가 없습니다').isVisible().catch(() => false)) throw new Error('자동 추천 후보 없음');
+        linkPhase = `카드 안 "${LINK_EXPECT_CATEGORY}" 표시 대기`;
+        await card.getByText(LINK_EXPECT_CATEGORY, { exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        linkPhase = '오류 문구 확인';
+        await noErrorCopy(page);
+        return { detail: `추천 후보에 표시 · ${await linkCallSummary()}` };
+      } catch (error) {
+        await shot(page, 'link_suggestion_failed');
+        // check() keeps 200 characters, so the Edge Function summary goes before the error text.
+        const message = String(error?.message ?? error).split('\n')[0].slice(0, 60);
+        throw new Error(`[${linkPhase}] ${await linkCallSummary()} · ${message}`);
+      }
+    });
+    page.off('request', onLinkRequest);
+    page.off('response', onLinkResponse);
+    if (linkSuggested) {
+      // A single suggestion is preselected, so both follow-ups must be enabled. Neither is pressed.
+      await check(flow, '"이 카테고리로 등록 요청 계속" 클릭 가능', () =>
+        actionable(page.getByRole('button', { name: '이 카테고리로 등록 요청 계속', exact: true })));
+      await check(flow, '"카테고리 없이 등록 요청" 클릭 가능', () =>
+        actionable(page.getByRole('button', { name: '카테고리 없이 등록 요청', exact: true })));
+      await shot(page, 'link_suggestion');
+    } else {
+      record(flow, '등록 요청 버튼 클릭 가능', 'skip', '추천 결과 없음');
+    }
+
     flow = '프로필';
     await check(flow, '내 프로필 탭 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
@@ -301,8 +412,8 @@ async function main() {
       await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
     });
     await check(flow, '핵심 요소 표시', async () => {
+      // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
       await page.getByText('카테고리별 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await page.getByText('현재 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await actionable(page.getByRole('button', { name: '프로필과 제품 등록 요청 상태 새로고침' }));
       await noErrorCopy(page);
     });
@@ -310,6 +421,10 @@ async function main() {
       await page.getByText('공개 프로필 보기').first().click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
+      // The public profile keeps its "현재 원픽 N개" summary card before and after #308. Only visible
+      // matches count: a still-mounted own-profile screen can hold the same label while hidden.
+      await page.getByText('현재 원픽', { exact: true }).filter({ visible: true }).first()
+        .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
     // Own profile screens show the account's handle: no screenshots here.

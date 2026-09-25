@@ -3,8 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 const SBIZ_BASE = 'https://apis.data.go.kr/B553077/api/open/sdsc2';
 const MAX_ROWS = 100;
 
+// The admin web page calls this cross-origin with Authorization/apikey headers,
+// so the browser sends a preflight first. Without these headers every call
+// fails as "Failed to fetch" before the admin check runs.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
 function callerClient(authorization: string) {
@@ -99,6 +108,7 @@ async function fetchSeoul(rows: number) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
 
   const auth = await requireAdmin(req);

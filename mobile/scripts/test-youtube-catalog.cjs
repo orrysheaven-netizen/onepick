@@ -73,6 +73,9 @@ function setup() {
         state.lastSearchQuotaArgs = args;
         return { data: state.searchAllowed, error: null };
       }
+      if (name === 'reserve_external_catalog_import') {
+        return { data: true, error: null };
+      }
       throw new Error('Unexpected RPC: ' + name);
     },
     from(table) {

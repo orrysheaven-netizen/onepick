@@ -250,7 +250,7 @@ export function PendingPanel() {
             >
               <View style={styles.itemBody}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={adminStyles.muted}>{item.categories?.name ?? '카테고리 없음'} · {formatDate(item.created_at)}</Text>
+                <Text style={adminStyles.muted}>{item.categories?.name ?? '카테고리 없음'} · {formatDate(item.created_at)}{item.official_url ? ` · 링크 ${linkHost(item.official_url)}` : ''}</Text>
               </View>
               <Text style={styles.pendingBadge}>pending</Text>
             </Pressable>
@@ -282,6 +282,7 @@ export function PendingPanel() {
                 <Meta label="등록일" value={new Date(selected.created_at).toLocaleString('ko-KR')} />
                 <Meta label="이미지 경로" value={selected.image_path ?? '없음'} />
                 <Meta label="요청 카테고리" value={selected.requested_category_label ?? '없음'} />
+                <Meta label="원본 링크" value={selected.official_url ?? '없음'} />
               </View>
 
               <View style={styles.classifyBox}>
@@ -422,6 +423,10 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 function confidenceStyle(confidence: SuggestionConfidence) {
   return confidence === 'high' ? styles.confidenceHigh : confidence === 'medium' ? styles.confidenceMedium : styles.confidenceLow;
+}
+
+function linkHost(value: string) {
+  try { return new URL(value).hostname; } catch { return '링크'; }
 }
 
 function formatDate(value: string) {

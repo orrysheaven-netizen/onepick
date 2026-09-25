@@ -34,7 +34,7 @@ async function main() {
       useInfiniteQuery: (options) => { feedOptions = options; return feedResult; },
     },
     '@/lib/query/queryKeys': { queryKeys },
-    '@/services': { homeService: {
+    '@/services/homeServiceInstance': { homeService: {
       getHomeContext: (user) => { contextRequest = user; return contextResult.data; },
       getHomePicks: (cursor) => { feedRequest = cursor; return feedResult.data; },
     } },

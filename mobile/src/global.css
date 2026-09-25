@@ -1,7 +1,12 @@
 :root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
+  --op-tangerine: #FF8A00;
+  --op-ink: #141416;
+  --op-paper: #FAFAF7;
+  --op-white: #FFFFFF;
+  --op-gray: #5C5C63;
+  --op-font-en: 'Outfit', 'IBM Plex Sans KR', sans-serif;
+  --op-font-body: 'IBM Plex Sans KR', system-ui, sans-serif;
+  --font-display: var(--op-font-body);
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;

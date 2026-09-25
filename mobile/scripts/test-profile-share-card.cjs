@@ -198,9 +198,12 @@ async function main() {
   assert.match(screen, /if \(!needsLink\) return;\s*\n\s*await shareProfile\(/);
   assert.match(screen, /name === 'AbortError'\) return;/, 'a cancelled share must not fall through to the text share');
   assert.match(screen, /needsLink = true;/, 'an unsupported card must fall back to the text share');
-  assert.match(screen, /aiComment: aiCommentQuery\.data \?\? null/);
+  assert.match(screen, /aiComment: OnePickFeatures\.profileAi \? \(aiCommentQuery\.data \?\? null\) : null/,
+    'The screen must exclude even a cached AI evaluation while the rollout flag is off');
+  assert.match(screen, /useProfileAiComment\(OnePickFeatures\.profileAi \? query\.data\?\.profile\.id : undefined\)/,
+    'The screen keeps hook order stable while disabling automatic AI reads');
 
-  console.log('Profile share-card checks passed: visible/fresh AI only, four Picks plus a count, file share, clipboard and text-share fallbacks.');
+  console.log('Profile share-card checks passed: rollout gate, visible/fresh AI only, four Picks plus a count, file share, clipboard and text-share fallbacks.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

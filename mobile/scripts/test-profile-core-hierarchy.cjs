@@ -18,26 +18,30 @@ const aiIndex = owner.indexOf('<ProfileAiPanel');
 const picksIndex = owner.indexOf('카테고리별 원픽');
 
 assert.ok(headerIndex >= 0, 'owner profile header is missing');
-assert.ok(refreshIndex > headerIndex && refreshIndex < bioIndex, 'refresh belongs in the profile header, before profile content');
-assert.ok(tasteIndex > bioIndex, 'taste composition follows profile info');
-assert.ok(aiIndex > tasteIndex, 'AI follows taste composition');
-assert.ok(picksIndex > aiIndex, 'category picks follow AI');
+assert.ok(refreshIndex > headerIndex && refreshIndex < bioIndex, 'error refresh belongs in the profile header, before profile content');
+assert.ok(tasteIndex > bioIndex, 'gated taste composition follows profile info');
+assert.ok(aiIndex > tasteIndex, 'gated AI follows taste composition');
+assert.ok(picksIndex > aiIndex, 'category picks follow gated AI');
 
-assert.match(owner, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text>/);
-assert.match(owner, /<Text style={styles\.summaryNumber}>{currentPicks\.length}개<\/Text>/);
+assert.doesNotMatch(owner, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text>/);
+assert.doesNotMatch(owner, /<Text style={styles\.summaryNumber}>{currentPicks\.length}개<\/Text>/);
 assert.doesNotMatch(owner, /불러온 이전 선택/);
 assert.doesNotMatch(owner, /summaryDivider/);
 assert.doesNotMatch(owner, /refreshButton/);
-assert.match(owner, /<Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"/, 'header refresh is a quiet kit text button');
-assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{currentPicks\.length\}/, 'owner collection uses the kit section header (title scale)');
+assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"/, 'header retry is an errors-only kit text button');
+assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
+assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
+assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{currentPicks\.length\}/, 'owner collection is the single displayed pick count');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 
 assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{query\.data\.currentPicks\.length}개<\/Text>/);
 assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{query\.data\.currentPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
+assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
+assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
 assert.doesNotMatch(publicProfile, /sectionTitle:/);
 
 assert.match(aiComment, /<SectionHeader title=\{sectionTitle\} \/>/, 'AI section title uses the same kit header as the collection sections');
 assert.doesNotMatch(aiComment, /sectionTitle:/);
 assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 \}/, 'AI card is an accent-soft card on the shared radius');
 
-console.log('Profile core hierarchy checks passed: header refresh, focused summary, and consistent section hierarchy.');
+console.log('Profile core hierarchy checks passed: error-only header refresh, feature gates, single owner count, and consistent section hierarchy.');

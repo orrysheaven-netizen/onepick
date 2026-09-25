@@ -1,5 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
+import { BodyFont, EnglishFont } from '@/constants/font-family';
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { OnePick } from '@/constants/onepick';
@@ -7,15 +8,16 @@ import { OnePick } from '@/constants/onepick';
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
   themeColor?: ThemeColor;
+  font?: 'body' | 'english';
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+export function ThemedText({ style, type = 'default', themeColor, font = 'body', ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: theme[themeColor ?? 'text'], fontFamily: font === 'english' ? EnglishFont : BodyFont },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,

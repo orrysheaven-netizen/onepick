@@ -20,7 +20,11 @@ assert.match(explore, /상위 카테고리 보기/);
 assert.match(explore, /카테고리 보기/);
 assert.match(explore, /\$\{group\.category\.name\} › \$\{leafLabel\(category\)\}/);
 assert.match(explore, /\$\{selectedCategoryLabel\}에서 검색/);
-assert.match(explore, /<SectionHeader title=\{`\$\{selectedCategoryLabel\} 원픽 TOP 3`\}/, 'ranking header is the kit SectionHeader with the full category label');
+assert.match(explore, /<SectionHeader title=\{showRankingDetail \? `\$\{selectedCategoryLabel\} 원픽 TOP 3` : `\$\{selectedCategoryLabel\}의 원픽`\}/, 'ranking detail and neutral headers use the full category label');
+assert.match(explore, /OnePickFeatures\.exploreRankingDetail &&\s*topPickCount >= OnePickThresholds\.exploreRankingMinPicks/);
+assert.match(explore, /showRankingDetail && item\.rank === 1 && styles\.rankCardFirst/);
+assert.match(explore, /하위 카테고리를 고르면 원픽을 볼 수 있어요/);
+assert.doesNotMatch(explore, /외부 DB/);
 assert.match(explore, /setParentId\(undefined\);\s*setChildId\(undefined\)/);
 assert.match(explore, /if \(childId && group && !group\.children\.some/);
 
@@ -41,4 +45,4 @@ assert.match(tree, /export function categoryLabel/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
 assert.match(profileGroups, /buildProfilePickGroups/);
 
-console.log('Explore category hierarchy checks passed: shared taxonomy labels, query-hydrated search, top-level pills, child selection, reset behavior, and consistent Home/Profile category language.');
+console.log('Explore category hierarchy checks passed: taxonomy labels, query-hydrated search, pills, reset behavior, gated ranking detail, and consistent Home/Profile category language.');
