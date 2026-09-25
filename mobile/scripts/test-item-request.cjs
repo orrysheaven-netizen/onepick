@@ -10,7 +10,7 @@ function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText, { exports, require: (name) => {
+  }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
@@ -247,7 +247,8 @@ async function main() {
   params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
   const onlinePage = render();
-  assert.match(onlinePage, /원본 링크가 함께 저장되어 관리자 검수에 사용됩니다/);
+  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
+    'The user sees which host will be attached before submitting');
   press('상품 등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-online');
   assert.equal(attachedPendingLink.url, 'https://shop.example/ramen');

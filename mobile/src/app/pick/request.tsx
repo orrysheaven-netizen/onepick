@@ -41,6 +41,21 @@ function hintErrorMessage(error: unknown) {
 
 type Params = { categoryId?: string; itemName?: string; sourceUrl?: string };
 
+// Route params can come from a deep link, so only an https URL is carried and its host is
+// shown to the user before it is attached to their request.
+function parseSourceUrl(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const url = value.trim();
+  if (!url || url.length > 2048) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    return { url, host: parsed.hostname };
+  } catch {
+    return null;
+  }
+}
+
 export default function RequestItemScreen() {
   const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
@@ -58,7 +73,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const sourceUrl = typeof params.sourceUrl === 'string' ? params.sourceUrl.trim() : '';
+  const source = useMemo(() => parseSourceUrl(params.sourceUrl), [params.sourceUrl]);
+  const sourceUrl = source?.url ?? '';
   const [submittedItem, setSubmittedItem] = useState<{ id: string; name: string } | null>(null);
   const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -403,7 +419,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </View>
         ) : null}
 
-        {sourceUrl ? <Text style={styles.helper}>이 요청에는 원본 링크가 함께 저장되어 관리자 검수에 사용됩니다.</Text> : null}
+        {source ? <Text style={styles.helper}>{`이 요청에는 원본 링크(${source.host})가 함께 저장되어 관리자 검수에 사용됩니다.`}</Text> : null}
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
         {linkAttach.isError ? <Text style={styles.error}>상품 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
 
