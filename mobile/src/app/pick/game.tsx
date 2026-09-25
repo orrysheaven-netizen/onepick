@@ -216,7 +216,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
           onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
-          <Text style={styles.itemCategory}>콘텐츠 › 게임 · 등록됨</Text>
+          <Text style={styles.itemCategory}>게임 · 등록됨</Text>
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.developer}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear].filter(Boolean).join(' · ')}</Text>
@@ -230,7 +230,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={entry.coverUrl} label={`${entry.title} 커버`} />
         <View style={styles.itemCopy}>
-          <Text style={styles.itemCategory}>콘텐츠 › 게임 · IGDB</Text>
+          <Text style={styles.itemCategory}>게임 · IGDB</Text>
           <Text style={styles.itemName}>{entry.title}</Text>
           {entry.developerName ? <Text style={styles.developer}>{entry.developerName}</Text> : null}
           <Text style={styles.meta}>{[entry.releaseYear, entry.gameType, entry.platformNames.slice(0, 4).join(' · ')].filter(Boolean).join(' · ') || '출시 정보 없음'}</Text>

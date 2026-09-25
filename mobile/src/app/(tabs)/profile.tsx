@@ -18,9 +18,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { categoryLabel } from '@/lib/categories/categoryTree';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
-import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
@@ -77,9 +75,9 @@ function getRequestState(item: ItemRequestItem) {
   }
 }
 
-function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemRequestItem; categoryLabel?: string; onOpenItem: (itemId: string) => void }) {
+function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenItem: (itemId: string) => void }) {
   const state = getRequestState(item);
-  const category = categoryLabel ?? item.category?.name ?? '카테고리';
+  const category = item.category?.name ?? '카테고리';
   const copy = <View style={styles.requestCopy}>
     <View style={styles.requestTopRow}>
       <Text style={styles.requestCategory}>{category}</Text>
@@ -154,11 +152,6 @@ export default function ProfileScreen() {
   // query active so a new request/history entry can make the block visible again.
   const showRequests = !requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage;
   const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
-  const categoryCatalog = categoriesQuery.data ?? [];
-  // Full path (e.g. 먹을것 › 면류 › 라면) once the taxonomy is loaded; the leaf name until then.
-  const labelFor = (category: Category | null | undefined) => category
-    ? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name)
-    : undefined;
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
@@ -231,7 +224,7 @@ export default function ProfileScreen() {
             <View style={[styles.sectionHeader, styles.requestHeader]}>
               <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>
             </View>
-            {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
+            {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} onOpenItem={openItem} />)}
             <ListControls query={requestsQuery} label="등록 요청" />
           </> : null}
 
@@ -239,7 +232,7 @@ export default function ProfileScreen() {
             <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text></View>
             {history.map((item) => <ProfilePickCard
               key={item.pick.id}
-              categoryName={labelFor(item.category) ?? '카테고리'}
+              categoryName={item.category?.name ?? '카테고리'}
               itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
               review={item.pick.oneLineReview}
               imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
