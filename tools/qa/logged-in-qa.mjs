@@ -417,7 +417,26 @@ async function main() {
       await actionable(page.getByRole('button', { name: '프로필과 제품 등록 요청 상태 새로고침' }));
       await noErrorCopy(page);
     });
+    await check(flow, '"내 댓글" 탭', async () => {
+      await page.getByRole('tab', { name: '내 댓글 보기' }).click();
+      const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
+      const empty = page.getByText('아직 남긴 댓글이 없어요');
+      await rows.first().or(empty).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await noErrorCopy(page);
+      const count = await rows.count();
+      if (!count) return { status: 'warn', detail: '남긴 댓글 없음 · 이동/삭제 버튼 확인 건너뜀' };
+      // Read-only: open the review the comment answers and only trial-click its 삭제 control.
+      await rows.first().click();
+      await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('button', { name: '댓글 접기', exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await actionable(page.getByRole('button', { name: '내 댓글 삭제' }));
+      await noErrorCopy(page);
+      return `내 댓글 ${count}개 · 상품 상세 이동 + 삭제 버튼 표시`;
+    });
     await check(flow, '"공개 프로필 보기" 이동', async () => {
+      if (!/\/profile/.test(page.url())) {
+        await page.goto(`${BASE_URL}/profile`, { waitUntil: 'networkidle' });
+      }
       await page.getByText('공개 프로필 보기').first().click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');

@@ -276,7 +276,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       <Text style={styles.subtitle}>{isOnlineChannel ? `택배·온라인몰로 주문한 ${selectedCategory?.name ?? '맛집'} 판매처를 검색해보세요.` : isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 상품을 찾습니다.' : '카테고리 선택 없이 상품명만 검색하고 등록합니다.'}</Text>
       {!requestedCategoryId ? <View style={styles.block}><Button variant="secondary" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View> : null}
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
-      {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.label} 안에서 찾는 중</Text></View>
+      {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 상품 등록만 진행합니다.</Text> : null}
       {isPlaceCategory ? <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>어디서 주문했나요?</Text>
@@ -329,7 +329,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         return <View key={item.id} style={styles.itemCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name} itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing} onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
-            {selectedCategory ? <Text style={styles.itemCategory}>{isOnlineChannel ? `온라인 › ${category?.name ?? '등록된 카테고리'}` : isPlaceCategory ? `맛집 › ${category?.name ?? '등록된 카테고리'}` : category?.label ?? '등록된 카테고리'}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
+            {selectedCategory ? <Text style={styles.itemCategory}>{`${category?.name ?? '등록된 카테고리'}${isOnlineChannel ? ' · 온라인' : ''}`}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
             {isCatalogCategory ? <Text style={styles.movieMeta}>{[item.releaseYear, item.originalName !== item.name ? item.originalName : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text> : null}
             <Text style={styles.itemAction}>{isOnlineChannel ? '이 판매처를 원픽으로 선택 ›' : isPlaceCategory ? '이 지점을 원픽으로 선택 ›' : '이 제품을 원픽으로 선택 ›'}</Text>
           </Pressable>
@@ -338,7 +338,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {!movieCatalog.isWaiting && !movieCatalog.isError && isCatalogCategory && canSearchMovieCatalog && externalMovies.map((movie) => <Pressable key={`${movie.source}:${movie.externalId}`} accessibilityRole="button"
         accessibilityLabel={`${movie.title} ${label} 선택`} accessibilityState={{ disabled: importing }} disabled={importing} onPress={() => chooseMovie(movie)} style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
-        <View style={styles.itemCopy}><Text style={styles.itemCategory}>콘텐츠 › {label} · TMDB</Text><Text style={styles.itemName}>{movie.title}</Text>
+        <View style={styles.itemCopy}><Text style={styles.itemCategory}>{label} · TMDB</Text><Text style={styles.itemName}>{movie.title}</Text>
           <Text style={styles.movieMeta}>{[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text>
           <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && movieImporting ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
         </View>
