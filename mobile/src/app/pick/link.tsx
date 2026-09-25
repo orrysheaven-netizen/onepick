@@ -82,9 +82,24 @@ export default function LinkCategorySuggestionScreen() {
     }
   };
 
+  const displayName = (selectedPlace?.name || name.trim() || result?.resolvedName || result?.title || '').trim();
+
+  // Online links can land outside the categories the matcher covers, so the request can
+  // also go through without a category and be classified in admin review.
+  const requestItem = (categoryId?: string) => {
+    if (!result || result.kind !== 'online' || !displayName) return;
+    router.push({
+      pathname: '/pick/request',
+      params: {
+        ...(categoryId ? { categoryId } : {}),
+        itemName: displayName,
+        sourceUrl: result.canonicalUrl,
+      },
+    });
+  };
+
   const continueWithCategory = () => {
     if (!result || !selectedCategoryId) return;
-    const displayName = (selectedPlace?.name || name.trim() || result.resolvedName || result.title || '').trim();
 
     if (result.kind === 'place') {
       if (!selectedPlace) return;
@@ -99,15 +114,7 @@ export default function LinkCategorySuggestionScreen() {
       return;
     }
 
-    if (!displayName) return;
-    router.push({
-      pathname: '/pick/request',
-      params: {
-        categoryId: selectedCategoryId,
-        itemName: displayName,
-        sourceUrl: result.canonicalUrl,
-      },
-    });
+    requestItem(selectedCategoryId);
   };
 
   if (auth.isLoading) {
@@ -252,6 +259,19 @@ export default function LinkCategorySuggestionScreen() {
                   disabled={!selectedCategoryId || (result.kind === 'place' && !selectedPlace)}
                   onPress={continueWithCategory}
                 />
+                {result.kind === 'online' ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      label="카테고리 없이 등록 요청"
+                      disabled={!displayName}
+                      onPress={() => requestItem()}
+                    />
+                    <Text style={styles.muted}>
+                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '상품 이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
+                    </Text>
+                  </>
+                ) : null}
               </View>
             ) : null}
           </>

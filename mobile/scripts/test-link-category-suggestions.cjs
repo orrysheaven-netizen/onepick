@@ -124,6 +124,10 @@ async function main() {
   assert.match(screen, /placeCatalogId: selectedPlace\.catalogId/);
   assert.match(screen, /pathname: '\/pick\/request'/);
   assert.match(screen, /sourceUrl: result\.canonicalUrl/);
+  assert.match(screen, /카테고리 없이 등록 요청/,
+    'Online links outside the matched taxonomy can still be requested without a category');
+  assert.match(screen, /\.\.\.\(categoryId \? \{ categoryId \} : \{\}\)/,
+    'The uncategorized request must not send an empty categoryId');
   assert.match(screen, /action: 'suggest_link_category'/);
   assert.match(screen, /linkUrl/);
   assert.doesNotMatch(screen, /result\.categories\.map\(/,
