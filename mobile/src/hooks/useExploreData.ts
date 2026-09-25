@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
-import { exploreService } from '@/services';
+import { exploreService } from '@/services/exploreServiceInstance';
 
 const CATEGORY_BROWSE_STALE_TIME = 5 * 60_000;
 

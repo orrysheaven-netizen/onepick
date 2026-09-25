@@ -31,7 +31,7 @@ async function main() {
     react: { useState: () => [settled, (value) => { settled = value; }], useEffect: (effect) => { cleanup?.(); cleanup = effect(); } },
     '@tanstack/react-query': { useQuery: (options) => options, useQueryClient: () => ({ getQueryState: () => undefined }) },
     '@/lib/query/queryKeys': { queryKeys },
-    '@/services': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
+    '@/services/itemServiceInstance': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
   }, {
     setTimeout: (callback, delay) => { assert.equal(delay, 150); timer = callback; return 1; },
     clearTimeout: () => { timer = undefined; },
