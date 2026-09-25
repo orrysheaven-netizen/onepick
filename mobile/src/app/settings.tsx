@@ -11,6 +11,7 @@ import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/us
 import { SignOutButton } from '@/components/sign-out-button';
 import { Button, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { blockedUserDisplayName } from '@/lib/safety/blockedUserLabel';
 
 function deletionError(error: unknown) {
   if (error instanceof AppError && error.code === 'ACCOUNT_DELETE_FAILED') {
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
               {blocked.data?.length === 0 ? <Text style={styles.empty}>차단한 사용자가 없습니다.</Text> : null}
               {blocked.data?.map((item) => (
                 <View key={item.blockedUserId} style={styles.blockRow}>
-                  <Text style={styles.blockName}>@{item.blockedUsername}</Text>
+                  <Text style={styles.blockName}>{blockedUserDisplayName(item.blockedUsername)}</Text>
                   <Button variant="secondary" size="sm" label="차단 해제" disabled={safety.unblockUser.isPending}
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
