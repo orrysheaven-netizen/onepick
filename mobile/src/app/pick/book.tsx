@@ -227,7 +227,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
           onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
-          <Text style={styles.itemCategory}>읽을것 › 책 · 등록됨</Text>
+          <Text style={styles.itemCategory}>책 · 등록됨</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           {item.creatorName ? <Text style={styles.creator}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear, item.modelCode].filter(Boolean).join(' · ')}</Text>
@@ -241,7 +241,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={entry.coverUrl} label={`${entry.title} 표지`} />
         <View style={styles.itemCopy}>
-          <Text style={styles.itemCategory}>읽을것 › 책 · Google Books</Text>
+          <Text style={styles.itemCategory}>책 · Google Books</Text>
           <Text style={styles.itemName}>{entry.title}</Text>
           {entry.subtitle ? <Text style={styles.subtitleLine}>{entry.subtitle}</Text> : null}
           {entry.authorName ? <Text style={styles.creator}>{entry.authorName}</Text> : null}

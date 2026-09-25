@@ -26,7 +26,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
       <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryName}</Text>
     </View>
     <View style={styles.editorialBody}>
       <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
@@ -228,7 +228,7 @@ export default function HomeScreen() {
           <View style={styles.nextSection}><SectionHeader title="어떤 취향부터 골라볼까요?" count={categories.length} /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
-              const label = category.label ?? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name);
+              const label = category.name;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
                 onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
                 <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
