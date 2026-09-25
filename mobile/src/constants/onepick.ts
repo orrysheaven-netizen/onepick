@@ -2,24 +2,28 @@
 // Roles: surfaces → ink (text) → accent → status. See docs/design-mvp.md.
 export const OnePick = {
   // Surfaces
-  background: '#F5F6F8', // screen canvas
+  background: '#FAFAF7', // approved paper canvas
   surface: '#FFFFFF', // cards, sheets, inputs
   sunken: '#EEF0F4', // image placeholders, disabled fills, quiet chips
   border: '#E3E5EA',
   hairline: '#F1F2F6', // in-card dividers
 
   // Ink
-  text: '#1B1D22', // titles, body, dark fills
-  muted: '#5C6270', // descriptions, meta (5.9:1 on white)
+  text: '#141416', // approved ink
+  muted: '#5C5C63', // approved secondary text
   hint: '#8A909C', // placeholders and timestamps only — not body copy
 
-  // Accent
-  accent: '#4945ED', // primary action, selection, brand mark
-  accentDeep: '#3733B8', // pressed state, text on accentSoft
-  accentSoft: '#EFEEFF', // selected fills, badges, "my pick"
-  onAccent: '#FFFFFF', // text and icons on accent fills
+  // Brand: fills/decorations only; never use brand for small text on white.
+  brand: '#FF8A00',
+  onBrand: '#141416',
+  // Legacy accent serves both links and fills. Keep its text/fill pair readable
+  // until individual components opt into brand/onBrand together.
+  accent: '#141416',
+  accentDeep: '#141416',
+  accentSoft: '#FAFAF7',
+  onAccent: '#FFFFFF',
 
-  // Status
+  // Status (semantic feedback, not brand colors)
   danger: '#B4432A',
   dangerSoft: '#FBEFEB',
   success: '#1F7A4D',
@@ -34,6 +38,12 @@ export const OnePick = {
   appleText: '#FFFFFF',
 
   maxWidth: 480,
+} as const;
+
+// Typography tokens only. Same-origin font delivery is a separate rollout gate.
+export const OnePickFont = {
+  body: 'IBM Plex Sans KR',
+  english: 'Outfit',
 } as const;
 
 // Type scale: five steps. Korean body copy never goes below `body`; `caption` is the only 12px.
