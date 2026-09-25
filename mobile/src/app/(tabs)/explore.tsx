@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
 import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
@@ -137,7 +137,11 @@ export default function ExploreScreen() {
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <SectionHeader title={showRankingDetail ? `${selectedCategoryLabel} 원픽 TOP 3` : `${selectedCategoryLabel}의 원픽`}
-              description={showRankingDetail ? '지금 이 제품을 원픽으로 고른 사람 수 기준이에요.' : undefined} />
+              description={showRankingDetail ? '지금 이 제품을 원픽으로 고른 사람 수 기준이에요.' : undefined}
+              action={Platform.OS === 'web' && topItems.data && !topItems.isError ? {
+                label: topItems.isFetching ? '불러오는 중…' : '새로고침', accessibilityLabel: '카테고리 원픽 새로고침', disabled: topItems.isFetching,
+                onPress: () => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); },
+              } : undefined} />
           </View>
           {topItems.isPending ? <ActivityIndicator accessibilityLabel="원픽 불러오는 중" style={styles.rankingLoading} /> : null}
           {topItems.isError ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요"

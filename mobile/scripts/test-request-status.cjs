@@ -27,6 +27,7 @@ async function main() {
   let presses = [], destination, refreshes = 0, requestRefreshes = 0, historyRefreshes = 0, pullToRefresh;
   const component = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
+    Platform: { OS: 'ios' },
     Text: component('span'), View: component('div'), ActivityIndicator: () => null,
     ScrollView: (props) => { pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     RefreshControl: () => null,

@@ -63,6 +63,7 @@ async function main() {
   let destination, params = { itemId: 'item' }, pullToRefresh;
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
+    Platform: { OS: 'ios' },
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
     ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,

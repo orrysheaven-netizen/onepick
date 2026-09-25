@@ -102,7 +102,7 @@ assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer be
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
-assert.equal(refreshButton(), undefined, 'Successful Home does not show a manual refresh button');
+assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
 
 for (width of [390, 800, 1200]) {
   const page = render();
@@ -195,7 +195,7 @@ refreshButton().onPress(); pullToRefresh.props.onRefresh();
 assert.equal(queryRetries, 2, 'Repeated refreshes must not cancel an active request');
 query.isFetching = false; query.isRefetching = false; query.isError = false;
 assert.doesNotMatch(render(), /마지막으로 불러온 내용/);
-assert.equal(refreshButton(), undefined);
+assert.ok(refreshButton(), 'Web refresh remains available after recovery');
 pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 3);
 const cached = query.data; query.data = undefined; query.isError = true;
 assert.match(render(), /원픽을 불러오지 못했어요/);

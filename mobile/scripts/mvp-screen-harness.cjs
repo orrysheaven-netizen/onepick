@@ -21,7 +21,7 @@ function load(relative, imports = {}) {
 }
 const names = (values) => Object.fromEntries(values.split(' ').map((name) => [name, name]));
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
-function screen(relative, imports) {
+function screen(relative, imports, platform = 'ios') {
   const states = [];
   let cursor = 0, effects = [], nodes = [], texts = [];
   const react = {
@@ -36,7 +36,7 @@ function screen(relative, imports) {
   const Screen = load(relative, {
     react,
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
-    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator'), StyleSheet: { create: (value) => value } },
+    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator'), Platform: { OS: platform }, StyleSheet: { create: (value) => value } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/components/ui': names('Avatar BrandMark Button Chip SectionHeader StateCard'),
     ...imports,
