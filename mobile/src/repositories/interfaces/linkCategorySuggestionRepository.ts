@@ -2,4 +2,5 @@ import type { LinkCategorySuggestionInput, LinkCategorySuggestionResult } from '
 
 export interface LinkCategorySuggestionRepository {
   suggest(input: LinkCategorySuggestionInput): Promise<LinkCategorySuggestionResult>;
+  attachPendingLink(itemId: string, url: string): Promise<void>;
 }
