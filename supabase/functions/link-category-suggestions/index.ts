@@ -122,19 +122,30 @@ async function limitedText(response: Response, maxBytes = 160000) {
   }
   return out + decoder.decode();
 }
-async function reserveNaver(client: SupabaseClient) {
+async function reserveSlot(client: SupabaseClient, provider: string, intervalMs: number, maxWaitMs: number) {
   const result = await client.rpc('reserve_external_catalog_slot', {
-    p_provider: 'naver_link',
-    p_interval_ms: 800,
+    p_provider: provider,
+    p_interval_ms: intervalMs,
   });
-  if (result.error || typeof result.data !== 'number' || result.data > 2500) return false;
+  if (result.error || typeof result.data !== 'number' || result.data > maxWaitMs) return false;
   if (result.data > 0) await new Promise((resolve) => setTimeout(resolve, result.data));
   return true;
 }
-async function resolveNaver(input: URL, client: SupabaseClient) {
-  if (!await reserveNaver(client)) throw new Error('RATE_LIMITED');
+// A per-user slot is taken before the shared Naver slot, so one caller spamming links
+// only pushes back their own next slot instead of exhausting the global budget.
+// The slot key fits reserve_external_catalog_slot's ^[a-z][a-z0-9_]{0,31}$ contract.
+function naverUserSlot(userId: string) {
+  return 'nlu_' + userId.toLowerCase().replace(/[^0-9a-f]/g, '').slice(0, 28);
+}
+async function reserveNaver(client: SupabaseClient, userId: string) {
+  if (!await reserveSlot(client, naverUserSlot(userId), 1500, 3000)) return false;
+  return reserveSlot(client, 'naver_link', 800, 2500);
+}
+async function resolveNaver(input: URL, client: SupabaseClient, userId: string) {
+  if (!await reserveNaver(client, userId)) throw new Error('RATE_LIMITED');
   let current = input;
   let html = '';
+  let loaded = false;
   for (let i = 0; i < 5; i++) {
     if (!naverHost(current.hostname)) throw new Error('URL_UNSUPPORTED');
     const response = await fetch(current, {
@@ -157,13 +168,30 @@ async function resolveNaver(input: URL, client: SupabaseClient) {
       throw new Error('LINK_RESOLVE_FAILED');
     }
     html = await limitedText(response);
+    loaded = true;
     break;
   }
+  if (!loaded) throw new Error('LINK_RESOLVE_FAILED');
   return {
     canonicalUrl: current.toString(),
     title: cleanNaverTitle(titleFromHtml(html)),
     description: cleanText(meta(html, 'og:description'), 240),
   };
+}
+
+// PostgREST caps each response at max_rows (1000), so read reference tables page by page
+// instead of silently scoring against a truncated taxonomy.
+async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>) {
+  const size = 1000;
+  const rows: T[] = [];
+  for (let from = 0; from < 20 * size; from += size) {
+    const result = await page(from, from + size - 1);
+    if (result.error) throw new Error('CATEGORY_READ_FAILED');
+    const data = (result.data ?? []) as T[];
+    rows.push(...data);
+    if (data.length < size) return rows;
+  }
+  throw new Error('CATEGORY_READ_FAILED');
 }
 
 function foodPath(categoryId: string, byId: Map<string, CategoryRow>) {
@@ -309,8 +337,11 @@ Deno.serve(async (req: Request) => {
       if (itemResult.data.status !== 'pending') return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
 
       const updateResult = await admin.from('items').update({ official_url: pendingUrl.toString() })
-        .eq('id', itemId).eq('created_by', auth.data.user.id).eq('status', 'pending');
+        .eq('id', itemId).eq('created_by', auth.data.user.id).eq('status', 'pending')
+        .select('id');
       if (updateResult.error) return json({ error: 'LINK_SAVE_FAILED' }, 503);
+      // The item can leave pending (admin review) between the read and the update.
+      if (!updateResult.data?.length) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
       return json({ ok: true });
     }
 
@@ -327,7 +358,7 @@ Deno.serve(async (req: Request) => {
     let naverResolved = false;
     if (naverHost(parsed.hostname)) {
       try {
-        const resolved = await resolveNaver(parsed, admin);
+        const resolved = await resolveNaver(parsed, admin, auth.data.user.id);
         canonicalUrl = resolved.canonicalUrl;
         title = resolved.title;
         description = resolved.description;
@@ -351,12 +382,14 @@ Deno.serve(async (req: Request) => {
       : undefined;
     const contextPlace = selectedPlace ?? exactPlace;
 
-    const results = await Promise.all([
-      admin.from('categories').select('id,name,slug,parent_id,status,is_visible,is_pickable'),
-      admin.from('category_catalog_sources').select('category_id,mode,is_enabled'),
-      admin.from('category_search_terms').select('category_id,term,kind'),
+    const [categoryRows, sourceRows, termRows] = await Promise.all([
+      readAll<CategoryRow>((from, to) => admin.from('categories')
+        .select('id,name,slug,parent_id,status,is_visible,is_pickable').order('id').range(from, to)),
+      readAll<SourceRow>((from, to) => admin.from('category_catalog_sources')
+        .select('category_id,mode,is_enabled').order('category_id').range(from, to)),
+      readAll<TermRow>((from, to) => admin.from('category_search_terms')
+        .select('category_id,term,kind').order('id').range(from, to)),
     ]);
-    if (results.some((result) => result.error)) throw new Error('CATEGORY_READ_FAILED');
 
     const context = [
       requestedName,
@@ -368,9 +401,9 @@ Deno.serve(async (req: Request) => {
     ].filter(Boolean).join(' ');
 
     const scored = scoreCategories(
-      (results[0].data ?? []) as CategoryRow[],
-      (results[1].data ?? []) as SourceRow[],
-      (results[2].data ?? []) as TermRow[],
+      categoryRows,
+      sourceRows,
+      termRows,
       context,
     );
 

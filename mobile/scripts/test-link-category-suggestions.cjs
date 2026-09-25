@@ -142,7 +142,21 @@ async function main() {
     'Every followed redirect must remain on a Naver-owned host');
   assert.match(edge, /next\.protocol !== 'https:'/);
   assert.match(edge, /reserve_external_catalog_slot/);
-  assert.match(edge, /p_provider: 'naver_link'/);
+  assert.match(edge, /reserveSlot\(client, 'naver_link', 800, 2500\)/);
+  assert.match(edge, /reserveSlot\(client, naverUserSlot\(userId\), 1500, 3000\)/,
+    'Each caller has an own Naver slot before the shared one');
+  const userSlotSource = /function naverUserSlot[\s\S]*?\n}/.exec(edge)?.[0];
+  const naverUserSlot = new Function(userSlotSource.replace(/: string/g, '') + '; return naverUserSlot;')();
+  assert.match(naverUserSlot('0F8FAD5B-D9CB-469F-A165-70867728950E'), /^[a-z][a-z0-9_]{0,31}$/,
+    'Per-user slot keys satisfy reserve_external_catalog_slot provider validation');
+  assert.equal(naverUserSlot('0f8fad5b-d9cb-469f-a165-70867728950e').length, 32);
+  assert.match(edge, /if \(!loaded\) throw new Error\('LINK_RESOLVE_FAILED'\)/,
+    'Exhausting the redirect budget is not treated as a resolved link');
+  assert.match(edge, /\.order\('id'\)\.range\(from, to\)/,
+    'Taxonomy reads page past PostgREST max_rows');
+  assert.match(edge, /\.eq\('status', 'pending'\)\s*\.select\('id'\)/);
+  assert.match(edge, /if \(!updateResult\.data\?\.length\) return json\(\{ error: 'ITEM_NOT_ELIGIBLE' \}, 409\)/,
+    'A link is not reported saved when the item left pending before the update');
   assert.match(edge, /auth\.getUser/);
   assert.match(edge, /catalog_user_is_suspended/);
   assert.match(edge, /category_search_terms/);
@@ -163,7 +177,7 @@ async function main() {
     'MVP link category suggestions must not add paid AI calls');
   const naverResolution = edge.slice(edge.indexOf("let canonicalUrl"), edge.indexOf("const canonicalHost"));
   assert.match(naverResolution, /if \(naverHost\(parsed\.hostname\)\)/);
-  assert.match(naverResolution, /resolveNaver\(parsed, admin\)/,
+  assert.match(naverResolution, /resolveNaver\(parsed, admin, auth\.data\.user\.id\)/,
     'Only URLs already verified as Naver-owned enter the outbound Naver resolver');
   assert.match(edge, /function naverPlaceHost/);
   assert.match(edge, /smartstore\.naver\.com|naverPlaceHost/,
