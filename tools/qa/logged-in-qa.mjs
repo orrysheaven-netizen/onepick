@@ -1,7 +1,8 @@
 // Logged-in user-flow QA of the OnePick tester site with the dedicated QA
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
-// registration → profile → follow → notifications → share/deep link.
+// registration → link category suggestion → profile → follow → notifications →
+// share/deep link.
 //
 // Credential rules (docs/daily-qa.md "로그인 상태 QA 계정 규칙"):
 // - ONEPICK_QA_EMAIL / ONEPICK_QA_PASSWORD come only from the environment
@@ -12,7 +13,8 @@
 // - No screenshot is taken of the own profile screens, and the QA username is
 //   masked in every screenshot and redacted from the report.
 // - Read-only: nothing is submitted, followed or shared. Buttons with side
-//   effects are only checked for actionability (Playwright trial click).
+//   effects are only checked for actionability (Playwright trial click). The
+//   link suggestion lookup is pressed because it only reads the taxonomy.
 //
 // Output: <out>/logged-in-report.json, <out>/logged-in-report.md, screenshots.
 import fs from 'node:fs';
@@ -22,6 +24,11 @@ import { chromium, devices } from 'playwright';
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
+// A non-Naver link keeps the check deterministic: the Edge Function does not fetch
+// it, so the suggestion comes only from the typed name matching the taxonomy.
+const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
+const LINK_NAME = process.env.QA_LINK_NAME || '도가니탕';
+const LINK_EXPECT_CATEGORY = process.env.QA_LINK_EXPECT_CATEGORY || '도가니탕';
 const EMAIL = process.env.ONEPICK_QA_EMAIL || '';
 const PASSWORD = process.env.ONEPICK_QA_PASSWORD || '';
 const STEP_TIMEOUT_MS = 15_000;
@@ -292,6 +299,41 @@ async function main() {
       return `선택 버튼 ${await choose.count()}개 (제출하지 않음)`;
     });
     await shot(page, 'pick_find');
+
+    flow = '링크 추천';
+    await check(flow, '"링크로 카테고리 추천받기" → 링크 화면', async () => {
+      await page.goto(`${BASE_URL}/pick/find`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: '링크로 카테고리 추천받기', exact: true }).click();
+      await page.waitForURL(/\/pick\/link/, { timeout: STEP_TIMEOUT_MS });
+      if (await page.getByText('추천 요청 전에 로그인합니다').isVisible().catch(() => false)) throw new Error('비로그인 안내가 표시됨');
+      await noErrorCopy(page);
+    });
+    const linkSuggested = await check(flow, `링크 확인 → "${LINK_EXPECT_CATEGORY}" 추천`, async () => {
+      await page.getByRole('textbox', { name: '원픽 링크' }).fill(LINK_URL);
+      await page.getByRole('textbox', { name: '가게 또는 상품 이름' }).fill(LINK_NAME);
+      await page.getByRole('button', { name: '링크 확인하고 추천받기', exact: true }).click();
+      const section = page.getByText('추천 카테고리', { exact: true });
+      const alert = page.getByRole('alert');
+      await section.or(alert).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if (await alert.isVisible().catch(() => false)) throw new Error(`추천 오류: "${(await alert.innerText()).slice(0, 80)}"`);
+      // The result title also echoes the typed name, so look only inside the suggestion card
+      // (the innermost element holding its heading).
+      const card = page.locator('div', { has: section }).last();
+      await card.getByText(LINK_EXPECT_CATEGORY, { exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if (await card.getByText('자동 추천 후보가 없습니다').isVisible().catch(() => false)) throw new Error('자동 추천 후보 없음');
+      await noErrorCopy(page);
+      return '추천 후보에 표시';
+    });
+    if (linkSuggested) {
+      // A single suggestion is preselected, so both follow-ups must be enabled. Neither is pressed.
+      await check(flow, '"이 카테고리로 등록 요청 계속" 클릭 가능', () =>
+        actionable(page.getByRole('button', { name: '이 카테고리로 등록 요청 계속', exact: true })));
+      await check(flow, '"카테고리 없이 등록 요청" 클릭 가능', () =>
+        actionable(page.getByRole('button', { name: '카테고리 없이 등록 요청', exact: true })));
+      await shot(page, 'link_suggestion');
+    } else {
+      record(flow, '등록 요청 버튼 클릭 가능', 'skip', '추천 결과 없음');
+    }
 
     flow = '프로필';
     await check(flow, '내 프로필 탭 이동', async () => {
