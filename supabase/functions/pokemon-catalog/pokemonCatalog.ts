@@ -211,9 +211,6 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-      const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: data.user.id });
-      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     }
 
     const category = await catalogCategory(client);
@@ -259,6 +256,10 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
     const species = detailNames(remote.data);
     if (!species || String(species.id) !== id) return json({ error: 'POKEMON_NOT_FOUND' }, 404);
 
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
     const inserted = await client.from('items').insert({
       category_id: category.id,
       name: species.korean,
@@ -266,7 +267,6 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
       official_url: null,
       image_source_url: pokemonArtworkUrl(id),
       external_source: POKEAPI_SOURCE,
-      created_by: importUserId,
       external_id: id,
       original_name: species.english,
       release_year: null,
@@ -277,9 +277,6 @@ export function createPokemonCatalogHandler(deps: Dependencies) {
 
     if (!inserted.error && inserted.data) {
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
-    }
-    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
-      return json({ error: 'RATE_LIMITED' }, 429);
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
