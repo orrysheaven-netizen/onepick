@@ -240,7 +240,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         </View>
 
         <View style={styles.sectionHeader}>
-          <SectionHeader title="원픽 한줄평" description="각 한줄평에서 답글로 대화해요" />
+          <SectionHeader title="원픽 한줄평" description="각 한줄평에서 댓글로 대화해요" />
         </View>
 
         {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
