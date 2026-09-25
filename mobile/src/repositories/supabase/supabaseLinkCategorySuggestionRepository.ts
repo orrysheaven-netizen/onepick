@@ -18,6 +18,7 @@ async function functionError(error: unknown) {
   try { body = response ? await response.clone().json() : null; } catch { /* ignore */ }
   if (response?.status === 401 || body?.error === 'AUTH_REQUIRED') return new AppError('AUTH_REQUIRED');
   if (response?.status === 429 || body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
+  if (response?.status === 404 || body?.error === 'ITEM_NOT_FOUND') return new AppError('ITEM_NOT_FOUND');
   if (response?.status === 400 || response?.status === 409 || body?.error === 'URL_INVALID' || body?.error === 'ITEM_NOT_ELIGIBLE') return new AppError('ITEM_NOT_ELIGIBLE');
   return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
 }
@@ -85,5 +86,13 @@ export class SupabaseLinkCategorySuggestionRepository implements LinkCategorySug
     });
     if (error) throw await functionError(error);
     return parseResult(data);
+  }
+
+  async attachPendingLink(itemId: string, url: string) {
+    const { data, error } = await this.client.functions.invoke('link-category-suggestions', {
+      body: { action: 'attach_pending_link', itemId, url },
+    });
+    if (error) throw await functionError(error);
+    if (!data || data.ok !== true) throw new AppError('INTERNAL_ERROR');
   }
 }
