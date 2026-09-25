@@ -1,4 +1,5 @@
 import { Link, Slot, type Href, usePathname, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -43,9 +44,11 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
 }
 
 function TabLink({ href, icon, label, active }: { href: Href; icon: TabIcon; label: string; active: boolean }) {
+  const [pressed, setPressed] = useState(false);
   return <Link href={href} asChild>
     <Pressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}
-      style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+      onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
+      style={StyleSheet.flatten([styles.tab, pressed && styles.pressed])}>
       <View style={[styles.icon, active && styles.active]}><Icon name={icon} active={active} /></View>
       <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
     </Pressable>
