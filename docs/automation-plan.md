@@ -27,7 +27,7 @@
 | 매일 06:00 | Actions `Daily QA` | 라이브 측정, 실사용자 오류 집계 |
 | 매일 06:30 | Claude 루틴 | `[Security QA]` 보안 점검 이슈 (`docs/daily-security.md`) |
 | 매일 07:00 | Claude 루틴 | `[Daily QA]` 이슈 작성 |
-| 매일 07:30 | ChatGPT 예약 작업 | 보안·QA 리포트를 읽고 오늘의 Codex 작업 순서 정리 (보안 우선) |
+| 매일 07:30 | ChatGPT 예약 작업 | AI Ops 대시보드와 `handoff:codex`를 확인해 Codex의 제품·일반 버그·제한 리뷰 작업만 정리. 보안·DB 보호 영역 수정은 Claude 소유 |
 | 매일 09~23시, 2시간마다 | Claude 루틴 | 열린 PR 리뷰와 QA 항목 수정 확인 (C) |
 | 매시 정각 (D 완료 후) | Actions | 실사용자 오류 급증 감지 |
 | 매주 월 08:00 | Claude 루틴 | `[Weekly QA]` 주간 추세 (I) |
