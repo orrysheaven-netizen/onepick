@@ -15,6 +15,9 @@ concurrency:
   group: web-build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   verify-web:
     runs-on: ubuntu-latest
