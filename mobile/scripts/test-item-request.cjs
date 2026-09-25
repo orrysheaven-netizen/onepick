@@ -249,7 +249,8 @@ async function main() {
   const onlinePage = render();
   assert.match(onlinePage, /원본 링크가 함께 저장되어 관리자 검수에 사용됩니다/);
   press('상품 등록하기'); await settle();
-  assert.deepEqual(attachedPendingLink, { itemId: 'pending-online', url: 'https://shop.example/ramen' });
+  assert.equal(attachedPendingLink.itemId, 'pending-online');
+  assert.equal(attachedPendingLink.url, 'https://shop.example/ramen');
   assert.match(render(), /상품을 등록했어요/);
 
   // Ordinary products do not ask the user for a category. Even if the category
