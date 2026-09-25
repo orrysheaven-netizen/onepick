@@ -147,6 +147,14 @@ async function main() {
   assert.match(edge, /catalog_user_is_suspended/);
   assert.match(edge, /category_search_terms/);
   assert.match(edge, /place_catalog/);
+  assert.match(edge, /const q = placeSearchName\(name\);/,
+    'Place lookup must normalize like private.normalize_place_name, not the category matcher');
+  const placeSearchSource = /function placeSearchName[\s\S]*?\n}/.exec(edge)?.[0];
+  assert.ok(placeSearchSource);
+  const placeSearchName = new Function(placeSearchSource.replace(/: string/g, '') + '; return placeSearchName;')();
+  assert.equal(placeSearchName(' 을지로 (본점) '), '을지로(본점)');
+  assert.equal(placeSearchName('A&B Pizza'), 'a&bpizza');
+  assert.equal(placeSearchName('100%_\\맛집'), '100맛집');
   assert.match(edge, /body\.action === 'attach_pending_link'/);
   assert.match(edge, /itemResult\.data\.created_by !== auth\.data\.user\.id/);
   assert.match(edge, /\.eq\('created_by', auth\.data\.user\.id\)\.eq\('status', 'pending'\)/,

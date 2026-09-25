@@ -52,6 +52,12 @@ function cleanText(value: unknown, max = 300) {
 function norm(value: string) {
   return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 }
+// Mirrors private.normalize_place_name (trim, drop whitespace, lowercase) so
+// punctuation such as "(본점)" or "&" still matches place_catalog.normalized_name.
+// ILIKE wildcard/escape characters are dropped so user text stays a literal substring.
+function placeSearchName(value: string) {
+  return value.trim().replace(/\s+/g, '').toLowerCase().replace(/[%_\\]/g, '');
+}
 function naverHost(hostname: string) {
   const host = hostname.toLowerCase();
   return host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com');
@@ -259,7 +265,7 @@ async function findPlaces(client: SupabaseClient, name: string, placeCatalogId: 
     if (result.error) throw new Error('PLACE_READ_FAILED');
     return result.data ? [result.data as PlaceRow] : [];
   }
-  const q = norm(name);
+  const q = placeSearchName(name);
   if (q.length < 2 || q.length > 100) return [];
   const result = await client.from('place_catalog').select(columns)
     .eq('business_status', 'open').ilike('normalized_name', '%' + q + '%').limit(20);
