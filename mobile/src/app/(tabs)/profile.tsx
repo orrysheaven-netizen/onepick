@@ -106,7 +106,7 @@ export default function ProfileScreen() {
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
   const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
-  const historyQuery = useMyPickHistory(listUserId);
+  const historyQuery = useMyPickHistory(OnePickFeatures.profilePickHistory ? listUserId : undefined);
   const requestsQuery = useMyItemRequests(listUserId);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
@@ -127,7 +127,7 @@ export default function ProfileScreen() {
   }
   if (!user) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="나의 원픽을 모아보세요" text="로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요."
+      <StateCard title="나의 원픽을 모아보세요" text="로그인하면 카테고리마다 고른 원픽을 한곳에서 볼 수 있어요."
         action={{ label: '로그인하기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'profile' } }) }} />
     </View></SafeAreaView>;
   }
@@ -156,14 +156,17 @@ export default function ProfileScreen() {
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
   // query active so a new request/history entry can make the block visible again.
   const showRequests = !requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage;
-  const showHistory = !historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage;
+  const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
   const showComments = profileTab === 'comments';
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching || (showComments && commentsQuery.isFetching);
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching || (showComments && commentsQuery.isRefetching);
   const refreshAll = async () => {
     if (isFetching) return;
     await Promise.all([
-      profileQuery.refetch({ cancelRefetch: false }), historyQuery.refetch({ cancelRefetch: false }), requestsQuery.refetch({ cancelRefetch: false }),
+      profileQuery.refetch({ cancelRefetch: false }),
+      // refetch() ignores `enabled`, so skip the hidden history list explicitly.
+      OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
+      requestsQuery.refetch({ cancelRefetch: false }),
       showComments ? commentsQuery.refetch({ cancelRefetch: false }) : null,
     ]);
   };
@@ -184,7 +187,7 @@ export default function ProfileScreen() {
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
-        <ProfileSocialLinks profileUserId={profile.id} editable />
+        {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
@@ -201,7 +204,7 @@ export default function ProfileScreen() {
           })}
         </View>
         {showComments ? <ProfileMyComments query={commentsQuery} /> : <>
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
+        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups
             picks={currentPicks}
@@ -235,7 +238,7 @@ export default function ProfileScreen() {
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.</Text>
+          <Text style={styles.secondaryDescription}>{OnePickFeatures.profilePickHistory ? '제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.' : '제품 등록 요청 상태를 확인합니다.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>

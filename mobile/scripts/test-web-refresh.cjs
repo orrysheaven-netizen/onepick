@@ -56,7 +56,11 @@ function fixture(kind, platform = 'web') {
   return { view, auth, home, following, profile, history, requests, categories, top, calls };
 }
 let passed = 0;
-async function test(name, run) { await run(); passed++; console.log(`PASS ${name}`); }
+const flags = constants.OnePickFeatures;
+const initialFlags = { ...flags };
+async function test(name, run) {
+  try { await run(); passed++; console.log(`PASS ${name}`); } finally { Object.assign(flags, initialFlags); }
+}
 async function main() {
   await test('Web Home refreshes public data for members and visitors, including empty results', () => {
     const { view, auth, home, following } = fixture('home');
@@ -128,6 +132,7 @@ async function main() {
     view.find('Chip', (p) => p.label === '전체').onPress(); view.render(); assert.equal(view.find('SectionHeader'), undefined);
   });
   await test('Web profile refresh updates all three queries and reveals newly arrived request status', async () => {
+    flags.profilePickHistory = true;
     const { view, profile, history, requests, calls } = fixture('profile');
     assert.doesNotMatch(view.text(), /활동 기록/); assert.ok(button(view, profileLabel));
     const originalRefetch = requests.refetch;
@@ -142,7 +147,13 @@ async function main() {
     assert.equal(calls.historyId, 'owner'); assert.equal(calls.requestsId, 'owner');
     assert.equal(view.all('ProfileAiPanel').length, 0); assert.equal(view.all('ProfileTasteComposition').length, 0);
   });
+  await test('Web profile refresh skips the hidden pick history', async () => {
+    const { view, profile, history, requests, calls } = fixture('profile');
+    await button(view, profileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 1]);
+    assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, 'owner');
+  });
   await test('Web profile refresh is disabled while any related query fetches', async () => {
+    flags.profilePickHistory = true;
     const { view, profile, history, requests } = fixture('profile');
     for (const busy of [profile, history, requests]) {
       busy.isFetching = true; view.render(); assert.equal(button(view, profileLabel).disabled, true);
@@ -166,6 +177,7 @@ async function main() {
     assert.match(view.text(), /프로필을 불러오지 못했어요/);
   });
   await test('Native iOS and Android keep pull refresh instead of normal manual controls', async () => {
+    flags.profilePickHistory = true;
     for (const platform of ['ios', 'android']) {
       const h = fixture('home', platform); assert.equal(button(h.view, homeLabel), undefined);
       h.view.find('RefreshControl').onRefresh(); assert.equal(h.home.refetches, 1);
