@@ -206,14 +206,14 @@ async function main() {
     assert.equal(calls.length, 0);
   }
 
-  // --- signOutAdmin ends the shared Supabase Auth session (local scope), not a private admin store ---
+  // --- signOutAdmin ends all shared Supabase Auth sessions, not only this browser session ---
   {
     const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
     let signOutOptions;
     supabase.auth.signOut = async (options) => { signOutOptions = options; supabase.session = null; return { error: null }; };
     const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
     await signOutAdmin();
-    assert.equal(signOutOptions.scope, 'local');
+    assert.equal(signOutOptions.scope, 'global');
   }
 
   // --- beginKakaoAdminSignIn delegates to the shared client's OAuth flow, not a hand-built authorize URL ---
