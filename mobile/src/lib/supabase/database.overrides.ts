@@ -17,6 +17,8 @@ export type HomePickFeedRow = {
   image_path: string | null;
   image_source_url: string | null;
   started_at: string;
+  /** home_pick_feed_page only: the item's sales channels ('offline' | 'online'). */
+  channels?: string[] | null;
 };
 
 export type PlaceCatalogSearchRow = {
@@ -149,7 +151,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
         })[];
       };
       home_pick_feed_page: {
-        Args: { p_before_time?: string; p_before_id?: string };
+        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' };
         Returns: HomePickFeedRow[];
       };
       home_following_feed_page: {

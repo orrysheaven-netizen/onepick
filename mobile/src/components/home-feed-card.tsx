@@ -1,5 +1,6 @@
 import { Button, PickCard } from '@/components/ui';
 import { formatRelativeTime } from '@/lib/format/relativeTime';
+import { homeChannelLabel } from '@/lib/home/homeChannels';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
@@ -18,8 +19,9 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenPick
   onChooseSame: () => void;
   onChooseOther: () => void;
 }) {
+  const channelLabel = homeChannelLabel(pick.channels ?? []);
   return <PickCard
-    categoryName={pick.categoryName}
+    categoryName={channelLabel ? `${pick.categoryName} · ${channelLabel}` : pick.categoryName}
     itemName={pick.name}
     review={pick.oneLineReview}
     photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId }}
