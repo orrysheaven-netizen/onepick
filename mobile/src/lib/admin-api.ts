@@ -139,6 +139,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
+  thumbnail_path: string | null;
   official_url: string | null;
   requested_category_label: string | null;
   categories: { name: string; slug: string } | null;
@@ -326,6 +327,27 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
     throw new Error(message);
   }
   return data as T;
+}
+
+async function adminCount(path: string) {
+  const current = config();
+  const token = await getAdminAccessToken();
+  const response = await fetch(`${current.supabaseUrl}${path}`, {
+    method: 'HEAD',
+    headers: { apikey: current.publishableKey, Authorization: `Bearer ${token}`, Prefer: 'count=exact' },
+  });
+  if (!response.ok) throw new Error('관리자 요청에 실패했습니다.');
+  const total = Number(response.headers.get('content-range')?.split('/')[1]);
+  return Number.isFinite(total) ? total : 0;
+}
+
+// Sidebar badges for the two work queues.
+export async function getAdminQueueCounts() {
+  const [pending, reports] = await Promise.all([
+    adminCount('/rest/v1/items?select=id&status=eq.pending'),
+    adminCount('/rest/v1/content_reports?select=id&status=in.(open,reviewing)'),
+  ]);
+  return { pending, reports };
 }
 
 export async function beginKakaoAdminSignIn() {
@@ -647,7 +669,7 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,thumbnail_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function getPendingItemCategorySuggestion(itemId: string) {
@@ -664,6 +686,39 @@ export function updatePendingItem(id: string, status: 'active' | 'rejected', cat
       p_item_id: id,
       p_status: status,
       p_category_id: status === 'active' ? categoryId ?? null : null,
+    }),
+  });
+}
+
+export function getUserReports(userId: string) {
+  const params = new URLSearchParams({
+    select: 'id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at',
+    target_user_id: `eq.${userId}`,
+    order: 'created_at.desc',
+    limit: '20',
+  });
+  return adminRequest<AdminReport[]>(`/rest/v1/content_reports?${params.toString()}`);
+}
+
+export function getUserModerationHistory(userId: string) {
+  const params = new URLSearchParams({
+    select: 'id,entity_type,action,summary,created_at',
+    entity_type: 'eq.user_moderation',
+    entity_id: `eq.${userId}`,
+    order: 'created_at.desc',
+    limit: '20',
+  });
+  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?${params.toString()}`);
+}
+
+export function replaceItemPhoto(itemId: string, imagePath: string, thumbnailPath: string, sourceUrl?: string | null) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_replace_item_photo', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: itemId,
+      p_image_path: imagePath,
+      p_thumbnail_path: thumbnailPath,
+      p_image_source_url: sourceUrl ?? null,
     }),
   });
 }

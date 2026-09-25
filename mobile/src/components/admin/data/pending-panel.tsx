@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AppError } from '@/errors/appError';
 import { ADMIN_PAGE_SIZE, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
 import type { AdminCategory, AdminItem, AdminItemCategorySuggestion, PendingItem } from '@/lib/admin-api';
+import { chooseItemPhoto, importItemPhoto, itemPhotoUrl, saveItemPhoto } from '@/lib/admin/itemPhoto';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { photoFailureMessage } from '@/lib/photos/photoFailure';
+import type { PickPhotoDraft } from '@/types/domain/photo';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
@@ -24,6 +28,9 @@ function toDomainCategory(category: AdminCategory): Category {
     updatedAt: '',
   };
 }
+
+// The full selectable list runs to hundreds of chips; only search results are shown.
+const CATEGORY_RESULT_LIMIT = 30;
 
 type SuggestionConfidence = AdminItemCategorySuggestion['suggestions'][number]['confidence'];
 const CONFIDENCE_LABELS: Record<SuggestionConfidence, string> = { high: '높음', medium: '보통', low: '낮음' };
@@ -60,6 +67,7 @@ export function PendingPanel() {
   const [categoryQuery, setCategoryQuery] = useState('');
   const [suggestion, setSuggestion] = useState<AdminItemCategorySuggestion | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState<'file' | 'link' | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -143,7 +151,7 @@ export function PendingPanel() {
   const reviewCategory = reviewCategories.find((category) => category.id === reviewCategoryId) ?? null;
   const visibleReviewCategories = useMemo(() => {
     const keyword = categoryQuery.trim().toLowerCase();
-    if (!keyword) return reviewCategories;
+    if (!keyword) return [];
     return reviewCategories.filter((category) => `${reviewCategoryLabel(category)} ${category.slug}`.toLowerCase().includes(keyword));
   }, [reviewCategories, categoryQuery, domainCategories]);
 
@@ -175,6 +183,33 @@ export function PendingPanel() {
       setError(reviewErrorMessage(caught, '상품 검수 처리에 실패했습니다.'));
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const addPhoto = async (source: 'file' | 'link') => {
+    if (!selected || photoSaving) return;
+    const { id: itemId, name } = selected;
+    setError('');
+    setMessage('');
+    setPhotoSaving(source);
+    try {
+      let photo: PickPhotoDraft | null;
+      if (source === 'link') {
+        if (!selected.official_url) return;
+        photo = await importItemPhoto(selected.official_url);
+      } else {
+        photo = await chooseItemPhoto();
+      }
+      if (!photo) return;
+      const uploaded = await saveItemPhoto(itemId, photo);
+      setItems((current) => current.map((item) => item.id === itemId
+        ? { ...item, image_path: uploaded.imagePath, thumbnail_path: uploaded.thumbnailPath }
+        : item));
+      setMessage(`${name} 사진을 등록했습니다.`);
+    } catch (caught) {
+      setError(caught instanceof AppError || !(caught instanceof Error) ? photoFailureMessage(caught) : caught.message);
+    } finally {
+      setPhotoSaving(null);
     }
   };
 
@@ -267,9 +302,37 @@ export function PendingPanel() {
           {!selected && <Text style={styles.empty}>왼쪽에서 상품을 선택해 주세요.</Text>}
           {selected && (
             <View style={styles.detailBody}>
-              <View style={styles.preview}>
-                <Text style={styles.previewIcon}>◇</Text>
-                <Text style={adminStyles.muted}>{selected.image_path ? '등록 이미지 경로가 있습니다.' : '등록 이미지 없음'}</Text>
+              <View style={styles.photoBox}>
+                {selected.image_path ? (
+                  <Image
+                    accessibilityLabel={`${selected.name} 사진`}
+                    source={{ uri: itemPhotoUrl(selected.thumbnail_path ?? selected.image_path) ?? undefined }}
+                    resizeMode="contain"
+                    style={styles.previewImage}
+                  />
+                ) : (
+                  <View style={styles.preview}>
+                    <Text style={styles.previewIcon}>◇</Text>
+                    <Text style={adminStyles.muted}>사용자가 사진 없이 요청했습니다.</Text>
+                  </View>
+                )}
+                <View style={adminStyles.row}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={!!photoSaving}
+                    onPress={() => addPhoto('file')}
+                    style={[selected.image_path ? adminStyles.secondaryButton : adminStyles.primaryButton, !!photoSaving && styles.disabled]}
+                  >
+                    <Text style={selected.image_path ? adminStyles.secondaryButtonText : adminStyles.primaryButtonText}>
+                      {photoSaving === 'file' ? '올리는 중' : selected.image_path ? '사진 교체' : '사진 직접 올리기'}
+                    </Text>
+                  </Pressable>
+                  {!!selected.official_url && (
+                    <Pressable accessibilityRole="button" disabled={!!photoSaving} onPress={() => addPhoto('link')} style={[adminStyles.secondaryButton, !!photoSaving && styles.disabled]}>
+                      <Text style={adminStyles.secondaryButtonText}>{photoSaving === 'link' ? '가져오는 중' : '원본 링크에서 가져오기'}</Text>
+                    </Pressable>
+                  )}
+                </View>
               </View>
 
               <View>
@@ -280,7 +343,6 @@ export function PendingPanel() {
               <View style={styles.metaBox}>
                 <Meta label="상품 ID" value={selected.id} />
                 <Meta label="등록일" value={new Date(selected.created_at).toLocaleString('ko-KR')} />
-                <Meta label="이미지 경로" value={selected.image_path ?? '없음'} />
                 <Meta label="요청 카테고리" value={selected.requested_category_label ?? '없음'} />
                 <Meta label="원본 링크" value={selected.official_url ?? '없음'} />
               </View>
@@ -345,8 +407,9 @@ export function PendingPanel() {
                   style={adminStyles.input}
                 />
                 <View style={styles.categoryChoices}>
-                  {visibleReviewCategories.length === 0 && <Text style={styles.mergeEmpty}>조건에 맞는 카테고리가 없습니다.</Text>}
-                  {visibleReviewCategories.map((category) => (
+                  {!categoryQuery.trim() && <Text style={styles.mergeEmpty}>다른 카테고리가 필요하면 이름으로 검색해 주세요.</Text>}
+                  {!!categoryQuery.trim() && visibleReviewCategories.length === 0 && <Text style={styles.mergeEmpty}>조건에 맞는 카테고리가 없습니다.</Text>}
+                  {visibleReviewCategories.slice(0, CATEGORY_RESULT_LIMIT).map((category) => (
                     <Pressable
                       key={category.id}
                       accessibilityRole="button"
@@ -357,6 +420,9 @@ export function PendingPanel() {
                       <Text style={[styles.categoryChoiceText, reviewCategoryId === category.id && styles.categoryChoiceTextSelected]}>{reviewCategoryLabel(category)}</Text>
                     </Pressable>
                   ))}
+                  {visibleReviewCategories.length > CATEGORY_RESULT_LIMIT && (
+                    <Text style={styles.mergeEmpty}>{visibleReviewCategories.length - CATEGORY_RESULT_LIMIT}개 더 있습니다. 검색어를 더 구체적으로 입력해 주세요.</Text>
+                  )}
                 </View>
               </View>
 
@@ -449,6 +515,9 @@ const styles = StyleSheet.create({
   itemName: { color: OnePick.text, fontSize: 14, fontWeight: '700', marginBottom: 5 },
   pendingBadge: { color: OnePick.warning, backgroundColor: OnePick.warningSoft, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
   detailBody: { marginTop: 16, gap: 18 },
+  photoBox: { gap: 10 },
+  previewImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: OnePick.sunken },
+  disabled: { opacity: 0.5 },
   preview: { minHeight: 150, borderRadius: 10, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center', gap: 8 },
   previewIcon: { color: OnePick.hint, fontSize: 34 },
   detailName: { color: OnePick.text, fontSize: 21, fontWeight: '800' },
