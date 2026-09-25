@@ -394,8 +394,8 @@ async function main() {
       await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
     });
     await check(flow, '핵심 요소 표시', async () => {
+      // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
       await page.getByText('카테고리별 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await page.getByText('현재 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await actionable(page.getByRole('button', { name: '프로필과 제품 등록 요청 상태 새로고침' }));
       await noErrorCopy(page);
     });
@@ -403,6 +403,10 @@ async function main() {
       await page.getByText('공개 프로필 보기').first().click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
+      // The public profile keeps its "현재 원픽 N개" summary card before and after #308. Only visible
+      // matches count: a still-mounted own-profile screen can hold the same label while hidden.
+      await page.getByText('현재 원픽', { exact: true }).filter({ visible: true }).first()
+        .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
     // Own profile screens show the account's handle: no screenshots here.
