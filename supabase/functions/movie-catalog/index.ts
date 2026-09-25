@@ -129,7 +129,7 @@ async function searchMovies(query: unknown): Promise<Response> {
 
 async function importMovie(externalId: unknown, req: Request): Promise<Response> {
   const id = typeof externalId === 'string' ? externalId.trim() : '';
-  if (!/^\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
+  if (!/^\\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
   const client = adminClient();
   if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
   const authorization = req.headers.get('Authorization') ?? '';
@@ -140,41 +140,53 @@ async function importMovie(externalId: unknown, req: Request): Promise<Response>
   const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: authData.user.id });
   if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
   if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-  const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: authData.user.id });
-  if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-  if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
-  const url = new URL(`https://api.themoviedb.org/3/movie/${id}`);
-  url.searchParams.set('language', 'ko-KR');
-  const result = await fetchTmdb(url, client);
-  if ('error' in result) return result.error;
-  const movie = mapTmdbMovie(result.data);
-  if (!movie || movie.externalId !== id) return json({ error: 'MOVIE_NOT_FOUND' }, 404);
+
   const { data: category, error: categoryError } = await client.from('categories').select('id')
     .eq('slug', 'movie').eq('status', 'open').eq('is_visible', true).eq('is_pickable', true).maybeSingle();
   if (categoryError || !category) {
     console.error('Movie category lookup failed', categoryError?.code ?? 'not_found');
     return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
   }
+
+  const findExisting = () => client.from('items').select('id, category_id, status')
+    .eq('external_source', TMDB_SOURCE).eq('external_id', id).maybeSingle();
+  const existing = await findExisting();
+  if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 500);
+  if (existing.data) {
+    if (existing.data.category_id !== category.id || !['active', 'discontinued'].includes(existing.data.status)) {
+      return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+    }
+    return json({ itemId: existing.data.id, categoryId: existing.data.category_id, created: false });
+  }
+
+  const url = new URL(`https://api.themoviedb.org/3/movie/${id}`);
+  url.searchParams.set('language', 'ko-KR');
+  const result = await fetchTmdb(url, client);
+  if ('error' in result) return result.error;
+  const movie = mapTmdbMovie(result.data);
+  if (!movie || movie.externalId !== id) return json({ error: 'MOVIE_NOT_FOUND' }, 404);
+
+  const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: authData.user.id });
+  if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+  if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
   const { data: inserted, error: insertError } = await client.from('items').insert({
     category_id: category.id, name: movie.title, normalized_name: normalizeItemName(movie.title),
     official_url: `https://www.themoviedb.org/movie/${movie.externalId}`,
     image_source_url: movie.posterUrl, external_source: TMDB_SOURCE, external_id: movie.externalId,
-    created_by: authData.user.id,
     original_name: movie.originalTitle, release_year: movie.releaseYear, status: 'active',
   }).select('id, category_id').maybeSingle();
   if (!insertError && inserted) return json({ itemId: inserted.id, categoryId: inserted.category_id, created: true });
-  if (insertError?.code === 'P0001' && insertError.message?.includes('RATE_LIMITED')) {
-    return json({ error: 'RATE_LIMITED' }, 429);
-  }
   if (insertError?.code !== '23505') {
     console.error('Movie insert failed', insertError?.code ?? 'empty_result');
     return json({ error: 'CATALOG_UNAVAILABLE' }, 500);
   }
-  const { data: existing, error: existingError } = await client.from('items').select('id, category_id, status')
-    .eq('external_source', TMDB_SOURCE).eq('external_id', movie.externalId).maybeSingle();
-  if (existingError || !existing) return json({ error: 'CATALOG_UNAVAILABLE' }, 500);
-  if (!['active', 'discontinued'].includes(existing.status)) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-  return json({ itemId: existing.id, categoryId: existing.category_id, created: false });
+  const winner = await findExisting();
+  if (winner.error || !winner.data) return json({ error: 'CATALOG_UNAVAILABLE' }, 500);
+  if (winner.data.category_id !== category.id || !['active', 'discontinued'].includes(winner.data.status)) {
+    return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+  }
+  return json({ itemId: winner.data.id, categoryId: winner.data.category_id, created: false });
 }
 
 // Same deployed function, same server-side token; no second site or client secret.
