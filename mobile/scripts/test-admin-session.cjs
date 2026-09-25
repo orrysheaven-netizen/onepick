@@ -206,7 +206,7 @@ async function main() {
     assert.equal(calls.length, 0);
   }
 
-  // --- signOutAdmin revokes the shared session across devices, not only this browser ---
+  // --- signOutAdmin ends all shared Supabase Auth sessions, not only this browser session ---
   {
     const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
     let signOutOptions;
@@ -214,6 +214,18 @@ async function main() {
     const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
     await signOutAdmin();
     assert.equal(signOutOptions.scope, 'global');
+  }
+
+// --- signOutAdmin surfaces a fixed error instead of provider details ---
+  {
+    const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
+    supabase.auth.signOut = async () => ({ error: { message: 'provider_internal_secret_detail' } });
+    const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
+    await assert.rejects(
+      () => signOutAdmin(),
+      (error) => error.message === '관리자 로그아웃에 실패했습니다.'
+        && !error.message.includes('provider_internal_secret_detail'),
+    );
   }
 
   // --- OAuth provider errors are removed from the URL and never shown verbatim to admins ---

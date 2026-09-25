@@ -181,6 +181,6 @@ async function main() {
   });
   const keys = [undefined, 'owner', 'visitor'].map((id) => JSON.stringify(usePublicProfile('Owner', id).queryKey));
   assert.equal(new Set(keys).size, 3);
-  console.log('Auth checks passed: session races, Kakao/Apple OAuth routing, failure/retry, local logout, cache clearing and viewer isolation.');
+  console.log('Auth checks passed: session races, Kakao/Apple OAuth routing, failure/retry, global logout, cache clearing and viewer isolation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

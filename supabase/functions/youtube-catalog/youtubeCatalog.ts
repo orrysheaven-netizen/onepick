@@ -342,6 +342,10 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
 
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: authData.user.id });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
     const inserted = await client.from('items').insert({
       category_id: category.id,
       name: channel.title,
