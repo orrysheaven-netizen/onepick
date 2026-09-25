@@ -1,18 +1,17 @@
-import { Link, usePathname } from 'expo-router';
+import { type Href, Link, useGlobalSearchParams, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnePick } from '@/constants/onepick';
+import { ADMIN_NAV_SECTIONS, DEFAULT_ADMIN_DATA_TAB, type AdminDataTab, type AdminNavItem } from '@/lib/admin/dataTabs';
 
-const NAV_ITEMS = [
-  { href: '/admin/dashboard', label: '원픽 대시보드', hint: '서비스 지표 · 추이' },
-  { href: '/admin/data', label: '데이터 관리', hint: '카테고리 · 상품 · 홈 추천 · 사용자 · 신고' },
-  { href: '/admin/place-catalog-qa', label: '맛집 데이터 QA', hint: 'SBIZ 서울 샘플 확인' },
-  { href: '/admin/profile-taste-qa', label: '취향 QA', hint: '프로필 취향 경계 시각 확인' },
-] as const;
+export type AdminQueueCounts = Partial<Record<AdminDataTab, number>>;
 
-export function AdminShell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
+export function AdminShell({ children, onSignOut, queueCounts = {} }: { children: ReactNode; onSignOut: () => void; queueCounts?: AdminQueueCounts }) {
   const pathname = usePathname();
+  const params = useGlobalSearchParams<{ tab?: string }>();
+  const currentTab = pathname === '/admin/data' ? params.tab ?? DEFAULT_ADMIN_DATA_TAB : null;
+  const isActive = (item: AdminNavItem) => item.tab ? item.tab === currentTab : pathname === item.href || pathname.startsWith(`${item.href}/`);
   const { width } = useWindowDimensions();
   const wide = width >= 920;
 
@@ -26,17 +25,26 @@ export function AdminShell({ children, onSignOut }: { children: ReactNode; onSig
           </View>
 
           <View style={[styles.navList, !wide && styles.navListCompact]}>
-            {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link key={item.href} href={item.href} asChild>
-                  <Pressable style={StyleSheet.flatten([styles.navItem, active && styles.navItemActive])}>
-                    <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
-                    {wide && <Text style={[styles.navHint, active && styles.navHintActive]}>{item.hint}</Text>}
-                  </Pressable>
-                </Link>
-              );
-            })}
+            {ADMIN_NAV_SECTIONS.map((section) => (
+              <View key={section.title ?? 'home'} style={[styles.navSection, !wide && styles.navSectionCompact]}>
+                {section.title && <Text style={styles.navSectionTitle}>{section.title}</Text>}
+                {section.items.map((item) => {
+                  const active = isActive(item);
+                  const count = item.tab ? queueCounts[item.tab] ?? 0 : 0;
+                  return (
+                    <Link key={item.href} href={item.href as Href} asChild>
+                      <Pressable
+                        accessibilityLabel={count > 0 ? `${item.label} ${count}건 대기` : item.label}
+                        style={StyleSheet.flatten([styles.navItem, active && styles.navItemActive])}
+                      >
+                        <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
+                        {count > 0 && <Text style={styles.navBadge}>{count > 99 ? '99+' : count}</Text>}
+                      </Pressable>
+                    </Link>
+                  );
+                })}
+              </View>
+            ))}
           </View>
 
           <View style={[styles.sidebarFooter, !wide && styles.sidebarFooterCompact]}>
@@ -82,14 +90,16 @@ const styles = StyleSheet.create({
   sidebarWide: { width: 220, borderRightWidth: 1, borderRightColor: OnePick.border, borderBottomWidth: 0 },
   brand: { color: OnePick.text, fontSize: 23, fontWeight: '900', letterSpacing: -0.9 },
   caption: { marginTop: 3, color: OnePick.hint, fontSize: 10, fontWeight: '800', letterSpacing: 2.2 },
-  navList: { marginTop: 34, gap: 6 },
-  navListCompact: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap' },
-  navItem: { paddingVertical: 11, paddingHorizontal: 12, borderRadius: 8 },
+  navList: { marginTop: 30, gap: 18 },
+  navListCompact: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  navSection: { gap: 2 },
+  navSectionCompact: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  navSectionTitle: { color: OnePick.hint, fontSize: 11, fontWeight: '800', paddingHorizontal: 12, marginBottom: 4 },
+  navItem: { paddingVertical: 11, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   navItemActive: { backgroundColor: OnePick.sunken },
   navText: { color: OnePick.muted, fontSize: 14, fontWeight: '600' },
   navTextActive: { color: OnePick.text },
-  navHint: { marginTop: 3, color: OnePick.hint, fontSize: 11 },
-  navHintActive: { color: OnePick.muted },
+  navBadge: { minWidth: 22, textAlign: 'center', color: OnePick.onAccent, backgroundColor: OnePick.danger, borderRadius: 11, paddingHorizontal: 6, paddingVertical: 2, fontSize: 11, fontWeight: '800', overflow: 'hidden' },
   sidebarFooter: { marginTop: 'auto', gap: 14, paddingTop: 30 },
   sidebarFooterCompact: { flexDirection: 'row', marginTop: 18, paddingTop: 0 },
   backLink: { color: OnePick.muted, fontSize: 12 },

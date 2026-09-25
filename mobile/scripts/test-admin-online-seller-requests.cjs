@@ -107,10 +107,14 @@ function harness(api) {
       if (name === 'react') return hooks;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
       if (name === 'react-native') return {
-        ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
+        ActivityIndicator: 'ActivityIndicator', Image: 'Image', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
         StyleSheet: { create: (value) => value },
       };
       if (name === '@/lib/admin-api') return api;
+      // Admin photo registration is covered by test-admin-cleanup.cjs.
+      if (name === '@/errors/appError') return { AppError: class AppError extends Error {} };
+      if (name === '@/lib/admin/itemPhoto') return { chooseItemPhoto: async () => null, importItemPhoto: async () => null, itemPhotoUrl: () => null, saveItemPhoto: async () => ({}) };
+      if (name === '@/lib/photos/photoFailure') return { photoFailureMessage: () => '' };
       if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
       if (name === '@/constants/onepick') return { OnePick: {} };
       if (name === '@/lib/categories/categoryTree') return {
