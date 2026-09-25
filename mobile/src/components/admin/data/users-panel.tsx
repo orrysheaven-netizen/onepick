@@ -117,6 +117,10 @@ export function UsersPanel() {
       await load();
       setMessage(suspended ? `@${selected.username} 계정을 정지했습니다.` : `@${selected.username} 계정 정지를 해제했습니다.`);
       setReason('');
+      // The selection usually survives the reload, so the history effect does not rerun.
+      getUserModerationHistory(selected.id)
+        .then((moderation) => setHistory((current) => current && { ...current, moderation }))
+        .catch(() => {});
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '사용자 제재 상태를 변경하지 못했습니다.');
     } finally {
