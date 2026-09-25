@@ -151,6 +151,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
@@ -158,6 +159,7 @@ export function createGameCatalogHandler(deps: Dependencies) {
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
@@ -218,6 +220,10 @@ export function createGameCatalogHandler(deps: Dependencies) {
     }
     const game = mapIgdbGame(raw);
     if (!game || game.externalId !== id) return json({ error: 'GAME_NOT_FOUND' }, 404);
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
 
     const platforms = game.platformNames.join(' · ').slice(0, 300) || null;
     const inserted = await client.from('items').insert({
