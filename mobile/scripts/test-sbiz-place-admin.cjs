@@ -7,7 +7,8 @@ const repoRoot = path.join(mobileRoot, '..');
 const edge = fs.readFileSync(path.join(repoRoot, 'supabase', 'functions', 'sbiz-place-catalog', 'index.ts'), 'utf8');
 const api = fs.readFileSync(path.join(mobileRoot, 'src', 'lib', 'admin-api.ts'), 'utf8');
 const screen = fs.readFileSync(path.join(mobileRoot, 'src', 'app', 'admin', 'place-catalog-qa.tsx'), 'utf8');
-const shell = fs.readFileSync(path.join(mobileRoot, 'src', 'components', 'admin', 'admin-shell.tsx'), 'utf8');
+// The admin sidebar entries are declared next to the data tabs.
+const shell = fs.readFileSync(path.join(mobileRoot, 'src', 'lib', 'admin', 'dataTabs.ts'), 'utf8');
 
 assert.match(edge, /SUPABASE_ANON_KEY/, 'SBIZ auth must use the caller-scoped public client');
 assert.doesNotMatch(edge, /SUPABASE_SERVICE_ROLE_KEY/, 'Service role must not erase auth.uid() for the admin RPC');

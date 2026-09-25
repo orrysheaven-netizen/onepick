@@ -8,7 +8,7 @@ function read(relative) {
 
 const aiPanel = read('src/components/profile-ai-panel.tsx');
 const taste = read('src/components/profile-taste-composition.tsx');
-const adminShell = read('src/components/admin/admin-shell.tsx');
+const adminShell = read('src/lib/admin/dataTabs.ts');
 const qaPage = read('src/app/admin/profile-taste-qa.tsx');
 
 assert.match(aiPanel, /previewStatus\?: ProfileAiStatus/);
