@@ -34,6 +34,8 @@ const PASSWORD = process.env.ONEPICK_QA_PASSWORD || '';
 const STEP_TIMEOUT_MS = 15_000;
 const ERROR_COPY = /(오류가 발생|문제가 발생|불러오지 못|실패했|Something went wrong|Unexpected error)/;
 const SUPABASE_HOST = /\.supabase\.co$/;
+const DISCOVERY_ATTEMPTS = 3;
+const DISCOVERY_RETRY_MS = 30_000;
 
 // 390×844 phone viewport (iPhone 12/13/14 class).
 const device = { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } };
@@ -143,6 +145,20 @@ async function shot(page, name) {
 }
 
 async function discoverSupabase(browser) {
+  // A run started right after a merge can hit Pages mid-deploy and see no Supabase call,
+  // so try the page a few times before giving up.
+  for (let attempt = 1; attempt <= DISCOVERY_ATTEMPTS; attempt += 1) {
+    const found = await discoverSupabaseOnce(browser);
+    if (found) return found;
+    if (attempt < DISCOVERY_ATTEMPTS) {
+      console.log(`Supabase 호출을 찾지 못함 (${attempt}/${DISCOVERY_ATTEMPTS}), ${DISCOVERY_RETRY_MS / 1000}초 뒤 재시도`);
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_RETRY_MS));
+    }
+  }
+  return null;
+}
+
+async function discoverSupabaseOnce(browser) {
   // Use whatever project the deployed bundle talks to, so the token matches the site.
   const context = await browser.newContext({ ...device });
   const page = await context.newPage();
