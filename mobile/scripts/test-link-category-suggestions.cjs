@@ -60,6 +60,12 @@ async function main() {
       categoryId: '22222222-2222-4222-8222-222222222222',
       label: '먹을것 › 국/탕/찌개/밥 › 곰탕',
       name: '곰탕',
+    }, {
+      // Legacy seeded category IDs are valid Postgres UUID values even when
+      // their version/variant nibbles do not match RFC-generated UUIDs.
+      categoryId: '10000000-0000-0000-0000-000000000001',
+      label: '먹을것 › 면 › 라면',
+      name: '라면',
     }],
   };
 
@@ -82,6 +88,7 @@ async function main() {
   assert.equal(result.kind, 'place');
   assert.equal(result.places[0].name, '대성집');
   assert.equal(result.suggestions[0].name, '곰탕');
+  assert.equal(result.categories[1].name, '라면');
   assert.equal(calls[0].slug, 'link-category-suggestions');
   assert.equal(calls[0].input.body.name, '대성집');
   await repository.attachPendingLink(
@@ -113,6 +120,11 @@ async function main() {
     ' https://shop.example/product ',
   );
   assert.equal(attachCalls[0].url, 'https://shop.example/product');
+  await service.attachPendingLink(
+    '10000000-0000-0000-0000-000000000001',
+    'https://shop.example/legacy-product',
+  );
+  assert.equal(attachCalls[1].itemId, '10000000-0000-0000-0000-000000000001');
   await assert.rejects(
     async () => service.attachPendingLink('bad-id', 'https://shop.example/product'),
     (error) => error.code === 'ITEM_NOT_FOUND',
