@@ -238,7 +238,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n확인 후 원픽으로 선택할 수 있어요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n관리자 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -250,7 +250,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 확인 후 승인된 제품을 원픽으로 선택할 수 있어요.`}
+            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -262,7 +262,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 승인된 제품은 내 프로필에서 원픽으로 선택할 수 있어요.`}
+            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
