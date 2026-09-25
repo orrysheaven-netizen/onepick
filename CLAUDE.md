@@ -34,4 +34,6 @@ User-facing QA uses only the dedicated QA general-user account. Never use an adm
 
 # Role division
 
-ChatGPT/Codex is the primary builder for feature implementation, migrations, and deployment work. Claude Code is the independent reviewer/QA and should avoid duplicating feature work already owned by the builder. GitHub `main`, PRs, migrations, and test results are the source of truth. See `docs/ai-role-division.md`.
+ChatGPT/Codex is the Product Builder. Claude Code owns Platform / Reliability, including migrations, RLS, Auth core, Storage policies, secret/permission handling, security-sensitive workflows, security fixes, DB/query performance, broad refactors, QA and reliability automation. The target workload split is 60:40 by `size:S/M/L` points, but protected security ownership overrides the ratio.
+
+At session start, use the `[AI Ops] OnePick 작업·인계 대시보드` issue and `handoff:claude` as the queue. Do not duplicate work already owned by Codex. Codex M/L PRs receive Claude review; Claude DB/Auth/RLS/Storage/security PRs receive a narrow Codex diff/permission/migration review before user merge. GitHub `main`, issues, PRs, migrations, and test results are the source of truth. See `docs/ai-role-division.md`.
