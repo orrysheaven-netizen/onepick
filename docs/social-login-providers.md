@@ -49,10 +49,11 @@ Apple은 사용자가 "이메일 가리기"를 고를 수 있다. OnePick은 이
 
 1. **migration 적용**
    - `supabase/migrations/20260924235900_restrict_signup_providers.sql`을 정상 배포 절차로 적용한다.
+   - 이어서 `supabase/migrations/20260925010500_restrict_signup_hook_service_role.sql`을 적용해 `service_role`의 훅 EXECUTE 권한을 회수한다.
 2. **함수와 권한 확인**
    - `public.hook_before_user_created(jsonb)`가 존재하는지 확인한다.
    - `supabase_auth_admin`에 `public` schema USAGE가 있는지 확인한다.
-   - `supabase_auth_admin`만 함수 EXECUTE 가능하고 `anon`·`authenticated`는 불가능한지 확인한다.
+   - `supabase_auth_admin`만 함수 EXECUTE 가능하고 `anon`·`authenticated`·`service_role`은 불가능한지 확인한다.
 3. **기존 계정 provider 확인**
    - 아래 쿼리로 Google/Naver 등 기존 계정 수를 먼저 확인한다.
 4. **Apple provider 설정**

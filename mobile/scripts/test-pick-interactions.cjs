@@ -164,7 +164,8 @@ async function main() {
   params = { pickId: 'pick' };
   const { PickReplies } = loadSource('components/pick-replies.tsx', {
     ...base,
-    react: { ...React, useState: () => [draft, (value) => { draft = value; }] },
+    // Only the composer draft (initial '') is driven by the test.
+    react: { ...React, useState: (initial) => initial === '' ? [draft, (value) => { draft = value; }] : React.useState(initial) },
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
@@ -173,10 +174,11 @@ async function main() {
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
+    '@/hooks/useDeleteComment': { useDeleteComment: () => ({ isPending: false, isError: false, reset() {} }) },
   });
   const Pick = () => React.createElement(PickReplies, { pickId: 'pick' });
   render(Pick);
-  const submit = presses.find((p) => textOf(p.children) === '답글 남기기').onPress;
+  const submit = presses.find((p) => textOf(p.children) === '댓글 남기기').onPress;
   const unhandled = [];
   const capture = (error) => unhandled.push(error);
   process.on('unhandledRejection', capture);
@@ -194,7 +196,7 @@ async function main() {
     assert.equal(draft, '', 'Successful saves clear the draft');
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
-  assert.match(render(Pick), /확인이 필요한 원픽에는 새 답글을 남길 수 없습니다/);
+  assert.match(render(Pick), /확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   mutation = { isError: true, error: new AppError('PROFILE_NOT_FOUND') };
@@ -211,12 +213,12 @@ async function main() {
   });
   const failedComments = render(Pick);
   assert.match(failedComments, /이미 불러온 댓글/);
-  assert.match(failedComments, /다음 답글을 불러오지 못했어요/);
-  presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도').onPress();
+  assert.match(failedComments, /다음 댓글을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도').onPress();
   assert.equal(commentPages, 1); assert.equal(fullCommentRefreshes, 0);
   commentsQuery.isFetching = true;
   render(Pick);
-  const commentMore = presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도');
+  const commentMore = presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도');
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 
