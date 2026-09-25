@@ -70,8 +70,13 @@ function decodeHtml(value: string) {
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
 function meta(html: string, key: string) {
+  const safeKey = key.replace(/[.*+?^{}()|[\\]\\\\]/g, '\\function meta(html: string, key: string) {
   const a = new RegExp('<meta[^>]+(?:property|name)=["\\']' + key + '["\\'][^>]+content=["\\']([^"\\']+)["\\'][^>]*>', 'i');
   const b = new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:property|name)=["\\']' + key + '["\\'][^>]*>', 'i');
+  return decodeHtml((a.exec(html)?.[1] || b.exec(html)?.[1] || '')).trim();
+}');
+  const a = new RegExp("<meta[^>]+(?:property|name)=[\"']" + safeKey + "[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>", 'i');
+  const b = new RegExp("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+(?:property|name)=[\"']" + safeKey + "[\"'][^>]*>", 'i');
   return decodeHtml((a.exec(html)?.[1] || b.exec(html)?.[1] || '')).trim();
 }
 function titleFromHtml(html: string) {
