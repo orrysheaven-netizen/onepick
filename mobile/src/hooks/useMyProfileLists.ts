@@ -25,3 +25,14 @@ export function useMyItemRequests(userId?: string) {
     enabled: Boolean(userId),
   });
 }
+
+export function useMyComments(userId?: string) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.comments.byUser(userId),
+    initialPageParam: null as ReadCursor | null,
+    queryFn: ({ pageParam }) => profileService.getMyComments(userId!, pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    select: (data) => data.pages.flatMap((page) => page.items),
+    enabled: Boolean(userId),
+  });
+}
