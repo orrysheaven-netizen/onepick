@@ -67,6 +67,7 @@ async function main() {
     functions: {
       invoke: async (slug, input) => {
         calls.push({ slug, input });
+        if (input?.body?.action === 'attach_pending_link') return { data: { ok: true }, error: null };
         return { data: response, error: null };
       },
     },
@@ -83,14 +84,22 @@ async function main() {
   assert.equal(result.suggestions[0].name, '곰탕');
   assert.equal(calls[0].slug, 'link-category-suggestions');
   assert.equal(calls[0].input.body.name, '대성집');
+  await repository.attachPendingLink(
+    '33333333-3333-4333-8333-333333333333',
+    'https://shop.example/product',
+  );
+  assert.equal(calls[1].input.body.action, 'attach_pending_link');
+  assert.equal(calls[1].input.body.url, 'https://shop.example/product');
 
   const { LinkCategorySuggestionService } = load(
     'services/linkCategorySuggestionService.ts',
     { '@/errors/appError': { AppError: TestAppError } },
   );
   const serviceCalls = [];
+  const attachCalls = [];
   const service = new LinkCategorySuggestionService({
     suggest: async (input) => { serviceCalls.push(input); return response; },
+    attachPendingLink: async (itemId, url) => { attachCalls.push({ itemId, url }); },
   });
   await service.suggest({ url: ' https://naver.me/example ', name: '  대성집  ' });
   assert.equal(serviceCalls[0].url, 'https://naver.me/example');
@@ -99,12 +108,22 @@ async function main() {
     async () => service.suggest({ url: 'http://naver.me/example' }),
     (error) => error.code === 'ITEM_NOT_ELIGIBLE',
   );
+  await service.attachPendingLink(
+    '33333333-3333-4333-8333-333333333333',
+    ' https://shop.example/product ',
+  );
+  assert.equal(attachCalls[0].url, 'https://shop.example/product');
+  await assert.rejects(
+    async () => service.attachPendingLink('bad-id', 'https://shop.example/product'),
+    (error) => error.code === 'ITEM_NOT_FOUND',
+  );
 
   const screen = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'pick', 'link.tsx'), 'utf8');
   assert.match(screen, /링크로 원픽 찾기/);
   assert.match(screen, /다른 카테고리 찾기/);
   assert.match(screen, /placeCatalogId: selectedPlace\.catalogId/);
   assert.match(screen, /pathname: '\/pick\/request'/);
+  assert.match(screen, /sourceUrl: result\.canonicalUrl/);
   assert.match(screen, /action: 'suggest_link_category'/);
   assert.match(screen, /linkUrl/);
   assert.doesNotMatch(screen, /result\.categories\.map\(/,
@@ -128,13 +147,24 @@ async function main() {
   assert.match(edge, /catalog_user_is_suspended/);
   assert.match(edge, /category_search_terms/);
   assert.match(edge, /place_catalog/);
+  assert.match(edge, /body\.action === 'attach_pending_link'/);
+  assert.match(edge, /itemResult\.data\.created_by !== auth\.data\.user\.id/);
+  assert.match(edge, /\.eq\('created_by', auth\.data\.user\.id\)\.eq\('status', 'pending'\)/,
+    'Only the caller own pending item may receive the source link');
   assert.doesNotMatch(edge, /api\.openai\.com|OPENAI_API_KEY/,
     'MVP link category suggestions must not add paid AI calls');
-  const onlineBranch = edge.slice(edge.indexOf("const kind = naverHost"), edge.indexOf("const resolvedName"));
-  assert.match(onlineBranch, /if \(kind === 'place'\)/,
-    'Only Naver place links may trigger an outbound metadata fetch');
-  assert.doesNotMatch(onlineBranch, /fetch\(parsed|fetch\(canonicalUrl/,
-    'Arbitrary online URLs must never be fetched server-side');
+  const naverResolution = edge.slice(edge.indexOf("let canonicalUrl"), edge.indexOf("const canonicalHost"));
+  assert.match(naverResolution, /if \(naverHost\(parsed\.hostname\)\)/);
+  assert.match(naverResolution, /resolveNaver\(parsed, admin\)/,
+    'Only URLs already verified as Naver-owned enter the outbound Naver resolver');
+  assert.match(edge, /function naverPlaceHost/);
+  assert.match(edge, /smartstore\.naver\.com|naverPlaceHost/,
+    'Naver online stores must not be classified solely because they are under naver.com');
+
+  const requestScreen = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'pick', 'request.tsx'), 'utf8');
+  assert.match(requestScreen, /useAttachPendingItemLink/);
+  assert.match(requestScreen, /sourceUrl/);
+  assert.match(requestScreen, /linkAttach\.mutateAsync/);
 
   console.log('Link category suggestion checks passed.');
 }
