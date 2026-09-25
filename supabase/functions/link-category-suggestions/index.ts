@@ -56,6 +56,11 @@ function naverHost(hostname: string) {
   const host = hostname.toLowerCase();
   return host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com');
 }
+function naverPlaceHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return host === 'map.naver.com' || host === 'place.naver.com'
+    || host === 'm.place.naver.com' || host.endsWith('.place.naver.com');
+}
 function httpsUrl(value: unknown) {
   if (typeof value !== 'string' || value.length > 2048) return null;
   try {
@@ -70,14 +75,14 @@ function decodeHtml(value: string) {
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
 function meta(html: string, key: string) {
-  const safeKey = key.replace(/[.*+?^{}()|[\\]\\\\]/g, '\\function meta(html: string, key: string) {
-  const a = new RegExp('<meta[^>]+(?:property|name)=["\\']' + key + '["\\'][^>]+content=["\\']([^"\\']+)["\\'][^>]*>', 'i');
-  const b = new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:property|name)=["\\']' + key + '["\\'][^>]*>', 'i');
-  return decodeHtml((a.exec(html)?.[1] || b.exec(html)?.[1] || '')).trim();
-}');
-  const a = new RegExp("<meta[^>]+(?:property|name)=[\"']" + safeKey + "[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>", 'i');
-  const b = new RegExp("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+(?:property|name)=[\"']" + safeKey + "[\"'][^>]*>", 'i');
-  return decodeHtml((a.exec(html)?.[1] || b.exec(html)?.[1] || '')).trim();
+  const tags = html.match(/<meta\b[^>]*>/gi) ?? [];
+  for (const tag of tags) {
+    const property = /\b(?:property|name)\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1] ?? '';
+    if (property.toLowerCase() !== key.toLowerCase()) continue;
+    const content = /\bcontent\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1] ?? '';
+    if (content) return decodeHtml(content).trim();
+  }
+  return '';
 }
 function titleFromHtml(html: string) {
   const og = meta(html, 'og:title');
@@ -309,21 +314,28 @@ Deno.serve(async (req: Request) => {
     const requestedName = cleanText(body.name, 100);
     const placeCatalogId = typeof body.placeCatalogId === 'string' && UUID_PATTERN.test(body.placeCatalogId)
       ? body.placeCatalogId : null;
-    const kind = naverHost(parsed.hostname) ? 'place' : 'online';
 
     let canonicalUrl = parsed.toString();
     let title = '';
     let description = '';
-    if (kind === 'place') {
+    let naverResolved = false;
+    if (naverHost(parsed.hostname)) {
       try {
         const resolved = await resolveNaver(parsed, admin);
         canonicalUrl = resolved.canonicalUrl;
         title = resolved.title;
         description = resolved.description;
+        naverResolved = true;
       } catch (error) {
         if (error instanceof Error && error.message === 'RATE_LIMITED') return json({ error: 'RATE_LIMITED' }, 429);
       }
     }
+
+    const canonicalHost = new URL(canonicalUrl).hostname;
+    const kind = naverPlaceHost(canonicalHost)
+      || (parsed.hostname.toLowerCase() === 'naver.me' && !naverResolved)
+      ? 'place'
+      : 'online';
 
     const resolvedName = requestedName || title;
     const places = kind === 'place' ? await findPlaces(admin, resolvedName, placeCatalogId) : [];
