@@ -27,16 +27,18 @@ begin
     (online_item,cat,'Online soup','onlinesoup','active'),
     (both_item,cat,'Both soup','bothsoup','active'),
     (legacy_item,cat,'Legacy soup','legacysoup','active');
-  insert into public.item_channels(item_id,channel,is_primary) values
-    (store_item,'offline',true),
-    (online_item,'online',true),
-    (both_item,'offline',true),
-    (both_item,'online',false);
   insert into public.picks(id,user_id,category_id,item_id,one_line_review,status,started_at) values
     (store_pick,users[1],cat,store_item,'Store reason','active',stamp+interval '4 seconds'),
     (online_pick,users[2],cat,online_item,'Online reason','active',stamp+interval '3 seconds'),
     (both_pick,users[3],cat,both_item,'Both reason','active',stamp+interval '2 seconds'),
     (legacy_pick,users[4],cat,legacy_item,'Legacy reason','active',stamp+interval '1 second');
+  -- Channels are attached after the Picks: a store channel otherwise requires a
+  -- linked place (PLACE_IDENTITY_REQUIRED), which is not what this test covers.
+  insert into public.item_channels(item_id,channel,is_primary) values
+    (store_item,'offline',true),
+    (online_item,'online',true),
+    (both_item,'offline',true),
+    (both_item,'online',false);
 
   perform set_config('request.jwt.claim.sub','',true);
   set local role anon;
