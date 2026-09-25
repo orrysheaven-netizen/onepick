@@ -111,23 +111,12 @@ export function UsersPanel() {
     setError('');
     setMessage('');
     try {
-      const state = await setUserSuspension(selected.id, suspended, reason);
-      setUsers((current) => current.map((user) => user.id === selected.id ? {
-        ...user,
-        moderation_status: state.status,
-        suspension_reason: state.reason,
-        suspended_at: state.suspended_at,
-      } : user));
-      setCounts((current) => current && {
-        ...current,
-        active: current.active + (suspended ? -1 : 1),
-        suspended: current.suspended + (suspended ? 1 : -1),
-      });
+      await setUserSuspension(selected.id, suspended, reason);
+      // The current filter can exclude the user after this mutation (active ↔ suspended).
+      // Reload the server-filtered page so rows, matched count and summary counts stay exact.
+      await load();
       setMessage(suspended ? `@${selected.username} 계정을 정지했습니다.` : `@${selected.username} 계정 정지를 해제했습니다.`);
       setReason('');
-      getUserModerationHistory(selected.id)
-        .then((moderation) => setHistory((current) => current && { ...current, moderation }))
-        .catch(() => {});
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '사용자 제재 상태를 변경하지 못했습니다.');
     } finally {
