@@ -26,10 +26,12 @@ def sql_literal(value):
 def run_psql(database_url, sql, tuples_only=True):
     if not shutil.which("psql"):
         raise SystemExit("psql is required and was not found on PATH")
-    cmd = ["psql", database_url, "-v", "ON_ERROR_STOP=1", "-X", "-q"]
+    cmd = ["psql", "-v", "ON_ERROR_STOP=1", "-X", "-q"]
     if tuples_only:
         cmd += ["-A", "-t"]
-    result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
+    env = os.environ.copy()
+    env["PGDATABASE"] = database_url
+    result = subprocess.run(cmd, input=sql, text=True, capture_output=True, env=env)
     if result.returncode:
         message = (result.stderr or result.stdout).strip()
         raise RuntimeError(message or f"psql exited with {result.returncode}")
