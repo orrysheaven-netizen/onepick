@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
-import { followService } from '@/services';
+import { followService } from '@/services/homeRuntimeServices';
 
 export function useFollowState(userId: string | undefined, profileId: string | undefined) {
   const enabled = Boolean(userId && profileId && userId !== profileId);
