@@ -31,7 +31,7 @@ function fixture(kind, platform = 'web') {
     'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
-    'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts',
+    'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
     'profile-taste-composition': 'ProfileTasteComposition', 'sign-out-button': 'SignOutButton',
   };
   const view = screen(`app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`, {
@@ -43,7 +43,7 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; } },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
-    '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; } },
+    '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
       browseCategoryGroups: (cs) => cs.map((c) => ({ category: c, children: [], directlySelectable: true })) },

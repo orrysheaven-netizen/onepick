@@ -16,6 +16,7 @@ function load(file, imports = {}) {
     if (name === '@/components/profile-ai-panel') return { ProfileAiPanel: () => null };
     if (name === '@/components/profile-taste-composition') return { ProfileTasteComposition: () => null };
     if (name === 'react/jsx-runtime') return require(name);
+    if (name === 'react') return require(name);
     assert.fail(name);
   } });
   return exports;
@@ -62,8 +63,12 @@ async function main() {
   requestsQuery.data = [request('waiting', 'pending')];
   requestsQuery.refetch = async () => { requestRefreshes++; requestsQuery.data = [request('waiting', 'active')]; };
   historyQuery.refetch = async () => { historyRefreshes++; };
-  let historyUser, requestsUser, socialProps, bioProps;
+  let historyUser, requestsUser, socialProps, bioProps, profileTab, commentsUser, commentsProps;
+  const commentsQuery = listQuery();
   const { default: Profile } = load('app/(tabs)/profile.tsx', {
+    // The screen's only local state is the 원픽/내 댓글 tab.
+    react: { useState: (initial) => [profileTab ?? initial, (value) => { profileTab = value; }] },
+    '@/components/profile-my-comments': { ProfileMyComments: (props) => { commentsProps = props; return React.createElement(native.Text, null, 'MY_COMMENTS_LIST'); } },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -92,6 +97,7 @@ async function main() {
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
+      useMyComments: (userId) => { commentsUser = userId; return commentsQuery; },
     },
   });
   const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
@@ -99,6 +105,39 @@ async function main() {
   const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 제품 등록 요청 상태 새로고침');
 
   assert.match(render(), /승인 대기/);
+  assert.equal(commentsUser, undefined, 'My comments load only after their tab is opened');
+  presses.find((props) => props.accessibilityLabel === '내 댓글 보기').onPress();
+  const commentsTab = render();
+  assert.match(commentsTab, /MY_COMMENTS_LIST/); assert.doesNotMatch(commentsTab, /카테고리별 원픽/);
+  assert.equal(commentsUser, 'owner'); assert.equal(commentsProps.query, commentsQuery);
+  presses.find((props) => props.accessibilityLabel === '내 원픽 보기').onPress();
+  assert.match(render(), /카테고리별 원픽/); assert.equal(commentsUser, undefined);
+
+  // The 내 댓글 list itself: newest-first rows open the focused review; unreadable reviews stay inert.
+  const { ProfileMyComments } = load('components/profile-my-comments.tsx', {
+    'react-native': native,
+    'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+    '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/format/relativeTime': { formatRelativeTime: () => '방금' },
+  });
+  const myComments = listQuery();
+  const renderComments = () => { presses = []; return renderToStaticMarkup(React.createElement(ProfileMyComments, { query: myComments })); };
+  assert.match(renderComments(), /아직 남긴 댓글이 없어요/);
+  myComments.data = [
+    { comment: { id: 'c1', body: '저도 이거 좋아요', createdAt: '2026-09-26T00:00:00Z' }, pick: { id: 'p1', oneLineReview: '국물이 좋아요' }, pickAuthor: { username: 'friend' }, item: { name: '신라면' } },
+    { comment: { id: 'c2', body: '숨겨진 곳의 댓글', createdAt: '2026-09-25T00:00:00Z' }, pick: null, pickAuthor: null, item: null },
+  ];
+  const list = renderComments();
+  assert.match(list, /신라면 · @friend의 한줄평/); assert.match(list, /국물이 좋아요/); assert.match(list, /저도 이거 좋아요/);
+  assert.match(list, /볼 수 없는 한줄평/); assert.match(list, /숨겨진 곳의 댓글/);
+  assert.equal(presses.length, 1, 'Only rows with a visible review are pressable');
+  presses[0].onPress(); assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'p1');
+  let nextPages = 0;
+  Object.assign(myComments, { hasNextPage: true, fetchNextPage: async (options) => { assert.equal(options.cancelRefetch, false); nextPages++; } });
+  renderComments(); presses.find((props) => props.accessibilityLabel === '내 댓글 더 보기').onPress(); assert.equal(nextPages, 1);
+  Object.assign(myComments, { data: undefined, isError: true });
+  assert.match(renderComments(), /내 댓글을 불러오지 못했어요/);
   assert.equal(bioProps.profileUserId, 'owner');
   assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
