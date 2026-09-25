@@ -93,21 +93,18 @@ const press = (label) => {
   assert.ok(button, label); button.onPress();
 };
 
-// Restaurant-first MVP: a signed-in member starts on the following feed.
-// Keep this assertion on the real enabled feature flag, then disable the flag
-// only inside this test so the existing exhaustive public-feed checks below
-// continue to exercise that secondary tab as a fresh mount.
-const followingFirstPage = render();
-assert.match(followingFirstPage, /팔로잉/);
-assert.match(followingFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
-assert.match(followingFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
-assert.match(followingFirstPage, /@friend/, 'Member Home renders the following feed first');
-assert.doesNotMatch(followingFirstPage, /@neighbor/, 'The default following feed does not silently fall back to the public feed');
-assert.doesNotMatch(followingFirstPage, /원픽 더 둘러보기/, 'Public-feed footer is not mixed into the following scope');
-assert.equal(homeDataArgs[2], false, 'Following Home disables only the invisible public feed');
-onepickConstants.OnePickFeatures.follow = false;
-render();
-assert.equal(homeDataArgs[2], true, 'All Home enables the public feed');
+// The real enabled follow flag must not force a new member into an empty feed.
+const allFirstPage = render();
+assert.match(allFirstPage, /팔로잉/, 'Following remains an available member scope');
+assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
+assert.match(allFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
+assert.match(allFirstPage, /@friend/);
+assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
+assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
+assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
+assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
+assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
 
 for (width of [390, 800, 1200]) {
   const page = render();
@@ -119,7 +116,9 @@ for (width of [390, 800, 1200]) {
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
-  assert.match(page, /전체/); assert.match(page, /먹을것/); assert.match(page, /문화/);
+  assert.match(page, /전체/);
+  assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
+  assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
   assert.equal(typeof itemSearchProps.onSearchBook, 'function');
   assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
   assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
@@ -149,6 +148,15 @@ for (width of [390, 800, 1200]) {
   assert.equal(destination.params.query, '최재천의 아마존');
 }
 
+// Test the actual boundary using unique loaded records, without changing thresholds.
+const smallFeed = query.data.picks;
+query.data.picks = Array.from({ length: 19 }, (_, i) => ({ ...smallFeed[0], pickId: `pick-${i}`, itemId: `item-${i}` }));
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
+query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
+render(); assert.ok(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'));
+assert.ok(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'));
+query.data.picks = smallFeed;
+
 render(); endReached(); assert.equal(pageCalls, 1);
 query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1);
 query.isFetching = false; query.isFetchNextPageError = true;
@@ -160,6 +168,7 @@ auth.user = null;
 const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
+assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Signed-out Home hides the own-profile avatar');
 assert.match(publicPage, /어떤 취향부터 골라볼까요/);
 assert.match(publicPage, /먹을것 › 면류 › 라면/);
 press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
@@ -188,7 +197,8 @@ refreshButton().onPress(); pullToRefresh.props.onRefresh();
 assert.equal(queryRetries, 2, 'Repeated refreshes must not cancel an active request');
 query.isFetching = false; query.isRefetching = false; query.isError = false;
 assert.doesNotMatch(render(), /마지막으로 불러온 내용/);
-refreshButton().onPress(); assert.equal(queryRetries, 3);
+assert.ok(refreshButton(), 'Web refresh remains available after recovery');
+pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 3);
 const cached = query.data; query.data = undefined; query.isError = true;
 assert.match(render(), /원픽을 불러오지 못했어요/);
 assert.equal(refreshButton(), undefined);
@@ -200,10 +210,10 @@ assert.equal(pullToRefresh, undefined);
 auth.isLoading = false; auth.user = null;
 assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|내 원픽/);
-refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports refresh too');
+refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports error refresh too');
 query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
 assert.match(render(), /아직 공개된 원픽이 없어요/);
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
-console.log('Home screen checks passed: following-first member entry, public-feed cards/actions, routes, empty states, refresh recovery and session privacy.');
+console.log('Home screen checks passed: all-first member entry, filter boundary, public-feed cards/actions, routes, empty states, refresh recovery and session privacy.');

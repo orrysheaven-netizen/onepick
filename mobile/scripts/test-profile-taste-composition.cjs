@@ -36,10 +36,11 @@ const aiIndex = profile.indexOf('<ProfileAiPanel');
 const picksIndex = profile.indexOf('카테고리별 원픽');
 
 assert.ok(infoIndex >= 0, 'profile info section is missing');
-assert.ok(tasteIndex > infoIndex, 'taste composition must follow profile info');
-assert.ok(aiIndex > tasteIndex, 'AI taste evaluation must follow taste composition');
-assert.ok(picksIndex > aiIndex, 'category picks must follow AI taste evaluation');
-assert.match(profile, /<ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
+assert.ok(tasteIndex > infoIndex, 'gated taste composition must follow profile info');
+assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation must follow taste composition');
+assert.ok(picksIndex > aiIndex, 'category picks must follow gated AI taste evaluation');
+assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
+assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
@@ -55,6 +56,10 @@ assert.ok(publicSafetyIndex > publicPicksIndex, 'public safety controls must not
 assert.match(publicProfile, /viewerId=\{user\?\.id\}/);
 assert.match(publicProfile, /variant="public"/);
 assert.match(publicProfile, /sectionTitle="AI 취향평가"/);
-assert.match(publicProfile, /sectionDescription="위 취향 구성은 선택의 큰 틀입니다\. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요\."/);
+assert.match(publicProfile, /sectionDescription="AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요\."/);
+assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
+assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
+assert.match(publicProfile, /useProfileAiComment\(OnePickFeatures\.profileAi \? query\.data\?\.profile\.id : undefined\)/);
+assert.match(publicProfile, /aiComment: OnePickFeatures\.profileAi \? \(aiCommentQuery\.data \?\? null\) : null/);
 
-console.log('Profile taste composition regression checks passed for owner and public profiles.');
+console.log('Profile taste composition regression checks passed for owner/public rollout gates and retained component/service contracts.');

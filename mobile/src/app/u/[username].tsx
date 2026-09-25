@@ -26,7 +26,8 @@ export default function PublicProfileScreen() {
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
   const categoriesQuery = useExploreCategories(Boolean(query.data));
-  const aiCommentQuery = useProfileAiComment(query.data?.profile.id);
+  // Always call the hook; an absent profileId disables its network query.
+  const aiCommentQuery = useProfileAiComment(OnePickFeatures.profileAi ? query.data?.profile.id : undefined);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function PublicProfileScreen() {
             categoryName: entry.category?.name ?? '',
             itemName: entry.item?.name ?? '',
           })),
-          aiComment: aiCommentQuery.data ?? null,
+          aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
         });
         if (result === 'downloaded-with-link') {
           setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
@@ -106,13 +107,13 @@ export default function PublicProfileScreen() {
           </View> : null}
           <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
           <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{query.data.currentPicks.length}개</Text></View>
-          <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
-          <ProfileAiComment
+          {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
+          {OnePickFeatures.profileAi ? <ProfileAiComment
             profileId={query.data.profile.id}
             showPrivate={query.data.isMine}
             sectionTitle="AI 취향평가"
-            sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
-          />
+            sectionDescription="AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
+          /> : null}
           <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={query.data.currentPicks.length} /></View>
           {query.data.currentPicks.length > 0 ? (
             <ProfilePickGroups
@@ -124,7 +125,7 @@ export default function PublicProfileScreen() {
           ) : <StateCard title="아직 공개된 원픽이 없어요" text="이 사용자가 원픽을 고르면 여기에 표시됩니다." />}
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
-            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요. 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.</Text>
+            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
             <Button fullWidth style={styles.joinButton} label="내 원픽 만들기"
               accessibilityLabel="로그인하고 내 원픽 만들기"
               onPress={() => router.push({ pathname: '/auth/login', params: { action: 'join_from_profile' } })} />

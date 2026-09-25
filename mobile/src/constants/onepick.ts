@@ -88,4 +88,15 @@ export const OnePickFeatures = {
   follow: true,
   followCounts: false,
   purchaseLinks: false,
+  // Keep both profile features implemented, but unmounted during the early MVP.
+  tasteComposition: false,
+  profileAi: false,
+  // Ranking cards stay available; only their detail needs a minimum sample.
+  exploreRankingDetail: true,
+} as const;
+
+// Client-side exposure thresholds, not API limits or service-wide totals.
+export const OnePickThresholds = {
+  exploreRankingMinPicks: 3, // Number of people choosing the rank-1 item, not the sum.
+  homeCategoryFilterMinPicks: 20, // Unfiltered Picks currently loaded in Home.
 } as const;
