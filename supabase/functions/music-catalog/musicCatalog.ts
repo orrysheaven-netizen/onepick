@@ -259,9 +259,6 @@ export function createMusicCatalogHandler(deps: Dependencies) {
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-      const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: data.user.id });
-      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     }
 
     const category = await catalogCategory(client);
@@ -341,6 +338,10 @@ export function createMusicCatalogHandler(deps: Dependencies) {
     }
     const recording = mapMusicBrainzRecording(raw);
     if (!recording || recording.externalId !== id) return json({ error: 'RECORDING_NOT_FOUND' }, 404);
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     const cover = recording.releaseGroupId ? await verifiedCover(client, recording.releaseGroupId) : null;
     const itemName = musicItemName(recording);
     const inserted = await client.from('items').insert({
@@ -350,7 +351,6 @@ export function createMusicCatalogHandler(deps: Dependencies) {
       official_url: `https://musicbrainz.org/recording/${id}`,
       image_source_url: cover,
       external_source: MUSICBRAINZ_SOURCE,
-      created_by: importUserId,
       external_id: id,
       original_name: recording.title,
       release_year: recording.releaseYear,
@@ -359,9 +359,6 @@ export function createMusicCatalogHandler(deps: Dependencies) {
       status: 'active',
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
-    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
-      return json({ error: 'RATE_LIMITED' }, 429);
-    }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
     return !winner.error && winner.data ? receipt(winner.data) : json({ error: 'CATALOG_UNAVAILABLE' }, 503);
