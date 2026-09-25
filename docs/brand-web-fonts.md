@@ -19,7 +19,7 @@ Refs #303, PR #309. Owner: codex. 기존 `docs/brand-v1-implementation.md`의 �
 
 직접 `npx expo export`를 실행하는 경우에는 먼저 `node scripts/prepare-web-fonts.cjs`를 실행하고, 내보낸 후 `node scripts/prepare-web-fonts.cjs --check dist`로 검증해야 한다. 일반 npm 빌드 경로에서는 자동이다.
 
-준비된 파일과 CSS는 `mobile/public/fonts/onepick/`에 있으며 Git에서는 제외한다. 파일명에 전체 콘텐츠 SHA를 넣는다. 브라우저는 `/fonts/onepick/fonts.css`와 같은 출처의 상대 파일 URL만 요청한다. CSP/보안 헤더는 변경하지 않는다.
+준비된 파일과 CSS는 `mobile/public/assets/onepick-fonts/`에 있으며 Git에서는 제외한다. 폰트 파일명에 전체 콘텐츠 SHA를 넣고 CSS 이름에도 내용의 SHA-256을 넣는다. 기존 `/assets/*`의 immutable 캐시 규칙을 그대로 사용하며 CSS 변경 시 새 URL을 만든다. 브라우저는 `/assets/onepick-fonts/fonts-<CSS SHA-256>.css`와 같은 출처의 상대 파일 URL만 요청한다. CSP/보안 헤더는 변경하지 않는다.
 
 차가운 빌드는 공식 raw GitHub의 접근 가능성에 의존한다. 고정된 크기/해시/형식과 라이선스 검증에 실패하면 빌드를 실패시켜 부분 출력 배포를 막는다. 리다이렉트는 거부하고, 요청은 20초 제한과 크기 상한을 둔다. 검증된 캐시가 있으면 네트워크 없이 재사용한다. 캐시 손상은 다시 받아 검증한다. 앱 실행 중에는 외부 글꼴 서버로 접속하지 않는다.
 
@@ -37,9 +37,9 @@ Refs #303, PR #309. Owner: codex. 기존 `docs/brand-v1-implementation.md`의 �
 
 `cd mobile && node scripts/test-web-fonts.cjs`
 
-새 오프라인 검사 12개는 고정 출처, 크기/해시/형식, HTTP 실패/초과 응답, CSS 공개 전 라이선스 확인, 검증 캐시, 손상 복구, 출력 누락/변조, 빌드 훅, 플랫폼별 공통 토큰 및 ThemedText의 실제 스타일/우선순위를 확인한다. 테스트 응답은 합성 fixture이며 실제 공식 폰트 다운로드나 브라우저 렌더링을 대신하지 않는다.
+새 오프라인 검사 13개는 고정 출처, 크기/해시/형식, HTTP 실패/초과 응답, CSS 공개 전 라이선스 확인, 검증 캐시, 손상 복구, 출력 누락/변조, 빌드 훅, 플랫폼별 공통 토큰 및 ThemedText의 실제 스타일/우선순위를 확인한다. 테스트 응답은 합성 fixture이며 실제 공식 폰트 다운로드나 브라우저 렌더링을 대신하지 않는다.
 
-로컬 Node 22.16.0 / TypeScript 5.8.3에서 12/12 통과. 전체 앱 빌드와 저장소 TypeScript 버전 검증은 새 PR head의 CI로 확인한다. 실행 환경 DNS 제한 때문에 로컬에서 공식 배포 파일을 내려받는 실제 경로는 아직 실행하지 못했다. CI에서 성공하면 해당 head 결과를 PR에 별도로 기록한다.
+로컬 Node 22.16.0 / TypeScript 5.8.3에서 13/13 통과. 전체 앱 빌드와 저장소 TypeScript 버전 검증은 새 PR head의 CI로 확인한다. 로컬 실제 다운로드는 DNS 제한으로 미실행이다. 첫 CI(`4fec6436`)에서 공식 폰트·라이선스 다운로드, 검증, 웹 번들·글꼴 복사가 성공했다. 이후 기존 캐시 경로 검사에서 실패해 자산/CSS를 콘텐츠 해시가 있는 `/assets/` 경로로 옮겼고, 홈 화면 테스트의 새 font-family import 연결을 보완했다. 수정 후 head의 전체 CI 결과는 PR에 별도로 기록한다.
 
 ## 보존
 

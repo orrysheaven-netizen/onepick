@@ -47,7 +47,9 @@ const native = {
 };
 const pickPhoto = { PickPhoto: () => null };
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': pickPhoto });
-const onepickConstants = load('constants/onepick.ts');
+const onepickConstants = load('constants/onepick.ts', {
+  './font-family': load('constants/font-family.web.ts'),
+});
 const followingQuery = {
   data: { items: [query.data.picks[0]], nextCursor: null },
   isPending: false, isError: false, isFetching: false, isRefetching: false,

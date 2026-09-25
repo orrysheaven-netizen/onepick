@@ -81,10 +81,10 @@ async function main() {
     await test('failed license download cannot publish CSS', async () => {
       const failed = path.join(temporary, 'failed');
       await assert.rejects(fonts.prepare(failed, { entries, fetcher: async (url) => url.endsWith('OFL.txt') ? response('failed', 503) : response(fixtureFont) }), /HTTP 503/);
-      await assert.rejects(fs.stat(path.join(failed, fonts.ASSET_DIR, 'fonts.css')), { code: 'ENOENT' });
+      await assert.rejects(fs.stat(path.join(failed, fonts.ASSET_DIR, fonts.cssFilename(entries))), { code: 'ENOENT' });
     });
     await test('export validation detects missing or altered output', async () => {
-      await fs.writeFile(path.join(output, fonts.ASSET_DIR, 'fonts.css'), 'wrong');
+      await fs.writeFile(path.join(output, fonts.ASSET_DIR, fonts.cssFilename(entries)), 'wrong');
       await assert.rejects(fonts.check(output, entries), /CSS/);
       await fs.rm(path.join(output, fonts.ASSET_DIR, fonts.filename(entry)));
       await assert.rejects(fonts.check(output, entries), { code: 'ENOENT' });
@@ -96,8 +96,13 @@ async function main() {
       assert.equal(pkg.scripts['postbuild:web:release'], 'node scripts/prepare-web-fonts.cjs --check dist-release');
       assert.equal(pkg.scripts['check:web:release-env'], 'node scripts/build-web-release.cjs --check');
       const html = await source('public/index.html');
-      assert.match(html, /rel="stylesheet" href="\/fonts\/onepick\/fonts.css"/);
+      assert.ok(html.includes(`rel="stylesheet" href="/${fonts.ASSET_DIR}/${fonts.cssFilename()}"`));
       assert.doesNotMatch(html, /fonts\.google|fonts\.gstatic|rel="preload"[^>]*as="font"/);
+    });
+    await test('font CSS uses a content hash under the existing immutable asset prefix', () => {
+      assert.match(fonts.ASSET_DIR, /^assets\//);
+      assert.match(fonts.cssFilename(), /^fonts-[a-f0-9]{64}\.css$/);
+      assert.notEqual(fonts.cssFilename(entries), fonts.cssFilename([{ ...entry, weight: '500' }, license]));
     });
     const webFamilies = await moduleFrom('src/constants/font-family.web.ts');
     await test('shared Text scales use web families and preserve native defaults', async () => {
@@ -127,7 +132,7 @@ async function main() {
       assert.equal(resolved({ style: { fontFamily: 'override' } }).fontFamily, 'override');
       assert.equal(ThemedText({ accessibilityLabel: '글꼴 확인' }).props.accessibilityLabel, '글꼴 확인');
     });
-    console.log(`Web font checks: ${passed}/12 passed (offline fixtures; not a live app test).`);
+    console.log(`Web font checks: ${passed}/13 passed (offline fixtures; not a live app test).`);
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -14,7 +14,7 @@ const SOURCES = [
   { file: 'IBM-OFL.txt', kind: 'license', size: 4456, sha: 'c35c4c618fab33da8695177b3a6cefe0810b7b28', url: `${IBM}/LICENSE.txt` },
   { file: 'Outfit-OFL.txt', kind: 'license', size: 4389, sha: '723cd447edee83ed3bb07c3343f478d352aa7440', url: `${GOOGLE}/OFL.txt` },
 ];
-const ASSET_DIR = 'fonts/onepick';
+const ASSET_DIR = 'assets/onepick-fonts';
 const gitBlob = (bytes) => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
 const filename = (entry) => `${entry.sha}-${entry.file}`;
 
@@ -42,6 +42,8 @@ function stylesheet(entries = SOURCES) {
       return `@font-face {\n  font-family: '${e.family}';\n  font-style: normal;\n  font-weight: ${e.weight};\n  font-display: optional;\n  src: url('./${filename(e)}') format('${e.kind === 'ttf' ? 'truetype' : 'woff2'}');\n}\n`;
     }).join('');
 }
+const cssFilename = (entries = SOURCES) => `fonts-${createHash('sha256').update(stylesheet(entries)).digest('hex')}.css`;
+
 async function download(entry, fetcher = fetch) {
   validate(entry);
   const response = await fetcher(entry.url, { redirect: 'error', signal: AbortSignal.timeout(20000) });
@@ -70,14 +72,14 @@ async function prepare(root, { entries = SOURCES, fetcher = fetch } = {}) {
     finally { await fs.rm(temporary, { force: true }); }
   }
   // Publish CSS only after all fonts AND licenses have passed verification.
-  const css = path.join(directory, 'fonts.css');
+  const css = path.join(directory, cssFilename(entries));
   const temporary = `${css}.${process.pid}.tmp`;
   try { await fs.writeFile(temporary, stylesheet(entries)); await fs.rename(temporary, css); }
   finally { await fs.rm(temporary, { force: true }); }
 }
 async function check(root, entries = SOURCES) {
   for (const entry of entries) verify(entry, await fs.readFile(path.join(root, ASSET_DIR, filename(entry))));
-  if (await fs.readFile(path.join(root, ASSET_DIR, 'fonts.css'), 'utf8') !== stylesheet(entries)) throw new Error('Font CSS does not match pinned sources');
+  if (await fs.readFile(path.join(root, ASSET_DIR, cssFilename(entries)), 'utf8') !== stylesheet(entries)) throw new Error('Font CSS does not match pinned sources');
 }
 async function main() {
   const args = process.argv.slice(2);
@@ -91,5 +93,5 @@ async function main() {
     console.log('Exported web fonts and licenses verified.');
   } else throw new Error('Usage: prepare-web-fonts.cjs [--check public|dist|dist-release]');
 }
-module.exports = { SOURCES, ASSET_DIR, gitBlob, filename, validate, verify, stylesheet, download, prepare, check };
+module.exports = { SOURCES, ASSET_DIR, gitBlob, filename, cssFilename, validate, verify, stylesheet, download, prepare, check };
 if (require.main === module) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
