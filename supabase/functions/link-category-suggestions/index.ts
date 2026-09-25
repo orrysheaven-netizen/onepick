@@ -247,10 +247,10 @@ function scoreCategories(categories: CategoryRow[], sources: SourceRow[], terms:
 }
 
 function sortPlaces(rows: PlaceRow[], query: string) {
-  const q = norm(query);
+  const q = placeSearchKey(query);
   return [...rows].sort((a, b) => {
-    const an = norm(a.name);
-    const bn = norm(b.name);
+    const an = placeSearchKey(a.name);
+    const bn = placeSearchKey(b.name);
     const ar = an === q ? 0 : an.startsWith(q) ? 1 : an.includes(q) ? 2 : 3;
     const br = bn === q ? 0 : bn.startsWith(q) ? 1 : bn.includes(q) ? 2 : 3;
     return ar - br || a.name.localeCompare(b.name, 'ko') || (a.branch_name ?? '').localeCompare(b.branch_name ?? '', 'ko');
@@ -347,7 +347,7 @@ Deno.serve(async (req: Request) => {
     const places = kind === 'place' ? await findPlaces(admin, resolvedName, placeCatalogId) : [];
     const selectedPlace = placeCatalogId ? places[0] : undefined;
     const exactPlace = !selectedPlace && resolvedName
-      ? places.find((place) => norm(place.name) === norm(resolvedName))
+      ? places.find((place) => placeSearchKey(place.name) === placeSearchKey(resolvedName))
       : undefined;
     const contextPlace = selectedPlace ?? exactPlace;
 
