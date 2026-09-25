@@ -8,6 +8,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions, useSetItemCategoryHint } from '@/hooks/useItemCategoryAi';
 import { useMyProfile } from '@/hooks/useMyProfile';
+import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { CATEGORY_HINT_MAX_LENGTH } from '@/services/registrationService';
@@ -38,12 +39,12 @@ function hintErrorMessage(error: unknown) {
   return '카테고리 힌트를 보내지 못했어요. 적은 내용은 그대로 있으니 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; itemName?: string };
+type Params = { categoryId?: string; itemName?: string; sourceUrl?: string };
 
 export default function RequestItemScreen() {
   const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
-  return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName])} auth={auth} params={params} />;
+  return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName, params.sourceUrl])} auth={auth} params={params} />;
 }
 
 function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -51,11 +52,13 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const categories = useRegistrationCategories();
   const profile = useMyProfile(auth.user?.id);
   const registration = useRegisterPick();
+  const linkAttach = useAttachPendingItemLink();
   const photoPicker = useChoosePhoto();
   const imageImport = useImportItemPhoto();
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
+  const sourceUrl = typeof params.sourceUrl === 'string' ? params.sourceUrl.trim() : '';
   const [submittedItem, setSubmittedItem] = useState<{ id: string; name: string } | null>(null);
   const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -72,7 +75,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     && !categoryHint.isPending && !applyCategory.isPending;
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [imageLink, setImageLink] = useState('');
-  const submitting = registration.isPending || photoPicker.isPending || imageImport.isPending;
+  const submitting = registration.isPending || linkAttach.isPending || photoPicker.isPending || imageImport.isPending;
 
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
@@ -84,7 +87,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     action: 'request_item' as const,
     itemName: normalizedName,
     ...(categoryId ? { categoryId } : {}),
-  }), [categoryId, normalizedName]);
+    ...(sourceUrl ? { sourceUrl } : {}),
+  }), [categoryId, normalizedName, sourceUrl]);
 
   const getPhoto = async (fromLink: boolean) => {
     if (busy.current || submitting) return;
@@ -123,6 +127,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       });
 
       if (result.type === 'pending_item') {
+        if (sourceUrl) {
+          await linkAttach.mutateAsync({ itemId: result.item.id, url: sourceUrl });
+        }
         setSubmittedItem({ id: result.item.id, name: result.item.name });
         return;
       }
@@ -396,9 +403,11 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </View>
         ) : null}
 
+        {sourceUrl ? <Text style={styles.helper}>이 요청에는 원본 링크가 함께 저장되어 관리자 검수에 사용됩니다.</Text> : null}
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
+        {linkAttach.isError ? <Text style={styles.error}>상품 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
 
-        <Button size="lg" fullWidth disabled={!canSubmit && !registration.isPending} loading={registration.isPending}
+        <Button size="lg" fullWidth disabled={!canSubmit && !submitting} loading={registration.isPending || linkAttach.isPending}
           label={auth.user ? '상품 등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
     </SafeAreaView>
