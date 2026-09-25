@@ -17,11 +17,12 @@ export type AuthReturnParams = {
   linkUrl?: string | string[];
   linkName?: string | string[];
   sourceUrl?: string | string[];
+  channel?: string | string[];
 };
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
-  | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string }
+  | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string; channel?: 'online' }
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
@@ -95,6 +96,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
       itemName,
       ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
       ...(sourceUrl ? { sourceUrl } : {}),
+      ...(params.channel === 'online' ? { channel: 'online' as const } : {}),
     } : { action: 'home' };
   }
   if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
@@ -147,6 +149,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
         itemName: intent.itemName,
         ...(intent.categoryId ? { categoryId: intent.categoryId } : {}),
         ...(intent.sourceUrl ? { sourceUrl: intent.sourceUrl } : {}),
+        ...(intent.channel ? { channel: intent.channel } : {}),
       },
     };
     case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };

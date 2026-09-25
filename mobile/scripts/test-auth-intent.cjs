@@ -67,6 +67,8 @@ async function main() {
     },
   });
   assert.equal(getPostAuthRoute(getAuthIntent({ ...requestWithSource, sourceUrl: 'http://shop.example/item' })).params?.sourceUrl, undefined);
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...requestWithSource, channel: 'online' })).params?.channel, 'online', 'Online seller requests resume in the online flow');
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...requestWithSource, channel: 'delivery' })).params?.channel, undefined, 'Unknown channels are dropped');
   same(getAuthIntent({ action: 'request_item', itemName: '  신라면  ', categoryId: '../../bad' }), {
     action: 'request_item', itemName: '신라면',
   });
