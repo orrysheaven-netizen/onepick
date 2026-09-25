@@ -1,7 +1,8 @@
 // Synthetic hook/host tests of the real screens, not authenticated browser QA.
 const assert = require('node:assert/strict');
 const { load, screen, names } = require('./mvp-screen-harness.cjs');
-const constants = load('constants/onepick.ts');
+// onepick.ts reads its platform font family; use the native/default variant like Metro's split.
+const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
 const category = { id: 'ramen', slug: 'ramen', name: '라면', parentId: null, isPickable: true };
 const homeLabel = '홈 원픽 새로고침';
 const followingLabel = '팔로잉 원픽 새로고침';

@@ -27,7 +27,7 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   const html = render(React.createElement(ui.Button, { label: '이 원픽으로 정하기', onPress: () => pressed++ }));
   assert.match(html, /이 원픽으로 정하기/);
   const primary = pressable('이 원픽으로 정하기');
-  assert.equal(primary.resolved.backgroundColor, OnePick.accent);
+  assert.equal(primary.resolved.backgroundColor, OnePick.brand);
   assert.equal(primary.resolved.minHeight, 48);
   assert.equal(primary.accessibilityRole, 'button');
   primary.onPress(); assert.equal(pressed, 1);
@@ -100,7 +100,7 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.equal(pressable('다시 불러오기').disabled, true);
 
   render(React.createElement(ui.StateCard, { title: '나의 원픽을 모아보세요', action: { label: '로그인하기', onPress() {}, variant: 'primary' } }));
-  assert.equal(pressable('로그인하기').resolved.backgroundColor, OnePick.accent, 'Full-screen states can promote the action to primary');
+  assert.equal(pressable('로그인하기').resolved.backgroundColor, OnePick.brand, 'Full-screen states can promote the action to primary');
   assert.equal(pressable('로그인하기').resolved.minHeight, 48);
 
   const compact = render(React.createElement(ui.StateCard, { text: '다음 제품을 불러오지 못했어요.', compact: true }));
