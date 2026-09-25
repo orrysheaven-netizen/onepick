@@ -56,7 +56,12 @@
     "check:web": "node scripts/check-web-export.cjs",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/run-tests.cjs"
+    "test": "node scripts/run-tests.cjs",
+    "preweb": "node scripts/prepare-web-fonts.cjs",
+    "prebuild:web": "node scripts/prepare-web-fonts.cjs",
+    "postbuild:web": "node scripts/prepare-web-fonts.cjs --check dist",
+    "prebuild:web:release": "node scripts/prepare-web-fonts.cjs",
+    "postbuild:web:release": "node scripts/prepare-web-fonts.cjs --check dist-release"
   },
   "private": true
 }

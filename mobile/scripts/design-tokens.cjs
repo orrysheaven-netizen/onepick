@@ -9,7 +9,14 @@ const source = fs.readFileSync(path.join(__dirname, '../src/constants/onepick.ts
 const exportsObject = {};
 vm.runInNewContext(
   ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-  { exports: exportsObject, module: { exports: exportsObject } },
+  { exports: exportsObject, module: { exports: exportsObject }, require: (id) => {
+    if (id !== './font-family') throw new Error(`Unexpected token dependency: ${id}`);
+    // Node checks use the native/default variant, matching Metro's platform split.
+    const familySource = fs.readFileSync(path.join(__dirname, '../src/constants/font-family.ts'), 'utf8');
+    const families = {};
+    vm.runInNewContext(ts.transpileModule(familySource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { exports: families });
+    return families;
+  } },
 );
 
 module.exports = exportsObject;

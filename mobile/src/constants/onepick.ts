@@ -1,3 +1,5 @@
+import { BodyFont } from './font-family';
+
 // OnePick design tokens. Screens reference these by name; hex values live only here.
 // Roles: surfaces → ink (text) → accent → status. See docs/design-mvp.md.
 export const OnePick = {
@@ -40,7 +42,7 @@ export const OnePick = {
   maxWidth: 480,
 } as const;
 
-// Typography tokens only. Same-origin font delivery is a separate rollout gate.
+// Typeface names; platform-specific Text families live in font-family(.web).ts.
 export const OnePickFont = {
   body: 'IBM Plex Sans KR',
   english: 'Outfit',
@@ -48,11 +50,11 @@ export const OnePickFont = {
 
 // Type scale: five steps. Korean body copy never goes below `body`; `caption` is the only 12px.
 export const OnePickType = {
-  display: { fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
-  title: { fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  display: { fontFamily: BodyFont, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
+  title: { fontFamily: BodyFont, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
+  body: { fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  label: { fontFamily: BodyFont, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 16, fontWeight: '500' },
 } as const;
 
 export const OnePickRadius = {
