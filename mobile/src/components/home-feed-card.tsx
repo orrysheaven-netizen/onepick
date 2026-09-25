@@ -25,7 +25,7 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSa
     timeLabel={formatRelativeTime(pick.startedAt)}
     badge={mine ? '내 원픽' : undefined}
     onPress={onOpenItem}
-    accessibilityLabel={pick.name + ' 제품 상세 보기'}
+    accessibilityLabel={pick.name + ' 상세 보기'}
     footer={<>
       {mine
         ? <Button variant="ghost" size="sm" label="이미 내 원픽이에요" accessibilityLabel={`${pick.name} 내 한줄평 보기`} onPress={onChooseSame} />
