@@ -130,7 +130,7 @@ export default function ExploreScreen() {
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <SectionHeader title={showRankingDetail ? `${selectedCategoryLabel} 원픽 TOP 3` : `${selectedCategoryLabel}의 원픽`}
-              description={showRankingDetail ? '지금 이 제품을 원픽으로 고른 사람 수 기준이에요.' : undefined}
+              description={showRankingDetail ? '지금 이걸 원픽으로 고른 사람 수 기준이에요.' : undefined}
               action={Platform.OS === 'web' && topItems.data && !topItems.isError ? {
                 label: topItems.isFetching ? '불러오는 중…' : '새로고침', accessibilityLabel: '카테고리 원픽 새로고침', disabled: topItems.isFetching,
                 onPress: () => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); },
@@ -149,8 +149,8 @@ export default function ExploreScreen() {
             <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
             <Pressable accessibilityRole="button"
               accessibilityLabel={showRankingDetail
-                ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 제품 상세 보기`
-                : `${item.name}, 제품 상세 보기`}
+                ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 상세 보기`
+                : `${item.name}, 상세 보기`}
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
                 <Text style={styles.rankName}>{item.name}</Text>
@@ -159,8 +159,8 @@ export default function ExploreScreen() {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>)}
-          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 제품이 없어요" text="첫 원픽이 등록되면 이곳에 제품이 표시돼요." /> : null}
-          {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개 제품</Text> : null}
+          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개</Text> : null}
         </View> : null}
       </ScrollView>
     </SafeAreaView>
