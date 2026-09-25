@@ -244,11 +244,6 @@ export function createBookCatalogHandler(deps: Dependencies) {
       if (suspended.data === true) {
         return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
       }
-      const quota = await client.rpc('reserve_external_catalog_import', {
-        p_user_id: data.user.id,
-      });
-      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     }
 
     const category = await catalogCategory(client);
@@ -419,6 +414,10 @@ export function createBookCatalogHandler(deps: Dependencies) {
     if (isbnMatch.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     if (isbnMatch.data) return receipt(isbnMatch.data);
 
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
     const inserted = await client
       .from('items')
       .insert({
@@ -439,7 +438,6 @@ export function createBookCatalogHandler(deps: Dependencies) {
         official_url: book.infoUrl,
         image_source_url: book.coverUrl,
         external_source: GOOGLE_BOOKS_SOURCE,
-        created_by: importUserId,
         external_id: id,
         original_name: book.title,
         release_year: book.releaseYear,
@@ -458,9 +456,6 @@ export function createBookCatalogHandler(deps: Dependencies) {
       });
     }
 
-    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
-      return json({ error: 'RATE_LIMITED' }, 429);
-    }
     if (inserted.error?.code !== '23505') {
       console.error('Google Books item insert failed', inserted.error?.code);
       return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
