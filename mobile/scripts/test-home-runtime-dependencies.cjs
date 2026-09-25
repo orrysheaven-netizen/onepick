@@ -5,46 +5,44 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const runtime = read('src/services/homeRuntimeServices.ts');
-const homeHook = read('src/hooks/useHomeData.ts');
-const exploreHook = read('src/hooks/useExploreData.ts');
-const followHook = read('src/hooks/useFollow.ts');
-const searchHook = read('src/hooks/useItemSearch.ts');
+const hooks = [
+  ['useHomeData', read('src/hooks/useHomeData.ts'), '@/services/homeServiceInstance'],
+  ['useExploreData', read('src/hooks/useExploreData.ts'), '@/services/exploreServiceInstance'],
+  ['useFollow', read('src/hooks/useFollow.ts'), '@/services/followServiceInstance'],
+  ['useItemSearch', read('src/hooks/useItemSearch.ts'), '@/services/itemServiceInstance'],
+];
 
-for (const [name, source] of [
-  ['useHomeData', homeHook],
-  ['useExploreData', exploreHook],
-  ['useFollow', followHook],
-  ['useItemSearch', searchHook],
-]) {
-  assert.doesNotMatch(source, /from ['"]@\/services['"]/, name + ' must not pull the broad services barrel into Home');
-  assert.match(source, /from ['"]@\/services\/homeRuntimeServices['"]/, name + ' uses the Home runtime service set');
+for (const [name, source, instancePath] of hooks) {
+  assert.doesNotMatch(source, /from ['\"]@\/services['\"]/, name + ' must not pull the broad services barrel into initial routes');
+  assert.ok(source.includes(`from '${instancePath}'`) || source.includes(`from \"${instancePath}\"`), name + ' uses its narrow service singleton');
 }
 
-for (const forbidden of [
-  'SupabaseMovieCatalogRepository',
-  'SupabaseMusicCatalogRepository',
-  'SupabaseGameCatalogRepository',
-  'SupabaseBookCatalogRepository',
-  'SupabaseYouTubeCatalogRepository',
-  'SupabasePokemonCatalogRepository',
-  'SupabasePlaceCatalogRepository',
-]) {
-  assert.doesNotMatch(runtime, new RegExp(forbidden), 'Home runtime excludes external catalog repository: ' + forbidden);
+const instanceFiles = [
+  'src/services/homeServiceInstance.ts',
+  'src/services/exploreServiceInstance.ts',
+  'src/services/followServiceInstance.ts',
+  'src/services/itemServiceInstance.ts',
+];
+
+for (const file of instanceFiles) {
+  const source = read(file);
+  assert.doesNotMatch(source, /@\/repositories\/supabase['\"]/, file + ' must not pull the broad repository barrel');
+  for (const forbidden of [
+    'SupabaseMovieCatalogRepository',
+    'SupabaseMusicCatalogRepository',
+    'SupabaseGameCatalogRepository',
+    'SupabaseBookCatalogRepository',
+    'SupabaseYouTubeCatalogRepository',
+    'SupabasePokemonCatalogRepository',
+    'SupabasePlaceCatalogRepository',
+  ]) {
+    assert.doesNotMatch(source, new RegExp(forbidden), file + ' excludes external catalog repository: ' + forbidden);
+  }
 }
 
-for (const required of [
-  'SupabaseReadRepository',
-  'SupabaseCategoryRepository',
-  'SupabaseFollowRepository',
-  'SupabaseItemRepository',
-  'SupabasePickRepository',
-  'HomeService',
-  'ExploreService',
-  'FollowService',
-  'ItemService',
-]) {
-  assert.match(runtime, new RegExp(required), 'Home runtime keeps required dependency: ' + required);
-}
+assert.match(read('src/services/homeServiceInstance.ts'), /SupabaseReadRepository/);
+assert.match(read('src/services/exploreServiceInstance.ts'), /SupabaseCategoryRepository/);
+assert.match(read('src/services/followServiceInstance.ts'), /SupabaseFollowRepository/);
+assert.match(read('src/services/itemServiceInstance.ts'), /SupabaseItemRepository/);
 
-console.log('Home runtime dependency checks passed: initial Home hooks avoid broad service/catalog barrels.');
+console.log('Runtime dependency checks passed: latency-sensitive hooks avoid broad service/catalog barrels.');
