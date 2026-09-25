@@ -23,6 +23,7 @@ export const queryKeys = {
     all: ['items'] as const,
     detail: (itemId: string, userId?: string) =>
       ['items', 'detail', itemId, userId ?? 'public'] as const,
+    channels: (itemId: string) => ['items', 'channels', itemId] as const,
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string, categoryIds?: string[]) =>
       ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,

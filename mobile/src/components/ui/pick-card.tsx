@@ -43,7 +43,7 @@ export function PickCard({ categoryName, itemName, review, fallbackText, photo, 
 
       <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
-        <PickPhoto tall uri={photo.uri} label={itemName} itemId={photo.itemId} itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} />
+        <PickPhoto feed uri={photo.uri} label={itemName} itemId={photo.itemId} itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} />
         <View style={styles.copy}>
           <View style={styles.categoryRow}>
             <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>

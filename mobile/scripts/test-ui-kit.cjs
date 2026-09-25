@@ -17,7 +17,7 @@ const native = {
   ActivityIndicator: () => { spinners++; return React.createElement('i', null, 'spinner'); },
   StyleSheet: { create: (s) => s },
 };
-const ui = loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: ({ label, tall }) => React.createElement('img', { alt: label, 'data-tall': String(tall) }) } });
+const ui = loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: ({ label, feed }) => React.createElement('img', { alt: label, 'data-feed': String(feed) }) } });
 const render = (element) => { pressables = []; spinners = 0; return renderToStaticMarkup(element); };
 const pressable = (label) => pressables.find((p) => p.accessibilityLabel === label);
 
@@ -144,7 +144,7 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.match(html, /내 원픽/); assert.match(html, /2시간 전/);
   assert.ok(html.indexOf('@friend 외 4명이 추천') < html.indexOf('라면'), 'Person row precedes the item');
   assert.ok(html.indexOf('신라면') < html.indexOf('나도 이게 원픽'), 'Footer actions follow the body');
-  assert.match(html, /data-tall="true"/, 'Feed card uses the portrait photo frame');
+  assert.match(html, /data-feed="true"/, 'Feed card uses the square feed photo frame');
   pressable('신라면 제품 상세 보기').onPress(); assert.equal(opened, 1);
   pressable('@friend 프로필 보기').onPress(); assert.equal(profile, 1);
 
