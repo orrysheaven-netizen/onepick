@@ -63,7 +63,8 @@ Codex가 보호 영역 수정 필요성을 발견하면 직접 넓혀 고치지 
 - Codex S 작업: CI 통과 후 사용자 병합 가능.
 - Codex M/L 작업: Claude 리뷰 + 필수 CI 통과 후 사용자 병합.
 - Claude 일반 QA/테스트/문서 작업: 필수 CI 통과 후 사용자 병합.
-- Claude의 DB/Auth/RLS/Storage/보안 PR: Codex가 **PR diff, 권한 변화, migration/롤백, 관련 테스트 결과만** 제한 검토한다. 저장소 전체 재분석은 하지 않는다.
+- Claude 비보안 `size:L` 리팩터링 PR: Codex가 **변경 diff, 회귀 위험, 관련 테스트 결과만** 제한 독립 리뷰한다. 저장소 전체 재분석은 하지 않는다.
+- Claude의 DB/Auth/RLS/Storage/보안 PR: Codex가 **PR diff, 권한 변화, migration/롤백, 관련 테스트 결과만** 제한 독립 리뷰한다. 저장소 전체 재분석은 하지 않는다.
 - 자기 PR을 스스로 승인하거나 병합하지 않는다. 최종 병합은 사용자가 한다.
 
 ## 작업 이슈와 인계
