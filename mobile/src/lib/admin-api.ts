@@ -346,7 +346,7 @@ export async function beginKakaoAdminSignIn() {
 }
 
 export async function signOutAdmin() {
-  await supabase.auth.signOut({ scope: 'local' });
+  await supabase.auth.signOut({ scope: 'global' });
 }
 
 export async function checkAdminSession(): Promise<AdminSessionStatus> {
