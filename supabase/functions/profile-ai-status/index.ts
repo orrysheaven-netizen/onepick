@@ -79,10 +79,9 @@ Deno.serve(async (req: Request) => {
   if (authError || !user || user.is_anonymous) return reply({ error: 'AUTH_REQUIRED' }, 401);
 
   const admin = createClient(url, serviceRole, options);
-  // current_user_is_admin reads auth.uid() from the caller's own JWT, so it
-  // must run on userClient (the service-role admin client carries no real
-  // end-user identity).
-  const [picksResult, reviewResult, adminResult] = await Promise.all([
+  // Admin cooldown bypass requires both allowlist membership and an AAL2
+  // caller session. The service-role client cannot supply either caller fact.
+  const [picksResult, reviewResult, assuranceResult, adminResult] = await Promise.all([
     admin.from('picks')
       .select('category_id,item_id,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
       .eq('user_id', user.id)
@@ -94,11 +93,13 @@ Deno.serve(async (req: Request) => {
       .select('generated_at,pick_snapshot,is_visible,is_stale')
       .eq('profile_id', user.id)
       .maybeSingle(),
+    userClient.auth.mfa.getAuthenticatorAssuranceLevel(match[1]),
     userClient.rpc('current_user_is_admin'),
   ]);
 
   if (picksResult.error || reviewResult.error || adminResult.error) return reply({ error: 'AI_STATUS_FAILED' }, 500);
-  const isAdmin = adminResult.data === true;
+  const isAdmin = adminResult.data === true &&
+    !assuranceResult.error && assuranceResult.data.currentLevel === 'aal2';
 
   const currentRows = picksResult.data ?? [];
   const currentPickCount = currentRows.length;

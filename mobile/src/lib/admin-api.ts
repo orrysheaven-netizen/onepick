@@ -51,6 +51,37 @@ export type AdminBrand = {
   updated_at: string;
 };
 
+export type AdminProviderStatus = 'pending' | 'active' | 'hidden';
+
+export type AdminOnlineStore = {
+  id: string;
+  store_type: 'official_site' | 'platform_store';
+  host: string;
+  platform: string | null;
+  store_key: string;
+  official_url: string;
+};
+
+export type AdminOnlineProvider = {
+  id: string;
+  kind: 'online_store';
+  name: string;
+  brand_id: string | null;
+  status: AdminProviderStatus;
+  online_store_id: string;
+  created_at: string;
+  updated_at: string;
+  brand: { name: string } | null;
+  store: AdminOnlineStore | null;
+};
+
+export type AdminOnlineProviderUpsertResult = {
+  provider_id: string;
+  online_store_id: string;
+  item_id: string;
+  category_id: string;
+};
+
 export type AdminItemStatus = 'pending' | 'active' | 'discontinued' | 'hidden' | 'merged' | 'rejected';
 
 export type AdminItem = {
@@ -108,6 +139,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
+  official_url: string | null;
   requested_category_label: string | null;
   categories: { name: string; slug: string } | null;
 };
@@ -430,6 +462,79 @@ export function updateBrand(id: string, patch: { is_active?: boolean }) {
   });
 }
 
+export function getOnlineProviders(input: { query?: string } = {}) {
+  const params = new URLSearchParams({
+    select: 'id,kind,name,brand_id,status,online_store_id,created_at,updated_at,brand:brands(name),store:online_stores(id,store_type,host,platform,store_key,official_url)',
+    kind: 'eq.online_store',
+    order: 'updated_at.desc',
+    limit: '100',
+  });
+  const query = input.query?.trim();
+  if (query) params.set('name', `ilike.*${query}*`);
+  return adminRequest<AdminOnlineProvider[]>(`/rest/v1/providers?${params.toString()}`);
+}
+
+function cleanHttpsUrl(value: string) {
+  const url = value.trim();
+  if (!url.startsWith('https://')) throw new Error('공식 URL은 https:// 주소만 입력해 주세요.');
+  return url;
+}
+
+export function createOnlineProvider(input: {
+  categoryId: string;
+  name: string;
+  storeType: 'official_site' | 'platform_store';
+  officialUrl: string;
+  platform?: string | null;
+  storeKey?: string | null;
+  brandId?: string | null;
+}) {
+  const name = cleanName(input.name, 100);
+  const officialUrl = cleanHttpsUrl(input.officialUrl);
+  const categoryId = input.categoryId.trim();
+  if (!categoryId) throw new Error('카테고리를 선택해 주세요.');
+
+  let platform: string | null = null;
+  let storeKey: string | null = null;
+  if (input.storeType === 'platform_store') {
+    platform = input.platform?.trim().toLowerCase() || null;
+    storeKey = input.storeKey?.trim().toLowerCase() || null;
+    if (!platform || !/^[a-z][a-z0-9_]{0,31}$/.test(platform)) {
+      throw new Error('플랫폼 식별자는 영문 소문자로 시작하고 영문·숫자·밑줄만 사용할 수 있습니다.');
+    }
+    if (!storeKey || !storeKey.startsWith(`${platform}:`)) {
+      throw new Error(`스토어 키는 ${platform}: 로 시작해야 합니다.`);
+    }
+  }
+
+  return adminRequest<AdminOnlineProviderUpsertResult[]>('/rest/v1/rpc/admin_upsert_online_provider_item', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_category_id: categoryId,
+      p_name: name,
+      p_store_type: input.storeType,
+      p_official_url: officialUrl,
+      p_platform: platform,
+      p_store_key: storeKey,
+      p_brand_id: input.brandId ?? null,
+    }),
+  });
+}
+
+export function setProviderBrand(providerId: string, brandId: string | null) {
+  return adminRequest<AdminOnlineProvider>('/rest/v1/rpc/admin_set_provider_brand', {
+    method: 'POST',
+    body: JSON.stringify({ p_provider_id: providerId, p_brand_id: brandId }),
+  });
+}
+
+export function setProviderStatus(providerId: string, status: AdminProviderStatus) {
+  return adminRequest<AdminOnlineProvider>('/rest/v1/rpc/admin_set_provider_status', {
+    method: 'POST',
+    body: JSON.stringify({ p_provider_id: providerId, p_status: status }),
+  });
+}
+
 export const ADMIN_PAGE_SIZE = 100;
 
 export function getItems(input: { query?: string; status?: AdminItemStatus | 'all'; offset?: number } = {}) {
@@ -542,7 +647,7 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function getPendingItemCategorySuggestion(itemId: string) {

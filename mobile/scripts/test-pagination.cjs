@@ -182,7 +182,9 @@ async function main() {
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const hooksImports = {
     '@tanstack/react-query': { useInfiniteQuery: (options) => options },
-    '@/lib/query/queryKeys': { queryKeys }, '@/services': { exploreService: explore, commentService, profileService },
+    '@/lib/query/queryKeys': { queryKeys },
+    '@/services/exploreServiceInstance': { exploreService: explore },
+    '@/services': { commentService, profileService },
   };
   const { useExploreData } = load('hooks/useExploreData.ts', hooksImports);
   const { usePickComments } = load('hooks/usePickComments.ts', hooksImports);

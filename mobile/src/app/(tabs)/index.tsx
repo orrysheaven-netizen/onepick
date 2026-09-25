@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
@@ -9,7 +9,7 @@ import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
 import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickThresholds } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
@@ -42,11 +42,9 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
-  // 팔로잉 / 전체: signed-in people start from the social feed. Visitors still
-  // see the public feed because showFollowing also requires a session.
-  const [feedScope, setFeedScope] = useState<'all' | 'following'>(
-    OnePickFeatures.follow ? 'following' : 'all',
-  );
+  // Start with public Picks even before a new member follows anyone.
+  // The following scope stays available without downloading an invisible feed.
+  const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   // Keep shared Home context (categories/current Picks) available for search and
   // badges, but do not download the invisible public feed while following is shown.
@@ -61,7 +59,12 @@ export default function HomeScreen() {
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
-  const selectedCategoryGroup = categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null;
+  const showCategoryFilters = categoryFilters.length > 1 &&
+    (data?.picks.length ?? 0) >= OnePickThresholds.homeCategoryFilterMinPicks;
+  // Disable the filter in this render, before the effect clears its saved value.
+  const selectedCategoryGroup = showCategoryFilters
+    ? categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null
+    : null;
   const visiblePicks = useMemo(
     () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup),
     [data?.picks, selectedCategoryGroup],
@@ -91,10 +94,10 @@ export default function HomeScreen() {
   const ready = !isLoading && !sessionError && Boolean(data);
 
   useEffect(() => {
-    if (selectedCategoryGroupId && !categoryFilters.some((group) => group.id === selectedCategoryGroupId)) {
+    if (selectedCategoryGroupId && (!showCategoryFilters || !categoryFilters.some((group) => group.id === selectedCategoryGroupId))) {
       setSelectedCategoryGroupId(null);
     }
-  }, [categoryFilters, selectedCategoryGroupId]);
+  }, [categoryFilters, selectedCategoryGroupId, showCategoryFilters]);
   const refresh = () => {
     if (isSessionLoading || sessionError) return;
     if (showFollowing) {
@@ -125,7 +128,7 @@ export default function HomeScreen() {
       <OnePickBrand />
       <View style={styles.headerActions}>
         {user ? <NotificationButton userId={user.id} /> : null}
-        <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} />
+        {user ? <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} /> : null}
       </View>
     </View>
 
@@ -171,6 +174,11 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={followingQuery.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}
         ListHeaderComponent={<>
           {listHeader}
+          {/* RefreshControl does not refresh on web; keep an explicit action in both feed scopes. */}
+          {Platform.OS === 'web' && !isSessionLoading && !sessionError && followingQuery.data ? <View style={styles.refreshRow}>
+            <Button variant="ghost" size="sm" accessibilityLabel="팔로잉 원픽 새로고침" disabled={followingQuery.isFetching} onPress={refresh}
+              label={followingQuery.isFetching ? '새로고침 중…' : followingQuery.isError ? '다시 불러오기' : '새로고침'} />
+          </View> : null}
           {followingQuery.isPending ? <StateCard loading title="팔로우한 사람들의 원픽을 불러오고 있어요" /> : null}
           {followingQuery.isError && !followingQuery.data ? <StateCard tone="danger" title="팔로잉 원픽을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
             action={{ label: '다시 불러오기', disabled: followingQuery.isFetching, onPress: refresh }} /> : null}
@@ -216,7 +224,7 @@ export default function HomeScreen() {
         </View>}
 
         {ready && data?.editorialItems?.length ? <View style={styles.editorialSection}>
-          <SectionHeader title="먼저 소개하는 원픽" description="초기 추천 큐레이션 · 인기 순위와는 별도로 운영해요." />
+          <SectionHeader title="먼저 소개하는 원픽" />
           <View style={styles.editorialList}>
             {data.editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
           </View>
@@ -239,7 +247,7 @@ export default function HomeScreen() {
           <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
         </View>
 
-        {ready && categoryFilters.length > 1 ? <ScrollView
+        {ready && showCategoryFilters ? <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryFilterRow}>
@@ -258,11 +266,11 @@ export default function HomeScreen() {
           action={{ label: '다시 불러오기', disabled: !sessionError && homeQuery.isFetching, onPress: sessionError ? retrySession : refresh }} /> : null}
 
         {ready && data ? <>
-          <View style={styles.refreshRow}>
+          {Platform.OS === 'web' || (homeQuery.isError && !homeQuery.isFetchNextPageError) ? <View style={styles.refreshRow}>
             {homeQuery.isError && !homeQuery.isFetchNextPageError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.</Text> : null}
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
-              label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError ? '다시 불러오기' : '새로고침'} />
-          </View>
+              label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
+          </View> : null}
           {!data.picks.length ? <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
             action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} /> : null}
         </> : null}

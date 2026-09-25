@@ -18,6 +18,7 @@ const expected = new Map([
   ['delete-account', false],
   ['game-catalog', false],
   ['import-item-image', true],
+  ['link-category-suggestions', false],
   ['movie-catalog', false],
   ['music-catalog', false],
   ['pokemon-catalog', false],

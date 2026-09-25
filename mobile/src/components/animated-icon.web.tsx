@@ -5,10 +5,6 @@ import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 import classes from './animated-icon.module.css';
 const DURATION = 300;
 
-export function AnimatedSplashOverlay() {
-  return null;
-}
-
 const keyframe = new Keyframe({
   0: {
     transform: [{ scale: 0 }],
