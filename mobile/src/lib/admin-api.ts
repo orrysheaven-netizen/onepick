@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { canonicalItemName } from '@/lib/items/itemIdentity';
+import { isDeliveryAppUrl } from '@/lib/items/pickChannel';
 import { getAdminAccessToken } from '@/lib/admin/adminSession';
 
 type BrowserLocationLike = {
@@ -141,8 +142,24 @@ export type PendingItem = {
   image_path: string | null;
   official_url: string | null;
   requested_category_label: string | null;
-  categories: { name: string; slug: string } | null;
+  categories: {
+    name: string;
+    slug: string;
+    /** One row per category; PostgREST may embed it as an object or a one-element array. */
+    category_catalog_sources?: { place_catalog_enabled: boolean } | { place_catalog_enabled: boolean }[] | null;
+  } | null;
 };
+
+/**
+ * A 온라인 판매처 request from registration: a pending item in a restaurant (place
+ * catalog) category that carries the seller link. It is resolved by creating the
+ * online provider and merging the request, never by plain approval.
+ */
+export function isOnlineSellerRequest(item: Pick<PendingItem, 'official_url' | 'categories'>) {
+  const source = item.categories?.category_catalog_sources;
+  const placeEnabled = Array.isArray(source) ? source.some((row) => row.place_catalog_enabled) : Boolean(source?.place_catalog_enabled);
+  return placeEnabled && Boolean(item.official_url);
+}
 
 export type AdminItemCategorySuggestion = {
   item_id: string;
@@ -478,23 +495,21 @@ export function getOnlineProviders(input: { query?: string } = {}) {
 function cleanHttpsUrl(value: string) {
   const url = value.trim();
   if (!url.startsWith('https://')) throw new Error('공식 URL은 https:// 주소만 입력해 주세요.');
+  if (isDeliveryAppUrl(url)) throw new Error('배달앱 링크는 온라인 판매처가 될 수 없습니다. 배달은 매장 원픽입니다.');
   return url;
 }
 
-export function createOnlineProvider(input: {
-  categoryId: string;
+type OnlineStoreInput = {
   name: string;
   storeType: 'official_site' | 'platform_store';
   officialUrl: string;
   platform?: string | null;
   storeKey?: string | null;
-  brandId?: string | null;
-}) {
+};
+
+function cleanOnlineStoreInput(input: OnlineStoreInput) {
   const name = cleanName(input.name, 100);
   const officialUrl = cleanHttpsUrl(input.officialUrl);
-  const categoryId = input.categoryId.trim();
-  if (!categoryId) throw new Error('카테고리를 선택해 주세요.');
-
   let platform: string | null = null;
   let storeKey: string | null = null;
   if (input.storeType === 'platform_store') {
@@ -507,18 +522,37 @@ export function createOnlineProvider(input: {
       throw new Error(`스토어 키는 ${platform}: 로 시작해야 합니다.`);
     }
   }
+  return {
+    p_name: name,
+    p_store_type: input.storeType,
+    p_official_url: officialUrl,
+    p_platform: platform,
+    p_store_key: storeKey,
+  };
+}
+
+export function createOnlineProvider(input: OnlineStoreInput & { categoryId: string; brandId?: string | null }) {
+  const store = cleanOnlineStoreInput(input);
+  const categoryId = input.categoryId.trim();
+  if (!categoryId) throw new Error('카테고리를 선택해 주세요.');
 
   return adminRequest<AdminOnlineProviderUpsertResult[]>('/rest/v1/rpc/admin_upsert_online_provider_item', {
     method: 'POST',
     body: JSON.stringify({
       p_category_id: categoryId,
-      p_name: name,
-      p_store_type: input.storeType,
-      p_official_url: officialUrl,
-      p_platform: platform,
-      p_store_key: storeKey,
+      ...store,
       p_brand_id: input.brandId ?? null,
     }),
+  });
+}
+
+/** Creates (or reuses) the online provider in the request's category and merges the request, atomically. */
+export function resolveOnlineSellerRequest(input: OnlineStoreInput & { itemId: string }) {
+  const store = cleanOnlineStoreInput(input);
+  if (!input.itemId) throw new Error('처리할 요청을 선택해 주세요.');
+  return adminRequest<(AdminOnlineProviderUpsertResult & { merged_item_id: string })[]>('/rest/v1/rpc/admin_resolve_online_seller_request', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: input.itemId, ...store }),
   });
 }
 
@@ -648,7 +682,7 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug,category_catalog_sources(place_catalog_enabled))&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function getPendingItemCategorySuggestion(itemId: string) {
