@@ -112,7 +112,7 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 
   async signOut() {
-    const { error } = await this.client.auth.signOut({ scope: 'local' });
+    const { error } = await this.client.auth.signOut({ scope: 'global' });
 
     if (error) {
       throw new AppError('AUTH_FAILED', error.message, error);

@@ -109,18 +109,12 @@ export default function HomeScreen() {
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
   // Both feed scopes render the same card. Same item → the normal choose screen
-  // (signed-out readers get its login gate); different item → the category finder.
+  // (signed-out readers get its login gate).
   const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })}
-      onChooseOther={() => {
-        const category = searchCategories.find((entry) => entry.id === pick.categoryId);
-        if (category) openRegistration(category);
-        else router.push({ pathname: '/pick/find', params: { categoryId: pick.categoryId } });
-      }} />
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
   </View>;
 
   const listHeader = <>
