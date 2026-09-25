@@ -63,12 +63,8 @@ async function main() {
   requestsQuery.data = [request('waiting', 'pending')];
   requestsQuery.refetch = async () => { requestRefreshes++; requestsQuery.data = [request('waiting', 'active')]; };
   historyQuery.refetch = async () => { historyRefreshes++; };
-  let historyUser, requestsUser, socialProps, bioProps, profileTab, commentsUser, commentsProps;
-  const commentsQuery = listQuery();
+  let historyUser, requestsUser, socialProps, bioProps;
   const { default: Profile } = load('app/(tabs)/profile.tsx', {
-    // The screen's only local state is the 원픽/내 댓글 tab.
-    react: { useState: (initial) => [profileTab ?? initial, (value) => { profileTab = value; }] },
-    '@/components/profile-my-comments': { ProfileMyComments: (props) => { commentsProps = props; return React.createElement(native.Text, null, 'MY_COMMENTS_LIST'); } },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -97,7 +93,6 @@ async function main() {
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
-      useMyComments: (userId) => { commentsUser = userId; return commentsQuery; },
     },
   });
   const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
@@ -105,13 +100,27 @@ async function main() {
   const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 제품 등록 요청 상태 새로고침');
 
   assert.match(render(), /승인 대기/);
-  assert.equal(commentsUser, undefined, 'My comments load only after their tab is opened');
-  presses.find((props) => props.accessibilityLabel === '내 댓글 보기').onPress();
-  const commentsTab = render();
-  assert.match(commentsTab, /MY_COMMENTS_LIST/); assert.doesNotMatch(commentsTab, /카테고리별 원픽/);
+  assert.doesNotMatch(render(), /내 댓글/, 'My comments moved to their own bottom tab');
+
+  // The 내 댓글 bottom tab: signed-out visitors get a login that returns here; members see their list.
+  let commentsUser, commentsProps, loginRoute;
+  const commentsQuery = listQuery();
+  const { default: MyComments } = load('app/(tabs)/comments.tsx', {
+    'react-native': native,
+    'react-native-safe-area-context': { SafeAreaView: component('section') },
+    'expo-router': { useRouter: () => ({ push: (route) => { loginRoute = route; } }) },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/components/profile-my-comments': { ProfileMyComments: (props) => { commentsProps = props; return React.createElement(native.Text, null, 'MY_COMMENTS_LIST'); } },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    '@/hooks/useMyProfileLists': { useMyComments: (userId) => { commentsUser = userId; return commentsQuery; } },
+  });
+  const renderMyComments = () => { presses = []; commentsProps = undefined; return renderToStaticMarkup(React.createElement(MyComments)); };
+  assert.match(renderMyComments(), /MY_COMMENTS_LIST/);
   assert.equal(commentsUser, 'owner'); assert.equal(commentsProps.query, commentsQuery);
-  presses.find((props) => props.accessibilityLabel === '내 원픽 보기').onPress();
-  assert.match(render(), /카테고리별 원픽/); assert.equal(commentsUser, undefined);
+  auth.user = null;
+  assert.match(renderMyComments(), /로그인하기/); assert.equal(commentsUser, undefined); assert.equal(commentsProps, undefined);
+  button('로그인하기').onPress(); assert.equal(loginRoute.params.action, 'my_comments');
+  auth.user = { id: 'owner' };
 
   // The 내 댓글 list itself: newest-first rows open the focused review; unreadable reviews stay inert.
   const { ProfileMyComments } = load('components/profile-my-comments.tsx', {
@@ -138,6 +147,7 @@ async function main() {
   renderComments(); presses.find((props) => props.accessibilityLabel === '내 댓글 더 보기').onPress(); assert.equal(nextPages, 1);
   Object.assign(myComments, { data: undefined, isError: true });
   assert.match(renderComments(), /내 댓글을 불러오지 못했어요/);
+  render(); // Back on the profile screen: its pull-to-refresh and press targets.
   assert.equal(bioProps.profileUserId, 'owner');
   assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');

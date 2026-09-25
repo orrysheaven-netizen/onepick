@@ -11,6 +11,7 @@ assert.match(webTabs, /\bSlot\b/, 'Web tab shell must render the current file ro
 assert.match(webTabs, /<Slot\s*\/>/, 'Web tab shell must render Slot directly');
 assert.match(webTabs, /href="\/"[^>]*icon="home"/, 'Home tab must link to /');
 assert.match(webTabs, /href="\/explore"[^>]*icon="explore"/, 'Explore tab must link to /explore');
+assert.match(webTabs, /href="\/comments"[^>]*icon="comments"/, 'My comments tab must link to /comments');
 assert.match(webTabs, /href="\/profile"[^>]*icon="profile"/, 'Profile tab must link to /profile');
 assert.doesNotMatch(webTabs, /expo-router\/ui|\bTabSlot\b|\bTabList\b|\bTabTrigger\b/,
   'Web routes must not be owned by a second client-side tab navigator');
@@ -18,6 +19,7 @@ assert.doesNotMatch(webTabs, /expo-router\/ui|\bTabSlot\b|\bTabList\b|\bTabTrigg
 assert.equal(appConfig.expo.web.output, 'single', 'Web deep links require the SPA output contract');
 assert.match(directRouteCheck, /'\/explore'/, 'Export smoke check must include /explore');
 assert.match(directRouteCheck, /'\/profile'/, 'Export smoke check must include /profile');
+assert.match(directRouteCheck, /'\/comments'/, 'Export smoke check must include /comments');
 assert.match(directRouteCheck, /'\/pick\//, 'Export smoke check must include shared Pick URLs');
 assert.match(directRouteCheck, /'\/u\//, 'Export smoke check must include shared public-profile URLs');
 

@@ -1,10 +1,8 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { ProfileMyComments } from '@/components/profile-my-comments';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
@@ -19,7 +17,7 @@ import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
-import { useMyComments, useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
+import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
@@ -110,9 +108,6 @@ export default function ProfileScreen() {
   const requestsQuery = useMyItemRequests(OnePickFeatures.profileItemRequests ? listUserId : undefined);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
-  const [profileTab, setProfileTab] = useState<'picks' | 'comments'>('picks');
-  // Load my comments only once that tab is opened.
-  const commentsQuery = useMyComments(profileTab === 'comments' ? listUserId : undefined);
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -157,9 +152,8 @@ export default function ProfileScreen() {
   // query active so a new request/history entry can make the block visible again.
   const showRequests = OnePickFeatures.profileItemRequests && (!requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage);
   const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
-  const showComments = profileTab === 'comments';
-  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching || (showComments && commentsQuery.isFetching);
-  const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching || (showComments && commentsQuery.isRefetching);
+  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
+  const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
     if (isFetching) return;
     await Promise.all([
@@ -167,7 +161,6 @@ export default function ProfileScreen() {
       // refetch() ignores `enabled`, so skip hidden lists explicitly.
       OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
       OnePickFeatures.profileItemRequests ? requestsQuery.refetch({ cancelRefetch: false }) : null,
-      showComments ? commentsQuery.refetch({ cancelRefetch: false }) : null,
     ]);
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -192,18 +185,6 @@ export default function ProfileScreen() {
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
         {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View accessibilityRole="tablist" style={styles.tabRow}>
-          {(['picks', 'comments'] as const).map((tab) => {
-            const selected = profileTab === tab;
-            return <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected }}
-              accessibilityLabel={tab === 'picks' ? '내 원픽 보기' : '내 댓글 보기'}
-              onPress={() => setProfileTab(tab)}
-              style={({ pressed }) => [styles.tab, selected && styles.tabSelected, pressed && styles.pressed]}>
-              <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{tab === 'picks' ? '원픽' : '내 댓글'}</Text>
-            </Pressable>;
-          })}
-        </View>
-        {showComments ? <ProfileMyComments query={commentsQuery} /> : <>
         <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups
@@ -217,7 +198,6 @@ export default function ProfileScreen() {
           <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
             action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
         )}
-        </>}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
@@ -300,11 +280,6 @@ const styles = StyleSheet.create({
   adminTitle: { color: OnePick.onAccent, fontSize: 14, fontWeight: '800' },
   adminText: { color: OnePick.border, fontSize: 12, lineHeight: 17, marginTop: 4, paddingRight: 12 },
   adminChevron: { color: OnePick.onAccent, fontSize: 26, paddingHorizontal: 4 },
-  tabRow: { flexDirection: 'row', gap: 6, padding: 4, marginTop: 8, marginBottom: 16, borderRadius: 14, backgroundColor: OnePick.sunken },
-  tab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
-  tabSelected: { backgroundColor: OnePick.surface },
-  tabText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
-  tabTextSelected: { color: OnePick.text, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
   requestHeader: { marginTop: 2 },
   historyHeader: { marginTop: 24 },
