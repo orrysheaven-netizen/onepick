@@ -42,6 +42,9 @@ type PickReadRow = PickRow & {
 type CommentReadRow = CommentRow & {
   author: Related<ProfileRow>;
 };
+type MyCommentReadRow = CommentRow & {
+  pick: Related<PickRow & { profile: Related<ProfileRow>; item: Related<ItemRow> }>;
+};
 type ItemRequestReadRow = ItemRow & {
   category: Related<CategoryRow>;
   mergedIntoItem: Related<ItemRow>;
@@ -252,6 +255,39 @@ export class SupabaseReadRepository implements ReadRepository {
       return {
         comment: mapCommentRow(row),
         author: author ? mapProfileRow(author) : null,
+      };
+    });
+  }
+
+  async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    let query = this.client
+      .from('comments')
+      .select(`
+        *,
+        pick:picks!comments_pick_id_fkey(
+          *,
+          profile:profiles!picks_user_id_fkey(*),
+          item:items!picks_item_category_fk(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(safeLimit);
+
+    if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
+    const { data, error } = await query;
+    if (error) throw mapSupabaseError(error);
+    return (data as unknown as MyCommentReadRow[]).map((row) => {
+      const pick = one(row.pick);
+      const pickAuthor = pick ? one(pick.profile) : null;
+      const item = pick ? one(pick.item) : null;
+      return {
+        comment: mapCommentRow(row),
+        pick: pick ? mapPickRow(pick) : null,
+        pickAuthor: pickAuthor ? mapProfileRow(pickAuthor) : null,
+        item: item ? mapItemRow(item) : null,
       };
     });
   }

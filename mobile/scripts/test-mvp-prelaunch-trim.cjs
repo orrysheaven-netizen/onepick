@@ -64,7 +64,7 @@ function profile(isPublic = false) {
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
-    '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; } },
+    '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
@@ -73,7 +73,7 @@ function profile(isPublic = false) {
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
     '@/components/profile-taste-composition': { ProfileTasteComposition: mount('taste') },
     '@/components/profile-ai-panel': { ProfileAiPanel: mount('ai') }, '@/components/profile-ai-comment': { ProfileAiComment: mount('ai') },
-    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
+    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
   });
   view.render(); return { view, q, history, requests, calls, auth };
 }
