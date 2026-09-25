@@ -91,6 +91,28 @@ async function main() {
   assert.equal(calls[1].input.body.action, 'attach_pending_link');
   assert.equal(calls[1].input.body.url, 'https://shop.example/product');
 
+  // #313: seeded fixed category ids are valid UUID strings without version/variant bits.
+  const fixedRamenId = '10000000-0000-0000-0000-000000000001';
+  const fixedResponse = {
+    ...response,
+    suggestions: [{ categoryId: fixedRamenId, label: '먹을것 › 면 › 라면', name: '라면', reason: '“라면” 표현과 일치' }],
+    categories: [{ categoryId: fixedRamenId, label: '먹을것 › 면 › 라면', name: '라면' }],
+  };
+  const repositoryFor = (data) => new SupabaseLinkCategorySuggestionRepository({
+    functions: { invoke: async () => ({ data, error: null }) },
+  });
+  const fixed = await repositoryFor(fixedResponse).suggest({ url: 'https://naver.me/example' });
+  assert.equal(fixed.suggestions[0].categoryId, fixedRamenId);
+  assert.equal(fixed.categories[0].categoryId, fixedRamenId);
+  for (const badId of ['not-a-uuid', '10000000000000000000000000000001', '10000000-0000-0000-0000-00000000000g', '']) {
+    await assert.rejects(
+      async () => repositoryFor({ ...fixedResponse, categories: [{ ...fixedResponse.categories[0], categoryId: badId }] })
+        .suggest({ url: 'https://naver.me/example' }),
+      (error) => error.code === 'INTERNAL_ERROR',
+      'Non-UUID category id must still be rejected: ' + JSON.stringify(badId),
+    );
+  }
+
   const { LinkCategorySuggestionService } = load(
     'services/linkCategorySuggestionService.ts',
     { '@/errors/appError': { AppError: TestAppError } },
