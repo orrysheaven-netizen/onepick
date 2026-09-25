@@ -15,6 +15,10 @@ assert.match(edge, /global:\s*\{\s*headers:\s*\{\s*Authorization:\s*authorizatio
 assert.match(edge, /getAuthenticatorAssuranceLevel\(token\)/, 'SBIZ sample access must require the MFA assurance level');
 assert.match(edge, /assurance\.currentLevel !== 'aal2'/, 'AAL2 must be required server-side');
 assert.match(edge, /rpc\('current_user_is_admin'\)/, 'Allowlist membership must still be checked');
+assert.match(edge, /req\.method === 'OPTIONS'\) return new Response\([^)]*\{ headers: corsHeaders \}\)/, 'Browser preflight must be answered before the POST-only guard');
+assert.ok(edge.indexOf("req.method === 'OPTIONS'") < edge.indexOf("req.method !== 'POST'"), 'OPTIONS must be handled before METHOD_NOT_ALLOWED');
+assert.match(edge, /'Access-Control-Allow-Headers': '[^']*authorization[^']*apikey[^']*content-type/, 'CORS must allow the admin request headers');
+assert.match(edge, /headers: \{ \.\.\.corsHeaders, 'Content-Type': 'application\/json' \}/, 'Every JSON response must carry CORS headers');
 
 assert.match(api, /getSbizPlaceSample/);
 assert.match(api, /\/functions\/v1\/sbiz-place-catalog/);
@@ -24,4 +28,4 @@ assert.match(screen, /OnePick DB에 장소를 저장하지 않습니다/);
 assert.doesNotMatch(screen, /place_import_raw|select_place_catalog_item|change_pick/, 'QA screen must not stage, promote or pick rows');
 assert.match(shell, /\/admin\/place-catalog-qa/);
 
-console.log('SBIZ admin sample checks passed: caller auth, MFA gate, read-only QA route.');
+console.log('SBIZ admin sample checks passed: caller auth, MFA gate, CORS preflight, read-only QA route.');
