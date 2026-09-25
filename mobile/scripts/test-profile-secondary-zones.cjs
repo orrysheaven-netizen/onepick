@@ -22,8 +22,12 @@ assert.ok(activityIndex > adminIndex, 'activity records must be separated from p
 assert.ok(requestIndex > activityIndex, 'item requests belong inside activity records');
 assert.ok(historyIndex > requestIndex, 'pick history follows item requests');
 
-assert.match(profile, /PROFILE TOOLS/);
-assert.match(profile, /ACTIVITY/);
+assert.doesNotMatch(profile, /PROFILE TOOLS/);
+assert.doesNotMatch(profile, /ACTIVITY/);
+assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.activitySection\}>/);
+assert.match(profile, /showRequests \? <>/);
+assert.match(profile, /showHistory \? <>/);
+assert.match(profile, /취향 선택을 이어가거나 공개 프로필을 확인해요\./);
 assert.match(profile, /managementSection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
 assert.match(profile, /activitySection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
 assert.match(profile, /activitySectionTitle: \{ color: OnePick\.text, fontSize: 15, fontWeight: '800' \}/);
@@ -33,4 +37,4 @@ assert.doesNotMatch(profile, /onboardingButton/);
 assert.doesNotMatch(profile, /publicProfileButton/);
 assert.doesNotMatch(profile, /publicProfileTitle/);
 
-console.log('Profile secondary zones checks passed: core profile, profile tools, activity records, and sign-out are visually separated.');
+console.log('Profile secondary zones checks passed: core profile, profile tools, conditional activity records, and sign-out are visually separated.');
