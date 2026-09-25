@@ -163,9 +163,6 @@ export function createGameCatalogHandler(deps: Dependencies) {
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
-      const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: data.user.id });
-      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     }
 
     const category = await catalogCategory(client);
@@ -224,6 +221,10 @@ export function createGameCatalogHandler(deps: Dependencies) {
     const game = mapIgdbGame(raw);
     if (!game || game.externalId !== id) return json({ error: 'GAME_NOT_FOUND' }, 404);
 
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
     const platforms = game.platformNames.join(' · ').slice(0, 300) || null;
     const inserted = await client.from('items').insert({
       category_id: category.id,
@@ -232,7 +233,6 @@ export function createGameCatalogHandler(deps: Dependencies) {
       official_url: game.igdbUrl,
       image_source_url: game.coverUrl,
       external_source: IGDB_SOURCE,
-      created_by: importUserId,
       external_id: id,
       original_name: game.title,
       release_year: game.releaseYear,
@@ -242,9 +242,6 @@ export function createGameCatalogHandler(deps: Dependencies) {
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) {
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
-    }
-    if (inserted.error?.code === 'P0001' && inserted.error.message?.includes('RATE_LIMITED')) {
-      return json({ error: 'RATE_LIMITED' }, 429);
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
