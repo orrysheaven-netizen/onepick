@@ -11,7 +11,7 @@ insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_a
 
 insert into public.profiles(id,username,onboarding_completed) values
   ('f9900000-0000-4000-8000-000000000001','blocker_qa',true),
-  ('f9900000-0000-4000-8000-000000000002','visible_qa',true),
+  ('f9900000-0000-4000-8000-000000000002','private_user',true),
   ('f9900000-0000-4000-8000-000000000003','suspended_qa',true),
   ('f9900000-0000-4000-8000-000000000004','reverse_qa',true);
 
@@ -52,8 +52,8 @@ select is(
     where blocker_user_id='f9900000-0000-4000-8000-000000000001'
       and blocked_user_id='f9900000-0000-4000-8000-000000000002'
   ),
-  'visible_qa',
-  'visible target keeps the useful username snapshot'
+  'private_user',
+  'a legitimate private_user username stays distinguishable from the hidden sentinel'
 );
 
 select lives_ok(
@@ -74,7 +74,7 @@ select is(
     where blocker_user_id='f9900000-0000-4000-8000-000000000001'
       and blocked_user_id='f9900000-0000-4000-8000-000000000003'
   ),
-  'private_user',
+  'private-user',
   'suspended target username is not copied into the snapshot'
 );
 
@@ -134,11 +134,18 @@ select is(
     where blocker_user_id='f9900000-0000-4000-8000-000000000001'
       and blocked_user_id='f9900000-0000-4000-8000-000000000004'
   ),
-  'private_user',
+  'private-user',
   'reverse-blocked target username is not exposed by the definer trigger'
 );
 
 reset role;
+
+select ok(
+  'private-user' !~ '^[a-z0-9_]{3,20}
+rollback;
+,
+  'hidden block sentinel cannot collide with a valid profile username'
+);
 
 select * from finish();
 rollback;
