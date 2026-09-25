@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View 
 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { AppError } from '@/errors/appError';
-import { ADMIN_PAGE_SIZE, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, mergePendingItem, updatePendingItem } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, isOnlineSellerRequest, mergePendingItem, resolveOnlineSellerRequest, updatePendingItem } from '@/lib/admin-api';
 import type { AdminCategory, AdminItem, AdminItemCategorySuggestion, PendingItem } from '@/lib/admin-api';
 import { chooseItemPhoto, importItemPhoto, itemPhotoUrl, saveItemPhoto } from '@/lib/admin/itemPhoto';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
@@ -45,6 +45,8 @@ function reviewErrorMessage(caught: unknown, fallback: string) {
   if (message.includes('ITEM_DUPLICATE')) return '같은 카테고리에 같은 이름의 정식 상품이 이미 있습니다. 병합을 사용해 주세요.';
   if (message.includes('ITEM_NAME_INVALID')) return '상품명이 비어 있거나 100자를 넘어 승인할 수 없습니다.';
   if (message.includes('SOURCE_ITEM_NOT_PENDING')) return '이미 처리된 요청입니다. 목록을 새로고침해 주세요.';
+  if (message.includes('online_stores_not_delivery_app')) return '배달앱 링크는 온라인 판매처가 될 수 없습니다. 배달은 매장 원픽이므로 반려해 주세요.';
+  if (message.includes('SOURCE_ITEM_IN_USE')) return '이 요청에 이미 원픽이 연결되어 있어 병합할 수 없습니다.';
   return message || fallback;
 }
 
@@ -68,6 +70,13 @@ export function PendingPanel() {
   const [suggestion, setSuggestion] = useState<AdminItemCategorySuggestion | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [photoSaving, setPhotoSaving] = useState<'file' | 'link' | null>(null);
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [sellerName, setSellerName] = useState('');
+  const [sellerUrl, setSellerUrl] = useState('');
+  const [storeType, setStoreType] = useState<'official_site' | 'platform_store'>('official_site');
+  const [platform, setPlatform] = useState('');
+  const [storeKey, setStoreKey] = useState('');
+  const [resolving, setResolving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -104,11 +113,13 @@ export function PendingPanel() {
     load();
   }, []);
 
+  const onlineRequestCount = useMemo(() => items.filter(isOnlineSellerRequest).length, [items]);
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return items;
-    return items.filter((item) => `${item.name} ${item.categories?.name ?? ''}`.toLowerCase().includes(keyword));
-  }, [items, query]);
+    const scoped = onlineOnly ? items.filter(isOnlineSellerRequest) : items;
+    if (!keyword) return scoped;
+    return scoped.filter((item) => `${item.name} ${item.categories?.name ?? ''}`.toLowerCase().includes(keyword));
+  }, [items, onlineOnly, query]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
   const domainCategories = useMemo(() => categories.map(toDomainCategory), [categories]);
@@ -118,12 +129,22 @@ export function PendingPanel() {
   }, [categories, domainCategories]);
   const reviewCategoryLabel = (category: AdminCategory) => categoryLabel(toDomainCategory(category), domainCategories);
   const isUnclassified = selected?.categories?.slug === 'pending-product';
+  // 온라인 판매처 requests resolve into an online provider item; plain approval would
+  // create a channel-less item that never shows under the 온라인 tab.
+  const isSellerRequest = Boolean(selected && isOnlineSellerRequest(selected));
+  const busy = processing || !!mergingId || resolving;
+  const canResolve = !busy && Boolean(sellerName.trim()) && Boolean(sellerUrl.trim());
 
   useEffect(() => {
     setMergeCandidates([]);
     setMergeQuery(selected?.name ?? '');
     setCategoryQuery('');
     setSuggestion(null);
+    setSellerName(selected?.name ?? '');
+    setSellerUrl(selected?.official_url ?? '');
+    setStoreType('official_site');
+    setPlatform('');
+    setStoreKey('');
     const ownCategoryIsSelectable = Boolean(
       selected
       && selected.categories?.slug !== 'pending-product'
@@ -250,6 +271,30 @@ export function PendingPanel() {
     }
   };
 
+  const resolveSellerRequest = async () => {
+    if (!selected || !isSellerRequest || !canResolve) return;
+    if (!window.confirm(`${selected.name} 요청을 온라인 판매처 "${sellerName.trim()}"로 연결하시겠습니까? 요청은 판매처 원픽 항목에 병합되며 되돌릴 수 없습니다.`)) return;
+    setResolving(true);
+    setError('');
+    setMessage('');
+    try {
+      const sourceName = selected.name;
+      await resolveOnlineSellerRequest({
+        itemId: selected.id,
+        name: sellerName,
+        storeType,
+        officialUrl: sellerUrl,
+        platform: storeType === 'platform_store' ? platform : null,
+        storeKey: storeType === 'platform_store' ? storeKey : null,
+      });
+      removeSelected(sourceName, '요청을 온라인 판매처로 연결했습니다. 요청자에게 알림이 가고, 등록 화면의 온라인에서 고를 수 있습니다.');
+    } catch (caught) {
+      setError(reviewErrorMessage(caught, '온라인 판매처로 연결하지 못했습니다.'));
+    } finally {
+      setResolving(false);
+    }
+  };
+
   return (
     <View style={styles.page}>
       <View style={styles.header}>
@@ -260,6 +305,11 @@ export function PendingPanel() {
           placeholder="상품명 또는 카테고리 검색"
           style={[adminStyles.input, styles.search]}
         />
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: onlineOnly }} accessibilityLabel="온라인 판매처 요청만 보기"
+          onPress={() => setOnlineOnly((current) => !current)}
+          style={[styles.categoryChoice, onlineOnly && styles.categoryChoiceSelected]}>
+          <Text style={[styles.categoryChoiceText, onlineOnly && styles.categoryChoiceTextSelected]}>온라인 판매처 요청 · {onlineRequestCount}</Text>
+        </Pressable>
         <Pressable disabled={loading} onPress={load} style={adminStyles.secondaryButton}>
           <Text style={adminStyles.secondaryButtonText}>새로고침</Text>
         </Pressable>
@@ -287,7 +337,7 @@ export function PendingPanel() {
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={adminStyles.muted}>{item.categories?.name ?? '카테고리 없음'} · {formatDate(item.created_at)}{item.official_url ? ` · 링크 ${linkHost(item.official_url)}` : ''}</Text>
               </View>
-              <Text style={styles.pendingBadge}>pending</Text>
+              {isOnlineSellerRequest(item) ? <Text style={styles.onlineBadge}>온라인 판매처 요청</Text> : <Text style={styles.pendingBadge}>pending</Text>}
             </Pressable>
           ))}
           {hasMore && (
@@ -346,6 +396,33 @@ export function PendingPanel() {
                 <Meta label="요청 카테고리" value={selected.requested_category_label ?? '없음'} />
                 <Meta label="원본 링크" value={selected.official_url ?? '없음'} />
               </View>
+
+              {isSellerRequest ? <View style={styles.sellerBox}>
+                <Text style={styles.mergeTitle}>온라인 판매처로 연결</Text>
+                <Text style={styles.note}>사용자가 맛집 등록에서 "온라인"을 골라 보낸 요청입니다. 링크를 확인한 뒤 판매처를 만들면 요청은 {selected.categories?.name ?? '같은 카테고리'}의 판매처 원픽 항목에 병합되고, 등록 화면의 온라인에서 고를 수 있습니다. 배달앱 링크는 매장 원픽이므로 반려해 주세요.</Text>
+                <TextInput accessibilityLabel="온라인 판매처 이름" value={sellerName} onChangeText={setSellerName} editable={!busy}
+                  placeholder="판매처 이름 (예: ○○곰탕 공식몰)" style={adminStyles.input} />
+                <TextInput accessibilityLabel="온라인 판매처 URL" value={sellerUrl} onChangeText={setSellerUrl} editable={!busy}
+                  autoCapitalize="none" placeholder="https://…" style={adminStyles.input} />
+                <View style={styles.categoryChoices}>
+                  {(['official_site', 'platform_store'] as const).map((type) => (
+                    <Pressable key={type} accessibilityRole="button" accessibilityState={{ selected: storeType === type }}
+                      onPress={() => setStoreType(type)} style={[styles.categoryChoice, storeType === type && styles.categoryChoiceSelected]}>
+                      <Text style={[styles.categoryChoiceText, storeType === type && styles.categoryChoiceTextSelected]}>{type === 'official_site' ? '공식몰' : '플랫폼 스토어'}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {storeType === 'platform_store' ? <View style={styles.mergeSearchRow}>
+                  <TextInput accessibilityLabel="플랫폼 식별자" value={platform} onChangeText={setPlatform} editable={!busy}
+                    autoCapitalize="none" placeholder="예: smartstore" style={[adminStyles.input, styles.mergeInput]} />
+                  <TextInput accessibilityLabel="스토어 키" value={storeKey} onChangeText={setStoreKey} editable={!busy}
+                    autoCapitalize="none" placeholder="예: smartstore:gomtang" style={[adminStyles.input, styles.mergeInput]} />
+                </View> : null}
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canResolve }} disabled={!canResolve} onPress={resolveSellerRequest}
+                  style={[adminStyles.primaryButton, !canResolve && { opacity: 0.5 }]}>
+                  <Text style={adminStyles.primaryButtonText}>{resolving ? '연결 중' : '판매처 만들고 요청 연결'}</Text>
+                </Pressable>
+              </View> : null}
 
               <View style={styles.classifyBox}>
                 <View style={styles.classifyHeader}>
@@ -458,15 +535,15 @@ export function PendingPanel() {
               </View>
 
               <View style={adminStyles.row}>
-                <Pressable
-                  accessibilityState={{ disabled: processing || !!mergingId || !reviewCategoryId }}
-                  disabled={processing || !!mergingId || !reviewCategoryId}
+                {isSellerRequest ? null : <Pressable
+                  accessibilityState={{ disabled: busy || !reviewCategoryId }}
+                  disabled={busy || !reviewCategoryId}
                   onPress={() => process('active')}
-                  style={[adminStyles.primaryButton, (processing || !!mergingId || !reviewCategoryId) && { opacity: 0.5 }]}
+                  style={[adminStyles.primaryButton, (busy || !reviewCategoryId) && { opacity: 0.5 }]}
                 >
                   <Text style={adminStyles.primaryButtonText}>{processing ? '처리 중' : '승인'}</Text>
-                </Pressable>
-                <Pressable disabled={processing || !!mergingId} onPress={() => process('rejected')} style={[adminStyles.dangerButton, (processing || !!mergingId) && { opacity: 0.5 }]}>
+                </Pressable>}
+                <Pressable disabled={busy} onPress={() => process('rejected')} style={[adminStyles.dangerButton, busy && { opacity: 0.5 }]}>
                   <Text style={adminStyles.dangerButtonText}>반려</Text>
                 </Pressable>
               </View>
@@ -513,6 +590,8 @@ const styles = StyleSheet.create({
   itemRowSelected: { backgroundColor: OnePick.sunken },
   itemBody: { flex: 1, minWidth: 0 },
   itemName: { color: OnePick.text, fontSize: 14, fontWeight: '700', marginBottom: 5 },
+  onlineBadge: { color: OnePick.accentDeep, backgroundColor: OnePick.accentSoft, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
+  sellerBox: { gap: 10, borderWidth: 1, borderColor: OnePick.accent, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
   pendingBadge: { color: OnePick.warning, backgroundColor: OnePick.warningSoft, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
   detailBody: { marginTop: 16, gap: 18 },
   photoBox: { gap: 10 },
