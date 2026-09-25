@@ -54,6 +54,7 @@ QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/
 
 ## Claude 루틴 절차
 
+0. **공통 handoff preflight**: 먼저 `CLAUDE.md`의 "Claude handoff queue" 절을 실행한다. `handoff:claude` 작업이 있으면 한 건만 원자적으로 수락(`owner:claude` + `state:active`, handoff 라벨 제거)하되, 07:00 Daily QA 리포트 자체는 건너뛰지 않는다.
 1. **Actions 결과 확인**: 오늘 06:00 KST 이후 `main`에서 실행된 `Daily QA`를 찾는다(`actions_list`). 없거나 실패했으면 `workflow_dispatch`로 한 번 실행한다. 끝나지 않았으면 몇 분 기다린다. 그래도 결과가 없으면 리포트에 "라이브 측정 없음"과 그 이유를 적는다.
 2. **로그 추출**: `live-web`과 `real-user-errors` 잡 로그에서 `===QA-REPORT-BEGIN===`부터 `END`까지, `logged-in` 잡 로그에서 `===QA-LOGIN-REPORT-BEGIN===`부터 `END`까지를 가져온다(`get_job_logs`).
 3. **배포 확인**: 리포트의 배포 커밋을 `main` HEAD와 비교한다. 다르면 배포 지연 또는 실패로 기록한다. `main`의 필수 CI(`typecheck`, `verify-web`, `database-tests`)가 실패했는지도 확인한다.
