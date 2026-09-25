@@ -38,10 +38,10 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
         {!isCurrent && !isMine ? <Text style={styles.history}>이전 원픽</Text> : null}
       </View>
       <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>
-      {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 답글은 계속 볼 수 있어요.</Text> : null}
+      {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 댓글은 계속 볼 수 있어요.</Text> : null}
       <View style={styles.actions}>
         <Button variant="ghost" size="sm" style={styles.action} onPress={() => setRepliesOpen((open) => !open)}
-          label={repliesOpen ? '답글 접기' : '답글 보기 · 쓰기'} />
+          label={repliesOpen ? '댓글 접기' : pick.status === 'active' ? '댓글 쓰기' : '댓글 보기'} />
         <Button variant="ghost" size="sm" style={styles.action} onPress={() => setSharingOpen((open) => !open)}
           label={sharingOpen ? '공유 메뉴 접기' : isMine ? '공유' : '공유 · 신고'} />
       </View>
