@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { queryKeys } from '@/lib/query/queryKeys';
-import { itemService } from '@/services/homeRuntimeServices';
+import { itemService } from '@/services/itemServiceInstance';
 
 const SEARCH_DELAY_MS = 150;
 const FRESH_RESULT_MS = 30_000;
