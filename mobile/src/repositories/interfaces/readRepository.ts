@@ -67,6 +67,7 @@ export interface CategoryTopItem {
   pickCount: number;
   rank: number;
   isTied: boolean;
+  channels: PickChannel[];
 }
 
 export interface HomeShowcaseItem {
@@ -97,6 +98,7 @@ export interface EditorialHomeItem {
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
+  channels: PickChannel[];
 }
 
 export interface PickReadInput {

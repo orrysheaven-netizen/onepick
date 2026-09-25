@@ -115,7 +115,7 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
-  assert.match(page, /라면 · 매장/, 'Feed cards label a store-channel item as 매장');
+  assert.match(page, /라면 · 오프라인맛집/, 'Feed cards label a store-channel item as 오프라인맛집');
   assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the 매장 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');

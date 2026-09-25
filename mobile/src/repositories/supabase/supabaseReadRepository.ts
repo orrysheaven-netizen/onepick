@@ -13,6 +13,7 @@ import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
+import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
 
 type PickRow = Database['public']['Tables']['picks']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -148,7 +149,9 @@ export class SupabaseReadRepository implements ReadRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 12);
     const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       categoryId: row.category_id,
@@ -158,6 +161,7 @@ export class SupabaseReadRepository implements ReadRepository {
       editorialNote: row.editorial_note,
       editorialPriority: row.editorial_priority,
       pickCount: row.pick_count,
+      channels: channels.get(row.item_id) ?? [],
     }));
   }
 
@@ -166,13 +170,16 @@ export class SupabaseReadRepository implements ReadRepository {
     // change the aggregate. The RPC counts all current picks before limiting.
     const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       thumbnailUrl: this.cardThumbnailUrl(row),
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
+      channels: channels.get(row.item_id) ?? [],
     }));
   }
 
@@ -195,16 +202,21 @@ export class SupabaseReadRepository implements ReadRepository {
     );
   }
 
-  private mapPickItem(row: PickReadRow) {
+  private mapPickItem(row: PickReadRow, channels: Map<string, PickChannel[]>) {
     const profile = one(row.profile);
     const category = one(row.category);
-    const item = one(row.item);
+    const item = this.mapItem(one(row.item));
     return {
       pick: mapPickRow(row),
       profile: profile ? mapProfileRow(profile) : null,
       category: category ? mapCategoryRow(category) : null,
-      item: this.mapItem(item),
+      item: item ? { ...item, channels: channels.get(item.id) ?? [] } : null,
     };
+  }
+
+  private async mapPickItems(rows: PickReadRow[]) {
+    const channels = await fetchItemChannels(this.client, rows.map((row) => row.item_id));
+    return rows.map((row) => this.mapPickItem(row, channels));
   }
 
   async getPickById(pickId: string) {
@@ -215,7 +227,7 @@ export class SupabaseReadRepository implements ReadRepository {
       .maybeSingle();
 
     if (error) throw mapSupabaseError(error);
-    return data ? this.mapPickItem(data as unknown as PickReadRow) : null;
+    return data ? (await this.mapPickItems([data as unknown as PickReadRow]))[0] : null;
   }
 
   async getPicks(input: PickReadInput) {
@@ -237,7 +249,7 @@ export class SupabaseReadRepository implements ReadRepository {
 
     const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as PickReadRow[]).map((row) => this.mapPickItem(row));
+    return this.mapPickItems(data as unknown as PickReadRow[]);
   }
 
   async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {

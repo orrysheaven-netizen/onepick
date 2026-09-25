@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
+import { homeChannelLabel } from '@/lib/home/homeChannels';
 import { OnePick, OnePickFeatures, OnePickThresholds } from '@/constants/onepick';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
@@ -154,6 +155,7 @@ export default function ExploreScreen() {
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
                 <Text style={styles.rankName}>{item.name}</Text>
+                {homeChannelLabel(item.channels) ? <Text style={styles.rankCount}>{homeChannelLabel(item.channels)}</Text> : null}
                 {showRankingDetail ? <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text> : null}
               </View>
               <Text style={styles.arrow}>›</Text>

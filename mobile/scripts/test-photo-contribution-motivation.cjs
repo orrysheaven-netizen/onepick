@@ -45,6 +45,7 @@ function harness(file, imports) {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;

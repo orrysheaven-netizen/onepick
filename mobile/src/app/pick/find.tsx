@@ -15,6 +15,7 @@ import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMov
 import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalogItem } from '@/hooks/usePlaceCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
+import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
 import { OnePick } from '@/constants/onepick';
@@ -329,7 +330,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         return <View key={item.id} style={styles.itemCard}>
           <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={item.name} itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing} onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
-            {selectedCategory ? <Text style={styles.itemCategory}>{`${category?.name ?? '등록된 카테고리'}${isOnlineChannel ? ' · 온라인' : ''}`}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
+            {selectedCategory ? <Text style={styles.itemCategory}>{isPlaceCategory ? categoryWithChannels(category?.name ?? '맛집', [channel]) : category?.name ?? '등록된 카테고리'}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
             {isCatalogCategory ? <Text style={styles.movieMeta}>{[item.releaseYear, item.originalName !== item.name ? item.originalName : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text> : null}
             <Text style={styles.itemAction}>{isOnlineChannel ? '이 판매처를 원픽으로 선택 ›' : isPlaceCategory ? '이 지점을 원픽으로 선택 ›' : '이 제품을 원픽으로 선택 ›'}</Text>
           </Pressable>
@@ -346,7 +347,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {!placeCatalog.isWaiting && !placeCatalog.isError && isPlaceSearch && canSearchPlaceCatalog && externalPlaces.map((place) => <Pressable key={`${place.placeProvider}:${place.providerPlaceId}`} accessibilityRole="button"
         accessibilityLabel={`${place.name} ${place.branchName ?? ''} 맛집 선택`} accessibilityState={{ disabled: importing }} disabled={importing} onPress={() => choosePlace(place)} style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <View style={styles.placeMarker}><Text style={styles.placeMarkerText}>장소</Text></View>
-        <View style={styles.itemCopy}><Text style={styles.itemCategory}>맛집 · {place.region1 ?? '지역 정보 없음'}{place.region2 ? ` ${place.region2}` : ''}</Text><Text style={styles.itemName}>{place.name}{place.branchName ? ` ${place.branchName}` : ''}</Text>
+        <View style={styles.itemCopy}><Text style={styles.itemCategory}>{homeChannelLabel(['offline'])} · {place.region1 ?? '지역 정보 없음'}{place.region2 ? ` ${place.region2}` : ''}</Text><Text style={styles.itemName}>{place.name}{place.branchName ? ` ${place.branchName}` : ''}</Text>
           <Text style={styles.movieMeta}>{place.roadAddress ?? place.address ?? '주소 정보 없음'}</Text>
           <Text style={styles.itemAction}>{placeSelection?.catalogId === place.id && placeImporting ? '장소를 원픽에 연결하고 있어요…' : '이 지점을 원픽으로 선택 ›'}</Text>
         </View>

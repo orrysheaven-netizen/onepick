@@ -13,6 +13,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { Button, SectionHeader, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
+import { categoryWithChannels } from '@/lib/home/homeChannels';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 import { OnePick } from '@/constants/onepick';
@@ -228,7 +229,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               </>}
             </View>
           ) : null}
-          <Text style={styles.category}>{category?.name ?? '카테고리'}</Text>
+          <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <ItemPickCount itemId={item.id} />
           <Text style={styles.itemMeta}>이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>

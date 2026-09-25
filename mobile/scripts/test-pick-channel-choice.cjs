@@ -80,6 +80,7 @@ const { default: Find } = load('app/pick/find.tsx', {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
+  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/ui': ui,
   '@/components/music-search-link': { MusicSearchLink: () => null },
