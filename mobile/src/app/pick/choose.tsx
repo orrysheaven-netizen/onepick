@@ -21,8 +21,8 @@ function getErrorMessage(error: unknown) {
     case 'PROFILE_NOT_FOUND': return '원픽을 남기려면 사용자명을 먼저 정해주세요.';
     case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
     case 'ITEM_NOT_ELIGIBLE':
-    case 'ITEM_NOT_FOUND': return '지금은 이 제품을 원픽으로 고를 수 없어요.';
-    case 'ITEM_CATEGORY_MISMATCH': return '제품과 카테고리 정보가 맞지 않아요.';
+    case 'ITEM_NOT_FOUND': return '지금은 이걸 원픽으로 고를 수 없어요.';
+    case 'ITEM_CATEGORY_MISMATCH': return '카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -76,10 +76,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = pickStatus?.type === 'selected_other' ? '이 제품으로 원픽을 바꿀까요?'
-    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이 제품을 내 원픽으로 정할까요?';
+  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
-    if (pickStatus?.type === 'selected_other') return '이 제품으로 바꾸기';
+    if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
     return '내 원픽으로 선택';
   }, [pickStatus]);
@@ -153,22 +153,22 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={choosePick.isPending} onPress={goBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-        {isLoading ? <View style={styles.stateArea}><StateCard loading title="제품을 확인하고 있어요" /></View> : null}
+        {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요" /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
-          <StateCard tone="danger" title="제품을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 불러와주세요. 제품이 없거나 사용할 수 없는 링크일 수도 있어요."
-            action={params.itemId && routeMatchesItem ? { label: itemQuery.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기', accessibilityLabel: '제품 정보 다시 불러오기', variant: 'secondary', disabled: itemQuery.isFetching, onPress: retryItem } : undefined} />
+          <StateCard tone="danger" title="정보를 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
+            action={params.itemId && routeMatchesItem ? { label: itemQuery.isFetching ? '다시 불러오는 중…' : '정보 다시 불러오기', accessibilityLabel: '정보 다시 불러오기', variant: 'secondary', disabled: itemQuery.isFetching, onPress: retryItem } : undefined} />
           <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />
         </View> : null}
         {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateArea}>
-          <StateCard title="지금은 선택할 수 없어요" text="현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요."
-            action={{ label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '제품 상세 보기', variant: 'secondary',
+          <StateCard title="지금은 선택할 수 없어요" text="지금은 여기서 새 원픽을 선택할 수 없어요."
+            action={{ label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '상세 보기', variant: 'secondary',
               onPress: () => router.replace(pickStatus?.type === 'selected_this'
                 ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } }) }} />
         </View> : null}
         {hasItem && item && canChoose && !user ? <View style={styles.panel}>
           {itemPhoto}
           <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요</Text>
-          <Text style={styles.panelText}>선택한 제품을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
+          <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
           <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
@@ -179,10 +179,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이 제품으로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이 제품을 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이 제품으로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
@@ -203,7 +203,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <View style={styles.tipAskRow}>
               <Button size="sm" variant={tipAnswer === 'yes' ? 'primary' : 'soft'} label="있어요"
                 disabled={choosePick.isPending} onPress={() => setTipAnswer('yes')} />
-              <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 제품 링크예요"
+              <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 판매 링크예요"
                 disabled={choosePick.isPending} onPress={() => { setTipAnswer('no'); setDraftTip(''); }} />
             </View>
           </View> : null}
@@ -243,8 +243,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           </View>
           {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
-            <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 상품을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
-            <Text style={styles.offerText}>상품 이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
+            <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 원픽을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
+            <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
             <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
             <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}

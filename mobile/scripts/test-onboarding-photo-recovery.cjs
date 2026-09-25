@@ -171,18 +171,18 @@ async function main() {
     const page = c.view.render(); assert.match(page, /사진 등록 요청은 처리됐어요/);
     assert.doesNotMatch(page, /대표 이미지 등록|사진 선택/);
     assert.equal(c.view.nodes().some((n) => n.type === 'ItemReviewCard'), false);
-    const before = c.query.retries; c.view.button('제품 정보 다시 불러오기').onPress(); await flush();
+    const before = c.query.retries; c.view.button('정보 다시 불러오기').onPress(); await flush();
     assert.equal(c.query.retries, before+1); assert.equal(c.attempts.length, 1, 'Only refetch, never upload again');
-    c.query.isFetching = true; c.view.render(); assert.equal(c.view.button('제품 정보 다시 불러오기').disabled, true);
-    c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, before+1);
+    c.query.isFetching = true; c.view.render(); assert.equal(c.view.button('정보 다시 불러오기').disabled, true);
+    c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, before+1);
     c.auth.isLoading = true; assert.doesNotMatch(c.view.render(), /사진 등록 요청은 처리됐어요|private-draft/);
     c.auth.isLoading = false; c.auth.user = { id: 'other' }; assert.doesNotMatch(c.view.render(), /사진 등록 요청은 처리됐어요/);
   });
   await check('Invalid item links cannot spin forever and photo sessions show errors before disabled-query loading', async () => {
     const c = setup('app/item/[itemId].tsx'); delete c.params.itemId; c.query.data = undefined; c.query.isPending = true;
-    assert.doesNotMatch(c.view.render(), /제품 정보를 불러오고 있어요/);
+    assert.doesNotMatch(c.view.render(), /정보를 불러오고 있어요/);
     c.params.itemId = id; c.query.isPending = false; c.query.isError = true; c.query.error = new AppError('ITEM_NOT_FOUND');
-    const missing = c.view.render(); assert.match(missing, /제품을 볼 수 없어요/); assert.doesNotMatch(missing, /제품 정보를 불러오고 있어요/);
+    const missing = c.view.render(); assert.match(missing, /정보를 볼 수 없어요/); assert.doesNotMatch(missing, /정보를 불러오고 있어요/);
     c.auth.error = new Error('session');
     assert.match(c.view.render(), /로그인 상태를 확인하지 못했어요/);
   });

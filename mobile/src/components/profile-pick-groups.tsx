@@ -82,7 +82,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                     key={item.pick.id}
                     layout="tile"
                     categoryName={item.category?.name ?? '카테고리'}
-                    itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+                    itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
                     review={item.pick.oneLineReview}
                     imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
                     itemId={item.item?.id}
