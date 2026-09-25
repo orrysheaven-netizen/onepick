@@ -10,6 +10,7 @@ import { useApplyItemCategory, useItemCategorySuggestions, useSetItemCategoryHin
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useImportItemPhoto, useRegisterPick, useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { isDeliveryAppUrl, parsePickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { CATEGORY_HINT_MAX_LENGTH } from '@/services/registrationService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
@@ -39,7 +40,7 @@ function hintErrorMessage(error: unknown) {
   return '카테고리 힌트를 보내지 못했어요. 적은 내용은 그대로 있으니 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; itemName?: string; sourceUrl?: string };
+type Params = { categoryId?: string; itemName?: string; sourceUrl?: string; channel?: string };
 
 // Route params can come from a deep link, so only an https URL is carried and its host is
 // shown to the user before it is attached to their request.
@@ -59,7 +60,7 @@ function parseSourceUrl(value: unknown) {
 export default function RequestItemScreen() {
   const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
-  return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName, params.sourceUrl])} auth={auth} params={params} />;
+  return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName, params.sourceUrl, params.channel])} auth={auth} params={params} />;
 }
 
 function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -73,7 +74,17 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const source = useMemo(() => parseSourceUrl(params.sourceUrl), [params.sourceUrl]);
+  // 온라인 restaurant requests must carry the seller's link for admin review; delivery-app
+  // links are rejected here because delivery belongs to the 매장 (place) flow.
+  const isOnlineRequest = Boolean(categoryId) && parsePickChannel(params.channel) === 'online';
+  const [sellerLink, setSellerLink] = useState(() => (typeof params.sourceUrl === 'string' ? params.sourceUrl : ''));
+  const sellerSource = useMemo(() => isOnlineRequest ? parseSourceUrl(sellerLink) : null, [isOnlineRequest, sellerLink]);
+  const sellerLinkIsDelivery = isOnlineRequest && isDeliveryAppUrl(sellerLink);
+  const sellerLinkError = !isOnlineRequest || !sellerLink.trim() ? null
+    : sellerLinkIsDelivery ? '배달앱 링크는 매장 원픽이에요. 검색 화면에서 매장을 골라주세요.'
+      : !sellerSource ? 'https://로 시작하는 판매처 링크를 입력해주세요.' : null;
+  const paramSource = useMemo(() => parseSourceUrl(params.sourceUrl), [params.sourceUrl]);
+  const source = isOnlineRequest ? (sellerSource && !sellerLinkIsDelivery ? sellerSource : null) : paramSource;
   const sourceUrl = source?.url ?? '';
   const [submittedItem, setSubmittedItem] = useState<{ id: string; name: string } | null>(null);
   const [selectedSuggestedCategoryId, setSelectedSuggestedCategoryId] = useState<string | null>(null);
@@ -96,7 +107,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
   const isValid = normalizedName.length >= 1 && normalizedName.length <= 100
-    && (!categoryId || Boolean(selectedCategory));
+    && (!categoryId || Boolean(selectedCategory))
+    && (!isOnlineRequest || Boolean(sourceUrl));
   const canSubmit = isValid && (!categoryId || (!categories.isPending && !categories.isError)) && !auth.isLoading && !auth.error
     && !submitting && (!auth.user || Boolean(profile.data && !profile.isPending && !profile.isError));
   const intent = useMemo(() => ({
@@ -104,7 +116,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     itemName: normalizedName,
     ...(categoryId ? { categoryId } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),
-  }), [categoryId, normalizedName, sourceUrl]);
+    ...(isOnlineRequest ? { channel: 'online' as const } : {}),
+  }), [categoryId, isOnlineRequest, normalizedName, sourceUrl]);
 
   const getPhoto = async (fromLink: boolean) => {
     if (busy.current || submitting) return;
@@ -358,20 +371,30 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
-        <Text style={styles.title}>원픽 등록</Text>
-        <Text style={styles.subtitle}>찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.</Text>
+        <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
+        <Text style={styles.subtitle}>{isOnlineRequest
+          ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결합니다.'
+          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.'}</Text>
 
-        <Text style={styles.label}>이름</Text>
+        <Text style={styles.label}>{isOnlineRequest ? '판매처·메뉴 이름' : '이름'}</Text>
         <TextInput
           accessibilityLabel="등록 요청 이름"
           editable={!submitting}
           maxLength={100}
           onChangeText={setName}
-          placeholder="이름"
+          placeholder={isOnlineRequest ? '예: ○○곰탕 온라인몰 도가니탕' : '이름'}
           placeholderTextColor={OnePick.hint}
           style={styles.input}
           value={name}
         />
+
+        {isOnlineRequest ? <>
+          <Text style={styles.label}>판매처 링크</Text>
+          <TextInput accessibilityLabel="온라인 판매처 링크" editable={!submitting} value={sellerLink} onChangeText={setSellerLink}
+            autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" placeholderTextColor={OnePick.hint} style={styles.input} />
+          {sellerLinkError ? <Text accessibilityRole="alert" style={styles.error}>{sellerLinkError}</Text>
+            : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요. 배달앱 주문은 매장으로 골라주세요.</Text>}
+        </> : null}
 
         {categoryId ? <>
           <Text style={styles.label}>선택한 콘텐츠 종류</Text>

@@ -3,6 +3,7 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  PickChannel,
   PickReadInput,
   ReadCursor,
   ReadRepository,
@@ -85,20 +86,21 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
     const { data, error } = await this.client.rpc(rpc, {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+      ...(channel ? { p_channel: channel } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
@@ -112,6 +114,7 @@ export class SupabaseReadRepository implements ReadRepository {
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
         thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+        channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online'),
       })),
     };
   }

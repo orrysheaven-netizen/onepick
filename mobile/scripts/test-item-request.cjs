@@ -12,6 +12,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
@@ -253,6 +254,36 @@ async function main() {
   assert.equal(attachedPendingLink.itemId, 'pending-online');
   assert.equal(attachedPendingLink.url, 'https://shop.example/ramen');
   assert.match(render(), /등록 요청을 보냈어요/);
+
+  // 온라인 restaurant requests (channel=online) require the seller link and reject delivery apps.
+  state = []; attachedPendingLink = undefined; mutation.isError = false; mutation.error = null;
+  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online' };
+  outcome = async () => ({ type: 'pending_item', item: { id: 'pending-seller', name: '곰탕 온라인몰' } });
+  const sellerLink = () => inputs.find((p) => p.accessibilityLabel === '온라인 판매처 링크');
+  let sellerPage = render();
+  assert.match(sellerPage, /온라인 판매처 등록 요청/);
+  assert.ok(sellerLink(), 'Online requests ask for the seller link');
+  assert.equal(button('등록하기').disabled, true, 'An online request cannot be sent without a seller link');
+  sellerLink().onChangeText('https://s.baemin.com/store/123'); sellerPage = render();
+  assert.match(sellerPage, /배달앱 링크는 매장 원픽이에요/);
+  assert.equal(button('등록하기').disabled, true, 'Delivery-app links are rejected before submit');
+  sellerLink().onChangeText('http://shop.example/gomtang'); sellerPage = render();
+  assert.match(sellerPage, /https:\/\/로 시작하는 판매처 링크/);
+  assert.equal(button('등록하기').disabled, true);
+  sellerLink().onChangeText('https://smartstore.example/gomtang'); sellerPage = render();
+  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장되어/);
+  press('등록하기'); await settle();
+  assert.equal(attachedPendingLink.itemId, 'pending-seller');
+  assert.equal(attachedPendingLink.url, 'https://smartstore.example/gomtang', 'The typed seller link is attached for admin review');
+
+  // A signed-out online request carries the channel and seller link through login.
+  state = []; auth.user = null;
+  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online', sourceUrl: 'https://smartstore.example/gomtang' };
+  render(); press('로그인하고 등록하기');
+  assert.equal(destination.pathname, '/auth/login');
+  assert.equal(destination.params.channel, 'online');
+  assert.equal(destination.params.sourceUrl, 'https://smartstore.example/gomtang');
+  auth.user = { id: 'owner' };
 
   // Ordinary products do not ask the user for a category. Even if the category
   // list is temporarily unavailable, the product-name request can still proceed.

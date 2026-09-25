@@ -35,7 +35,8 @@ function home(count = 20) {
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
-    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => groups, filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
+    '@/lib/home/homeChannels': { HOME_CHANNEL_TABS: [{ channel: null, label: '전체' }, { channel: 'offline', label: '매장' }, { channel: 'online', label: '온라인' }] },
+    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
   });
@@ -83,6 +84,8 @@ async function main() {
     assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false);
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
   });
+  const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
+  const categoryChips = (view) => view.all('Chip').filter((p) => !isChannelChip(p));
   await test('Home starts at all; scope switching preserves exclusive query gating', () => {
     const { view, calls } = home(); assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
     view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
@@ -91,19 +94,31 @@ async function main() {
     assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
   });
   await test('Home hides at 19 and shows at 20 unfiltered loaded Picks', () => {
-    const { view, q } = home(19); assert.equal(view.all('Chip').length, 0);
-    q.data.picks = picks(20); view.render(); assert.equal(view.all('Chip').length, 3);
+    const { view, q } = home(19); assert.equal(categoryChips(view).length, 0);
+    q.data.picks = picks(20); view.render(); assert.equal(categoryChips(view).length, 3);
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render();
-    assert.equal(view.find('FlatList').data.length, 1); assert.equal(view.all('Chip').length, 3);
+    assert.equal(view.find('FlatList').data.length, 1); assert.equal(categoryChips(view).length, 3);
     q.data.picks = picks(19); view.render();
     assert.equal(view.find('FlatList').data.length, 19, 'No invisible filtering before effects flush');
-    assert.equal(view.all('Chip').length, 0); view.flushEffects();
+    assert.equal(categoryChips(view).length, 0); view.flushEffects();
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
-    assert.equal(view.find('Chip', (p) => p.label === '전체').selected, true);
+    assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
+  });
+  await test('Home 매장/온라인 tabs request a server-filtered feed and default to all', () => {
+    const { view, calls } = home(2);
+    assert.deepEqual(view.all('Chip').filter(isChannelChip).map((p) => p.label), ['전체', '매장', '온라인']);
+    assert.equal(calls.home[3], null, 'Home starts on the unfiltered 전체 tab');
+    view.find('Chip', (p) => p.accessibilityLabel === '매장 탭 원픽 보기').onPress(); view.render();
+    assert.equal(calls.home[3], 'offline');
+    assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '매장 탭 원픽 보기').selected, true);
+    view.find('Chip', (p) => p.accessibilityLabel === '온라인 탭 원픽 보기').onPress(); view.render();
+    assert.equal(calls.home[3], 'online');
+    view.find('Chip', (p) => p.accessibilityLabel === '전체 탭 원픽 보기').onPress(); view.render();
+    assert.equal(calls.home[3], null);
   });
   await test('Home restoration threshold, signed-out avatar and editorial copy', () => {
     thresholds.homeCategoryFilterMinPicks = 0;
-    const { view, q, auth } = home(2); assert.equal(view.all('Chip').length, 3); assert.equal(view.all('Avatar').length, 1);
+    const { view, q, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
     auth.user = null; q.data.editorialItems = [{ itemId: 'editorial', name: 'Editorial', categoryPath: 'food', pickCount: 0 }]; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
     assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽').description, undefined);

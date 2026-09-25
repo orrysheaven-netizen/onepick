@@ -28,16 +28,18 @@ const filters = load('src/lib/home/homeCategoryFilters.ts', {
 });
 
 const categories = [
-  { id: 'food', parentId: null, name: '음식', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
-  { id: 'culture', parentId: null, name: '문화', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
-  { id: 'tech', parentId: null, name: '기술', status: 'open', isVisible: true, isPickable: false, sortOrder: 30 },
-  { id: 'ramen', parentId: 'food', name: '라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
-  { id: 'snacks', parentId: 'food', name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
-  { id: 'movie', parentId: 'culture', name: '영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
-  { id: 'phone', parentId: 'tech', name: '스마트폰', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'food', slug: 'food', parentId: null, name: '음식', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+  { id: 'culture', slug: 'culture', parentId: null, name: '문화', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+  { id: 'tech', slug: 'tech', parentId: null, name: '기술', status: 'open', isVisible: true, isPickable: false, sortOrder: 30 },
+  { id: 'ramen', slug: 'ramen', parentId: 'food', name: '라면', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'snacks', slug: 'snacks', parentId: 'food', name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+  { id: 'movie', slug: 'movie', parentId: 'culture', name: '영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'phone', slug: 'phone', parentId: 'tech', name: '스마트폰', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
 ];
 
-const groups = filters.buildHomeCategoryFilters(categories);
+assert.deepEqual(Array.from(filters.HOME_ROOT_SLUGS), ['food'], 'MVP Home starts with restaurants only');
+assert.deepEqual(Array.from(filters.buildHomeCategoryFilters(categories), (group) => group.name), ['음식']);
+const groups = filters.buildHomeCategoryFilters(categories, ['food', 'culture', 'tech']);
 assert.deepEqual(Array.from(groups, (group) => group.name), ['음식', '문화', '기술']);
 assert.deepEqual(Array.from(groups[0].categoryIds), ['ramen', 'snacks']);
 assert.deepEqual(Array.from(groups[1].categoryIds), ['movie']);
@@ -60,6 +62,24 @@ assert.deepEqual(
 assert.deepEqual(Array.from(filters.filterHomeFeedByCategory(items, culture), (item) => item.itemId), ['movie-new']);
 assert.deepEqual(Array.from(filters.filterHomeFeedByCategory(items, null), (item) => item.itemId), items.map((item) => item.itemId));
 
+const restaurants = [
+  { id: 'food', slug: 'food', parentId: null, name: '먹을것', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
+  { id: 'culture', slug: 'culture', parentId: null, name: '문화', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
+  { id: 'meat', slug: 'food-meat', parentId: 'food', name: '고기', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
+  { id: 'noodles', slug: 'food-noodles', parentId: 'food', name: '면', status: 'open', isVisible: true, isPickable: false, sortOrder: 2 },
+  { id: 'daechang', slug: 'daechang', parentId: 'meat', name: '대창', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'makchang', slug: 'makchang', parentId: 'meat', name: '막창', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+  { id: 'kalguksu', slug: 'kalguksu', parentId: 'noodles', name: '칼국수', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+  { id: 'soba', slug: 'soba', parentId: 'noodles', name: '소바', status: 'open', isVisible: true, isPickable: true, sortOrder: 2 },
+  { id: 'movie', slug: 'movie', parentId: 'culture', name: '영화', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
+];
+assert.deepEqual(
+  Array.from(filters.homeStarterCategories(restaurants), (category) => category.id),
+  ['daechang', 'kalguksu'],
+  'Signed-out starters take one food leaf per sub-group and never another top-level group',
+);
+assert.deepEqual(Array.from(filters.homeStarterCategories(restaurants, 1), (category) => category.id), ['daechang']);
+
 const home = read('src/app/(tabs)/index.tsx');
 assert.match(home, /buildHomeCategoryFilters/);
 assert.match(home, /filterHomeFeedByCategory\(data\?\.picks \?\? \[\], selectedCategoryGroup\)/, 'the category filter narrows the people feed');
@@ -67,6 +87,6 @@ assert.match(home, /<Chip key=\{group\.id\} label=\{group\.name\} selected=\{sel
 assert.match(home, /전체 카테고리 보기/);
 assert.match(home, /다음 원픽 더 불러오기/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
-assert.match(home, /data=\{ready \? visiblePicks : \[\]\}/);
+assert.match(home, /data=\{ready && !switchingChannel \? visiblePicks : \[\]\}/);
 
 console.log('Home category filter checks passed: top-level taxonomy, stable recency order, all/filter behavior, empty-filter recovery and hierarchical category labels.');
