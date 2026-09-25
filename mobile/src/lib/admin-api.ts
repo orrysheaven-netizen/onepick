@@ -285,7 +285,7 @@ async function completeAdminOAuthRedirect() {
   const oauthError = queryParams.get('error_description') ?? queryParams.get('error');
   if (oauthError) {
     browserHistory()?.replaceState(null, '', location.pathname);
-    throw new Error(oauthError);
+    throw new Error('관리자 로그인을 완료하지 못했습니다.');
   }
 
   const code = queryParams.get('code');
@@ -346,7 +346,8 @@ export async function beginKakaoAdminSignIn() {
 }
 
 export async function signOutAdmin() {
-  await supabase.auth.signOut({ scope: 'global' });
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+  if (error) throw new Error('관리자 로그아웃에 실패했습니다.');
 }
 
 export async function checkAdminSession(): Promise<AdminSessionStatus> {
