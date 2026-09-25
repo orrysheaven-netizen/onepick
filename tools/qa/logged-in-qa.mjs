@@ -308,22 +308,69 @@ async function main() {
       if (await page.getByText('추천 요청 전에 로그인합니다').isVisible().catch(() => false)) throw new Error('비로그인 안내가 표시됨');
       await noErrorCopy(page);
     });
+    // A failure here must say which wait timed out and what the Edge Function answered (#315):
+    // a bare locator timeout cannot tell a slow/failed function from a rendering or locator problem.
+    const linkCalls = [];
+    const isLinkCall = (url) => url.includes('/functions/v1/link-category-suggestions');
+    const onLinkRequest = (request) => {
+      if (isLinkCall(request.url()) && request.method() === 'POST') linkCalls.push({ started: Date.now(), response: null, ms: 0 });
+    };
+    const onLinkResponse = (response) => {
+      const call = linkCalls[linkCalls.length - 1];
+      if (!isLinkCall(response.url()) || response.request().method() !== 'POST' || !call || call.response) return;
+      call.response = response;
+      call.ms = Date.now() - call.started;
+    };
+    page.on('request', onLinkRequest);
+    page.on('response', onLinkResponse);
+    const linkCallSummary = async () => {
+      if (linkCalls.length === 0) return 'Edge Function 호출 없음';
+      const { response, started, ms } = linkCalls[linkCalls.length - 1];
+      if (!response) return `Edge Function 응답 없음 (${Date.now() - started}ms 경과)`;
+      const parts = [`Edge Function HTTP ${response.status()} · ${ms}ms`];
+      const body = await Promise.race([
+        response.json().catch(() => null),
+        new Promise((resolve) => setTimeout(() => resolve(null), 3_000)),
+      ]);
+      if (body?.error) parts.push(`error=${String(body.error).slice(0, 40)}`);
+      if (body && Array.isArray(body.suggestions)) {
+        parts.push(`kind=${body.kind}`,
+          `suggestions=[${body.suggestions.slice(0, 4).map((s) => String(s?.name).slice(0, 20)).join(', ')}]`,
+          `categories=${Array.isArray(body.categories) ? body.categories.length : '?'}`);
+      }
+      return parts.join(' · ');
+    };
+    let linkPhase = '';
     const linkSuggested = await check(flow, `링크 확인 → "${LINK_EXPECT_CATEGORY}" 추천`, async () => {
-      await page.getByRole('textbox', { name: '원픽 링크' }).fill(LINK_URL);
-      await page.getByRole('textbox', { name: '가게 또는 상품 이름' }).fill(LINK_NAME);
-      await page.getByRole('button', { name: '링크 확인하고 추천받기', exact: true }).click();
-      const section = page.getByText('추천 카테고리', { exact: true });
-      const alert = page.getByRole('alert');
-      await section.or(alert).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      if (await alert.isVisible().catch(() => false)) throw new Error(`추천 오류: "${(await alert.innerText()).slice(0, 80)}"`);
-      // The result title also echoes the typed name, so look only inside the suggestion card
-      // (the innermost element holding its heading).
-      const card = page.locator('div', { has: section }).last();
-      await card.getByText(LINK_EXPECT_CATEGORY, { exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      if (await card.getByText('자동 추천 후보가 없습니다').isVisible().catch(() => false)) throw new Error('자동 추천 후보 없음');
-      await noErrorCopy(page);
-      return '추천 후보에 표시';
+      try {
+        linkPhase = '입력·요청';
+        await page.getByRole('textbox', { name: '원픽 링크' }).fill(LINK_URL);
+        await page.getByRole('textbox', { name: '가게 또는 상품 이름' }).fill(LINK_NAME);
+        await page.getByRole('button', { name: '링크 확인하고 추천받기', exact: true }).click();
+        linkPhase = '"추천 카테고리" 또는 오류 표시 대기';
+        const section = page.getByText('추천 카테고리', { exact: true });
+        const alert = page.getByRole('alert');
+        await section.or(alert).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if (await alert.isVisible().catch(() => false)) throw new Error(`추천 오류: "${(await alert.innerText()).slice(0, 80)}"`);
+        // The result title also echoes the typed name, so look only inside the suggestion card
+        // (the innermost element holding its heading).
+        const card = page.locator('div', { has: section }).last();
+        linkPhase = '추천 후보 유무 확인';
+        if (await card.getByText('자동 추천 후보가 없습니다').isVisible().catch(() => false)) throw new Error('자동 추천 후보 없음');
+        linkPhase = `카드 안 "${LINK_EXPECT_CATEGORY}" 표시 대기`;
+        await card.getByText(LINK_EXPECT_CATEGORY, { exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        linkPhase = '오류 문구 확인';
+        await noErrorCopy(page);
+        return { detail: `추천 후보에 표시 · ${await linkCallSummary()}` };
+      } catch (error) {
+        await shot(page, 'link_suggestion_failed');
+        // check() keeps 200 characters, so the Edge Function summary goes before the error text.
+        const message = String(error?.message ?? error).split('\n')[0].slice(0, 60);
+        throw new Error(`[${linkPhase}] ${await linkCallSummary()} · ${message}`);
+      }
     });
+    page.off('request', onLinkRequest);
+    page.off('response', onLinkResponse);
     if (linkSuggested) {
       // A single suggestion is preselected, so both follow-ups must be enabled. Neither is pressed.
       await check(flow, '"이 카테고리로 등록 요청 계속" 클릭 가능', () =>
