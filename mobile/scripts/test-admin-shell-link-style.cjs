@@ -35,10 +35,10 @@ const compiled = ts.transpileModule(source, {
 });
 assert.equal((compiled.diagnostics ?? []).filter((d) => d.category === ts.DiagnosticCategory.Error).length, 0);
 
-const exports = {};
+const moduleExports = {};
 vm.runInNewContext(compiled.outputText, {
-  exports,
-  module: { exports },
+  exports: moduleExports,
+  module: { exports: moduleExports },
   require: (id) => {
     assert.ok(Object.hasOwn(mocks, id), `Unmocked dependency: ${id}`);
     return mocks[id];
@@ -51,7 +51,7 @@ function all(node, predicate) {
   return [...(predicate(node) ? [node] : []), ...all(node.props?.children, predicate)];
 }
 
-const tree = exports.AdminShell({ children: 'content', onSignOut: () => {} });
+const tree = moduleExports.AdminShell({ children: 'content', onSignOut: () => {} });
 const links = all(tree, (node) => node.type === 'Link' && String(node.props.href).startsWith('/admin/'));
 assert.equal(links.length, 4);
 
