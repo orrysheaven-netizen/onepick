@@ -87,6 +87,8 @@ async function main() {
   const users = read('src/components/admin/data/users-panel.tsx');
   assert.doesNotMatch(users, /100건으로 제한/, 'The 100-row cap notice is gone');
   assert.match(users, /counts\?\.total/, 'Summary cards use server counts');
+  assert.match(users, /await setUserSuspension[\s\S]*await load\(\)/, 'Suspension changes reload the server-filtered directory');
+  assert.doesNotMatch(users, /setCounts\(\(current\)[\s\S]*suspended: current\.suspended/, 'Filtered counts are not patched locally after moderation');
 
   assert.match(read('src/app/admin/pending.tsx'), /<Redirect href="\/admin\/data\?tab=pending" \/>/, 'The legacy review route redirects to the tab');
 
