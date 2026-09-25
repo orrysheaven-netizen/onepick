@@ -1,4 +1,4 @@
-import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { PickChannel, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export class HomeService {
   constructor(private readonly readRepository: ReadRepository) {}
@@ -24,8 +24,8 @@ export class HomeService {
   // Home is people-first: each card is one person's current Pick with their
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
-  async getHomePicks(cursor: ReadCursor | null = null) {
-    const feed = await this.readRepository.getHomePicks(cursor);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null) {
+    const feed = await this.readRepository.getHomePicks(cursor, channel);
     return {
       picks: feed.items,
       nextCursor: feed.nextCursor,

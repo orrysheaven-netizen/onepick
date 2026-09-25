@@ -30,7 +30,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   currentPicks: [own, privatePick], picks: [
     // Newest first; the server already excluded the viewer's own Picks.
-    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00' },
+    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00', channels: ['offline'] },
     { pickId: 'same-as-mine', userId: 'neighbor', username: 'neighbor', profileImageUrl: null, itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이웃도 신라면', thumbnailUrl: null, startedAt: '2026-09-20T09:00:00.000000+00:00' },
   ], openCategories: [
     { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을것 › 면류 › 라면' },
@@ -64,7 +64,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
-  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
+  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts'), '@/lib/home/homeChannels': load('lib/home/homeChannels.ts') }),
   '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
@@ -82,6 +82,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   ] }) },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
+  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   }),
@@ -114,6 +115,8 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
+  assert.match(page, /라면 · 매장/, 'Feed cards label a store-channel item as 매장');
+  assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the 매장 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.match(page, /전체/);
