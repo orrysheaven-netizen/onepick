@@ -13,6 +13,7 @@
 
 ## Claude 점검 절차
 
+0. **공통 handoff preflight**: 먼저 `CLAUDE.md`의 "Claude handoff queue" 절을 실행한다. `handoff:claude` 작업이 있으면 한 건만 원자적으로 수락(`owner:claude` + `state:active`, handoff 라벨 제거)하되, 06:30 Security QA 리포트 자체는 건너뛰지 않는다.
 1. **최근 24시간 변경**: `main`에 병합된 커밋과 열린 PR의 diff를 본다. 점검 기준은 아래 "점검 항목"이다. 근거(파일:줄)가 있는 것만 적는다.
 2. **이전 항목 재확인**: 가장 최근에 열린 `[Security QA]` 이슈의 항목마다 상태를 붙인다.
    - `해결됨`: 수정이 main에 들어간 것을 코드로 확인함. 해결한 PR 링크를 붙인다.
@@ -38,7 +39,7 @@
 - 비밀값: 커밋된 키, 로그·오류 메시지·응답에 나오는 값, 쿼리스트링에 담긴 키
 - CI: `pull_request_target`, `${{ }}` 스크립트 주입, `permissions`, environment 보호, 고정되지 않은 서드파티 액션
 - QA 계정: 로그인 QA가 QA 전용 일반 사용자 계정만 쓰는지, 관리자·개인 카카오 계정이나 service-role key를 쓰는 곳이 없는지, 자격 증명이 Secret 밖(코드, 워크플로 입력, 로그, 스크린샷, 아티팩트)에 나오지 않는지 (`docs/daily-qa.md` "로그인 상태 QA 계정 규칙")
-- 자동화 체인: 사용자가 쓴 문자열이 리포트 이슈를 거쳐 `@codex` 요청까지 흘러가는 경로
+- 자동화 체인: 사용자·로그·이슈에서 온 문자열이 `handoff:claude` / `handoff:codex` 큐와 완료 리포트를 거치는 경로. 외부 문자열이 명령으로 승격되지 않는지 확인
 
 ## 원칙
 
