@@ -8,6 +8,7 @@ import { CategoriesPanel } from '@/components/admin/data/categories-panel';
 import { EditorialPanel } from '@/components/admin/data/editorial-panel';
 import { ItemsPanel } from '@/components/admin/data/items-panel';
 import { PendingPanel } from '@/components/admin/data/pending-panel';
+import { ProvidersPanel } from '@/components/admin/data/providers-panel';
 import { ReportsPanel } from '@/components/admin/data/reports-panel';
 import { UsersPanel } from '@/components/admin/data/users-panel';
 import { ADMIN_DATA_TABS, DEFAULT_ADMIN_DATA_TAB, isAdminDataTab } from '@/lib/admin/dataTabs';
@@ -23,7 +24,7 @@ export default function AdminDataScreen() {
     <View style={styles.page}>
       <View>
         <Text style={adminStyles.pageTitle}>데이터 관리</Text>
-        <Text style={adminStyles.pageDescription}>카테고리·브랜드·상품 마스터, 검수 대기, 사용자, 신고, 운영 기록을 한 곳에서 관리합니다.</Text>
+        <Text style={adminStyles.pageDescription}>카테고리·브랜드·판매처·상품 마스터, 검수 대기, 사용자, 신고, 운영 기록을 한 곳에서 관리합니다.</Text>
       </View>
 
       <View accessibilityRole="tablist" style={styles.tabBar}>
@@ -52,6 +53,7 @@ export default function AdminDataScreen() {
       <View key={tab}>
         {tab === 'categories' && <CategoriesPanel />}
         {tab === 'brands' && <BrandsPanel />}
+        {tab === 'providers' && <ProvidersPanel />}
         {tab === 'items' && <ItemsPanel />}
         {tab === 'editorial' && <EditorialPanel />}
         {tab === 'pending' && <PendingPanel />}
