@@ -34,7 +34,7 @@ type CategoryRow = {
 type SourceRow = { category_id: string; mode: string; is_enabled: boolean };
 type TermRow = { category_id: string; term: string; kind: string };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function makeClient(service = false, authHeader = '') {
   const url = Deno.env.get('SUPABASE_URL')?.trim();
