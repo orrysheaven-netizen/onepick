@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { load, screen, names } = require('./mvp-screen-harness.cjs');
-const constants = load('constants/onepick.ts');
+// onepick.ts reads its platform font family; use the native/default variant like Metro's split.
+const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
 const flags = constants.OnePickFeatures;
 const initialFlags = { ...flags };
 const thresholds = constants.OnePickThresholds;
