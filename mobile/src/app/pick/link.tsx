@@ -102,7 +102,11 @@ export default function LinkCategorySuggestionScreen() {
     if (!displayName) return;
     router.push({
       pathname: '/pick/request',
-      params: { categoryId: selectedCategoryId, itemName: displayName },
+      params: {
+        categoryId: selectedCategoryId,
+        itemName: displayName,
+        sourceUrl: result.canonicalUrl,
+      },
     });
   };
 
