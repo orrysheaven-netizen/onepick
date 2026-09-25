@@ -277,6 +277,10 @@ Deno.serve(async (req: Request) => {
   const auth = await user.auth.getUser(match[1]);
   if (auth.error || !auth.data.user || auth.data.user.is_anonymous) return json({ error: 'AUTH_REQUIRED' }, 401);
 
+  const suspended = await admin.rpc('catalog_user_is_suspended', { p_user_id: auth.data.user.id });
+  if (suspended.error) return json({ error: 'LINK_SUGGESTION_UNAVAILABLE' }, 503);
+  if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+
   try {
     const body = await req.json().catch(() => ({})) as Record<string, unknown>;
     const parsed = httpsUrl(body.url);
