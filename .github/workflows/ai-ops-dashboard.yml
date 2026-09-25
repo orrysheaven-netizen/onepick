@@ -89,7 +89,13 @@ jobs:
               return 0
 
           def safe(value):
-              return str(value or "").replace("\n", " ").replace("\r", " ").replace("|", "\\|")
+              text = str(value or "").replace("\n", " ").replace("\r", " ")
+              # Issue titles are untrusted display data. Neutralize mentions and
+              # render the entire title as code so Markdown links/images do not execute.
+              text = text.replace("@", "＠").replace("|", "¦").replace("`", "ˋ")
+              return "`" + text + "`"
+
+          assert safe("@octocat [x](https://example.com/image.png)") == "`＠octocat [x](https://example.com/image.png)`"
 
           def age_hours(issue):
               updated = datetime.fromisoformat(issue["updatedAt"].replace("Z", "+00:00"))
