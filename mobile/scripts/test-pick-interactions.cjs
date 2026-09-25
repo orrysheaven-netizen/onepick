@@ -221,8 +221,11 @@ async function main() {
 
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
   let rankRefreshes = 0;
-  const rankingQuery = { data: [{ itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 }],
-    isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
+  const rankingQuery = { data: [
+    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102 },
+    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
+    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
+  ], isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
@@ -235,19 +238,36 @@ async function main() {
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);
   assert.match(ranking, /101명이 선택/);
+  assert.equal(presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기'), undefined, 'Healthy rankings have no manual retry');
   presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 제품 상세 보기').onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'ranked-item');
+
+  const highSample = rankingQuery.data;
+  rankingQuery.data = [{ ...highSample[1], rank: 1, isTied: false, pickCount: 2 }];
+  const lowSample = render(Explore);
+  assert.match(lowSample, /과자의 원픽/);
+  assert.doesNotMatch(lowSample, /TOP 3|공동|명이 선택|사람 수 기준/);
+  presses.find((p) => p.accessibilityLabel === '선택된 과자, 제품 상세 보기').onPress();
+  assert.equal(destination.params.itemId, 'ranked-item', 'Low-sample cards preserve their detail route');
+  rankingQuery.data[0].pickCount = 3;
+  const thresholdSample = render(Explore);
+  assert.match(thresholdSample, /원픽 TOP 3/);
+  assert.match(thresholdSample, /3명이 선택/);
+  rankingQuery.data = highSample;
+
   rankingQuery.isError = true;
-  assert.match(render(Explore), /순위를 갱신하지 못했어요/);
+  const staleRanking = render(Explore);
+  assert.match(staleRanking, /최신 원픽을 확인하지 못했어요/);
+  assert.match(staleRanking, /선택된 과자/, 'A refresh error keeps previously loaded cards');
   rankingQuery.data = undefined;
-  assert.match(render(Explore), /제품 순위를 불러오지 못했어요/);
+  assert.match(render(Explore), /원픽을 불러오지 못했어요/);
   const beforeRankRetry = rankRefreshes;
-  presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침').onPress();
+  presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기').onPress();
   assert.equal(rankRefreshes, beforeRankRetry + 1);
   rankingQuery.isFetching = true;
   render(Explore);
-  const rankRefresh = presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침');
+  const rankRefresh = presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기');
   assert.equal(rankRefresh.disabled, true);
   rankRefresh.onPress(); pullToRefresh.props.onRefresh();
   assert.equal(rankRefreshes, beforeRankRetry + 1, 'Refreshing must not cancel a pending ranking request');
@@ -257,6 +277,6 @@ async function main() {
   pullToRefresh.props.onRefresh(); assert.equal(rankRefreshes, beforeRankRetry + 2);
   rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
   assert.match(render(Explore), /아직 선택된 제품이 없어요/);
-  console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
+  console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps, profile recovery and gated ranking interaction/retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
