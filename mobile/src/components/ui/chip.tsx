@@ -33,9 +33,9 @@ const styles = StyleSheet.create({
     borderRadius: OnePickRadius.pill, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface,
   },
   dashed: { borderStyle: 'dashed' },
-  selected: { borderColor: OnePick.accent, backgroundColor: OnePick.accentSoft },
-  pressed: { opacity: 0.6 },
+  selected: { borderColor: OnePick.text, backgroundColor: OnePick.accentSoft },
+  pressed: { opacity: 0.9 },
   label: { ...OnePickType.label, color: OnePick.text },
   labelDashed: { color: OnePick.muted },
-  labelSelected: { color: OnePick.accentDeep, fontWeight: '700' },
+  labelSelected: { color: OnePick.text, fontWeight: '700' },
 });

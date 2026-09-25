@@ -20,7 +20,7 @@ export const OnePick = {
   // until individual components opt into brand/onBrand together.
   accent: '#141416',
   accentDeep: '#141416',
-  accentSoft: '#FAFAF7',
+  accentSoft: '#FFF0DC',
   onAccent: '#FFFFFF',
 
   // Status (semantic feedback, not brand colors)
