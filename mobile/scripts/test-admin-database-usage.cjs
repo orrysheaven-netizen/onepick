@@ -36,6 +36,7 @@ async function main() {
   }, {
     '@/lib/supabase/client': { supabase: {} },
     '@/lib/items/itemIdentity': { canonicalItemName: (value) => value },
+    '@/lib/items/pickChannel': require('./pick-channel.cjs'),
     '@/lib/admin/adminSession': { getAdminAccessToken: async () => 'token' },
   });
   await api.getDatabaseUsage();
