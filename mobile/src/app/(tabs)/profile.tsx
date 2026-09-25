@@ -150,6 +150,10 @@ export default function ProfileScreen() {
   const { profile, currentPicks } = profileQuery.data;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
+  // Only a successfully fetched, exhausted empty list may disappear. Keep its
+  // query active so a new request/history entry can make the block visible again.
+  const showRequests = !requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage;
+  const showHistory = !historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage;
   const categoryCatalog = categoriesQuery.data ?? [];
   // Full path (e.g. 먹을것 › 면류 › 라면) once the taxonomy is loaded; the leaf name until then.
   const labelFor = (category: Category | null | undefined) => category
@@ -174,19 +178,15 @@ export default function ProfileScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.username}>@{profile.username}</Text>
           </View>
-          <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
-            disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} />
+          {profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+            disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '다시 불러오기'} /> : null}
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
         <ProfileSocialLinks profileUserId={profile.id} editable />
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>현재 원픽</Text>
-          <Text style={styles.summaryNumber}>{currentPicks.length}개</Text>
-        </View>
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
-        <ProfileTasteComposition profileId={profile.id} viewerId={user.id} />
-        <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
+        {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
+        {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
         <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
         {currentPicks.length > 0 ? (
           <ProfilePickGroups
@@ -202,9 +202,8 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.managementSection}>
-          <Text style={styles.secondaryEyebrow}>PROFILE TOOLS</Text>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
-          <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필과 운영 도구를 확인합니다.</Text>
+          <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필을 확인해요.</Text>
 
           <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.managementRow, styles.managementRowAccent, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>취향 고르기 이어가기</Text><Text style={styles.managementText}>아직 고르지 않은 카테고리의 원픽을 더 채워보세요.</Text></View>
@@ -219,36 +218,37 @@ export default function ProfileScreen() {
           </Pressable> : null}
         </View>
 
-        <View style={styles.activitySection}>
-          <Text style={styles.secondaryEyebrow}>ACTIVITY</Text>
+        {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
           <Text style={styles.secondaryDescription}>제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.</Text>
 
-          <View style={[styles.sectionHeader, styles.requestHeader]}>
-            <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>{requestsQuery.data ? <Text style={styles.sectionHint}>불러온 {itemRequests.length}개</Text> : null}
-          </View>
-          {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
-          {requestsQuery.data && itemRequests.length === 0 && !requestsQuery.isError ? <Text style={styles.noHistory}>아직 등록을 요청한 제품이 없어요.</Text> : null}
-          <ListControls query={requestsQuery} label="등록 요청" />
+          {showRequests ? <>
+            <View style={[styles.sectionHeader, styles.requestHeader]}>
+              <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>
+            </View>
+            {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
+            <ListControls query={requestsQuery} label="등록 요청" />
+          </> : null}
 
-          <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>{historyQuery.data ? <Text style={styles.sectionHint}>불러온 {history.length}개</Text> : null}</View>
-          {history.map((item) => <ProfilePickCard
-            key={item.pick.id}
-            categoryName={labelFor(item.category) ?? '카테고리'}
-            itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
-            review={item.pick.oneLineReview}
-            imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
-            itemId={item.item?.id}
-            itemStatus={item.item?.status}
-            hasPhoto={Boolean(item.item?.imagePath)}
-            muted
-            statusText={item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}
-            onPressPick={() => openPick(item.pick.id)}
-            onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
-          />)}
-          {historyQuery.data && history.length === 0 && !historyQuery.isError ? <Text style={styles.noHistory}>원픽을 바꾸면 이전 선택이 여기에 차곡차곡 남습니다.</Text> : null}
-          <ListControls query={historyQuery} label="이전 기록" />
-        </View>
+          {showHistory ? <>
+            <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text></View>
+            {history.map((item) => <ProfilePickCard
+              key={item.pick.id}
+              categoryName={labelFor(item.category) ?? '카테고리'}
+              itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+              review={item.pick.oneLineReview}
+              imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
+              itemId={item.item?.id}
+              itemStatus={item.item?.status}
+              hasPhoto={Boolean(item.item?.imagePath)}
+              muted
+              statusText={item.pick.status === 'replaced' ? '다른 원픽으로 변경됨' : '선택 종료'}
+              onPressPick={() => openPick(item.pick.id)}
+              onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
+            />)}
+            <ListControls query={historyQuery} label="이전 기록" />
+          </> : null}
+        </View> : null}
 
         <View style={styles.signOutArea}><SignOutButton /></View>
       </ScrollView>
