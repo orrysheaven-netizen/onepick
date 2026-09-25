@@ -13,6 +13,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, Response, URL, setTimeout, clearTimeout, require(name) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
     assert.fail(`Unexpected dependency: ${name}`);
