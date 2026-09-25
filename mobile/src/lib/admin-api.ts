@@ -419,6 +419,18 @@ export function getDashboardMetrics() {
   });
 }
 
+export type AdminDatabaseUsage = {
+  generated_at: string;
+  database_bytes: number;
+  storage_bytes: number;
+  tables: Array<{ schema: string; name: string; total_bytes: number; row_estimate: number }>;
+  buckets: Array<{ bucket: string; objects: number; bytes: number }>;
+};
+
+export function getDatabaseUsage() {
+  return adminRequest<AdminDatabaseUsage>('/rest/v1/rpc/admin_database_usage', { method: 'POST', body: '{}' });
+}
+
 export function getOnePickDashboard(days: AdminOnePickDashboardWindow = 30) {
   return adminRequest<AdminOnePickDashboard>('/rest/v1/rpc/admin_onepick_dashboard', {
     method: 'POST',
