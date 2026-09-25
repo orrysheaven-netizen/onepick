@@ -245,6 +245,8 @@ async function main() {
       await actionable(page.getByRole('tab', { name: '전체 원픽 보기' }));
     });
     await check(flow, '피드 카드 표시', async () => {
+      // Count on 전체 whatever tab Home opens on: 팔로잉 is empty while the QA account follows no one.
+      await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       const cards = page.getByRole('button', { name: /제품 상세 보기$/ });
       await cards.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await cards.count();
