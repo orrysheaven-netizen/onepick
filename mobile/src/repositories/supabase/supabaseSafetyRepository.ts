@@ -24,11 +24,15 @@ function relationUsername(value: UsernameRelation) {
   return row?.username ?? null;
 }
 
+// Stored by private.prepare_user_block for targets hidden from the blocker.
+// It cannot match the username format, so it never names a real account.
+const HIDDEN_BLOCK_USERNAME = '(private)';
+
 function mapBlock(row: UserBlockRow): UserBlock {
   return {
     blockerUserId: row.blocker_user_id,
     blockedUserId: row.blocked_user_id,
-    blockedUsername: row.blocked_username_snapshot,
+    blockedUsername: row.blocked_username_snapshot === HIDDEN_BLOCK_USERNAME ? null : row.blocked_username_snapshot,
     createdAt: row.created_at,
   };
 }

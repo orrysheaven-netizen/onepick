@@ -36,6 +36,9 @@ export interface ReadCursor {
 }
 
 /** One person's current choice, not an aggregate product or a follower event. */
+/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
+export type PickChannel = 'offline' | 'online';
+
 export interface HomeFeedPick {
   pickId: string;
   userId: string;
@@ -48,6 +51,8 @@ export interface HomeFeedPick {
   oneLineReview: string;
   thumbnailUrl: string | null;
   startedAt: string;
+  /** Empty for legacy items with no channel, and on the following feed. */
+  channels: PickChannel[];
 }
 
 export interface HomePickPage {
@@ -106,7 +111,8 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
+  /** `channel` narrows the feed server-side (Home 매장/온라인 tabs); null keeps every Pick. */
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
