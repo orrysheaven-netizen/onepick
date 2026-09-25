@@ -15,6 +15,7 @@ assert.match(panel, /reviewCategories\.some\(\(category\) => category\.id === se
 assert.match(panel, /status === 'active' && !reviewCategoryId/,'Approval is blocked until a real category is chosen');
 assert.match(panel, /updatePendingItem\(selected\.id, status, status === 'active' \? reviewCategoryId : undefined\)/,'The reviewed category is sent to admin_review_pending_item');
 assert.match(panel, /const categoryId = reviewCategoryId \|\| \(!isUnclassified \? selected\.category_id : ''\)/,'Duplicate search uses the reviewed category');
-assert.match(panel, /disabled=\{processing \|\| !!mergingId \|\| !reviewCategoryId\}/,'Approve button is disabled without a category');
+assert.match(panel, /const busy = processing \|\| !!mergingId \|\| resolving;/,'Every review action shares one busy guard');
+assert.match(panel, /disabled=\{busy \|\| !reviewCategoryId\}/,'Approve button is disabled without a category');
 
 console.log('Admin pending category approval regression passed.');
