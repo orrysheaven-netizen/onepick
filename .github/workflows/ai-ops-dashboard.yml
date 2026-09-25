@@ -6,9 +6,6 @@ on:
     - cron: "15 22 * * *" # 07:15 KST
   issues:
     types: [opened, closed, reopened, labeled, unlabeled]
-  pull_request:
-    types: [closed]
-
 permissions:
   contents: read
   issues: write
