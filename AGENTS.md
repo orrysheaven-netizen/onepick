@@ -8,7 +8,11 @@ The primary checkout is shared by several concurrent agent sessions. Never check
 
 ## Role division
 
-ChatGPT/Codex is the primary builder; Claude Code is the independent reviewer/QA. GitHub is the source of truth, and agents should not implement the same feature in parallel. See `docs/ai-role-division.md`.
+ChatGPT/Codex is the **Product Builder** and Claude Code is the **Platform / Reliability** owner. Workload is tracked by `size:S/M/L` points with a 60:40 Codex:Claude target, but protected security ownership overrides the ratio. GitHub is the source of truth, and agents must not implement the same feature in parallel. See `docs/ai-role-division.md`.
+
+At session start, read the `[AI Ops] OnePick 작업·인계 대시보드` issue first, then your `handoff:*` issues, then only the referenced task/PR. Avoid broad repository rereads unless the task requires them.
+
+Codex must not implement Supabase migrations, RLS/GRANT/SECURITY DEFINER, Auth core, Storage policies, secret/permission handling, or security-sensitive workflows. Create or update the task with `handoff:claude` instead. Claude security/DB PRs receive a narrow Codex review limited to the PR diff, permission changes, migration/rollback, and related tests.
 
 ## Daily QA report (check at the start of every session)
 
@@ -28,4 +32,4 @@ User-facing QA uses only the dedicated QA general-user account. Never use an adm
 
 ## Automation plan (check with the QA report)
 
-Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Anything labeled `security-urgent` comes first, and security Medium and above come before new features. Then check the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
+Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Security findings owned by Claude are not Codex implementation work; Codex only handles explicit `handoff:codex` review or product-side follow-up. Then check `handoff:codex`, `owner:codex`, and the automation-plan issue for due Codex work. Do not implement Claude-owned protected areas. Plan and schedule: `docs/automation-plan.md`.
