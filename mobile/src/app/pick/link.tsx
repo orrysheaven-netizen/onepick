@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -17,12 +17,16 @@ function errorText(error: unknown) {
   return '링크를 확인하지 못했어요. 이름을 직접 입력하고 다시 시도해주세요.';
 }
 
+type Params = { url?: string | string[]; name?: string | string[] };
+const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : '';
+
 export default function LinkCategorySuggestionScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
   const suggestion = useLinkCategorySuggestions();
-  const [url, setUrl] = useState('');
-  const [name, setName] = useState('');
+  const [url, setUrl] = useState(() => scalar(params.url).slice(0, 2048));
+  const [name, setName] = useState(() => scalar(params.name).slice(0, 100));
   const [selectedPlace, setSelectedPlace] = useState<LinkPlaceMatch | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [showCategorySearch, setShowCategorySearch] = useState(false);
@@ -38,6 +42,19 @@ export default function LinkCategorySuggestionScreen() {
   }, [result, categorySearch]);
 
   const analyze = async (placeCatalogId?: string) => {
+    if (!auth.user) {
+      const linkUrl = url.trim();
+      if (!linkUrl) return null;
+      router.push({
+        pathname: '/auth/login',
+        params: {
+          action: 'suggest_link_category',
+          linkUrl,
+          ...(name.trim() ? { linkName: name.trim() } : {}),
+        },
+      });
+      return null;
+    }
     setSelectedCategoryId(null);
     const next = await suggestion.mutateAsync({
       url,
@@ -98,12 +115,6 @@ export default function LinkCategorySuggestionScreen() {
       action={{ label: '다시 확인', variant: 'secondary', onPress: () => void auth.retry() }} /></View></SafeAreaView>;
   }
 
-  if (!auth.user) {
-    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard title="링크 추천은 로그인 후 사용할 수 있어요"
-      text="외부 링크 확인 요청을 사용자별로 제한해 남용을 막습니다."
-      action={{ label: '로그인', variant: 'primary', onPress: () => router.push('/auth/login') }} /></View></SafeAreaView>;
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -148,8 +159,9 @@ export default function LinkCategorySuggestionScreen() {
             style={styles.input}
           />
 
+          {!auth.user ? <Text style={styles.notice}>추천 요청 전에 로그인합니다. 입력한 링크와 이름은 로그인 후 그대로 이어집니다.</Text> : null}
           <Button
-            label={suggestion.isPending ? '확인 중…' : '링크 확인하고 추천받기'}
+            label={suggestion.isPending ? '확인 중…' : auth.user ? '링크 확인하고 추천받기' : '로그인하고 추천받기'}
             disabled={suggestion.isPending || !url.trim()}
             onPress={() => void analyze().catch(() => {})}
           />
