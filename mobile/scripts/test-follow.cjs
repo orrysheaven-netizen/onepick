@@ -127,11 +127,11 @@ async function main() {
   // Home: the 팔로잉 scope only exists for members and is a separate query from the public feed.
   const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
   assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing/);
-  assert.match(home, /const \[feedScope, setFeedScope\] = useState<'all' \| 'following'>\([\s\S]*OnePickFeatures\.follow \? 'following' : 'all'/,
-    'Signed-in MVP users start from following while signed-out users still render the public feed');
+  assert.match(home, /const \[feedScope, setFeedScope\] = useState<'all' \| 'following'>\('all'\)/,
+    'New members and guests start from the public feed; following remains an explicit choice');
   assert.match(home, /const showFollowing = OnePickFeatures\.follow && Boolean\(user\) && feedScope === 'following'/);
   assert.match(home, /\(\['following', 'all'\] as const\)\.map/,
-    'Following appears before the public feed in the member scope switcher');
+    'Following appears before the public feed in the preserved member scope switcher');
   assert.match(home, /OnePickFeatures\.follow && user \? <View style=\{styles\.scopeRow\}>/);
   assert.match(home, /아직 팔로잉 원픽이 없어요/);
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
@@ -147,7 +147,7 @@ async function main() {
     'Own profile only renders follower/following numbers behind the dedicated count gate');
   assert.match(publicProfile, /action: 'view_profile'/);
 
-  console.log('Follow checks passed: service guards, login return intent, button states, home scope and profile placement.');
+  console.log('Follow checks passed: service guards, login return intent, button states, all-first home scope and profile placement.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
