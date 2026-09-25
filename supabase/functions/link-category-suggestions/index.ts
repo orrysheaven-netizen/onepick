@@ -283,6 +283,26 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+
+    if (body.action === 'attach_pending_link') {
+      const itemId = typeof body.itemId === 'string' && UUID_PATTERN.test(body.itemId) ? body.itemId : '';
+      const pendingUrl = httpsUrl(body.url);
+      if (!itemId || !pendingUrl) return json({ error: 'INPUT_INVALID' }, 400);
+
+      const itemResult = await admin.from('items').select('id,status,created_by')
+        .eq('id', itemId).maybeSingle();
+      if (itemResult.error) return json({ error: 'LINK_SUGGESTION_UNAVAILABLE' }, 503);
+      if (!itemResult.data || itemResult.data.created_by !== auth.data.user.id) {
+        return json({ error: 'ITEM_NOT_FOUND' }, 404);
+      }
+      if (itemResult.data.status !== 'pending') return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+
+      const updateResult = await admin.from('items').update({ official_url: pendingUrl.toString() })
+        .eq('id', itemId).eq('created_by', auth.data.user.id).eq('status', 'pending');
+      if (updateResult.error) return json({ error: 'LINK_SAVE_FAILED' }, 503);
+      return json({ ok: true });
+    }
+
     const parsed = httpsUrl(body.url);
     if (!parsed) return json({ error: 'URL_INVALID' }, 400);
 
