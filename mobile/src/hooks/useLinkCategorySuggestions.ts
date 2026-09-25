@@ -8,3 +8,10 @@ export function useLinkCategorySuggestions() {
     mutationFn: (input: LinkCategorySuggestionInput) => linkCategorySuggestionService.suggest(input),
   });
 }
+
+export function useAttachPendingItemLink() {
+  return useMutation({
+    mutationFn: ({ itemId, url }: { itemId: string; url: string }) =>
+      linkCategorySuggestionService.attachPendingLink(itemId, url),
+  });
+}
