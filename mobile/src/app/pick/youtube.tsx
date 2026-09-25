@@ -258,7 +258,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
             itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
             onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
-            <Text style={styles.itemCategory}>콘텐츠 › 유튜브 · 등록됨</Text>
+            <Text style={styles.itemCategory}>유튜브 · 등록됨</Text>
             <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
             <Text style={styles.itemAction}>이 채널을 원픽으로 선택 ›</Text>
           </Pressable>
@@ -270,7 +270,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
           <PickPhoto uri={entry.thumbnailUrl} label={`${entry.title} 채널 이미지`} />
           <View style={styles.itemCopy}>
-            <Text style={styles.itemCategory}>콘텐츠 › 유튜브 · YouTube</Text>
+            <Text style={styles.itemCategory}>유튜브 · YouTube</Text>
             <Text style={styles.itemName}>{entry.title}</Text>
             <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '채널 정보를 확인하고 있어요…' : '이 채널을 원픽으로 선택 ›'}</Text>
           </View>

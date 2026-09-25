@@ -5,7 +5,8 @@ export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
 export interface UserBlock {
   blockerUserId: string;
   blockedUserId: string;
-  blockedUsername: string;
+  /** null when the target was hidden from the blocker at block time (suspended or reverse-blocked). */
+  blockedUsername: string | null;
   createdAt: string;
 }
 
