@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
-import { homeService } from '@/services/homeRuntimeServices';
+import { homeService } from '@/services/homeServiceInstance';
 
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
 const HOME_MAX_PAGES = 3;
