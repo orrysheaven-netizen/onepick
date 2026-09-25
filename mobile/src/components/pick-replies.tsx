@@ -13,20 +13,21 @@ import { ReportAction } from '@/components/report-action';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
+import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { OnePick } from '@/constants/onepick';
 
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'COMMENT_INVALID') return '답글은 1~300자로 입력해주세요.';
-    if (error.code === 'RATE_LIMITED') return '답글 요청이 많아요. 1분 후 다시 시도해주세요.';
-    if (error.code === 'AUTH_REQUIRED') return '답글을 남기려면 로그인이 필요해요.';
-    if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 답글을 남길 수 없어요.';
-    if (error.code === 'PROFILE_NOT_FOUND') return '답글을 남기려면 사용자명을 먼저 정해주세요.';
+    if (error.code === 'COMMENT_INVALID') return '댓글은 1~300자로 입력해주세요.';
+    if (error.code === 'RATE_LIMITED') return '댓글 요청이 많아요. 1분 후 다시 시도해주세요.';
+    if (error.code === 'AUTH_REQUIRED') return '댓글을 남기려면 로그인이 필요해요.';
+    if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 댓글을 남길 수 없어요.';
+    if (error.code === 'PROFILE_NOT_FOUND') return '댓글을 남기려면 사용자명을 먼저 정해주세요.';
   }
 
-  return '답글을 저장하지 못했어요. 다시 시도해주세요.';
+  return '댓글을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
 export function PickReplies({ pickId }: { pickId: string }) {
@@ -41,6 +42,9 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
   const query = usePickDetail(pickId, user?.id);
   const commentsQuery = usePickComments(!isSessionLoading && !sessionError ? pickId : undefined, user?.id);
   const createComment = useCreateComment(pickId ?? 'missing');
+  const deleteComment = useDeleteComment(pickId ?? 'missing');
+  // One inline confirmation at a time; native Alert does not exist on web.
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
   const submittingComment = useRef(false);
   const canComment = !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
@@ -64,6 +68,16 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
     }
   };
 
+  const handleCommentDelete = async (commentId: string) => {
+    if (deleteComment.isPending) return;
+    try {
+      await deleteComment.mutateAsync(commentId);
+      setConfirmingDeleteId(null);
+    } catch {
+      // Keep the confirmation open; mutation state shows the failure and allows retry.
+    }
+  };
+
   if (isSessionLoading) return <ActivityIndicator accessibilityLabel="로그인 상태 확인 중" />;
   if (sessionError) return <View style={styles.commentsState}>
     <Text accessibilityRole="alert" style={styles.commentsStateText}>로그인 상태를 확인하지 못했어요.</Text>
@@ -71,7 +85,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
       <Text style={styles.smallButtonText}>다시 확인하기</Text>
     </Pressable>
   </View>;
-  if (query.isPending) return <ActivityIndicator accessibilityLabel="답글 불러오는 중" />;
+  if (query.isPending) return <ActivityIndicator accessibilityLabel="댓글 불러오는 중" />;
   if (query.isError || !query.data) return (
     <View><Text>한줄평을 불러오지 못했어요.</Text><Pressable onPress={() => void query.refetch()}><Text>다시 불러오기</Text></Pressable></View>
   );
@@ -79,20 +93,20 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
   return (
             <View style={styles.commentsCard}>
               <View style={styles.commentsHeader}>
-                <Text style={styles.commentsTitle}>답글</Text>
+                <Text style={styles.commentsTitle}>댓글</Text>
                 <Text style={styles.commentsCount}>{commentsQuery.data?.length ?? 0}개{commentsQuery.hasNextPage ? '+' : ''}</Text>
               </View>
 
               {commentsQuery.isPending ? (
                 <View style={styles.commentsState}>
                   <ActivityIndicator />
-                  <Text style={styles.commentsStateText}>답글을 불러오고 있어요</Text>
+                  <Text style={styles.commentsStateText}>댓글을 불러오고 있어요</Text>
                 </View>
               ) : null}
 
               {commentsQuery.isError && !commentsQuery.isFetchNextPageError ? (
                 <View style={styles.commentsState}>
-                  <Text style={styles.commentsStateText}>답글을 불러오지 못했어요.</Text>
+                  <Text style={styles.commentsStateText}>댓글을 불러오지 못했어요.</Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => void commentsQuery.refetch()}
@@ -103,7 +117,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
               ) : null}
 
               {!commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
-                <Text style={styles.emptyComments}>{canComment ? '아직 답글이 없어요. 첫 의견을 남겨보세요.' : '아직 답글이 없어요.'}</Text>
+                <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
               {commentsQuery.data?.map(({ comment, author }) => (
@@ -129,12 +143,49 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                         <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
                       </View>
                     ) : null}
+                    {user && comment.userId === user.id ? (
+                      confirmingDeleteId === comment.id ? (
+                        <View style={styles.deleteConfirm}>
+                          <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 되돌릴 수 없어요.</Text>
+                          {deleteComment.isError ? (
+                            <Text accessibilityRole="alert" style={styles.commentError}>댓글을 삭제하지 못했어요. 다시 시도해주세요.</Text>
+                          ) : null}
+                          <View style={styles.deleteActions}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel="댓글 삭제 확인"
+                              disabled={deleteComment.isPending}
+                              onPress={() => void handleCommentDelete(comment.id)}
+                              style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
+                              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel="댓글 삭제 취소"
+                              disabled={deleteComment.isPending}
+                              onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
+                              style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+                              <Text style={styles.textActionLabel}>취소</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="내 댓글 삭제"
+                          disabled={deleteComment.isPending}
+                          onPress={() => { deleteComment.reset(); setConfirmingDeleteId(comment.id); }}
+                          style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+                          <Text style={styles.textActionLabel}>삭제</Text>
+                        </Pressable>
+                      )
+                    ) : null}
                   </View>
                 </View>
               ))}
 
               {commentsQuery.isFetchNextPageError ? (
-                <Text accessibilityRole="alert" style={styles.commentsStateText}>다음 답글을 불러오지 못했어요. 다시 시도해주세요.</Text>
+                <Text accessibilityRole="alert" style={styles.commentsStateText}>다음 댓글을 불러오지 못했어요. 다시 시도해주세요.</Text>
               ) : null}
 
               {commentsQuery.hasNextPage ? (
@@ -143,7 +194,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                   disabled={commentsQuery.isFetching}
                   onPress={() => { if (!commentsQuery.isFetching) void commentsQuery.fetchNextPage({ cancelRefetch: false }); }}
                   style={({ pressed }) => [styles.smallButton, commentsQuery.isFetching && { opacity: 0.5 }, pressed && styles.pressed]}>
-                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '답글 더 보기 다시 시도' : '답글 더 보기'}</Text>}
+                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '댓글 더 보기 다시 시도' : '댓글 더 보기'}</Text>}
                 </Pressable>
               ) : null}
 
@@ -151,11 +202,11 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                 user ? (
                   <View style={styles.commentComposer}>
                     <View style={styles.commentInputHeader}>
-                      <Text style={styles.commentInputLabel}>답글 남기기</Text>
+                      <Text style={styles.commentInputLabel}>댓글 남기기</Text>
                       <Text style={styles.commentCounter}>{commentBody.length}/300</Text>
                     </View>
                     <TextInput
-                      accessibilityLabel="답글 입력"
+                      accessibilityLabel="댓글 입력"
                       editable={!createComment.isPending}
                       maxLength={300}
                       multiline
@@ -188,7 +239,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                       {createComment.isPending ? (
                         <ActivityIndicator color={OnePick.onAccent} />
                       ) : (
-                        <Text style={styles.commentButtonText}>답글 남기기</Text>
+                        <Text style={styles.commentButtonText}>댓글 남기기</Text>
                       )}
                     </Pressable>
                   </View>
@@ -197,13 +248,13 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                     accessibilityRole="button"
                     onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
                     style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
-                    <Text style={styles.loginPromptTitle}>로그인하고 답글 남기기</Text>
+                    <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
                     <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
                   </Pressable>
                 )
               ) : (
                 <Text style={styles.historyCommentNotice}>
-                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 답글을 남길 수 없습니다.' : '현재 답글을 남길 수 없는 원픽입니다.'}
+                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다.' : '현재 댓글을 남길 수 없는 원픽입니다.'}
                 </Text>
               )}
             </View>
@@ -229,6 +280,13 @@ const styles = StyleSheet.create({
   commentAuthor: { color: OnePick.text, fontSize: 12, fontWeight: '800' },
   commentBody: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
   commentSafety: { marginTop: 8 },
+  textAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingRight: 12 },
+  textActionLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  deleteConfirm: { marginTop: 8, padding: 12, borderRadius: 12, backgroundColor: OnePick.background },
+  deleteConfirmText: { color: OnePick.text, fontSize: 12, lineHeight: 17 },
+  deleteActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  deleteButton: { minHeight: 44, minWidth: 64, borderRadius: 12, paddingHorizontal: 14, backgroundColor: OnePick.danger, alignItems: 'center', justifyContent: 'center' },
+  deleteButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   commentComposer: { marginTop: 18 },
   commentInputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
   commentInputLabel: { color: OnePick.text, fontSize: 12, fontWeight: '800' },

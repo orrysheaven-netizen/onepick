@@ -65,7 +65,7 @@ function profile(isPublic = false) {
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
-    '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; } },
+    '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
@@ -74,13 +74,14 @@ function profile(isPublic = false) {
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
     '@/components/profile-taste-composition': { ProfileTasteComposition: mount('taste') },
     '@/components/profile-ai-panel': { ProfileAiPanel: mount('ai') }, '@/components/profile-ai-comment': { ProfileAiComment: mount('ai') },
-    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
+    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
   });
   view.render(); return { view, q, history, requests, calls, auth };
 }
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
+    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false);
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
@@ -166,10 +167,11 @@ async function main() {
   await test('Owner profile hides confirmed-empty activity but continues both queries', () => {
     const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 제품 등록 요청|이전 원픽 기록|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
     assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 1); assert.equal(view.all('SignOutButton').length, 1);
+    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
     assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')), undefined);
   });
   await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
+    flags.profilePickHistory = true;
     const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
     assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 제품 등록 요청/);
     history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '이전 기록 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
@@ -181,7 +183,16 @@ async function main() {
   await test('Owner header refresh appears only on profile refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
     await view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')).onPress();
-    assert.equal(q.refetches, 1); assert.equal(history.refetches, 1); assert.equal(requests.refetches, 1);
+    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 1);
+  });
+  await test('Pick history and social links stay hidden until restored', () => {
+    const owner = profile();
+    owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
+    assert.doesNotMatch(owner.view.text(), /이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    flags.profilePickHistory = true; flags.profileSocialLinks = true; owner.view.render();
+    assert.match(owner.view.text(), /이전 원픽 기록/); assert.equal(owner.view.all('ProfilePickCard').length, 1); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
+    flags.profileSocialLinks = false; const visitor = profile(true); assert.equal(visitor.view.all('ProfileSocialLinks').length, 0);
+    flags.profileSocialLinks = true; visitor.view.render(); assert.equal(visitor.view.all('ProfileSocialLinks').length, 1);
   });
   await test('Both profile features can be restored independently', () => {
     for (const isPublic of [false, true]) for (const taste of [false, true]) for (const ai of [false, true]) {

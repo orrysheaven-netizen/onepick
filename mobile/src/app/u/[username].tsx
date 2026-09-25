@@ -105,7 +105,7 @@ export default function PublicProfileScreen() {
               onRequireLogin={() => router.push({ pathname: '/auth/login', params: { action: 'view_profile', username: query.data!.profile.username } })} />
             <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
           </View> : null}
-          <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
+          {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
           <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{query.data.currentPicks.length}개</Text></View>
           {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
           {OnePickFeatures.profileAi ? <ProfileAiComment

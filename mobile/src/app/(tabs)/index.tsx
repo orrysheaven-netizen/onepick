@@ -27,7 +27,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
       <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryName}</Text>
     </View>
     <View style={styles.editorialBody}>
       <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
@@ -81,10 +81,7 @@ export default function HomeScreen() {
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
   // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog).map((category) => ({
-    ...category,
-    label: categoryLabel(category, categoryCatalog),
-  })), [user, categoryCatalog]);
+  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog), [user, categoryCatalog]);
   const openRegistration = (category: { id: string; slug: string }) => {
     const params = { categoryId: category.id };
     if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
@@ -112,18 +109,12 @@ export default function HomeScreen() {
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
   // Both feed scopes render the same card. Same item → the normal choose screen
-  // (signed-out readers get its login gate); different item → the category finder.
+  // (signed-out readers get its login gate).
   const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })}
-      onChooseOther={() => {
-        const category = searchCategories.find((entry) => entry.id === pick.categoryId);
-        if (category) openRegistration(category);
-        else router.push({ pathname: '/pick/find', params: { categoryId: pick.categoryId } });
-      }} />
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
   </View>;
 
   const listHeader = <>
@@ -230,7 +221,7 @@ export default function HomeScreen() {
           <View style={styles.nextSection}><SectionHeader title="어떤 맛집부터 골라볼까요?" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
-              const label = category.label ?? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name);
+              const label = category.name;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
                 onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
                 <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>

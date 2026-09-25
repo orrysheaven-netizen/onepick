@@ -49,6 +49,7 @@ export function createDramaHandler({ client: makeClient, fetchTmdb, readCache, w
     if (body.action === 'import' && !/^[1-9]\d{0,11}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       // Authenticate BEFORE making a paid/rate-limited upstream request.
@@ -57,6 +58,7 @@ export function createDramaHandler({ client: makeClient, fetchTmdb, readCache, w
       if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
       const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: data.user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
@@ -120,10 +122,15 @@ export function createDramaHandler({ client: makeClient, fetchTmdb, readCache, w
     if ('error' in remote) return remote.error;
     const drama = mapTmdbDrama(remote.data);
     if (!drama || drama.externalId !== id) return json({ error: 'DRAMA_NOT_FOUND' }, 404);
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
     const inserted = await client.from('items').insert({
       category_id: category.id, name: drama.title, normalized_name: normalizeItemName(drama.title),
       official_url: `https://www.themoviedb.org/tv/${id}`, image_source_url: drama.posterUrl,
-      external_source: TMDB_TV_SOURCE, external_id: id, original_name: drama.originalTitle,
+      external_source: TMDB_TV_SOURCE, external_id: id,
+      original_name: drama.originalTitle,
       release_year: drama.releaseYear, status: 'active',
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });

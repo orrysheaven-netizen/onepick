@@ -223,6 +223,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
 
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    let importUserId: string | null = null;
 
     if (body.action === 'import') {
       const authorization = req.headers.get('Authorization') ?? '';
@@ -234,6 +235,7 @@ export function createBookCatalogHandler(deps: Dependencies) {
 
       const { data, error } = await client.auth.getUser(token);
       if (error || !data.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+      importUserId = data.user.id;
 
       const suspended = await client.rpc('catalog_user_is_suspended', {
         p_user_id: data.user.id,
@@ -411,6 +413,10 @@ export function createBookCatalogHandler(deps: Dependencies) {
     const isbnMatch = await findExistingByIsbn(book.isbn);
     if (isbnMatch.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     if (isbnMatch.data) return receipt(isbnMatch.data);
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: importUserId });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
 
     const inserted = await client
       .from('items')

@@ -7,8 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
-import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
-import type { Category } from '@/types/domain/category';
+import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import { OnePick, OnePickFeatures, OnePickThresholds } from '@/constants/onepick';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
@@ -27,13 +26,7 @@ export default function ExploreScreen() {
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categoryCatalog.find((category) => category.id === selectedCategoryId);
-  const selectedCategoryLabel = selectedCategory ? categoryLabel(selectedCategory, categoryCatalog) : null;
-  // Leaves can sit two levels below a top-level group; show the path below the group name.
-  const leafLabel = (category: Category) => {
-    const full = categoryLabel(category, categoryCatalog);
-    const prefix = group ? `${group.category.name} › ` : '';
-    return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
-  };
+  const selectedCategoryLabel = selectedCategory?.name ?? null;
   const movieCategory = categories.data?.find((category) => category.slug === 'movie');
   const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
   const musicCategory = categories.data?.find((category) => category.slug === 'music');
@@ -128,8 +121,8 @@ export default function ExploreScreen() {
             <Text style={styles.childTitle}>{group.category.name} 카테고리</Text>
             <Text style={styles.childCount}>{group.children.length}개</Text>
           </View>
-          <View style={styles.childList}>{group.children.map((category) => <Chip key={category.id} label={leafLabel(category)}
-            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} selected={childId === category.id}
+          <View style={styles.childList}>{group.children.map((category) => <Chip key={category.id} label={category.name}
+            accessibilityLabel={`${category.name} 카테고리 보기`} selected={childId === category.id}
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
         </View> : null}
