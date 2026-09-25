@@ -19,6 +19,7 @@ vm.runInNewContext(output, {
   require: (name) => {
     if (name === '@/lib/supabase/client') return { supabase: {} };
     if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (v) => v };
+    if (name === '@/lib/items/pickChannel') return require('./pick-channel.cjs');
     if (name === '@/lib/admin/adminSession') return { getAdminAccessToken: async () => 'admin-token' };
     throw new Error(name);
   },

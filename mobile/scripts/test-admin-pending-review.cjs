@@ -17,6 +17,7 @@ function loadAdminApi(fetchImpl) {
     require: (name) => {
       if (name === '@/lib/supabase/client') return { supabase: {} };
       if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (value) => value };
+      if (name === '@/lib/items/pickChannel') return require('./pick-channel.cjs');
       if (name === '@/lib/admin/adminSession') return { getAdminAccessToken: async () => 'token' };
       throw new Error('Unexpected dependency: ' + name);
     },
