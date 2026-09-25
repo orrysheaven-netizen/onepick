@@ -66,5 +66,11 @@ assert.doesNotMatch(addable, /사진 없음|사진 준비 중/, 'The add state i
 
 console.log('PickPhoto checks passed: real images stay intact and missing images use intentional product placeholders.');
 
-const tallRemote = renderToStaticMarkup(React.createElement(PickPhoto, { uri: 'https://example.test/tall.jpg', label: 'Tall', tall: true }));
-assert.match(tallRemote, /data-content-fit="cover"/);
+// Every frame fits the whole photo: restaurant photos come in any shape.
+for (const frame of [{}, { feed: true }, { square: true }, { large: true }]) {
+  const html = renderToStaticMarkup(React.createElement(PickPhoto, { uri: 'https://example.test/wide.jpg', label: 'Wide', ...frame }));
+  assert.match(html, /data-content-fit="contain"/, `${JSON.stringify(frame)} frame must not crop the photo`);
+  assert.doesNotMatch(html, /data-content-fit="cover"/);
+}
+const feedMissing = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '을지면옥', feed: true }));
+assert.match(feedMissing, /을지면옥 이미지 준비 중/);

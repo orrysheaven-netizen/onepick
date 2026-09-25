@@ -108,7 +108,7 @@ function setup(file, extra = {}) {
     '@/hooks/useChoosePick': { useChoosePick: () => mutation },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => mutation },
-    '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' },
+    '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' },
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' }, ...extra,
   });
   return { auth, params, destinations, attempts, pending, mutation, query, picker, view };
