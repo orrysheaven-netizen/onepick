@@ -13,6 +13,7 @@ function loadSource(relativePath, imports = {}) {
   const exports = {};
   vm.runInNewContext(result.outputText, {
     exports,
+    URL,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
@@ -37,6 +38,8 @@ async function main() {
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
+  const requestWithSource = { ...request, sourceUrl: 'https://shop.example/items/ramen' };
+  const linkSuggestion = { action: 'suggest_link_category', linkUrl: 'https://naver.me/example', linkName: '  대성집  ' };
 
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
   same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', itemId: [ids[0]] }), { action: 'register_pick' });
@@ -55,9 +58,25 @@ async function main() {
     pathname: '/pick/request',
     params: { itemName: '신라면 더 레드', categoryId: ids[0] },
   });
+  same(getPostAuthRoute(getAuthIntent(requestWithSource)), {
+    pathname: '/pick/request',
+    params: {
+      itemName: '신라면 더 레드',
+      categoryId: ids[0],
+      sourceUrl: 'https://shop.example/items/ramen',
+    },
+  });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...requestWithSource, sourceUrl: 'http://shop.example/item' })).params?.sourceUrl, undefined);
   same(getAuthIntent({ action: 'request_item', itemName: '  신라면  ', categoryId: '../../bad' }), {
     action: 'request_item', itemName: '신라면',
   });
+  same(getAuthIntent(linkSuggestion), {
+    action: 'suggest_link_category', linkUrl: 'https://naver.me/example', linkName: '대성집',
+  });
+  same(getPostAuthRoute(getAuthIntent(linkSuggestion)), {
+    pathname: '/pick/link', params: { url: 'https://naver.me/example', name: '대성집' },
+  });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...linkSuggestion, linkUrl: 'http://naver.me/example' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ['신라면'] })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ' '.repeat(101) })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
@@ -73,7 +92,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
@@ -131,6 +150,9 @@ async function main() {
   await login(request, { profile: {} });
   same(destination, getPostAuthRoute(getAuthIntent(request)));
   same(callbackParams, getAuthIntent(request));
+  await login(linkSuggestion, { profile: {} });
+  same(destination, getPostAuthRoute(getAuthIntent(linkSuggestion)));
+  same(callbackParams, getAuthIntent(linkSuggestion));
   await login(comment, null);
   assert.equal(destination, undefined, 'Cancelling OAuth stays on login');
 
@@ -159,6 +181,6 @@ async function main() {
   await flush();
   presses[0]();
   same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
-  console.log('Auth return checks passed: Kakao/Apple preserve choose/comment/profile/home/item-request intents, onboarding, cancellation and callback retry.');
+  console.log('Auth return checks passed: Kakao/Apple preserve choose/comment/profile/home/item-request/link intents, onboarding, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

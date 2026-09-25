@@ -14,11 +14,14 @@ export type AuthReturnParams = {
   externalYouTubeId?: string | string[];
   externalPokemonId?: string | string[];
   placeCatalogId?: string | string[];
+  linkUrl?: string | string[];
+  linkName?: string | string[];
+  sourceUrl?: string | string[];
 };
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
-  | { action: 'request_item'; itemName: string; categoryId?: string }
+  | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string }
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
@@ -28,6 +31,7 @@ export type AuthIntent =
   | { action: 'choose_youtube'; externalYouTubeId: string; categoryId: string }
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
   | { action: 'choose_place'; placeCatalogId: string; categoryId: string }
+  | { action: 'suggest_link_category'; linkUrl: string; linkName?: string }
   | { action: 'comment_pick'; pickId: string }
   | { action: 'add_item_photo'; itemId: string }
   | { action: 'view_profile'; username: string }
@@ -67,6 +71,15 @@ function getExternalYouTubeId(value: string | string[] | undefined) {
 function getExternalPokemonId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^\d{1,6}$/.test(value) ? value : null;
 }
+function getHttpsUrl(value: string | string[] | undefined) {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'register_pick') return {
@@ -76,7 +89,13 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   };
   if (params.action === 'request_item') {
     const itemName = getItemName(params.itemName);
-    return itemName ? { action: 'request_item', itemName, ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}) } : { action: 'home' };
+    const sourceUrl = getHttpsUrl(params.sourceUrl);
+    return itemName ? {
+      action: 'request_item',
+      itemName,
+      ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
+      ...(sourceUrl ? { sourceUrl } : {}),
+    } : { action: 'home' };
   }
   if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
   if ((params.action === 'choose_movie' || params.action === 'choose_drama') && isId(params.categoryId)) {
@@ -106,6 +125,11 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'choose_place' && isId(params.categoryId) && isId(params.placeCatalogId)) {
     return { action: 'choose_place', placeCatalogId: params.placeCatalogId, categoryId: params.categoryId };
   }
+  if (params.action === 'suggest_link_category') {
+    const linkUrl = getHttpsUrl(params.linkUrl);
+    const linkName = getItemName(params.linkName);
+    if (linkUrl) return { action: 'suggest_link_category', linkUrl, ...(linkName ? { linkName } : {}) };
+  }
   if (params.action === 'comment_pick' && isId(params.pickId)) return { action: 'comment_pick', pickId: params.pickId };
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
@@ -117,7 +141,14 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   if (needsUsername) return { pathname: '/auth/username', params: { ...intent } };
   switch (intent.action) {
     case 'register_pick': return { pathname: '/pick/register', params: { ...intent } };
-    case 'request_item': return { pathname: '/pick/request', params: { itemName: intent.itemName, ...(intent.categoryId ? { categoryId: intent.categoryId } : {}) } };
+    case 'request_item': return {
+      pathname: '/pick/request',
+      params: {
+        itemName: intent.itemName,
+        ...(intent.categoryId ? { categoryId: intent.categoryId } : {}),
+        ...(intent.sourceUrl ? { sourceUrl: intent.sourceUrl } : {}),
+      },
+    };
     case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
@@ -127,6 +158,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_youtube': return { pathname: '/pick/youtube', params: { categoryId: intent.categoryId, externalYouTubeId: intent.externalYouTubeId } };
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
+    case 'suggest_link_category': return { pathname: '/pick/link', params: { url: intent.linkUrl, ...(intent.linkName ? { name: intent.linkName } : {}) } };
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
