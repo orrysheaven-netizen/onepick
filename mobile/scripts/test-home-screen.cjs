@@ -111,7 +111,7 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /@friend/); assert.match(page, /“다른 사람의 이유”/, 'Each card quotes that person’s own reason');
   assert.match(page, /@neighbor/); assert.match(page, /이웃도 신라면/);
   assert.match(page, /내 원픽/, 'A card for the item I already picked is badged');
-  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.match(page, /나는 다른 원픽/); assert.match(page, /의견 나누기/);
+  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
@@ -130,8 +130,6 @@ for (width of [390, 800, 1200]) {
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
   press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
-  press('라면에서 나는 다른 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'ramen');
-  press('@friend의 원픽에 의견 나누기'); assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'other');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');

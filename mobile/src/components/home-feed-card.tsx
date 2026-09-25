@@ -4,19 +4,17 @@ import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
  * One person's current Pick on Home (docs/people-first-home.md): who → category →
- * item → reason, then two ways to respond. "나도 이게 원픽" opens the normal
- * choose screen (the reader still writes their own reason); "나는 다른 원픽"
- * opens the category's finder. Nothing here writes or notifies.
+ * item → reason, then "나도 이게 원픽", which opens the normal choose screen (the
+ * reader still writes their own reason). Comments live on the item screen, which
+ * the card itself opens. Nothing here writes or notifies.
  */
-export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenPick, onChooseSame, onChooseOther }: {
+export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSame }: {
   pick: HomeFeedPick;
   /** The viewer already has this item as their Pick in this category. */
   mine?: boolean;
   onOpenItem: () => void;
   onOpenProfile: () => void;
-  onOpenPick: () => void;
   onChooseSame: () => void;
-  onChooseOther: () => void;
 }) {
   return <PickCard
     categoryName={pick.categoryName}
@@ -32,7 +30,5 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenPick
       {mine
         ? <Button variant="ghost" size="sm" label="이미 내 원픽이에요" accessibilityLabel={`${pick.name} 내 한줄평 보기`} onPress={onChooseSame} />
         : <Button variant="soft" size="sm" label="나도 이게 원픽" accessibilityLabel={`${pick.name} 나도 이게 원픽`} onPress={onChooseSame} />}
-      <Button variant="secondary" size="sm" label="나는 다른 원픽" accessibilityLabel={`${pick.categoryName}에서 나는 다른 원픽 찾기`} onPress={onChooseOther} />
-      <Button variant="ghost" size="sm" label="의견 나누기" accessibilityLabel={`@${pick.username}의 원픽에 의견 나누기`} onPress={onOpenPick} />
     </>} />;
 }
