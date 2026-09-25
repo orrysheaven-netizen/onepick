@@ -16,11 +16,12 @@ export type AuthReturnParams = {
   placeCatalogId?: string | string[];
   linkUrl?: string | string[];
   linkName?: string | string[];
+  sourceUrl?: string | string[];
 };
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
-  | { action: 'request_item'; itemName: string; categoryId?: string }
+  | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string }
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
@@ -88,7 +89,13 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   };
   if (params.action === 'request_item') {
     const itemName = getItemName(params.itemName);
-    return itemName ? { action: 'request_item', itemName, ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}) } : { action: 'home' };
+    const sourceUrl = getHttpsUrl(params.sourceUrl);
+    return itemName ? {
+      action: 'request_item',
+      itemName,
+      ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
+      ...(sourceUrl ? { sourceUrl } : {}),
+    } : { action: 'home' };
   }
   if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
   if ((params.action === 'choose_movie' || params.action === 'choose_drama') && isId(params.categoryId)) {
@@ -134,7 +141,14 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   if (needsUsername) return { pathname: '/auth/username', params: { ...intent } };
   switch (intent.action) {
     case 'register_pick': return { pathname: '/pick/register', params: { ...intent } };
-    case 'request_item': return { pathname: '/pick/request', params: { itemName: intent.itemName, ...(intent.categoryId ? { categoryId: intent.categoryId } : {}) } };
+    case 'request_item': return {
+      pathname: '/pick/request',
+      params: {
+        itemName: intent.itemName,
+        ...(intent.categoryId ? { categoryId: intent.categoryId } : {}),
+        ...(intent.sourceUrl ? { sourceUrl: intent.sourceUrl } : {}),
+      },
+    };
     case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
