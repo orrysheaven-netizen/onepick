@@ -55,6 +55,7 @@ const auth = { user: { id: 'owner' }, isLoading: false, error: null };
 const inbox = { data: { pages: [{ items: [
   { ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' },
   { ...rows[1], id: 'p1', pick_id: 'pick-p1', username: 'jimin', item_name: '헤드폰', body: '음질이 좋아요' },
+  { kind: 'seller_request', id: 'req-1', pick_id: null, username: null, body: '도가니탕', item_name: '○○곰탕 공식몰', created_at: '2026-09-26T00:00:00Z', read_at: null, item_id: 'online-item', category_id: 'dogani' },
 ] }] }, isError: false };
 let readCalls = [];
 const { default: Screen } = load('app/notifications.tsx', {
@@ -81,6 +82,18 @@ async function main() {
   assert.ok(calls.some(([key, value]) => key === 'table' && value === 'pick_change_notifications'), 'Pick changes are marked read on their own table');
   assert.ok(calls.some(([key, value]) => key === 'pick_id' && value === 'p1'));
   assert.ok(!calls.some(([key]) => key === 'comment_id'));
+  calls.length = 0;
+  await service.markRead('owner', 'seller_request', 'req-1');
+  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'item_request_notifications'), 'Seller-request notices are marked read on their own table');
+  assert.ok(calls.some(([key, value]) => key === 'request_item_id' && value === 'req-1'));
+  const sellerService = new NotificationService({ rpc: async () => ({ error: null, data: [
+    { kind: 'seller_request', id: 'req-1', pick_id: null, username: null, body: '도가니탕', item_name: '○○곰탕 공식몰', created_at: '2026-09-26T00:00:00Z', read_at: null, item_id: 'online-item', category_id: 'dogani' },
+    { kind: 'seller_request', id: 'req-2', pick_id: null, username: null, body: null, item_name: 'x', created_at: '2026-09-26T00:00:00Z', read_at: null, item_id: null, category_id: 'dogani' },
+    { kind: 'future_kind', id: 'f1', pick_id: 'p', created_at: '2026-09-26T00:00:00Z' },
+  ] }) });
+  const sellerPage = await sellerService.page('owner', null);
+  assert.deepEqual(sellerPage.items.map((item) => item.id), ['req-1'], 'Seller notices need their item/category; unknown kinds are dropped');
+  assert.equal(sellerPage.items[0].pick_id, null); assert.equal(sellerPage.items[0].item_id, 'online-item');
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: false }));
   preferenceRow = null;
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: true }), 'No row means on');
@@ -107,6 +120,14 @@ async function main() {
   openPick.onPress(); await new Promise((resolve) => setImmediate(resolve));
   assert.equal(destination.params.pickId, 'pick-p1', 'Pick-change rows open the new pick');
   assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'pick_change', id: 'p1' }));
+  assert.match(inboxHtml, /원픽 운영팀/); assert.match(inboxHtml, /요청 완료/);
+  assert.match(inboxHtml, /요청한 온라인 판매처 ○○곰탕 공식몰이\(가\) 등록됐어요/); assert.match(inboxHtml, /도가니탕 · 온라인/);
+  assert.doesNotMatch(inboxHtml, /@null/, 'Seller notices have no fake sender');
+  const openSeller = buttons.find((button) => button.accessibilityLabel?.includes('요청한 온라인 판매처'));
+  openSeller.onPress(); await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(destination.pathname, '/pick/choose', 'A resolved request opens the choose screen for the new seller');
+  assert.equal(destination.params.itemId, 'online-item'); assert.equal(destination.params.categoryId, 'dogani');
+  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'seller_request', id: 'req-1' }));
   auth.user = null;
   const publicPage = renderToStaticMarkup(React.createElement(Screen));
   assert.match(publicPage, /로그인/); assert.doesNotMatch(publicPage, /@friend|신라면/, 'No cached private data on logout');

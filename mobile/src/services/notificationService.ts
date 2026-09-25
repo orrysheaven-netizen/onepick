@@ -3,7 +3,7 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppDatabase } from '@/lib/supabase/database.overrides';
 
-export type NotificationKind = 'comment' | 'pick_change';
+export type NotificationKind = 'comment' | 'pick_change' | 'seller_request';
 export type AppNotification = AppDatabase['public']['Functions']['notification_page']['Returns'][number];
 export type NotificationCursor = { timestamp: string; id: string };
 export type NotificationPreferences = { followeePickChange: boolean };
@@ -18,10 +18,23 @@ function missingUnifiedRpc(error: { code?: string; message?: string } | null | u
 function normalizeNotification(row: unknown): AppNotification | null {
   if (!row || typeof row !== 'object') return null;
   const value = row as Partial<AppNotification>;
-  if ((value.kind !== 'comment' && value.kind !== 'pick_change')
-    || typeof value.id !== 'string' || !value.id
-    || typeof value.pick_id !== 'string' || !value.pick_id
+  if (typeof value.id !== 'string' || !value.id
     || typeof value.created_at !== 'string' || !value.created_at) return null;
+  if (value.kind === 'seller_request') {
+    // Opens the choose screen for the linked online seller, so both ids are required.
+    if (typeof value.item_id !== 'string' || !value.item_id
+      || typeof value.category_id !== 'string' || !value.category_id) return null;
+    return {
+      ...value,
+      pick_id: null,
+      username: null,
+      item_name: typeof value.item_name === 'string' && value.item_name ? value.item_name : '온라인 판매처',
+      body: typeof value.body === 'string' ? value.body : null,
+      read_at: typeof value.read_at === 'string' ? value.read_at : null,
+    } as AppNotification;
+  }
+  if ((value.kind !== 'comment' && value.kind !== 'pick_change')
+    || typeof value.pick_id !== 'string' || !value.pick_id) return null;
   return {
     ...value,
     username: typeof value.username === 'string' && value.username ? value.username : '알 수 없는 사용자',
@@ -92,7 +105,9 @@ export class NotificationService {
     const readAt = new Date().toISOString();
     const query = kind === 'comment'
       ? this.client.from('comment_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('comment_id', id)
-      : this.client.from('pick_change_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('pick_id', id);
+      : kind === 'seller_request'
+        ? this.client.from('item_request_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('request_item_id', id)
+        : this.client.from('pick_change_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('pick_id', id);
     const { error } = await query.is('read_at', null);
     if (error) throw mapSupabaseError(error);
   }

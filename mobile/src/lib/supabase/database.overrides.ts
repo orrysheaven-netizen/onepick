@@ -97,12 +97,24 @@ type NotificationPreferencesRow = {
   updated_at: string;
 };
 export type NotificationPageRow = {
-  kind: 'comment' | 'pick_change';
+  kind: 'comment' | 'pick_change' | 'seller_request';
   id: string;
-  pick_id: string;
-  username: string;
-  body: string;
+  /** Null for seller_request, which is about an item rather than a Pick. */
+  pick_id: string | null;
+  /** Null for seller_request (no sender). */
+  username: string | null;
+  body: string | null;
   item_name: string;
+  created_at: string;
+  read_at: string | null;
+  item_id?: string | null;
+  category_id?: string | null;
+};
+
+type ItemRequestNotificationRow = {
+  request_item_id: string;
+  recipient_id: string;
+  resolved_item_id: string;
   created_at: string;
   read_at: string | null;
 };
@@ -139,6 +151,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       system_actors: TableShape<SystemActorRow, never, never>;
       user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
       pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
+      item_request_notifications: TableShape<ItemRequestNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {

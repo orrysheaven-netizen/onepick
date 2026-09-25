@@ -6,6 +6,17 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications, useReadNotification } from '@/hooks/useNotifications';
 import type { AppNotification } from '@/services/notificationService';
 
+function notificationMessage(item: AppNotification) {
+  if (item.kind === 'seller_request') return `요청한 온라인 판매처 ${item.item_name}이(가) 등록됐어요. 지금 원픽으로 골라보세요.`;
+  return item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`;
+}
+
+function notificationLabel(item: AppNotification) {
+  const state = item.read_at ? '읽은' : '새';
+  if (item.kind === 'seller_request') return `${state} 알림, 요청한 온라인 판매처 ${item.item_name}이(가) 등록됐어요`;
+  return `${state} 알림, @${item.username}님이 ${item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요` : `${item.item_name}을(를) 원픽으로 골랐어요`}`;
+}
+
 function formatNotificationTime(value: string) {
   const time = Date.parse(value);
   return Number.isFinite(time) ? new Date(time).toLocaleString('ko-KR') : '시간 정보 없음';
@@ -24,7 +35,13 @@ export default function NotificationsScreen() {
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
   const open = (item: AppNotification) => {
     if (!ready) return;
-    router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });
+    if (item.kind === 'seller_request') {
+      // The linked online seller is ready to be picked in its category.
+      if (!item.item_id || !item.category_id) return;
+      router.push({ pathname: '/pick/choose', params: { itemId: item.item_id, categoryId: item.category_id } });
+    } else if (item.pick_id) {
+      router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });
+    } else return;
     if (!item.read_at) void read.mutateAsync({ kind: item.kind, id: item.id }).catch(() => undefined);
   };
 
@@ -40,12 +57,12 @@ export default function NotificationsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={ready ? <RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} /> : undefined}
       renderItem={({ item }) => <Pressable accessibilityRole="button"
-        accessibilityLabel={`${item.read_at ? '읽은' : '새'} 알림, @${item.username}님이 ${item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요` : `${item.item_name}을(를) 원픽으로 골랐어요`}`}
+        accessibilityLabel={notificationLabel(item)}
         onPress={() => open(item)}
         style={({ pressed }) => [styles.card, !item.read_at && styles.unread, pressed && { opacity: 0.65 }]}>
-        <View style={styles.row}><Text style={styles.sender}>@{item.username}</Text>{!item.read_at ? <Text style={styles.newLabel}>{item.kind === 'comment' ? '새 댓글' : '새 원픽'}</Text> : null}</View>
-        <Text style={styles.message}>{item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`}</Text>
-        {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : `“${item.body}”`}</Text> : null}
+        <View style={styles.row}><Text style={styles.sender}>{item.kind === 'seller_request' ? '원픽 운영팀' : `@${item.username}`}</Text>{!item.read_at ? <Text style={styles.newLabel}>{item.kind === 'comment' ? '새 댓글' : item.kind === 'seller_request' ? '요청 완료' : '새 원픽'}</Text> : null}</View>
+        <Text style={styles.message}>{notificationMessage(item)}</Text>
+        {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : item.kind === 'seller_request' ? `${item.body} · 온라인` : `“${item.body}”`}</Text> : null}
         <Text style={styles.time}>{formatNotificationTime(item.created_at)}</Text>
       </Pressable>}
       ListHeaderComponent={ready && query.isError && items.length > 0
