@@ -164,7 +164,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
         })[];
       };
       home_pick_feed_page: {
-        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' };
+        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online'; p_root_slug?: string };
         Returns: HomePickFeedRow[];
       };
       home_following_feed_page: {

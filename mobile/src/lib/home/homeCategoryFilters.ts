@@ -8,6 +8,9 @@ import type { Category } from '@/types/domain/category';
  */
 export const HOME_ROOT_SLUGS: readonly string[] = ['food'];
 
+/** The people feed is filtered on the server by one root; null (several roots) keeps every Pick. */
+export const HOME_FEED_ROOT_SLUG: string | null = HOME_ROOT_SLUGS.length === 1 ? HOME_ROOT_SLUGS[0] : null;
+
 export interface HomeCategoryFilter {
   id: string;
   name: string;
@@ -47,6 +50,34 @@ export function homeStarterCategories(categories: Category[], limit = 6, rootSlu
     }
   }
   return starters;
+}
+
+/** Every pickable menu under the MVP roots, in tree order (registration's "어떤 메뉴인가요?"). */
+export function homeMenuCategories(categories: Category[], rootSlugs: readonly string[] = HOME_ROOT_SLUGS): Category[] {
+  return homeGroups(categories, rootSlugs).flatMap((group) => group.children);
+}
+
+// Restaurant menus people look for first. Missing slugs are skipped and the list is
+// topped up with one menu per food sub-group.
+export const MENU_SUGGESTION_SLUGS: readonly string[] = [
+  'pork-gukbap', 'pyeongyang-naengmyeon', 'doganitang', 'malatang', 'kalguksu', 'dakgalbi', 'sushi', 'fried-chicken',
+];
+
+/** "자주 찾는 메뉴" for registration: curated restaurant menus first, then one per sub-group. */
+export function homeMenuSuggestions(categories: Category[], limit = 8): Category[] {
+  const menus = homeMenuCategories(categories);
+  const curated = MENU_SUGGESTION_SLUGS
+    .map((slug) => menus.find((menu) => menu.slug === slug))
+    .filter((menu): menu is Category => Boolean(menu));
+  const rest = homeStarterCategories(categories, limit).filter((menu) => !curated.some((picked) => picked.id === menu.id));
+  return [...curated, ...rest].slice(0, limit);
+}
+
+/** Menu search by name or slug, ignoring spaces and case (e.g. "돼지 국밥" → 돼지국밥). */
+export function searchMenuCategories(menus: Category[], query: string, limit = 12): Category[] {
+  const needle = query.toLowerCase().replace(/\s+/g, '');
+  if (!needle) return [];
+  return menus.filter((menu) => `${menu.name}${menu.slug}`.toLowerCase().replace(/\s+/g, '').includes(needle)).slice(0, limit);
 }
 
 /** Keeps feed rows (Picks, showcase items — anything with a categoryId) inside one top-level group. */
