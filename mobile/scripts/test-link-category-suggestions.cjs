@@ -147,6 +147,9 @@ async function main() {
   assert.match(edge, /catalog_user_is_suspended/);
   assert.match(edge, /category_search_terms/);
   assert.match(edge, /place_catalog/);
+  assert.match(edge, /function placeSearchKey\(value: string\)/);
+  assert.match(edge, /replace\(\/\\s\+\/g, ''\)\.toLowerCase\(\)\.replace\(\/%_\]\/g, ''\)/,
+    'Place lookup must follow DB lower + whitespace removal semantics while neutralizing LIKE wildcards');
   assert.match(edge, /const q = placeSearchName\(name\);/,
     'Place lookup must normalize like private.normalize_place_name, not the category matcher');
   const placeSearchSource = /function placeSearchName[\s\S]*?\n}/.exec(edge)?.[0];
