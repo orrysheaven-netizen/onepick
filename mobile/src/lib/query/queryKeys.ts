@@ -17,6 +17,7 @@ export const queryKeys = {
   comments: {
     all: ['comments'] as const,
     byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
+    byUser: (userId?: string) => ['comments', 'user', userId ?? 'anonymous', 'cursor'] as const,
   },
   items: {
     all: ['items'] as const,

@@ -10,7 +10,11 @@ export function useCreateComment(pickId: string) {
     mutationFn: (input: { userId: string; body: string }) =>
       commentService.createComment({ pickId, ...input }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.comments.byPick(pickId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.comments.byPick(pickId) }),
+        // The profile's "내 댓글" list.
+        queryClient.invalidateQueries({ queryKey: ['comments', 'user'] }),
+      ]);
     },
   });
 }
