@@ -54,11 +54,12 @@ def main():
         reader=csv.DictReader(f,restval=sentinel)
         for idx,row in enumerate(reader,start=2):
           if args.limit is not None and counts["rows"]>=args.limit:break
-          counts["rows"]+=1
+          counts["scanned_rows"]+=1
           if None in row or sentinel in row.values():counts["malformed_rows"]+=1;continue
           r1_raw=val(row,cols["region_1"]); large_cat=val(row,cols["provider_category_large"])
           if args.region_1 and r1_raw!=args.region_1:counts["filtered_region"]+=1;continue
           if args.large_category and large_cat!=args.large_category:counts["filtered_large_category"]+=1;continue
+          counts["rows"]+=1
           pid,name=val(row,cols["provider_place_id"]),val(row,cols["name"])
           if pid:ids[pid]+=1
           if not pid or not name or len(pid)>200 or len(name)>200:counts["rejected_identity"]+=1;continue
@@ -86,7 +87,7 @@ def main():
       with tmp.open("w",encoding="utf-8") as out:
         for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
       denom=max(1,counts["rows"])
-      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"filters":{"region_1":args.region_1,"large_category":args.large_category},"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"filtered_region":counts["filtered_region"],"filtered_large_category":counts["filtered_large_category"],"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
+      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"filters":{"region_1":args.region_1,"large_category":args.large_category},"headers":headers,"resolved_columns":cols,"scanned_rows":counts["scanned_rows"],"rows":counts["rows"],"accepted":len(winners),"filtered_region":counts["filtered_region"],"filtered_large_category":counts["filtered_large_category"],"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
       Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
       ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
       gate_errors=[]
