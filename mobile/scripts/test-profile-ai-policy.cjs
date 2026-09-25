@@ -16,6 +16,8 @@ assert.match(generate, /previousPickCount < PROFILE_AI_RECOMMENDED_PICKS/);
 assert.match(generate, /changedCount < PROFILE_AI_MIN_CHANGES/);
 assert.match(generate, /WEEKLY_REANALYSIS_LIMIT/);
 assert.match(generate, /current_user_is_admin/);
+assert.match(generate, /getAuthenticatorAssuranceLevel\(authorization\.slice\(7\)\)/);
+assert.match(generate, /assuranceResult\.data\.currentLevel === 'aal2'/);
 assert.match(generate, /!isAdmin && existing\.generated_at/);
 assert.match(status, /currentPickCount >= 10/);
 assert.match(status, /currentPickCount >= 10/);
@@ -24,6 +26,8 @@ assert.match(status, /7 \* 24 \* 60 \* 60 \* 1000/);
 assert.match(status, /READY_TEN_PICK_UPGRADE/);
 assert.match(status, /READY_REANALYSIS/);
 assert.match(status, /current_user_is_admin/);
+assert.match(status, /getAuthenticatorAssuranceLevel\(match\[1\]\)/);
+assert.match(status, /assuranceResult\.data\.currentLevel === 'aal2'/);
 assert.match(status, /isAdmin/);
 
-console.log('Profile AI policy checks passed: 10-pick first read, legacy 10-pick upgrade, then 5 changes + 7 days (admins bypass the wait).');
+console.log('Profile AI policy checks passed: 10-pick first read, legacy 10-pick upgrade, then 5 changes + 7 days (AAL2 admins bypass the wait).');

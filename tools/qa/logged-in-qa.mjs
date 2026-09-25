@@ -476,19 +476,21 @@ async function main() {
 
     flow = '공유/딥링크';
     let pickId = null;
-    await check(flow, '피드 → 원픽 상세 이동', async () => {
+    await check(flow, '피드 → 상품 상세 → 한줄평 공유 링크', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
-      const open = page.getByRole('button', { name: /의 원픽에 의견 나누기$/ });
+      // Feed cards no longer link to a Pick directly; take the Pick id from a review's share link.
+      const open = page.getByRole('button', { name: / 제품 상세 보기$/ });
       await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await open.first().click();
-      // The card links to /pick/:id, which (since #250) redirects to /item/:itemId?pickId=:id.
       await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
-      const url = new URL(page.url());
-      const focusedPickId = url.searchParams.get('pickId');
-      if (!focusedPickId) throw new Error('원픽 상세 리다이렉트 URL에 pickId가 없음');
-      pickId = focusedPickId;
-      return '/pick/:id → /item/:id?pickId=:id';
+      await page.getByRole('button', { name: /^공유( · 신고)?$/ }).first().click(); // in-page menu only; nothing is shared
+      const link = page.getByText(/\/pick\/[0-9a-f-]{36}/).first();
+      await link.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const match = (await link.textContent())?.match(/\/pick\/([0-9a-f-]{36})/);
+      if (!match) throw new Error('한줄평 공유 링크에서 pickId를 찾지 못함');
+      pickId = match[1];
+      return '/item/:id → /pick/:id 공유 링크';
     });
     if (pickId) {
       await check(flow, '원픽 딥링크 직접 열기 + 공유 버튼', async () => {
@@ -507,12 +509,12 @@ async function main() {
 
           // The focused review opens its reply thread automatically. Match its
           // position to the corresponding share toggle so another review cannot satisfy this check.
-          const replyToggles = fresh.getByRole('button', { name: /^(답글 접기|답글 보기 · 쓰기)$/ });
-          await fresh.getByRole('button', { name: '답글 접기', exact: true }).first()
+          const replyToggles = fresh.getByRole('button', { name: /^(댓글 접기|댓글 쓰기|댓글 보기)$/ });
+          await fresh.getByRole('button', { name: '댓글 접기', exact: true }).first()
             .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
           const replyLabels = await replyToggles.evaluateAll((els) =>
             els.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim() ?? ''));
-          const focusedIndex = replyLabels.findIndex((label) => label === '답글 접기');
+          const focusedIndex = replyLabels.findIndex((label) => label === '댓글 접기');
           if (focusedIndex < 0) throw new Error('요청한 원픽의 포커스된 한줄평을 찾지 못함');
 
           const shareToggles = fresh.getByRole('button', { name: /^공유( · 신고)?$/ });
