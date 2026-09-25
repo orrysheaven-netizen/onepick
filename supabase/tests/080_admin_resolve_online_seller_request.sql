@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(5);
 set local plpgsql.check_asserts = on;
 
 create temporary table osr_ids(key text primary key, id uuid not null) on commit drop;
@@ -82,6 +82,19 @@ select throws_ok(
   'A delivery-app link cannot become an online seller, and the request stays pending'
 );
 reset role;
+
+-- Checked as the table owner: the requester, not the admin, can read their inbox row.
+select ok(
+  exists(
+    select 1 from public.item_review_notifications n
+    join public.items req on req.id=n.item_id
+    where n.item_id=(select id from osr_ids where key='request')
+      and n.recipient_id=(select id from osr_ids where key='user')
+      and n.outcome='merged'
+      and n.target_item_id=req.merged_into_item_id
+  ),
+  'Resolving notifies the requester (item_review/merged) with the new online seller as the target'
+);
 
 select * from finish();
 rollback;

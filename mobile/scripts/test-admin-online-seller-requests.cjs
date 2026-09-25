@@ -205,7 +205,7 @@ async function panelChecks(realApi) {
     officialUrl: 'https://smartstore.example/gomtang', platform: 'smartstore', storeKey: 'smartstore:gomtang',
   });
   assert.match(view.confirms[0], /되돌릴 수 없습니다/, 'Resolving asks for confirmation first');
-  assert.match(page, /요청을 온라인 판매처로 연결했습니다/);
+  assert.match(page, /요청을 온라인 판매처로 연결했습니다. 요청자에게 알림이 가고/);
   assert.match(page, /온라인 판매처 요청 · 0/, 'The resolved request leaves the queue');
   assert.equal(view.input('온라인 판매처 이름'), undefined, 'The next (ordinary) request has no resolve form');
   assert.ok(view.pressables().some((node) => view.text(node) === '승인'), 'Ordinary requests keep plain approval');

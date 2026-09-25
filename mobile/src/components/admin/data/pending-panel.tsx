@@ -252,7 +252,7 @@ export function PendingPanel() {
         platform: storeType === 'platform_store' ? platform : null,
         storeKey: storeType === 'platform_store' ? storeKey : null,
       });
-      removeSelected(sourceName, '요청을 온라인 판매처로 연결했습니다. 이제 등록 화면의 온라인에서 고를 수 있습니다.');
+      removeSelected(sourceName, '요청을 온라인 판매처로 연결했습니다. 요청자에게 알림이 가고, 등록 화면의 온라인에서 고를 수 있습니다.');
     } catch (caught) {
       setError(reviewErrorMessage(caught, '온라인 판매처로 연결하지 못했습니다.'));
     } finally {
