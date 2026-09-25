@@ -16,8 +16,9 @@ export function OnePickBrand({ compact = false, appearance = 'light' }: Props) {
   const clearSpace = Math.ceil(height * 508 / 931);
   return (
     <Link href="/" asChild>
+      {/* Slot merges child style as `{ ...style }`: an array crashes web, a function is dropped. Pass one object. */}
       <Pressable accessibilityRole="link" accessibilityLabel="원픽 홈"
-        style={[styles.brand, { padding: clearSpace }]}>
+        style={StyleSheet.flatten([styles.brand, { padding: clearSpace }])}>
         <Image source={logos[appearance]} alt="onepick 원픽" contentFit="contain"
           style={{ height, width: height * 4883.77 / 931 }} />
       </Pressable>

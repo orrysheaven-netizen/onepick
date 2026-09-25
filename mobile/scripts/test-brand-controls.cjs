@@ -8,7 +8,8 @@ const tokens = require('./design-tokens.cjs');
 const { OnePick } = tokens;
 const root = path.resolve(__dirname, '..');
 const jsx = (type, props) => ({ type, props: props ?? {} });
-const native = { ActivityIndicator: 'Spinner', Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: (styles) => styles } };
+const flattenStyle = (style) => Array.isArray(style) ? Object.assign({}, ...style.map(flattenStyle)) : style ?? {};
+const native = { ActivityIndicator: 'Spinner', Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: (styles) => styles, flatten: flattenStyle } };
 let pathname = '/';
 let navigated = null;
 const mocks = {
@@ -17,6 +18,9 @@ const mocks = {
   '@/constants/onepick': tokens,
   'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
+  'expo-image': { Image: 'Image' },
+  '../../public/brand/onepick-logo-horizontal.svg': 'logo-light.svg',
+  '../../public/brand/onepick-logo-horizontal-white.svg': 'logo-dark.svg',
 };
 function load(file) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
@@ -35,6 +39,7 @@ function load(file) {
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
 const AppTabs = load('src/components/app-tabs.web.tsx').default;
+const { OnePickBrand } = load('src/components/onepick-brand.tsx');
 const flat = (style) => Array.isArray(style) ? style.flatMap(flat) : style ? [style] : [];
 const styleOf = (node, pressed = false) => Object.assign({}, ...flat(typeof node.props.style === 'function' ? node.props.style({ pressed }) : node.props.style));
 function expand(node) {
@@ -171,6 +176,27 @@ test('web tab routes and nested selection remain unchanged', () => {
     assert.equal(active.length, 1);
     assert.equal(active[0].props.accessibilityLabel, selected);
     assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/profile']);
+  }
+});
+test('brand home link passes one style object through Link asChild', () => {
+  // expo-router's Slot merges the child style with `{ ...style }`: an array
+  // throws in the web DOM (blank home/login) and a function is silently dropped.
+  for (const [props, height, source] of [[{}, 28, 'logo-light.svg'], [{ compact: true, appearance: 'dark' }, 24, 'logo-dark.svg']]) {
+    const link = OnePickBrand(props);
+    assert.equal(link.type, 'Link');
+    assert.equal(link.props.href, '/');
+    assert.equal(link.props.asChild, true);
+    const pressable = link.props.children;
+    assert.equal(pressable.type, 'Pressable');
+    const { style } = pressable.props;
+    assert.ok(style && typeof style === 'object' && !Array.isArray(style), 'Slot child style must be a plain object');
+    assert.ok(style.padding >= height * 508 / 931, 'clear space at least the dot diameter');
+    assert.equal(style.alignSelf, 'flex-start');
+    assert.equal(pressable.props.accessibilityRole, 'link');
+    assert.equal(pressable.props.accessibilityLabel, '원픽 홈');
+    const image = first(pressable, 'Image');
+    assert.equal(image.props.source, source);
+    assert.equal(image.props.style.height, height);
   }
 });
 console.log(`Brand control checks: ${passed}/${passed + failures.length} passed.`);
