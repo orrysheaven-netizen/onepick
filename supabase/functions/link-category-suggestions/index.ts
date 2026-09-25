@@ -1,0 +1,356 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+});
+
+type PlaceRow = {
+  id: string;
+  name: string;
+  normalized_name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  provider_category: string | null;
+  business_status: string;
+};
+type CategoryRow = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  status: string;
+  is_visible: boolean;
+  is_pickable: boolean;
+};
+type SourceRow = { category_id: string; mode: string; is_enabled: boolean };
+type TermRow = { category_id: string; term: string; kind: string };
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function makeClient(service = false, authHeader = '') {
+  const url = Deno.env.get('SUPABASE_URL')?.trim();
+  const key = Deno.env.get(service ? 'SUPABASE_SERVICE_ROLE_KEY' : 'SUPABASE_ANON_KEY')?.trim();
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...(authHeader ? { global: { headers: { Authorization: authHeader } } } : {}),
+  });
+}
+
+function cleanText(value: unknown, max = 300) {
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
+}
+function norm(value: string) {
+  return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+}
+function naverHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com');
+}
+function httpsUrl(value: unknown) {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function decodeHtml(value: string) {
+  return value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+function meta(html: string, key: string) {
+  const a = new RegExp('<meta[^>]+(?:property|name)=["\\']' + key + '["\\'][^>]+content=["\\']([^"\\']+)["\\'][^>]*>', 'i');
+  const b = new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:property|name)=["\\']' + key + '["\\'][^>]*>', 'i');
+  return decodeHtml((a.exec(html)?.[1] || b.exec(html)?.[1] || '')).trim();
+}
+function titleFromHtml(html: string) {
+  const og = meta(html, 'og:title');
+  if (og) return og;
+  const m = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
+  return m?.[1] ? decodeHtml(m[1]).trim() : '';
+}
+function cleanNaverTitle(value: string) {
+  return value
+    .replace(/\s*[:|\-]\s*네이버(?:\s*지도)?\s*$/i, '')
+    .replace(/\s*네이버(?:\s*지도)?\s*$/i, '')
+    .trim()
+    .slice(0, 100);
+}
+async function limitedText(response: Response, maxBytes = 160000) {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = '';
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > maxBytes) break;
+      out += decoder.decode(part.value, { stream: true });
+    }
+  } finally {
+    try { await reader.cancel(); } catch {}
+  }
+  return out + decoder.decode();
+}
+async function reserveNaver(client: SupabaseClient) {
+  const result = await client.rpc('reserve_external_catalog_slot', {
+    p_provider: 'naver_link',
+    p_interval_ms: 800,
+  });
+  if (result.error || typeof result.data !== 'number' || result.data > 2500) return false;
+  if (result.data > 0) await new Promise((resolve) => setTimeout(resolve, result.data));
+  return true;
+}
+async function resolveNaver(input: URL, client: SupabaseClient) {
+  if (!await reserveNaver(client)) throw new Error('RATE_LIMITED');
+  let current = input;
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    if (!naverHost(current.hostname)) throw new Error('URL_UNSUPPORTED');
+    const response = await fetch(current, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': 'Mozilla/5.0 OnePick-LinkResolver/1.0' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get('location');
+      await response.body?.cancel();
+      if (!location) throw new Error('LINK_RESOLVE_FAILED');
+      const next = new URL(location, current);
+      if (next.protocol !== 'https:' || !naverHost(next.hostname)) throw new Error('URL_UNSUPPORTED');
+      current = next;
+      continue;
+    }
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error('LINK_RESOLVE_FAILED');
+    }
+    html = await limitedText(response);
+    break;
+  }
+  return {
+    canonicalUrl: current.toString(),
+    title: cleanNaverTitle(titleFromHtml(html)),
+    description: cleanText(meta(html, 'og:description'), 240),
+  };
+}
+
+function foodPath(categoryId: string, byId: Map<string, CategoryRow>) {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  let current = byId.get(categoryId);
+  let food = false;
+  while (current && names.length < 4 && !seen.has(current.id)) {
+    seen.add(current.id);
+    names.unshift(current.name);
+    if (current.slug === 'food') food = true;
+    current = current.parent_id ? byId.get(current.parent_id) : undefined;
+  }
+  return food ? names.join(' › ') : null;
+}
+
+function scoreCategories(categories: CategoryRow[], sources: SourceRow[], terms: TermRow[], context: string) {
+  const normalizedContext = norm(context);
+  const internal = new Set(sources.filter((row) => row.mode === 'internal' && row.is_enabled).map((row) => row.category_id));
+  const byId = new Map(categories.map((row) => [row.id, row]));
+  const allowed = categories
+    .filter((row) => row.status === 'open' && row.is_visible && row.is_pickable && internal.has(row.id))
+    .map((row) => {
+      const label = foodPath(row.id, byId);
+      return label ? { ...row, label } : null;
+    })
+    .filter((row): row is CategoryRow & { label: string } => Boolean(row));
+
+  const byCategory = new Map<string, TermRow[]>();
+  for (const term of terms) {
+    const list = byCategory.get(term.category_id) ?? [];
+    list.push(term);
+    byCategory.set(term.category_id, list);
+  }
+
+  const ranked = allowed.map((category) => {
+    const candidates = [
+      { term: category.name, kind: 'name' },
+      ...(byCategory.get(category.id) ?? []).map((row) => ({ term: row.term, kind: row.kind })),
+    ];
+    let best = 0;
+    let matched = '';
+    let matchedKind = '';
+    for (const candidate of candidates) {
+      const token = norm(candidate.term);
+      if (token.length < 2 || normalizedContext.length < 2) continue;
+      let score = 0;
+      if (normalizedContext === token) score = 130;
+      else if (normalizedContext.includes(token)) {
+        score = candidate.kind === 'name' ? 110 : candidate.kind === 'alias' ? 105 : 98;
+        score += Math.min(token.length, 16);
+      } else if (token.includes(normalizedContext)) score = 62;
+      if (score > best) {
+        best = score;
+        matched = candidate.term;
+        matchedKind = candidate.kind;
+      }
+    }
+    return {
+      categoryId: category.id,
+      label: category.label,
+      name: category.name,
+      score: best,
+      reason: matched
+        ? (matchedKind === 'name' ? '“' + matched + '” 표현과 일치' : '“' + matched + '” 관련어와 일치')
+        : '',
+    };
+  }).filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, 'ko'));
+
+  return {
+    categories: allowed.map((row) => ({ categoryId: row.id, label: row.label, name: row.name }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'ko')),
+    suggestions: ranked.slice(0, 4).map((row) => ({
+      categoryId: row.categoryId,
+      label: row.label,
+      name: row.name,
+      reason: row.reason,
+    })),
+  };
+}
+
+function sortPlaces(rows: PlaceRow[], query: string) {
+  const q = norm(query);
+  return [...rows].sort((a, b) => {
+    const an = norm(a.name);
+    const bn = norm(b.name);
+    const ar = an === q ? 0 : an.startsWith(q) ? 1 : an.includes(q) ? 2 : 3;
+    const br = bn === q ? 0 : bn.startsWith(q) ? 1 : bn.includes(q) ? 2 : 3;
+    return ar - br || a.name.localeCompare(b.name, 'ko') || (a.branch_name ?? '').localeCompare(b.branch_name ?? '', 'ko');
+  }).slice(0, 8);
+}
+
+async function findPlaces(client: SupabaseClient, name: string, placeCatalogId: string | null) {
+  const columns = 'id,name,normalized_name,branch_name,road_address,address,region_1,region_2,provider_category,business_status';
+  if (placeCatalogId) {
+    const result = await client.from('place_catalog').select(columns)
+      .eq('id', placeCatalogId).eq('business_status', 'open').maybeSingle();
+    if (result.error) throw new Error('PLACE_READ_FAILED');
+    return result.data ? [result.data as PlaceRow] : [];
+  }
+  const q = norm(name);
+  if (q.length < 2 || q.length > 100) return [];
+  const result = await client.from('place_catalog').select(columns)
+    .eq('business_status', 'open').ilike('normalized_name', '%' + q + '%').limit(20);
+  if (result.error) throw new Error('PLACE_READ_FAILED');
+  return sortPlaces((result.data ?? []) as PlaceRow[], name);
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
+
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const match = authHeader.length <= 8192 ? /^Bearer ([^\s]+)$/i.exec(authHeader) : null;
+  if (!match) return json({ error: 'AUTH_REQUIRED' }, 401);
+
+  const user = makeClient(false, authHeader);
+  const admin = makeClient(true);
+  if (!user || !admin) return json({ error: 'LINK_SUGGESTION_NOT_CONFIGURED' }, 503);
+
+  const auth = await user.auth.getUser(match[1]);
+  if (auth.error || !auth.data.user || auth.data.user.is_anonymous) return json({ error: 'AUTH_REQUIRED' }, 401);
+
+  try {
+    const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+    const parsed = httpsUrl(body.url);
+    if (!parsed) return json({ error: 'URL_INVALID' }, 400);
+
+    const requestedName = cleanText(body.name, 100);
+    const placeCatalogId = typeof body.placeCatalogId === 'string' && UUID_PATTERN.test(body.placeCatalogId)
+      ? body.placeCatalogId : null;
+    const kind = naverHost(parsed.hostname) ? 'place' : 'online';
+
+    let canonicalUrl = parsed.toString();
+    let title = '';
+    let description = '';
+    if (kind === 'place') {
+      try {
+        const resolved = await resolveNaver(parsed, admin);
+        canonicalUrl = resolved.canonicalUrl;
+        title = resolved.title;
+        description = resolved.description;
+      } catch (error) {
+        if (error instanceof Error && error.message === 'RATE_LIMITED') return json({ error: 'RATE_LIMITED' }, 429);
+      }
+    }
+
+    const resolvedName = requestedName || title;
+    const places = kind === 'place' ? await findPlaces(admin, resolvedName, placeCatalogId) : [];
+    const selectedPlace = placeCatalogId ? places[0] : undefined;
+    const exactPlace = !selectedPlace && resolvedName
+      ? places.find((place) => norm(place.name) === norm(resolvedName))
+      : undefined;
+    const contextPlace = selectedPlace ?? exactPlace;
+
+    const results = await Promise.all([
+      admin.from('categories').select('id,name,slug,parent_id,status,is_visible,is_pickable'),
+      admin.from('category_catalog_sources').select('category_id,mode,is_enabled'),
+      admin.from('category_search_terms').select('category_id,term,kind'),
+    ]);
+    if (results.some((result) => result.error)) throw new Error('CATEGORY_READ_FAILED');
+
+    const context = [
+      requestedName,
+      title,
+      description,
+      parsed.hostname,
+      contextPlace?.name,
+      contextPlace?.provider_category,
+    ].filter(Boolean).join(' ');
+
+    const scored = scoreCategories(
+      (results[0].data ?? []) as CategoryRow[],
+      (results[1].data ?? []) as SourceRow[],
+      (results[2].data ?? []) as TermRow[],
+      context,
+    );
+
+    return json({
+      kind,
+      inputUrl: parsed.toString(),
+      canonicalUrl,
+      host: new URL(canonicalUrl).hostname,
+      title: title || null,
+      description: description || null,
+      resolvedName: resolvedName || null,
+      needsName: !resolvedName,
+      places: places.map((place) => ({
+        catalogId: place.id,
+        name: place.name,
+        branchName: place.branch_name,
+        roadAddress: place.road_address,
+        address: place.address,
+        region1: place.region_1,
+        region2: place.region_2,
+        providerCategory: place.provider_category,
+      })),
+      suggestions: scored.suggestions,
+      categories: scored.categories,
+    });
+  } catch (error) {
+    console.error('LINK_CATEGORY_SUGGESTION_FAILED', error instanceof Error ? error.message : 'unknown');
+    return json({ error: 'LINK_CATEGORY_SUGGESTION_FAILED' }, 500);
+  }
+});
