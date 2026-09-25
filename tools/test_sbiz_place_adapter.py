@@ -1,7 +1,7 @@
 import csv, json, subprocess, tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]; ADAPTER=ROOT/"tools"/"sbiz_place_adapter.py"
-FIELDS=["상가업소번호","상호명","지점명","도로명주소","지번주소","시도명","시군구명","경도","위도","상권업종소분류명"]
+FIELDS=["상가업소번호","상호명","지점명","도로명주소","지번주소","시도명","시군구명","경도","위도","상권업종소분류명","상권업종대분류명"]
 def write(path,rows,encoding="utf-8-sig",fields=FIELDS):
     with path.open("w",encoding=encoding,newline="") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
@@ -10,7 +10,7 @@ def run(src,out,rep,*extra,ok=True):
     r=subprocess.run(cmd,capture_output=True,text=True)
     assert (r.returncode==0)==ok,(r.stdout,r.stderr);return r
 def base(pid="S1",**kw):
-    r={"상가업소번호":pid,"상호명":"원픽곱창","지점명":"","도로명주소":"서울 강남구 테스트로 1","지번주소":"","시도명":"서울특별시","시군구명":"강남구","경도":"127.01","위도":"37.50","상권업종소분류명":"한식"};r.update(kw);return r
+    r={"상가업소번호":pid,"상호명":"원픽곱창","지점명":"","도로명주소":"서울 강남구 테스트로 1","지번주소":"","시도명":"서울특별시","시군구명":"강남구","경도":"127.01","위도":"37.50","상권업종소분류명":"한식","상권업종대분류명":"음식"};r.update(kw);return r
 def main():
   with tempfile.TemporaryDirectory() as td:
     d=Path(td);src=d/"s.csv";out=d/"o.jsonl";rep=d/"r.json"
@@ -53,7 +53,20 @@ def main():
     run(malformed,d/"mo",d/"mr","--max-missing-ratio","1")
     mr=json.loads((d/"mr").read_text());assert mr["malformed_rows"]==2
     assert [json.loads(x)["provider_place_id"] for x in (d/"mo").read_text().splitlines()]==["M1"]
-    # limit keeps original hash/report but emits only N rows.
+    # limit keeps original hash/report but emits only N in-scope rows.
     l=d/"l.csv";write(l,[base("L1"),base("L2")]);run(l,d/"lo",d/"lr","--limit","1");assert len((d/"lo").read_text().splitlines())==1
+    # Seoul + food scope filters before quality metrics and output.
+    scoped=d/"scoped.csv";write(scoped,[
+        base("F1"),
+        base("F2",시도명="부산광역시"),
+        base("F3",상권업종대분류명="소매"),
+    ])
+    run(scoped,d/"sco",d/"scr","--region-1","서울특별시","--large-category","음식")
+    scoped_rows=[json.loads(x) for x in (d/"sco").read_text().splitlines()]
+    scoped_report=json.loads((d/"scr").read_text())
+    assert [x["provider_place_id"] for x in scoped_rows]==["F1"]
+    assert scoped_report["rows"]==1 and scoped_report["accepted"]==1
+    assert scoped_report["filtered_region"]==1 and scoped_report["filtered_large_category"]==1
+    assert scoped_report["filters"]=={"region_1":"서울특별시","large_category":"음식"}
     print("sbiz adapter tests: ok")
 if __name__=="__main__":main()
