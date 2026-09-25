@@ -2,9 +2,9 @@ import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppFrame from '@/components/app-frame';
 import { RootErrorBoundary } from '@/components/root-error-boundary';
+import { AnimatedSplashOverlay } from '@/components/splash-overlay';
 import { OnePick } from '@/constants/onepick';
 import { AppQueryProvider } from '@/lib/query/appQueryProvider';
 
