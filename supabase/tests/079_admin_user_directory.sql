@@ -28,9 +28,13 @@ insert into public.comments(pick_id,user_id,body)
 values('f7830000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000002','fixture comment');
 select set_config('request.jwt.claims', jsonb_build_object(
   'sub','f7800000-0000-4000-8000-000000000001','role','authenticated')::text, true);
-insert into public.content_reports(reporter_user_id,target_type,target_id,target_user_id,reason,status) values
-  ('f7800000-0000-4000-8000-000000000001','profile','f7800000-0000-4000-8000-000000000002','f7800000-0000-4000-8000-000000000002','spam','open'),
-  ('f7800000-0000-4000-8000-000000000001','profile','f7800000-0000-4000-8000-000000000002','f7800000-0000-4000-8000-000000000002','spam','resolved');
+-- One open report per reporter and target: resolve the first before filing the second.
+insert into public.content_reports(id,reporter_user_id,target_type,target_id,target_user_id,reason) values
+  ('f7840000-0000-4000-8000-000000000001','f7800000-0000-4000-8000-000000000001','profile','f7800000-0000-4000-8000-000000000002','f7800000-0000-4000-8000-000000000002','spam');
+update public.content_reports set status='resolved', resolved_at=now()
+where id='f7840000-0000-4000-8000-000000000001';
+insert into public.content_reports(id,reporter_user_id,target_type,target_id,target_user_id,reason) values
+  ('f7840000-0000-4000-8000-000000000002','f7800000-0000-4000-8000-000000000001','profile','f7800000-0000-4000-8000-000000000002','f7800000-0000-4000-8000-000000000002','spam');
 
 create temp table dir_result(label text primary key, value jsonb);
 grant all on dir_result to authenticated;
