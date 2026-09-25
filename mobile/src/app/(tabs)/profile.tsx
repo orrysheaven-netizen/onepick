@@ -105,7 +105,7 @@ export default function ProfileScreen() {
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
   const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
   const historyQuery = useMyPickHistory(OnePickFeatures.profilePickHistory ? listUserId : undefined);
-  const requestsQuery = useMyItemRequests(listUserId);
+  const requestsQuery = useMyItemRequests(OnePickFeatures.profileItemRequests ? listUserId : undefined);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
 
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
   // query active so a new request/history entry can make the block visible again.
-  const showRequests = !requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage;
+  const showRequests = OnePickFeatures.profileItemRequests && (!requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage);
   const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
@@ -158,9 +158,9 @@ export default function ProfileScreen() {
     if (isFetching) return;
     await Promise.all([
       profileQuery.refetch({ cancelRefetch: false }),
-      // refetch() ignores `enabled`, so skip the hidden history list explicitly.
+      // refetch() ignores `enabled`, so skip hidden lists explicitly.
       OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
-      requestsQuery.refetch({ cancelRefetch: false }),
+      OnePickFeatures.profileItemRequests ? requestsQuery.refetch({ cancelRefetch: false }) : null,
     ]);
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -176,7 +176,7 @@ export default function ProfileScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.username}>@{profile.username}</Text>
           </View>
-          {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+          {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 제품 등록 요청 상태 새로고침' : '프로필 새로고침'}
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
@@ -218,7 +218,7 @@ export default function ProfileScreen() {
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>{OnePickFeatures.profilePickHistory ? '제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.' : '제품 등록 요청 상태를 확인합니다.'}</Text>
+          <Text style={styles.secondaryDescription}>{showRequests && showHistory ? '제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.' : showRequests ? '제품 등록 요청 상태를 확인합니다.' : '이전 원픽 기록을 확인합니다.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>
