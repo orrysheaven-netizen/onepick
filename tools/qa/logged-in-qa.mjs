@@ -352,9 +352,13 @@ async function main() {
         const alert = page.getByRole('alert');
         await section.or(alert).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         if (await alert.isVisible().catch(() => false)) throw new Error(`추천 오류: "${(await alert.innerText()).slice(0, 80)}"`);
-        // The result title also echoes the typed name, so look only inside the suggestion card
-        // (the innermost element holding its heading).
-        const card = page.locator('div', { has: section }).last();
+        // The result title also echoes the typed name, so look only inside the suggestion card.
+        // React Native Web renders <Text> as a div, so "innermost div holding the heading" is the
+        // heading itself (#315). Also require the card's own "다른 카테고리 찾기" toggle, which is
+        // present with or without suggestions, so the innermost match is the whole card.
+        const card = page.locator('div', { has: section })
+          .filter({ has: page.getByText('다른 카테고리 찾기', { exact: true }) })
+          .last();
         linkPhase = '추천 후보 유무 확인';
         if (await card.getByText('자동 추천 후보가 없습니다').isVisible().catch(() => false)) throw new Error('자동 추천 후보 없음');
         linkPhase = `카드 안 "${LINK_EXPECT_CATEGORY}" 표시 대기`;
