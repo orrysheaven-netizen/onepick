@@ -13,6 +13,7 @@ const native = { ActivityIndicator: 'Spinner', Pressable: 'Pressable', Text: 'Te
 let pathname = '/';
 let navigated = null;
 const mocks = {
+  react: { useState: (initial) => [initial, () => {}] },
   'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
   'react-native': native,
   '@/constants/onepick': tokens,
@@ -167,6 +168,21 @@ test('web register control uses ink on tangerine and preserves route', () => {
   assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onBrand);
   readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
   button.props.onPress(); assert.equal(navigated, '/pick/find');
+});
+test('web Link tabs pass one layout style object through Link asChild', () => {
+  pathname = '/';
+  const tree = expand(AppTabs());
+  for (const label of ['홈', '탐색', '내 프로필']) {
+    const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
+    assert.ok(tab, label);
+    assert.ok(tab.props.style && typeof tab.props.style === 'object' && !Array.isArray(tab.props.style), 'Link tab style must be a plain object');
+    assert.equal(tab.props.style.flex, 1);
+    assert.equal(tab.props.style.minHeight, 56);
+    assert.equal(tab.props.style.alignItems, 'center');
+    assert.equal(tab.props.style.justifyContent, 'center');
+    assert.equal(typeof tab.props.onPressIn, 'function');
+    assert.equal(typeof tab.props.onPressOut, 'function');
+  }
 });
 test('web tab routes and nested selection remain unchanged', () => {
   for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/profile/edit', '내 프로필']]) {
