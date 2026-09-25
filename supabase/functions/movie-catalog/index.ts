@@ -129,7 +129,7 @@ async function searchMovies(query: unknown): Promise<Response> {
 
 async function importMovie(externalId: unknown, req: Request): Promise<Response> {
   const id = typeof externalId === 'string' ? externalId.trim() : '';
-  if (!/^\\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
+  if (!/^\d{1,12}$/.test(id)) return json({ error: 'EXTERNAL_ID_INVALID' }, 400);
   const client = adminClient();
   if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
   const authorization = req.headers.get('Authorization') ?? '';
