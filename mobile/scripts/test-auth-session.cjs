@@ -115,7 +115,7 @@ async function main() {
   sessionResult = { data: { session: null }, error: null };
   assert.equal(await repository.getCurrentUser(), null);
   await repository.signOut();
-  assert.equal(signOutOptions.scope, 'local');
+  assert.equal(signOutOptions.scope, 'global');
   assert.equal(await repository.signInWithProvider('kakao', 'onepick://auth/callback'), null);
   assert.equal(oauthOptions.provider, 'kakao');
   assert.equal(oauthOptions.options.redirectTo, 'onepick://auth/callback');
