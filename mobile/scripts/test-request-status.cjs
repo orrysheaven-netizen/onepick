@@ -21,6 +21,9 @@ function load(file, imports = {}) {
   return exports;
 }
 
+// History and SNS are hidden in the MVP; keep covering their retained behaviour for when they return.
+Object.assign(require('./design-tokens.cjs').OnePickFeatures, { profilePickHistory: true, profileSocialLinks: true });
+
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 
 async function main() {
