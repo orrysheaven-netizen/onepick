@@ -30,7 +30,7 @@ export function AdminShell({ children, onSignOut }: { children: ReactNode; onSig
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link key={item.href} href={item.href} asChild>
-                  <Pressable style={() => [styles.navItem, active && styles.navItemActive]}>
+                  <Pressable style={StyleSheet.flatten([styles.navItem, active ? styles.navItemActive : undefined])}>
                     <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
                     {wide && <Text style={[styles.navHint, active && styles.navHintActive]}>{item.hint}</Text>}
                   </Pressable>
