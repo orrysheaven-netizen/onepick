@@ -3,7 +3,7 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppDatabase } from '@/lib/supabase/database.overrides';
 
-export type NotificationKind = 'comment' | 'pick_change';
+export type NotificationKind = 'comment' | 'pick_change' | 'item_review';
 export type AppNotification = AppDatabase['public']['Functions']['notification_page']['Returns'][number];
 export type NotificationCursor = { timestamp: string; id: string };
 export type NotificationPreferences = { followeePickChange: boolean };
@@ -18,13 +18,16 @@ function missingUnifiedRpc(error: { code?: string; message?: string } | null | u
 function normalizeNotification(row: unknown): AppNotification | null {
   if (!row || typeof row !== 'object') return null;
   const value = row as Partial<AppNotification>;
-  if ((value.kind !== 'comment' && value.kind !== 'pick_change')
+  if ((value.kind !== 'comment' && value.kind !== 'pick_change' && value.kind !== 'item_review')
     || typeof value.id !== 'string' || !value.id
-    || typeof value.pick_id !== 'string' || !value.pick_id
     || typeof value.created_at !== 'string' || !value.created_at) return null;
+  // Review results point at the product to pick; the other kinds open a pick.
+  if (value.kind === 'item_review') {
+    if (typeof value.item_id !== 'string' || !value.item_id) return null;
+  } else if (typeof value.pick_id !== 'string' || !value.pick_id) return null;
   return {
     ...value,
-    username: typeof value.username === 'string' && value.username ? value.username : '알 수 없는 사용자',
+    username: typeof value.username === 'string' && value.username ? value.username : value.kind === 'item_review' ? null : '알 수 없는 사용자',
     item_name: typeof value.item_name === 'string' && value.item_name ? value.item_name : '원픽',
     body: typeof value.body === 'string' ? value.body : null,
     read_at: typeof value.read_at === 'string' ? value.read_at : null,
@@ -80,6 +83,8 @@ export class NotificationService {
       item_name: row.item_name,
       created_at: row.created_at,
       read_at: row.read_at ?? null,
+      item_id: null,
+      outcome: null,
     }));
     const last = rows[19];
     return {
@@ -92,7 +97,9 @@ export class NotificationService {
     const readAt = new Date().toISOString();
     const query = kind === 'comment'
       ? this.client.from('comment_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('comment_id', id)
-      : this.client.from('pick_change_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('pick_id', id);
+      : kind === 'item_review'
+        ? this.client.from('item_review_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('item_id', id)
+        : this.client.from('pick_change_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('pick_id', id);
     const { error } = await query.is('read_at', null);
     if (error) throw mapSupabaseError(error);
   }
