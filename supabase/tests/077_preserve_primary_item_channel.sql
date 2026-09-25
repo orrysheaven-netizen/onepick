@@ -43,7 +43,7 @@ insert into public.category_catalog_sources(
 
 insert into public.place_catalog(
   id,place_provider,provider_place_id,name,normalized_name,road_address,
-  region_1,region_2,business_status,map_url,source_updated_at
+  region_1,region_2,business_status,source_updated_at
 ) values(
   'f9962000-0000-4000-8000-000000000001',
   'securityqa',
@@ -54,7 +54,6 @@ insert into public.place_catalog(
   '서울',
   '테스트구',
   'open',
-  'https://maps.example/place',
   now()
 );
 
@@ -78,6 +77,17 @@ from public.select_place_catalog_item(
 );
 
 reset role;
+
+-- place_catalog intentionally has no map_url. The user-selection flow
+-- materializes public.places first; then a trusted source/admin may enrich the
+-- canonical place URL before a later reselection refreshes the offline channel.
+update public.places
+set map_url='https://maps.example/place'
+where id=(
+  select ip.place_id
+  from public.item_places ip
+  where ip.item_id=(select item_id from channel_item)
+);
 
 select ok(
   exists(
