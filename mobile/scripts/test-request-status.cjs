@@ -50,6 +50,7 @@ async function main() {
   };
   const listQuery = () => ({
     data: [], isPending: false, isError: false, isFetching: false,
+    get isSuccess() { return !this.isPending && !this.isError && this.data !== undefined; },
     isRefetching: false, isFetchNextPageError: false, hasNextPage: false,
     refetch: async () => {}, fetchNextPage: async () => {},
   });
@@ -98,21 +99,23 @@ async function main() {
   assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
   assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable item');
-  await refreshButton().onPress();
+  assert.equal(refreshButton(), undefined, 'Healthy profile has no manual refresh');
+  await pullToRefresh.props.onRefresh();
   assert.equal(refreshes, 1);
   assert.match(render(), /승인됨/);
   button('waiting 제품').onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'waiting', 'Approval leads to the same shared item');
-  await pullToRefresh.props.onRefresh();
+  profileQuery.isRefetchError = true;
+  render(); await refreshButton().onPress();
   assert.equal(refreshes, 2);
-  assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Both refresh actions update all three queries');
+  assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Pull refresh and error retry update all three queries');
 
   profileQuery.isFetching = true; profileQuery.isRefetching = true;
   assert.match(render(), /확인 중…/);
   assert.equal(refreshButton().disabled, true);
   assert.equal(pullToRefresh.props.refreshing, true);
-  profileQuery.isFetching = false; profileQuery.isRefetching = false;
+  profileQuery.isFetching = false; profileQuery.isRefetching = false; profileQuery.isRefetchError = false;
 
   requestsQuery.data = [
     request('merged', 'merged', { id: 'canonical', name: '정식 라면', status: 'active' }),
@@ -143,7 +146,7 @@ async function main() {
     query.refetch = async () => { refetchCalls++; };
     query.hasNextPage = true;
     const control = () => presses.find((props) => props.accessibilityLabel?.startsWith(`${label} `));
-    assert.match(render(), /이전 원픽 기록/);
+    assert.match(render(), /활동 기록/);
     assert.match(control().accessibilityLabel, /더 보기/);
     await control().onPress();
     assert.equal(nextCalls, 1); assert.equal(nextOptions.cancelRefetch, false);
@@ -152,8 +155,8 @@ async function main() {
     assert.ok(button('merged 제품'), 'A page error preserves already loaded requests');
     await control().onPress(); assert.equal(nextCalls, 2); assert.equal(refetchCalls, 0);
     query.isFetching = true;
-    render(); assert.equal(control().disabled, true); assert.equal(refreshButton().disabled, true);
-    await control().onPress(); await refreshButton().onPress();
+    render(); assert.equal(control().disabled, true); assert.equal(refreshButton(), undefined);
+    await control().onPress(); await pullToRefresh.props.onRefresh();
     assert.equal(nextCalls, 2); assert.equal(refetchCalls, 0, 'Refresh and more actions must not interrupt a pending page');
     query.isFetching = false; query.isFetchNextPageError = false;
     assert.match(render(), /최신 목록을 확인하지 못했어요/);
@@ -170,6 +173,18 @@ async function main() {
   historyQuery.data = [{ pick: { id: 'old-pick', oneLineReview: 'Previous choice', status: 'replaced' }, item: { name: '이전 제품' }, category }];
   render(); button('이전 제품').onPress();
   assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'old-pick');
+
+  const savedRequests = requestsQuery.data, savedHistory = historyQuery.data;
+  requestsQuery.data = []; historyQuery.data = [];
+  assert.doesNotMatch(render(), /활동 기록|내 제품 등록 요청|이전 원픽 기록|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
+  assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner', 'Hidden lists retain their active user scope');
+  historyQuery.isPending = true; historyQuery.data = undefined;
+  assert.match(render(), /활동 기록/); assert.match(render(), /이전 원픽 기록/, 'Pending is not confirmed empty');
+  historyQuery.isPending = false; historyQuery.data = [];
+  requestsQuery.isError = true;
+  assert.match(render(), /내 제품 등록 요청/, 'An empty cached list still exposes its error and retry');
+  requestsQuery.isError = false; requestsQuery.data = savedRequests; historyQuery.data = savedHistory;
+
   const cached = profileQuery.data;
   profileQuery.data = undefined;
   assert.match(render(), /프로필을 불러오지 못했어요/);
@@ -185,6 +200,6 @@ async function main() {
   auth.user = { id: 'owner' }; auth.isLoading = true;
   assert.doesNotMatch(render(), /merged 제품|이전 제품/);
   assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
-  console.log('Request status checks passed: approval/merge routes, refresh, independent list pagination/loading/errors/retries, history routes and logout privacy.');
+  console.log('Request status checks passed: approval/merge routes, error-only refresh, confirmed-empty sections, independent pagination/loading/errors/retries, history routes and logout privacy.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
