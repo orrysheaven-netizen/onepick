@@ -139,6 +139,7 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
+  official_url: string | null;
   requested_category_label: string | null;
   categories: { name: string; slug: string } | null;
 };
@@ -646,7 +647,7 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function getPendingItemCategorySuggestion(itemId: string) {
