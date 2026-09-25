@@ -216,7 +216,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
           itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
           onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
-          <Text style={styles.itemCategory}>콘텐츠 › 음악 · 등록됨</Text>
+          <Text style={styles.itemCategory}>음악 · 등록됨</Text>
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.meta}>{item.creatorName}</Text> : null}
           {item.collectionName ? <Text style={styles.meta}>{item.collectionName}{item.releaseYear ? ` · ${item.releaseYear}` : ''}</Text> : item.releaseYear ? <Text style={styles.meta}>{item.releaseYear}</Text> : null}
@@ -230,7 +230,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
         style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={entry.coverArtUrl} label={`${entry.title} 커버`} />
         <View style={styles.itemCopy}>
-          <Text style={styles.itemCategory}>콘텐츠 › 음악 · MusicBrainz</Text>
+          <Text style={styles.itemCategory}>음악 · MusicBrainz</Text>
           <Text style={styles.itemName}>{entry.title}</Text>
           <Text style={styles.artist}>{entry.artistName}</Text>
           <Text style={styles.meta}>{[entry.releaseTitle, entry.releaseYear, entry.disambiguation].filter(Boolean).join(' · ') || '음반 정보 없음'}</Text>
