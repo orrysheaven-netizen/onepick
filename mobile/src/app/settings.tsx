@@ -90,7 +90,7 @@ export default function SettingsScreen() {
               {blocked.data?.length === 0 ? <Text style={styles.empty}>차단한 사용자가 없습니다.</Text> : null}
               {blocked.data?.map((item) => (
                 <View key={item.blockedUserId} style={styles.blockRow}>
-                  <Text style={styles.blockName}>@{item.blockedUsername}</Text>
+                  <Text style={styles.blockName}>{item.blockedUsername ? `@${item.blockedUsername}` : '비공개 사용자'}</Text>
                   <Button variant="secondary" size="sm" label="차단 해제" disabled={safety.unblockUser.isPending}
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
