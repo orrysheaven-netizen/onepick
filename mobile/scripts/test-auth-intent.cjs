@@ -38,6 +38,7 @@ async function main() {
   const comment = { action: 'comment_pick', pickId: ids[0] };
   const register = { action: 'register_pick', categoryId: ids[0], itemId: ids[1] };
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
+  const requestWithSource = { ...request, sourceUrl: 'https://shop.example/items/ramen' };
   const linkSuggestion = { action: 'suggest_link_category', linkUrl: 'https://naver.me/example', linkName: '  대성집  ' };
 
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
@@ -57,6 +58,15 @@ async function main() {
     pathname: '/pick/request',
     params: { itemName: '신라면 더 레드', categoryId: ids[0] },
   });
+  same(getPostAuthRoute(getAuthIntent(requestWithSource)), {
+    pathname: '/pick/request',
+    params: {
+      itemName: '신라면 더 레드',
+      categoryId: ids[0],
+      sourceUrl: 'https://shop.example/items/ramen',
+    },
+  });
+  assert.equal(getPostAuthRoute(getAuthIntent({ ...requestWithSource, sourceUrl: 'http://shop.example/item' })).params?.sourceUrl, undefined);
   same(getAuthIntent({ action: 'request_item', itemName: '  신라면  ', categoryId: '../../bad' }), {
     action: 'request_item', itemName: '신라면',
   });
@@ -82,7 +92,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, linkSuggestion, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
