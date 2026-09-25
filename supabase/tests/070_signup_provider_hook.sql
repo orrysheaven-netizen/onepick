@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 create temporary table hook_case(label text, event jsonb, allowed boolean) on commit drop;
 insert into hook_case values
@@ -54,6 +54,8 @@ select ok(not has_function_privilege('anon', 'public.hook_before_user_created(js
   'anon cannot call the hook');
 select ok(not has_function_privilege('authenticated', 'public.hook_before_user_created(jsonb)', 'execute'),
   'authenticated cannot call the hook');
+select ok(not has_function_privilege('service_role', 'public.hook_before_user_created(jsonb)', 'execute'),
+  'service_role cannot call the auth hook');
 
 select ok(public.hook_before_user_created(event) = '{}'::jsonb, label)
 from hook_case where label in ('Kakao sign-up is allowed', 'Apple sign-up is allowed');
