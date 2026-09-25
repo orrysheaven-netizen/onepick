@@ -407,7 +407,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
         {linkAttach.isError ? <Text style={styles.error}>상품 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
 
-        <Button size="lg" fullWidth disabled={!canSubmit && !submitting} loading={registration.isPending || linkAttach.isPending}
+        <Button size="lg" fullWidth disabled={!canSubmit || submitting} loading={registration.isPending || linkAttach.isPending}
           label={auth.user ? '상품 등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
     </SafeAreaView>
