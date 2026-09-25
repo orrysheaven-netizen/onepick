@@ -5,7 +5,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-ALIASES={"provider_place_id":["상가업소번호"],"name":["상호명"],"branch_name":["지점명"],"road_address":["도로명주소"],"address":["지번주소"],"region_1":["시도명"],"region_2":["시군구명"],"longitude":["경도"],"latitude":["위도"],"provider_category":["상권업종소분류명","상권업종중분류명"]}
+ALIASES={"provider_place_id":["상가업소번호"],"name":["상호명"],"branch_name":["지점명"],"road_address":["도로명주소"],"address":["지번주소"],"region_1":["시도명"],"region_2":["시군구명"],"longitude":["경도"],"latitude":["위도"],"provider_category":["상권업종소분류명","상권업종중분류명"],"provider_category_large":["상권업종대분류명","indsLclsNm"]}
 REQUIRED={"provider_place_id","name","longitude","latitude"}
 def sha256_file(p):
     h=hashlib.sha256()
@@ -35,7 +35,7 @@ def header(path,enc):
         with path.open("r",encoding=enc,newline="") as f:return next(csv.reader(f),[])
     except UnicodeDecodeError as e:raise SystemExit(f"decode failed at byte {e.start} using {enc}; try --encoding cp949")
 def main():
-    a=argparse.ArgumentParser(); a.add_argument("input_csv"); a.add_argument("--output"); a.add_argument("--report"); a.add_argument("--encoding",default="utf-8-sig"); a.add_argument("--source-updated-at"); a.add_argument("--print-header",action="store_true"); a.add_argument("--max-missing-ratio",type=float,default=.2); a.add_argument("--max-duplicate-ratio",type=float,default=0); a.add_argument("--limit",type=int); a.add_argument("--force",action="store_true"); args=a.parse_args()
+    a=argparse.ArgumentParser(); a.add_argument("input_csv"); a.add_argument("--output"); a.add_argument("--report"); a.add_argument("--encoding",default="utf-8-sig"); a.add_argument("--source-updated-at"); a.add_argument("--print-header",action="store_true"); a.add_argument("--max-missing-ratio",type=float,default=.2); a.add_argument("--max-duplicate-ratio",type=float,default=0); a.add_argument("--limit",type=int); a.add_argument("--region-1"); a.add_argument("--large-category"); a.add_argument("--force",action="store_true"); args=a.parse_args()
     inp=Path(args.input_csv); headers=header(inp,args.encoding)
     if args.print_header: print(json.dumps(headers,ensure_ascii=False)); return
     if not args.output or not args.report or not args.source_updated_at:raise SystemExit("--output, --report and --source-updated-at are required")
@@ -46,6 +46,7 @@ def main():
     ts=timestamp(args.source_updated_at); cols=resolved(headers)
     missing=sorted(k for k in REQUIRED if not cols[k])
     if missing:raise SystemExit("missing required SBIZ columns: "+", ".join(missing))
+    if args.large_category and not cols["provider_category_large"]:raise SystemExit("missing SBIZ large-category column required by --large-category")
     counts,ids,cats,churn=Counter(),Counter(),Counter(),{}; winners={}
     try:
       with inp.open("r",encoding=args.encoding,newline="") as f:
@@ -55,6 +56,9 @@ def main():
           if args.limit is not None and counts["rows"]>=args.limit:break
           counts["rows"]+=1
           if None in row or sentinel in row.values():counts["malformed_rows"]+=1;continue
+          r1_raw=val(row,cols["region_1"]); large_cat=val(row,cols["provider_category_large"])
+          if args.region_1 and r1_raw!=args.region_1:counts["filtered_region"]+=1;continue
+          if args.large_category and large_cat!=args.large_category:counts["filtered_large_category"]+=1;continue
           pid,name=val(row,cols["provider_place_id"]),val(row,cols["name"])
           if pid:ids[pid]+=1
           if not pid or not name or len(pid)>200 or len(name)>200:counts["rejected_identity"]+=1;continue
@@ -62,7 +66,7 @@ def main():
           lon,ls=coord(rawlon,124,132); lat,ts_=coord(rawlat,33,39)
           if ls=="blank" and ts_=="blank":counts["blank_coordinates"]+=1
           elif ls!="ok" or ts_!="ok":counts["invalid_coordinates"]+=1;lon=lat=None
-          road,addr=val(row,cols["road_address"]),val(row,cols["address"]); r1,r2=val(row,cols["region_1"]),val(row,cols["region_2"]); cat=val(row,cols["provider_category"])
+          road,addr=val(row,cols["road_address"]),val(row,cols["address"]); r1,r2=r1_raw,val(row,cols["region_2"]); cat=val(row,cols["provider_category"])
           if not road and not addr:counts["missing_address"]+=1
           if not r1 or not r2:counts["missing_region"]+=1
           if not cat:counts["missing_category"]+=1
@@ -82,7 +86,7 @@ def main():
       with tmp.open("w",encoding="utf-8") as out:
         for c in sorted(winners.values(),key=lambda x:x["_row"]): c.pop("_row",None); out.write(json.dumps(c,ensure_ascii=False)+"\n")
       denom=max(1,counts["rows"])
-      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
+      report={"input":str(inp),"output":str(Path(args.output)),"sha256":sha256_file(inp),"source_updated_at":ts.isoformat(),"filters":{"region_1":args.region_1,"large_category":args.large_category},"headers":headers,"resolved_columns":cols,"rows":counts["rows"],"accepted":len(winners),"filtered_region":counts["filtered_region"],"filtered_large_category":counts["filtered_large_category"],"rejected_identity":counts["rejected_identity"],"malformed_rows":counts["malformed_rows"],"missing_address":counts["missing_address"],"missing_region":counts["missing_region"],"missing_category":counts["missing_category"],"blank_coordinates":counts["blank_coordinates"],"invalid_coordinates":counts["invalid_coordinates"],"duplicate_provider_id_count":len(dup),"duplicate_row_count":sum(n-1 for n in dup.values()),"dropped_duplicate_rows":max(0,accepted_candidates-len(winners)),"max_occurrences":max(ids.values(),default=0),"duplicate_provider_id_samples":sorted(dup)[:10],"identity_churn_collision_count":sum(1 for s in churn.values() if len(s)>1),"distinct_provider_categories":len(cats),"top_provider_categories":cats.most_common(20)}
       Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
       ratios=[report["missing_address"]/denom,report["missing_region"]/denom,report["missing_category"]/denom,(report["blank_coordinates"]+report["invalid_coordinates"])/denom]
       gate_errors=[]
