@@ -72,10 +72,11 @@ export class SupabaseItemRepository implements ItemRepository {
     return this.mapRow(data);
   }
 
-  async setPendingPickReview(itemId: string, review: string) {
+  async setPendingPickReview(itemId: string, review: string, channel?: 'offline' | 'online') {
     const { error } = await this.client.rpc('set_pending_item_pick_review', {
       p_item_id: itemId,
       p_review: review,
+      ...(channel ? { p_channel: channel } : {}),
     });
     if (error) throw mapSupabaseError(error);
   }

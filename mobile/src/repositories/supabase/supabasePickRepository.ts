@@ -30,6 +30,7 @@ export class SupabasePickRepository implements PickRepository {
       p_item_name: input.itemName, p_one_line_review: input.oneLineReview,
       p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,
+      ...(input.channel ? { p_channel: input.channel } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');
@@ -151,6 +152,7 @@ export class SupabasePickRepository implements PickRepository {
       p_one_line_review: input.oneLineReview,
       // Omitted arguments leave the stored link and tip alone; '' clears them.
       ...purchaseArgs(input),
+      ...(input.channel ? { p_channel: input.channel } : {}),
     });
 
     if (error) {

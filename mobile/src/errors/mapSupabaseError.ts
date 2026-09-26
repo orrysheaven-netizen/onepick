@@ -48,6 +48,8 @@ const knownCodes = new Set<AppErrorCode>([
   'REPORT_DUPLICATE',
   'ACCOUNT_DELETE_FAILED',
   'RATE_LIMITED',
+  'LINK_INVALID',
+  'PROVIDER_NOT_FOUND',
   'NETWORK_ERROR',
   'INTERNAL_ERROR',
 ]);

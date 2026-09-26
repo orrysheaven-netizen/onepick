@@ -24,6 +24,7 @@ export type AuthReturnParams = {
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
+  | { action: 'store_pick' }
   | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string; channel?: 'online'; oneLineReview?: string }
   | { action: 'choose_pick'; itemId: string; categoryId: string }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
@@ -149,6 +150,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
   if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
+  if (params.action === 'store_pick') return { action: 'store_pick' };
   if (params.action === 'my_comments') return { action: 'my_comments' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
@@ -157,6 +159,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   if (needsUsername) return { pathname: '/auth/username', params: { ...intent } };
   switch (intent.action) {
     case 'register_pick': return { pathname: '/pick/register', params: { ...intent } };
+    case 'store_pick': return '/pick/new';
     case 'request_item': return {
       pathname: '/pick/request',
       params: {

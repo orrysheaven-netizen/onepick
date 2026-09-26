@@ -16,6 +16,8 @@ export interface RegisterPickInput {
   variant: string;
   oneLineReview: string;
   photo?: PickPhotoDraft | null;
+  /** Food picks: the channel the pick (or the pick made on approval) belongs to. */
+  channel?: 'offline' | 'online';
 }
 
 export interface AttachItemPhotoInput {
@@ -143,6 +145,7 @@ export class RegistrationService {
         oneLineReview: review,
         ...uploaded,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        channel: input.channel,
       });
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       return { type: 'pick', pick };
@@ -173,7 +176,7 @@ export class RegistrationService {
       }
       // Resubmitting the same request returns the same pending item, so a retry
       // after a failure here is safe.
-      await this.itemRepository.setPendingPickReview(submitted.id, review);
+      await this.itemRepository.setPendingPickReview(submitted.id, review, input.channel);
       return { type: 'pending_item', item: submitted };
     }
 
@@ -185,6 +188,7 @@ export class RegistrationService {
         itemId: submitted.id,
         itemName: submitted.name,
         oneLineReview: review,
+        channel: input.channel,
       });
       return { type: 'pick', pick };
     }

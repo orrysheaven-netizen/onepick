@@ -126,6 +126,43 @@ export type NotificationPageRow = {
   outcome: 'approved' | 'merged' | 'rejected' | null;
 };
 
+export type StoreCatalogRow = {
+  catalog_id: string;
+  name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  provider_category: string | null;
+  map_url: string | null;
+};
+export type ItemLinkSuggestionRow = {
+  id: string;
+  item_id: string;
+  user_id: string;
+  url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+};
+export type AdminItemLinkSuggestionRow = {
+  suggestion_id: string;
+  item_id: string;
+  item_name: string;
+  item_status: string;
+  category_name: string;
+  place_id: string | null;
+  place_name: string | null;
+  place_branch_name: string | null;
+  place_road_address: string | null;
+  current_map_url: string | null;
+  url: string;
+  username: string | null;
+  created_at: string;
+};
+
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -161,7 +198,41 @@ export type AppDatabase = Omit<Database, 'public'> & {
       item_review_notifications: TableShape<ItemReviewNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
-    Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
+    Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'change_pick' | 'register_pick'> & {
+      change_pick: Omit<Database['public']['Functions']['change_pick'], 'Args'> & {
+        Args: Database['public']['Functions']['change_pick']['Args'] & { p_channel?: 'offline' | 'online' };
+      };
+      register_pick: Omit<Database['public']['Functions']['register_pick'], 'Args'> & {
+        Args: Database['public']['Functions']['register_pick']['Args'] & { p_channel?: 'offline' | 'online' };
+      };
+      search_store_catalog: {
+        Args: { p_query: string; p_limit?: number };
+        Returns: StoreCatalogRow[];
+      };
+      search_online_sellers: {
+        Args: { p_query: string; p_limit?: number };
+        Returns: { provider_id: string; name: string; host: string; official_url: string }[];
+      };
+      select_online_provider_item: {
+        Args: { p_category_id: string; p_provider_id: string };
+        Returns: Database['public']['Tables']['items']['Row'];
+      };
+      store_menu_options: {
+        Args: never;
+        Returns: { category_id: string; name: string; group_name: string | null; place_enabled: boolean }[];
+      };
+      suggest_item_map_link: {
+        Args: { p_item_id: string; p_url: string };
+        Returns: ItemLinkSuggestionRow;
+      };
+      admin_pending_item_link_suggestions: {
+        Args: { p_limit?: number };
+        Returns: AdminItemLinkSuggestionRow[];
+      };
+      admin_review_item_link_suggestion: {
+        Args: { p_suggestion_id: string; p_approve: boolean };
+        Returns: ItemLinkSuggestionRow;
+      };
       category_top_items: Omit<CategoryTopItems, 'Returns'> & {
         Returns: (CategoryTopItems['Returns'][number] & {
           image_path: string | null;
@@ -200,7 +271,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Returns: NotificationPageRow[];
       };
       set_pending_item_pick_review: {
-        Args: { p_item_id: string; p_review: string };
+        Args: { p_item_id: string; p_review: string; p_channel?: 'offline' | 'online' };
         Returns: { item_id: string; user_id: string; one_line_review: string; created_at: string; updated_at: string };
       };
       item_photo_credit: {

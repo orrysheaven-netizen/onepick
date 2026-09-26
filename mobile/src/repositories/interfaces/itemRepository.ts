@@ -15,7 +15,7 @@ export interface ItemRepository {
   /** Writes or clears the requester's free-text category hint on their own pending request. */
   setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
   /** Saves the one-line review that becomes the requester's pick when their pending request is approved. */
-  setPendingPickReview(itemId: string, review: string): Promise<void>;
+  setPendingPickReview(itemId: string, review: string, channel?: 'offline' | 'online'): Promise<void>;
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
   getById(itemId: string): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;

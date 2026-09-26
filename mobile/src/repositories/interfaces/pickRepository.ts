@@ -12,6 +12,8 @@ export interface ChangePickInput extends PurchaseLinkInput {
   categoryId: string;
   itemId: string;
   oneLineReview: string;
+  /** Food picks: which channel this pick is for. Omitted, the server uses the item's default. */
+  channel?: 'offline' | 'online';
 }
 
 export interface UpdatePickReviewInput extends PurchaseLinkInput {
@@ -27,6 +29,7 @@ export interface RegisterPickRecordInput {
   imagePath?: string;
   thumbnailPath?: string;
   imageSourceUrl?: string;
+  channel?: 'offline' | 'online';
 }
 
 export interface RecentPicksInput {
