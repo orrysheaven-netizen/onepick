@@ -47,5 +47,5 @@ export interface PickRepository {
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
-  removePick(categoryId: string): Promise<void>;
+  removePick(categoryId: string, channel?: 'offline' | 'online' | 'recipe'): Promise<void>;
 }
