@@ -74,7 +74,9 @@ begin
 
   -- Picks, item_places and item_providers reference items(id, category_id) with
   -- immediate FKs, so no update order satisfies them. Defer them for this
-  -- transaction only, move every row, then restore them as they were.
+  -- transaction only, move every row, then restore them as they were. Earlier
+  -- statements may have queued deferred checks; flush them before any ALTER.
+  set constraints all immediate;
   for v_fk in
     select c.conrelid::regclass::text tbl, c.conname
     from pg_constraint c
@@ -87,13 +89,23 @@ begin
     execute format('set constraints %I deferred', v_fk.conname);
   end loop;
 
-  update public.items set category_id=v_to, updated_at=now() where id=v_item;
+  -- Place/provider-backed items carry '<place or provider id>:<category id>' as
+  -- their identity; keep it pointing at the new category.
+  update public.items
+  set category_id=v_to,
+      external_id=case when external_id like '%:'||v_from::text
+        then left(external_id, length(external_id)-length(v_from::text))||v_to::text
+        else external_id end,
+      updated_at=now()
+  where id=v_item;
   for i in 1..coalesce(array_length(v_tables,1),0) loop
     execute format('update %s set category_id=$1 where item_id=$2 and category_id=$3', v_tables[i]) using v_to, v_item, v_from;
   end loop;
 
+  -- Fire every deferred check now (these FKs, and item_places' deferred provider
+  -- consistency trigger): ALTER TABLE refuses a table with pending trigger events.
+  set constraints all immediate;
   for i in 1..coalesce(array_length(v_tables,1),0) loop
-    execute format('set constraints %I immediate', v_names[i]);
     execute format('alter table %s alter constraint %I not deferrable', v_tables[i], v_names[i]);
   end loop;
 end;
