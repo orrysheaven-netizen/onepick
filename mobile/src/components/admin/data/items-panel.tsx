@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
-import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
-import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, moveItemCategory, previewItemCategoryMove, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
+import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemCategoryMove, AdminItemStatus } from '@/lib/admin-api';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -342,10 +342,137 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
         <Text style={adminStyles.primaryButtonText}>{saving ? '저장 중' : '상품 정보 저장'}</Text>
       </Pressable>
 
+      <CategoryMoveEditor item={item} onMoved={onSaved} />
       <EditorialFeatureEditor item={item} />
       <AliasManager itemId={item.id} itemName={item.name} />
     </View>
   );
+}
+
+function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item: AdminItem) => void }) {
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [filter, setFilter] = useState('');
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<AdminItemCategoryMove | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    getCategories()
+      .then((rows) => { if (mounted) setCategories(rows); })
+      .catch((caught) => { if (mounted) setError(caught instanceof Error ? caught.message : '카테고리를 불러오지 못했습니다.'); });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    setFilter('');
+    setTargetId(null);
+    setPreview(null);
+    setConfirming(false);
+    setError('');
+    setMessage('');
+  }, [item.id]);
+
+  const domainCategories = categories.map(toDomainCategory);
+  const needle = filter.replace(/\s+/g, '');
+  const candidates = selectableCategories(domainCategories)
+    .filter((category) => category.id !== item.category_id)
+    .map((category) => ({ id: category.id, label: categoryLabel(category, domainCategories) }))
+    .filter((category) => !needle || category.label.replace(/\s+/g, '').includes(needle));
+  const target = candidates.find((category) => category.id === targetId) ?? null;
+
+  const choose = async (categoryId: string) => {
+    setTargetId(categoryId);
+    setPreview(null);
+    setConfirming(false);
+    setError('');
+    setMessage('');
+    setChecking(true);
+    try {
+      setPreview(await previewItemCategoryMove(item.id, categoryId));
+    } catch (caught) {
+      setError(categoryMoveMessage(caught instanceof Error ? caught.message : '', 0));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const move = async () => {
+    if (!target || !preview || preview.blocked_reason || moving) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setMoving(true);
+    setError('');
+    try {
+      const result = await moveItemCategory(item.id, target.id);
+      const name = categories.find((category) => category.id === target.id)?.name ?? target.label;
+      setMessage(`${target.label}(으)로 옮겼습니다. 원픽 ${result.pick_count}건이 함께 이동했습니다.`);
+      setTargetId(null);
+      setPreview(null);
+      onMoved({ ...item, category_id: target.id, categories: { name } });
+    } catch (caught) {
+      setError(categoryMoveMessage(caught instanceof Error ? caught.message : '', preview.conflict_count));
+    } finally {
+      setMoving(false);
+      setConfirming(false);
+    }
+  };
+
+  const blocked = preview?.blocked_reason ? categoryMoveMessage(preview.blocked_reason, preview.conflict_count) : '';
+
+  return (
+    <View style={styles.editorialSection}>
+      <View>
+        <Text style={adminStyles.sectionTitle}>카테고리 이동</Text>
+        <Text style={[adminStyles.muted, { marginTop: 4 }]}>잘못 분류된 상품을 다른 카테고리로 옮깁니다. 이 상품을 고른 원픽(과거 기록 포함)과 한줄평·댓글이 모두 함께 이동합니다.</Text>
+      </View>
+      <TextInput accessibilityLabel="이동할 카테고리 검색" value={filter} onChangeText={setFilter} placeholder="카테고리 이름으로 찾기" style={adminStyles.input} />
+      <View style={adminStyles.row}>
+        {candidates.length === 0 && <Text style={adminStyles.muted}>옮길 수 있는 카테고리가 없습니다.</Text>}
+        {candidates.slice(0, 40).map((category) => (
+          <Pressable key={category.id} disabled={moving} onPress={() => choose(category.id)} style={[styles.statusChoice, targetId === category.id && styles.statusChoiceActive]}>
+            <Text style={[styles.statusChoiceText, targetId === category.id && styles.statusChoiceTextActive]}>{category.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {candidates.length > 40 && <Text style={styles.aliasHelp}>상위 40개만 표시합니다. 검색어를 더 입력해 주세요.</Text>}
+      {checking && <ActivityIndicator size="small" />}
+      {preview && !blocked && target && (
+        <Text accessibilityLiveRegion="polite" style={adminStyles.muted}>
+          {`${item.categories?.name ?? '현재 카테고리'} → ${target.label}\n현재 원픽 ${preview.active_pick_count}건, 과거 기록 포함 ${preview.pick_count}건이 함께 이동합니다.`}
+        </Text>
+      )}
+      {!!blocked && <Text accessibilityRole="alert" style={adminStyles.error}>{blocked}</Text>}
+      {!!error && <Text accessibilityRole="alert" style={adminStyles.error}>{error}</Text>}
+      {!!message && <Text accessibilityLiveRegion="polite" style={adminStyles.success}>{message}</Text>}
+      <Pressable disabled={!preview || !!blocked || moving} onPress={move}
+        style={[confirming ? adminStyles.primaryButton : adminStyles.secondaryButton, styles.editorialSave, (!preview || !!blocked || moving) && styles.disabled]}>
+        <Text style={confirming ? adminStyles.primaryButtonText : adminStyles.secondaryButtonText}>
+          {moving ? '이동 중' : confirming ? '한 번 더 눌러 이동 확정' : '카테고리 이동'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function categoryMoveMessage(code: string, conflictCount: number) {
+  if (code.includes('PICK_CONFLICT')) return `이 상품을 고른 사용자 중 ${conflictCount || '일부'}명이 옮길 카테고리에 이미 원픽이 있습니다. 누구의 원픽도 자동으로 바꾸지 않으므로 이동할 수 없습니다.`;
+  if (code.includes('ITEM_DUPLICATE')) return '옮길 카테고리에 같은 이름의 상품이 이미 있습니다. 이동 대신 병합을 사용해 주세요.';
+  if (code.includes('PLACE_CATEGORY_REQUIRED')) return '매장에 연결된 상품은 매장 검색을 쓰는 카테고리로만 옮길 수 있습니다.';
+  if (code.includes('PLACE_ALREADY_LINKED')) return '같은 매장의 상품이 옮길 카테고리에 이미 있습니다.';
+  if (code.includes('PROVIDER_ALREADY_LINKED')) return '같은 판매처의 상품이 옮길 카테고리에 이미 있습니다.';
+  if (code.includes('ITEM_CATEGORY_LOCKED')) return '외부 DB(영화·책·게임 등)에서 가져온 상품은 카테고리를 옮길 수 없습니다.';
+  if (code.includes('CATEGORY_NOT_PICKABLE')) return '원픽을 고를 수 있는 공개 하위 카테고리로만 옮길 수 있습니다.';
+  if (code.includes('CATEGORY_UNCHANGED')) return '이미 이 카테고리에 있는 상품입니다.';
+  if (code.includes('ITEM_NOT_FOUND')) return '상품을 찾지 못했습니다. 목록을 새로고침해 주세요.';
+  if (code.includes('duplicate key')) return '이동하는 동안 다른 원픽이 생겨 충돌했습니다. 다시 확인해 주세요.';
+  return code || '카테고리를 옮기지 못했습니다.';
 }
 
 function EditorialFeatureEditor({ item }: { item: AdminItem }) {
