@@ -60,6 +60,9 @@ const RECIPE_CATEGORY_SLUG = 'recipe';
  * channel (packaged food, drinks) are bought at a mart or online, so they count as 온라인.
  */
 export function resolveFoodLane(item: PickReadItem, categories: Category[]): FoodLane {
+  if (item.pick.channel === 'offline' || item.pick.channel === 'online' || item.pick.channel === 'recipe') {
+    return item.pick.channel;
+  }
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const seen = new Set<string>();
   let current = categoryById.get(item.pick.categoryId) ?? item.category ?? undefined;
