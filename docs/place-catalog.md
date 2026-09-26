@@ -2,6 +2,20 @@
 
 Provider-scale restaurant records stay separate from both generic `items` and the canonical OnePick `places` table.
 
+
+## Current coverage (2026-09-26)
+
+**매장 (place) search covers Seoul restaurants only**: SBIZ 상가(상권)정보 2026-06-30,
+시도명=서울특별시, 상권업종대분류명=음식 → 141,126 open rows. Places outside Seoul
+cannot be selected yet; users see "매장 등록은 현재 서울 음식점만 가능해요" and can
+send a store request instead. The app copy comes from `PLACE_COVERAGE_REGIONS` in
+`mobile/src/lib/items/pickChannel.ts` — update it together with each new region load.
+
+Size on the linked project (free plan, 500 MB database limit): database 162 MB, of
+which `place_catalog` 68 MB (≈0.49 KB/row) and `private.place_import_raw` 75 MB
+(≈0.53 KB/row). Next candidates from the same release (음식 rows): 경기 185,804,
+인천 40,973; nationwide 840,255.
+
 ## Layers
 
 1. `private.place_import_raw`: service-role-only staging for provider payloads.

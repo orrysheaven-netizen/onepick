@@ -68,12 +68,18 @@ export class ItemService {
       openCategoriesPromise,
     ]);
 
-    // A food menu holds one Pick per channel, so "my Pick" is this item's Pick, or
-    // else the Pick this item would replace: the one in the same channel.
-    const pickChannel = isFoodCategory(item.categoryId, openCategories) ? channel ?? defaultPickChannel(item) : null;
-    const currentPick = currentPicks.find((pick) => pick.itemId === item.id)
-      ?? currentPicks.find((pick) => (pick.channel ?? null) === pickChannel)
-      ?? null;
+    // A food menu holds one Pick per channel. An explicitly chosen route
+    // channel must win: opening the same item through another channel must not
+    // silently edit the Pick stored in its old channel. Without an explicit
+    // channel, an existing Pick of this item keeps its stored channel.
+    const ownItemPick = currentPicks.find((pick) => pick.itemId === item.id) ?? null;
+    const foodCategory = isFoodCategory(item.categoryId, openCategories);
+    const pickChannel = foodCategory
+      ? channel ?? ownItemPick?.channel ?? defaultPickChannel(item)
+      : null;
+    const currentPick = foodCategory
+      ? currentPicks.find((pick) => (pick.channel ?? null) === pickChannel) ?? null
+      : ownItemPick ?? currentPicks[0] ?? null;
 
     let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
     if (currentPick?.itemId === item.id) {
