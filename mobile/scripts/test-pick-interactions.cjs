@@ -88,7 +88,7 @@ async function main() {
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };

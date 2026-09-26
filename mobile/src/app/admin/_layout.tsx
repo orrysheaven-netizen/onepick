@@ -101,10 +101,6 @@ export default function AdminLayout() {
     return <Redirect href="/auth/admin-security" />;
   }
 
-  if (pathname === '/admin') {
-    return <Redirect href="/admin/dashboard" />;
-  }
-
   return (
     <AdminShell queueCounts={queueCounts} onSignOut={() => {
       void signOutAdmin().finally(() => setAuthState('signedOut'));

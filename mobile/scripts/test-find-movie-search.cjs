@@ -73,7 +73,7 @@ const imports = {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
-  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
+  '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/components/music-search-link': { MusicSearchLink: () => null },

@@ -76,6 +76,15 @@ export interface CategoryTopItem {
   channels: PickChannel[];
 }
 
+/** A leaf category that has a public ranking page (/ranking/<slug>). */
+export interface RankingCategory {
+  categoryId: string;
+  slug: string;
+  name: string;
+  /** Full visible path, e.g. 먹을것 › 쇼핑몰 › 김치. */
+  path: string;
+}
+
 /** One place/product per row, ordered by its latest visible active Pick. */
 export interface RecentPickedItem {
   itemId: string;
@@ -145,6 +154,10 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
+  getCategoryRanking(slug: string, limit?: number): Promise<CategoryTopItem[]>;
+  /** Leaf categories that have a public ranking page, in browse order. */
+  getRankingCategories(): Promise<RankingCategory[]>;
   /**
    * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
    * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.
