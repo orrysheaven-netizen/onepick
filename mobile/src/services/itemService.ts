@@ -17,7 +17,7 @@ export class ItemService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem) {
+  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem, pickChannel?: 'offline' | 'online' | 'recipe') {
     const cachedFocus = prefetchedFocus
       && prefetchedFocus.pick.id === focusPickId
       && prefetchedFocus.item?.id === itemId
@@ -35,7 +35,7 @@ export class ItemService {
       cachedFocus?.category?.id === item.categoryId
         ? Promise.resolve(cachedFocus.category)
         : this.categoryRepository.getById(item.categoryId),
-      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
+      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId, pickChannel) : Promise.resolve(null),
       picksPromise,
       openCategoriesPromise,
     ]);
