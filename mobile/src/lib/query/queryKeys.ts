@@ -6,6 +6,8 @@ export const queryKeys = {
   explore: {
     all: ['explore'] as const,
     topItems: (categoryId?: string) => ['explore', categoryId ?? 'all', 'top-items'] as const,
+    ranking: (slug?: string) => ['explore', 'ranking', slug ?? 'none'] as const,
+    rankingCategories: ['explore', 'ranking', 'categories'] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
     recentItems: (categoryIds: string[] | null, storesOnly = false) =>
       ['explore', 'recent-items', categoryIds ? [...categoryIds].sort().join(',') : 'all', storesOnly ? 'stores' : 'items'] as const,
@@ -15,6 +17,7 @@ export const queryKeys = {
     browse: ['categories', 'browse'] as const,
     open: ['categories', 'open'] as const,
     detail: (categoryId: string) => ['categories', 'detail', categoryId] as const,
+    bySlug: (slug: string) => ['categories', 'slug', slug] as const,
   },
   comments: {
     all: ['comments'] as const,
