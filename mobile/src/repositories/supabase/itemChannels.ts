@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AppSupabaseClient } from '@/lib/supabase/client';
-import type { PickChannel } from '@/repositories/interfaces/readRepository';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 /**
- * Sales channels (offline store / online) per item from public.item_channels.
- * Items without a channel (packaged products, content catalogs) are absent.
+ * Channels (offline store / online / recipe) per item from public.item_channels,
+ * representative channel first. Items without a channel (packaged products,
+ * content catalogs) are absent.
  *
  * The channel only feeds a label, so a failed lookup degrades to "no label"
  * instead of failing the screen that asked for it.
@@ -17,10 +18,12 @@ export async function fetchItemChannels(client: AppSupabaseClient, itemIds: read
   try {
     // item_channels is not in the generated types yet.
     const db = client as unknown as SupabaseClient;
-    const { data, error } = await db.from('item_channels').select('item_id, channel').in('item_id', ids);
+    const { data, error } = await db.from('item_channels').select('item_id, channel, is_primary').in('item_id', ids);
     if (error || !Array.isArray(data)) return channels;
-    for (const row of data as { item_id: string; channel: unknown }[]) {
-      if (row.channel !== 'offline' && row.channel !== 'online') continue;
+    const rows = [...(data as { item_id: string; channel: unknown; is_primary?: unknown }[])]
+      .sort((a, b) => Number(b.is_primary === true) - Number(a.is_primary === true));
+    for (const row of rows) {
+      if (row.channel !== 'offline' && row.channel !== 'online' && row.channel !== 'recipe') continue;
       const list = channels.get(row.item_id) ?? [];
       if (!list.includes(row.channel)) list.push(row.channel);
       channels.set(row.item_id, list);

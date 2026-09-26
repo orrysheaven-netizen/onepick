@@ -36,7 +36,7 @@ async function main() {
   const repositoryCalls = [];
   const service = new PickService({
     updateReview: async (input) => { repositoryCalls.push(input); return input; },
-    removePick: async (categoryId) => { repositoryCalls.push(categoryId); },
+    removePick: async (categoryId, channel) => { repositoryCalls.push(channel ? `${categoryId}:${channel}` : categoryId); },
   });
   const result = await service.updateReview({ pickId: 'pick-1', oneLineReview: '  바꾼 이유  ' });
   assert.equal(result.oneLineReview, '바꾼 이유');
@@ -47,6 +47,8 @@ async function main() {
   assert.equal(repositoryCalls.length, 1, 'Invalid reviews never reach the repository');
   await service.removePick('category-1');
   assert.equal(repositoryCalls[1], 'category-1');
+  await service.removePick('category-1', 'recipe');
+  assert.equal(repositoryCalls[2], 'category-1:recipe', 'A food Pick is removed by menu and channel');
 
   const { queryKeys } = loadSource('lib/query/queryKeys.ts');
   const { invalidatePickData } = loadSource('lib/query/invalidatePickData.ts', {
@@ -66,10 +68,10 @@ async function main() {
   await updateReview.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
   invalidated.length = 0;
-  await removePick.mutationFn('category-2');
+  await removePick.mutationFn({ categoryId: 'category-2', channel: 'online' });
   await removePick.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
-  assert.equal(repositoryCalls.at(-1), 'category-2');
+  assert.equal(repositoryCalls.at(-1), 'category-2:online');
 
   const { useChoosePick } = loadSource('hooks/useChoosePick.ts', hookImports);
   invalidated.length = 0;
