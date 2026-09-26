@@ -24,6 +24,11 @@ import { chromium, devices } from 'playwright';
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
+// Registration is menu-first (#356): /pick/find starts with a restaurant-menu step, and
+// the item/place search opens only after a menu is chosen. The menu name doubles as the
+// search term there, since the place search is scoped to that menu's category.
+const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
+const PICK_SEARCH_QUERY = process.env.QA_PICK_SEARCH_QUERY || MENU_QUERY;
 // A non-Naver link keeps the check deterministic: the Edge Function does not fetch
 // it, so the suggestion comes only from the typed name matching the taxonomy.
 const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
@@ -306,15 +311,42 @@ async function main() {
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
     });
     await check(flow, '등록할 항목 검색·선택 가능', async () => {
-      const input = page.getByRole('textbox', { name: /원픽 .*검색$/ }).first();
-      await input.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      if (!(await input.isEditable())) throw new Error('검색 입력이 비활성');
-      await input.fill(SEARCH_QUERY);
+      // Menu-first flow: "메뉴 검색" + "<메뉴> 메뉴 선택" chips, then router.push to
+      // /pick/find?categoryId=… where the "원픽 … 검색" input lives. Without a menu step
+      // (categoryId given, or menu mode off) the search input renders right away.
+      const menuInput = page.getByRole('textbox', { name: '메뉴 검색', exact: true });
+      const searchInput = page.getByRole('textbox', { name: /원픽 .*검색$/ }).first();
+      await menuInput.or(searchInput).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      let via = '';
+      let query = SEARCH_QUERY;
+      if (await menuInput.isVisible()) {
+        await menuInput.fill(MENU_QUERY);
+        const menu = page.getByRole('button', { name: / 메뉴 선택$/ });
+        await menu.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+          .catch(() => { throw new Error(`메뉴 검색 "${MENU_QUERY}"에 "메뉴 선택" 버튼 없음`); });
+        const menuName = ((await menu.first().getAttribute('aria-label')) ?? MENU_QUERY).replace(/ 메뉴 선택$/, '');
+        await menu.first().click();
+        await page.waitForURL(/\/pick\/find\?.*categoryId=/, { timeout: STEP_TIMEOUT_MS })
+          .catch(() => { throw new Error('메뉴 선택 후 categoryId 검색 화면으로 이동하지 않음'); });
+        via = `메뉴 "${menuName}" 선택 → `;
+        query = PICK_SEARCH_QUERY;
+      }
+      await searchInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+        .catch(() => { throw new Error(`${via}"원픽 … 검색" 입력 없음`); });
+      // After the menu push the input renders before the category/place-capability
+      // queries settle, and is `editable={false}` until then.
+      const editableBy = Date.now() + STEP_TIMEOUT_MS;
+      while (!(await searchInput.isEditable())) {
+        if (Date.now() > editableBy) throw new Error(`${via}검색 입력이 비활성`);
+        await page.waitForTimeout(250);
+      }
+      await searchInput.fill(query);
       const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
-      await choose.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await choose.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+        .catch(() => { throw new Error(`${via}"${query}" 검색 결과에 선택 버튼 없음`); });
       await actionable(choose);
       await noErrorCopy(page);
-      return `선택 버튼 ${await choose.count()}개 (제출하지 않음)`;
+      return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음)`;
     });
     await shot(page, 'pick_find');
 

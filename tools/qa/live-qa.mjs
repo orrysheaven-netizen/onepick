@@ -2,15 +2,23 @@
 // logged-out phone user does and records what they would feel: load speed,
 // JS errors, failed or slow requests, stuck spinners and on-screen error copy.
 // Output: <out>/report.json, <out>/report.md and screenshots. See docs/daily-qa.md.
+//
+// QA_MODE=pr runs a shorter route set for PR preview checks (docs/daily-qa.md
+// "PR 미리보기 모드"): one home load, no throttled run, no home→detail transition.
+// It additionally writes <out>/verdict.json ({pass, budgetViolations, findings})
+// and sets the process exit code to 1 when a High finding or a budget violation
+// (JS KB, FCP, readiness, Supabase calls per page) shows up, so a caller can gate
+// on it without parsing markdown.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
+const QA_MODE = process.env.QA_MODE === 'pr' ? 'pr' : 'full';
 const EXTRA_PATHS = (process.env.QA_EXTRA_PATHS || '').split(',').map((p) => p.trim()).filter(Boolean);
-const COLD_PATHS = ['/', '/explore', '/auth/login', '/legal/terms', ...EXTRA_PATHS];
-const HOME_RUNS = 3;
+const COLD_PATHS = QA_MODE === 'pr' ? ['/', '/explore'] : ['/', '/explore', '/auth/login', '/legal/terms', ...EXTRA_PATHS];
+const HOME_RUNS = QA_MODE === 'pr' ? 1 : 3;
 const SETTLE_TIMEOUT_MS = 20_000;
 const SPINNER_GRACE_MS = 10_000;
 
@@ -235,6 +243,29 @@ function median(values) {
   return v.length ? v[Math.floor(v.length / 2)] : null;
 }
 
+// Budgets checked for the PR verdict: only real page loads count (transitions
+// and the throttled run have their own, looser limits already judged above).
+function budgetViolations(pages) {
+  const violations = [];
+  for (const p of pages) {
+    if (p.throttled || !p.metrics) continue;
+    const m = p.metrics;
+    const push = (metric, value, limit) => violations.push({ page: p.label, metric, value, limit });
+    if (m.jsKb > LIMITS.jsKb) push('jsKb', m.jsKb, LIMITS.jsKb);
+    if (m.fcpMs != null && m.fcpMs > LIMITS.fcpMs) push('fcpMs', m.fcpMs, LIMITS.fcpMs);
+    if (p.readyMs > LIMITS.readyMs) push('readyMs', p.readyMs, LIMITS.readyMs);
+    const apiCalls = p.log?.api?.length ?? 0;
+    if (apiCalls > LIMITS.apiCallsPerPage) push('supabaseCallsPerPage', apiCalls, LIMITS.apiCallsPerPage);
+  }
+  return violations;
+}
+
+function buildVerdict(report) {
+  const violations = budgetViolations(report.pages);
+  const hasHighFinding = report.findings.some((f) => f.severity === 'High');
+  return { pass: !hasHighFinding && violations.length === 0, budgetViolations: violations, findings: report.findings };
+}
+
 function toMarkdown(report) {
   const order = { High: 0, Medium: 1, Low: 2 };
   const sorted = [...report.findings].sort((a, b) => order[a.severity] - order[b.severity]);
@@ -303,13 +334,15 @@ async function main() {
       pages.push(result);
     }
 
-    const transition = await homeToDetail(browser);
-    if (transition) pages.push(transition);
+    if (QA_MODE !== 'pr') {
+      const transition = await homeToDetail(browser);
+      if (transition) pages.push(transition);
 
-    const { result: slow, context: slowContext } = await loadPage(browser, '/', { label: 'home (저속 4G·CPU 4x)', throttle: true });
-    await slowContext.close();
-    judge(slow, { throttled: true });
-    pages.push(slow);
+      const { result: slow, context: slowContext } = await loadPage(browser, '/', { label: 'home (저속 4G·CPU 4x)', throttle: true });
+      await slowContext.close();
+      judge(slow, { throttled: true });
+      pages.push(slow);
+    }
 
     const report = {
       baseUrl: BASE_URL,
@@ -327,9 +360,12 @@ async function main() {
     const markdown = toMarkdown(report);
     fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
     fs.writeFileSync(path.join(OUT_DIR, 'report.md'), markdown);
+    const verdict = buildVerdict(report);
+    fs.writeFileSync(path.join(OUT_DIR, 'verdict.json'), JSON.stringify(verdict, null, 2));
     if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`);
     // Markers let the daily Claude QA routine pull the report out of the job log.
     console.log(`===QA-REPORT-BEGIN===\n${markdown}\n===QA-REPORT-END===`);
+    if (QA_MODE === 'pr' && !verdict.pass) process.exitCode = 1;
   } finally {
     await browser.close();
   }

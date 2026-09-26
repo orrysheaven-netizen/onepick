@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Daily live QA of the OnePick tester site (see docs/daily-qa.md)",
   "scripts": {
-    "live": "node live-qa.mjs"
+    "live": "node live-qa.mjs",
+    "live:pr": "QA_MODE=pr node live-qa.mjs",
+    "db-health": "node db-health.mjs"
   },
   "dependencies": {
     "playwright": "1.56.1"
