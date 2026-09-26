@@ -43,7 +43,7 @@ export interface ReadCursor {
 
 /** One person's current choice, not an aggregate product or a follower event. */
 /** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
-export type PickChannel = 'offline' | 'online';
+export type PickChannel = 'offline' | 'online' | 'recipe';
 
 export interface HomeFeedPick {
   pickId: string;
