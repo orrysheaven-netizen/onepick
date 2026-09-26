@@ -51,7 +51,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
     <View style={styles.container}>
       {longProfile ? (
         <View style={styles.toolbar}>
-          <Text style={styles.toolbarText}>상위 카테고리 {groups.length}개</Text>
+          <Text style={styles.toolbarText}>묶음 {groups.length}개</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={allCollapsed ? '카테고리 그룹 모두 펼치기' : '카테고리 그룹 모두 접기'}
@@ -95,7 +95,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                       <ProfilePickCard
                         key={item.pick.id}
                         layout="tile"
-                        categoryName={categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
+                        categoryName={group.kind === 'channel' ? item.category?.name ?? '카테고리' : categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
                         itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
                         review={item.pick.oneLineReview}
                         imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
@@ -106,7 +106,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                         onPressItem={item.item ? () => onPressItem(item.pick.itemId) : undefined}
                       />
                     ))}
-                    {onPressCategory ? (() => {
+                    {onPressCategory && group.kind !== 'channel' ? (() => {
                       const remaining = remainingProfileCategories(group.id, pickedCategoryIds, categories)
                         .filter((category) => resolveCategoryTheme(category.id, categories) === section.code);
                       if (!remaining.length) return null;
