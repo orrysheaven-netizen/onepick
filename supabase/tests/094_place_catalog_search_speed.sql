@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
 create temporary table pss_ids(key text primary key, id uuid not null) on commit drop;
 grant select on pss_ids to anon, authenticated;
@@ -85,6 +85,21 @@ select ok(
   and has_function_privilege('anon','private.place_name_bigrams(text)','execute'),
   'Guests can still search places'
 );
+
+select ok(
+  (select prosecdef from pg_proc where oid='public.search_place_catalog(uuid,text,integer)'::regprocedure),
+  'Search runs as the owner so RLS does not block its index plans'
+);
+
+-- The owner sees closed rows and hidden places; the function must still hide them.
+set local role anon;
+select is(
+  (select count(*)::int from public.search_place_catalog((select id from pss_ids where key='cat'),'뷁뛟곰탕폐점',20) s
+     where s.provider_place_id like 'closed-%'),
+  0,
+  'Running as the owner never exposes closed places to guests'
+);
+reset role;
 
 select * from finish();
 rollback;
