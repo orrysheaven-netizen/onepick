@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { meaningfulPickChangeCount } from '../_shared/profileAiPickChanges.ts';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -22,53 +23,20 @@ function relation(value: unknown) {
   return object(Array.isArray(value) ? value[0] : value);
 }
 
-function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): number {
-  const previousRows = Array.isArray(previousValue) ? previousValue.map(object) : [];
-  const hasIds = previousRows.some((row) => text(row.categoryId).length > 0);
-  // Food Picks are per channel. Snapshots saved before channels existed held one
-  // Pick per category, so they are compared per category (same rule as
-  // analyze-profile-taste).
-  const perChannel = previousRows.some((row) => 'channel' in row);
-
-  const add = (map: Map<string, string[]>, key: string, value: string) => {
-    map.set(key, [...(map.get(key) ?? []), value]);
-  };
-  const joined = (map: Map<string, string[]>) =>
-    new Map([...map].map(([key, values]) => [key, JSON.stringify(values.sort())]));
-
-  const previous = new Map<string, string[]>();
-  for (const row of previousRows) {
-    const categoryName = text(row.category);
-    const itemName = text(row.item);
-    const categoryKey = hasIds && text(row.categoryId)
-      ? text(row.categoryId) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.itemId)
-      ? text(row.itemId) : itemName ? `name:${itemName}` : '';
-    const key = perChannel ? `${categoryKey}|${text(row.channel)}` : categoryKey;
-    if (categoryKey) add(previous, key, JSON.stringify([itemKey, text(row.review)]));
-  }
-
-  const current = new Map<string, string[]>();
-  for (const value of currentRows) {
+function snapshotRows(rows: unknown[]) {
+  return rows.map((value) => {
     const row = object(value);
     const category = relation(row.categories);
     const item = relation(row.items);
-    const categoryName = text(category.name);
-    const itemName = text(item.name);
-    const categoryKey = hasIds && text(row.category_id)
-      ? text(row.category_id) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.item_id)
-      ? text(row.item_id) : itemName ? `name:${itemName}` : '';
-    const key = perChannel ? `${categoryKey}|${text(row.channel)}` : categoryKey;
-    if (categoryKey) add(current, key, JSON.stringify([itemKey, text(row.one_line_review)]));
-  }
-
-  const before = joined(previous);
-  const after = joined(current);
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  let changed = 0;
-  for (const key of keys) if (before.get(key) !== after.get(key)) changed += 1;
-  return changed;
+    return {
+      categoryId: text(row.category_id),
+      category: text(category.name),
+      channel: text(row.channel),
+      itemId: text(row.item_id),
+      item: text(item.name),
+      review: text(row.one_line_review),
+    };
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -140,7 +108,7 @@ Deno.serve(async (req: Request) => {
 
   const snapshot = Array.isArray(review.pick_snapshot) ? review.pick_snapshot : [];
   const reviewPickCount = snapshot.length;
-  const changedCount = meaningfulChangeCount(snapshot, currentRows);
+  const changedCount = meaningfulPickChangeCount(snapshot, snapshotRows(currentRows));
   let retryAfterSeconds = 0;
   let canGenerate = false;
   let reason = 'NEED_CHANGES';
