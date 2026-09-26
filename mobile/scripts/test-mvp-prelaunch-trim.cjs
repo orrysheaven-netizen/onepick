@@ -50,6 +50,7 @@ function explore({ chips = true } = {}) {
   const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z', channels: ['offline'] }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
+    '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
@@ -117,7 +118,7 @@ async function main() {
   });
   await test('Home 오프라인/온라인 맛집 tabs request a server-filtered feed and default to all', () => {
     const { view, calls } = home(2);
-    assert.deepEqual(view.all('Chip').filter(isChannelChip).map((p) => p.label), ['전체', '오프라인 맛집', '온라인 맛집']);
+    assert.deepEqual(view.all('Chip').filter(isChannelChip).map((p) => p.label), ['전체', '오프라인 맛집', '온라인 맛집', '레시피']);
     assert.equal(calls.home[3], null, 'Home starts on the unfiltered 전체 tab');
     view.find('Chip', (p) => p.accessibilityLabel === '오프라인 맛집 탭 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[3], 'offline');
