@@ -89,6 +89,7 @@ function harness(api) {
       if (name === '@/lib/admin-api') return api;
       if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
       if (name === '@/constants/onepick') return { OnePick: {} };
+      if (name === '@/lib/items/pickChannel') return require('./pick-channel.cjs');
       assert.fail(`Unexpected dependency: ${name}`);
     },
   });
@@ -141,6 +142,7 @@ async function panelChecks() {
   assert.match(page, /원픽 3/); assert.match(page, /매장·온라인/); assert.match(page, /온라인만/);
   assert.equal(view.button('매장 연결').accessibilityState.selected, true, 'Place-capable items start on 매장');
   assert.equal(view.input('장소 검색').value, '대성집', 'The place search is prefilled with the item name');
+  assert.match(page, /매장 등록은 현재 서울 음식점만 가능해요/, 'Admins see the place coverage too');
 
   view.button('장소 검색').onPress();
   page = await view.settle();
