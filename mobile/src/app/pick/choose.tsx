@@ -29,7 +29,7 @@ function getErrorMessage(error: unknown) {
   }
 }
 
-type Params = { itemId?: string; categoryId?: string; onboarding?: string };
+type Params = { itemId?: string; categoryId?: string; channel?: 'offline' | 'online' | 'recipe'; onboarding?: string };
 type SavedChoice = { pick: Pick; item: Item };
 
 export default function ChoosePickScreen() {
@@ -37,7 +37,7 @@ export default function ChoosePickScreen() {
   const params = useLocalSearchParams<Params>();
   // A saved result and its draft belong to one account/product only. Pending
   // requests from an unmounted form cannot populate the next account's result.
-  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}`} auth={auth} params={params} />;
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.channel ?? ''}:${params.onboarding ?? ''}`} auth={auth} params={params} />;
 }
 
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -94,6 +94,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     try {
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
+        ...(params.channel ? { channel: params.channel } : {}),
         // An untouched field is left out so the stored value survives; '' clears it.
         ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
         ...(draftUrl === null && draftTip === null ? {}
