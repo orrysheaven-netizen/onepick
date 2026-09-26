@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { load, screen, names } = require('./mvp-screen-harness.cjs');
 // onepick.ts reads its platform font family; use the native/default variant like Metro's split.
 const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
+constants.OnePickFeatures.categoryChips = true; // Explore fixtures below select a category chip.
 const category = { id: 'ramen', slug: 'ramen', name: '라면', parentId: null, isPickable: true };
 const homeLabel = '홈 원픽 새로고침';
 const followingLabel = '팔로잉 원픽 새로고침';
@@ -42,7 +43,9 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; } },
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
-    '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; } },
+    '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
+      useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
+    '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
@@ -131,7 +134,8 @@ async function main() {
     top.isFetching = false; top.isError = false; top.data = []; view.render(); assert.ok(action());
     action().onPress(); assert.equal(top.refetches, 3); assert.match(view.text(), /아직 선택된 원픽이 없어요/);
     top.data = undefined; top.isPending = true; view.render(); assert.equal(action(), undefined);
-    view.find('Chip', (p) => p.label === '전체').onPress(); view.render(); assert.equal(view.find('SectionHeader'), undefined);
+    view.find('Chip', (p) => p.label === '전체').onPress(); view.render();
+    assert.equal(view.find('SectionHeader').title, '최근 원픽된 항목', 'Clearing the category swaps rankings for the recent list');
   });
   await test('Web profile refresh updates all three queries and reveals newly arrived request status', async () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
