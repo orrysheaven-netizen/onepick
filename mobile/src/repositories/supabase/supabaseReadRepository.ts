@@ -5,6 +5,7 @@ import type { Database } from '@/lib/supabase/database.types';
 import type {
   DishChannelItem,
   DishChannelOverview,
+  ItemBrand,
   PickChannel,
   PickReadInput,
   ReadCursor,
@@ -90,18 +91,54 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
+  /**
+   * Brand logo URL per item (99밀크티's logo for its 강남점 milk tea). A card only
+   * falls back to it, so a failed lookup degrades to the plain placeholder.
+   */
+  private async brandLogoUrls(client: AppSupabaseClient, itemIds: readonly string[]) {
+    const logos = new Map<string, string>();
+    const ids = [...new Set(itemIds)];
+    if (!ids.length) return logos;
+    try {
+      const { data, error } = await client.rpc('item_brands', { p_item_ids: ids });
+      if (error || !Array.isArray(data)) return logos;
+      for (const row of data) {
+        if (row.logo_path) logos.set(row.item_id, client.storage.from('brand-logos').getPublicUrl(row.logo_path).data.publicUrl);
+      }
+    } catch {
+      // Keep the card without a logo.
+    }
+    return logos;
+  }
+
+  async getItemBrand(itemId: string): Promise<ItemBrand | null> {
+    try {
+      const { data, error } = await this.countClient.rpc('item_brands', { p_item_ids: [itemId] });
+      const row = !error && Array.isArray(data) ? data[0] : undefined;
+      if (!row) return null;
+      return {
+        brandId: row.brand_id, name: row.brand_name,
+        logoUrl: row.logo_path ? this.countClient.storage.from('brand-logos').getPublicUrl(row.logo_path).data.publicUrl : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async getDishChannelOverview(query: string): Promise<DishChannelOverview | null> {
     const { data, error } = await this.client.rpc('dish_channel_overview', { p_query: query });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data) || data.length === 0) return null;
     const header = data.find((row) => row.channel === null) ?? data[0];
+    const logos = await this.brandLogoUrls(this.client, data.flatMap((row) => row.item_id ? [row.item_id] : []));
     const channels: Record<PickChannel, DishChannelItem[]> = { offline: [], online: [], recipe: [] };
     for (const row of data) {
       if (row.channel !== 'offline' && row.channel !== 'online' && row.channel !== 'recipe') continue;
       if (!row.item_id || !row.item_name) continue;
       channels[row.channel].push({
         itemId: row.item_id, name: row.item_name,
-        thumbnailUrl: this.cardThumbnailUrl(row), pickCount: Number(row.pick_count) || 0,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        pickCount: Number(row.pick_count) || 0,
       });
     }
     return { categoryId: header.category_id, categoryName: header.category_name, channels };
@@ -127,15 +164,18 @@ export class SupabaseReadRepository implements ReadRepository {
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
+    const rows = data.slice(0, 20);
+    const logos = await this.brandLogoUrls(this.client, rows.map((row) => row.item_id));
     return {
       nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
-      items: data.slice(0, 20).map((row) => ({
+      items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
         profileImageUrl: row.profile_image_url,
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
-        thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        startedAt: row.started_at,
         channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online' || channel === 'recipe'),
       })),
     };
@@ -149,6 +189,7 @@ export class SupabaseReadRepository implements ReadRepository {
     if (!data || !Array.isArray(data.items)) throw new AppError('INTERNAL_ERROR');
     const rows = data.items as unknown as HomeShowcaseItemRow[];
     const last = rows[19];
+    const logos = await this.brandLogoUrls(this.countClient, rows.slice(0, 20).map((row) => row.item_id));
     return {
       minimumPickCount: data.minimum_pick_count,
       nextCursor: rows.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
@@ -157,6 +198,7 @@ export class SupabaseReadRepository implements ReadRepository {
           itemId: row.item_id, name: row.name,
           categoryId: row.category_id, categoryName: row.category_name,
           thumbnailUrl: this.cardThumbnailUrl(row),
+          brandLogoUrl: logos.get(row.item_id) ?? null,
           pickCount: row.pick_count,
           latestPickId: row.latest_pick_id,
           latestPickerUsername: row.latest_picker_username,
@@ -171,7 +213,10 @@ export class SupabaseReadRepository implements ReadRepository {
     const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
-    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
     return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
@@ -179,6 +224,7 @@ export class SupabaseReadRepository implements ReadRepository {
       categoryName: row.category_name,
       categoryPath: row.category_path ?? row.category_name,
       thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
       editorialNote: row.editorial_note,
       editorialPriority: row.editorial_priority,
       pickCount: row.pick_count,
@@ -192,11 +238,15 @@ export class SupabaseReadRepository implements ReadRepository {
     const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
-    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
     return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
@@ -210,11 +260,15 @@ export class SupabaseReadRepository implements ReadRepository {
     const { data, error } = await this.countClient.rpc('category_ranking', { p_slug: slug, p_limit: limit });
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
-    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
     return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
@@ -246,13 +300,17 @@ export class SupabaseReadRepository implements ReadRepository {
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
     const rows = data.slice(0, 20);
-    const channels = await fetchItemChannels(this.client, rows.map((row) => row.item_id));
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.client, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.client, rows.map((row) => row.item_id)),
+    ]);
     return {
       nextCursor: data.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
       items: rows.map((row) => ({
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
-        thumbnailUrl: this.cardThumbnailUrl(row), lastPickedAt: row.last_picked_at,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        lastPickedAt: row.last_picked_at,
         channels: channels.get(row.item_id) ?? [],
       })),
     };

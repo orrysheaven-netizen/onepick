@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          logo_path: string | null
           logo_url: string | null
           name: string
           normalized_name: string
@@ -59,6 +60,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name: string
           normalized_name: string
@@ -69,6 +71,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name?: string
           normalized_name?: string
@@ -1643,6 +1646,15 @@ export type Database = {
         Returns: {
           items: Json
           minimum_pick_count: number
+        }[]
+      }
+      item_brands: {
+        Args: { p_item_ids: string[] }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          item_id: string
+          logo_path: string | null
         }[]
       }
       item_photo_credit: {

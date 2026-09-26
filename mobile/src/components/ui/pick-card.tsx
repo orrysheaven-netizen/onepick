@@ -13,7 +13,7 @@ type Props = {
   review?: string | null;
   /** Shown in place of a missing review, e.g. "12명이 추천". */
   fallbackText?: string;
-  photo: { uri?: string | null; itemId?: string; itemStatus?: string; hasPhoto?: boolean };
+  photo: { uri?: string | null; itemId?: string; itemStatus?: string; hasPhoto?: boolean; logoUri?: string | null };
   /** Who picked it. Rendered first: the feed reads person → category → item → reason. */
   person?: { username: string; label?: string; onPress?: () => void; accessibilityLabel?: string };
   timeLabel?: string;
@@ -43,7 +43,7 @@ export function PickCard({ categoryName, itemName, review, fallbackText, photo, 
 
       <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
-        <PickPhoto feed uri={photo.uri} label={itemName} itemId={photo.itemId} itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} />
+        <PickPhoto feed uri={photo.uri} label={itemName} itemId={photo.itemId} itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} logoUri={photo.logoUri} />
         <View style={styles.copy}>
           <View style={styles.categoryRow}>
             <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
