@@ -2,9 +2,10 @@ begin;
 select plan(9);
 
 -- Reuse the first open pickable menu leaf and two authenticated fixture users.
-select lives_ok($$
-  alter table public.picks disable trigger picks_limit_changes
-$$,'disable rate limit trigger for deterministic channel test');
+select lives_ok($
+  alter table public.picks disable trigger picks_limit_changes;
+  alter table public.picks disable trigger check_pick_place_identity;
+$,'disable unrelated pick guards for deterministic channel test');
 
 do $$
 declare
@@ -102,9 +103,10 @@ select ok(
   not exists(select 1 from public.picks where channel not in ('offline','online','recipe') and channel is not null),
   'backfill only uses supported channel values');
 
-select lives_ok($$
-  alter table public.picks enable trigger picks_limit_changes
-$$,'restore rate limit trigger');
+select lives_ok($
+  alter table public.picks enable trigger picks_limit_changes;
+  alter table public.picks enable trigger check_pick_place_identity;
+$,'restore pick guards');
 
 select * from finish();
 rollback;
