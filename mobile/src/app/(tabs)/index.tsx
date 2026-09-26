@@ -30,7 +30,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
       <Text numberOfLines={1} style={styles.editorialPath}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
     </View>
     <View style={styles.editorialBody}>
-      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
       <View style={styles.editorialCopy}>
         <Text style={styles.itemName}>{item.name}</Text>
         {item.editorialNote ? <Text numberOfLines={3} style={styles.editorialNote}>{item.editorialNote}</Text> : null}

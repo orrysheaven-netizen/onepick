@@ -110,7 +110,7 @@ export default function CategoryRankingScreen() {
                 {item.isTied ? <Text style={styles.rankTie}>공동</Text> : null}
                 <Text style={styles.rankNumber}>{item.rank}</Text>
               </View> : null}
-              <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+              <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
               <Pressable accessibilityRole="button"
                 accessibilityLabel={showRankingDetail
                   ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 상세 보기`

@@ -56,16 +56,18 @@ export class ItemService {
     const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
     const picksPromise = this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 });
     const openCategoriesPromise = this.categoryRepository.getOpenCategories();
+    const brandPromise = this.readRepository.getItemBrand?.(itemId).catch(() => null) ?? Promise.resolve(null);
     const item = await itemPromise;
     if (!item) throw new AppError('ITEM_NOT_FOUND');
 
-    const [category, currentPicks, picks, openCategories] = await Promise.all([
+    const [category, currentPicks, picks, openCategories, brand] = await Promise.all([
       cachedFocus?.category?.id === item.categoryId
         ? Promise.resolve(cachedFocus.category)
         : this.categoryRepository.getById(item.categoryId),
       userId ? this.pickRepository.getCurrentPicksInCategory(userId, item.categoryId) : Promise.resolve([]),
       picksPromise,
       openCategoriesPromise,
+      brandPromise,
     ]);
 
     // A food menu holds one Pick per channel. An explicitly chosen route
@@ -123,6 +125,8 @@ export class ItemService {
     return {
       item,
       category,
+      /** The item's brand and logo, or null when it has none. */
+      brand,
       // Restaurants live under the 'food' root; their detail title names the menu (lib/items/itemTitle).
       isRestaurant: openCategories.some((category) => category.id === item.categoryId && category.rootSlug === 'food'),
       myPickStatus,

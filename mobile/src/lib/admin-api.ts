@@ -47,6 +47,8 @@ export type AdminBrand = {
   normalized_name: string;
   slug: string | null;
   logo_url: string | null;
+  /** Object path in the brand-logos bucket (`<brand id>/<file>`). */
+  logo_path: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -496,7 +498,7 @@ export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'n
 }
 
 export function getBrands() {
-  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at&order=name.asc');
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at&order=name.asc');
 }
 
 function cleanName(value: string, max: number) {
@@ -507,7 +509,7 @@ function cleanName(value: string, max: number) {
 
 export function createBrand(input: { name: string; slug?: string | null }) {
   const name = cleanName(input.name, 80);
-  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at', {
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -519,8 +521,8 @@ export function createBrand(input: { name: string; slug?: string | null }) {
   });
 }
 
-export function updateBrand(id: string, patch: { is_active?: boolean }) {
-  return adminRequest<AdminBrand[]>(`/rest/v1/brands?id=eq.${encodeURIComponent(id)}&select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at`, {
+export function updateBrand(id: string, patch: { is_active?: boolean; logo_path?: string | null }) {
+  return adminRequest<AdminBrand[]>(`/rest/v1/brands?id=eq.${encodeURIComponent(id)}&select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
