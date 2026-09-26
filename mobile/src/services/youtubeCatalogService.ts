@@ -1,3 +1,5 @@
+import { AppError } from '@/errors/appError';
+import { parseYouTubeVideoUrl } from '@/lib/youtube/videoLink';
 import type { YouTubeCatalogRepository } from '@/repositories/interfaces/youtubeCatalogRepository';
 
 export class YouTubeCatalogService {
@@ -12,5 +14,17 @@ export class YouTubeCatalogService {
 
   importChannel(externalId: string) {
     return this.repository.importChannel(externalId.trim());
+  }
+
+  /** Only a link that parses as a YouTube video reaches the Edge Function (and its quota). */
+  lookupVideo(url: string, signal?: AbortSignal) {
+    const cleanUrl = url.trim();
+    return parseYouTubeVideoUrl(cleanUrl)
+      ? this.repository.lookupVideo(cleanUrl, signal)
+      : Promise.reject(new AppError('VIDEO_URL_INVALID'));
+  }
+
+  importVideo(externalId: string) {
+    return this.repository.importVideo(externalId.trim());
   }
 }
