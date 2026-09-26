@@ -50,14 +50,15 @@ export class SupabasePickRepository implements PickRepository {
     return data ? mapPickRow(data) : null;
   }
 
-  async getCurrentPick(userId: string, categoryId: string) {
-    const { data, error } = await this.client
+  async getCurrentPick(userId: string, categoryId: string, channel?: 'offline' | 'online' | 'recipe') {
+    let query = this.client
       .from('picks')
       .select('*')
       .eq('user_id', userId)
       .eq('category_id', categoryId)
-      .in('status', ['active', 'needs_review'])
-      .maybeSingle();
+      .in('status', ['active', 'needs_review']);
+    if (channel) query = query.eq('channel', channel);
+    const { data, error } = await query.order('updated_at', { ascending: false }).limit(1).maybeSingle();
 
     if (error) {
       throw mapSupabaseError(error);
@@ -149,6 +150,7 @@ export class SupabasePickRepository implements PickRepository {
       p_category_id: input.categoryId,
       p_item_id: input.itemId,
       p_one_line_review: input.oneLineReview,
+      p_channel: input.channel ?? null,
       // Omitted arguments leave the stored link and tip alone; '' clears them.
       ...purchaseArgs(input),
     });
