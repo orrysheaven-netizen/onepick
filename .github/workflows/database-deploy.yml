@@ -49,7 +49,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with:
-          version: latest
+          version: 2.118.0
 
       - name: Link onepick-dev
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
