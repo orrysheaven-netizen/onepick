@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.1
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = 'item-category-v2-taxonomy-search-terms';
-const STORE_PROMPT_VERSION = 'store-menu-v1';
+const STORE_PROMPT_VERSION = 'store-menu-v2';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -411,7 +411,9 @@ async function suggestStoreMenus(
       model: MODEL,
       store: false,
       reasoning: { effort: 'low' },
-      max_output_tokens: 700,
+      // Reasoning tokens count toward this cap; with ~90 candidate menus 700 was
+      // not enough and the response came back incomplete.
+      max_output_tokens: 2500,
       instructions: [
         'A OnePick user found a restaurant (or an online food seller) and now chooses which of its menus is their one pick.',
         'Suggest the menus this store is best known for, choosing ONLY from the supplied candidate menu categories.',
@@ -440,13 +442,25 @@ async function suggestStoreMenus(
     }),
     signal: AbortSignal.timeout(15_000),
   });
+  // The menu step always has a manual fallback, so a failed or incomplete model
+  // answer is reported as "no suggestion" rather than an error.
+  const noSuggestion = () => reply({ suggestions: [], needsNewCategory: true, categories, reused: false, unavailable: true });
   if (!modelResponse.ok) {
     console.error('AI_STORE_MENU_PROVIDER_FAILED', modelResponse.status, STORE_PROMPT_VERSION);
     await modelResponse.body?.cancel();
-    return reply({ error: 'AI_CATEGORY_FAILED' }, 502);
+    return noSuggestion();
   }
-  const output = outputText(await modelResponse.json());
-  if (!output) throw new Error('AI_CATEGORY_EMPTY_OR_REFUSED');
-  const clean = cleanGenerated(JSON.parse(output), allowed);
-  return reply({ ...clean, categories, reused: false });
+  const payload = await modelResponse.json();
+  const output = outputText(payload);
+  if (!output) {
+    console.error('AI_STORE_MENU_EMPTY_OR_INCOMPLETE', record(payload).status, record(record(payload).incomplete_details).reason);
+    return noSuggestion();
+  }
+  try {
+    const clean = cleanGenerated(JSON.parse(output), allowed);
+    return reply({ ...clean, categories, reused: false });
+  } catch {
+    console.error('AI_STORE_MENU_RESULT_INVALID', STORE_PROMPT_VERSION);
+    return noSuggestion();
+  }
 }
