@@ -28,7 +28,7 @@ export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'rem
     </Pressable>
     <Text style={styles.actionDot}>·</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="원픽 선택 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
-      <Text style={styles.actionText}>해제</Text>
+      <Text style={styles.actionText}>원픽 해제</Text>
     </Pressable>
   </View>;
 }
@@ -78,7 +78,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await removePick.mutateAsync(pick.categoryId);
+      await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel });
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.

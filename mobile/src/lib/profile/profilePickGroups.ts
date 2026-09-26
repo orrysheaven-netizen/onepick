@@ -55,7 +55,8 @@ const FOOD_LANES: { code: FoodLane; label: string }[] = [
 const RECIPE_CATEGORY_SLUG = 'recipe';
 
 /**
- * 레시피 is a category; 오프라인/온라인 is the item's sales channel. An item sold both ways
+ * A food Pick carries its channel. Older reads without one fall back to the 레시피
+ * category and the item's sales channel. An item sold both ways
  * counts once, as 오프라인 (Home treats delivery as 매장 too). Legacy items without a
  * channel (packaged food, drinks) are bought at a mart or online, so they count as 온라인.
  */
@@ -68,6 +69,7 @@ export function resolveFoodLane(item: PickReadItem, categories: Category[]): Foo
     seen.add(current.id);
     current = current.parentId ? categoryById.get(current.parentId) : undefined;
   }
+  if (item.pick.channel) return item.pick.channel;
   return item.item?.channels?.includes('offline') ? 'offline' : 'online';
 }
 
@@ -139,15 +141,6 @@ export function buildProfileThemeSections(picks: PickReadItem[], categories: Cat
 export function defaultCollapsedProfilePickGroups(groups: ProfilePickGroup[], totalPickCount: number) {
   if (totalPickCount <= 6) return new Set<string>();
   return new Set(groups.slice(2).map((group) => group.id));
-}
-
-/** Pickable leaves in a top-level group that have no current Pick yet (the owner's dashed "remaining" tile). */
-export function remainingProfileCategories(groupId: string, pickedCategoryIds: Set<string>, categories: Category[]) {
-  return categories
-    .filter((category) => category.isPickable && category.status === 'open' && category.isVisible)
-    .filter((category) => (category.parentId ?? category.id) === groupId)
-    .filter((category) => !pickedCategoryIds.has(category.id))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
 }
 
 /** A theme other than the main one goes to 실험실; unmapped (기타) Picks stay on the main profile. */

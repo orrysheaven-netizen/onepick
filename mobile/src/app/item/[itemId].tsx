@@ -177,13 +177,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, isRestaurant, myPickStatus, picks, canChoose } = query.data;
+  const { category, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
     if (!canChoose) return;
-    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId } });
+    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
 
   return (
@@ -271,7 +271,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               }
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
-                itemName={item.name} focused={params.photo !== '1' && pick.id === focusPickId} highlighted={pick.id === highlightedId}
+                itemName={item.name} highlighted={pick.id === highlightedId}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))

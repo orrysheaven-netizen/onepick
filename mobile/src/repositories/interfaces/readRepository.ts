@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
 import type { Pick, PickStatus } from '@/types/domain/pick';
@@ -41,9 +42,9 @@ export interface ReadCursor {
   id: string;
 }
 
+export type { PickChannel } from '@/lib/items/pickChannel';
+
 /** One person's current choice, not an aggregate product or a follower event. */
-/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
-export type PickChannel = 'offline' | 'online';
 
 export interface HomeFeedPick {
   pickId: string;
@@ -143,7 +144,24 @@ export interface PickReadInput {
   orderBy?: 'started_at' | 'updated_at';
 }
 
+/** One item of a dish shown in one channel, with how many people picked it there. */
+export interface DishChannelItem {
+  itemId: string;
+  name: string;
+  thumbnailUrl: string | null;
+  pickCount: number;
+}
+
+/** A searched dish shown three ways: 오프라인 맛집, 온라인 맛집 and 레시피. */
+export interface DishChannelOverview {
+  categoryId: string;
+  categoryName: string;
+  channels: Record<PickChannel, DishChannelItem[]>;
+}
+
 export interface ReadRepository {
+  /** The dish the query names exactly (e.g. 미역국) split by channel; null when the query is not a dish. */
+  getDishChannelOverview(query: string): Promise<DishChannelOverview | null>;
   /**
    * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
    * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
