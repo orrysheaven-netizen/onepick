@@ -169,7 +169,10 @@ begin
   end if;
   begin
     new.channel := private.resolve_pick_channel(new.category_id, new.item_id, new.channel);
-  exception when others then
+  exception when sqlstate 'P0001' then
+    if sqlerrm not in ('PICK_CHANNEL_INVALID','PICK_CHANNEL_MISMATCH') then
+      raise;
+    end if;
     new.channel := private.resolve_pick_channel(new.category_id, new.item_id, null);
   end;
   return new;
