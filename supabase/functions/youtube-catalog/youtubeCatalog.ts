@@ -6,6 +6,7 @@ const CHANNEL_CATEGORY_SLUG = 'youtube';
 const VIDEO_CATEGORY_SLUG = 'recipe';
 const CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const clean = (value: unknown, max: number) => typeof value === 'string'
   ? value.trim().replace(/\s+/g, ' ').slice(0, max) : '';
 
@@ -307,7 +308,8 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     status: 'active',
   });
 
-  // Recipe videos: a shared video link becomes one item per video ID in the recipe category.
+  // Recipe videos are imported into the selected food menu. external_id includes
+  // categoryId so the same YouTube video may be a recipe candidate for multiple menus.
   const handleVideo = async (body: Record<string, unknown>, req: Request): Promise<Response> => {
     const lookup = body.action === 'video_lookup';
     const rawId = typeof body.externalId === 'string' ? body.externalId.trim() : '';
@@ -330,13 +332,41 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }
 
-    const category = await catalogCategory(client, VIDEO_CATEGORY_SLUG);
+    let category: { id: string; parent_id: string | null } | null = null;
+    if (lookup) {
+      category = await catalogCategory(client, VIDEO_CATEGORY_SLUG);
+    } else {
+      const requested = typeof body.categoryId === 'string' ? body.categoryId.trim() : '';
+      if (!UUID.test(requested)) return json({ error: 'CATEGORY_NOT_FOUND' }, 400);
+      const selected = await client.from('categories').select('id,parent_id,status,is_visible,is_pickable')
+        .eq('id', requested).maybeSingle();
+      if (selected.error || !selected.data || selected.data.status !== 'open'
+        || selected.data.is_visible !== true || selected.data.is_pickable !== true) {
+        return json({ error: 'CATEGORY_NOT_FOUND' }, 400);
+      }
+      const children = await client.from('categories').select('id').eq('parent_id', requested).limit(1);
+      if (children.error || children.data?.length) return json({ error: 'CATEGORY_NOT_FOUND' }, 400);
+
+      let ancestorId = selected.data.parent_id;
+      let underFood = false;
+      for (let depth = 0; ancestorId && depth < 4; depth++) {
+        const ancestor = await client.from('categories').select('id,parent_id,slug,status,is_visible')
+          .eq('id', ancestorId).maybeSingle();
+        if (ancestor.error || !ancestor.data || ancestor.data.status !== 'open' || ancestor.data.is_visible !== true) break;
+        if (ancestor.data.slug === 'food') { underFood = true; break; }
+        ancestorId = ancestor.data.parent_id;
+      }
+      if (!underFood) return json({ error: 'CATEGORY_NOT_FOUND' }, 400);
+      category = { id: selected.data.id, parent_id: selected.data.parent_id };
+    }
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
+
     const key = apiKey();
     if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
+    const identity = lookup ? id : `${id}:${category.id}`;
     const findExisting = () => client.from('items').select('id,category_id,status,external_refreshed_at')
-      .eq('external_source', YOUTUBE_VIDEO_SOURCE).eq('external_id', id).maybeSingle();
+      .eq('external_source', YOUTUBE_VIDEO_SOURCE).eq('external_id', identity).maybeSingle();
     const existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     if (existing.data && existing.data.category_id !== category.id) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
@@ -344,7 +374,19 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }
 
+    const ensureRecipeChannel = async (itemId: string, targetUrl: string) => {
+      const result = await client.from('item_channels').upsert({
+        item_id: itemId,
+        channel: 'recipe',
+        target_url: targetUrl,
+        is_primary: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'item_id,channel' });
+      return !result.error;
+    };
+
     if (!lookup && existing.data && isFresh(existing.data.external_refreshed_at, 20 * 24 * 60 * 60_000)) {
+      if (!await ensureRecipeChannel(existing.data.id, videoUrl(id)!)) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       return json({ itemId: existing.data.id, categoryId: category.id, created: false });
     }
 
@@ -367,9 +409,13 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       const updated = await client.from('items').update(videoFields(video, now))
         .eq('id', existing.data.id).select('id,category_id').maybeSingle();
       if (updated.error || !updated.data) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (!lookup) return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
+      if (!lookup) {
+        if (!await ensureRecipeChannel(updated.data.id, video.videoUrl)) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+        return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
+      }
     }
 
+    // Lookup is only a preview; the target menu is deliberately chosen afterward.
     if (lookup) return json({ video: { ...video, existingItemId: existing.data?.id ?? null } });
 
     const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
@@ -380,18 +426,21 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       category_id: category.id,
       ...videoFields(video, now),
       external_source: YOUTUBE_VIDEO_SOURCE,
-      external_id: id,
+      external_id: identity,
       release_year: null,
       collection_name: null,
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) {
+      if (!await ensureRecipeChannel(inserted.data.id, video.videoUrl)) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       return json({ itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
-    return !winner.error && winner.data && winner.data.category_id === category.id
-      ? json({ itemId: winner.data.id, categoryId: category.id, created: false })
-      : json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (!winner.error && winner.data && winner.data.category_id === category.id
+      && await ensureRecipeChannel(winner.data.id, video.videoUrl)) {
+      return json({ itemId: winner.data.id, categoryId: category.id, created: false });
+    }
+    return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
   };
 
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
