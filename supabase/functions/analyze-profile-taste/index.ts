@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { meaningfulPickChangeCount } from '../_shared/profileAiPickChanges.ts';
 import {
   PROFILE_AI_COOLDOWN_SECONDS,
   PROFILE_AI_MIN_CHANGES,
@@ -49,42 +50,6 @@ function buildSnapshot(rows: unknown[]) {
   }).filter((pick) =>
     pick.pickId && pick.categoryId && pick.category && pick.itemId && pick.item && pick.review
   );
-}
-
-function meaningfulChangeCount(previousValue: unknown, currentValue: unknown): number {
-  const previous = Array.isArray(previousValue) ? previousValue.map(record) : [];
-  const current = Array.isArray(currentValue) ? currentValue.map(record) : [];
-  // Food Picks are per channel. Snapshots saved before channels existed held one
-  // Pick per category, so they are compared per category: the channels a Pick
-  // gained on migration are not a change, a newly added channel Pick is one.
-  const perChannel = previous.some((row) => 'channel' in row);
-
-  const signatureByCategory = (rows: Record<string, unknown>[]) => {
-    const grouped = new Map<string, string[]>();
-    for (const row of rows) {
-      const categoryId = textOrNull(row.categoryId, 36);
-      const category = textOrNull(row.category, 300);
-      const categoryKey = categoryId ?? (category ? `name:${category}` : null);
-      if (!categoryKey) continue;
-      const key = perChannel ? `${categoryKey}|${textOrNull(row.channel, 16) ?? ''}` : categoryKey;
-
-      const itemId = textOrNull(row.itemId, 36);
-      const item = textOrNull(row.item, 300);
-      const review = textOrNull(row.review, 100) ?? '';
-      const itemKey = itemId ?? (item ? `name:${item}` : '');
-      grouped.set(key, [...(grouped.get(key) ?? []), JSON.stringify([itemKey, review])]);
-    }
-    return new Map([...grouped].map(([key, values]) => [key, JSON.stringify(values.sort())]));
-  };
-
-  const before = signatureByCategory(previous);
-  const after = signatureByCategory(current);
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  let changed = 0;
-  for (const key of keys) {
-    if (before.get(key) !== after.get(key)) changed += 1;
-  }
-  return changed;
 }
 
 async function fingerprint(value: unknown) {
@@ -283,7 +248,7 @@ Deno.serve(async (req: Request) => {
           }, 409));
         }
       } else {
-        const changedCount = meaningfulChangeCount(existing.pick_snapshot, snapshot);
+        const changedCount = meaningfulPickChangeCount(existing.pick_snapshot, snapshot);
         if (changedCount < PROFILE_AI_MIN_CHANGES) {
           return finish('not_enough_changes', reply({
             error: 'AI_NOT_ENOUGH_CHANGES',
