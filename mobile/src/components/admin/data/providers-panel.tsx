@@ -58,6 +58,8 @@ export function ProvidersPanel() {
   const listRequest = useRef(0);
   const mutationPending = useRef(false);
   const queryRef = useRef('');
+  // Draft edits take effect only when Search/Enter is submitted.
+  const submittedQueryRef = useRef('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -84,7 +86,7 @@ export function ProvidersPanel() {
     setRefreshing(true);
     setListError('');
     try {
-      const nextProviders = await getOnlineProviders({ query: queryRef.current });
+      const nextProviders = await getOnlineProviders({ query: submittedQueryRef.current });
       if (mounted.current && request === listRequest.current) setProviders(nextProviders);
     } catch (caught) {
       if (mounted.current && request === listRequest.current) {
@@ -99,6 +101,12 @@ export function ProvidersPanel() {
 
   const searchProviders = () => {
     if (!mounted.current || !initialized || loading || mutationPending.current) return;
+    submittedQueryRef.current = queryRef.current;
+    return loadProviders();
+  };
+
+  const retryProviders = () => {
+    if (!mounted.current || !initialized || loading || mutationPending.current) return;
     return loadProviders();
   };
 
@@ -110,7 +118,7 @@ export function ProvidersPanel() {
     setInitialized(false);
     setLoadError('');
     setListError('');
-    Promise.all([getOnlineProviders({ query: queryRef.current }), getCategories(), getBrands()])
+    Promise.all([getOnlineProviders({ query: submittedQueryRef.current }), getCategories(), getBrands()])
       .then(([nextProviders, nextCategories, nextBrands]) => {
         if (!active || request !== listRequest.current) return;
         setProviders(nextProviders);
@@ -323,7 +331,7 @@ export function ProvidersPanel() {
       {!!listError && (
         <View style={styles.form}>
           <Text accessibilityRole="alert" style={adminStyles.error}>{listError}</Text>
-          <Pressable accessibilityRole="button" disabled={actionsDisabled || refreshing} onPress={searchProviders} style={adminStyles.secondaryButton}>
+          <Pressable accessibilityRole="button" disabled={actionsDisabled || refreshing} onPress={retryProviders} style={adminStyles.secondaryButton}>
             <Text style={adminStyles.secondaryButtonText}>목록 다시 불러오기</Text>
           </Pressable>
         </View>
