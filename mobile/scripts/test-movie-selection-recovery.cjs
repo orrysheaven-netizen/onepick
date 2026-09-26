@@ -91,6 +91,7 @@ function setup(overrides = {}) {
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
     '@/lib/categories/categoryTree': categoryTree,
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/hooks/useItemSearch': { useItemSearch: (...args) => { queries.push(args); return local; } },
     '@/hooks/useMovieCatalog': { useMovieCatalogSearch: () => catalog, useImportMovieCatalogItem: () => mutation },
     '@/hooks/usePlaceCatalog': {

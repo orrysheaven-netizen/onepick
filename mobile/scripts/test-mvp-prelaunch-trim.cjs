@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { load, screen, names } = require('./mvp-screen-harness.cjs');
 // onepick.ts reads its platform font family; use the native/default variant like Metro's split.
 const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
+const homeChannels = load('lib/home/homeChannels.ts');
 const flags = constants.OnePickFeatures;
 const initialFlags = { ...flags };
 const thresholds = constants.OnePickThresholds;
@@ -35,7 +36,7 @@ function home(count = 20) {
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
-    '@/lib/home/homeChannels': { HOME_CHANNEL_TABS: [{ channel: null, label: '전체' }, { channel: 'offline', label: '매장' }, { channel: 'online', label: '온라인' }] },
+    '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
@@ -43,13 +44,13 @@ function home(count = 20) {
   view.render(); return { view, q, following, auth, calls };
 }
 function explore() {
-  const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true }]);
+  const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true, channels: [] }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true, channels: [] }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: '1' }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; } },
-    '@/lib/categories/categoryTree': tree,
+    '@/lib/categories/categoryTree': tree, '@/lib/home/homeChannels': homeChannels,
   });
   view.render(); view.find('Chip', (p) => p.label === 'food').onPress(); view.render();
   view.find('Chip', (p) => p.label === 'ramen').onPress(); view.render();
@@ -69,6 +70,7 @@ function profile(isPublic = false) {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
+    '@/lib/home/homeChannels': homeChannels,
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
