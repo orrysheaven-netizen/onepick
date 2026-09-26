@@ -271,7 +271,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               }
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
-                itemName={item.name} focused={params.photo !== '1' && pick.id === focusPickId} highlighted={pick.id === highlightedId}
+                itemName={item.name} highlighted={pick.id === highlightedId}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))

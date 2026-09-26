@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PickManagement, PickManagementActions, type PickManagementMode } from '@/components/pick-management';
@@ -11,22 +11,20 @@ import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
 /**
- * One review on an item. Other people's threads are always open so the conversation
- * is visible; my own review keeps its replies behind "댓글 보기" and carries the
- * small 수정 · 해제 actions where the 내 원픽 badge used to be.
+ * One review on an item, with its comment thread always open. My own review shows
+ * the comments others left but no 댓글 쓰기, and carries the small 수정 · 원픽 해제
+ * actions where the 내 원픽 badge used to be.
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, focused, highlighted, onRemoved }: {
+export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
-  focused: boolean; highlighted: boolean; onRemoved: () => void;
+  highlighted: boolean; onRemoved: () => void;
 }) {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
   const isMine = user?.id === pick.userId;
   const isCurrent = pick.status === 'active' || pick.status === 'needs_review';
   const canManage = !isLoading && isMine && isCurrent;
-  const [repliesOpen, setRepliesOpen] = useState(focused || !isMine);
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  useEffect(() => { if (focused || !isMine) setRepliesOpen(true); }, [focused, isMine]);
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -54,22 +52,9 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      {isMine ? (
-        <Pressable accessibilityRole="button" onPress={() => setRepliesOpen((open) => !open)}
-          style={({ pressed }) => [styles.repliesToggle, pressed && styles.pressed]}>
-          <Text style={styles.repliesToggleText}>{repliesOpen ? '댓글 숨기기' : '댓글 보기'}</Text>
-        </Pressable>
-      ) : null}
-      {/* Keep the mounted thread while collapsed so an unfinished reply is preserved. */}
-      <ReplyThread pickId={pick.id} open={repliesOpen} />
+      <PickReplies pickId={pick.id} compact canWrite={!isMine} />
     </View>
   );
-}
-
-function ReplyThread({ pickId, open }: { pickId: string; open: boolean }) {
-  const [visited, setVisited] = useState(open);
-  useEffect(() => { if (open) setVisited(true); }, [open]);
-  return open || visited ? <View style={!open ? { display: 'none' } : undefined}><PickReplies pickId={pickId} compact /></View> : null;
 }
 
 const styles = StyleSheet.create({
@@ -84,7 +69,4 @@ const styles = StyleSheet.create({
   review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 10 },
   myReview: { fontWeight: '600' },
   history: { color: OnePick.muted, fontSize: 12, lineHeight: 16 },
-  repliesToggle: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },
-  repliesToggleText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
-  pressed: { opacity: 0.6 },
 });

@@ -487,7 +487,6 @@ async function main() {
       // Read-only: open the review the comment answers and only trial-click its 삭제 control.
       await rows.first().click();
       await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByRole('button', { name: '댓글 접기', exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await actionable(page.getByRole('button', { name: '내 댓글 삭제' }));
       await noErrorCopy(page);
       return `내 댓글 ${count}개 · 상품 상세 이동 + 삭제 버튼 표시`;
