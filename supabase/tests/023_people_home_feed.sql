@@ -113,9 +113,9 @@ begin
   select count(*) into n from public.home_pick_feed_page() f where f.user_id=suspended;
   assert n=0, 'Suspended people also remain hidden from guests';
   reset role;
-  assert not (select prosecdef from pg_proc where oid='public.home_pick_feed_page(timestamptz,uuid,text)'::regprocedure), 'No security-definer RLS bypass';
-  assert has_function_privilege('anon','public.home_pick_feed_page(timestamptz,uuid,text)','execute'), 'Guests may browse';
-  assert has_function_privilege('authenticated','public.home_pick_feed_page(timestamptz,uuid,text)','execute'), 'Members may browse';
+  assert not (select prosecdef from pg_proc where oid='public.home_pick_feed_page(timestamptz,uuid,text,text)'::regprocedure), 'No security-definer RLS bypass';
+  assert has_function_privilege('anon','public.home_pick_feed_page(timestamptz,uuid,text,text)','execute'), 'Guests may browse';
+  assert has_function_privilege('authenticated','public.home_pick_feed_page(timestamptz,uuid,text,text)','execute'), 'Members may browse';
 end;
 $flow$;
 $test$, 'People home: author identity, no popularity gate, stable pagination, caller isolation and existing visibility rules');

@@ -113,8 +113,11 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  /** `channel` narrows the feed server-side (Home 매장/온라인 tabs); null keeps every Pick. */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null): Promise<HomePickPage>;
+  /**
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
+   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   */
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;

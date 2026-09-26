@@ -103,6 +103,7 @@ assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');

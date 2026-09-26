@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,10 +10,12 @@ import { MusicSearchLink } from '@/components/music-search-link';
 import { YoutubeSearchLink } from '@/components/youtube-search-link';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalogItem } from '@/hooks/usePlaceCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { HOME_FEED_ROOT_SLUG, homeMenuCategories, homeMenuSuggestions, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
 import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
@@ -77,6 +79,13 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const [placeSelection, setPlaceSelection] = useState<PlaceSelection | null>(null);
   const categories = useRegistrationCategories();
   const requestedCategoryId = scalar(params.categoryId);
+  // MVP registration starts from a restaurant menu (e.g. 도가니탕), then asks 매장/온라인.
+  const menuMode = !requestedCategoryId && Boolean(HOME_FEED_ROOT_SLUG);
+  const menuTree = useExploreCategories(menuMode && authReady);
+  const menus = useMemo(() => homeMenuCategories(menuTree.data ?? []), [menuTree.data]);
+  const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
+  const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
+  const menuMatches = searchMenuCategories(menus, menuQuery);
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
   const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
@@ -87,7 +96,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const isOnlineChannel = isPlaceCategory && channel === 'online';
   const isPlaceSearch = isPlaceCategory && !isOnlineChannel;
   const hasSearchScope = authReady && categoryScopeReady && categoryCapabilityReady;
-  const search = useItemSearch(hasSearchScope ? query : '', selectedCategory?.id);
+  const search = useItemSearch(hasSearchScope && !menuMode ? query : '', selectedCategory?.id);
   const isMovieCategory = selectedCategory?.slug === 'movie';
   const isDramaCategory = selectedCategory?.slug === 'drama';
   const isMusicCategory = selectedCategory?.slug === 'music';
@@ -253,6 +262,17 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     attemptedPlaceReturn.current = placeCatalogId;
     void loadPlace(placeCatalogId, true);
   });
+  const chooseMenu = (categoryId: string) => {
+    if (!focused.current || navigating.current) return;
+    navigating.current = true;
+    router.push({ pathname: '/pick/find', params: { categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+  };
+  const requestMenu = () => {
+    const itemName = menuQuery.trim();
+    if (!focused.current || navigating.current || !itemName) return;
+    navigating.current = true;
+    router.push({ pathname: '/pick/request', params: { itemName } });
+  };
   const back = () => {
     if (!focused.current || navigating.current) return;
     generation.current++; busy.current = false; navigating.current = true;
@@ -268,6 +288,30 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         action={sessionError ? { label: '다시 확인하기', variant: 'secondary', onPress: retrySession } : undefined} />
       <Button variant="ghost" label="돌아가기" onPress={back} style={styles.centered} />
     </View>
+  </SafeAreaView>;
+
+  if (menuMode) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Text style={styles.title}>나의 원픽 찾기</Text>
+      <Text style={styles.subtitle}>어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.</Text>
+      <TextInput autoFocus accessibilityLabel="메뉴 검색" autoCapitalize="none" maxLength={100} onChangeText={setMenuQuery}
+        placeholder="메뉴 검색: 도가니탕, 국밥…" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={menuQuery} />
+      {menuTree.isPending ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>메뉴를 불러오고 있어요</Text></View> : null}
+      {menuTree.isError ? <View style={styles.block}><StateCard compact tone="danger" title="메뉴를 불러오지 못했어요"
+        action={{ label: '메뉴 다시 불러오기', disabled: menuTree.isFetching, onPress: () => { if (!menuTree.isFetching) void menuTree.refetch(); } }} /></View> : null}
+      {menuTree.data ? <View style={styles.channelSection}>
+        <Text style={styles.channelTitle}>{menuQuery.trim() ? '검색한 메뉴' : '자주 찾는 메뉴'}</Text>
+        <View style={styles.menuList}>
+          {(menuQuery.trim() ? menuMatches : suggestedMenus).map((menu) => <Chip key={menu.id} label={menu.name}
+            accessibilityLabel={`${menu.name} 메뉴 선택`} onPress={() => chooseMenu(menu.id)} />)}
+        </View>
+      </View> : null}
+      {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
+        text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
+        action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
+      <View style={styles.block}><Button variant="ghost" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View>
+    </ScrollView>
   </SafeAreaView>;
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -389,6 +433,7 @@ const styles = StyleSheet.create({
   channelSection: { marginTop: 16 },
   channelTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   channelRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  menuList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   categoryBadgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   categorySection: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 18, marginTop: 18 },
   categoryTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },

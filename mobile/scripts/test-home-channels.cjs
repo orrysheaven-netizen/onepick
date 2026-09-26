@@ -59,6 +59,10 @@ async function main() {
 
   await repo.getHomePicks({ timestamp: '2026-09-26T10:00:00.000000+00:00', id: 'f9100000-0000-4000-8000-000000000003' }, 'offline');
   assert.equal(rpcCalls[1][1].p_channel, 'offline');
+  assert.equal('p_root_slug' in rpcCalls[1][1], false, 'No root means every category');
+  await repo.getHomePicks(null, null, 'food');
+  assert.equal(rpcCalls[2][1].p_root_slug, 'food', 'The MVP root is sent to the server');
+  rpcCalls.splice(2, 1);
   assert.equal(rpcCalls[1][1].p_before_id, 'f9100000-0000-4000-8000-000000000003', 'Channel tabs keep the normal cursor');
 
   await repo.getFollowingPicks();
