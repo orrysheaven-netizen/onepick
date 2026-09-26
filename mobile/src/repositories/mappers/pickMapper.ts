@@ -10,6 +10,7 @@ export function mapPickRow(row: PickRow): Pick {
     categoryId: row.category_id,
     itemId: row.item_id,
     oneLineReview: row.one_line_review,
+    channel: ((row as PickRow & { channel?: string | null }).channel as Pick['channel']) ?? null,
     purchaseUrl: row.purchase_url ?? null,
     purchaseTip: row.purchase_tip ?? null,
     status: row.status as PickStatus,
