@@ -238,6 +238,8 @@ async function main() {
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null },
+    '@/components/menu-channel-results': { MenuChannelResults: () => null },
+    '@/lib/home/homeCategoryFilters': { homeMenuCategories: () => [], searchMenuCategories: () => [] },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
       useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
