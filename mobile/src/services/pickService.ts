@@ -85,7 +85,7 @@ export class PickService {
     });
   }
 
-  removePick(categoryId: string) {
-    return this.pickRepository.removePick(categoryId);
+  removePick(categoryId: string, channel?: 'offline' | 'online' | 'recipe') {
+    return this.pickRepository.removePick(categoryId, channel);
   }
 }
