@@ -414,11 +414,12 @@ async function main() {
     await check(flow, '핵심 요소 표시', async () => {
       // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
       await page.getByText('카테고리별 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await actionable(page.getByRole('button', { name: '프로필과 원픽 등록 요청 상태 새로고침' }));
+      await actionable(page.getByRole('button', { name: '프로필 새로고침' }));
       await noErrorCopy(page);
     });
     await check(flow, '"내 댓글" 탭', async () => {
-      await page.getByRole('tab', { name: '내 댓글 보기' }).click();
+      await bottomTab(page, '내 댓글').first().click();
+      await page.waitForURL(/\/comments/, { timeout: STEP_TIMEOUT_MS });
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
       const empty = page.getByText('아직 남긴 댓글이 없어요');
       await rows.first().or(empty).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });

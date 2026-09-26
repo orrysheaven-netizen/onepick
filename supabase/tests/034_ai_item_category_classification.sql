@@ -52,7 +52,7 @@ select ok(
   'public category apply endpoint remains SECURITY INVOKER'
 );
 select ok(
-  not (select prosecdef from pg_proc where oid='public.admin_review_pending_item(uuid,text,uuid)'::regprocedure),
+  not (select prosecdef from pg_proc where oid='public.admin_review_pending_item(uuid,text,uuid,text)'::regprocedure),
   'public admin review endpoint remains SECURITY INVOKER'
 );
 
