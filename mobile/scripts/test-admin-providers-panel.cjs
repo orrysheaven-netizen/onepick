@@ -16,9 +16,11 @@ const transpile = (text, label) => {
   return output;
 };
 const compiled = transpile(source, 'Panel');
-// The real category picker runs inside the same hook harness as the panel.
-const pickerPath = path.join(__dirname, '../src/components/admin/category-picker.tsx');
-const picker = fs.existsSync(pickerPath) ? transpile(fs.readFileSync(pickerPath, 'utf8'), 'Category picker') : null;
+// The real admin pickers run inside the same hook harness as the panel.
+const pickers = Object.fromEntries(['category-picker', 'brand-picker', 'search-picker'].flatMap((name) => {
+  const file = path.join(__dirname, `../src/components/admin/${name}.tsx`);
+  return fs.existsSync(file) ? [[`@/components/admin/${name}`, transpile(fs.readFileSync(file, 'utf8'), name)]] : [];
+}));
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 function deferred() {
@@ -133,7 +135,7 @@ function harness(api) {
       categoryLabel: (item) => item.name,
       selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
     };
-    if (name === '@/components/admin/category-picker' && picker) return load(picker.outputText);
+    if (pickers[name]) return load(pickers[name].outputText);
     assert.fail(`Unexpected dependency: ${name}`);
   }
   const exported = load(compiled.outputText);
@@ -277,6 +279,7 @@ test('all writes share a synchronous lock and fields cannot change during save',
   const h = harness(b.api);
   await h.flush(); await fillForm(h);
   const hide = h.button('숨김', h.row()).onPress;
+  await h.type('기존 공식몰 브랜드 검색', '테스트');
   const brand = h.button(brands[0].name, h.row()).onPress;
   const create = h.button('판매처 등록').onPress;
   hide(); hide(); brand(); create(); // Same render, before any state is committed.
@@ -341,10 +344,11 @@ test('brand link/unlink and hidden/pending/active transitions preserve RPC argum
   const b = backend();
   const h = harness(b.api);
   await h.flush();
+  await h.type('기존 공식몰 브랜드 검색', '테스트');
   await h.press(brands[0].name, h.row());
-  assert.equal(h.button(brands[0].name, h.row()).accessibilityState?.selected, true);
-  await h.press('미지정', h.row());
-  assert.equal(h.button('미지정', h.row()).accessibilityState?.selected, true);
+  assert.match(h.text(h.row()), /선택: 테스트 브랜드/);
+  await h.press('기존 공식몰 브랜드 검색 미지정으로 변경', h.row());
+  assert.match(h.text(h.row()), /선택: 미지정/);
   for (const label of ['숨김', '대기', '활성']) await h.press(label, h.row());
   assert.deepEqual(b.calls.setProviderBrand, [['provider-a', 'brand-a'], ['provider-a', null]]);
   assert.deepEqual(b.calls.setProviderStatus, [['provider-a', 'hidden'], ['provider-a', 'pending'], ['provider-a', 'active']]);
@@ -397,7 +401,7 @@ for (const mutation of ['create', 'status', 'brand']) {
       await h.type('판매처 검색', 'B');
       if (mutation === 'create') { await fillForm(h); await h.press('판매처 등록'); }
       if (mutation === 'status') await h.press('숨김', h.row());
-      if (mutation === 'brand') await h.press(brands[0].name, h.row());
+      if (mutation === 'brand') { await h.type('기존 공식몰 브랜드 검색', '테스트'); await h.press(brands[0].name, h.row()); }
       assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
       assert.equal(h.input('판매처 검색').value, 'B', 'Keep the draft in the input');
       if (failRefresh) {
@@ -480,6 +484,24 @@ test('category picker lists only matches for a typed query, capped at eight', as
   assert.match(h.text(), /선택: 빵 3/);
   assert.equal(h.input('첫 원픽 카테고리 검색').value, '');
   assert.doesNotMatch(h.text(), /빵 0/, 'results close after choosing');
+});
+
+test('brand pickers list only typed matches and pass the chosen brand to create', async () => {
+  const many = Array.from({ length: 12 }, (_, index) => ({ id: `brand-${index}`, name: `브랜드 ${index}`, is_active: true }));
+  const b = backend({ getBrands: async () => [...many, { id: 'off', name: '브랜드 꺼짐', is_active: false }] });
+  const h = harness(b.api);
+  await h.flush();
+  assert.doesNotMatch(h.text(), /브랜드 0/, 'no brand chips before searching');
+  assert.equal((h.text().match(/선택: 미지정/g) || []).length, 2, 'form and row both start unlinked');
+  await h.type('판매처 브랜드 검색', '브랜드');
+  assert.match(h.text(), /브랜드 7/);
+  assert.doesNotMatch(h.text(), /브랜드 8|브랜드 꺼짐/);
+  assert.match(h.text(), /외 4개/);
+  await h.press('브랜드 5');
+  assert.match(h.text(), /선택: 브랜드 5/);
+  await fillForm(h);
+  await h.press('판매처 등록');
+  assert.equal(b.calls.createOnlineProvider[0][0].brandId, 'brand-5');
 });
 
 (async () => {

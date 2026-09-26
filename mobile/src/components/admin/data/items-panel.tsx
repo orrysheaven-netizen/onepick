@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AdminBrandPicker } from '@/components/admin/brand-picker';
 import { AdminCategoryPicker } from '@/components/admin/category-picker';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
@@ -247,16 +248,7 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
 
         <View>
           <Text style={adminStyles.label}>브랜드 · 선택 사항</Text>
-          <View style={adminStyles.row}>
-            <Pressable onPress={() => setBrandId(null)} style={[styles.statusChoice, !brandId && styles.statusChoiceActive]}>
-              <Text style={[styles.statusChoiceText, !brandId && styles.statusChoiceTextActive]}>미지정</Text>
-            </Pressable>
-            {brands.filter((brand) => brand.is_active).map((brand) => (
-              <Pressable key={brand.id} onPress={() => setBrandId(brand.id)} style={[styles.statusChoice, brandId === brand.id && styles.statusChoiceActive]}>
-                <Text style={[styles.statusChoiceText, brandId === brand.id && styles.statusChoiceTextActive]}>{brand.name}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AdminBrandPicker accessibilityLabel="새 상품 브랜드 검색" brands={brands.filter((brand) => brand.is_active)} value={brandId} onChange={setBrandId} />
         </View>
 
         <View>
