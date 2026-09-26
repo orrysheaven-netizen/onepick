@@ -6,7 +6,7 @@ const constants = load('constants/onepick.ts', { './font-family': load('constant
 const category = { id: 'ramen', slug: 'ramen', name: '라면', parentId: null, isPickable: true };
 const homeLabel = '홈 원픽 새로고침';
 const followingLabel = '팔로잉 원픽 새로고침';
-const profileLabel = '프로필과 제품 등록 요청 상태 새로고침';
+const profileLabel = '프로필과 원픽 등록 요청 상태 새로고침';
 const hiddenListsProfileLabel = '프로필 새로고침';
 const button = (view, label) => view.find('Button', (p) => p.accessibilityLabel === label);
 function query(data) {
@@ -129,7 +129,7 @@ async function main() {
     retry().onPress(); assert.equal(top.refetches, 2);
     top.isFetching = true; view.render(); assert.equal(retry().disabled, true); retry().onPress(); assert.equal(top.refetches, 2);
     top.isFetching = false; top.isError = false; top.data = []; view.render(); assert.ok(action());
-    action().onPress(); assert.equal(top.refetches, 3); assert.match(view.text(), /아직 선택된 제품이 없어요/);
+    action().onPress(); assert.equal(top.refetches, 3); assert.match(view.text(), /아직 선택된 원픽이 없어요/);
     top.data = undefined; top.isPending = true; view.render(); assert.equal(action(), undefined);
     view.find('Chip', (p) => p.label === '전체').onPress(); view.render(); assert.equal(view.find('SectionHeader'), undefined);
   });

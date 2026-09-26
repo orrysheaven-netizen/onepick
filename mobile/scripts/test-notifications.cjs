@@ -121,7 +121,7 @@ async function main() {
   assert.equal(destination.params.pickId, 'pick-p1', 'Pick-change rows open the new pick');
   assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'pick_change', id: 'p1' }));
   assert.match(inboxHtml, /등록하신 신라면이 승인됐어요\. 원픽으로 선택해보세요\./, 'Approval copy uses the right particle');
-  assert.match(inboxHtml, /등록하신 제품이 에어팟 프로\(으\)로 등록됐어요/, 'Merged requests name the product to pick');
+  assert.match(inboxHtml, /요청하신 원픽이 에어팟 프로\(으\)로 등록됐어요/, 'Merged requests name the product to pick');
   assert.doesNotMatch(inboxHtml, /@null|알 수 없는 사용자/, 'Review results have no sender');
   const openReview = buttons.find((button) => button.accessibilityLabel?.includes('신라면이 승인됐어요'));
   openReview.onPress(); await new Promise((resolve) => setImmediate(resolve));

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { DatabaseUsageCard } from '@/components/admin/database-usage-card';
 import { getOnePickDashboard } from '@/lib/admin-api';
 import type { AdminOnePickDashboard, AdminOnePickDashboardWindow } from '@/lib/admin-api';
 import type { AdminDataTab } from '@/lib/admin/dataTabs';
@@ -255,6 +256,11 @@ export default function AdminDashboardScreen() {
           </View>
         </>
       ) : null}
+
+      {/* Loads on its own: capacity does not depend on the metric window. */}
+      <Section title="시스템" hint="전체 데이터 · 제외 없음">
+        <DatabaseUsageCard />
+      </Section>
     </View>
   );
 }

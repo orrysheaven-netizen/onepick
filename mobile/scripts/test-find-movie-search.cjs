@@ -99,8 +99,8 @@ const render = () => {
 };
 
 let page = render();
-assert.match(page, /카테고리 선택 없이 상품명만 검색하고 등록합니다/);
-assert.match(page, /카테고리는 비워두고 상품 등록만 진행합니다/);
+assert.match(page, /카테고리 선택 없이 이름만 검색하고 등록합니다/);
+assert.match(page, /카테고리는 비워두고 등록만 진행합니다/);
 assert.equal(itemSearchArgs[0], '', 'Empty product search does not query yet');
 assert.equal(itemSearchArgs[1], undefined, 'Category-free registration does not preselect a category');
 assert.equal(itemSearchArgs[2], undefined, 'Category-free registration searches the full saved catalog');

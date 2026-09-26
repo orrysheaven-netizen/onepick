@@ -74,7 +74,7 @@ async function main() {
   };
   const base = {
     '@/components/item-review-card': { ItemReviewCard: () => null },
-    '@/components/item-pick-count': { ItemPickCount: () => null },
+    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
@@ -94,7 +94,7 @@ async function main() {
   const { default: Item } = loadSource('app/item/[itemId].tsx', base);
   detail = { ...detail, canChoose: false, myPickStatus: { type: 'not_selected' } };
   assert.match(render(Item), /새 원픽을 선택할 수 없어요/);
-  assert.ok(!presses.some((p) => textOf(p.children) === '이 제품을 내 원픽으로'));
+  assert.ok(!presses.some((p) => textOf(p.children) === '이걸로 원픽 등록'));
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   render(Item);
   presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
@@ -128,7 +128,7 @@ async function main() {
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이 제품으로 바꾸기');
+  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이걸로 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
   assert.equal(changeButton().disabled, false);
@@ -155,7 +155,7 @@ async function main() {
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
-  assert.match(render(MissingItem), /제품을 불러오지 못했어요/);
+  assert.match(render(MissingItem), /정보를 불러오지 못했어요/);
 
   let draft = '  댓글 초안  ', attempts = 0, rejectSave, resolveSave;
   let pick = { id: 'pick', userId: 'owner', status: 'active', oneLineReview: '이유' };
@@ -242,7 +242,7 @@ async function main() {
   assert.match(ranking, /원픽 TOP 3/);
   assert.match(ranking, /101명이 선택/);
   assert.equal(presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기'), undefined, 'Healthy rankings have no manual retry');
-  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 제품 상세 보기').onPress();
+  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 상세 보기').onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'ranked-item');
 
@@ -251,7 +251,7 @@ async function main() {
   const lowSample = render(Explore);
   assert.match(lowSample, /과자의 원픽/);
   assert.doesNotMatch(lowSample, /TOP 3|공동|명이 선택|사람 수 기준/);
-  presses.find((p) => p.accessibilityLabel === '선택된 과자, 제품 상세 보기').onPress();
+  presses.find((p) => p.accessibilityLabel === '선택된 과자, 상세 보기').onPress();
   assert.equal(destination.params.itemId, 'ranked-item', 'Low-sample cards preserve their detail route');
   rankingQuery.data[0].pickCount = 3;
   const thresholdSample = render(Explore);
@@ -279,7 +279,7 @@ async function main() {
   assert.equal(pullToRefresh.props.refreshing, true);
   pullToRefresh.props.onRefresh(); assert.equal(rankRefreshes, beforeRankRetry + 2);
   rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
-  assert.match(render(Explore), /아직 선택된 제품이 없어요/);
+  assert.match(render(Explore), /아직 선택된 원픽이 없어요/);
   console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps, profile recovery and gated ranking interaction/retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

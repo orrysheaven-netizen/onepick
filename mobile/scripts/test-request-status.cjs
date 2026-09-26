@@ -97,7 +97,7 @@ async function main() {
   });
   const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
   const button = (label) => presses.find((props) => textOf(props.children).includes(label));
-  const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 제품 등록 요청 상태 새로고침');
+  const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 원픽 등록 요청 상태 새로고침');
 
   assert.match(render(), /승인 대기/);
   assert.doesNotMatch(render(), /내 댓글/, 'My comments moved to their own bottom tab');
@@ -189,7 +189,7 @@ async function main() {
   profileQuery.isError = true; profileQuery.isRefetchError = true;
   const stale = render();
   assert.match(stale, /마지막으로 확인한 내용을 표시/);
-  assert.match(stale, /내 제품 등록 요청/, 'A transient refresh error keeps already loaded requests visible');
+  assert.match(stale, /내 원픽 등록 요청/, 'A transient refresh error keeps already loaded requests visible');
   assert.ok(refreshButton());
   profileQuery.isError = false; profileQuery.isRefetchError = false;
 
@@ -230,13 +230,13 @@ async function main() {
 
   const savedRequests = requestsQuery.data, savedHistory = historyQuery.data;
   requestsQuery.data = []; historyQuery.data = [];
-  assert.doesNotMatch(render(), /활동 기록|내 제품 등록 요청|이전 원픽 기록|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
+  assert.doesNotMatch(render(), /활동 기록|내 원픽 등록 요청|이전 원픽 기록|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner', 'Hidden lists retain their active user scope');
   historyQuery.isPending = true; historyQuery.data = undefined;
   assert.match(render(), /활동 기록/); assert.match(render(), /이전 원픽 기록/, 'Pending is not confirmed empty');
   historyQuery.isPending = false; historyQuery.data = [];
   requestsQuery.isError = true;
-  assert.match(render(), /내 제품 등록 요청/, 'An empty cached list still exposes its error and retry');
+  assert.match(render(), /내 원픽 등록 요청/, 'An empty cached list still exposes its error and retry');
   requestsQuery.isError = false; requestsQuery.data = savedRequests; historyQuery.data = savedHistory;
 
   const cached = profileQuery.data;
@@ -249,7 +249,7 @@ async function main() {
   assert.equal(bioProps, undefined, 'Logging out hides the bio editor');
   assert.equal(socialProps, undefined, 'Logging out hides the SNS editor');
   assert.match(loggedOut, /로그인하기/);
-  assert.doesNotMatch(loggedOut, /내 제품 등록 요청|merged 제품/, 'Logging out must hide cached private requests');
+  assert.doesNotMatch(loggedOut, /내 원픽 등록 요청|merged 제품/, 'Logging out must hide cached private requests');
   assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
   auth.user = { id: 'owner' }; auth.isLoading = true;
   assert.doesNotMatch(render(), /merged 제품|이전 제품/);
