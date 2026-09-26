@@ -1,8 +1,9 @@
--- The self-resolution rule from 20260926230000 skipped the notification
--- whenever the requester was the one changing the item's status. That was meant
--- for a user applying a category that merged into an existing product, but it
--- also silenced an administrator approving their own request. Keep the skip for
--- ordinary users only. The rest of the trigger is unchanged.
+-- The self-resolution skip (from 20260926230000, kept in 20260927010000) left
+-- out the notification whenever the requester changed the item's status. It
+-- was meant for a user whose category choice merged the request into an
+-- existing product, but it also silenced an administrator approving their own
+-- request. Keep the skip for ordinary users only. Otherwise identical to the
+-- 20260927010000 definition.
 
 create or replace function private.notify_requester_on_item_review()
 returns trigger language plpgsql security definer set search_path = ''
@@ -34,6 +35,7 @@ begin
     v_outcome := 'merged';
     select * into v_target from public.items where id = new.merged_into_item_id;
   else
+    -- Rejections are sent by admin_review_pending_item, which has the reason.
     return new;
   end if;
 
@@ -76,9 +78,18 @@ begin
     return new;
   end if;
 
+  -- A request resolved again with a different result (rejected, reopened, then
+  -- approved) replaces its earlier notification and is unread again.
   insert into public.item_review_notifications(item_id, recipient_id, outcome, target_item_id, pick_id)
   values (new.id, new.created_by, v_outcome, v_target.id, v_pick_id)
-  on conflict (item_id, recipient_id) do nothing;
+  on conflict (item_id, recipient_id) do update
+    set outcome = excluded.outcome,
+        target_item_id = excluded.target_item_id,
+        pick_id = excluded.pick_id,
+        reason = null,
+        created_at = now(),
+        read_at = null
+    where public.item_review_notifications.outcome is distinct from excluded.outcome;
   return new;
 end;
 $$;
