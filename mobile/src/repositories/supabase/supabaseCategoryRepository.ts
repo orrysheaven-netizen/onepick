@@ -1,5 +1,5 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, categoryRootSlug, selectableCategories } from '@/lib/categories/categoryTree';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
@@ -12,6 +12,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
     return selectableCategories(categories).map((category) => ({
       ...category,
       label: categoryLabel(category, categories),
+      rootSlug: categoryRootSlug(category, categories),
     }));
   }
 

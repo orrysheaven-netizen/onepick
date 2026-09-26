@@ -17,7 +17,7 @@ import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalog
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { HOME_FEED_ROOT_SLUG, homeMenuCategories, homeMenuSuggestions, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
-import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
+import { PICK_CHANNEL_OPTIONS, PLACE_COVERAGE_NOTICE, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
@@ -180,6 +180,14 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       params: { itemName: query.trim(), ...(selectedCategory ? { categoryId: selectedCategory.id } : {}), ...(isOnlineChannel ? { channel: 'online' } : {}) },
     });
   };
+  const requestPlace = () => {
+    if (!canAct() || !hasQuery || !selectedCategory || !isPlaceSearch) return;
+    navigating.current = true;
+    router.push({
+      pathname: '/pick/request',
+      params: { itemName: query.trim(), categoryId: selectedCategory.id },
+    });
+  };
   const loginForMovie = (externalId: string) => {
     if (!canAct() || !selectedCategory || !isCatalogCategory) return;
     navigating.current = true;
@@ -330,7 +338,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
         <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
       </View> : null}
-      <View style={styles.block}><Button variant="ghost" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View>
     </ScrollView>
   </SafeAreaView>;
 
@@ -339,7 +346,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
       <Text style={styles.subtitle}>{isOnlineChannel ? `택배·온라인몰로 주문한 ${selectedCategory?.name ?? '맛집'} 판매처를 검색해보세요.` : isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 검색합니다.' : '카테고리 선택 없이 이름만 검색하고 등록합니다.'}</Text>
-      {!requestedCategoryId ? <View style={styles.block}><Button variant="secondary" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View> : null}
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 등록만 진행합니다.</Text> : null}
@@ -351,6 +357,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
             onPress={() => { if (busy.current || importing || channel === option.channel) return; setChannel(option.channel); setSelection(null); setPlaceSelection(null); }} />)}
         </View>
         <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 매장으로 골라주세요.</Text>
+        {isPlaceSearch ? <Text accessibilityRole="text" style={styles.coverageNotice}>{PLACE_COVERAGE_NOTICE} 다른 지역은 차례로 추가할게요.</Text> : null}
       </View> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
@@ -418,7 +425,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록합니다."
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
-      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="일치하는 장소를 찾지 못했어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다." /></View> : null}
+      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다.`}
+        action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
       {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요" text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
@@ -451,6 +459,7 @@ const styles = StyleSheet.create({
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   channelSection: { marginTop: 16 },
+  coverageNotice: { color: OnePick.accent, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6 },
   channelTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   channelRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   recipeButton: { marginTop: 10 },

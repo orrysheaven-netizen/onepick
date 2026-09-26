@@ -97,7 +97,7 @@ async function main() {
     View: nativeComponent('section'),
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
   };
-  const { PickManagement } = loadSource('components/pick-management.tsx', {
+  const { PickManagement, PickManagementActions } = loadSource('components/pick-management.tsx', {
     'react-native': native,
     '@/errors/appError': { AppError },
     '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {} }) },
@@ -113,10 +113,10 @@ async function main() {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('div') },
     '@/components/pick-replies': { PickReplies: () => null },
-    '@/components/pick-share-card': { PickShareCard: () => null },
+    '@/components/pick-share-actions': { PickShareActions: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
-    '@/components/pick-management': { PickManagement },
+    '@/components/pick-management': { PickManagement, PickManagementActions },
     '@/components/report-action': { ReportAction: () => null },
     '@/errors/appError': { AppError },
     '@/hooks/useAuthSession': { useAuthSession: () => session },
@@ -126,21 +126,24 @@ async function main() {
     '@/lib/demoProfile': { isDemoUsername: (username) => typeof username === 'string' && username.trim().toLowerCase().startsWith('demo_') },
   });
   const render = () => renderToStaticMarkup(React.createElement(ItemReviewCard, { pick: data.pick, profile: data.profile, categoryName: data.category.name, itemName: data.item.name, focused: false, highlighted: false, onRemoved() {} }));
-  assert.match(render(), /한줄평 수정/);
-  assert.match(render(), /원픽 선택 해제/);
+  // The owner's corner actions replace the old 내 원픽 관리 box and badge.
+  const manage = />수정<[\s\S]*>해제</;
+  assert.match(render(), manage);
+  assert.match(render(), /내 한줄평/);
+  assert.doesNotMatch(render(), /내 원픽 관리|내 원픽</);
   session = { user: { id: 'someone' }, isLoading: false };
-  assert.doesNotMatch(render(), /내 원픽 관리/);
+  assert.doesNotMatch(render(), manage);
   session = { user: null, isLoading: false };
-  assert.doesNotMatch(render(), /내 원픽 관리/);
+  assert.doesNotMatch(render(), manage);
   session = { user: { id: 'owner' }, isLoading: true };
-  assert.doesNotMatch(render(), /내 원픽 관리/);
+  assert.doesNotMatch(render(), manage);
   session.isLoading = false;
   data.isCurrent = false;
   data.pick.status = 'replaced';
-  assert.doesNotMatch(render(), /내 원픽 관리/);
+  assert.doesNotMatch(render(), manage);
   data.isCurrent = true;
   data.pick.status = 'needs_review';
-  assert.match(render(), /내 원픽 관리/);
+  assert.match(render(), manage);
 
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
