@@ -194,7 +194,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         </Pressable>
 
         <View style={styles.heroCard}>
-          <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto || params.photo !== '1'} />
+          {/* No photo yet: a one-line upload row instead of an empty square. */}
+          {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto} /> : null}
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
             onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username } })} style={styles.creditLink}>
             <Text style={styles.creditText}>사진 @{credit.username}</Text>
@@ -203,13 +204,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>사진을 보태주셨어요. 같은 원픽을 고른 사람들도 이 사진을 함께 사용해요.</Text> : null}
           {canContribute ? (
             <View style={styles.photoContribution}>
-              <Text style={styles.photoContributionTitle}>{item.name} 사진 등록</Text>
-              <Text style={styles.photoContributionHint}>이름이 잘 보이는 사진이면 충분해요. 직접 찍었거나 공유할 권한이 있는 사진을 골라주세요.</Text>
-              <Text style={styles.photoContributionHint}>채택된 사진은 같은 걸 고른 사람들의 원픽 카드에 함께 표시돼요. 상세 화면에 사진 등록자로 내 사용자명이 표시되고 프로필이 연결돼요. 사진 없이도 원픽을 이용할 수 있어요.</Text>
-              {!user ? <Button fullWidth label="로그인하고 사진 등록" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoChooseButton} /> : <>
               {photo ? (
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
+                  <Text style={styles.photoContributionHint}>올린 사진은 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요.</Text>
                   <View style={styles.photoActions}>
                     <Button variant="secondary" label="다시 선택" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
                     <Button label="대표 이미지 등록" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
@@ -217,15 +215,21 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                   <Button variant="ghost" size="sm" label="사진 선택 취소" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
                 </>
               ) : (
-                <Button fullWidth label="사진 선택" disabled={photoBusy && !photoPicker.isPending} loading={photoPicker.isPending} onPress={() => void choosePhoto()} style={styles.photoChooseButton} />
+                <View style={styles.uploadRow}>
+                  <Text numberOfLines={1} style={styles.uploadText}>사진을 올려주세요</Text>
+                  <Button size="sm" label="사진 업로드" accessibilityLabel={`${item.name} 사진 업로드`}
+                    disabled={Boolean(user) && photoBusy && !photoPicker.isPending} loading={photoPicker.isPending}
+                    onPress={() => user ? void choosePhoto() : router.push({ pathname: '/auth/login', params: photoIntent })} />
+                </View>
               )}
+              {user ? <>
               {photoPicker.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoPicker.error)}</Text> : null}
               {photoAttachment.isError ? <Text accessibilityRole="alert" style={styles.photoError}>{photoErrorMessage(photoAttachment.error)}</Text> : null}
               {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'PROFILE_NOT_FOUND' ?
                 <Button variant="secondary" size="sm" label="사용자명 만들고 계속하기" onPress={() => router.push({ pathname: '/auth/username', params: photoIntent })} style={styles.photoRecovery} /> : null}
               {photoAttachment.error instanceof AppError && photoAttachment.error.code === 'AUTH_REQUIRED' ?
                 <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoRecovery} /> : null}
-              </>}
+              </> : null}
             </View>
           ) : null}
           {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
@@ -237,10 +241,20 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <ItemPickCount itemId={item.id} />
           <ItemChannelLinks itemId={item.id} />
 
-          {/* My own Pick is edited on its review card below, so the button is only for choosing. */}
-          {myPickStatus.type === 'selected_this' ? null : canChoose ? (
-            <Button size="lg" fullWidth onPress={openPickAction} style={styles.primaryAction}
-              label={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '이걸로 원픽 등록'} />
+          {/* One shape for the Pick state: filled brand color when it is my Pick, no color
+              otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
+          {myPickStatus.type === 'selected_this' ? (
+            <View accessible accessibilityLabel="내 원픽이에요" style={[styles.pickMark, styles.pickMarkMine]}>
+              <View style={[styles.pickDot, styles.pickDotMine]}><Text style={styles.pickCheck}>✓</Text></View>
+              <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
+            </View>
+          ) : canChoose ? (
+            <Pressable accessibilityRole="button" onPress={openPickAction}
+              accessibilityLabel={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '원픽으로 고르기'}
+              style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
+              <View style={styles.pickDot} />
+              <Text style={styles.pickMarkText}>원픽</Text>
+            </Pressable>
           ) : <Text style={styles.itemMeta}>지금은 여기서 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 
@@ -278,19 +292,27 @@ const styles = StyleSheet.create({
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24, marginTop: 8 },
   creditLink: { alignSelf: 'flex-end', minHeight: 24, justifyContent: 'center', marginTop: -12, paddingHorizontal: 2 },
   creditText: { color: OnePick.hint, fontSize: 10, lineHeight: 14 },
-  photoContribution: { width: '100%', backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 16, marginTop: 18 },
-  photoContributionTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  photoContribution: { width: '100%' },
+  uploadRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: OnePick.border,
+    borderRadius: 14, paddingVertical: 10, paddingLeft: 14, paddingRight: 10 },
+  uploadText: { flex: 1, color: OnePick.muted, fontSize: 13, lineHeight: 18 },
   photoContributionHint: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 6 },
   photoPreview: { width: '100%', height: 210, borderRadius: 14, backgroundColor: OnePick.surface, marginTop: 14 },
   photoActions: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 4 },
   photoAction: { flex: 1 },
   photoRecovery: { marginTop: 10 },
-  photoChooseButton: { marginTop: 14 },
   photoError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
   category: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600', marginTop: 20 },
   itemName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', marginTop: 6 },
   itemMeta: { color: OnePick.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 10 },
-  primaryAction: { marginTop: 20 },
+  pickMark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, alignSelf: 'center', minWidth: 140, minHeight: 48,
+    borderRadius: 999, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, paddingHorizontal: 22, marginTop: 20 },
+  pickMarkMine: { backgroundColor: OnePick.brand, borderColor: OnePick.brand },
+  pickDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: OnePick.hint, alignItems: 'center', justifyContent: 'center' },
+  pickDotMine: { borderColor: OnePick.onBrand, backgroundColor: OnePick.onBrand },
+  pickCheck: { color: OnePick.brand, fontSize: 13, lineHeight: 16, fontWeight: '800' },
+  pickMarkText: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '700' },
+  pickMarkTextMine: { color: OnePick.onBrand },
   sectionGap: { height: 20 },
   centerState: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },

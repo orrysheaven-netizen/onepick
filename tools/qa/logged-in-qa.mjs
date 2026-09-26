@@ -257,7 +257,7 @@ async function main() {
       await page.getByRole('textbox', { name: '항목명 검색' }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
-    for (const label of ['홈', '탐색', '내 프로필']) {
+    for (const label of ['홈', '탐색', '프로필']) {
       await check(flow, `하단 탭 "${label}"`, () => actionable(bottomTab(page, label)));
     }
     await check(flow, '하단 "원픽 등록" 버튼', () => actionable(page.getByRole('button', { name: '원픽 등록', exact: true })));
@@ -340,13 +340,38 @@ async function main() {
         if (Date.now() > editableBy) throw new Error(`${via}검색 입력이 비활성`);
         await page.waitForTimeout(250);
       }
-      await searchInput.fill(query);
-      const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
-      await choose.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new Error(`${via}"${query}" 검색 결과에 선택 버튼 없음`); });
-      await actionable(choose);
-      await noErrorCopy(page);
-      return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음)`;
+      // The place search is `search_place_catalog` (name-only trigram match on the
+      // category's open catalog rows); item search is another /rest/v1/rpc call. Record
+      // what each answered so a miss can be told apart: no matching data, an RPC
+      // error, or a locator/rendering problem.
+      const rpcCalls = [];
+      const onRpcResponse = (response) => {
+        const match = response.url().match(/\/rest\/v1\/rpc\/([^?]+)/);
+        if (!match || response.request().method() !== 'POST') return;
+        response.text().then((body) => {
+          let rows = '';
+          try { const json = JSON.parse(body); rows = Array.isArray(json) ? `${json.length}행` : JSON.stringify(json).slice(0, 40); } catch { rows = '?'; }
+          rpcCalls.push(`${match[1]} ${response.status()} ${rows}`);
+        }).catch(() => rpcCalls.push(`${match[1]} ${response.status()}`));
+      };
+      page.on('response', onRpcResponse);
+      try {
+        await searchInput.fill(query);
+        const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
+        const noPlace = page.getByText('일치하는 장소를 찾지 못했어요');
+        const searchError = page.getByText(/검색을 불러오지 못했어요|검색 결과를 불러오지 못했어요/);
+        await choose.first().or(noPlace).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+          .catch(() => { throw new Error(`${via}"${query}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
+        if (!(await choose.count())) {
+          const state = await noPlace.isVisible() ? '일치하는 장소 없음' : '검색 오류 카드';
+          throw new Error(`${via}"${query}" ${state} · rpc=[${rpcCalls.join(', ') || '없음'}]`);
+        }
+        await actionable(choose);
+        await noErrorCopy(page);
+        return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음) · rpc=[${rpcCalls.join(', ')}]`;
+      } finally {
+        page.off('response', onRpcResponse);
+      }
     });
     await shot(page, 'pick_find');
 
@@ -437,9 +462,10 @@ async function main() {
     }
 
     flow = '프로필';
-    await check(flow, '내 프로필 탭 이동', async () => {
+    // Bottom tabs read 프로필 / 댓글 since 1473bce (the "내" prefix was dropped).
+    await check(flow, '프로필 탭 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await bottomTab(page, '내 프로필').first().click();
+      await bottomTab(page, '프로필').first().click();
       await page.waitForURL(/\/profile/, { timeout: STEP_TIMEOUT_MS });
       await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
     });
@@ -449,8 +475,8 @@ async function main() {
       await actionable(page.getByRole('button', { name: '프로필 새로고침' }));
       await noErrorCopy(page);
     });
-    await check(flow, '"내 댓글" 탭', async () => {
-      await bottomTab(page, '내 댓글').first().click();
+    await check(flow, '"댓글" 탭', async () => {
+      await bottomTab(page, '댓글').first().click();
       await page.waitForURL(/\/comments/, { timeout: STEP_TIMEOUT_MS });
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
       const empty = page.getByText('아직 남긴 댓글이 없어요');
