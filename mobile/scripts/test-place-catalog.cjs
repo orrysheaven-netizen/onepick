@@ -73,6 +73,10 @@ async function main() {
     'Place-enabled categories must not surface legacy name-only items as physical branches');
   assert.match(finder, /장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다/,
     'No-result UX must not fall back to generic name-only restaurant registration');
+  assert.match(finder, /아직 등록된 가게가 없어요/);
+  assert.match(finder, /가게 등록 요청하기/);
+  assert.match(finder, /pathname: '\/pick\/request'/,
+    'Place-empty state may open the request flow without creating a name-only pick directly');
 
   const migration = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase', 'migrations', '20260922130000_add_place_catalog_user_selection.sql'), 'utf8');
   assert.match(migration, /place_catalog_enabled boolean not null default false/);
