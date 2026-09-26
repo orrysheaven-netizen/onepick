@@ -56,6 +56,7 @@ const inbox = { data: { pages: [{ items: [
   { ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' },
   { ...rows[1], id: 'p1', pick_id: 'pick-p1', username: 'jimin', item_name: '헤드폰', body: '음질이 좋아요' },
   { kind: 'item_review', id: 'req1', pick_id: null, username: null, body: null, item_name: '신라면', item_id: 'item-1', outcome: 'approved', created_at: rows[0].created_at, read_at: null },
+  { kind: 'item_review', id: 'req3', pick_id: 'auto-pick', username: null, body: null, item_name: '비빔면', item_id: 'item-3', outcome: 'approved', created_at: rows[0].created_at, read_at: null },
   { kind: 'item_review', id: 'req2', pick_id: null, username: null, body: null, item_name: '에어팟 프로', item_id: 'item-2', outcome: 'merged', created_at: rows[0].created_at, read_at: null },
 ] }] }, isError: false };
 let readCalls = [];
@@ -128,6 +129,12 @@ async function main() {
   assert.equal(destination.pathname, '/pick/choose', 'Review results open the pick chooser');
   assert.equal(destination.params.itemId, 'item-1');
   assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'item_review', id: 'req1' }));
+  assert.match(inboxHtml, /등록하신 비빔면이 승인되어 내 원픽으로 등록됐어요\./, 'An approval that made the pick says so');
+  const openAuto = buttons.find((button) => button.accessibilityLabel?.includes('비빔면이 승인되어'));
+  openAuto.onPress(); await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(destination.pathname, '/pick/[pickId]', 'An approval that made the pick opens it; nothing to choose again');
+  assert.equal(destination.params.pickId, 'auto-pick');
+  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'item_review', id: 'req3' }));
   auth.user = null;
   const publicPage = renderToStaticMarkup(React.createElement(Screen));
   assert.match(publicPage, /로그인/); assert.doesNotMatch(publicPage, /@friend|신라면/, 'No cached private data on logout');

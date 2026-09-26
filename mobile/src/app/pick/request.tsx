@@ -25,6 +25,7 @@ function errorMessage(error: unknown) {
     if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 직접 사진 선택을 이용해주세요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';
     if (error.code === 'ITEM_NAME_INVALID') return '제품명은 1~100자로 입력해주세요.';
+    if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 입력해주세요.';
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
@@ -40,7 +41,7 @@ function hintErrorMessage(error: unknown) {
   return '카테고리 힌트를 보내지 못했어요. 적은 내용은 그대로 있으니 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; itemName?: string; sourceUrl?: string; channel?: string };
+type Params = { categoryId?: string; itemName?: string; sourceUrl?: string; channel?: string; oneLineReview?: string };
 
 // Route params can come from a deep link, so only an https URL is carried and its host is
 // shown to the user before it is attached to their request.
@@ -73,6 +74,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const imageImport = useImportItemPhoto();
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
+  // The request is the pick: its review becomes the pick when the product is approved.
+  const [review, setReview] = useState(typeof params.oneLineReview === 'string' ? params.oneLineReview : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
   // 온라인 restaurant requests must carry the seller's link for admin review; delivery-app
   // links are rejected here because delivery belongs to the 매장 (place) flow.
@@ -106,7 +109,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
+  const trimmedReview = review.trim();
   const isValid = normalizedName.length >= 1 && normalizedName.length <= 100
+    && trimmedReview.length >= 1 && trimmedReview.length <= 100
     && (!categoryId || Boolean(selectedCategory))
     && (!isOnlineRequest || Boolean(sourceUrl));
   const canSubmit = isValid && (!categoryId || (!categories.isPending && !categories.isError)) && !auth.isLoading && !auth.error
@@ -117,7 +122,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     ...(categoryId ? { categoryId } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),
     ...(isOnlineRequest ? { channel: 'online' as const } : {}),
-  }), [categoryId, isOnlineRequest, normalizedName, sourceUrl]);
+    ...(trimmedReview ? { oneLineReview: trimmedReview } : {}),
+  }), [categoryId, isOnlineRequest, normalizedName, sourceUrl, trimmedReview]);
 
   const getPhoto = async (fromLink: boolean) => {
     if (busy.current || submitting) return;
@@ -151,7 +157,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         categoryId: categoryId || undefined,
         itemName: normalizedName,
         variant: '',
-        oneLineReview: '',
+        oneLineReview: trimmedReview,
         photo,
       });
 
@@ -160,14 +166,6 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           await linkAttach.mutateAsync({ itemId: result.item.id, url: sourceUrl });
         }
         setSubmittedItem({ id: result.item.id, name: result.item.name });
-        return;
-      }
-
-      if (result.type === 'existing_item') {
-        router.replace({
-          pathname: '/pick/choose',
-          params: { itemId: result.item.id, categoryId: result.item.categoryId },
-        });
         return;
       }
 
@@ -186,10 +184,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     try {
       const result = await applyCategory.mutateAsync(selectedSuggestedCategoryId);
       if (result.type === 'existing_item') {
-        router.replace({
-          pathname: '/pick/choose',
-          params: { itemId: result.itemId, categoryId: result.categoryId },
-        });
+        // The request merged into an existing product, which the server made this
+        // user's pick with the saved review. Show that product.
+        router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId } });
         return;
       }
       setAppliedCategoryLabel(option?.label ?? '선택한 카테고리');
@@ -238,7 +235,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n관리자 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -250,7 +247,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요.`}
+            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -262,7 +259,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 승인되면 알림으로 알려드려요. 알림에서 바로 원픽으로 선택할 수 있어요.`}
+            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -388,6 +385,23 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           value={name}
         />
 
+        <View style={styles.reviewHeader}>
+          <Text style={[styles.label, styles.reviewLabel]}>한 줄 이유 <Text style={styles.required}>필수</Text></Text>
+          <Text style={styles.counter}>{review.length}/100</Text>
+        </View>
+        <TextInput
+          accessibilityLabel="원픽 한줄평"
+          editable={!submitting}
+          maxLength={100}
+          multiline
+          onChangeText={setReview}
+          placeholder="예: 결국 기본으로 돌아오게 되는 맛"
+          placeholderTextColor={OnePick.hint}
+          style={[styles.input, styles.reviewInput]}
+          value={review}
+        />
+        <Text style={styles.helper}>승인되면 이 이유와 함께 내 원픽으로 바로 등록돼요. 따로 다시 고를 필요 없어요.</Text>
+
         {isOnlineRequest ? <>
           <Text style={styles.label}>판매처 링크</Text>
           <TextInput accessibilityLabel="온라인 판매처 링크" editable={!submitting} value={sellerLink} onChangeText={setSellerLink}
@@ -469,6 +483,11 @@ const styles = StyleSheet.create({
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginTop: 24, marginBottom: 8 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 },
+  reviewLabel: { marginTop: 0, marginBottom: 0 },
+  required: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
+  counter: { color: OnePick.muted, fontSize: 12 },
+  reviewInput: { minHeight: 76, paddingTop: 14, paddingBottom: 14, textAlignVertical: 'top' },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 15 },
   selectedCategory: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600', marginBottom: 8 },
   helper: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 10 },
