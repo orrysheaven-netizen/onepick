@@ -3,6 +3,8 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  DishChannelItem,
+  DishChannelOverview,
   PickChannel,
   PickReadInput,
   ReadCursor,
@@ -86,6 +88,23 @@ export class SupabaseReadRepository implements ReadRepository {
     return path
       ? this.client.storage.from('item-photos').getPublicUrl(path).data.publicUrl
       : row.image_source_url ?? null;
+  }
+
+  async getDishChannelOverview(query: string): Promise<DishChannelOverview | null> {
+    const { data, error } = await this.client.rpc('dish_channel_overview', { p_query: query });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const header = data.find((row) => row.channel === null) ?? data[0];
+    const channels: Record<PickChannel, DishChannelItem[]> = { offline: [], online: [], recipe: [] };
+    for (const row of data) {
+      if (row.channel !== 'offline' && row.channel !== 'online' && row.channel !== 'recipe') continue;
+      if (!row.item_id || !row.item_name) continue;
+      channels[row.channel].push({
+        itemId: row.item_id, name: row.item_name,
+        thumbnailUrl: this.cardThumbnailUrl(row), pickCount: Number(row.pick_count) || 0,
+      });
+    }
+    return { categoryId: header.category_id, categoryName: header.category_name, channels };
   }
 
   async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {

@@ -179,6 +179,14 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: never;
         Returns: { category_id: string; slug: string; name: string; category_path: string | null; sort_order: number }[];
       };
+      dish_channel_overview: {
+        Args: { p_query: string };
+        Returns: {
+          category_id: string; category_name: string; channel: string | null;
+          item_id: string | null; item_name: string | null; thumbnail_path: string | null;
+          image_path: string | null; image_source_url: string | null; pick_count: number; rank: number;
+        }[];
+      };
       home_pick_feed_page: {
         Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
         Returns: HomePickFeedRow[];

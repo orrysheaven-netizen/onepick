@@ -33,7 +33,7 @@ export type AuthIntent =
   | { action: 'choose_game'; externalGameId: string; categoryId: string }
   | { action: 'choose_book'; externalBookId: string; categoryId: string }
   | { action: 'choose_youtube'; externalYouTubeId: string; categoryId: string }
-  | { action: 'choose_recipe'; externalVideoId: string; categoryId: string }
+  | { action: 'choose_recipe'; externalVideoId: string; categoryId?: string }
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
   | { action: 'choose_place'; placeCatalogId: string; categoryId: string }
   | { action: 'suggest_link_category'; linkUrl: string; linkName?: string }
@@ -133,9 +133,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalYouTubeId = getExternalYouTubeId(params.externalYouTubeId);
     if (externalYouTubeId) return { action: 'choose_youtube', externalYouTubeId, categoryId: params.categoryId };
   }
-  if (params.action === 'choose_recipe' && isId(params.categoryId)) {
+  if (params.action === 'choose_recipe') {
+    // The dish is optional: a recipe link can be confirmed against any dish after login.
     const externalVideoId = getExternalVideoId(params.externalVideoId);
-    if (externalVideoId) return { action: 'choose_recipe', externalVideoId, categoryId: params.categoryId };
+    if (externalVideoId) return { action: 'choose_recipe', externalVideoId, ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}) };
   }
   if (params.action === 'choose_pokemon' && isId(params.categoryId)) {
     const externalPokemonId = getExternalPokemonId(params.externalPokemonId);
@@ -178,7 +179,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_game': return { pathname: '/pick/game', params: { categoryId: intent.categoryId, externalGameId: intent.externalGameId } };
     case 'choose_book': return { pathname: '/pick/book', params: { categoryId: intent.categoryId, externalBookId: intent.externalBookId } };
     case 'choose_youtube': return { pathname: '/pick/youtube', params: { categoryId: intent.categoryId, externalYouTubeId: intent.externalYouTubeId } };
-    case 'choose_recipe': return { pathname: '/pick/recipe', params: { categoryId: intent.categoryId, externalVideoId: intent.externalVideoId } };
+    case 'choose_recipe': return { pathname: '/pick/recipe', params: { externalVideoId: intent.externalVideoId, ...(intent.categoryId ? { categoryId: intent.categoryId } : {}) } };
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
     case 'suggest_link_category': return { pathname: '/pick/link', params: { url: intent.linkUrl, ...(intent.linkName ? { name: intent.linkName } : {}) } };

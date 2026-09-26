@@ -90,7 +90,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
   const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const menuMatches = searchMenuCategories(menus, menuQuery);
-  const recipeMenu = menus.find((menu) => menu.slug === 'recipe');
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
   const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
@@ -180,6 +179,14 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       pathname: '/pick/request',
       params: { itemName: query.trim(), ...(selectedCategory ? { categoryId: selectedCategory.id } : {}), ...(isOnlineChannel ? { channel: 'online' } : {}) },
     });
+  };
+  const openRecipe = () => {
+    if (!canAct()) return;
+    navigating.current = true;
+    router.push({ pathname: '/pick/recipe', params: {
+      ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
+      ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+    } });
   };
   const requestPlace = () => {
     if (!canAct() || !hasQuery || !selectedCategory || !isPlaceSearch) return;
@@ -334,11 +341,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
         text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
         action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
-      {recipeMenu ? <View style={styles.channelSection}>
+      <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>레시피가 원픽인가요?</Text>
-        <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
-        <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
-      </View> : null}
+        <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크를 붙여넣고 어떤 요리의 레시피인지 고르면 돼요.</Text>
+        <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={openRecipe} style={styles.recipeButton} />
+      </View>
     </ScrollView>
   </SafeAreaView>;
 
@@ -355,7 +362,12 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <View style={styles.channelRow}>
           {PICK_CHANNEL_OPTIONS.map((option) => <Chip key={option.channel} label={option.label} selected={channel === option.channel}
             accessibilityLabel={`${option.label}: ${option.description}`}
-            onPress={() => { if (busy.current || importing || channel === option.channel) return; setChannel(option.channel); setSelection(null); setPlaceSelection(null); }} />)}
+            onPress={() => {
+              if (busy.current || importing || channel === option.channel) return;
+              // A recipe is registered from a video link, with this menu preselected as its dish.
+              if (option.channel === 'recipe') { openRecipe(); return; }
+              setChannel(option.channel); setSelection(null); setPlaceSelection(null);
+            }} />)}
         </View>
         <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 매장으로 골라주세요.</Text>
         {isPlaceSearch ? <Text accessibilityRole="text" style={styles.coverageNotice}>{PLACE_COVERAGE_NOTICE} 다른 지역은 차례로 추가할게요.</Text> : null}
