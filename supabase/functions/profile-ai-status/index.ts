@@ -25,8 +25,18 @@ function relation(value: unknown) {
 function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): number {
   const previousRows = Array.isArray(previousValue) ? previousValue.map(object) : [];
   const hasIds = previousRows.some((row) => text(row.categoryId).length > 0);
+  // Food Picks are per channel. Snapshots saved before channels existed held one
+  // Pick per category, so they are compared per category (same rule as
+  // analyze-profile-taste).
+  const perChannel = previousRows.some((row) => 'channel' in row);
 
-  const previous = new Map<string, string>();
+  const add = (map: Map<string, string[]>, key: string, value: string) => {
+    map.set(key, [...(map.get(key) ?? []), value]);
+  };
+  const joined = (map: Map<string, string[]>) =>
+    new Map([...map].map(([key, values]) => [key, JSON.stringify(values.sort())]));
+
+  const previous = new Map<string, string[]>();
   for (const row of previousRows) {
     const categoryName = text(row.category);
     const itemName = text(row.item);
@@ -34,10 +44,11 @@ function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): 
       ? text(row.categoryId) : categoryName ? `name:${categoryName}` : '';
     const itemKey = hasIds && text(row.itemId)
       ? text(row.itemId) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) previous.set(categoryKey, JSON.stringify([itemKey, text(row.review)]));
+    const key = perChannel ? `${categoryKey}|${text(row.channel)}` : categoryKey;
+    if (categoryKey) add(previous, key, JSON.stringify([itemKey, text(row.review)]));
   }
 
-  const current = new Map<string, string>();
+  const current = new Map<string, string[]>();
   for (const value of currentRows) {
     const row = object(value);
     const category = relation(row.categories);
@@ -48,12 +59,15 @@ function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): 
       ? text(row.category_id) : categoryName ? `name:${categoryName}` : '';
     const itemKey = hasIds && text(row.item_id)
       ? text(row.item_id) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) current.set(categoryKey, JSON.stringify([itemKey, text(row.one_line_review)]));
+    const key = perChannel ? `${categoryKey}|${text(row.channel)}` : categoryKey;
+    if (categoryKey) add(current, key, JSON.stringify([itemKey, text(row.one_line_review)]));
   }
 
-  const keys = new Set([...previous.keys(), ...current.keys()]);
+  const before = joined(previous);
+  const after = joined(current);
+  const keys = new Set([...before.keys(), ...after.keys()]);
   let changed = 0;
-  for (const key of keys) if (previous.get(key) !== current.get(key)) changed += 1;
+  for (const key of keys) if (before.get(key) !== after.get(key)) changed += 1;
   return changed;
 }
 
@@ -83,7 +97,7 @@ Deno.serve(async (req: Request) => {
   // caller session. The service-role client cannot supply either caller fact.
   const [picksResult, reviewResult, assuranceResult, adminResult] = await Promise.all([
     admin.from('picks')
-      .select('category_id,item_id,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
+      .select('category_id,item_id,channel,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .eq('categories.is_visible', true)

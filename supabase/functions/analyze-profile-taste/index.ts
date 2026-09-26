@@ -38,6 +38,7 @@ function buildSnapshot(rows: unknown[]) {
       pickId: textOrNull(pick.id, 36),
       categoryId: textOrNull(category.id, 36),
       category: textOrNull(category.name),
+      channel: textOrNull(pick.channel, 16),
       itemId: textOrNull(item.id, 36),
       item: textOrNull(item.name),
       originalName: textOrNull(item.original_name),
@@ -53,22 +54,27 @@ function buildSnapshot(rows: unknown[]) {
 function meaningfulChangeCount(previousValue: unknown, currentValue: unknown): number {
   const previous = Array.isArray(previousValue) ? previousValue.map(record) : [];
   const current = Array.isArray(currentValue) ? currentValue.map(record) : [];
+  // Food Picks are per channel. Snapshots saved before channels existed held one
+  // Pick per category, so they are compared per category: the channels a Pick
+  // gained on migration are not a change, a newly added channel Pick is one.
+  const perChannel = previous.some((row) => 'channel' in row);
 
   const signatureByCategory = (rows: Record<string, unknown>[]) => {
-    const result = new Map<string, string>();
+    const grouped = new Map<string, string[]>();
     for (const row of rows) {
       const categoryId = textOrNull(row.categoryId, 36);
       const category = textOrNull(row.category, 300);
-      const key = categoryId ?? (category ? `name:${category}` : null);
-      if (!key) continue;
+      const categoryKey = categoryId ?? (category ? `name:${category}` : null);
+      if (!categoryKey) continue;
+      const key = perChannel ? `${categoryKey}|${textOrNull(row.channel, 16) ?? ''}` : categoryKey;
 
       const itemId = textOrNull(row.itemId, 36);
       const item = textOrNull(row.item, 300);
       const review = textOrNull(row.review, 100) ?? '';
       const itemKey = itemId ?? (item ? `name:${item}` : '');
-      result.set(key, JSON.stringify([itemKey, review]));
+      grouped.set(key, [...(grouped.get(key) ?? []), JSON.stringify([itemKey, review])]);
     }
-    return result;
+    return new Map([...grouped].map(([key, values]) => [key, JSON.stringify(values.sort())]));
   };
 
   const before = signatureByCategory(previous);
@@ -182,7 +188,7 @@ Deno.serve(async (req: Request) => {
     };
     const readSnapshot = async () => {
       const { data, error } = await publicClient.from('picks')
-        .select('id,one_line_review,updated_at,categories!picks_category_id_fkey!inner(id,name),items!picks_item_category_fk!inner(id,name,original_name,release_year,creator_name,collection_name)')
+        .select('id,channel,one_line_review,updated_at,categories!picks_category_id_fkey!inner(id,name),items!picks_item_category_fk!inner(id,name,original_name,release_year,creator_name,collection_name)')
         .eq('user_id', user.id).eq('status', 'active').eq('categories.is_visible', true)
         .in('items.status', ['active', 'discontinued']).order('id', { ascending: true }).limit(50);
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
