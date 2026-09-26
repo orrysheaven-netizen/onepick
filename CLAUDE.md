@@ -4,7 +4,7 @@
 
 Do not create or target a long-lived integration branch (e.g. a `feature/*` branch meant to hold multiple unrelated PRs) instead of `main` — this repo has drifted that way before (`feature/pick-core` diverged from `main` by 100+ commits) and caused real deploy bugs: Supabase Edge Functions were deployed from a stale branch because the "production" branch and the branch people were actually merging into disagreed.
 
-`main` is protected (PRs required; `typecheck`, `verify-web` and `database-tests` must pass; no admin bypass) and is the branch Supabase's GitHub integration deploys Edge Functions from and Cloudflare Pages builds the tester site from on merge.
+`main` is protected (PRs required; `typecheck`, `verify-web` and `database-tests` must pass; no admin bypass) and is the branch Cloudflare Pages builds the tester site from on merge. Merging does not deploy the database or Edge Functions: run the GitHub Actions workflows **Deploy Database Migrations** and then **Deploy Edge Functions** (both `workflow_dispatch`, dry-run then `mode=apply`), which always deploy from `main`.
 
 # Working tree
 
