@@ -184,9 +184,10 @@ export class SupabasePickRepository implements PickRepository {
     return mapPickRow(data);
   }
 
-  async removePick(categoryId: string) {
+  async removePick(categoryId: string, channel?: 'offline' | 'online' | 'recipe') {
     const { error } = await this.client.rpc('remove_pick', {
       p_category_id: categoryId,
+      p_channel: channel ?? null,
     });
 
     if (error) {
