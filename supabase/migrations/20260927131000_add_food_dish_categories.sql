@@ -52,20 +52,34 @@ on conflict(slug) do update set
   sort_order=excluded.sort_order,
   updated_at=now();
 
--- Same shape as the other restaurant-first dishes: internal catalog with
--- place-backed selection, so offline and online share one leaf.
+-- New dishes use the restaurant-first internal catalog. The pre-existing
+-- kimchi leaf may already have an operator-configured catalog source in the
+-- hosted DB, so do not overwrite its mode/provider/external source.
 insert into public.category_catalog_sources(
   category_id,mode,provider,edge_function_slug,external_source,is_enabled,place_catalog_enabled,notes
 )
 select c.id,'internal',null,null,null,true,true,
        'Restaurant-first internal taxonomy; online/offline can share the same leaf category.'
 from public.categories c
-where c.slug in ('kimchi','pa-kimchi','kkakdugi','rolled-omelette','japchae','miyeokguk','sundubu-jjigae','bulgogi')
+where c.slug in ('pa-kimchi','kkakdugi','rolled-omelette','japchae','miyeokguk','sundubu-jjigae','bulgogi')
 on conflict(category_id) do update set
   mode='internal',
   provider=null,
   edge_function_slug=null,
   external_source=null,
+  is_enabled=true,
+  place_catalog_enabled=true,
+  notes=excluded.notes,
+  updated_at=now();
+
+insert into public.category_catalog_sources(
+  category_id,mode,provider,edge_function_slug,external_source,is_enabled,place_catalog_enabled,notes
+)
+select c.id,'internal',null,null,null,true,true,
+       'Restaurant-first dish; preserve any existing catalog provider configuration.'
+from public.categories c
+where c.slug='kimchi'
+on conflict(category_id) do update set
   is_enabled=true,
   place_catalog_enabled=true,
   notes=excluded.notes,
