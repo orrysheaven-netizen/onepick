@@ -1,4 +1,5 @@
 import { AppError } from '@/errors/appError';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type {
   ChangePickInput,
@@ -85,7 +86,7 @@ export class PickService {
     });
   }
 
-  removePick(categoryId: string) {
-    return this.pickRepository.removePick(categoryId);
+  removePick(categoryId: string, channel?: PickChannel | null) {
+    return this.pickRepository.removePick(categoryId, channel);
   }
 }

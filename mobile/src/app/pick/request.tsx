@@ -159,6 +159,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         variant: '',
         oneLineReview: trimmedReview,
         photo,
+        ...(isOnlineRequest ? { channel: 'online' as const } : {}),
       });
 
       if (result.type === 'pending_item') {

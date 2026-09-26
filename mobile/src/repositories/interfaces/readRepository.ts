@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
 import type { Pick, PickStatus } from '@/types/domain/pick';
@@ -41,9 +42,9 @@ export interface ReadCursor {
   id: string;
 }
 
+export type { PickChannel } from '@/lib/items/pickChannel';
+
 /** One person's current choice, not an aggregate product or a follower event. */
-/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
-export type PickChannel = 'offline' | 'online';
 
 export interface HomeFeedPick {
   pickId: string;

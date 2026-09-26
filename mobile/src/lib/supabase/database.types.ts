@@ -768,6 +768,7 @@ export type Database = {
       picks: {
         Row: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -783,6 +784,7 @@ export type Database = {
         }
         Insert: {
           category_id: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -798,6 +800,7 @@ export type Database = {
         }
         Update: {
           category_id?: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -1469,6 +1472,7 @@ export type Database = {
       change_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_item_id: string
           p_one_line_review: string
           p_purchase_tip?: string | null
@@ -1476,6 +1480,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1703,6 +1708,7 @@ export type Database = {
       register_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_image_path?: string
           p_image_source_url?: string
           p_item_id: string
@@ -1712,6 +1718,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1732,7 +1739,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      remove_pick: {
+        Args: { p_category_id: string; p_channel?: string | null }
+        Returns: boolean
+      }
       reserve_external_catalog_slot: {
         Args: { p_interval_ms: number; p_provider: string }
         Returns: number
@@ -1903,6 +1913,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string

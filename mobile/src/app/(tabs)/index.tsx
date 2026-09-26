@@ -115,7 +115,7 @@ export default function HomeScreen() {
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
   </View>;
 
   const listHeader = <>

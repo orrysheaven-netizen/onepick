@@ -1,4 +1,5 @@
 import type { Href } from 'expo-router';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 export type AuthReturnParams = {
   action?: string | string[];
@@ -25,7 +26,7 @@ export type AuthReturnParams = {
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
   | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string; channel?: 'online'; oneLineReview?: string }
-  | { action: 'choose_pick'; itemId: string; categoryId: string }
+  | { action: 'choose_pick'; itemId: string; categoryId: string; channel?: PickChannel }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
   | { action: 'choose_music'; externalMusicId: string; categoryId: string }
@@ -108,7 +109,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
       ...(oneLineReview ? { oneLineReview } : {}),
     } : { action: 'home' };
   }
-  if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
+  if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) {
+    const channel = params.channel === 'offline' || params.channel === 'online' || params.channel === 'recipe' ? params.channel : undefined;
+    return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId, ...(channel ? { channel } : {}) };
+  }
   if ((params.action === 'choose_movie' || params.action === 'choose_drama') && isId(params.categoryId)) {
     const externalId = getExternalId(params.externalId);
     if (externalId) return { action: params.action, externalId, categoryId: params.categoryId };
@@ -167,7 +171,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
         ...(intent.oneLineReview ? { oneLineReview: intent.oneLineReview } : {}),
       },
     };
-    case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
+    case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId, ...(intent.channel ? { channel: intent.channel } : {}) } };
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
     case 'choose_music': return { pathname: '/pick/music', params: { categoryId: intent.categoryId, externalMusicId: intent.externalMusicId } };

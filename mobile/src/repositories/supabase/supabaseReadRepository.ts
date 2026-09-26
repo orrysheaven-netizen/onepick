@@ -117,7 +117,7 @@ export class SupabaseReadRepository implements ReadRepository {
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
         thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
-        channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online'),
+        channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online' || channel === 'recipe'),
       })),
     };
   }
