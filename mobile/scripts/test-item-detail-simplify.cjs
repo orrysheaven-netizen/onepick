@@ -100,6 +100,14 @@ assert.doesNotMatch(mine, /댓글 보기|댓글 숨기기/, 'My own review has n
 assert.match(mine, /thread:m1/, 'Comments others left on my review stay visible');
 assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'm1', compact: true, canWrite: false }, 'No 댓글 쓰기 on my own review');
 
+// The session resolves after the first render; once it says the card is mine, writing is withdrawn.
+session = { user: null, isLoading: true };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, true, 'Signed-out/loading viewers see the thread like any other');
+session = { user: { id: 'me' }, isLoading: false };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, false, 'Ownership is read on every render, not stored from the first one');
+
 session = { user: { id: 'me' }, isLoading: true };
 assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);
 
