@@ -184,6 +184,35 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getCategoryRanking(slug: string, limit = 20) {
+    // Public aggregate, like getCategoryTopItems: the page is shared and crawled,
+    // so every viewer must see the same numbers.
+    const { data, error } = await this.countClient.rpc('category_ranking', { p_slug: slug, p_limit: limit });
+    if (error) throw mapSupabaseError(error);
+    const rows = data ?? [];
+    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    return rows.map((row) => ({
+      itemId: row.item_id,
+      name: row.name,
+      thumbnailUrl: this.cardThumbnailUrl(row),
+      pickCount: row.pick_count,
+      rank: row.rank,
+      isTied: row.is_tied,
+      channels: channels.get(row.item_id) ?? [],
+    }));
+  }
+
+  async getRankingCategories() {
+    const { data, error } = await this.countClient.rpc('ranking_categories');
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map((row) => ({
+      categoryId: row.category_id,
+      slug: row.slug,
+      name: row.name,
+      path: row.category_path ?? row.name,
+    }));
+  }
+
   async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null, storesOnly = false) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // Viewer-specific like the home feed: session RLS decides which Picks count,

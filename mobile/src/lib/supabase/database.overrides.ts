@@ -168,6 +168,17 @@ export type AppDatabase = Omit<Database, 'public'> & {
           image_source_url: string | null;
         })[];
       };
+      category_ranking: {
+        Args: { p_slug: string; p_limit?: number };
+        Returns: {
+          item_id: string; name: string; thumbnail_path: string | null; image_path: string | null;
+          image_source_url: string | null; pick_count: number; rank: number; is_tied: boolean;
+        }[];
+      };
+      ranking_categories: {
+        Args: never;
+        Returns: { category_id: string; slug: string; name: string; category_path: string | null; sort_order: number }[];
+      };
       home_pick_feed_page: {
         Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online'; p_root_slug?: string };
         Returns: HomePickFeedRow[];

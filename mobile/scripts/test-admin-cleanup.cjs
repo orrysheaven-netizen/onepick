@@ -93,6 +93,11 @@ async function main() {
 
   assert.match(read('src/app/admin/pending.tsx'), /<Redirect href="\/admin\/data\?tab=pending" \/>/, 'The legacy review route redirects to the tab');
 
+  // Direct admin URLs must not be redirected by the layout while it checks the session.
+  const adminLayout = read('src/app/admin/_layout.tsx');
+  assert.doesNotMatch(adminLayout, /pathname === '\/admin'/, 'The layout must not redirect on the transient /admin pathname');
+  assert.match(read('src/app/admin/index.tsx'), /<Redirect href="\/admin\/dashboard" \/>/, '/admin itself still opens the dashboard');
+
   console.log('Admin cleanup checks passed: admin photo adoption, queue badges, user directory paging and history, category chip trimming and legacy redirect.');
 }
 
