@@ -76,7 +76,7 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
     PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
     PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
   },
-  '@/components/pick-replies': { PickReplies: ({ pickId, compact }) => { replies.push({ pickId, compact }); return React.createElement('i', null, `thread:${pickId}`); } },
+  '@/components/pick-replies': { PickReplies: ({ pickId, compact, canWrite }) => { replies.push({ pickId, compact, canWrite }); return React.createElement('i', null, `thread:${pickId}`); } },
   '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
   '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
@@ -86,7 +86,7 @@ const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemRev
 }));
 const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다' }, { username: 'someone' });
 assert.match(other, /thread:o1/, "Other people's comments are shown expanded");
-assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o1', compact: true });
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o1', compact: true, canWrite: true });
 assert.match(other, /share:o1/);
 assert.match(other, /@someone/);
 assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고/);
@@ -96,8 +96,17 @@ assert.match(mine, /내 한줄평/);
 assert.doesNotMatch(mine, /@me|내 원픽</, 'My own card shows 내 한줄평 instead of my id or the 내 원픽 badge');
 assert.match(mine, /수정 · 해제/);
 assert.match(mine, /share:m1/);
-assert.match(mine, /댓글 보기/, 'Replies to my own review open from a menu');
-assert.doesNotMatch(mine, /thread:m1/);
+assert.doesNotMatch(mine, /댓글 보기|댓글 숨기기/, 'My own review has no comment toggle');
+assert.match(mine, /thread:m1/, 'Comments others left on my review stay visible');
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'm1', compact: true, canWrite: false }, 'No 댓글 쓰기 on my own review');
+
+// The session resolves after the first render; once it says the card is mine, writing is withdrawn.
+session = { user: null, isLoading: true };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, true, 'Signed-out/loading viewers see the thread like any other');
+session = { user: { id: 'me' }, isLoading: false };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, false, 'Ownership is read on every render, not stored from the first one');
 
 session = { user: { id: 'me' }, isLoading: true };
 assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);

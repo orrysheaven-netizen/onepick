@@ -2,7 +2,9 @@ import { AppError } from '@/errors/appError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { YouTubeCatalogRepository } from '@/repositories/interfaces/youtubeCatalogRepository';
 import { YOUTUBE_VIDEO_ID_PATTERN, youtubeVideoUrl } from '@/lib/youtube/videoLink';
-import type { ImportedYouTubeChannelItem, YouTubeChannelEntry, YouTubeVideoEntry } from '@/types/domain/youtubeCatalog';
+import type {
+  ImportedYouTubeChannelItem, RecipeDishSuggestion, RequestedRecipeVideo, YouTubeChannelEntry, YouTubeVideoEntry, YouTubeVideoLookup,
+} from '@/types/domain/youtubeCatalog';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANNEL_ID_PATTERN = /^UC[A-Za-z0-9_-]{22}$/;
@@ -19,6 +21,9 @@ async function functionError(error: unknown) {
   if (body?.error === 'VIDEO_URL_INVALID') return new AppError('VIDEO_URL_INVALID');
   if (body?.error === 'CHANNEL_NOT_FOUND' || body?.error === 'VIDEO_NOT_FOUND' || body?.error === 'EXTERNAL_ID_INVALID') return new AppError('ITEM_NOT_FOUND');
   if (body?.error === 'CATEGORY_NOT_FOUND') return new AppError('CATEGORY_NOT_FOUND');
+  if (body?.error === 'CATEGORY_NOT_PICKABLE' || body?.error === 'CATEGORY_REQUIRED') return new AppError('CATEGORY_NOT_PICKABLE');
+  if (body?.error === 'DISH_NAME_INVALID') return new AppError('CATEGORY_LABEL_INVALID');
+  if (body?.error === 'REVIEW_INVALID') return new AppError('REVIEW_INVALID');
   return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
 }
 
@@ -42,7 +47,17 @@ function isVideoEntry(value: unknown): value is YouTubeVideoEntry {
     && (row.channelTitle === null || (typeof row.channelTitle === 'string' && row.channelTitle.length >= 1 && row.channelTitle.length <= 100))
     && (row.thumbnailUrl === null || (typeof row.thumbnailUrl === 'string' && row.thumbnailUrl.startsWith('https://')))
     && row.videoUrl === youtubeVideoUrl(row.externalId)
-    && (row.existingItemId === null || (typeof row.existingItemId === 'string' && UUID_PATTERN.test(row.existingItemId)));
+    && (row.existingItemId === null || (typeof row.existingItemId === 'string' && UUID_PATTERN.test(row.existingItemId)))
+    && (row.existingCategoryId === undefined || row.existingCategoryId === null
+      || (typeof row.existingCategoryId === 'string' && UUID_PATTERN.test(row.existingCategoryId)));
+}
+
+function isSuggestion(value: unknown): value is RecipeDishSuggestion {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Partial<RecipeDishSuggestion>;
+  return typeof row.categoryId === 'string' && UUID_PATTERN.test(row.categoryId)
+    && typeof row.name === 'string' && row.name.length >= 1 && row.name.length <= 100
+    && (row.path === null || (typeof row.path === 'string' && row.path.length <= 300));
 }
 
 function importedItem(data: unknown): ImportedYouTubeChannelItem {
@@ -80,26 +95,42 @@ export class SupabaseYouTubeCatalogRepository implements YouTubeCatalogRepositor
     return importedItem(data);
   }
 
-  async lookupVideo(url: string, signal?: AbortSignal): Promise<YouTubeVideoEntry> {
+  async lookupVideo(url: string, signal?: AbortSignal): Promise<YouTubeVideoLookup> {
     const { data, error } = await this.client.functions.invoke('youtube-catalog', {
       body: { action: 'video_lookup', url },
       signal,
     });
     if (error) throw await functionError(error);
     if (!isVideoEntry(data?.video)) throw new AppError('INTERNAL_ERROR');
-    return data.video;
+    const video: YouTubeVideoEntry = { ...data.video, existingCategoryId: data.video.existingCategoryId ?? null };
+    const suggestions = Array.isArray(data?.suggestions) ? data.suggestions.filter(isSuggestion).slice(0, 5) : [];
+    return { video, suggestions };
   }
 
-  async importVideo(externalId: string): Promise<ImportedYouTubeChannelItem> {
+  private async sessionHeaders() {
     const { data: sessionData, error: sessionError } = await this.client.auth.getSession();
     const accessToken = sessionData.session?.access_token?.trim();
     if (sessionError || !accessToken) throw new AppError('AUTH_REQUIRED');
+    return { Authorization: `Bearer ${accessToken}` };
+  }
 
+  async importVideo(externalId: string, categoryId: string): Promise<ImportedYouTubeChannelItem> {
     const { data, error } = await this.client.functions.invoke('youtube-catalog', {
-      body: { action: 'video_import', externalId },
-      headers: { Authorization: `Bearer ${accessToken}` },
+      body: { action: 'video_import', externalId, categoryId },
+      headers: await this.sessionHeaders(),
     });
     if (error) throw await functionError(error);
     return importedItem(data);
+  }
+
+  async requestVideo(externalId: string, dishName: string, review: string): Promise<RequestedRecipeVideo> {
+    const { data, error } = await this.client.functions.invoke('youtube-catalog', {
+      body: { action: 'video_request', externalId, dishName, review },
+      headers: await this.sessionHeaders(),
+    });
+    if (error) throw await functionError(error);
+    const row = data && typeof data === 'object' ? data as Record<string, unknown> : null;
+    if (!row || typeof row.itemId !== 'string' || !UUID_PATTERN.test(row.itemId)) throw new AppError('INTERNAL_ERROR');
+    return { itemId: row.itemId };
   }
 }

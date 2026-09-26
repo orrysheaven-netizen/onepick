@@ -712,6 +712,32 @@ export function updateItem(id: string, patch: Partial<Pick<AdminItem, 'status' |
   });
 }
 
+/** What moving an item to another category would do; `blocked_reason` is null when the move can run. */
+export type AdminItemCategoryMove = {
+  item_id: string;
+  from_category_id: string;
+  to_category_id: string;
+  active_pick_count: number;
+  pick_count: number;
+  conflict_count: number;
+  blocked_reason: string | null;
+};
+
+export function previewItemCategoryMove(itemId: string, targetCategoryId: string) {
+  return adminRequest<AdminItemCategoryMove>('/rest/v1/rpc/admin_preview_item_category_move', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: itemId, p_target_category_id: targetCategoryId }),
+  });
+}
+
+/** Moves the item and every Pick of it (current and past) to the target category, atomically. */
+export function moveItemCategory(itemId: string, targetCategoryId: string) {
+  return adminRequest<AdminItemCategoryMove>('/rest/v1/rpc/admin_move_item_category', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: itemId, p_target_category_id: targetCategoryId }),
+  });
+}
+
 export function getEditorialFeatures() {
   return adminRequest<AdminEditorialFeatureWithItem[]>(
     '/rest/v1/item_editorial_features?select=item_id,priority,note,starts_at,ends_at,is_active,created_at,updated_at,items(id,name,status,category_id,image_path,thumbnail_path,image_source_url,categories(name))&order=priority.asc,updated_at.desc'

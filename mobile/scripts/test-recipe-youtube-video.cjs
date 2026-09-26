@@ -59,14 +59,16 @@ const rejected = [
   'https://youtu.be/' + 'a'.repeat(2048),
 ];
 
+const DISH = 'a1111111-1111-4111-8111-111111111111';
+const OTHER_DISH = 'b2222222-2222-4222-8222-222222222222';
+
 function setup() {
   const state = {
     rows: [], writes: [], updates: [], upstream: [], cache: new Map(), auth: true, suspended: false,
     searchAllowed: true, searchQuotaCalls: 0, importAllowed: true, importQuotaCalls: 0, apiKey: 'server-key',
-    categories: [
-      { id: 'recipe', parent_id: 'food', slug: 'recipe', status: 'open', is_visible: true, is_pickable: true },
-      { id: 'food', parent_id: null, slug: 'food', status: 'open', is_visible: true, is_pickable: false },
-    ],
+    accepts: new Set([DISH, OTHER_DISH]), channels: [], intents: [], picks: [],
+    suggestionRows: [{ category_id: DISH, name: '김치찌개', path: '먹을것 > 국/탕/찌개/밥 > 김치찌개', matched_term: '김치찌개' }],
+    categories: [{ id: 'pending-product-id', slug: 'pending-product' }],
     videoItems: [{
       id: videoId,
       snippet: {
@@ -78,14 +80,16 @@ function setup() {
   };
   const db = {
     auth: { getUser: async () => ({ data: { user: state.auth ? { id: 'user', is_anonymous: false } : null }, error: null }) },
-    rpc: async (name) => {
+    rpc: async (name, args) => {
       if (name === 'catalog_user_is_suspended') return { data: state.suspended, error: null };
       if (name === 'reserve_youtube_catalog_search') { state.searchQuotaCalls++; return { data: state.searchAllowed, error: null }; }
       if (name === 'reserve_external_catalog_import') { state.importQuotaCalls++; return { data: state.importAllowed, error: null }; }
+      if (name === 'category_accepts_recipe') return { data: state.accepts.has(args.p_category_id), error: null };
+      if (name === 'recipe_dish_suggestions') { state.suggestedFor = args.p_title; return { data: state.suggestionRows, error: null }; }
       throw new Error('Unexpected RPC: ' + name);
     },
     from(table) {
-      assert.ok(['categories', 'items'].includes(table));
+      assert.ok(['categories', 'items', 'item_channels', 'picks', 'pending_item_picks'].includes(table), table);
       const filters = []; let insert = null, update = null, limit = Infinity;
       const run = async (single) => {
         if (insert) {
@@ -93,7 +97,7 @@ function setup() {
           if (state.rows.some((r) => r.external_source === insert.external_source && r.external_id === insert.external_id)) {
             return { data: null, error: { code: '23505' } };
           }
-          const saved = { ...insert, id: 'saved-' + state.rows.length };
+          const saved = { ...insert, id: 'c' + String(state.rows.length).padStart(7, '0') + '-3333-4333-8333-333333333333' };
           state.rows.push(saved);
           return { data: saved, error: null };
         }
@@ -103,7 +107,7 @@ function setup() {
           state.updates.push(update);
           return { data: single ? (matched[0] ?? null) : matched, error: null };
         }
-        const source = table === 'categories' ? state.categories : state.rows;
+        const source = table === 'categories' ? state.categories : table === 'picks' ? state.picks : state.rows;
         const rows = source.filter((r) => filters.every((f) => f(r))).slice(0, limit);
         return { data: single ? (rows[0] ?? null) : rows, error: null };
       };
@@ -114,6 +118,12 @@ function setup() {
         limit: (n) => { limit = n; return q; },
         insert: (row) => { assert.equal(table, 'items'); insert = row; return q; },
         update: (row) => { assert.equal(table, 'items'); update = row; return q; },
+        upsert: async (row, options) => {
+          if (table === 'item_channels') { assert.equal(options.onConflict, 'item_id,channel'); state.channels.push(row); }
+          else if (table === 'pending_item_picks') { assert.equal(options.onConflict, 'item_id'); state.intents.push(row); }
+          else assert.fail('upsert on ' + table);
+          return { data: null, error: null };
+        },
         maybeSingle: () => run(true),
         then: (resolve, reject) => run(false).then(resolve, reject),
       };
@@ -159,13 +169,17 @@ async function main() {
   assert.equal(server.mapYouTubeVideo({ id: 'bad', snippet: { title: 'x' } }), null);
   assert.equal(server.mapYouTubeVideo({ id: videoId, snippet: { title: '   ' } }), null);
 
-  // Lookup: authenticated, quota-bounded, cached, and never writes.
+  // Lookup: authenticated, quota-bounded, cached, suggests dishes from the title, never writes.
   const s = setup();
   const lookupRes = await s.request('video_lookup', { url: 'https://youtu.be/' + videoId + '?si=tracking' });
   assert.equal(lookupRes.status, 200);
-  const lookup = (await lookupRes.json()).video;
+  const lookupBody = await lookupRes.json();
+  const lookup = lookupBody.video;
   assert.equal(lookup.externalId, videoId);
   assert.equal(lookup.existingItemId, null);
+  assert.equal(lookup.existingCategoryId, null);
+  assert.deepEqual(lookupBody.suggestions, [{ categoryId: DISH, name: '김치찌개', path: '먹을것 > 국/탕/찌개/밥 > 김치찌개' }]);
+  assert.equal(s.state.suggestedFor, '백종원 김치찌개 레시피', 'dishes are suggested from the video title');
   assert.equal(s.state.searchQuotaCalls, 1, 'lookup consumes the YouTube search quota');
   assert.equal(s.state.writes.length, 0, 'lookup never creates items');
   const upstream = s.state.upstream[0];
@@ -204,12 +218,12 @@ async function main() {
   assert.equal(missingRes.status, 404, 'private/deleted videos are not found');
   assert.equal((await missingRes.json()).error, 'VIDEO_NOT_FOUND');
 
-  // Import: one item per video in the recipe category.
-  const saved = await (await s.request('video_import', { externalId: videoId })).json();
+  // Import: one item per video, under the confirmed dish, with a recipe channel.
+  const saved = await (await s.request('video_import', { externalId: videoId, categoryId: DISH })).json();
   assert.equal(saved.created, true);
-  assert.equal(saved.categoryId, 'recipe');
+  assert.equal(saved.categoryId, DISH);
   const row = s.state.writes[0];
-  assert.equal(row.category_id, 'recipe');
+  assert.equal(row.category_id, DISH);
   assert.equal(row.external_source, 'youtube_video');
   assert.equal(row.external_id, videoId);
   assert.equal(row.name, '백종원 김치찌개 레시피');
@@ -220,44 +234,86 @@ async function main() {
   assert.equal(row.status, 'active');
   assert.ok(Date.parse(row.external_refreshed_at));
   assert.equal(s.state.importQuotaCalls, 1, 'new items consume the external import quota');
+  assert.deepEqual(JSON.parse(JSON.stringify(s.state.channels[0])),
+    { item_id: saved.itemId, channel: 'recipe', target_url: 'https://www.youtube.com/watch?v=' + videoId, is_primary: true },
+    'the recipe channel links the video');
 
   const upstreamBefore = s.state.upstream.length;
-  const again = await (await s.request('video_import', { externalId: videoId })).json();
+  const again = await (await s.request('video_import', { externalId: videoId, categoryId: OTHER_DISH })).json();
   assert.equal(again.created, false);
   assert.equal(again.itemId, saved.itemId, 'the same video maps to the same item');
+  assert.equal(again.categoryId, DISH, 'a registered video keeps its dish');
   assert.equal(s.state.upstream.length, upstreamBefore, 'fresh items are reused without calling YouTube');
   assert.equal(s.state.writes.length, 1);
 
   const known = await (await s.request('video_lookup', { url: 'https://youtu.be/' + videoId })).json();
   assert.equal(known.video.existingItemId, saved.itemId, 'lookup reports an already-registered video');
+  assert.equal(known.video.existingCategoryId, DISH, 'with its dish');
+  assert.deepEqual(known.suggestions, [], 'a registered video needs no dish suggestions');
 
   s.state.rows[0].external_refreshed_at = new Date(Date.now() - 21 * 24 * 60 * 60_000).toISOString();
   s.state.videoItems = [{ ...s.state.videoItems[0], snippet: { ...s.state.videoItems[0].snippet, title: '갱신된 레시피' } }];
-  const refreshed = await (await s.request('video_import', { externalId: videoId })).json();
+  const refreshed = await (await s.request('video_import', { externalId: videoId, categoryId: DISH })).json();
   assert.equal(refreshed.created, false);
   assert.equal(s.state.rows[0].name, '갱신된 레시피', 'stale metadata is refreshed on import');
   assert.ok(Date.now() - Date.parse(s.state.rows[0].external_refreshed_at) < 60_000);
   assert.equal(s.state.importQuotaCalls, 1, 'refreshing an existing item does not consume the import quota');
 
   const race = setup();
-  race.state.rows.push({ id: 'winner', category_id: 'recipe', external_source: 'youtube_video', external_id: videoId, status: 'active', external_refreshed_at: null });
-  const raced = await (await race.request('video_import', { externalId: videoId })).json();
+  race.state.rows.push({ id: 'winner', category_id: DISH, external_source: 'youtube_video', external_id: videoId, status: 'active', external_refreshed_at: null });
+  const raced = await (await race.request('video_import', { externalId: videoId, categoryId: DISH })).json();
   assert.equal(raced.itemId, 'winner');
 
-  for (const mode of ['no-auth', 'suspended', 'bad-id', 'hidden-category', 'hidden-parent', 'non-leaf', 'other-category', 'pending-item', 'no-key', 'quota']) {
+  // A video left in the retired 레시피 category moves to the confirmed dish while unpicked.
+  const legacy = setup();
+  legacy.state.rows.push({ id: 'legacy', category_id: 'recipe', external_source: 'youtube_video', external_id: videoId, status: 'active', external_refreshed_at: new Date().toISOString() });
+  const legacyLookup = await (await legacy.request('video_lookup', { url: 'https://youtu.be/' + videoId })).json();
+  assert.equal(legacyLookup.video.existingItemId, null, 'a legacy video still asks for its dish');
+  const moved = await (await legacy.request('video_import', { externalId: videoId, categoryId: DISH })).json();
+  assert.equal(moved.itemId, 'legacy');
+  assert.equal(moved.categoryId, DISH);
+  assert.equal(legacy.state.rows[0].category_id, DISH, 'the legacy item moves to the dish');
+  assert.equal(legacy.state.importQuotaCalls, 0, 'moving is not a new import');
+  const pickedLegacy = setup();
+  pickedLegacy.state.rows.push({ id: 'legacy', category_id: 'recipe', external_source: 'youtube_video', external_id: videoId, status: 'active' });
+  pickedLegacy.state.picks.push({ id: 'pick', item_id: 'legacy' });
+  assert.equal((await pickedLegacy.request('video_import', { externalId: videoId, categoryId: DISH })).status, 409,
+    'a picked legacy video cannot move (its Picks stay with it)');
+
+  for (const mode of ['no-auth', 'suspended', 'bad-id', 'missing-dish', 'not-a-dish', 'pending-item', 'no-key', 'quota']) {
     const t = setup();
     if (mode === 'suspended') t.state.suspended = true;
-    if (mode === 'hidden-category') t.state.categories[0].is_visible = false;
-    if (mode === 'hidden-parent') t.state.categories[1].is_visible = false;
-    if (mode === 'non-leaf') t.state.categories.push({ id: 'child', parent_id: 'recipe' });
-    if (mode === 'other-category') t.state.rows.push({ id: 'elsewhere', category_id: 'youtube', external_source: 'youtube_video', external_id: videoId, status: 'active' });
-    if (mode === 'pending-item') t.state.rows.push({ id: 'pending', category_id: 'recipe', external_source: 'youtube_video', external_id: videoId, status: 'pending' });
+    if (mode === 'pending-item') t.state.rows.push({ id: 'pending', category_id: DISH, external_source: 'youtube_video', external_id: videoId, status: 'pending' });
     if (mode === 'no-key') t.state.apiKey = '';
     if (mode === 'quota') t.state.importAllowed = false;
-    const res = await t.request('video_import', { externalId: mode === 'bad-id' ? 'bad' : videoId }, mode !== 'no-auth');
+    const categoryId = mode === 'missing-dish' ? undefined : mode === 'not-a-dish' ? 'c9999999-9999-4999-8999-999999999999' : DISH;
+    const res = await t.request('video_import', { externalId: mode === 'bad-id' ? 'bad' : videoId, ...(categoryId ? { categoryId } : {}) }, mode !== 'no-auth');
     assert.ok(res.status >= 400, mode);
     assert.equal(t.state.writes.length, 0, mode);
     if (!['quota'].includes(mode)) assert.equal(t.state.upstream.length, 0, mode + ' fails before YouTube');
+  }
+
+  // A dish missing from the catalog: the video waits for review with its dish name and review.
+  const req = setup();
+  const pending = await (await req.request('video_request', { externalId: videoId, dishName: '  파김치 ', review: '  이 비율이 정답  ' })).json();
+  assert.equal(pending.pending, true);
+  assert.equal(pending.categoryId, null);
+  const pendingRow = req.state.writes[0];
+  assert.equal(pendingRow.status, 'pending');
+  assert.equal(pendingRow.category_id, 'pending-product-id');
+  assert.equal(pendingRow.created_by, 'user');
+  assert.equal(pendingRow.requested_category_label, '파김치');
+  assert.equal(pendingRow.external_id, videoId);
+  assert.equal(req.state.channels[0].channel, 'recipe');
+  assert.deepEqual(JSON.parse(JSON.stringify(req.state.intents[0])),
+    { item_id: pending.itemId, user_id: 'user', one_line_review: '이 비율이 정답', channel: 'recipe' },
+    'approval makes the requester a recipe Pick');
+  assert.equal(req.state.importQuotaCalls, 1, 'requests share the import quota');
+  for (const [mode, extra] of [['empty dish', { dishName: ' ', review: '좋아요' }], ['long dish', { dishName: '가'.repeat(61), review: '좋아요' }], ['no review', { dishName: '파김치', review: '' }]]) {
+    const t = setup();
+    const res = await t.request('video_request', { externalId: videoId, ...extra });
+    assert.equal(res.status, 400, mode);
+    assert.equal(t.state.upstream.length, 0, mode + ' fails before YouTube');
   }
 
   // Mobile repository, service, auth return and registration route.
@@ -271,44 +327,62 @@ async function main() {
     auth: { getSession: async () => ({ data: { session: { access_token: 'user-jwt' } }, error: null }) },
     functions: { invoke: async (name, options) => { assert.equal(name, 'youtube-catalog'); calls.push(options); return { data: response, error: failure }; } },
   });
-  response = { video: { ...mapped, existingItemId: null } };
-  assert.equal((await repo.lookupVideo('https://www.youtube.com/watch?v=' + videoId)).externalId, videoId);
+  response = { video: { ...mapped, existingItemId: null, existingCategoryId: null }, suggestions: [{ categoryId: DISH, name: '김치찌개', path: null }, { categoryId: 'bad', name: 'x', path: null }] };
+  const looked = await repo.lookupVideo('https://www.youtube.com/watch?v=' + videoId);
+  assert.equal(looked.video.externalId, videoId);
+  assert.deepEqual(Array.from(looked.suggestions, (entry) => entry.categoryId), [DISH], 'malformed suggestions are dropped');
   assert.equal(calls[0].body.action, 'video_lookup');
   response = { video: { ...mapped, videoUrl: 'https://evil.example/' } };
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'INTERNAL_ERROR', 'mismatched video URLs are rejected');
   response = { video: { ...mapped, thumbnailUrl: 'http://insecure' } };
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'INTERNAL_ERROR');
-  response = { itemId: 'c3333333-3333-4333-8333-333333333333', categoryId: 'd4444444-4444-4444-8444-444444444444', created: true };
-  assert.equal((await repo.importVideo(videoId)).created, true);
+  response = { itemId: 'c3333333-3333-4333-8333-333333333333', categoryId: DISH, created: true };
+  assert.equal((await repo.importVideo(videoId, DISH)).created, true);
   assert.equal(calls.at(-1).body.action, 'video_import');
   assert.equal(calls.at(-1).body.externalId, videoId);
+  assert.equal(calls.at(-1).body.categoryId, DISH);
   assert.equal(calls.at(-1).headers.Authorization, 'Bearer user-jwt');
+  response = { itemId: 'c3333333-3333-4333-8333-333333333333', categoryId: null, created: true, pending: true };
+  assert.equal((await repo.requestVideo(videoId, '파김치', '정답')).itemId, 'c3333333-3333-4333-8333-333333333333');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).body)), { action: 'video_request', externalId: videoId, dishName: '파김치', review: '정답' });
   failure = { context: new Response(JSON.stringify({ error: 'VIDEO_URL_INVALID' }), { status: 400 }) };
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'VIDEO_URL_INVALID');
   failure = { context: new Response(JSON.stringify({ error: 'VIDEO_NOT_FOUND' }), { status: 404 }) };
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'ITEM_NOT_FOUND');
+  failure = { context: new Response(JSON.stringify({ error: 'CATEGORY_NOT_PICKABLE' }), { status: 409 }) };
+  await assert.rejects(() => repo.importVideo(videoId, DISH), (error) => error.code === 'CATEGORY_NOT_PICKABLE');
 
   const { YouTubeCatalogService } = load('mobile/src/services/youtubeCatalogService.ts', {
     '@/errors/appError': { AppError }, '@/lib/youtube/videoLink': videoLink,
   });
   const serviceCalls = [];
-  const service = new YouTubeCatalogService({ lookupVideo: async (...args) => { serviceCalls.push(args); return mapped; } });
+  const service = new YouTubeCatalogService({
+    lookupVideo: async (...args) => { serviceCalls.push(args); return { video: mapped, suggestions: [] }; },
+    requestVideo: async (...args) => { serviceCalls.push(args); return { itemId: 'x' }; },
+  });
   await service.lookupVideo('  https://youtu.be/' + videoId + '  ');
   assert.equal(serviceCalls[0][0], 'https://youtu.be/' + videoId);
   await assert.rejects(() => service.lookupVideo('https://www.youtube.com/@channel'), (error) => error.code === 'VIDEO_URL_INVALID');
   assert.equal(serviceCalls.length, 1, 'invalid links never reach the Edge Function');
+  await service.requestVideo(videoId, '  파   김치 ', ' 좋아요 ');
+  assert.deepEqual(serviceCalls.at(-1), [videoId, '파 김치', '좋아요']);
+  await assert.rejects(() => service.requestVideo(videoId, ' ', '좋아요'), (error) => error.code === 'CATEGORY_LABEL_INVALID');
+  await assert.rejects(() => service.requestVideo(videoId, '파김치', ' '), (error) => error.code === 'REVIEW_INVALID');
 
   const intents = load('mobile/src/lib/auth/authIntent.ts');
-  const categoryId = 'd4444444-4444-4444-8444-444444444444';
-  const intent = intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: videoId, categoryId });
+  const intent = intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: videoId, categoryId: DISH });
   assert.equal(intent.action, 'choose_recipe');
   const route = intents.getPostAuthRoute(intent);
   assert.equal(route.pathname, '/pick/recipe');
   assert.equal(route.params.externalVideoId, videoId);
-  assert.equal(intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: 'https://evil', categoryId }).action, 'home');
+  assert.equal(route.params.categoryId, DISH);
+  const noDish = intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: videoId });
+  assert.equal(noDish.action, 'choose_recipe', 'a recipe link returns after login before a dish is chosen');
+  assert.equal('categoryId' in intents.getPostAuthRoute(noDish).params, false);
+  assert.equal(intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: 'https://evil', categoryId: DISH }).action, 'home');
 
   const { registrationRoute } = load('mobile/src/lib/categories/registrationRoute.ts');
-  assert.equal(registrationRoute({ id: categoryId, slug: 'recipe' }).pathname, '/pick/recipe');
+  assert.equal(registrationRoute({ id: DISH, slug: 'recipe' }).pathname, '/pick/recipe');
 
   const screen = fs.readFileSync(path.join(root, 'mobile/src/app/pick/recipe.tsx'), 'utf8');
   assert.match(screen, /getYouTubePolicyConsent/);
@@ -317,10 +391,14 @@ async function main() {
   assert.match(screen, /Google 개인정보처리방침/);
   assert.match(screen, /YouTube는 OnePick을 후원하거나 승인하지 않습니다/);
   assert.doesNotMatch(screen, /viewCount|likeCount|statistics/);
+  assert.match(screen, /channel: 'recipe'/, 'the recipe is picked under the recipe channel');
+  assert.match(screen, /어떤 요리의 레시피인가요\?/);
+  assert.match(screen, /찾는 요리가 목록에 없어요/);
+  assert.match(screen, /importVideo\.mutateAsync\(\{ externalId: entry\.externalId, categoryId: selectedDish\.id \}\)/, 'import sends the confirmed dish');
   const find = fs.readFileSync(path.join(root, 'mobile/src/app/pick/find.tsx'), 'utf8');
-  assert.match(find, /selectedCategory\?\.slug === 'recipe'/, 'name search redirects recipe to the link flow');
+  assert.match(find, /selectedCategory\?\.slug === 'recipe'/, 'old recipe links still redirect to the link flow');
   assert.match(find, /YouTube 링크로 레시피 등록/);
 
-  console.log('Recipe YouTube video passed: strict video-link parsing, quota-bounded lookup, one item per video, refresh/reuse, category and auth guards, client validation and login return.');
+  console.log('Recipe YouTube video passed: strict video-link parsing, quota-bounded lookup with dish suggestions, one item per video under a confirmed dish with a recipe channel, legacy moves, pending dish requests, client validation and login return.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

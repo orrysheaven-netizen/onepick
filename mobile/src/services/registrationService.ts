@@ -7,6 +7,7 @@ import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { Pick } from '@/types/domain/pick';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import type { Item } from '@/types/domain/item';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 export interface RegisterPickInput {
   userId: string;
@@ -16,6 +17,8 @@ export interface RegisterPickInput {
   variant: string;
   oneLineReview: string;
   photo?: PickPhotoDraft | null;
+  /** Food only: the channel the Pick (or the Pick made on approval) is saved under. */
+  channel?: PickChannel;
 }
 
 export interface AttachItemPhotoInput {
@@ -143,6 +146,7 @@ export class RegistrationService {
         oneLineReview: review,
         ...uploaded,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        ...(input.channel ? { channel: input.channel } : {}),
       });
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       return { type: 'pick', pick };
@@ -173,7 +177,7 @@ export class RegistrationService {
       }
       // Resubmitting the same request returns the same pending item, so a retry
       // after a failure here is safe.
-      await this.itemRepository.setPendingPickReview(submitted.id, review);
+      await this.itemRepository.setPendingPickReview(submitted.id, review, input.channel);
       return { type: 'pending_item', item: submitted };
     }
 
@@ -185,6 +189,7 @@ export class RegistrationService {
         itemId: submitted.id,
         itemName: submitted.name,
         oneLineReview: review,
+        ...(input.channel ? { channel: input.channel } : {}),
       });
       return { type: 'pick', pick };
     }

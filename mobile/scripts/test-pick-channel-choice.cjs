@@ -21,7 +21,11 @@ function load(file, imports = {}) {
 
 // --- Channel rules -----------------------------------------------------------
 const channels = load('lib/items/pickChannel.ts');
-assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인']);
+assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인', '레시피']);
+assert.equal(channels.parsePickChannel('recipe'), 'offline', 'Search state never becomes recipe; the recipe chip opens the link flow instead');
+const findScreen = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
+assert.match(findScreen, /if \(option\.channel === 'recipe'\) \{ openRecipe\(\); return; \}/, 'the 레시피 chip opens the recipe link flow');
+assert.match(findScreen, /pathname: '\/pick\/recipe', params: \{\s+\.\.\.\(selectedCategory \? \{ categoryId: selectedCategory\.id \} : \{\}\)/, 'with the chosen menu as the dish');
 assert.match(channels.PICK_CHANNEL_OPTIONS[0].description, /배달/, '매장 explicitly includes delivery');
 assert.equal(channels.parsePickChannel('online'), 'online');
 assert.equal(channels.parsePickChannel('delivery'), 'offline', 'Unknown route values fall back to 매장');

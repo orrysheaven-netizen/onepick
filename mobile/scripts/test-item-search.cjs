@@ -101,6 +101,8 @@ async function main() {
     '@/components/drama-search-link': { DramaSearchLink: () => null },
     '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },
+    '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,
       Pressable: ({ children, onPress }) => { presses.push(onPress); return React.createElement('button', null, children); },
@@ -133,6 +135,8 @@ async function main() {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => catalogState },
+    '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,
       Pressable: (props) => { externalPresses.push(props); return React.createElement('button', null, props.children); },

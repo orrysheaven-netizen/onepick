@@ -13,12 +13,22 @@ import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
+import { useAuthSession } from '@/hooks/useAuthSession';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { user } = useAuthSession();
+  // An empty channel of a searched dish starts registration there: 매장/온라인 search
+  // for the menu, or the recipe link flow with the dish preselected.
+  const registerDish = (categoryId: string, channel: PickChannel) => {
+    router.push(channel === 'recipe'
+      ? { pathname: '/pick/recipe', params: { categoryId } }
+      : { pathname: '/pick/find', params: { categoryId, channel } });
+  };
   const params = useLocalSearchParams<ExploreParams>();
   const incomingQuery = (scalar(params.query) ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
   const [parentId, setParentId] = useState<string | undefined>();
@@ -117,6 +127,7 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
+            dishChannels={{ userId: user?.id, onRegister: registerDish }}
             onSelect={openItem} />
         </View> : null}
         {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}
