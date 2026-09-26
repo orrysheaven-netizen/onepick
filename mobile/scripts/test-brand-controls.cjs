@@ -172,7 +172,7 @@ test('web register control uses ink on tangerine and preserves route', () => {
 test('web Link tabs pass one layout style object through Link asChild', () => {
   pathname = '/';
   const tree = expand(AppTabs());
-  for (const label of ['홈', '탐색', '내 프로필']) {
+  for (const label of ['홈', '탐색', '댓글', '프로필']) {
     const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
     assert.ok(tab, label);
     assert.ok(tab.props.style && typeof tab.props.style === 'object' && !Array.isArray(tab.props.style), 'Link tab style must be a plain object');
@@ -185,7 +185,7 @@ test('web Link tabs pass one layout style object through Link asChild', () => {
   }
 });
 test('web tab routes and nested selection remain unchanged', () => {
-  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/comments', '내 댓글'], ['/profile/edit', '내 프로필']]) {
+  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/comments', '댓글'], ['/profile/edit', '프로필']]) {
     pathname = url;
     const tree = expand(AppTabs());
     const active = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityState?.selected);

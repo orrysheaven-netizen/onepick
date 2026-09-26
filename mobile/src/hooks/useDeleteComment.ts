@@ -11,7 +11,7 @@ export function useDeleteComment(pickId: string) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.comments.byPick(pickId) }),
-        // The profile's "내 댓글" list.
+        // Every tab of the "댓글" screen.
         queryClient.invalidateQueries({ queryKey: ['comments', 'user'] }),
       ]);
     },

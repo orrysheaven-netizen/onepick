@@ -7,6 +7,7 @@ import type {
   PickReadInput,
   ReadCursor,
   ReadRepository,
+  RootCategoryScope,
 } from '@/repositories/interfaces/readRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapCommentRow } from '@/repositories/mappers/commentMapper';
@@ -329,13 +330,37 @@ export class SupabaseReadRepository implements ReadRepository {
     });
   }
 
-  async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null) {
+  /** The root category with this slug and every visible category beneath it. */
+  private async categoryIdsUnderRoot(rootSlug: string) {
+    const { data, error } = await this.client.from('categories').select('id, parent_id, slug');
+    if (error) throw mapSupabaseError(error);
+    const root = data.find((category) => category.slug === rootSlug && !category.parent_id);
+    if (!root) return [];
+    const ids = new Set([root.id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const category of data) {
+        if (category.parent_id && ids.has(category.parent_id) && !ids.has(category.id)) {
+          ids.add(category.id);
+          grew = true;
+        }
+      }
+    }
+    return [...ids];
+  }
+
+  async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null, scope?: RootCategoryScope | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const rootIds = scope ? await this.categoryIdsUnderRoot(scope.rootSlug) : [];
+    if (scope?.inside && rootIds.length === 0) return [];
+    // A scoped list filters on the Pick's category, so the Pick join must be inner. Comment
+    // RLS already hides comments whose Pick I can't see, so this drops nothing extra.
     let query = this.client
       .from('comments')
       .select(`
         *,
-        pick:picks!comments_pick_id_fkey(
+        pick:picks!comments_pick_id_fkey${scope ? '!inner' : ''}(
           *,
           profile:profiles!picks_user_id_fkey(*),
           item:items!picks_item_category_fk(*)
@@ -346,6 +371,11 @@ export class SupabaseReadRepository implements ReadRepository {
       .order('id', { ascending: false })
       .limit(safeLimit);
 
+    if (scope && rootIds.length) {
+      query = scope.inside
+        ? query.in('pick.category_id', rootIds)
+        : query.not('pick.category_id', 'in', `(${rootIds.join(',')})`);
+    }
     if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
     const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
