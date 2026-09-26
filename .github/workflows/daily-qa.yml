@@ -128,3 +128,32 @@ jobs:
           name: daily-qa-real-user-errors
           path: qa-output
           retention-days: 14
+
+  # Read-only DB health check (docs/daily-qa.md, automation-plan G-점검): Supabase
+  # performance/security advisors and top slow pg_stat_statements, aggregates
+  # only. Without SUPABASE_ACCESS_TOKEN the script records a skip and exits 0.
+  db-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check DB health
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+        run: node tools/qa/db-health.mjs
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-qa-db-health
+          path: qa-output
+          retention-days: 14
