@@ -226,6 +226,70 @@ grant execute on function private.change_pick_impl(uuid,uuid,text,text,text,text
 grant execute on function private.change_pick_impl(uuid,uuid,text,text,text) to authenticated;
 grant execute on function public.change_pick(uuid,uuid,text,text,text,text) to authenticated,service_role;
 
+-- Removing a Pick is channel-scoped too. p_channel=null remains compatible
+-- with older clients and removes only one current row, never every channel.
+create or replace function private.remove_pick_impl(
+  p_category_id uuid,
+  p_channel text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_user_id uuid := auth.uid();
+  v_channel text := nullif(lower(btrim(coalesce(p_channel,''))),'');
+  v_current public.picks%rowtype;
+begin
+  if v_user_id is null then
+    raise exception 'AUTH_REQUIRED' using errcode='P0001';
+  end if;
+  if v_channel is not null and v_channel not in ('offline','online','recipe') then
+    raise exception 'CHANNEL_INVALID' using errcode='P0001';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_user_id::text||':'||p_category_id::text||':'||coalesce(v_channel,'legacy'),0)
+  );
+
+  select * into v_current
+  from public.picks
+  where user_id=v_user_id
+    and category_id=p_category_id
+    and (v_channel is null or channel=v_channel)
+    and status in ('active','needs_review')
+  order by updated_at desc,id
+  limit 1
+  for update;
+
+  if not found then return false; end if;
+
+  update public.picks
+  set status='removed',ended_at=now(),replaced_by_pick_id=null,updated_at=now()
+  where id=v_current.id;
+  return true;
+end;
+$;
+
+drop function if exists public.remove_pick(uuid);
+create function public.remove_pick(
+  p_category_id uuid,
+  p_channel text default null
+)
+returns boolean
+language sql
+security invoker
+set search_path = ''
+as $
+  select private.remove_pick_impl(p_category_id,p_channel);
+$;
+
+revoke all on function private.remove_pick_impl(uuid,text) from public,anon;
+revoke all on function public.remove_pick(uuid,text) from public,anon;
+grant execute on function private.remove_pick_impl(uuid,text) to authenticated;
+grant execute on function public.remove_pick(uuid,text) to authenticated,service_role;
+
 -- Home feed filtering and labels follow the Pick channel, not every channel an
 -- item happens to support. This makes offline/online/recipe coexist visibly.
 drop function if exists public.home_pick_feed_page(timestamptz, uuid, text, text);
