@@ -205,6 +205,10 @@ export default function ExploreScreen() {
           </View>)}
           {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개</Text> : null}
+          {selectedCategory && topItems.data && topItems.data.length > 0 ? <View style={styles.rankingLinkRow}>
+            <Button variant="ghost" size="sm" label="전체 랭킹 보기 ›" accessibilityLabel={`${selectedCategoryLabel} 전체 원픽 랭킹 보기`}
+              onPress={() => router.push({ pathname: '/ranking/[slug]', params: { slug: selectedCategory.slug } })} />
+          </View> : null}
         </View> : null}
         {OnePickFeatures.lab ? <View style={styles.labEntry}>
           <ProfileLabEntry count={0} description="맛집 말고 콘텐츠·테크·스타일 원픽은 실험실에서 골라요." onPress={() => router.push('/lab')} />
@@ -251,6 +255,7 @@ const styles = StyleSheet.create({
   recentCategory: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   rankCount: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 8 },
   rankingFootnote: { color: OnePick.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
+  rankingLinkRow: { alignItems: 'flex-end', marginTop: 6 },
   sectionHeader: { marginBottom: 16 },
   arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 5 },
   stateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 9 },
