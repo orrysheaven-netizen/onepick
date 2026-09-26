@@ -51,11 +51,11 @@ assert.match(html, /영화/);
 assert.match(html, /아주 긴 제품 이름/);
 assert.match(html, /긴 한줄평/);
 assert.match(html, /다른 원픽으로 변경됨/);
-assert.match(html, /제품 보기/);
+assert.match(html, />상세 보기</);
 assert.doesNotMatch(html, />원픽 상세 보기</);
 
 const pickButton = presses.find((p) => p.accessibilityLabel?.includes('원픽 상세 보기'));
-const itemButton = presses.find((p) => p.accessibilityLabel?.includes('제품 상세 보기'));
+const itemButton = presses.find((p) => p.accessibilityLabel === '아주 긴 제품 이름을 가진 테스트 작품 상세 보기');
 assert.ok(pickButton, 'main card action must open the Pick');
 assert.ok(itemButton, 'secondary action must open the item');
 pickButton.onPress();
@@ -75,6 +75,6 @@ assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 1, 'owner profile s
 assert.match(groups, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
 assert.match(groups, /<ProfilePickCard/, 'current owner/public groups render the same shared card');
 assert.doesNotMatch(publicProfile, /원픽 상세 보기 ›/);
-assert.doesNotMatch(publicProfile, /제품 상세 보기 ›/);
+assert.doesNotMatch(publicProfile, /상세 보기 ›/);
 
 console.log('Shared profile pick card checks passed: 2-line scan limits, distinct Pick/item actions, expanded product touch target, and owner/public reuse.');

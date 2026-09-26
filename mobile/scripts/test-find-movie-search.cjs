@@ -103,7 +103,7 @@ const render = () => {
 let page = render();
 assert.match(page, /어떤 메뉴의 원픽인가요/, 'MVP registration without a category starts from a menu');
 assert.ok(inputs.find((input) => input.accessibilityLabel === '메뉴 검색'));
-assert.doesNotMatch(page, /카테고리 선택 없이 상품명만 검색하고 등록합니다/, 'The category-free product search is replaced by the menu picker');
+assert.doesNotMatch(page, /카테고리 선택 없이 이름만 검색하고 등록합니다/, 'The category-free search is replaced by the menu picker');
 assert.equal(itemSearchArgs[0], '', 'The menu picker never runs the product search');
 
 params = { categoryId: 'movie' };

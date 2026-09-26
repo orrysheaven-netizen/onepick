@@ -10,7 +10,7 @@ const onboardingIndex = profile.indexOf('취향 고르기 이어가기');
 const publicIndex = profile.indexOf('공개 프로필 보기');
 const adminIndex = profile.indexOf('관리자 데이터 관리');
 const activityIndex = profile.indexOf('활동 기록');
-const requestIndex = profile.indexOf('내 제품 등록 요청');
+const requestIndex = profile.indexOf('내 원픽 등록 요청');
 const historyIndex = profile.indexOf('<Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>');
 
 assert.ok(picksIndex >= 0, 'core category picks are missing');

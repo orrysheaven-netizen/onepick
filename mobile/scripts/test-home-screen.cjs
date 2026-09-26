@@ -130,8 +130,8 @@ for (width of [390, 800, 1200]) {
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
-  press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
-  press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+  press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
   press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
@@ -172,7 +172,7 @@ assert.doesNotMatch(publicPage, /영화|책 원픽 찾기|유튜브 원픽 찾�
 press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
-press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
 
@@ -185,7 +185,7 @@ const stalePage = render();
 assert.match(stalePage, /신라면/); assert.match(stalePage, /진라면/);
 assert.match(stalePage, /마지막으로 불러온 내용/);
 assert.doesNotMatch(stalePage, /원픽을 불러오지 못했어요/);
-press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
 press('다시 불러오기'); assert.equal(queryRetries, 1);
 pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 2);
 query.isFetching = true; query.isRefetching = true;

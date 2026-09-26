@@ -141,7 +141,7 @@ export default function LinkCategorySuggestionScreen() {
         <Text style={styles.subtitle}>카테고리를 먼저 고르지 않아도 됩니다. 링크를 확인한 뒤 가능한 후보만 추천하고, 마지막 선택은 직접 합니다.</Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>네이버 지도 · 공식몰 · 상품 링크</Text>
+          <Text style={styles.label}>네이버 지도 · 공식몰 · 판매 링크</Text>
           <TextInput
             accessibilityLabel="원픽 링크"
             autoCapitalize="none"
@@ -158,9 +158,9 @@ export default function LinkCategorySuggestionScreen() {
             style={styles.input}
           />
 
-          <Text style={styles.label}>가게/상품 이름 · 자동 인식이 안 될 때만</Text>
+          <Text style={styles.label}>이름 · 자동 인식이 안 될 때만</Text>
           <TextInput
-            accessibilityLabel="가게 또는 상품 이름"
+            accessibilityLabel="원픽 이름"
             value={name}
             onChangeText={(value) => {
               setName(value);
@@ -276,7 +276,7 @@ export default function LinkCategorySuggestionScreen() {
                       onPress={() => requestItem()}
                     />
                     <Text style={styles.muted}>
-                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '상품 이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
+                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
                     </Text>
                   </>
                 ) : null}
