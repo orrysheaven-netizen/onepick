@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DishChannelOverview } from '@/components/dish-channel-overview';
 import { PickPhoto } from '@/components/pick-photo';
+import { useDishChannels } from '@/hooks/useDishChannels';
 import { useItemSearch } from '@/hooks/useItemSearch';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import { OnePick } from '@/constants/onepick';
 
 type ItemSearchProps = {
@@ -18,6 +21,8 @@ type ItemSearchProps = {
   onSearchYouTube?: (query: string) => void;
   onSearchPokemon?: (query: string) => void;
   showExternalActionsWithResults?: boolean;
+  /** Unscoped search only: a query naming a dish (미역국) also shows it by channel. */
+  dishChannels?: { userId?: string; onRegister?: (categoryId: string, channel: PickChannel) => void };
   onSelect: (itemId: string) => void;
 };
 
@@ -41,10 +46,12 @@ export function ItemSearch({
   onSearchYouTube,
   onSearchPokemon,
   showExternalActionsWithResults = false,
+  dishChannels,
   onSelect,
 }: ItemSearchProps) {
   const [searchText, setSearchText] = useState(() => initialQuery.slice(0, 100));
   const query = useItemSearch(searchText, categoryId);
+  const dish = useDishChannels(searchText, dishChannels?.userId, Boolean(dishChannels) && !categoryId);
   const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
   const externalActions: ExternalSearchAction[] = [];
@@ -143,6 +150,8 @@ export function ItemSearch({
         <Text style={styles.description}>검색 결과를 불러오지 못했어요.</Text>
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>
       </View> : null}
+      {query.hasSearchText && dish.data ? <DishChannelOverview overview={dish.data} onSelectItem={onSelect}
+        onRegister={dishChannels?.onRegister} /> : null}
       {query.hasSearchText && !isLoading && !query.isError && query.data ? <>
         <Text accessibilityLiveRegion="polite" style={styles.resultCount}>
           {query.data.length === 20 ? '검색 결과 · 최대 20개 표시' : `검색 결과 ${query.data.length}개`}

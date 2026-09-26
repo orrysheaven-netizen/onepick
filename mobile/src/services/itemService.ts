@@ -134,6 +134,14 @@ export class ItemService {
     };
   }
 
+  /** Only a query that could name a dish reaches the server; anything shorter is plain search. */
+  getDishChannelOverview(query: string) {
+    const searchText = query.trim().replace(/\s+/g, ' ');
+    return searchText.replace(/\s/g, '').length >= 2
+      ? this.readRepository.getDishChannelOverview(searchText)
+      : Promise.resolve(null);
+  }
+
   getPickCount(itemId: string) {
     return this.readRepository.countActivePicks(itemId);
   }
