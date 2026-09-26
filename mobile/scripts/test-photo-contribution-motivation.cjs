@@ -81,7 +81,7 @@ function choice() {
   const view = harness('app/pick/choose.tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => destinations.push(r), replace: (r) => destinations.push(r), canGoBack: () => true, back() {} }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
-    '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('내 원픽으로 선택').onPress(); };
   const finish = async () => { pending[0].resolve({ id: pickId, itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' }); await flush(); return view.render(); };

@@ -57,7 +57,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
-  '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+  '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
 });
 
 function arrange(status = { type: 'not_selected' }) {

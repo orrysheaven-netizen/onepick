@@ -94,10 +94,18 @@ begin
   v_item_a := public.select_place_catalog_item(v_cat_a,v_catalog);
   assert v_item_a.category_id=v_cat_a and v_item_a.external_source='onepick_place',
     'Selecting an open catalog row creates a place-backed item in the chosen category';
+  assert v_item_a.status='pending' and v_item_a.created_by=v_user,
+    'A newly selected place is a request waiting for admin review';
 
   v_item_a_repeat := public.select_place_catalog_item(v_cat_a,v_catalog);
   assert v_item_a_repeat.id=v_item_a.id,
     'Selecting the same place in the same category reuses the existing item';
+
+  -- Stand-in for admin approval (covered in 090_review_new_catalog_places);
+  -- a pending item's place rows are not readable by other users.
+  reset role;
+  update public.items set status='active' where id=v_item_a.id;
+  set local role authenticated;
 
   select place_id into v_place_a from public.item_places where item_id=v_item_a.id;
   assert v_place_a is not null,'Selected item has canonical place identity';
@@ -107,6 +115,9 @@ begin
   ), 'Selected place item has a primary offline channel';
 
   v_item_b := public.select_place_catalog_item(v_cat_b,v_catalog);
+  reset role;
+  update public.items set status='active' where id=v_item_b.id;
+  set local role authenticated;
   select place_id into v_place_b from public.item_places where item_id=v_item_b.id;
   assert v_item_b.id<>v_item_a.id and v_place_b=v_place_a,
     'One physical place can become different category items without duplicating canonical identity';

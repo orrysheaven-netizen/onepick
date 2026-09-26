@@ -7,7 +7,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { BrandMark, Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useChoosePick } from '@/hooks/useChoosePick';
+import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
@@ -45,6 +45,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const itemQuery = useItemDetail(params.itemId, user?.id);
   const choosePick = useChoosePick();
+  const requestPick = useRequestPendingPick();
+  const saving = choosePick.isPending || requestPick.isPending;
+  const saveError = choosePick.error ?? requestPick.error;
   const [draftReview, setReview] = useState<string | null>(null);
   // null means "not touched on this screen". The stored link is not read back
   // here yet, so an untouched field must send nothing rather than an empty
@@ -53,6 +56,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [draftTip, setDraftTip] = useState<string | null>(null);
   const [tipAnswer, setTipAnswer] = useState<'unanswered' | 'yes' | 'no'>('unanswered');
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
+  const [requestedReview, setRequestedReview] = useState<string | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   const photoOfferClosed = useRef(false);
@@ -66,6 +70,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const pickStatus = itemQuery.data?.myPickStatus;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
+  // A place selected for the first time is the user's own pending request: the
+  // review is sent with it and approval makes it their pick.
+  const isOwnRequest = Boolean(user && item && item.status === 'pending' && item.createdBy === user.id);
+  const canSubmit = canChoose || isOwnRequest;
   const trimmedReview = review.trim();
   const trimmedUrl = (draftUrl ?? '').trim();
   const trimmedTip = (draftTip ?? '').trim();
@@ -76,22 +84,30 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+  const formTitle = isOwnRequest ? '새로 등록 요청할까요?' : pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
+    if (isOwnRequest) return '등록 요청 보내기';
     if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
     return '내 원픽으로 선택';
-  }, [pickStatus]);
+  }, [isOwnRequest, pickStatus]);
 
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
-      || choosePick.isPending || savedChoice || isSessionLoading || sessionError) return;
+      || saving || savedChoice || requestedReview !== null || isSessionLoading || sessionError) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
-    if (!user || !item || !canChoose || itemQuery.isError || !routeMatchesItem) return;
+    if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
+      if (isOwnRequest) {
+        const saved = await requestPick.mutateAsync({ itemId: item.id, oneLineReview: trimmedReview });
+        await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
+        submitPhase.current = 'saved';
+        setRequestedReview(saved);
+        return;
+      }
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
         // An untouched field is left out so the stored value survives; '' clears it.
@@ -107,7 +123,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
   };
   const goBack = () => {
-    if (submitPhase.current === 'saving' || choosePick.isPending) return;
+    if (submitPhase.current === 'saving' || saving) return;
     if (router.canGoBack()) router.back();
     else router.replace('/');
   };
@@ -115,13 +131,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (params.itemId && !itemQuery.isFetching) void itemQuery.refetch();
   };
   const openRecovery = (needsUsername: boolean) => {
-    if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || choosePick.isPending) return;
+    if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || saving) return;
     // Pass only the existing validated navigation intent. No drafts or tokens in URLs.
     router.push({ pathname: needsUsername ? '/auth/username' : '/auth/login',
       params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
   };
   const openLogin = () => openRecovery(false);
-  const isSuccess = savedChoice !== null;
+  const isSuccess = savedChoice !== null || requestedReview !== null;
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
@@ -151,7 +167,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={choosePick.isPending} onPress={goBack}
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
         {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요" /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
@@ -159,7 +175,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             action={params.itemId && routeMatchesItem ? { label: itemQuery.isFetching ? '다시 불러오는 중…' : '정보 다시 불러오기', accessibilityLabel: '정보 다시 불러오기', variant: 'secondary', disabled: itemQuery.isFetching, onPress: retryItem } : undefined} />
           <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />
         </View> : null}
-        {hasItem && item && !canChoose && !isSuccess ? <View style={styles.stateArea}>
+        {hasItem && item && !canSubmit && !isSuccess ? <View style={styles.stateArea}>
           <StateCard title="지금은 선택할 수 없어요" text="지금은 여기서 새 원픽을 선택할 수 없어요."
             action={{ label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '상세 보기', variant: 'secondary',
               onPress: () => router.replace(pickStatus?.type === 'selected_this'
@@ -172,26 +188,26 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
-        {hasItem && item && canChoose && user && !isSuccess ? <>
+        {hasItem && item && canSubmit && user && !isSuccess ? <>
           <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
           <Text style={styles.title}>{formTitle}</Text>
           <View style={styles.itemCard}>
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{isOwnRequest ? '관리자 확인 후 이 한줄평으로 내 원픽에 등록돼요.' : pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+          {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
-          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
+          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
-          {OnePickFeatures.purchaseLinks ? <>
+          {OnePickFeatures.purchaseLinks && !isOwnRequest ? <>
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>산 곳 링크 <Text style={styles.optional}>선택</Text></Text></View>
-          <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!choosePick.isPending}
+          <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!saving}
             inputMode="url" maxLength={2048}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftUrl(value); }}
             placeholder="https://" placeholderTextColor={OnePick.hint}
@@ -202,30 +218,45 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Text style={styles.tipAskText}>여기서 살 때 알아두면 좋은 게 있나요?</Text>
             <View style={styles.tipAskRow}>
               <Button size="sm" variant={tipAnswer === 'yes' ? 'primary' : 'soft'} label="있어요"
-                disabled={choosePick.isPending} onPress={() => setTipAnswer('yes')} />
+                disabled={saving} onPress={() => setTipAnswer('yes')} />
               <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 판매 링크예요"
-                disabled={choosePick.isPending} onPress={() => { setTipAnswer('no'); setDraftTip(''); }} />
+                disabled={saving} onPress={() => { setTipAnswer('no'); setDraftTip(''); }} />
             </View>
           </View> : null}
           {showTipInput ? <>
             <View style={styles.inputHeader}><Text style={styles.inputLabel}>살 때 팁</Text><Text style={styles.counter}>{(draftTip ?? '').length}/100</Text></View>
-            <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!choosePick.isPending}
+            <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!saving}
               onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftTip(value); }}
               placeholder="예: 6개입이 낱개보다 싸요" placeholderTextColor={OnePick.hint}
               style={styles.linkInput} value={draftTip ?? ''} />
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}
           </> : null}
-          {choosePick.isError ? <View style={styles.errorBox}>
-            <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(choosePick.error)}</Text>
-            {choosePick.error instanceof AppError && choosePick.error.code === 'PROFILE_NOT_FOUND' ?
+          {saveError ? <View style={styles.errorBox}>
+            <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(saveError)}</Text>
+            {saveError instanceof AppError && saveError.code === 'PROFILE_NOT_FOUND' ?
               <Button variant="secondary" size="sm" label="사용자명 만들고 계속" onPress={() => openRecovery(true)} style={styles.errorAction} /> : null}
-            {choosePick.error instanceof AppError && choosePick.error.code === 'AUTH_REQUIRED' ?
+            {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={choosePick.isPending} onPress={() => void handleSubmit()} style={styles.submit} />
-          <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Text style={styles.footnote}>{isOwnRequest ? '새로 등록되는 곳은 관리자가 확인한 뒤 공개돼요.' : '원픽은 언제든 바꿀 수 있어요.'}</Text>
         </> : null}
+        {!isLoading && item && user && requestedReview !== null ? <View style={styles.successCard}>
+          <BrandMark size="lg" soft />
+          <Text style={[styles.title, styles.successTitle]}>등록 요청을 보냈어요</Text>
+          <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{requestedReview}”</Text>
+          <Text style={styles.panelText}>관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.</Text>
+          <View style={styles.successActions}>
+            {params.onboarding === '1' ? <>
+              <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
+              <Button variant="ghost" label="나중에 이어하기" accessibilityLabel="온보딩을 나중에 이어서 하기" onPress={() => router.replace('/profile')} style={styles.centered} />
+            </> : <>
+              <Button size="lg" fullWidth label="내 등록 요청 보기" onPress={() => router.replace('/(tabs)/profile')} style={styles.submit} />
+              <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
+            </>}
+          </View>
+        </View> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <BrandMark size="lg" soft />
           <Text style={[styles.title, styles.successTitle]}>원픽이 선택됐어요</Text>
