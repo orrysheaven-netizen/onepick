@@ -63,6 +63,11 @@ export function newLeafParentCategories(categories: Category[]) {
   });
 }
 
+/** Slug of the top-level group a category sits under (e.g. 'food'), or null when its lineage is broken. */
+export function categoryRootSlug(category: Category, categories: Category[]) {
+  return categoryLineage(category, categories)[0]?.slug ?? null;
+}
+
 export function categoryLabel(category: Category, categories: Category[]) {
   const lineage = categoryLineage(category, categories);
   return lineage.length ? lineage.map((item) => item.name).join(' › ') : category.name;
