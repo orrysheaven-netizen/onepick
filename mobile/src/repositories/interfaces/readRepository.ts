@@ -57,6 +57,8 @@ export interface HomeFeedPick {
   categoryName: string;
   oneLineReview: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   startedAt: string;
   /** Empty for legacy items with no channel, and on the following feed. */
   channels: PickChannel[];
@@ -71,6 +73,8 @@ export interface CategoryTopItem {
   itemId: string;
   name: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   pickCount: number;
   rank: number;
   isTied: boolean;
@@ -93,6 +97,8 @@ export interface RecentPickedItem {
   categoryId: string;
   categoryName: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   lastPickedAt: string;
   channels: PickChannel[];
 }
@@ -108,6 +114,8 @@ export interface HomeShowcaseItem {
   categoryId: string;
   categoryName: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   pickCount: number;
   latestPickId: string | null;
   latestPickerUsername: string | null;
@@ -127,6 +135,8 @@ export interface EditorialHomeItem {
   categoryName: string;
   categoryPath: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
@@ -144,11 +154,20 @@ export interface PickReadInput {
   orderBy?: 'started_at' | 'updated_at';
 }
 
+/** The brand an item belongs to (99밀크티 for its 강남점 milk tea). */
+export interface ItemBrand {
+  brandId: string;
+  name: string;
+  logoUrl: string | null;
+}
+
 /** One item of a dish shown in one channel, with how many people picked it there. */
 export interface DishChannelItem {
   itemId: string;
   name: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   pickCount: number;
 }
 
@@ -160,6 +179,8 @@ export interface DishChannelOverview {
 }
 
 export interface ReadRepository {
+  /** Optional so test doubles need not stub it; a missing brand is never an error. */
+  getItemBrand?(itemId: string): Promise<ItemBrand | null>;
   /** The dish the query names exactly (e.g. 미역국) split by channel; null when the query is not a dish. */
   getDishChannelOverview(query: string): Promise<DishChannelOverview | null>;
   /**

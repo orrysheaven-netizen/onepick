@@ -64,6 +64,7 @@ const hooks = {
     useMenuSuggestions: (store, key, enabled) => ({ data: enabled ? aiResult : undefined, isPending: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => selectResult),
     useSuggestMapLink: () => mutation('link', () => undefined),
+    useSetMenuHint: () => mutation('menuHint', () => undefined),
   },
 };
 const { default: Screen } = load('app/pick/new.tsx', {
@@ -254,6 +255,31 @@ async function main() {
   press('등록 요청하고 원픽 남기기'); await flush();
   assert.equal(calls.find(([name]) => name === 'register')[1].channel, 'online');
   assert.equal(JSON.stringify(calls.find(([name]) => name === 'sellerLink')), JSON.stringify(['sellerLink', { itemId: 'pending-1', url: 'https://shop.example.com/gomtang' }]));
+
+  // No menu fits a café: search "클래식 밀크티", then continue as a request.
+  reset();
+  render(); input('매장명 검색').onChangeText('을밀대'); render();
+  press('을밀대 선택'); render();
+  input('메뉴 검색').onChangeText('클래식 평양냉면'); page = render();
+  assert.match(page, /평양냉면/, 'A longer typed name still finds the menu it contains');
+  assert.doesNotMatch(page, /메뉴가 아직 없어요/);
+  input('메뉴 검색').onChangeText('클래식 밀크티'); page = render();
+  assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'An unknown menu is explained instead of leaving the step stuck');
+  press("'클래식 밀크티' 메뉴로 등록 요청"); page = render();
+  assert.equal(step(page), '3', 'The request continues with the link step for a 매장');
+  assert.equal(calls.filter(([name]) => name === 'select').length, 0, 'No store item is created for an unknown menu');
+  press('건너뛰기'); render(); press('사진 없이 계속'); page = render();
+  assert.match(page, /을밀대 · 클래식 밀크티/);
+  input('원픽 한줄평').onChangeText('밀크티가 진해요'); render();
+  press('등록 요청하고 원픽 남기기'); await flush();
+  const menuRequest = calls.find(([name]) => name === 'register')[1];
+  assert.equal(menuRequest.categoryId, undefined, 'The request is saved without a category');
+  assert.equal(menuRequest.itemName, '을밀대');
+  assert.equal(menuRequest.channel, 'offline');
+  assert.equal(JSON.stringify(calls.find(([name]) => name === 'menuHint')), JSON.stringify(['menuHint', { userId: 'owner', itemId: 'pending-1', label: '클래식 밀크티' }]),
+    'The typed menu goes to the administrator as the category hint');
+  page = render();
+  assert.match(page, /등록 요청을 보냈어요/);
 
   // The Naver link rule matches the database check.
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);

@@ -177,7 +177,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
+  const { category, brand, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
@@ -195,7 +195,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.heroCard}>
           {/* No photo yet: a one-line upload row instead of an empty square. */}
-          {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto} /> : null}
+          {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto} logoUri={brand?.logoUrl} /> : null}
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
             onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username } })} style={styles.creditLink}>
             <Text style={styles.creditText}>사진 @{credit.username}</Text>
@@ -236,6 +236,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {isRestaurant
             ? homeChannelLabel(item.channels) ? <Text style={styles.category}>{homeChannelLabel(item.channels)}</Text> : null
             : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
+          {brand ? <View style={styles.brandRow}>
+            {brand.logoUrl ? <View style={styles.brandLogo}>
+              <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+            </View> : null}
+            <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
+          </View> : null}
           <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
           <YouTubeVideoLink item={item} />
           <ItemPickCount itemId={item.id} />
@@ -303,6 +309,10 @@ const styles = StyleSheet.create({
   photoRecovery: { marginTop: 10 },
   photoError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
   category: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600', marginTop: 20 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 6 },
+  brandLogo: { width: 22, height: 22, borderRadius: 11, padding: 2, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: OnePick.border },
+  brandLogoImage: { width: '100%', height: '100%' },
+  brandName: { color: OnePick.muted, fontSize: 13, fontWeight: '700', flexShrink: 1 },
   itemName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', marginTop: 6 },
   itemMeta: { color: OnePick.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 10 },
   pickMark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, alignSelf: 'center', minWidth: 140, minHeight: 48,

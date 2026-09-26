@@ -46,6 +46,7 @@ async function main() {
   });
   const client = {
     rpc: async (name, args) => {
+      if (name === 'item_brands') return { data: [], error: null };
       rpcCalls.push([name, args]);
       return { data: [row(1, ['offline']), row(2, ['offline', 'online', 'unknown']), row(3, null)], error: null };
     },

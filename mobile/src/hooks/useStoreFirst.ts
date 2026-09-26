@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import type { PickChannel } from '@/lib/items/pickChannel';
+import { registrationService } from '@/services';
 import { storeFirstService, type StoreCandidate, type StoreForSuggestion } from '@/services/storeFirstService';
 
 const SEARCH_DELAY_MS = 250;
@@ -53,6 +54,13 @@ export function useSelectStoreItem() {
   return useMutation({
     mutationFn: ({ categoryId, store }: { categoryId: string; store: StoreCandidate }) =>
       storeFirstService.selectItem(categoryId, store),
+  });
+}
+
+/** A menu that does not exist yet travels with the request as the category hint. */
+export function useSetMenuHint() {
+  return useMutation({
+    mutationFn: (input: { userId: string; itemId: string; label: string }) => registrationService.setCategoryHint(input),
   });
 }
 
