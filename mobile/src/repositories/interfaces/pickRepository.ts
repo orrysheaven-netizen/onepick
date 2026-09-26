@@ -10,6 +10,7 @@ export interface PurchaseLinkInput {
 
 export interface ChangePickInput extends PurchaseLinkInput {
   categoryId: string;
+  channel?: 'offline' | 'online' | 'recipe';
   itemId: string;
   oneLineReview: string;
 }
