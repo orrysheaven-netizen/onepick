@@ -43,7 +43,7 @@ export default function ChoosePickScreen() {
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const itemQuery = useItemDetail(params.itemId, user?.id);
+  const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, params.channel);
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
   // null means "not touched on this screen". The stored link is not read back
