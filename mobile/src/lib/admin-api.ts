@@ -458,7 +458,11 @@ export function getCategories() {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
 }
 
-export function createCategory(input: { name: string; slug: string; parentId?: string | null }) {
+/**
+ * New categories start as draft and hidden. `openLeaf` instead creates an open,
+ * visible, pickable leaf so a pending request can be approved into it at once.
+ */
+export function createCategory(input: { name: string; slug: string; parentId?: string | null; openLeaf?: boolean }) {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
@@ -466,9 +470,9 @@ export function createCategory(input: { name: string; slug: string; parentId?: s
       name: input.name,
       slug: input.slug,
       parent_id: input.parentId ?? null,
-      status: 'draft',
-      is_visible: false,
-      is_pickable: false,
+      status: input.openLeaf ? 'open' : 'draft',
+      is_visible: Boolean(input.openLeaf),
+      is_pickable: Boolean(input.openLeaf),
       sort_order: 0,
     }),
   });
@@ -782,13 +786,17 @@ export function getPendingItemCategorySuggestion(itemId: string) {
   });
 }
 
-export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
+/** Rejection reason: trimmed, 1–500 characters, required by the server when rejecting. */
+export const REJECT_REASON_MAX_LENGTH = 500;
+
+export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string, rejectReason?: string) {
   return adminRequest<AdminItem>('/rest/v1/rpc/admin_review_pending_item', {
     method: 'POST',
     body: JSON.stringify({
       p_item_id: id,
       p_status: status,
       p_category_id: status === 'active' ? categoryId ?? null : null,
+      ...(status === 'rejected' ? { p_reject_reason: rejectReason?.trim() ?? null } : {}),
     }),
   });
 }
