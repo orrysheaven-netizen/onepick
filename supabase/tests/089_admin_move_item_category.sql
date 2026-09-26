@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 set local plpgsql.check_asserts = on;
 
 create temporary table mic_ids(key text primary key, id uuid not null) on commit drop;
@@ -139,6 +139,22 @@ select throws_ok(
 );
 reset role;
 update public.items set name='이동쌍둥이', normalized_name='이동쌍둥이' where id=(select id from mic_ids where key='twin');
+
+-- Search aliases follow the same per-category uniqueness as names.
+insert into public.item_aliases(item_id,alias) values((select id from mic_ids where key='twin'),'이동해장집');
+select is(
+  public.admin_preview_item_category_move((select id from mic_ids where key='item'),(select id from mic_ids where key='right'))->>'blocked_reason',
+  'ALIAS_CONFLICT', 'A target alias equal to the item''s name blocks the move'
+);
+delete from public.item_aliases where item_id=(select id from mic_ids where key='twin');
+insert into public.item_aliases(item_id,alias) values
+  ((select id from mic_ids where key='item'),'이동별칭'),
+  ((select id from mic_ids where key='twin'),'이동별칭');
+select is(
+  public.admin_preview_item_category_move((select id from mic_ids where key='item'),(select id from mic_ids where key='right'))->>'blocked_reason',
+  'ALIAS_CONFLICT', 'The item''s alias colliding with a target alias blocks the move'
+);
+delete from public.item_aliases where item_id in ((select id from mic_ids where key='item'),(select id from mic_ids where key='twin'));
 
 set local role authenticated;
 select lives_ok(

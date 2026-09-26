@@ -14,6 +14,7 @@
 --   * a 매장 item would land in a category without the place catalog,
 --   * the same place / online store already has an item in the target,
 --   * an item with the same name already exists in the target (merge instead),
+--   * one of its search aliases would collide with the target's names/aliases,
 --   * a user who picked the item already has a current Pick in the target
 --     (one current Pick per category; nobody's Pick is replaced silently).
 
@@ -97,6 +98,31 @@ begin
              and i.id<>p_item.id
          )
       then 'ITEM_DUPLICATE'
+    -- Same rule as item_aliases' validation: within a category a search alias
+    -- never equals another live item's name or alias, in either direction.
+    when exists (
+           select 1
+           from public.item_aliases mine
+           join public.items other
+             on other.category_id=p_target_category_id
+            and other.id<>p_item.id
+            and other.status not in ('merged','rejected')
+           where mine.item_id=p_item.id
+             and (other.normalized_name=mine.normalized_alias
+                  or exists (select 1 from public.item_aliases theirs
+                             where theirs.item_id=other.id
+                               and theirs.normalized_alias=mine.normalized_alias))
+         )
+         or exists (
+           select 1
+           from public.item_aliases theirs
+           join public.items other on other.id=theirs.item_id
+           where other.category_id=p_target_category_id
+             and other.id<>p_item.id
+             and other.status not in ('merged','rejected')
+             and theirs.normalized_alias=p_item.normalized_name
+         )
+      then 'ALIAS_CONFLICT'
     when v_conflicts>0
       then 'PICK_CONFLICT'
     else null

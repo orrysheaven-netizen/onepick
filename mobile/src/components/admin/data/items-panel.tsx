@@ -417,7 +417,10 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
       setPreview(null);
       onMoved({ ...item, category_id: target.id, categories: { name } });
     } catch (caught) {
-      setError(categoryMoveMessage(caught instanceof Error ? caught.message : '', preview.conflict_count));
+      // Things may have changed since the preview; show the server's current view instead of the stale one.
+      const fresh = await previewItemCategoryMove(item.id, target.id).catch(() => null);
+      if (fresh?.blocked_reason) setPreview(fresh);
+      else setError(categoryMoveMessage(caught instanceof Error ? caught.message : '', fresh?.conflict_count ?? 0));
     } finally {
       setMoving(false);
       setConfirming(false);
@@ -464,6 +467,7 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
 function categoryMoveMessage(code: string, conflictCount: number) {
   if (code.includes('PICK_CONFLICT')) return `이 상품을 고른 사용자 중 ${conflictCount || '일부'}명이 옮길 카테고리에 이미 원픽이 있습니다. 누구의 원픽도 자동으로 바꾸지 않으므로 이동할 수 없습니다.`;
   if (code.includes('ITEM_DUPLICATE')) return '옮길 카테고리에 같은 이름의 상품이 이미 있습니다. 이동 대신 병합을 사용해 주세요.';
+  if (code.includes('ALIAS_CONFLICT')) return '이 상품의 검색 별칭이 옮길 카테고리의 다른 상품 이름·별칭과 겹칩니다. 별칭을 먼저 정리해 주세요.';
   if (code.includes('PLACE_CATEGORY_REQUIRED')) return '매장에 연결된 상품은 매장 검색을 쓰는 카테고리로만 옮길 수 있습니다.';
   if (code.includes('PLACE_ALREADY_LINKED')) return '같은 매장의 상품이 옮길 카테고리에 이미 있습니다.';
   if (code.includes('PROVIDER_ALREADY_LINKED')) return '같은 판매처의 상품이 옮길 카테고리에 이미 있습니다.';
