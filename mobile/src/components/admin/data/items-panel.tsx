@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AdminCategoryPicker } from '@/components/admin/category-picker';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, moveItemCategory, previewItemCategoryMove, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemCategoryMove, AdminItemStatus } from '@/lib/admin-api';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
@@ -235,14 +236,13 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
 
         <View>
           <Text style={adminStyles.label}>카테고리</Text>
-          <View style={adminStyles.row}>
-            {eligible.length === 0 && <Text style={adminStyles.muted}>선택 가능한 카테고리가 없습니다.</Text>}
-            {eligible.map((category) => (
-              <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.statusChoice, categoryId === category.id && styles.statusChoiceActive]}>
-                <Text style={[styles.statusChoiceText, categoryId === category.id && styles.statusChoiceTextActive]}>{categoryLabel(category, domainCategories)}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AdminCategoryPicker
+            accessibilityLabel="새 상품 카테고리 검색"
+            categories={domainCategories}
+            selectable={eligible}
+            value={categoryId}
+            onChange={setCategoryId}
+          />
         </View>
 
         <View>
@@ -351,7 +351,6 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
 
 function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item: AdminItem) => void }) {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [filter, setFilter] = useState('');
   const [targetId, setTargetId] = useState<string | null>(null);
   const [preview, setPreview] = useState<AdminItemCategoryMove | null>(null);
   const [checking, setChecking] = useState(false);
@@ -369,7 +368,6 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
   }, []);
 
   useEffect(() => {
-    setFilter('');
     setTargetId(null);
     setPreview(null);
     setConfirming(false);
@@ -378,12 +376,9 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
   }, [item.id]);
 
   const domainCategories = categories.map(toDomainCategory);
-  const needle = filter.replace(/\s+/g, '');
-  const candidates = selectableCategories(domainCategories)
-    .filter((category) => category.id !== item.category_id)
-    .map((category) => ({ id: category.id, label: categoryLabel(category, domainCategories) }))
-    .filter((category) => !needle || category.label.replace(/\s+/g, '').includes(needle));
-  const target = candidates.find((category) => category.id === targetId) ?? null;
+  const candidates = selectableCategories(domainCategories).filter((category) => category.id !== item.category_id);
+  const targetCategory = candidates.find((category) => category.id === targetId) ?? null;
+  const target = targetCategory ? { id: targetCategory.id, label: categoryLabel(targetCategory, domainCategories) } : null;
 
   const choose = async (categoryId: string) => {
     setTargetId(categoryId);
@@ -411,7 +406,7 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
     setError('');
     try {
       const result = await moveItemCategory(item.id, target.id);
-      const name = categories.find((category) => category.id === target.id)?.name ?? target.label;
+      const name = targetCategory?.name ?? target.label;
       setMessage(`${target.label}(으)로 옮겼습니다. 원픽 ${result.pick_count}건이 함께 이동했습니다.`);
       setTargetId(null);
       setPreview(null);
@@ -435,16 +430,14 @@ function CategoryMoveEditor({ item, onMoved }: { item: AdminItem; onMoved: (item
         <Text style={adminStyles.sectionTitle}>카테고리 이동</Text>
         <Text style={[adminStyles.muted, { marginTop: 4 }]}>잘못 분류된 상품을 다른 카테고리로 옮깁니다. 이 상품을 고른 원픽(과거 기록 포함)과 한줄평·댓글이 모두 함께 이동합니다.</Text>
       </View>
-      <TextInput accessibilityLabel="이동할 카테고리 검색" value={filter} onChangeText={setFilter} placeholder="카테고리 이름으로 찾기" style={adminStyles.input} />
-      <View style={adminStyles.row}>
-        {candidates.length === 0 && <Text style={adminStyles.muted}>옮길 수 있는 카테고리가 없습니다.</Text>}
-        {candidates.slice(0, 40).map((category) => (
-          <Pressable key={category.id} disabled={moving} onPress={() => choose(category.id)} style={[styles.statusChoice, targetId === category.id && styles.statusChoiceActive]}>
-            <Text style={[styles.statusChoiceText, targetId === category.id && styles.statusChoiceTextActive]}>{category.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {candidates.length > 40 && <Text style={styles.aliasHelp}>상위 40개만 표시합니다. 검색어를 더 입력해 주세요.</Text>}
+      <AdminCategoryPicker
+        accessibilityLabel="이동할 카테고리 검색"
+        categories={domainCategories}
+        selectable={candidates}
+        value={targetId}
+        onChange={choose}
+        disabled={moving}
+      />
       {checking && <ActivityIndicator size="small" />}
       {preview && !blocked && target && (
         <Text accessibilityLiveRegion="polite" style={adminStyles.muted}>
