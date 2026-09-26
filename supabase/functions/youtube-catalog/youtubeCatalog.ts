@@ -363,8 +363,20 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
 
     const findExisting = () => client.from('items').select('id,category_id,status,external_refreshed_at')
       .eq('external_source', YOUTUBE_VIDEO_SOURCE).eq('external_id', id).maybeSingle();
-    const existing = await findExisting();
+    let existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    // A rejected video (a turned-down request, or a retired recipe an administrator
+    // removed) must not block the video forever. Registering releases its video
+    // identity so the video starts over as a new item; the rejected row and its Pick
+    // history stay as they are. A lookup only treats it as unregistered.
+    if (existing.data?.status === 'rejected') {
+      if (!lookup) {
+        const released = await client.from('items').update({ external_source: null, external_id: null })
+          .eq('id', existing.data.id).eq('status', 'rejected');
+        if (released.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      existing = { ...existing, data: null };
+    }
     if (existing.data && !['active', 'discontinued'].includes(existing.data.status)) {
       return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }

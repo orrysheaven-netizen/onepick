@@ -280,6 +280,22 @@ async function main() {
   assert.equal((await pickedLegacy.request('video_import', { externalId: videoId, categoryId: DISH })).status, 409,
     'a picked legacy video cannot move (its Picks stay with it)');
 
+  // A rejected video (a turned-down request or a removed old recipe) starts over.
+  const turnedDown = setup();
+  turnedDown.state.rows.push({ id: 'old', category_id: 'recipe', external_source: 'youtube_video', external_id: videoId, status: 'rejected' });
+  const rejectedLookup = await (await turnedDown.request('video_lookup', { url: 'https://youtu.be/' + videoId })).json();
+  assert.equal(rejectedLookup.video.existingItemId, null, 'a rejected video looks unregistered');
+  assert.equal(rejectedLookup.suggestions.length, 1, 'and asks for its dish');
+  assert.equal(turnedDown.state.updates.length, 0, 'lookup never writes');
+  const reborn = await (await turnedDown.request('video_import', { externalId: videoId, categoryId: DISH })).json();
+  assert.equal(reborn.created, true, 'registering creates a new item');
+  assert.notEqual(reborn.itemId, 'old');
+  assert.equal(reborn.categoryId, DISH);
+  const old = turnedDown.state.rows.find((r) => r.id === 'old');
+  assert.equal(old.status, 'rejected', 'the rejected row stays rejected');
+  assert.equal(old.external_id, null, 'and gives up the video identity');
+  assert.equal(old.external_source, null);
+
   for (const mode of ['no-auth', 'suspended', 'bad-id', 'missing-dish', 'not-a-dish', 'pending-item', 'no-key', 'quota']) {
     const t = setup();
     if (mode === 'suspended') t.state.suspended = true;
