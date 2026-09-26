@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { getUnlinkedItems, linkItemToOnlineProvider, linkItemToPlace, searchPlaceCatalogForItem } from '@/lib/admin-api';
 import type { AdminPlaceCatalogMatch, AdminUnlinkedItem } from '@/lib/admin-api';
+import { PLACE_COVERAGE_NOTICE } from '@/lib/items/pickChannel';
 import { OnePick } from '@/constants/onepick';
 
 type Mode = 'place' | 'online';
@@ -207,7 +208,7 @@ export function ChannelLinkPanel() {
 
               {mode === 'place' ? <View style={styles.box}>
                 <Text style={styles.boxTitle}>매장(장소) 검색</Text>
-                <Text style={styles.note}>매장에서 먹거나 배달로 주문하는 가게입니다. 원픽 장소 데이터에서 같은 가게·지점을 찾아 연결합니다.</Text>
+                <Text style={styles.note}>매장에서 먹거나 배달로 주문하는 가게입니다. 원픽 장소 데이터에서 같은 가게·지점을 찾아 연결합니다. {PLACE_COVERAGE_NOTICE}</Text>
                 <View style={styles.row}>
                   <TextInput accessibilityLabel="장소 검색" value={placeQuery} onChangeText={setPlaceQuery} onSubmitEditing={searchPlaces}
                     editable={!linking} placeholder="가게 이름" style={[adminStyles.input, styles.grow]} />
