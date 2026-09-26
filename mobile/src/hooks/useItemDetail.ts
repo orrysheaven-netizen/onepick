@@ -17,6 +17,7 @@ export function useItemDetail(
   focusPickId?: string,
   includePhotoCredit = false,
   enabled = true,
+  pickChannel?: 'offline' | 'online' | 'recipe',
 ) {
   const queryClient = useQueryClient();
   type PickDetail = Awaited<ReturnType<typeof pickService.getPickDetail>>;
@@ -34,8 +35,8 @@ export function useItemDetail(
     : undefined;
 
   const detail = useQuery({
-    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null],
-    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus),
+    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null, pickChannel ?? null],
+    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus, pickChannel),
     enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });
