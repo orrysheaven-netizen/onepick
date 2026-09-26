@@ -379,7 +379,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
         item_id: itemId,
         channel: 'recipe',
         target_url: targetUrl,
-        is_primary: false,
+        is_primary: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'item_id,channel' });
       return !result.error;
