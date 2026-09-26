@@ -12,10 +12,11 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { YouTubeVideoLink } from '@/components/youtube-video-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, SectionHeader, StateCard } from '@/components/ui';
+import { Button, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
-import { categoryWithChannels } from '@/lib/home/homeChannels';
+import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
+import { itemTitle } from '@/lib/items/itemTitle';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 import { OnePick } from '@/constants/onepick';
@@ -176,15 +177,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, myPickStatus, pickChannel, picks, canChoose } = query.data;
+  const { category, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
-    if (myPickStatus.type === 'selected_this') {
-      focusReview(myPickStatus.pickId);
-      return;
-    }
     if (!canChoose) return;
     router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
@@ -200,7 +197,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto || params.photo !== '1'} />
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
             onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username } })} style={styles.creditLink}>
-            <Text style={styles.creditText}>사진 등록 · @{credit.username}</Text>
+            <Text style={styles.creditText}>사진 @{credit.username}</Text>
           </Pressable> : null}
           {photoAcknowledged.current && credit && credit.userId === user?.id ?
             <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>사진을 보태주셨어요. 같은 원픽을 고른 사람들도 이 사진을 함께 사용해요.</Text> : null}
@@ -231,22 +228,23 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               </>}
             </View>
           ) : null}
-          <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>
-          <Text style={styles.itemName}>{item.name}</Text>
+          {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
+          {isRestaurant
+            ? homeChannelLabel(item.channels) ? <Text style={styles.category}>{homeChannelLabel(item.channels)}</Text> : null
+            : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
+          <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
           <YouTubeVideoLink item={item} />
           <ItemPickCount itemId={item.id} />
           <ItemChannelLinks itemId={item.id} />
-          <Text style={styles.itemMeta}>이걸 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
 
-          {canChoose || myPickStatus.type === 'selected_this' ? (
+          {/* My own Pick is edited on its review card below, so the button is only for choosing. */}
+          {myPickStatus.type === 'selected_this' ? null : canChoose ? (
             <Button size="lg" fullWidth onPress={openPickAction} style={styles.primaryAction}
-              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '이걸로 원픽 등록'} />
+              label={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '이걸로 원픽 등록'} />
           ) : <Text style={styles.itemMeta}>지금은 여기서 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <SectionHeader title="원픽 한줄평" description="각 한줄평에서 댓글로 대화해요" />
-        </View>
+        <View style={styles.sectionGap} />
 
         {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
         {picks.length > 0 ? (
@@ -278,8 +276,8 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   heroCard: { alignItems: 'center', borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 24, marginTop: 8 },
-  creditLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  creditText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
+  creditLink: { alignSelf: 'flex-end', minHeight: 24, justifyContent: 'center', marginTop: -12, paddingHorizontal: 2 },
+  creditText: { color: OnePick.hint, fontSize: 10, lineHeight: 14 },
   photoContribution: { width: '100%', backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 16, marginTop: 18 },
   photoContributionTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
   photoContributionHint: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 6 },
@@ -293,7 +291,7 @@ const styles = StyleSheet.create({
   itemName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', marginTop: 6 },
   itemMeta: { color: OnePick.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 10 },
   primaryAction: { marginTop: 20 },
-  sectionHeader: { marginTop: 28, marginBottom: 12 },
+  sectionGap: { height: 20 },
   centerState: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   stateText: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
   pressed: { opacity: 0.7 },

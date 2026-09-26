@@ -91,7 +91,7 @@ async function main() {
   assert.equal(events.length, before, 'Pending item requests are not counted as completed Picks');
 
   const source = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
-  assert.match(source('components/pick-share-card.tsx'), /eventName: 'pick_share_clicked'/);
+  assert.match(source('components/pick-share-actions.tsx'), /eventName: 'pick_share_clicked'/);
   assert.match(source('app/pick/[pickId].tsx'), /eventName: 'pick_link_opened'/);
   assert.match(source('app/item/[itemId].tsx'), /eventName: 'item_detail_viewed'/);
   assert.match(source('app/auth/login.tsx'), /eventName: 'auth_started'/);
