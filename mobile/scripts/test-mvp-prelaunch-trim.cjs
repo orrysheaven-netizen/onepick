@@ -53,7 +53,7 @@ function explore({ chips = true } = {}) {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
-      useRecentPickedItems: (ids, enabled) => { calls.recent = { ids, enabled }; return recent; } },
+      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; } },
     '@/lib/categories/categoryTree': tree, '@/lib/home/homeChannels': homeChannels,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
@@ -138,7 +138,7 @@ async function main() {
     assert.match(view.text(), /맛집 찾기/); assert.doesNotMatch(view.text(), /상위 카테고리/);
     assert.ok(view.find('ItemSearch'), 'Search starts open without a ?search=1 handoff');
     assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
-    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true }));
+    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true, storesOnly: true }), 'MVP lists places only');
     assert.equal(calls.categoryId, undefined, 'Rankings stay idle without a chosen category');
     assert.match(view.text(), /최근 원픽된 맛집/);
     assert.match(view.text(), /ramen · 오프라인맛집/, 'Recent places carry the same channel label as rankings');

@@ -184,13 +184,14 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
-  async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null) {
+  async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null, storesOnly = false) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // Viewer-specific like the home feed: session RLS decides which Picks count,
     // so a blocked person's Pick never bumps an item to the top.
     const { data, error } = await this.client.rpc('explore_recent_items_page', {
       p_category_ids: categoryIds ?? undefined,
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+      ...(storesOnly ? { p_stores_only: true } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');

@@ -1553,6 +1553,7 @@ export type Database = {
           p_before_id?: string
           p_before_time?: string
           p_category_ids?: string[]
+          p_stores_only?: boolean
         }
         Returns: {
           category_id: string

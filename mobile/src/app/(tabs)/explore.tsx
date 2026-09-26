@@ -47,7 +47,8 @@ export default function ExploreScreen() {
   const topItems = useCategoryTopItems(selectedCategoryId);
   // Nothing selected: newest-picked places first (one row per place). Waits for the
   // category tree so the MVP scope is known before the first request.
-  const recentItems = useRecentPickedItems(scope.leafIds, !selectedCategoryId && Boolean(categories.data));
+  // The MVP list is places only (items with a 매장/온라인 channel), not packaged products.
+  const recentItems = useRecentPickedItems(scope.leafIds, !selectedCategoryId && Boolean(categories.data), !scope.showChips);
   const recentTitle = scope.showChips ? '최근 원픽된 항목' : '최근 원픽된 맛집';
   // Gate all ranking details together, including accessibility and first-place styling.
   // A sum across TOP 3 would reveal rankings too early (e.g. three different 1-pick items).

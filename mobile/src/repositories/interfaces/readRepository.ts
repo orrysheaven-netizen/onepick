@@ -139,8 +139,11 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
-  /** Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first. */
-  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null): Promise<RecentPickedItemPage>;
+  /**
+   * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
+   * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.
+   */
+  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;

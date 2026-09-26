@@ -95,10 +95,10 @@ begin
   assert got=tie[2:2], 'Equal timestamps page without skipping or repeating';
   reset role;
 
-  assert not (select prosecdef from pg_proc where oid='public.explore_recent_items_page(uuid[],timestamptz,uuid)'::regprocedure),
+  assert not (select prosecdef from pg_proc where oid='public.explore_recent_items_page(uuid[],timestamptz,uuid,boolean)'::regprocedure),
     'No security-definer RLS bypass';
-  assert has_function_privilege('anon','public.explore_recent_items_page(uuid[],timestamptz,uuid)','execute'), 'Guests may browse';
-  assert has_function_privilege('authenticated','public.explore_recent_items_page(uuid[],timestamptz,uuid)','execute'), 'Members may browse';
+  assert has_function_privilege('anon','public.explore_recent_items_page(uuid[],timestamptz,uuid,boolean)','execute'), 'Guests may browse';
+  assert has_function_privilege('authenticated','public.explore_recent_items_page(uuid[],timestamptz,uuid,boolean)','execute'), 'Members may browse';
 end;
 $flow$;
 $test$, 'Explore recent items: per-item newest Pick, scope, visibility, blocks and stable pagination');
