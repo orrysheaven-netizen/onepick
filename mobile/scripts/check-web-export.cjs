@@ -140,6 +140,7 @@ async function main() {
       '/item/20000000-0000-0000-0000-000000000001',
       '/pick/661201d7-ad86-444f-b280-6c964b309c78',
       '/u/onepick_qa', '/u/new_user_created_after_build',
+      '/ranking', '/ranking/ramen',
       '/pick/choose?itemId=new-item',
       '/auth/callback?action=choose_pick&itemId=new-item',
     ];
