@@ -9,6 +9,7 @@ export const queryKeys = {
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
     recentItems: (categoryIds: string[] | null, storesOnly = false) =>
       ['explore', 'recent-items', categoryIds ? [...categoryIds].sort().join(',') : 'all', storesOnly ? 'stores' : 'items'] as const,
+    menuChannels: (categoryId?: string) => ['explore', categoryId ?? 'none', 'menu-channels'] as const,
   },
   categories: {
     all: ['categories'] as const,

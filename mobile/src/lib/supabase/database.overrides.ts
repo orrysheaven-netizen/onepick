@@ -172,6 +172,18 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online'; p_root_slug?: string };
         Returns: HomePickFeedRow[];
       };
+      explore_menu_channel_items: {
+        Args: { p_category_id: string; p_limit?: number };
+        Returns: {
+          channel: string;
+          item_id: string;
+          item_name: string;
+          thumbnail_path: string | null;
+          image_path: string | null;
+          image_source_url: string | null;
+          pick_count: number;
+        }[];
+      };
       home_following_feed_page: {
         Args: { p_before_time?: string; p_before_id?: string };
         Returns: HomePickFeedRow[];

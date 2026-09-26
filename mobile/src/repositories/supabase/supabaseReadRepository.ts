@@ -184,6 +184,22 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getMenuChannelItems(categoryId: string) {
+    // Public aggregate like category_top_items: personal blocks must not change counts.
+    const { data, error } = await this.countClient.rpc('explore_menu_channel_items', { p_category_id: categoryId });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    return data
+      .filter((row) => row.channel === 'offline' || row.channel === 'online')
+      .map((row) => ({
+        itemId: row.item_id,
+        name: row.item_name,
+        thumbnailUrl: this.cardThumbnailUrl(row),
+        pickCount: Number(row.pick_count),
+        channel: row.channel as PickChannel,
+      }));
+  }
+
   async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null, storesOnly = false) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // Viewer-specific like the home feed: session RLS decides which Picks count,

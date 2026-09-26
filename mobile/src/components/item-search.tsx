@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
@@ -18,6 +18,10 @@ type ItemSearchProps = {
   onSearchYouTube?: (query: string) => void;
   onSearchPokemon?: (query: string) => void;
   showExternalActionsWithResults?: boolean;
+  /** Called with the normalized query as the person types (e.g. Explore menu matching). */
+  onQueryChange?: (query: string) => void;
+  /** Rendered between the search box and the item results. */
+  resultsHeader?: ReactNode;
   onSelect: (itemId: string) => void;
 };
 
@@ -41,6 +45,8 @@ export function ItemSearch({
   onSearchYouTube,
   onSearchPokemon,
   showExternalActionsWithResults = false,
+  onQueryChange,
+  resultsHeader,
   onSelect,
 }: ItemSearchProps) {
   const [searchText, setSearchText] = useState(() => initialQuery.slice(0, 100));
@@ -48,6 +54,10 @@ export function ItemSearch({
   const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
   const isLoading = query.hasSearchText && (query.isWaiting || query.isPending);
   const externalActions: ExternalSearchAction[] = [];
+  const changeSearch = (text: string) => {
+    setSearchText(text);
+    onQueryChange?.(text.trim().replace(/\s+/g, ' '));
+  };
 
   if (onSearchMovie && normalizedSearch.length >= 2) {
     externalActions.push({
@@ -125,10 +135,10 @@ export function ItemSearch({
       </> : null}
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
-          onChangeText={setSearchText} onSubmitEditing={submitSearch}
+          onChangeText={changeSearch} onSubmitEditing={submitSearch}
           placeholder="어떤 원픽을 찾으세요?" placeholderTextColor={OnePick.hint}
           returnKeyType="search" style={styles.input} value={searchText} />
-        {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
+        {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => changeSearch('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
         </Pressable> : null}
         {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
@@ -137,6 +147,7 @@ export function ItemSearch({
           <Text style={styles.submitText}>검색</Text>
         </Pressable> : null}
       </View>
+      {resultsHeader}
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
       {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요</Text></View> : null}
       {query.hasSearchText && !isLoading && query.isError ? <View style={styles.state}>

@@ -55,6 +55,8 @@ function explore({ chips = true } = {}) {
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
       useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; } },
     '@/lib/categories/categoryTree': tree, '@/lib/home/homeChannels': homeChannels,
+    '@/components/menu-channel-results': names('MenuChannelResults'),
+    '@/lib/home/homeCategoryFilters': { homeMenuCategories: () => [], searchMenuCategories: () => [] },
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
   view.render();

@@ -23,6 +23,15 @@ export function useCategoryTopItems(categoryId?: string) {
   });
 }
 
+/** 매장/온라인 items of one menu (Explore menu search). */
+export function useMenuChannelItems(categoryId?: string) {
+  return useQuery({
+    queryKey: queryKeys.explore.menuChannels(categoryId),
+    enabled: Boolean(categoryId),
+    queryFn: () => categoryId ? exploreService.getMenuChannelItems(categoryId) : Promise.resolve([]),
+  });
+}
+
 /** Places/products in scope, one per item, most recently picked first. */
 export function useRecentPickedItems(categoryIds: string[] | null, enabled = true, storesOnly = false) {
   return useInfiniteQuery({

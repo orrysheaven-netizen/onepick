@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
+    'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto', 'menu-channel-results': 'MenuChannelResults',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
@@ -53,7 +53,8 @@ function fixture(kind, platform = 'web') {
       browseCategoryGroups: (cs) => cs.map((c) => ({ category: c, children: [], directlySelectable: true })) },
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
-    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
+    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks,
+      homeMenuCategories: () => [], searchMenuCategories: () => [] },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
   view.render();

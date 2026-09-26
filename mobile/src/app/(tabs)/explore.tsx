@@ -6,9 +6,11 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
+import { MenuChannelResults, type MenuResultTab } from '@/components/menu-channel-results';
 import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
+import { homeMenuCategories, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
@@ -55,6 +57,22 @@ export default function ExploreScreen() {
   const topPickCount = topItems.data?.find((item) => item.rank === 1)?.pickCount ?? 0;
   const showRankingDetail = OnePickFeatures.exploreRankingDetail &&
     topPickCount >= OnePickThresholds.exploreRankingMinPicks;
+  // Menu search: "미역국" opens that menu with 매장 / 온라인 / 레시피 tabs above the name results.
+  const [searchQuery, setSearchQuery] = useState(incomingQuery);
+  const [menuId, setMenuId] = useState<string | undefined>();
+  const recipeCategory = categoryCatalog.find((category) => category.slug === 'recipe');
+  const menus = useMemo(() => homeMenuCategories(categoryCatalog).filter((menu) => menu.slug !== 'recipe'), [categoryCatalog]);
+  const menuMatches = !selectedCategoryId && searchQuery ? searchMenuCategories(menus, searchQuery, 6) : [];
+  const compactQuery = searchQuery.replace(/\s+/g, '');
+  const activeMenu = menuMatches.find((menu) => menu.id === menuId)
+    ?? menuMatches.find((menu) => menu.name.replace(/\s+/g, '') === compactQuery) ?? menuMatches[0];
+  const registerMenuPick = (menu: Category, tab: MenuResultTab) => {
+    if (tab === 'recipe') {
+      if (recipeCategory) router.push({ pathname: '/pick/find', params: { categoryId: recipeCategory.id } });
+      return;
+    }
+    router.push({ pathname: '/pick/find', params: { categoryId: menu.id, channel: tab } });
+  };
   const hasExternalSearch = [movieCategory, dramaCategory, musicCategory, gameCategory, bookCategory, youtubeCategory, pokemonCategory]
     .some((category) => category && (!selectedCategoryId || selectedCategoryId === category.id));
 
@@ -92,7 +110,7 @@ export default function ExploreScreen() {
             {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
           </Pressable>
         </View>
-        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '가게 이름으로 찾거나, 최근 원픽된 맛집을 둘러보세요.'}</Text>
+        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '메뉴나 가게 이름으로 찾거나, 최근 원픽된 맛집을 둘러보세요.'}</Text>
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
@@ -101,7 +119,14 @@ export default function ExploreScreen() {
               : '원픽에 등록된 항목을 검색해요.'}
           </Text>
           <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
-            initialQuery={incomingQuery} showExternalActionsWithResults
+            initialQuery={incomingQuery} showExternalActionsWithResults onQueryChange={setSearchQuery}
+            resultsHeader={activeMenu ? <View style={styles.menuResults}>
+              {menuMatches.length > 1 ? <View style={styles.menuChoices}>{menuMatches.map((menu) => <Chip key={menu.id} label={menu.name}
+                accessibilityLabel={`${menu.name} 메뉴 보기`} selected={menu.id === activeMenu.id} onPress={() => setMenuId(menu.id)} />)}</View> : null}
+              <MenuChannelResults key={activeMenu.id} menu={activeMenu} recipeCategory={recipeCategory}
+                onOpenItem={openItem} onRegister={(tab) => registerMenuPick(activeMenu, tab)} />
+              <Text style={styles.searchScope}>이름으로 찾은 항목</Text>
+            </View> : null}
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
             onSearchDrama={dramaCategory && (!selectedCategoryId || selectedCategoryId === dramaCategory.id)
@@ -222,6 +247,8 @@ const styles = StyleSheet.create({
   magnifierHandle: { position: 'absolute', width: 10, height: 2, borderRadius: 1, backgroundColor: OnePick.text, transform: [{ rotate: '45deg' }], top: 18, left: 14 },
   closeSearch: { color: OnePick.accent, fontSize: 28, lineHeight: 30 },
   searchPanel: { marginTop: 18, gap: 8 },
+  menuResults: { marginTop: 14 },
+  menuChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   searchScope: { fontSize: 12, color: OnePick.muted },
   searchHint: { color: OnePick.muted, fontSize: 11, lineHeight: 17 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8 },

@@ -81,6 +81,15 @@ export interface RecentPickedItem {
   channels: PickChannel[];
 }
 
+/** One item of a menu under one sales channel (Explore menu search), most-picked first. */
+export interface MenuChannelItem {
+  itemId: string;
+  name: string;
+  thumbnailUrl: string | null;
+  pickCount: number;
+  channel: PickChannel;
+}
+
 export interface RecentPickedItemPage {
   items: RecentPickedItem[];
   nextCursor: ReadCursor | null;
@@ -139,6 +148,7 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  getMenuChannelItems(categoryId: string): Promise<MenuChannelItem[]>;
   /**
    * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
    * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.

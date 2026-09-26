@@ -15,6 +15,10 @@ export class ExploreService {
     return this.readRepository.getCategoryTopItems(categoryId);
   }
 
+  getMenuChannelItems(categoryId: string) {
+    return this.readRepository.getMenuChannelItems(categoryId);
+  }
+
   getRecentItems(categoryIds: string[] | null, cursor: ReadCursor | null = null, storesOnly = false) {
     // An empty scope means nothing is browsable yet, not "every category".
     if (categoryIds && !categoryIds.length) return Promise.resolve({ items: [], nextCursor: null });
