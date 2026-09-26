@@ -16,6 +16,8 @@ function loadSource(relativePath, imports = {}) {
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
+      // Pure channel helpers load as-is.
+      if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
@@ -34,7 +36,7 @@ async function main() {
   let currentPick = null;
   const service = new ItemService(
     { getById: async () => item },
-    { getCurrentPick: async () => currentPick },
+    { getCurrentPicksInCategory: async () => (currentPick ? [currentPick] : []) },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
     { getPicks: async () => [], getPickById: async () => null },
   );

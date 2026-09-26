@@ -26,8 +26,7 @@ export default function LabScreen() {
     () => splitLabPicks(query.data?.currentPicks ?? [], categories, OnePickMvp.mainThemeCode, true).lab,
     [query.data?.currentPicks, categories],
   );
-  // Owner only: lab categories under a parent with no lab Pick yet. Parents that already
-  // have one offer their remaining leaves through ProfilePickGroups' dashed tile.
+  // Owner only: lab categories under a parent with no lab Pick yet.
   const startable = useMemo(() => {
     if (!isMine) return [];
     const pickedIds = new Set((query.data?.currentPicks ?? []).map((item) => item.pick.categoryId));
@@ -71,7 +70,6 @@ export default function LabScreen() {
               categories={categories}
               onPressPick={openPick}
               onPressItem={openItem}
-              onPressCategory={isMine ? (category) => router.push(registrationRoute(category)) : undefined}
             />
           ) : (
             <StateCard title="아직 실험실 원픽이 없어요" text={isMine ? '아래 카테고리에서 하나씩 골라볼 수 있어요.' : '이 사용자가 맛집 외 취향을 고르면 여기에 표시됩니다.'} />

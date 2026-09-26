@@ -10,6 +10,8 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { channelLabel } from '@/lib/home/homeChannels';
+import { parseChannelParam } from '@/lib/items/pickChannel';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
@@ -26,11 +28,13 @@ function getErrorMessage(error: unknown) {
     case 'ITEM_CATEGORY_MISMATCH': return '카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
+    case 'ITEM_ALREADY_PICKED': return '이미 다른 방식의 원픽으로 고른 곳이에요. 그 원픽을 먼저 바꾸거나 지워주세요.';
+    case 'PICK_CHANNEL_MISMATCH': return '이 방식으로는 이걸 원픽으로 고를 수 없어요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
 }
 
-type Params = { itemId?: string; categoryId?: string; onboarding?: string };
+type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string };
 type SavedChoice = { pick: Pick; item: Item };
 
 export default function ChoosePickScreen() {
@@ -38,13 +42,14 @@ export default function ChoosePickScreen() {
   const params = useLocalSearchParams<Params>();
   // A saved result and its draft belong to one account/product only. Pending
   // requests from an unmounted form cannot populate the next account's result.
-  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}`} auth={auth} params={params} />;
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}:${params.channel ?? ''}`} auth={auth} params={params} />;
 }
 
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const itemQuery = useItemDetail(params.itemId, user?.id);
+  const requestedChannel = parseChannelParam(params.channel);
+  const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
   const choosePick = useChoosePick();
   const [draftReview, setReview] = useState<string | null>(null);
   // null means "not touched on this screen". The stored link is not read back
@@ -69,6 +74,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const loadedItem = itemQuery.data?.item;
   const item = savedChoice?.item ?? (photoItem && photoItem.id === loadedItem?.id ? photoItem : loadedItem);
   const pickStatus = itemQuery.data?.myPickStatus;
+  // Food menus keep one Pick per channel (오프라인 맛집 / 온라인 맛집 / 레시피).
+  const pickChannel = itemQuery.data?.pickChannel ?? null;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
   const trimmedReview = review.trim();
@@ -99,6 +106,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     try {
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
+        ...(pickChannel ? { channel: pickChannel } : {}),
         // An untouched field is left out so the stored value survives; '' clears it.
         ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
         ...(draftUrl === null && draftTip === null ? {}
@@ -123,7 +131,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || choosePick.isPending) return;
     // Pass only the existing validated navigation intent. No drafts or tokens in URLs.
     router.push({ pathname: needsUsername ? '/auth/username' : '/auth/login',
-      params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId } });
+      params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
   const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null;
@@ -185,7 +193,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
         {hasItem && item && canChoose && user && !isSuccess ? <>
-          <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>카테고리마다 단 하나</Text></View>
+          <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>{pickChannel ? `${channelLabel(pickChannel)} · 메뉴마다 단 하나` : '카테고리마다 단 하나'}</Text></View>
           <Text style={styles.title}>{formTitle}</Text>
           <View style={styles.itemCard}>
             {itemPhoto}
@@ -194,7 +202,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={choosePick.isPending}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
