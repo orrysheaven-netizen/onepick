@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnePick } from '@/constants/onepick';
 
-type TabIcon = 'home' | 'explore' | 'profile';
+type TabIcon = 'home' | 'explore' | 'comments' | 'profile';
 
-function isActive(pathname: string, href: '/' | '/explore' | '/profile') {
+function isActive(pathname: string, href: '/' | '/explore' | '/comments' | '/profile') {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -28,6 +28,7 @@ export default function AppTabs() {
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
           <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
         </Pressable>
+        <TabLink href="/comments" icon="comments" label="내 댓글" active={isActive(pathname, '/comments')} />
         <TabLink href="/profile" icon="profile" label="내 프로필" active={isActive(pathname, '/profile')} />
       </View>
     </View>
@@ -39,6 +40,7 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
     strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" />
       : name === 'explore' ? <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>
+      : name === 'comments' ? <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" />
       : <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 6 0 0 1 16 0v2" /></>}
   </svg>;
 }

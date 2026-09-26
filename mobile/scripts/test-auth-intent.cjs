@@ -82,6 +82,8 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ['신라면'] })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ' '.repeat(101) })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
+  same(getAuthIntent({ action: 'my_comments' }), { action: 'my_comments' });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'my_comments' })), '/comments');
   same(getAuthIntent({ action: 'join_from_profile' }), { action: 'join_from_profile' });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'join_from_profile' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: ['join_from_profile'] })), '/');
