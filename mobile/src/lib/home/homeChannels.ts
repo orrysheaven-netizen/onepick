@@ -9,14 +9,15 @@ export const HOME_CHANNEL_TABS: readonly { channel: PickChannel | null; label: s
   { channel: null, label: '전체' },
   { channel: 'offline', label: '오프라인 맛집' },
   { channel: 'online', label: '온라인 맛집' },
+  { channel: 'recipe', label: '레시피' },
 ];
 
 // Content labels (cards, detail, rankings) match the Home tabs. The registration
 // choice keeps the short 매장/온라인 wording with its own descriptions.
-const CHANNEL_LABELS: Record<PickChannel, string> = { offline: '오프라인 맛집', online: '온라인 맛집' };
+const CHANNEL_LABELS: Record<PickChannel, string> = { offline: '오프라인 맛집', online: '온라인 맛집', recipe: '레시피' };
 
 export function isPickChannel(value: unknown): value is PickChannel {
-  return value === 'offline' || value === 'online';
+  return value === 'offline' || value === 'online' || value === 'recipe';
 }
 
 /** Card label for an item's channels, in tab order; null when the item has none. */
