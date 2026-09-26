@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 set local plpgsql.check_asserts = on;
 
 create temporary table mic_ids(key text primary key, id uuid not null) on commit drop;
@@ -90,14 +90,19 @@ declare
   v_parcel uuid := gen_random_uuid();
   v_dave uuid := gen_random_uuid();
   v_erin uuid := gen_random_uuid();
+  v_fay uuid := gen_random_uuid();
+  v_stale uuid := gen_random_uuid();
+  v_other uuid := gen_random_uuid();
   v_suffix text := substr(replace(gen_random_uuid()::text,'-',''),1,10);
 begin
   insert into auth.users(id,aud,role,created_at,updated_at) values
     (v_dave,'authenticated','authenticated',now(),now()),
-    (v_erin,'authenticated','authenticated',now(),now());
+    (v_erin,'authenticated','authenticated',now(),now()),
+    (v_fay,'authenticated','authenticated',now(),now());
   insert into public.profiles(id,username,onboarding_completed) values
     (v_dave,'mic_dave_'||substr(v_suffix,1,8),true),
-    (v_erin,'mic_erin_'||substr(v_suffix,1,8),true);
+    (v_erin,'mic_erin_'||substr(v_suffix,1,8),true),
+    (v_fay,'mic_fay_'||substr(v_suffix,1,8),true);
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable)
     values(v_soups,v_food,'이동 테스트 음식국','micfsoup-'||v_suffix,'open',true,false);
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable) values
@@ -114,7 +119,20 @@ begin
     (v_erin,v_from,v_moving,'나도 온라인','active',now()-interval '1 day'),
     (v_dave,v_to,v_store,'레시피는 이거','active',now()-interval '1 day'),
     (v_erin,v_to,v_parcel,'택배는 여기','active',now()-interval '1 day');
-  insert into mic_ids values ('food_moving',v_moving),('food_to',v_to);
+  -- Fay's Pick of v_stale keeps 'online' after the item became recipe-only,
+  -- because she already had a recipe Pick in the source category, so
+  -- realign_pick_channels left it. Moving it lands it on 'recipe'.
+  insert into public.items(id,category_id,name,normalized_name,status) values
+    (v_stale,v_from,'채널남은','채널남은','active'),
+    (v_other,v_from,'채널다른','채널다른','active');
+  insert into public.item_channels(item_id,channel,is_primary) values(v_other,'recipe',true);
+  insert into public.picks(user_id,category_id,item_id,one_line_review,status,started_at) values
+    (v_fay,v_from,v_other,'원래 레시피','active',now()-interval '1 day'),
+    (v_fay,v_from,v_stale,'온라인이었던 것','active',now()-interval '1 day'),
+    (v_fay,v_to,v_store,'대상 레시피','active',now()-interval '1 day');
+  insert into public.item_channels(item_id,channel,is_primary) values(v_stale,'recipe',true);
+  assert (select channel from public.picks where user_id=v_fay and item_id=v_stale)='online', 'fixture: stale channel kept';
+  insert into mic_ids values ('food_moving',v_moving),('food_to',v_to),('food_stale',v_stale);
 end;
 $food$;
 
@@ -156,6 +174,10 @@ select is(
     - 'item_id' - 'from_category_id' - 'to_category_id',
   '{"active_pick_count":2,"pick_count":2,"conflict_count":1,"blocked_reason":"PICK_CONFLICT"}'::jsonb,
   'In food only a Pick under the same channel conflicts (Dave''s 레시피 Pick does not, Erin''s 온라인 Pick does)'
+);
+select is(
+  public.admin_preview_item_category_move((select id from mic_ids where key='food_stale'),(select id from mic_ids where key='food_to'))->>'conflict_count',
+  '1', 'A Pick whose channel the item no longer offers is compared under the channel the move gives it'
 );
 select is(
   public.admin_preview_item_category_move((select id from mic_ids where key='item'),(select id from mic_ids where key='wrong'))->>'blocked_reason',

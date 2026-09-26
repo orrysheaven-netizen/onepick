@@ -96,6 +96,37 @@ $$;
 
 revoke all on function private.prepare_item_alias() from public,anon,authenticated;
 
+-- The channel a current Pick of p_item_id gets when it moves into
+-- p_target_category_id: the same steps as the UPDATE branch of
+-- private.prepare_pick_channel, which is what actually rewrites it.
+create or replace function private.moved_pick_channel(
+  p_target_category_id uuid,
+  p_item_id uuid,
+  p_channel text
+)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not private.category_is_food(p_target_category_id) then
+    return null;
+  end if;
+  begin
+    return private.resolve_pick_channel(p_target_category_id, p_item_id, p_channel);
+  exception when sqlstate 'P0001' then
+    if sqlerrm not in ('PICK_CHANNEL_INVALID','PICK_CHANNEL_MISMATCH') then
+      raise;
+    end if;
+    return private.resolve_pick_channel(p_target_category_id, p_item_id, null);
+  end;
+end;
+$$;
+
+revoke all on function private.moved_pick_channel(uuid,uuid,text)
+  from public, anon, authenticated;
+
 -- Shared by the preview and the move. The caller decides whether rows are
 -- locked; the result reports the first blocking reason, or null when the move
 -- can proceed.
@@ -128,17 +159,11 @@ begin
   where p.item_id=p_item.id;
 
   -- One current Pick per (user, category, channel): compare against the channel
-  -- each Pick will have after the move, as private.prepare_pick_channel sets it
-  -- (kept between food categories, null outside food, the item's default when
-  -- it enters food).
+  -- each Pick will have after the move.
   select count(*) into v_conflicts
   from public.picks p
   cross join lateral (
-    select case
-      when not private.category_is_food(p_target_category_id) then null
-      when p.channel is not null then p.channel
-      else private.default_pick_channel(p.item_id)
-    end as channel
+    select private.moved_pick_channel(p_target_category_id, p.item_id, p.channel) as channel
   ) moved
   where p.item_id=p_item.id
     and p.status in ('active','needs_review')
