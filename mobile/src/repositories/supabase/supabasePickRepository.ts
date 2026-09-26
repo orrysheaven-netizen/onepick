@@ -1,5 +1,6 @@
 import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type {
   ChangePickInput,
@@ -30,6 +31,7 @@ export class SupabasePickRepository implements PickRepository {
       p_item_name: input.itemName, p_one_line_review: input.oneLineReview,
       p_image_path: input.imagePath, p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,
+      ...(input.channel ? { p_channel: input.channel } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');
@@ -50,20 +52,20 @@ export class SupabasePickRepository implements PickRepository {
     return data ? mapPickRow(data) : null;
   }
 
-  async getCurrentPick(userId: string, categoryId: string) {
+  async getCurrentPicksInCategory(userId: string, categoryId: string) {
     const { data, error } = await this.client
       .from('picks')
       .select('*')
       .eq('user_id', userId)
       .eq('category_id', categoryId)
       .in('status', ['active', 'needs_review'])
-      .maybeSingle();
+      .order('started_at', { ascending: false });
 
     if (error) {
       throw mapSupabaseError(error);
     }
 
-    return data ? mapPickRow(data) : null;
+    return data.map(mapPickRow);
   }
 
   async getActivePicksByUser(userId: string) {
@@ -151,6 +153,7 @@ export class SupabasePickRepository implements PickRepository {
       p_one_line_review: input.oneLineReview,
       // Omitted arguments leave the stored link and tip alone; '' clears them.
       ...purchaseArgs(input),
+      ...(input.channel ? { p_channel: input.channel } : {}),
     });
 
     if (error) {
@@ -182,9 +185,10 @@ export class SupabasePickRepository implements PickRepository {
     return mapPickRow(data);
   }
 
-  async removePick(categoryId: string) {
+  async removePick(categoryId: string, channel?: PickChannel | null) {
     const { error } = await this.client.rpc('remove_pick', {
       p_category_id: categoryId,
+      ...(channel ? { p_channel: channel } : {}),
     });
 
     if (error) {

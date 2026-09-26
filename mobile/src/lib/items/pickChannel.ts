@@ -1,9 +1,21 @@
 /**
- * Where a restaurant Pick was bought: 매장 (eat-in, takeout and delivery — delivery is
- * still one store's food) or 온라인 (shipped / online-store sales). Mirrors
- * public.item_channels.channel.
+ * How a food Pick was had: 매장 (eat-in, takeout and delivery — delivery is still one
+ * store's food), 온라인 (shipped / online-store sales) or 레시피 (cooked from a video).
+ * A member holds one current Pick per menu and channel. Mirrors picks.channel and
+ * item_channels.channel; Picks outside food carry no channel.
  */
-export type PickChannel = 'offline' | 'online';
+export type PickChannel = 'offline' | 'online' | 'recipe';
+
+export const PICK_CHANNELS: readonly PickChannel[] = ['offline', 'online', 'recipe'];
+
+export function isPickChannel(value: unknown): value is PickChannel {
+  return value === 'offline' || value === 'online' || value === 'recipe';
+}
+
+/** A route or server value that names a channel, or undefined. */
+export function parseChannelParam(value: unknown): PickChannel | undefined {
+  return isPickChannel(value) ? value : undefined;
+}
 
 export const PICK_CHANNEL_OPTIONS: readonly { channel: PickChannel; label: string; description: string }[] = [
   { channel: 'offline', label: '매장', description: '매장에서 먹었거나 배달로 주문했어요' },
