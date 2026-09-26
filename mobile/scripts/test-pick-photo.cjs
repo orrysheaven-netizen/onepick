@@ -72,5 +72,28 @@ for (const frame of [{}, { feed: true }, { square: true }, { large: true }]) {
   assert.match(html, /data-content-fit="contain"/, `${JSON.stringify(frame)} frame must not crop the photo`);
   assert.doesNotMatch(html, /data-content-fit="cover"/);
 }
+// Web drops `height: undefined`, so full-width square frames must never inherit
+// the thumbnail's fixed 86px height (it turned them into short wide strips).
+const flatten = (style) => Array.isArray(style)
+  ? Object.assign({}, ...style.filter(Boolean).map(flatten))
+  : Object.fromEntries(Object.entries(style || {}).filter(([, value]) => value !== undefined));
+const frames = [];
+const { PickPhoto: MeasuredPhoto } = load('components/pick-photo.tsx', {
+  'expo-image': { Image: () => null },
+  'expo-router': { useRouter: () => ({ push: () => {} }) },
+  'react-native': {
+    View: ({ style, children }) => { frames.push(flatten(style)); return React.createElement('div', null, children); },
+    Text: component('span'),
+    Pressable: ({ style: _style, ...props }) => React.createElement('button', props, props.children),
+    StyleSheet: { create: (styles) => styles },
+  },
+});
+for (const [frame, expected] of [[{ large: true }, { width: '100%', aspectRatio: 1 }], [{ square: true }, { width: '100%', aspectRatio: 1 }], [{}, { width: 86, height: 86 }], [{ feed: true }, { width: 86, height: 86 }]]) {
+  frames.length = 0;
+  renderToStaticMarkup(React.createElement(MeasuredPhoto, { uri: 'https://example.test/wide.jpg', label: 'Wide', ...frame }));
+  const outer = frames[0];
+  for (const [key, value] of Object.entries(expected)) assert.equal(outer[key], value, `${JSON.stringify(frame)} frame ${key}`);
+  if (expected.aspectRatio) assert.equal(outer.height, undefined, `${JSON.stringify(frame)} frame must not carry a fixed height`);
+}
 const feedMissing = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '을지면옥', feed: true }));
 assert.match(feedMissing, /을지면옥 이미지 준비 중/);
