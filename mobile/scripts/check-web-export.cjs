@@ -157,7 +157,26 @@ async function main() {
       const local = fs.readFileSync(path.join(dist, decodeURIComponent(asset)));
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), local, `Exported asset differs: ${asset}`);
     }
-    console.log(`Web export checks passed: ${routes.length} direct routes, ${assets.length} real assets, callback query and SPA fallback.`);
+
+    const installAssets = ['/apple-touch-icon-180.png', '/favicon.ico', '/onepick-favicon.svg', '/manifest.webmanifest'];
+    for (const asset of installAssets) {
+      assert.ok(html.includes(`href="${asset}"`), `App shell must reference ${asset}`);
+      const response = await fetch(origin + asset, { signal: AbortSignal.timeout(5_000) });
+      assert.equal(response.status, 200, asset);
+      assert.doesNotMatch(response.headers.get('content-type'), /text\/html/, `${asset} must not receive the SPA fallback`);
+      const local = fs.readFileSync(path.join(dist, asset.slice(1)));
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), local, `Exported install asset differs: ${asset}`);
+    }
+    const exportedManifest = JSON.parse(fs.readFileSync(path.join(dist, 'manifest.webmanifest'), 'utf8'));
+    assert.equal(exportedManifest.start_url, '/');
+    assert.equal(exportedManifest.scope, '/');
+    assert.equal(exportedManifest.display, 'standalone');
+    for (const icon of exportedManifest.icons) {
+      const response = await fetch(origin + icon.src, { signal: AbortSignal.timeout(5_000) });
+      assert.equal(response.status, 200, `Manifest icon missing: ${icon.src}`);
+      assert.doesNotMatch(response.headers.get('content-type'), /text\/html/, `Manifest icon must not receive SPA fallback: ${icon.src}`);
+    }
+    console.log(`Web export checks passed: ${routes.length} direct routes, ${assets.length} hashed assets, ${installAssets.length} install assets, manifest icons, callback query and SPA fallback.`);
   } finally {
     server.kill();
     await stopped;

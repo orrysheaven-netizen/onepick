@@ -25,7 +25,7 @@ function photoErrorMessage(error: unknown) {
       case 'PHOTO_INVALID': return '이미지를 읽지 못했어요. 다른 사진을 선택해주세요.';
       case 'PHOTO_TOO_LARGE': return '사진이 서버의 최대 저장 용량을 초과했어요. 다른 사진을 선택해주세요.';
       case 'PHOTO_UPLOAD_FAILED': return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 잠시 후 다시 시도해주세요.';
-      case 'ITEM_NOT_ELIGIBLE': return '현재 이 제품에는 이미지를 추가할 수 없어요.';
+      case 'ITEM_NOT_ELIGIBLE': return '지금은 여기에 이미지를 추가할 수 없어요.';
       case 'AUTH_REQUIRED': return '로그인 상태를 다시 확인해주세요.';
       case 'PROFILE_NOT_FOUND': return '사용자명을 먼저 정해주세요.';
     }
@@ -154,7 +154,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard loading title="제품 정보를 불러오고 있어요" />
+          <StateCard loading title="정보를 불러오고 있어요" />
         </View>
       </SafeAreaView>
     );
@@ -164,11 +164,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요' : '제품을 볼 수 없어요'}
+          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요' : '정보를 볼 수 없어요'}
             text={savedItem
-              ? '서버의 처리 응답은 받았지만 최신 상품 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
-              : '연결 상태를 확인한 뒤 다시 시도해주세요. 제품이 없거나 공개되지 않은 링크일 수도 있어요.'}
-            action={itemId ? { label: query.isFetching ? '다시 불러오는 중…' : '제품 정보 다시 불러오기', accessibilityLabel: '제품 정보 다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void retryItem() } : undefined} />
+              ? '서버의 처리 응답은 받았지만 최신 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
+              : '연결 상태를 확인한 뒤 다시 시도해주세요. 없어졌거나 공개되지 않은 링크일 수도 있어요.'}
+            action={itemId ? { label: query.isFetching ? '다시 불러오는 중…' : '정보 다시 불러오기', accessibilityLabel: '정보 다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void retryItem() } : undefined} />
           <Button variant="ghost" label="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.centered} />
         </View>
       </SafeAreaView>
@@ -202,12 +202,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             <Text style={styles.creditText}>사진 등록 · @{credit.username}</Text>
           </Pressable> : null}
           {photoAcknowledged.current && credit && credit.userId === user?.id ?
-            <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>사진을 보태주셨어요. 같은 상품을 고른 사람들도 이 사진을 함께 사용해요.</Text> : null}
+            <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>사진을 보태주셨어요. 같은 원픽을 고른 사람들도 이 사진을 함께 사용해요.</Text> : null}
           {canContribute ? (
             <View style={styles.photoContribution}>
               <Text style={styles.photoContributionTitle}>{item.name} 사진 등록</Text>
-              <Text style={styles.photoContributionHint}>상품 이름이 잘 보이는 사진이면 충분해요. 직접 찍었거나 공유할 권한이 있는 사진을 골라주세요.</Text>
-              <Text style={styles.photoContributionHint}>채택된 사진은 같은 상품의 원픽 카드에 함께 표시돼요. 상품 상세에 사진 등록자로 내 사용자명이 표시되고 프로필이 연결돼요. 사진 없이도 원픽을 이용할 수 있어요.</Text>
+              <Text style={styles.photoContributionHint}>이름이 잘 보이는 사진이면 충분해요. 직접 찍었거나 공유할 권한이 있는 사진을 골라주세요.</Text>
+              <Text style={styles.photoContributionHint}>채택된 사진은 같은 걸 고른 사람들의 원픽 카드에 함께 표시돼요. 상세 화면에 사진 등록자로 내 사용자명이 표시되고 프로필이 연결돼요. 사진 없이도 원픽을 이용할 수 있어요.</Text>
               {!user ? <Button fullWidth label="로그인하고 사진 등록" onPress={() => router.push({ pathname: '/auth/login', params: photoIntent })} style={styles.photoChooseButton} /> : <>
               {photo ? (
                 <>
@@ -234,12 +234,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <Text style={styles.itemName}>{item.name}</Text>
           <ItemPickCount itemId={item.id} />
           <ItemChannelLinks itemId={item.id} />
-          <Text style={styles.itemMeta}>이 상품을 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
+          <Text style={styles.itemMeta}>이걸 원픽으로 고른 사람들의 한줄평을 아래에서 함께 볼 수 있어요.</Text>
 
           {canChoose || myPickStatus.type === 'selected_this' ? (
             <Button size="lg" fullWidth onPress={openPickAction} style={styles.primaryAction}
-              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이 제품으로 원픽 바꾸기' : '이 제품으로 원픽 등록'} />
-          ) : <Text style={styles.itemMeta}>현재 이 제품이나 카테고리에서는 새 원픽을 선택할 수 없어요.</Text>}
+              label={myPickStatus.type === 'selected_this' ? '내 원픽 한줄평 보기/수정' : myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '이걸로 원픽 등록'} />
+          ) : <Text style={styles.itemMeta}>지금은 여기서 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -262,7 +262,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이 제품을 원픽으로 선택할 수 있어요.' : '새로운 선택을 받을 수 없는 제품이나 카테고리입니다.'} />
+          <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
         )}
       </ScrollView>
     </SafeAreaView>

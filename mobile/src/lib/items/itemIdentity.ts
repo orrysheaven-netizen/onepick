@@ -24,5 +24,5 @@ export function categoryRegistrationHint(slug?: string) {
   if (slug === 'beer') return '제품 종류·무알코올 여부는 구분하고, 캔·병·용량은 합쳐요.';
   if (slug === 'soju') return '제품 종류는 구분하고, 병·페트·용량은 합쳐요.';
   if (slug === 'snacks') return '제품명·맛은 구분하고, 포장 크기·묶음 수량은 합쳐요.';
-  return '같은 제품이 있는지 먼저 확인하고, 제품명과 세부 종류를 정확히 적어주세요.';
+  return '이미 등록된 게 있는지 먼저 확인하고, 이름과 세부 종류를 정확히 적어주세요.';
 }

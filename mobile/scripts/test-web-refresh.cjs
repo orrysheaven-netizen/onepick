@@ -6,7 +6,8 @@ const constants = load('constants/onepick.ts', { './font-family': load('constant
 const category = { id: 'ramen', slug: 'ramen', name: '라면', parentId: null, isPickable: true };
 const homeLabel = '홈 원픽 새로고침';
 const followingLabel = '팔로잉 원픽 새로고침';
-const profileLabel = '프로필과 제품 등록 요청 상태 새로고침';
+const profileLabel = '프로필과 원픽 등록 요청 상태 새로고침';
+const hiddenListsProfileLabel = '프로필 새로고침';
 const button = (view, label) => view.find('Button', (p) => p.accessibilityLabel === label);
 function query(data) {
   return {
@@ -128,12 +129,12 @@ async function main() {
     retry().onPress(); assert.equal(top.refetches, 2);
     top.isFetching = true; view.render(); assert.equal(retry().disabled, true); retry().onPress(); assert.equal(top.refetches, 2);
     top.isFetching = false; top.isError = false; top.data = []; view.render(); assert.ok(action());
-    action().onPress(); assert.equal(top.refetches, 3); assert.match(view.text(), /아직 선택된 제품이 없어요/);
+    action().onPress(); assert.equal(top.refetches, 3); assert.match(view.text(), /아직 선택된 원픽이 없어요/);
     top.data = undefined; top.isPending = true; view.render(); assert.equal(action(), undefined);
     view.find('Chip', (p) => p.label === '전체').onPress(); view.render(); assert.equal(view.find('SectionHeader'), undefined);
   });
   await test('Web profile refresh updates all three queries and reveals newly arrived request status', async () => {
-    flags.profilePickHistory = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, profile, history, requests, calls } = fixture('profile');
     assert.doesNotMatch(view.text(), /활동 기록/); assert.ok(button(view, profileLabel));
     const originalRefetch = requests.refetch;
@@ -148,13 +149,14 @@ async function main() {
     assert.equal(calls.historyId, 'owner'); assert.equal(calls.requestsId, 'owner');
     assert.equal(view.all('ProfileAiPanel').length, 0); assert.equal(view.all('ProfileTasteComposition').length, 0);
   });
-  await test('Web profile refresh skips the hidden pick history', async () => {
+  await test('Web profile refresh skips the hidden activity lists', async () => {
     const { view, profile, history, requests, calls } = fixture('profile');
-    await button(view, profileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 1]);
-    assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, 'owner');
+    assert.equal(button(view, profileLabel), undefined);
+    await button(view, hiddenListsProfileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);
+    assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, undefined);
   });
   await test('Web profile refresh is disabled while any related query fetches', async () => {
-    flags.profilePickHistory = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, profile, history, requests } = fixture('profile');
     for (const busy of [profile, history, requests]) {
       busy.isFetching = true; view.render(); assert.equal(button(view, profileLabel).disabled, true);
@@ -168,6 +170,7 @@ async function main() {
     profile.isRefetchError = false; view.render(); assert.equal(button(view, profileLabel).label, '새로고침');
   });
   await test('Web profile refresh never bypasses session, missing data or loading gates', () => {
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, auth, profile, calls } = fixture('profile');
     auth.user = null; view.render(); assert.equal(button(view, profileLabel), undefined);
     assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, undefined);
@@ -178,7 +181,7 @@ async function main() {
     assert.match(view.text(), /프로필을 불러오지 못했어요/);
   });
   await test('Native iOS and Android keep pull refresh instead of normal manual controls', async () => {
-    flags.profilePickHistory = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     for (const platform of ['ios', 'android']) {
       const h = fixture('home', platform); assert.equal(button(h.view, homeLabel), undefined);
       h.view.find('RefreshControl').onRefresh(); assert.equal(h.home.refetches, 1);

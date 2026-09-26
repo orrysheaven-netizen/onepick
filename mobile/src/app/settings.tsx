@@ -115,7 +115,7 @@ export default function SettingsScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>계정 삭제</Text>
               <Text style={styles.body}>
-                내 프로필, 원픽 기록, 댓글과 차단 정보가 삭제됩니다. 이미 승인된 정식 제품 마스터는 서비스 데이터로 유지될 수 있지만 내 계정과의 연결은 제거됩니다.
+                내 프로필, 원픽 기록, 댓글과 차단 정보가 삭제됩니다. 이미 승인되어 정식 등록된 정보는 서비스 데이터로 유지될 수 있지만 내 계정과의 연결은 제거됩니다.
               </Text>
               {confirmDelete ? (
                 <Text style={styles.confirmText}>계정 삭제는 되돌릴 수 없습니다. 한 번 더 누르면 삭제합니다.</Text>
