@@ -7,6 +7,7 @@ import { getUserModeration, setUserSuspension } from '@/lib/admin-moderation-api
 import type { AdminReport, AdminReportStatus } from '@/lib/admin-api';
 import type { UserModeration } from '@/lib/admin-moderation-api';
 import { OnePick } from '@/constants/onepick';
+import { reportReasonLabel, reportStatusLabel, reportTargetLabel } from '@/lib/admin/reportLabels';
 
 const FILTERS: Array<{ value: AdminReportStatus | 'all'; label: string }> = [
   { value: 'all', label: '전체' },
@@ -93,7 +94,7 @@ export function ReportsPanel() {
       const result = await updateReportStatus(selected.id, status);
       if (result[0]) {
         setReports((current) => current.map((report) => report.id === selected.id ? result[0] : report));
-        setMessage(`신고 상태를 ${statusLabel(status)}로 변경했습니다.`);
+        setMessage(`신고 상태를 ${reportStatusLabel(status)}로 변경했습니다.`);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '신고 상태를 변경하지 못했습니다.');
@@ -147,10 +148,10 @@ export function ReportsPanel() {
           {reports.map((report) => (
             <Pressable key={report.id} onPress={() => setSelectedId(report.id)} style={[styles.reportRow, selectedId === report.id && styles.reportRowSelected]}>
               <View style={styles.reportBody}>
-                <Text style={styles.reportTitle}>{targetLabel(report.target_type)} · {reasonLabel(report.reason)}</Text>
+                <Text style={styles.reportTitle}>{reportTargetLabel(report.target_type)} · {reportReasonLabel(report.reason)}</Text>
                 <Text style={adminStyles.muted}>{formatDate(report.created_at)} · {report.id.slice(0, 8)}</Text>
               </View>
-              <Text style={styles.status}>{statusLabel(report.status)}</Text>
+              <Text style={styles.status}>{reportStatusLabel(report.status)}</Text>
             </Pressable>
           ))}
           {hasMore && (
@@ -166,8 +167,8 @@ export function ReportsPanel() {
           {selected && (
             <View style={styles.detailBody}>
               <View>
-                <Text style={styles.detailTitle}>{targetLabel(selected.target_type)} 신고</Text>
-                <Text style={[adminStyles.muted, { marginTop: 5 }]}>{reasonLabel(selected.reason)} · {statusLabel(selected.status)}</Text>
+                <Text style={styles.detailTitle}>{reportTargetLabel(selected.target_type)} 신고</Text>
+                <Text style={[adminStyles.muted, { marginTop: 5 }]}>{reportReasonLabel(selected.reason)} · {reportStatusLabel(selected.status)}</Text>
               </View>
 
               <View style={styles.metaBox}>
@@ -240,18 +241,6 @@ export function ReportsPanel() {
 
 function Meta({ label, value }: { label: string; value: string }) {
   return <View style={styles.metaRow}><Text style={styles.metaLabel}>{label}</Text><Text selectable style={styles.metaValue}>{value}</Text></View>;
-}
-
-function targetLabel(value: AdminReport['target_type']) {
-  return ({ profile: '프로필', pick: 'Pick', comment: '댓글' } as const)[value];
-}
-
-function reasonLabel(value: AdminReport['reason']) {
-  return ({ spam: '스팸', harassment: '괴롭힘', inappropriate: '부적절한 콘텐츠', misleading: '오해 소지', other: '기타' } as const)[value];
-}
-
-function statusLabel(value: AdminReportStatus) {
-  return ({ open: '미처리', reviewing: '검토 중', resolved: '처리 완료', dismissed: '기각' } as const)[value];
 }
 
 function formatDate(value: string) {

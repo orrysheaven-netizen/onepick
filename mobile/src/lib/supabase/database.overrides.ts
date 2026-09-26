@@ -17,6 +17,8 @@ export type HomePickFeedRow = {
   image_path: string | null;
   image_source_url: string | null;
   started_at: string;
+  /** home_pick_feed_page only: the item's sales channels ('offline' | 'online'). */
+  channels?: string[] | null;
 };
 
 export type PlaceCatalogSearchRow = {
@@ -96,15 +98,27 @@ type NotificationPreferencesRow = {
   followee_pick_change: boolean;
   updated_at: string;
 };
+type ItemReviewNotificationRow = {
+  item_id: string;
+  recipient_id: string;
+  outcome: 'approved' | 'merged';
+  target_item_id: string;
+  created_at: string;
+  read_at: string | null;
+};
+// item_review rows have no pick or sender: pick_id and username are null and
+// item_id is the approved product to pick.
 export type NotificationPageRow = {
-  kind: 'comment' | 'pick_change';
+  kind: 'comment' | 'pick_change' | 'item_review';
   id: string;
-  pick_id: string;
-  username: string;
-  body: string;
+  pick_id: string | null;
+  username: string | null;
+  body: string | null;
   item_name: string;
   created_at: string;
   read_at: string | null;
+  item_id: string | null;
+  outcome: 'approved' | 'merged' | null;
 };
 
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
@@ -139,6 +153,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       system_actors: TableShape<SystemActorRow, never, never>;
       user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
       pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
+      item_review_notifications: TableShape<ItemReviewNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
@@ -149,7 +164,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
         })[];
       };
       home_pick_feed_page: {
-        Args: { p_before_time?: string; p_before_id?: string };
+        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online'; p_root_slug?: string };
         Returns: HomePickFeedRow[];
       };
       home_following_feed_page: {

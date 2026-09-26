@@ -55,6 +55,8 @@ const auth = { user: { id: 'owner' }, isLoading: false, error: null };
 const inbox = { data: { pages: [{ items: [
   { ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' },
   { ...rows[1], id: 'p1', pick_id: 'pick-p1', username: 'jimin', item_name: '헤드폰', body: '음질이 좋아요' },
+  { kind: 'item_review', id: 'req1', pick_id: null, username: null, body: null, item_name: '신라면', item_id: 'item-1', outcome: 'approved', created_at: rows[0].created_at, read_at: null },
+  { kind: 'item_review', id: 'req2', pick_id: null, username: null, body: null, item_name: '에어팟 프로', item_id: 'item-2', outcome: 'merged', created_at: rows[0].created_at, read_at: null },
 ] }] }, isError: false };
 let readCalls = [];
 const { default: Screen } = load('app/notifications.tsx', {
@@ -81,6 +83,17 @@ async function main() {
   assert.ok(calls.some(([key, value]) => key === 'table' && value === 'pick_change_notifications'), 'Pick changes are marked read on their own table');
   assert.ok(calls.some(([key, value]) => key === 'pick_id' && value === 'p1'));
   assert.ok(!calls.some(([key]) => key === 'comment_id'));
+  calls.length = 0;
+  await service.markRead('owner', 'item_review', 'req1');
+  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'item_review_notifications'), 'Review results are marked read on their own table');
+  assert.ok(calls.some(([key, value]) => key === 'item_id' && value === 'req1'));
+  calls.length = 0;
+  rows.push({ kind: 'item_review', id: 'r-bad', pick_id: null, item_id: null, created_at: rows[0].created_at, read_at: null });
+  rows.push({ kind: 'item_review', id: 'r-ok', pick_id: null, item_id: 'item-9', outcome: 'approved', item_name: '텀블러', created_at: rows[0].created_at, read_at: null });
+  rows.splice(0, rows.length, ...rows.slice(-2));
+  const reviewPage = await service.page('owner', null);
+  assert.equal(reviewPage.items.length, 1, 'A review row without a product is dropped');
+  assert.equal(reviewPage.items[0].username, null, 'Review rows keep a null sender');
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: false }));
   preferenceRow = null;
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: true }), 'No row means on');
@@ -107,6 +120,14 @@ async function main() {
   openPick.onPress(); await new Promise((resolve) => setImmediate(resolve));
   assert.equal(destination.params.pickId, 'pick-p1', 'Pick-change rows open the new pick');
   assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'pick_change', id: 'p1' }));
+  assert.match(inboxHtml, /등록하신 신라면이 승인됐어요\. 원픽으로 선택해보세요\./, 'Approval copy uses the right particle');
+  assert.match(inboxHtml, /요청하신 원픽이 에어팟 프로\(으\)로 등록됐어요/, 'Merged requests name the product to pick');
+  assert.doesNotMatch(inboxHtml, /@null|알 수 없는 사용자/, 'Review results have no sender');
+  const openReview = buttons.find((button) => button.accessibilityLabel?.includes('신라면이 승인됐어요'));
+  openReview.onPress(); await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(destination.pathname, '/pick/choose', 'Review results open the pick chooser');
+  assert.equal(destination.params.itemId, 'item-1');
+  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'item_review', id: 'req1' }));
   auth.user = null;
   const publicPage = renderToStaticMarkup(React.createElement(Screen));
   assert.match(publicPage, /로그인/); assert.doesNotMatch(publicPage, /@friend|신라면/, 'No cached private data on logout');
@@ -120,6 +141,6 @@ async function main() {
   assert.match(renderToStaticMarkup(React.createElement(Screen)), /알림을 불러오지 못했어요/);
   inbox.isError = false;
   assert.match(renderToStaticMarkup(React.createElement(Screen)), /아직 알림이 없어요/);
-  console.log('Notification checks passed: unified inbox cursor, per-kind read marks, cached-data refresh resilience, preferences, errors, navigation, badge and private UI states.');
+  console.log('Notification checks passed: unified inbox cursor, per-kind read marks (including request reviews), cached-data refresh resilience, preferences, errors, navigation, badge and private UI states.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

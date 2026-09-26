@@ -16,6 +16,14 @@ export interface CommentReadItem {
   author: Profile | null;
 }
 
+/** A comment I wrote, with the review it answers. Pick/item/author are null when no longer visible. */
+export interface MyCommentReadItem {
+  comment: Comment;
+  pick: Pick | null;
+  pickAuthor: Profile | null;
+  item: Item | null;
+}
+
 export interface ItemRequestReadItem {
   item: Item;
   category: Category | null;
@@ -28,6 +36,9 @@ export interface ReadCursor {
 }
 
 /** One person's current choice, not an aggregate product or a follower event. */
+/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
+export type PickChannel = 'offline' | 'online';
+
 export interface HomeFeedPick {
   pickId: string;
   userId: string;
@@ -40,6 +51,8 @@ export interface HomeFeedPick {
   oneLineReview: string;
   thumbnailUrl: string | null;
   startedAt: string;
+  /** Empty for legacy items with no channel, and on the following feed. */
+  channels: PickChannel[];
 }
 
 export interface HomePickPage {
@@ -113,7 +126,11 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
+  /**
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
+   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   */
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
@@ -125,5 +142,6 @@ export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
+  getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }

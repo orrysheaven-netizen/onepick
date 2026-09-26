@@ -14,6 +14,25 @@ export type ModeratedAdminUser = {
   is_admin: boolean;
 };
 
+export type AdminUserStatusFilter = 'all' | UserModerationStatus;
+export type AdminUserSort = 'created' | 'activity';
+
+export type AdminDirectoryUser = ModeratedAdminUser & {
+  active_pick_count: number;
+  comment_count: number;
+  report_count: number;
+  open_report_count: number;
+  last_active_at: string;
+};
+
+export type AdminUserDirectory = {
+  counts: { total: number; active: number; suspended: number };
+  matched: number;
+  users: AdminDirectoryUser[];
+};
+
+export const ADMIN_USER_PAGE_SIZE = 50;
+
 export type UserModeration = {
   user_id: string;
   status: UserModerationStatus;
@@ -67,6 +86,21 @@ function errorMessage(raw: string) {
 
 export function getModeratedUsers(query = '') {
   return adminRpc<ModeratedAdminUser[]>('admin_users', { p_query: query });
+}
+
+export function getUserDirectory({ query = '', status = 'all', sort = 'created', offset = 0 }: {
+  query?: string;
+  status?: AdminUserStatusFilter;
+  sort?: AdminUserSort;
+  offset?: number;
+}) {
+  return adminRpc<AdminUserDirectory>('admin_user_directory', {
+    p_query: query.trim(),
+    p_status: status,
+    p_sort: sort,
+    p_limit: ADMIN_USER_PAGE_SIZE,
+    p_offset: offset,
+  });
 }
 
 export function getUserModeration(userId: string) {

@@ -2,7 +2,8 @@
 
 ## Verified in this pass
 
-- npm audit, including development dependencies: 0 known advisories (698 total dependencies reported). This is a point-in-time dependency check, not a full security assessment.
+- Dependency audit status was refreshed on 2026-09-25: `mobile/` reports 14 moderate advisories (1 affecting deployment/runtime code and 13 build/development-only in the Security QA classification), while `tools/qa/` reports 0 advisories. This is a point-in-time dependency check, not a full security assessment.
+- Follow-up plan: keep the runtime-affecting advisory prioritized for a compatible dependency update and regression test; handle build-only advisories through normal dependency updates without forcing breaking major upgrades solely to make the audit count zero. Re-run both audits after dependency changes and record any accepted residual risk.
 - Auth return, auth session and safety regression scripts passed. They cover malformed return parameters, session races, logout/cache cleanup and block/report validation.
 - Web export succeeded. Export validation passed for 10 direct routes, 2 assets, callback query and SPA fallback.
 - Earlier rollback-only database lifecycle checks are recorded in `two-user-validation.md`. They do not substitute for browser/account testing.

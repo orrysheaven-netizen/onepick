@@ -3,6 +3,7 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  PickChannel,
   PickReadInput,
   ReadCursor,
   ReadRepository,
@@ -41,6 +42,9 @@ type PickReadRow = PickRow & {
 };
 type CommentReadRow = CommentRow & {
   author: Related<ProfileRow>;
+};
+type MyCommentReadRow = CommentRow & {
+  pick: Related<PickRow & { profile: Related<ProfileRow>; item: Related<ItemRow> }>;
 };
 type ItemRequestReadRow = ItemRow & {
   category: Related<CategoryRow>;
@@ -82,20 +86,22 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
     const { data, error } = await this.client.rpc(rpc, {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+      ...(channel ? { p_channel: channel } : {}),
+      ...(rootSlug ? { p_root_slug: rootSlug } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
@@ -109,6 +115,7 @@ export class SupabaseReadRepository implements ReadRepository {
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
         thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+        channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online'),
       })),
     };
   }
@@ -273,6 +280,39 @@ export class SupabaseReadRepository implements ReadRepository {
       return {
         comment: mapCommentRow(row),
         author: author ? mapProfileRow(author) : null,
+      };
+    });
+  }
+
+  async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    let query = this.client
+      .from('comments')
+      .select(`
+        *,
+        pick:picks!comments_pick_id_fkey(
+          *,
+          profile:profiles!picks_user_id_fkey(*),
+          item:items!picks_item_category_fk(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(safeLimit);
+
+    if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
+    const { data, error } = await query;
+    if (error) throw mapSupabaseError(error);
+    return (data as unknown as MyCommentReadRow[]).map((row) => {
+      const pick = one(row.pick);
+      const pickAuthor = pick ? one(pick.profile) : null;
+      const item = pick ? one(pick.item) : null;
+      return {
+        comment: mapCommentRow(row),
+        pick: pick ? mapPickRow(pick) : null,
+        pickAuthor: pickAuthor ? mapProfileRow(pickAuthor) : null,
+        item: item ? mapItemRow(item) : null,
       };
     });
   }

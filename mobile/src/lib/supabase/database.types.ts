@@ -1582,10 +1582,11 @@ export type Database = {
         }[]
       }
       home_pick_feed_page: {
-        Args: { p_before_id?: string; p_before_time?: string }
+        Args: { p_before_id?: string; p_before_time?: string; p_channel?: string; p_root_slug?: string }
         Returns: {
           category_id: string
           category_name: string
+          channels: string[]
           image_path: string
           image_source_url: string
           item_id: string

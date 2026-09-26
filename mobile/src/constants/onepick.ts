@@ -91,6 +91,10 @@ export const OnePickFeatures = {
   // Keep both profile features implemented, but unmounted during the early MVP.
   tasteComposition: false,
   profileAi: false,
+  // Hidden during the early MVP; the data and components stay in place.
+  profilePickHistory: false,
+  profileSocialLinks: false,
+  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
   // Restaurant-first MVP: Home and Explore show only OnePickMvp.browseGroupSlug,

@@ -58,6 +58,7 @@ function load(supabase, fetchFn, browser = {}) {
       // Pure, dependency-free formatting helper (no session/storage of its own) -- admin-api.ts's
       // manual item creation uses it, so it is allowed alongside the shared-session guard above.
       if (name === '@/lib/items/itemIdentity') return { canonicalItemName: (value) => value };
+      if (name === '@/lib/items/pickChannel') return require('./pick-channel.cjs');
       // The single shared access-token helper admin-api.ts and admin-moderation-api.ts both use.
       // Mirrors the real implementation exactly, against this same mocked `supabase` client, so
       // the assertions below still exercise real getSession()/error behavior, not a stub.
@@ -214,6 +215,39 @@ async function main() {
     const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
     await signOutAdmin();
     assert.equal(signOutOptions.scope, 'global');
+  }
+
+// --- signOutAdmin surfaces a fixed error instead of provider details ---
+  {
+    const supabase = createSupabase({ session: { access_token: 'tok', refresh_token: 'r' } });
+    supabase.auth.signOut = async () => ({ error: { message: 'provider_internal_secret_detail' } });
+    const { signOutAdmin } = load(supabase, async () => assert.fail('should not fetch'));
+    await assert.rejects(
+      () => signOutAdmin(),
+      (error) => error.message === '관리자 로그아웃에 실패했습니다.'
+        && !error.message.includes('provider_internal_secret_detail'),
+    );
+  }
+
+  // --- OAuth provider errors are removed from the URL and never shown verbatim to admins ---
+  {
+    const supabase = createSupabase({ session: null });
+    let replaced;
+    const { checkAdminSession } = load(supabase, async () => assert.fail('should not fetch'), {
+      location: {
+        origin: 'https://admin.onepick.example',
+        pathname: '/admin',
+        search: '?error=access_denied&error_description=provider_internal_secret_detail',
+        hash: '',
+      },
+      history: { replaceState: (_data, _unused, url) => { replaced = url; } },
+    });
+    await assert.rejects(
+      () => checkAdminSession(),
+      (error) => error.message === '관리자 로그인을 완료하지 못했습니다.'
+        && !error.message.includes('provider_internal_secret_detail'),
+    );
+    assert.equal(replaced, '/admin', 'OAuth error details must be removed from the URL');
   }
 
   // --- beginKakaoAdminSignIn delegates to the shared client's OAuth flow, not a hand-built authorize URL ---

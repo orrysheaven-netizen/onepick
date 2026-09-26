@@ -1,5 +1,6 @@
 import { Button, PickCard } from '@/components/ui';
 import { formatRelativeTime } from '@/lib/format/relativeTime';
+import { homeChannelLabel } from '@/lib/home/homeChannels';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
@@ -16,8 +17,9 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSa
   onOpenProfile: () => void;
   onChooseSame: () => void;
 }) {
+  const channelLabel = homeChannelLabel(pick.channels ?? []);
   return <PickCard
-    categoryName={pick.categoryName}
+    categoryName={channelLabel ? `${pick.categoryName} · ${channelLabel}` : pick.categoryName}
     itemName={pick.name}
     review={pick.oneLineReview}
     photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId }}
@@ -25,7 +27,7 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSa
     timeLabel={formatRelativeTime(pick.startedAt)}
     badge={mine ? '내 원픽' : undefined}
     onPress={onOpenItem}
-    accessibilityLabel={pick.name + ' 제품 상세 보기'}
+    accessibilityLabel={pick.name + ' 상세 보기'}
     footer={<>
       {mine
         ? <Button variant="ghost" size="sm" label="이미 내 원픽이에요" accessibilityLabel={`${pick.name} 내 한줄평 보기`} onPress={onChooseSame} />

@@ -81,11 +81,11 @@ export function ProfilePickCard({
         {onPressItem ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${itemName} 제품 상세 보기`}
+            accessibilityLabel={`${itemName} 상세 보기`}
             hitSlop={4}
             onPress={onPressItem}
             style={({ pressed }) => [styles.itemAction, pressed && styles.pressed]}>
-            <Text style={styles.itemActionText}>제품 보기</Text>
+            <Text style={styles.itemActionText}>상세 보기</Text>
             <Text style={styles.itemActionArrow}>›</Text>
           </Pressable>
         ) : null}

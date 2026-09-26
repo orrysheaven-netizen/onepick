@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
-import { browseCategoryGroups, categoryLabel } from '@/lib/categories/categoryTree';
+import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
 
@@ -35,13 +35,7 @@ export default function ExploreScreen() {
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categoryCatalog.find((category) => category.id === selectedCategoryId);
-  const selectedCategoryLabel = selectedCategory ? categoryLabel(selectedCategory, categoryCatalog) : null;
-  // Leaves can sit two levels below a top-level group; show the path below the group name.
-  const leafLabel = (category: Category) => {
-    const full = categoryLabel(category, categoryCatalog);
-    const prefix = group ? `${group.category.name} › ` : '';
-    return prefix && full.startsWith(prefix) ? full.slice(prefix.length) : full;
-  };
+  const selectedCategoryLabel = selectedCategory?.name ?? null;
   const movieCategory = inScope(categories.data?.find((category) => category.slug === 'movie'));
   const dramaCategory = inScope(categories.data?.find((category) => category.slug === 'drama'));
   const musicCategory = inScope(categories.data?.find((category) => category.slug === 'music'));
@@ -141,8 +135,8 @@ export default function ExploreScreen() {
             <Text style={styles.childTitle}>{group.category.name} 카테고리</Text>
             <Text style={styles.childCount}>{group.children.length}개</Text>
           </View>
-          <View style={styles.childList}>{group.children.map((category) => <Chip key={category.id} label={leafLabel(category)}
-            accessibilityLabel={`${group.category.name} › ${leafLabel(category)} 카테고리 보기`} selected={childId === category.id}
+          <View style={styles.childList}>{group.children.map((category) => <Chip key={category.id} label={category.name}
+            accessibilityLabel={`${category.name} 카테고리 보기`} selected={childId === category.id}
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
         </View> : null}
@@ -176,7 +170,7 @@ export default function ExploreScreen() {
         {selectedCategoryId ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <SectionHeader title={showRankingDetail ? `${selectedCategoryLabel} 원픽 TOP 3` : `${selectedCategoryLabel}의 원픽`}
-              description={showRankingDetail ? '지금 이 제품을 원픽으로 고른 사람 수 기준이에요.' : undefined}
+              description={showRankingDetail ? '지금 이걸 원픽으로 고른 사람 수 기준이에요.' : undefined}
               action={Platform.OS === 'web' && topItems.data && !topItems.isError ? {
                 label: topItems.isFetching ? '불러오는 중…' : '새로고침', accessibilityLabel: '카테고리 원픽 새로고침', disabled: topItems.isFetching,
                 onPress: () => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); },
@@ -195,8 +189,8 @@ export default function ExploreScreen() {
             <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
             <Pressable accessibilityRole="button"
               accessibilityLabel={showRankingDetail
-                ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 제품 상세 보기`
-                : `${item.name}, 제품 상세 보기`}
+                ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 상세 보기`
+                : `${item.name}, 상세 보기`}
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
                 <Text style={styles.rankName}>{item.name}</Text>
@@ -205,8 +199,8 @@ export default function ExploreScreen() {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>)}
-          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 제품이 없어요" text="첫 원픽이 등록되면 이곳에 제품이 표시돼요." /> : null}
-          {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개 제품</Text> : null}
+          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개</Text> : null}
         </View> : null}
       </ScrollView>
     </SafeAreaView>

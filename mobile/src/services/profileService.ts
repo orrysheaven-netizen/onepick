@@ -65,6 +65,16 @@ export class ProfileService {
     };
   }
 
+  async getMyComments(userId: string, cursor: ReadCursor | null = null) {
+    const rows = await this.readRepository.getCommentsByUser(userId, 21, cursor);
+    const items = rows.slice(0, 20);
+    const last = items[items.length - 1]?.comment;
+    return {
+      items,
+      nextCursor: rows.length > 20 && last ? { timestamp: last.createdAt, id: last.id } : null,
+    };
+  }
+
   async getMyItemRequests(userId: string, cursor: ReadCursor | null = null) {
     const rows = await this.readRepository.getItemRequestsByUser(userId, undefined, 21, cursor);
     const items = rows.slice(0, 20);

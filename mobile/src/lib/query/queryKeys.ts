@@ -19,11 +19,13 @@ export const queryKeys = {
   comments: {
     all: ['comments'] as const,
     byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
+    byUser: (userId?: string) => ['comments', 'user', userId ?? 'anonymous', 'cursor'] as const,
   },
   items: {
     all: ['items'] as const,
     detail: (itemId: string, userId?: string) =>
       ['items', 'detail', itemId, userId ?? 'public'] as const,
+    channels: (itemId: string) => ['items', 'channels', itemId] as const,
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string, categoryIds?: string[]) =>
       ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,
