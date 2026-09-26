@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import type { PickChannel } from '@/lib/items/pickChannel';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -25,5 +25,15 @@ export function useDishPicks(categoryId: string | undefined, channel: PickChanne
         return true;
       });
     },
+  });
+}
+
+/** The viewer's own current Picks for the dish (one per channel), shown above everyone else's. */
+export function useMyDishPicks(categoryId: string | undefined, userId?: string) {
+  return useQuery({
+    enabled: Boolean(categoryId && userId),
+    queryKey: queryKeys.home.myDishPicks(userId ?? '', categoryId ?? ''),
+    queryFn: () => homeService.getMyDishPicks(userId!, categoryId!),
+    staleTime: DISH_PICKS_STALE_TIME,
   });
 }

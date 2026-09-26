@@ -4,9 +4,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
-import { useDishPicks } from '@/hooks/useDishPicks';
+import { useDishPicks, useMyDishPicks } from '@/hooks/useDishPicks';
 import { HOME_CHANNEL_TABS } from '@/lib/home/homeChannels';
 import type { PickChannel } from '@/lib/items/pickChannel';
+import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 type Props = {
   categoryId: string;
@@ -16,13 +17,22 @@ type Props = {
 
 /**
  * Everyone's current Pick for one dish: who → store/recipe → 한줄평, newest
- * first, with the Home channel tabs. The viewer's own Pick is left out, as on Home.
+ * first, with the Home channel tabs. The feed leaves the viewer out, so their own
+ * Pick for the dish is read separately and shown first as "내 원픽".
  */
 export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
   const router = useRouter();
   const [channel, setChannel] = useState<PickChannel | null>(null);
   const query = useDishPicks(categoryId, channel, userId);
   const picks = query.data ?? [];
+  const mine = (useMyDishPicks(categoryId, userId).data ?? [])
+    .filter((pick) => !channel || pick.channels.includes(channel));
+  const renderCard = (pick: HomeFeedPick, isMine: boolean) => <View key={pick.pickId} style={styles.cell}>
+    <HomeFeedCard pick={pick} mine={isMine}
+      onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
+      onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
+  </View>;
   const loadMore = () => {
     if (query.hasNextPage && !query.isFetching) void query.fetchNextPage({ cancelRefetch: false });
   };
@@ -41,12 +51,8 @@ export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
       {query.isSuccess && !picks.length ? <StateCard compact title={`아직 다른 사람의 ${categoryName} 원픽이 없어요`}
         text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
 
-      {picks.map((pick) => <View key={pick.pickId} style={styles.cell}>
-        <HomeFeedCard pick={pick}
-          onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
-          onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
-          onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
-      </View>)}
+      {mine.map((pick) => renderCard(pick, true))}
+      {picks.map((pick) => renderCard(pick, false))}
 
       {query.hasNextPage ? <Button variant="ghost" size="sm" label={query.isFetchingNextPage ? '불러오는 중…' : '원픽 더 보기'}
         accessibilityLabel={`${categoryName} 원픽 더 보기`} disabled={query.isFetching} onPress={loadMore} /> : null}
