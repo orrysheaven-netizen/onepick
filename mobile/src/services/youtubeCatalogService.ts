@@ -24,7 +24,7 @@ export class YouTubeCatalogService {
       : Promise.reject(new AppError('VIDEO_URL_INVALID'));
   }
 
-  importVideo(externalId: string) {
-    return this.repository.importVideo(externalId.trim());
+  importVideo(externalId: string, categoryId: string) {
+    return this.repository.importVideo(externalId.trim(), categoryId.trim());
   }
 }
