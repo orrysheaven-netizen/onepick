@@ -74,7 +74,7 @@ begin
   assert not exists (
     select 1 from pg_proc
     where proname='home_pick_feed_page' and pronamespace='public'::regnamespace
-      and oid<>'public.home_pick_feed_page(timestamptz,uuid,text)'::regprocedure
+      and oid<>'public.home_pick_feed_page(timestamptz,uuid,text,text)'::regprocedure
   ), 'Only the channel-aware overload remains, so two-argument calls stay unambiguous';
 end;
 $flow$;
