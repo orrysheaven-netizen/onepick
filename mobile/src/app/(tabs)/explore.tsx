@@ -6,10 +6,12 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useCategoryTopItems, useExploreCategories } from '@/hooks/useExploreData';
+import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
+import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import { homeChannelLabel } from '@/lib/home/homeChannels';
-import { OnePick, OnePickFeatures, OnePickThresholds } from '@/constants/onepick';
+import type { Category } from '@/types/domain/category';
+import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
 
 type ExploreParams = { search?: string | string[]; query?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
@@ -20,22 +22,33 @@ export default function ExploreScreen() {
   const incomingQuery = (scalar(params.query) ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
   const [parentId, setParentId] = useState<string | undefined>();
   const [childId, setChildId] = useState<string | undefined>();
-  const [searchOpen, setSearchOpen] = useState(() => scalar(params.search) === '1' || incomingQuery.length > 0);
+  // Without category chips the search box is the main way in, so it starts open.
+  const [searchOpen, setSearchOpen] = useState(() => !OnePickFeatures.categoryChips || scalar(params.search) === '1' || incomingQuery.length > 0);
   const categories = useExploreCategories();
   const categoryCatalog = categories.data ?? [];
+  const scope = useMemo(() => browseScope(categoryCatalog, {
+    chips: Boolean(OnePickFeatures.categoryChips), groupSlug: OnePickMvp.browseGroupSlug,
+  }), [categoryCatalog]);
+  // External catalogs (movie, book...) are offered only for categories being browsed.
+  const inScope = (category?: Category) =>
+    category && (scope.leafIds === null || scope.leafIds.includes(category.id)) ? category : undefined;
   const groups = useMemo(() => browseCategoryGroups(categoryCatalog), [categoryCatalog]);
   const group = groups.find((entry) => entry.category.id === parentId);
   const selectedCategoryId = group?.directlySelectable ? group.category.id : group?.children.find((child) => child.id === childId)?.id;
   const selectedCategory = categoryCatalog.find((category) => category.id === selectedCategoryId);
   const selectedCategoryLabel = selectedCategory?.name ?? null;
-  const movieCategory = categories.data?.find((category) => category.slug === 'movie');
-  const dramaCategory = categories.data?.find((category) => category.slug === 'drama');
-  const musicCategory = categories.data?.find((category) => category.slug === 'music');
-  const gameCategory = categories.data?.find((category) => category.slug === 'game');
-  const bookCategory = categories.data?.find((category) => category.slug === 'book');
-  const youtubeCategory = categories.data?.find((category) => category.slug === 'youtube');
-  const pokemonCategory = categories.data?.find((category) => category.slug === 'pokemon');
+  const movieCategory = inScope(categories.data?.find((category) => category.slug === 'movie'));
+  const dramaCategory = inScope(categories.data?.find((category) => category.slug === 'drama'));
+  const musicCategory = inScope(categories.data?.find((category) => category.slug === 'music'));
+  const gameCategory = inScope(categories.data?.find((category) => category.slug === 'game'));
+  const bookCategory = inScope(categories.data?.find((category) => category.slug === 'book'));
+  const youtubeCategory = inScope(categories.data?.find((category) => category.slug === 'youtube'));
+  const pokemonCategory = inScope(categories.data?.find((category) => category.slug === 'pokemon'));
   const topItems = useCategoryTopItems(selectedCategoryId);
+  // Nothing selected: newest-picked places first (one row per place). Waits for the
+  // category tree so the MVP scope is known before the first request.
+  const recentItems = useRecentPickedItems(scope.leafIds, !selectedCategoryId && Boolean(categories.data));
+  const recentTitle = scope.showChips ? '최근 원픽된 항목' : '최근 원픽된 맛집';
   // Gate all ranking details together, including accessibility and first-place styling.
   // A sum across TOP 3 would reveal rankings too early (e.g. three different 1-pick items).
   const topPickCount = topItems.data?.find((item) => item.rank === 1)?.pickCount ?? 0;
@@ -62,22 +75,23 @@ export default function ExploreScreen() {
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
+    if (!selectedCategoryId && categories.data && !recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false });
   };
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>카테고리 탐색</Text>
+          <Text style={styles.title}>{scope.showChips ? '카테고리 탐색' : '맛집 찾기'}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
             {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
           </Pressable>
         </View>
-        <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text>
+        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '가게 이름으로 찾거나, 최근 원픽된 맛집을 둘러보세요.'}</Text>
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
@@ -103,10 +117,10 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
             onSelect={openItem} />
         </View> : null}
-        <Text style={styles.levelTitle}>상위 카테고리</Text>
+        {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
         {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
-        {!categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
+        {scope.showChips && !categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
           <Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected={!parentId}
             onPress={() => { setParentId(undefined); setChildId(undefined); }} />
           {groups.map(({ category }) => {
@@ -115,7 +129,7 @@ export default function ExploreScreen() {
               onPress={() => { setParentId(category.id); setChildId(undefined); }} />;
           })}
         </View> : null}
-        {!categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
+        {scope.showChips && !categories.isPending && !categories.isError && !groups.length ? <Text style={styles.stateText}>아직 공개된 카테고리가 없어요.</Text> : null}
 
         {group && !group.directlySelectable ? <View style={styles.childPanel}>
           <View style={styles.childHeader}>
@@ -126,6 +140,32 @@ export default function ExploreScreen() {
             accessibilityLabel={`${category.name} 카테고리 보기`} selected={childId === category.id}
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
+        </View> : null}
+        {!selectedCategoryId && categories.data ? <View style={styles.rankingSection}>
+          <View style={styles.sectionHeader}>
+            <SectionHeader title={recentTitle} description="가장 최근에 누군가의 원픽이 된 순서예요." />
+          </View>
+          {recentItems.isPending ? <ActivityIndicator accessibilityLabel="최근 원픽 불러오는 중" style={styles.rankingLoading} /> : null}
+          {recentItems.isError && !recentItems.isFetchNextPageError ? <StateCard compact tone="danger" title="최근 원픽을 불러오지 못했어요"
+            text={recentItems.data?.length ? '마지막으로 불러온 내용을 표시하고 있어요.' : '연결 상태를 확인한 뒤 다시 시도해주세요.'}
+            action={{ label: recentItems.isFetching ? '불러오는 중…' : '다시 불러오기', accessibilityLabel: '최근 원픽 다시 불러오기', disabled: recentItems.isFetching,
+              onPress: () => { if (!recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false }); } }} /> : null}
+          {recentItems.data?.map((item) => <View key={item.itemId} style={styles.rankCard}>
+            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+            <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}, ${item.categoryName}, 상세 보기`}
+              onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
+              <View style={styles.rankCopy}>
+                <Text style={styles.rankName}>{item.name}</Text>
+                <Text style={styles.recentCategory}>{item.categoryName}</Text>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </Pressable>
+          </View>)}
+          {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽된 곳이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {recentItems.isFetchNextPageError ? <Text style={styles.refreshError}>다음 목록을 불러오지 못했어요. 더 보기를 다시 눌러주세요.</Text> : null}
+          {recentItems.hasNextPage ? <Button variant="secondary" label={recentItems.isFetchingNextPage ? '불러오는 중…' : '더 보기'}
+            accessibilityLabel="최근 원픽 더 보기" disabled={recentItems.isFetchingNextPage}
+            onPress={() => { if (!recentItems.isFetchingNextPage) void recentItems.fetchNextPage({ cancelRefetch: false }); }} /> : null}
         </View> : null}
         {selectedCategoryLabel ? <Text style={styles.selectionLabel}>{selectedCategoryLabel}</Text> : null}
         {selectedCategoryId ? <View style={styles.rankingSection}>
@@ -202,6 +242,7 @@ const styles = StyleSheet.create({
   rankAction: { flex: 1, minHeight: 86, flexDirection: 'row', alignItems: 'center' },
   rankCopy: { flex: 1, paddingLeft: 12 },
   rankName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '800' },
+  recentCategory: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   rankCount: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 8 },
   rankingFootnote: { color: OnePick.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
   sectionHeader: { marginBottom: 16 },

@@ -70,6 +70,21 @@ export interface CategoryTopItem {
   channels: PickChannel[];
 }
 
+/** One place/product per row, ordered by its latest visible active Pick. */
+export interface RecentPickedItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  thumbnailUrl: string | null;
+  lastPickedAt: string;
+}
+
+export interface RecentPickedItemPage {
+  items: RecentPickedItem[];
+  nextCursor: ReadCursor | null;
+}
+
 export interface HomeShowcaseItem {
   itemId: string;
   name: string;
@@ -123,6 +138,8 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  /** Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first. */
+  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;

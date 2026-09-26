@@ -184,6 +184,27 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // Viewer-specific like the home feed: session RLS decides which Picks count,
+    // so a blocked person's Pick never bumps an item to the top.
+    const { data, error } = await this.client.rpc('explore_recent_items_page', {
+      p_category_ids: categoryIds ?? undefined,
+      p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const last = data[19];
+    return {
+      nextCursor: data.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
+      items: data.slice(0, 20).map((row) => ({
+        itemId: row.item_id, name: row.item_name,
+        categoryId: row.category_id, categoryName: row.category_name,
+        thumbnailUrl: this.cardThumbnailUrl(row), lastPickedAt: row.last_picked_at,
+      })),
+    };
+  }
+
   async countActivePicks(itemId: string) {
     // One current pick per user/category plus the item/category FK prevents duplicate people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.
