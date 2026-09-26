@@ -1305,7 +1305,12 @@ export type Database = {
       }
       admin_operations_snapshot: { Args: { p_days?: number }; Returns: Json }
       admin_review_pending_item: {
-        Args: { p_category_id?: string; p_item_id: string; p_status: string }
+        Args: {
+          p_category_id?: string
+          p_item_id: string
+          p_reject_reason?: string
+          p_status: string
+        }
         Returns: {
           brand_id: string | null
           category_id: string

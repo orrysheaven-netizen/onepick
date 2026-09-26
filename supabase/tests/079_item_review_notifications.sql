@@ -1,6 +1,7 @@
 -- A requester hears back when their pending item is approved or merged, so
--- they can pick it; nothing is sent for rejections, for requests with no
--- requester, or when the requester already picks the resulting product.
+-- they can pick it, or rejected, with the admin's reason; nothing is sent for
+-- requests with no requester, or when the requester already picks the
+-- resulting product.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(1);
@@ -49,7 +50,7 @@ begin
   perform set_config('request.jwt.claim.sub',admin::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   perform public.admin_review_pending_item(approved,'active');
-  perform public.admin_review_pending_item(rejected,'rejected');
+  perform public.admin_review_pending_item(rejected,'rejected',null,'중복 상품');
   perform public.admin_review_pending_item(orphan,'active');
   perform public.admin_merge_pending_item(merged,existing);
   perform public.admin_merge_pending_item(already,picked);
@@ -61,7 +62,9 @@ begin
   select * into r from public.item_review_notifications where item_id=merged;
   assert found and r.recipient_id=alice and r.outcome='merged' and r.target_item_id=existing,
     'A merge points the requester at the existing product';
-  assert not exists(select 1 from public.item_review_notifications where item_id=rejected), 'Rejections are not notified';
+  select * into r from public.item_review_notifications where item_id=rejected;
+  assert found and r.recipient_id=alice and r.outcome='rejected' and r.target_item_id=rejected,
+    'Rejection notifies the requester about the request itself';
   assert not exists(select 1 from public.item_review_notifications where item_id=orphan), 'No requester, no notification';
   assert not exists(select 1 from public.item_review_notifications where item_id=already),
     'No nudge when the requester already picks the resulting product';
@@ -73,24 +76,28 @@ begin
   assert n=1, 'One notification per request';
 
   -- Alice's inbox: both results, newest first, pick_id null and item_id to pick.
+  update public.item_review_notifications set created_at=now()-interval '3 minutes' where item_id=rejected;
   update public.item_review_notifications set created_at=now()-interval '2 minutes' where item_id=approved;
   update public.item_review_notifications set created_at=now()-interval '1 minute' where item_id=merged;
   perform set_config('request.jwt.claim.sub',alice::text,true);
   perform set_config('request.jwt.claims','{}',true);
   set local role authenticated;
-  assert (select public.notification_count())=2, 'Unread count includes review results';
+  assert (select public.notification_count())=3, 'Unread count includes review results';
   select array_agg(p.item_id order by p.created_at desc, p.id desc) into ids
     from public.notification_page() p where p.kind='item_review';
-  assert ids=array[existing,approved], 'Review results are listed newest first with the product to pick';
+  assert ids=array[existing,approved,rejected], 'Review results are listed newest first with the product to pick';
+  select * into r from public.notification_page() p where p.kind='item_review' and p.id=rejected;
+  assert r.outcome='rejected' and r.body='중복 상품' and r.item_name='Rejected request',
+    'Rejected rows carry the reason and the requested name';
   select * into r from public.notification_page() p where p.kind='item_review' and p.id=merged;
   assert r.pick_id is null and r.username is null and r.outcome='merged' and r.item_name='Existing product',
     'Merged rows name the product the request was merged into';
 
   -- Read marks are per row and only the recipient can set them.
   update public.item_review_notifications set read_at=now() where item_id=approved;
-  assert (select public.notification_count())=1, 'Read review results leave the unread count';
+  assert (select public.notification_count())=2, 'Read review results leave the unread count';
   select count(*) into n from public.notification_page() where kind='item_review';
-  assert n=2, 'Read rows stay listed';
+  assert n=3, 'Read rows stay listed';
   reset role;
 
   perform set_config('request.jwt.claim.sub',bob::text,true);
@@ -108,11 +115,11 @@ begin
   perform set_config('request.jwt.claim.sub',alice::text,true);
   set local role authenticated;
   select count(*) into n from public.notification_page() where kind='item_review';
-  assert n=1, 'Results for a hidden product are not shown';
-  assert (select public.notification_count())=0, 'Hidden products leave the unread count';
+  assert n=2, 'Results for a hidden product are not shown';
+  assert (select public.notification_count())=1, 'Hidden products leave the unread count';
   reset role;
 end;
 $flow$;
-$test$, 'Item review notifications: approval and merge results, exclusions, inbox and privacy');
+$test$, 'Item review notifications: approval, merge and rejection results, exclusions, inbox and privacy');
 select * from finish();
 rollback;

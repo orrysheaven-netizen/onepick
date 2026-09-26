@@ -101,13 +101,16 @@ type NotificationPreferencesRow = {
 type ItemReviewNotificationRow = {
   item_id: string;
   recipient_id: string;
-  outcome: 'approved' | 'merged';
+  outcome: 'approved' | 'merged' | 'rejected';
   target_item_id: string;
+  /** Admin's reason, set only for rejected rows. */
+  reason: string | null;
   created_at: string;
   read_at: string | null;
 };
 // item_review rows have no pick or sender: pick_id and username are null and
-// item_id is the approved product to pick.
+// item_id is the approved product to pick. Rejected rows point at the request
+// itself (nothing to pick) and carry the admin's reason in body.
 export type NotificationPageRow = {
   kind: 'comment' | 'pick_change' | 'item_review';
   id: string;
@@ -118,7 +121,7 @@ export type NotificationPageRow = {
   created_at: string;
   read_at: string | null;
   item_id: string | null;
-  outcome: 'approved' | 'merged' | null;
+  outcome: 'approved' | 'merged' | 'rejected' | null;
 };
 
 type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {

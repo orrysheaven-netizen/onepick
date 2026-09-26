@@ -726,13 +726,17 @@ export function getPendingItemCategorySuggestion(itemId: string) {
   });
 }
 
-export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
+/** Rejection reason: trimmed, 1–500 characters, required by the server when rejecting. */
+export const REJECT_REASON_MAX_LENGTH = 500;
+
+export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string, rejectReason?: string) {
   return adminRequest<AdminItem>('/rest/v1/rpc/admin_review_pending_item', {
     method: 'POST',
     body: JSON.stringify({
       p_item_id: id,
       p_status: status,
       p_category_id: status === 'active' ? categoryId ?? null : null,
+      ...(status === 'rejected' ? { p_reject_reason: rejectReason?.trim() ?? null } : {}),
     }),
   });
 }
