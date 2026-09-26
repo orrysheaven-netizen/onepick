@@ -236,7 +236,7 @@ returns boolean
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $remove$
 declare
   v_user_id uuid := auth.uid();
   v_channel text := nullif(lower(btrim(coalesce(p_channel,''))),'');
@@ -270,7 +270,7 @@ begin
   where id=v_current.id;
   return true;
 end;
-$;
+$remove$;
 
 drop function if exists public.remove_pick(uuid);
 create function public.remove_pick(
@@ -281,9 +281,9 @@ returns boolean
 language sql
 security invoker
 set search_path = ''
-as $
+as $remove$
   select private.remove_pick_impl(p_category_id,p_channel);
-$;
+$remove$;
 
 revoke all on function private.remove_pick_impl(uuid,text) from public,anon;
 revoke all on function public.remove_pick(uuid,text) from public,anon;
