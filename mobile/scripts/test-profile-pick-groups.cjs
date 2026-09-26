@@ -74,6 +74,38 @@ assert.deepEqual(Array.from(fallback, (group) => group.name), ['영화', '라면
 }));
 assert.equal(fallback.reduce((sum, group) => sum + group.items.length, 0), 3, 'fallback still exposes every Pick without the parent catalog');
 
+// Theme sections: FOOD / CULTURE & ART / … resolved through the nearest mapped ancestor.
+const themed = [
+  { id: 'food-root', parentId: null, name: '먹을것', sortOrder: 1, themeCode: 'food' },
+  { id: 'meat', parentId: 'food-root', name: '고기', sortOrder: 1 },
+  { id: 'pork-belly', parentId: 'meat', name: '삼겹살', sortOrder: 1 },
+  { id: 'noodles', parentId: 'food-root', name: '면', sortOrder: 2 },
+  { id: 'naengmyeon', parentId: 'noodles', name: '냉면', sortOrder: 1 },
+  { id: 'alcohol', parentId: null, name: '주류', sortOrder: 2, themeCode: 'food' },
+  { id: 'soju', parentId: 'alcohol', name: '소주', sortOrder: 1 },
+  { id: 'content', parentId: null, name: '콘텐츠', sortOrder: 3, themeCode: 'culture' },
+  { id: 'movie2', parentId: 'content', name: '영화', sortOrder: 1, themeCode: 'culture' },
+  { id: 'misc', parentId: null, name: '미분류', sortOrder: 9 },
+  { id: 'misc-leaf', parentId: 'misc', name: '기타 항목', sortOrder: 1 },
+];
+const byId = Object.fromEntries(themed.map((category) => [category.id, category]));
+assert.equal(grouping.resolveCategoryTheme('pork-belly', themed), 'food', '3-level leaves inherit the root theme');
+assert.equal(grouping.resolveCategoryTheme('soju', themed), 'food', 'alcohol is FOOD');
+assert.equal(grouping.resolveCategoryTheme('movie2', themed), 'culture');
+assert.equal(grouping.resolveCategoryTheme('misc-leaf', themed), 'other');
+assert.equal(grouping.resolveCategoryTheme('missing', themed), 'other');
+
+const themedPicks = ['movie2', 'pork-belly', 'misc-leaf', 'soju', 'naengmyeon'].map((id) => pick(id, byId[id]));
+const sections = grouping.buildProfileThemeSections(themedPicks, themed);
+assert.deepEqual(Array.from(sections, (section) => section.label), ['FOOD', 'CULTURE & ART', '기타'], 'FOOD first, content under CULTURE & ART, unmapped last');
+assert.deepEqual(Array.from(sections, (section) => section.pickCount), [3, 1, 1]);
+assert.deepEqual(Array.from(sections[0].groups, (group) => group.name), ['고기', '면', '주류'], 'FOOD keeps its category groups');
+assert.equal(sections.reduce((sum, section) => sum + section.pickCount, 0), themedPicks.length, 'theme sections never drop Picks');
+
+const unknownTheme = grouping.buildProfileThemeSections([pick('x', { id: 'x', parentId: null, name: 'X', sortOrder: 1 })], [{ id: 'x', parentId: null, name: 'X', sortOrder: 1, themeCode: 'sports' }]);
+assert.deepEqual(Array.from(unknownTheme, (section) => section.label), ['SPORTS'], 'a theme the app does not know yet still gets a section');
+assert.deepEqual(Array.from(grouping.buildProfileThemeSections(seven, []), (section) => section.code), ['other'], 'no catalog → one 기타 section');
+
 const component = read('src/components/profile-pick-groups.tsx');
 const owner = read('src/app/(tabs)/profile.tsx');
 const publicProfile = read('src/app/u/[username].tsx');
@@ -89,6 +121,8 @@ assert.match(component, /<ProfilePickCard/);
 assert.match(component, /layout="tile"/, 'current Picks render as 2-column tiles');
 assert.match(component, /groupBody: \{ flexDirection: 'row', flexWrap: 'wrap'/, 'tiles wrap into a grid');
 assert.match(component, /remainingProfileCategories\(group\.id, pickedCategoryIds, categories\)/);
+assert.match(component, /buildProfileThemeSections\(picks, categories\)/);
+assert.match(component, /sections\[0\]\.code === 'other'/, 'the lone 기타 header is hidden while the catalog loads');
 assert.match(component, /onPressCategory \? /, 'the remaining tile is owner-only');
 
 // Owner tile for categories still without a Pick: pickable open leaves of the group only, in catalog order.
@@ -111,4 +145,4 @@ assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
-console.log('Profile Pick groups checks passed: parent grouping, stable sort, 6/7 collapse boundary, fallback, controls, and owner/public reuse.');
+console.log('Profile Pick groups checks passed: parent grouping, stable sort, 6/7 collapse boundary, fallback, controls, theme sections, and owner/public reuse.');

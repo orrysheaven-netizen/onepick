@@ -13,6 +13,8 @@ export interface Category {
   rankingMinSample: number;
   sortOrder: number;
   imageUrl: string | null;
+  /** Own primary taste theme (food, culture, …); children without one inherit the nearest ancestor's. */
+  themeCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }
