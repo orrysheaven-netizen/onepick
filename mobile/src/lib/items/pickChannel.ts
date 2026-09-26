@@ -3,16 +3,16 @@
  * still one store's food) or 온라인 (shipped / online-store sales). Mirrors
  * public.item_channels.channel.
  */
-export type PickChannel = 'offline' | 'online';
+export type PickChannel = 'offline' | 'online' | 'recipe';
 
 export const PICK_CHANNEL_OPTIONS: readonly { channel: PickChannel; label: string; description: string }[] = [
   { channel: 'offline', label: '매장', description: '매장에서 먹었거나 배달로 주문했어요' },
   { channel: 'online', label: '온라인', description: '택배·온라인몰로 주문했어요' },
 ];
 
-/** Route params are untrusted; anything but 'online' means the default 매장 flow. */
+/** Route params are untrusted; registration supports offline/online/recipe, with offline as the default. */
 export function parsePickChannel(value: unknown): PickChannel {
-  return value === 'online' ? 'online' : 'offline';
+  return value === 'online' ? 'online' : value === 'recipe' ? 'recipe' : 'offline';
 }
 
 // Delivery apps sell a store's food, so their links belong to the 매장 flow.
