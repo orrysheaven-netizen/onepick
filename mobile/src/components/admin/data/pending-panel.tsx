@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { AppError } from '@/errors/appError';
-import { ADMIN_PAGE_SIZE, REJECT_REASON_MAX_LENGTH, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, isOnlineSellerRequest, mergePendingItem, resolveOnlineSellerRequest, updatePendingItem } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, REJECT_REASON_MAX_LENGTH, createCategory, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, isOnlineSellerRequest, mergePendingItem, resolveOnlineSellerRequest, updatePendingItem } from '@/lib/admin-api';
 import type { AdminCategory, AdminItem, AdminItemCategorySuggestion, PendingItem } from '@/lib/admin-api';
 import { chooseItemPhoto, importItemPhoto, itemPhotoUrl, saveItemPhoto } from '@/lib/admin/itemPhoto';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, newLeafParentCategories, selectableCategories } from '@/lib/categories/categoryTree';
 import { photoFailureMessage } from '@/lib/photos/photoFailure';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import type { Category } from '@/types/domain/category';
@@ -41,6 +41,15 @@ function confidenceRank(confidence: SuggestionConfidence) {
   return confidence === 'high' ? 2 : confidence === 'medium' ? 1 : 0;
 }
 
+const CATEGORY_SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function newCategoryErrorMessage(caught: unknown) {
+  const message = caught instanceof Error ? caught.message : '';
+  if (/duplicate key|23505|categories_slug/i.test(message)) return '이미 사용 중인 slug입니다. 다른 slug를 입력해 주세요.';
+  if (message.includes('CATEGORY_INVALID')) return '카테고리명(1~60자), slug 형식, 상위 카테고리(3단계 이하)를 확인해 주세요.';
+  return message || '카테고리를 만들지 못했습니다.';
+}
+
 function reviewErrorMessage(caught: unknown, fallback: string) {
   const message = caught instanceof Error ? caught.message : '';
   if (message.includes('CATEGORY_NOT_PICKABLE')) return '선택한 카테고리는 원픽 대상이 아닙니다. 운영 중인 하위 카테고리를 골라 주세요.';
@@ -70,6 +79,15 @@ export function PendingPanel() {
   const [mergeSearching, setMergeSearching] = useState(false);
   const [mergingId, setMergingId] = useState<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState('');
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategorySlug, setNewCategorySlug] = useState('');
+  const [newCategoryParentId, setNewCategoryParentId] = useState('');
+  const [parentQuery, setParentQuery] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  // Set after creating a category so the category reload selects it instead of
+  // resetting the review form.
+  const createdCategoryId = useRef<string | null>(null);
   const [suggestion, setSuggestion] = useState<AdminItemCategorySuggestion | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [photoSaving, setPhotoSaving] = useState<'file' | 'link' | null>(null);
@@ -141,7 +159,17 @@ export function PendingPanel() {
   const canReject = !busy && Boolean(rejectReason.trim());
 
   useEffect(() => {
+    if (createdCategoryId.current) {
+      const id = createdCategoryId.current;
+      createdCategoryId.current = null;
+      if (reviewCategories.some((category) => category.id === id)) {
+        setReviewCategoryId(id);
+        setMergeCandidates([]);
+        return;
+      }
+    }
     setMergeCandidates([]);
+    setNewCategoryOpen(false);
     setMergeQuery(selected?.name ?? '');
     setCategoryQuery('');
     setSuggestion(null);
@@ -174,6 +202,51 @@ export function PendingPanel() {
       .finally(() => { if (active) setSuggestionLoading(false); });
     return () => { active = false; };
   }, [selectedId, reviewCategories]);
+
+  const parentCategories = useMemo(() => {
+    const allowed = new Set(newLeafParentCategories(domainCategories).map((category) => category.id));
+    return categories.filter((category) => allowed.has(category.id));
+  }, [categories, domainCategories]);
+  const visibleParentCategories = useMemo(() => {
+    const keyword = parentQuery.trim().toLowerCase();
+    const matches = keyword
+      ? parentCategories.filter((category) => `${reviewCategoryLabel(category)} ${category.slug}`.toLowerCase().includes(keyword))
+      : parentCategories;
+    return matches.slice(0, CATEGORY_RESULT_LIMIT);
+  }, [parentCategories, parentQuery, domainCategories]);
+  const newCategoryParent = parentCategories.find((category) => category.id === newCategoryParentId) ?? null;
+  const newCategorySlugValid = CATEGORY_SLUG_PATTERN.test(newCategorySlug.trim());
+  const canCreateCategory = !creatingCategory && !busy && Boolean(newCategoryName.trim())
+    && newCategoryName.trim().length <= 60 && newCategorySlugValid && Boolean(newCategoryParent);
+
+  const openNewCategory = () => {
+    setNewCategoryName(categoryQuery.trim() || selected?.requested_category_label?.trim() || '');
+    setNewCategorySlug('');
+    setNewCategoryParentId('');
+    setParentQuery('');
+    setNewCategoryOpen(true);
+  };
+
+  const addReviewCategory = async () => {
+    if (!canCreateCategory || !newCategoryParent) return;
+    const name = newCategoryName.trim();
+    setCreatingCategory(true);
+    setError('');
+    setMessage('');
+    try {
+      const [created] = await createCategory({ name, slug: newCategorySlug.trim(), parentId: newCategoryParent.id, openLeaf: true });
+      const refreshed = await getCategories();
+      if (created) createdCategoryId.current = created.id;
+      setCategories(refreshed);
+      setNewCategoryOpen(false);
+      setCategoryQuery('');
+      setMessage(`${reviewCategoryLabel(newCategoryParent)} › ${name} 카테고리를 만들고 선택했습니다.`);
+    } catch (caught) {
+      setError(newCategoryErrorMessage(caught));
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
 
   const reviewCategory = reviewCategories.find((category) => category.id === reviewCategoryId) ?? null;
   const visibleReviewCategories = useMemo(() => {
@@ -347,6 +420,16 @@ export function PendingPanel() {
               onPress={() => setSelectedId(item.id)}
               style={[styles.itemRow, selectedId === item.id && styles.itemRowSelected]}
             >
+              <View style={styles.itemThumb}>
+                {item.thumbnail_path || item.image_path ? (
+                  <Image
+                    accessibilityLabel={`${item.name} 사진`}
+                    source={{ uri: itemPhotoUrl(item.thumbnail_path ?? item.image_path) ?? undefined }}
+                    resizeMode="cover"
+                    style={styles.itemThumbImage}
+                  />
+                ) : <Text style={styles.itemThumbEmpty}>사진 없음</Text>}
+              </View>
               <View style={styles.itemBody}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={adminStyles.muted}>{item.categories?.name ?? '카테고리 없음'} · {formatDate(item.created_at)}{item.official_url ? ` · 링크 ${linkHost(item.official_url)}` : ''}</Text>
@@ -367,13 +450,23 @@ export function PendingPanel() {
           {selected && (
             <View style={styles.detailBody}>
               <View style={styles.photoBox}>
-                {selected.image_path ? (
-                  <Image
-                    accessibilityLabel={`${selected.name} 사진`}
-                    source={{ uri: itemPhotoUrl(selected.thumbnail_path ?? selected.image_path) ?? undefined }}
-                    resizeMode="contain"
-                    style={styles.previewImage}
-                  />
+                {selected.image_path || selected.thumbnail_path ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${selected.name} 사진 원본 크게 보기`}
+                    onPress={() => {
+                      const url = itemPhotoUrl(selected.image_path ?? selected.thumbnail_path);
+                      if (url) void Linking.openURL(url);
+                    }}
+                  >
+                    <Image
+                      accessibilityLabel={`${selected.name} 사진`}
+                      source={{ uri: itemPhotoUrl(selected.image_path ?? selected.thumbnail_path) ?? undefined }}
+                      resizeMode="contain"
+                      style={styles.previewImage}
+                    />
+                    <Text style={styles.previewHint}>사진을 누르면 원본을 새 탭에서 엽니다.</Text>
+                  </Pressable>
                 ) : (
                   <View style={styles.preview}>
                     <Text style={styles.previewIcon}>◇</Text>
@@ -500,6 +593,11 @@ export function PendingPanel() {
                 <View style={styles.categoryChoices}>
                   {!categoryQuery.trim() && <Text style={styles.mergeEmpty}>다른 카테고리가 필요하면 이름으로 검색해 주세요.</Text>}
                   {!!categoryQuery.trim() && visibleReviewCategories.length === 0 && <Text style={styles.mergeEmpty}>조건에 맞는 카테고리가 없습니다.</Text>}
+                  {!newCategoryOpen && ((!!categoryQuery.trim() && visibleReviewCategories.length === 0) || suggestion?.needs_new_category) && (
+                    <Pressable accessibilityRole="button" disabled={busy} onPress={openNewCategory} style={adminStyles.secondaryButton}>
+                      <Text style={adminStyles.secondaryButtonText}>{categoryQuery.trim() ? `'${categoryQuery.trim()}' 새 카테고리 만들기` : '새 카테고리 만들기'}</Text>
+                    </Pressable>
+                  )}
                   {visibleReviewCategories.slice(0, CATEGORY_RESULT_LIMIT).map((category) => (
                     <Pressable
                       key={category.id}
@@ -516,6 +614,44 @@ export function PendingPanel() {
                   )}
                 </View>
               </View>
+
+              {newCategoryOpen && (
+                <View style={styles.newCategoryBox}>
+                  <Text style={styles.mergeTitle}>새 카테고리 만들기</Text>
+                  <Text style={styles.note}>운영 중 · 노출 · 원픽 대상 하위 카테고리로 바로 만들어지고, 이 요청의 카테고리로 선택됩니다.</Text>
+                  <View style={styles.mergeSearchRow}>
+                    <TextInput accessibilityLabel="새 카테고리 이름" value={newCategoryName} onChangeText={setNewCategoryName} editable={!creatingCategory}
+                      maxLength={60} placeholder="예: 김치" style={[adminStyles.input, styles.mergeInput]} />
+                    <TextInput accessibilityLabel="새 카테고리 slug" value={newCategorySlug} onChangeText={(value) => setNewCategorySlug(value.toLowerCase())}
+                      editable={!creatingCategory} autoCapitalize="none" maxLength={80} placeholder="예: kimchi" style={[adminStyles.input, styles.mergeInput]} />
+                  </View>
+                  {!!newCategorySlug.trim() && !newCategorySlugValid && (
+                    <Text style={styles.suggestionWarning}>slug는 영문 소문자, 숫자, 하이픈(단어 사이)만 쓸 수 있습니다.</Text>
+                  )}
+                  <Text style={styles.suggestionTitle}>상위 카테고리 {newCategoryParent ? `· ${reviewCategoryLabel(newCategoryParent)}` : '(필수)'}</Text>
+                  <TextInput accessibilityLabel="상위 카테고리 검색" value={parentQuery} onChangeText={setParentQuery}
+                    placeholder="상위 카테고리 검색" style={adminStyles.input} />
+                  <View style={styles.categoryChoices}>
+                    {visibleParentCategories.length === 0 && <Text style={styles.mergeEmpty}>새 하위 카테고리를 둘 수 있는 상위 카테고리가 없습니다.</Text>}
+                    {visibleParentCategories.map((category) => (
+                      <Pressable key={category.id} accessibilityRole="button" accessibilityState={{ selected: newCategoryParentId === category.id }}
+                        onPress={() => setNewCategoryParentId(category.id)}
+                        style={[styles.categoryChoice, newCategoryParentId === category.id && styles.categoryChoiceSelected]}>
+                        <Text style={[styles.categoryChoiceText, newCategoryParentId === category.id && styles.categoryChoiceTextSelected]}>{reviewCategoryLabel(category)}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <View style={adminStyles.row}>
+                    <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canCreateCategory }} disabled={!canCreateCategory} onPress={addReviewCategory}
+                      style={[adminStyles.primaryButton, !canCreateCategory && { opacity: 0.5 }]}>
+                      <Text style={adminStyles.primaryButtonText}>{creatingCategory ? '만드는 중' : '만들고 선택'}</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" disabled={creatingCategory} onPress={() => setNewCategoryOpen(false)} style={adminStyles.secondaryButton}>
+                      <Text style={adminStyles.secondaryButtonText}>취소</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
 
               <View style={styles.mergeBox}>
                 <Text style={styles.mergeTitle}>기존 상품과 병합</Text>
@@ -626,6 +762,9 @@ const styles = StyleSheet.create({
   loadMore: { marginTop: 12, alignSelf: 'center' },
   itemRow: { minHeight: 68, borderTopWidth: 1, borderTopColor: OnePick.sunken, paddingVertical: 13, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 8 },
   itemRowSelected: { backgroundColor: OnePick.sunken },
+  itemThumb: { width: 80, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
+  itemThumbImage: { width: 80, height: 80 },
+  itemThumbEmpty: { color: OnePick.hint, fontSize: 10, fontWeight: '700' },
   itemBody: { flex: 1, minWidth: 0 },
   itemName: { color: OnePick.text, fontSize: 14, fontWeight: '700', marginBottom: 5 },
   onlineBadge: { color: OnePick.accentDeep, backgroundColor: OnePick.accentSoft, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
@@ -633,7 +772,8 @@ const styles = StyleSheet.create({
   pendingBadge: { color: OnePick.warning, backgroundColor: OnePick.warningSoft, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11, fontWeight: '700' },
   detailBody: { marginTop: 16, gap: 18 },
   photoBox: { gap: 10 },
-  previewImage: { width: '100%', height: 220, borderRadius: 10, backgroundColor: OnePick.sunken },
+  previewImage: { width: '100%', height: 400, borderRadius: 10, backgroundColor: OnePick.sunken },
+  previewHint: { marginTop: 6, color: OnePick.hint, fontSize: 11 },
   disabled: { opacity: 0.5 },
   preview: { minHeight: 150, borderRadius: 10, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center', gap: 8 },
   previewIcon: { color: OnePick.hint, fontSize: 34 },
@@ -678,6 +818,7 @@ const styles = StyleSheet.create({
   candidateBody: { flex: 1, minWidth: 0 },
   candidateName: { color: OnePick.text, fontSize: 13, fontWeight: '700', marginBottom: 3 },
   mergeEmpty: { color: OnePick.hint, fontSize: 12, paddingTop: 4 },
+  newCategoryBox: { gap: 10, borderWidth: 1, borderColor: OnePick.accent, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
   rejectBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
   rejectInput: { minHeight: 72, textAlignVertical: 'top' },
   rejectCount: { alignSelf: 'flex-end', color: OnePick.hint, fontSize: 11 },

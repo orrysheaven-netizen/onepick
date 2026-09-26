@@ -50,6 +50,19 @@ export function selectableCategories(categories: Category[]) {
   });
 }
 
+/**
+ * Categories that can take a new pickable child which is selectable right away:
+ * open, visible, not pickable themselves, at most two levels deep, with an open,
+ * visible, non-pickable lineage.
+ */
+export function newLeafParentCategories(categories: Category[]) {
+  return categories.filter((category) => {
+    const lineage = categoryLineage(category, categories);
+    return lineage.length >= 1 && lineage.length <= 2
+      && lineage.every((node) => node.status === 'open' && node.isVisible && !node.isPickable);
+  });
+}
+
 export function categoryLabel(category: Category, categories: Category[]) {
   const lineage = categoryLineage(category, categories);
   return lineage.length ? lineage.map((item) => item.name).join(' › ') : category.name;
