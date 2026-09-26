@@ -28,8 +28,8 @@ export default function AppTabs() {
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
           <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
         </Pressable>
-        <TabLink href="/comments" icon="comments" label="내 댓글" active={isActive(pathname, '/comments')} />
-        <TabLink href="/profile" icon="profile" label="내 프로필" active={isActive(pathname, '/profile')} />
+        <TabLink href="/comments" icon="comments" label="댓글" active={isActive(pathname, '/comments')} />
+        <TabLink href="/profile" icon="profile" label="프로필" active={isActive(pathname, '/profile')} />
       </View>
     </View>
   );

@@ -1,3 +1,5 @@
+import type { RootCategoryScope } from '@/repositories/interfaces/readRepository';
+
 export const queryKeys = {
   home: {
     all: ['home'] as const,
@@ -22,7 +24,8 @@ export const queryKeys = {
   comments: {
     all: ['comments'] as const,
     byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
-    byUser: (userId?: string) => ['comments', 'user', userId ?? 'anonymous', 'cursor'] as const,
+    byUser: (userId?: string, scope?: RootCategoryScope | null) =>
+      ['comments', 'user', userId ?? 'anonymous', 'cursor', scope ? `${scope.inside ? 'in' : 'out'}:${scope.rootSlug}` : 'every-root'] as const,
   },
   items: {
     all: ['items'] as const,
