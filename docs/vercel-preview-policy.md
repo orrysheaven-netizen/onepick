@@ -57,3 +57,5 @@ is the single source of the policy.
   ```bash
   VERCEL_ENV=preview VERCEL_GIT_COMMIT_REF=feat/x VERCEL_GIT_PREVIOUS_SHA=<base> bash tools/vercel-ignore-build.sh; echo $?
   ```
+
+<!-- vercel preview skip test -->
