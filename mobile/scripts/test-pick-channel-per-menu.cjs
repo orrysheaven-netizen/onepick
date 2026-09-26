@@ -25,6 +25,7 @@ async function main() {
   ];
   const items = {
     store: { id: 'store', categoryId: 'miyeokguk', status: 'active', channels: ['offline'] },
+    hybrid: { id: 'hybrid', categoryId: 'miyeokguk', status: 'active', channels: ['offline', 'online'] },
     seller: { id: 'seller', categoryId: 'miyeokguk', status: 'active', channels: ['online'] },
     video: { id: 'video', categoryId: 'miyeokguk', status: 'active', channels: [], externalSource: 'youtube_video' },
     packaged: { id: 'packaged', categoryId: 'miyeokguk', status: 'active', channels: [] },
@@ -49,6 +50,12 @@ async function main() {
   assert.equal(detail.myPickStatus.type, 'selected_this');
   assert.equal(detail.pickChannel, 'offline', 'My own Pick keeps its channel');
 
+  mine = [{ id: 'p-hybrid', itemId: 'hybrid', categoryId: 'miyeokguk', channel: 'offline', oneLineReview: '매장' }];
+  detail = await service.getItemDetail('hybrid', 'me', undefined, undefined, 'online');
+  assert.equal(detail.myPickStatus.type, 'not_selected', 'An explicit other channel must not edit this item\'s existing Pick');
+  assert.equal(detail.pickChannel, 'online', 'The route channel wins over the item\'s existing Pick channel');
+
+  mine = [{ id: 'p-store', itemId: 'store', categoryId: 'miyeokguk', channel: 'offline', oneLineReview: '동네 최고' }];
   mine.push({ id: 'p-seller', itemId: 'seller', categoryId: 'miyeokguk', channel: 'online', oneLineReview: '택배' });
   detail = await service.getItemDetail('packaged', 'me');
   assert.equal(detail.myPickStatus.type, 'selected_other', 'A packaged product without channels would replace the online Pick');
