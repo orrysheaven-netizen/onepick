@@ -54,10 +54,10 @@ export function useYouTubeVideoLookup(videoId: string | null, enabled: boolean) 
 export function useImportYouTubeVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (externalId: string) => youtubeCatalogService.importVideo(externalId),
+    mutationFn: ({ externalId, categoryId }: { externalId: string; categoryId: string }) => youtubeCatalogService.importVideo(externalId, categoryId),
     // Mark the cached preview as registered instead of refetching it (each lookup spends YouTube quota).
-    onSuccess: (item, externalId) => {
-      queryClient.setQueryData<YouTubeVideoEntry>(queryKeys.youtubeCatalog.video(externalId),
+    onSuccess: (item, variables) => {
+      queryClient.setQueryData<YouTubeVideoEntry>(queryKeys.youtubeCatalog.video(variables.externalId),
         (current) => current ? { ...current, existingItemId: item.itemId } : current);
     },
   });
