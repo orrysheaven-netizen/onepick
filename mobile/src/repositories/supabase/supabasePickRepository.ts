@@ -149,6 +149,7 @@ export class SupabasePickRepository implements PickRepository {
       p_category_id: input.categoryId,
       p_item_id: input.itemId,
       p_one_line_review: input.oneLineReview,
+      p_channel: input.channel ?? null,
       // Omitted arguments leave the stored link and tip alone; '' clears them.
       ...purchaseArgs(input),
     });
