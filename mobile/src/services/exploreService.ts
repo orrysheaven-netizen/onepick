@@ -15,10 +15,10 @@ export class ExploreService {
     return this.readRepository.getCategoryTopItems(categoryId);
   }
 
-  getRecentItems(categoryIds: string[] | null, cursor: ReadCursor | null = null) {
+  getRecentItems(categoryIds: string[] | null, cursor: ReadCursor | null = null, storesOnly = false) {
     // An empty scope means nothing is browsable yet, not "every category".
     if (categoryIds && !categoryIds.length) return Promise.resolve({ items: [], nextCursor: null });
-    return this.readRepository.getRecentPickedItems(categoryIds, cursor);
+    return this.readRepository.getRecentPickedItems(categoryIds, cursor, storesOnly);
   }
 
   async getExploreData(categoryId?: string, cursor: ReadCursor | null = null, limit = EXPLORE_PAGE_SIZE) {
