@@ -9,7 +9,7 @@ import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
-import { homeChannelLabel } from '@/lib/home/homeChannels';
+import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
 
@@ -152,11 +152,11 @@ export default function ExploreScreen() {
               onPress: () => { if (!recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false }); } }} /> : null}
           {recentItems.data?.map((item) => <View key={item.itemId} style={styles.rankCard}>
             <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
-            <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}, ${item.categoryName}, 상세 보기`}
+            <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}, ${categoryWithChannels(item.categoryName, item.channels)}, 상세 보기`}
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
                 <Text style={styles.rankName}>{item.name}</Text>
-                <Text style={styles.recentCategory}>{item.categoryName}</Text>
+                <Text style={styles.recentCategory}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
               </View>
               <Text style={styles.arrow}>›</Text>
             </Pressable>

@@ -195,12 +195,15 @@ export class SupabaseReadRepository implements ReadRepository {
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
+    const rows = data.slice(0, 20);
+    const channels = await fetchItemChannels(this.client, rows.map((row) => row.item_id));
     return {
       nextCursor: data.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
-      items: data.slice(0, 20).map((row) => ({
+      items: rows.map((row) => ({
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
         thumbnailUrl: this.cardThumbnailUrl(row), lastPickedAt: row.last_picked_at,
+        channels: channels.get(row.item_id) ?? [],
       })),
     };
   }

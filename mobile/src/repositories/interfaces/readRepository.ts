@@ -78,6 +78,7 @@ export interface RecentPickedItem {
   categoryName: string;
   thumbnailUrl: string | null;
   lastPickedAt: string;
+  channels: PickChannel[];
 }
 
 export interface RecentPickedItemPage {

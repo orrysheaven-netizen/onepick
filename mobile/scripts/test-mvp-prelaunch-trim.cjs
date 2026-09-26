@@ -47,7 +47,7 @@ const recentQuery = (items) => ({ ...query(items), isFetchingNextPage: false });
 function explore({ chips = true } = {}) {
   flags.categoryChips = chips;
   const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true, channels: [] }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true, channels: [] }]);
-  const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z' }]);
+  const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z', channels: ['offline'] }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
@@ -141,7 +141,8 @@ async function main() {
     assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true }));
     assert.equal(calls.categoryId, undefined, 'Rankings stay idle without a chosen category');
     assert.match(view.text(), /최근 원픽된 맛집/);
-    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen, 상세 보기').onPress();
+    assert.match(view.text(), /ramen · 오프라인맛집/, 'Recent places carry the same channel label as rankings');
+    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen · 오프라인맛집, 상세 보기').onPress();
     assert.equal(calls.route.pathname, '/item/[itemId]'); assert.equal(calls.route.params.itemId, 'recent');
     assert.equal(view.all('Button').filter((b) => b.accessibilityLabel === '최근 원픽 더 보기').length, 0);
     recent.hasNextPage = true; view.render();
