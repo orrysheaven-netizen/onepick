@@ -16,6 +16,9 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);

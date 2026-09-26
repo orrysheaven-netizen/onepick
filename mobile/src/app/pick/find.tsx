@@ -169,7 +169,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     if (!canAct()) return;
     if (latest.current.categoryId && latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+    // A food menu keeps one Pick per channel; the chosen 매장/온라인 decides which one this replaces.
+    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(isPlaceCategory ? { channel } : {}), ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
   };
   const requestItem = () => {
     if (!canAct() || !hasQuery) return;
@@ -207,7 +208,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const continuePlace = (item: ImportedPlaceItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, channel: 'offline', ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
     if (replace) router.replace(route); else router.push(route);
   };
   const loadMovie = async (externalId: string, replace = false) => {

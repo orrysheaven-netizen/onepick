@@ -46,7 +46,7 @@ async function main() {
   ], error: null };
   const channels = await fetchItemChannels(client, ['a', 'b', 'a', 'c', 'c']);
   assert.equal(requests.length, 1, 'All ids are read in one request');
-  assert.deepEqual(plain(requests[0]), { table: 'item_channels', columns: 'item_id, channel', column: 'item_id', ids: ['a', 'b', 'c'] },
+  assert.deepEqual(plain(requests[0]), { table: 'item_channels', columns: 'item_id, channel, is_primary', column: 'item_id', ids: ['a', 'b', 'c'] },
     'Queries item_channels by deduplicated item ids');
   assert.deepEqual(entries(channels), [['a', ['offline', 'online']], ['c', ['online']]],
     'Multiple channels group per item without duplicates; unknown channel values are ignored');

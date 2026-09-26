@@ -61,7 +61,7 @@ const onboarding = read('src/app/onboarding.tsx');
 const find = read('src/app/pick/find.tsx');
 
 assert.match(lab, /usePublicProfile\(username, user\?\.id\)/);
-assert.match(lab, /onPressCategory=\{isMine \?/, 'only the owner gets pick-more tiles in 실험실');
+assert.doesNotMatch(lab, /onPressCategory/, '실험실 lists Picks only; the owner starts categories from the list below');
 assert.match(lab, /isLabCategory\(category\.id, categories, OnePickMvp\.mainThemeCode, true\)/, 'the owner can start any lab category');
 assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: profileQuery\.data\.profile\.username \}/, '/lab opens my own 실험실');
 assert.match(owner, /<ProfileLabEntry count=\{labPicks\.length\}/);

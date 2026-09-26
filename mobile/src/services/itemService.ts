@@ -1,8 +1,36 @@
 import { AppError } from '@/errors/appError';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { PickReadItem, ReadRepository } from '@/repositories/interfaces/readRepository';
+
+const FOOD_ROOT_SLUG = 'food';
+
+/** Food Picks are per channel; the category or one of its ancestors is 먹을것. */
+function isFoodCategory(
+  categoryId: string | null | undefined,
+  categories: readonly { id: string; parentId: string | null; slug: string }[],
+) {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  const seen = new Set<string>();
+  let current = categoryId ? byId.get(categoryId) : undefined;
+  while (current && !seen.has(current.id)) {
+    if (current.slug === FOOD_ROOT_SLUG) return true;
+    seen.add(current.id);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return false;
+}
+
+/**
+ * The channel an item is picked under when the member has not chosen one; mirrors
+ * private.default_pick_channel: its representative channel, a video as 레시피,
+ * otherwise 온라인 for a packaged product.
+ */
+function defaultPickChannel(item: { channels?: readonly PickChannel[]; externalSource?: string | null }): PickChannel {
+  return item.channels?.[0] ?? (item.externalSource === 'youtube_video' ? 'recipe' : 'online');
+}
 
 export type MyItemPickStatus =
   | { type: 'not_selected' }
@@ -17,7 +45,7 @@ export class ItemService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem) {
+  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem, channel?: PickChannel) {
     const cachedFocus = prefetchedFocus
       && prefetchedFocus.pick.id === focusPickId
       && prefetchedFocus.item?.id === itemId
@@ -31,14 +59,27 @@ export class ItemService {
     const item = await itemPromise;
     if (!item) throw new AppError('ITEM_NOT_FOUND');
 
-    const [category, currentPick, picks, openCategories] = await Promise.all([
+    const [category, currentPicks, picks, openCategories] = await Promise.all([
       cachedFocus?.category?.id === item.categoryId
         ? Promise.resolve(cachedFocus.category)
         : this.categoryRepository.getById(item.categoryId),
-      userId ? this.pickRepository.getCurrentPick(userId, item.categoryId) : Promise.resolve(null),
+      userId ? this.pickRepository.getCurrentPicksInCategory(userId, item.categoryId) : Promise.resolve([]),
       picksPromise,
       openCategoriesPromise,
     ]);
+
+    // A food menu holds one Pick per channel. An explicitly chosen route
+    // channel must win: opening the same item through another channel must not
+    // silently edit the Pick stored in its old channel. Without an explicit
+    // channel, an existing Pick of this item keeps its stored channel.
+    const ownItemPick = currentPicks.find((pick) => pick.itemId === item.id) ?? null;
+    const foodCategory = isFoodCategory(item.categoryId, openCategories);
+    const pickChannel = foodCategory
+      ? channel ?? ownItemPick?.channel ?? defaultPickChannel(item)
+      : null;
+    const currentPick = foodCategory
+      ? currentPicks.find((pick) => (pick.channel ?? null) === pickChannel) ?? null
+      : ownItemPick ?? currentPicks[0] ?? null;
 
     let myPickStatus: MyItemPickStatus = { type: 'not_selected' };
     if (currentPick?.itemId === item.id) {
@@ -85,6 +126,8 @@ export class ItemService {
       // Restaurants live under the 'food' root; their detail title names the menu (lib/items/itemTitle).
       isRestaurant: openCategories.some((category) => category.id === item.categoryId && category.rootSlug === 'food'),
       myPickStatus,
+      /** The channel a Pick of this item is saved under (its own Pick's channel once picked); null outside food. */
+      pickChannel: currentPick?.itemId === item.id ? currentPick.channel : pickChannel,
       picks: reviews,
       focusAvailable: !focusPickId || reviews.some(({ pick }) => pick.id === focusPickId),
       canChoose,
