@@ -5,22 +5,21 @@ Provider-scale restaurant records stay separate from both generic `items` and th
 
 ## Current coverage (2026-09-26)
 
-**매장 (place) search covers Seoul and Gyeonggi restaurants**: SBIZ 상가(상권)정보
-2026-06-30, 상권업종대분류명=음식 — 서울특별시 141,126 + 경기도 185,804 open rows.
-Other regions cannot be selected yet; users see "매장 등록은 현재 서울·경기 음식점만
+**매장 (place) search covers Seoul, Gyeonggi and Incheon restaurants**: SBIZ 상가(상권)정보
+2026-06-30, 상권업종대분류명=음식 — 서울특별시 141,126 + 경기도 185,804 + 인천광역시 40,973 open rows.
+Other regions cannot be selected yet; users see "매장 등록은 현재 서울·경기·인천 음식점만
 가능해요" and can send a store request instead. The app copy comes from
 `PLACE_COVERAGE_REGIONS` in `mobile/src/lib/items/pickChannel.ts` — update it together
 with each new region load.
 
-Gyeonggi was staged with `supabase db query --linked -f` (Management API, no DB
-password) in 93 files of 4×500 rows, then `select private.promote_place_imports('sbiz')`.
+Gyeonggi (93 files) and Incheon (21 files) were staged with `supabase db query --linked -f` (Management API, no DB
+password) in files of 4×500 rows, then `select private.promote_place_imports('sbiz')`.
 Rows with the same `source_updated_at` are not rewritten, so re-promoting leaves Seoul
 untouched.
 
 Size (free plan, 500 MB database limit): before Gyeonggi the database was 162 MB
 (`place_catalog` ≈0.49 KB/row, `private.place_import_raw` ≈0.53 KB/row); Seoul +
-Gyeonggi is estimated at ≈350 MB. Remaining regions (음식 rows): 인천 40,973;
-nationwide 840,255 would need the Pro plan (8 GB disk).
+Gyeonggi measured 352 MB; with Incheon ≈395 MB. Nationwide (음식 rows 840,255) would need the Pro plan (8 GB disk).
 
 ## Layers
 

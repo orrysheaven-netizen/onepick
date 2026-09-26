@@ -17,6 +17,8 @@ type Props = {
   feed?: boolean;
   /** Profile tile frame: fills the column width at 1:1. */
   square?: boolean;
+  /** The item's brand logo: a corner badge on the photo, or the image itself when there is no photo. */
+  logoUri?: string | null;
 };
 
 function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
@@ -30,27 +32,49 @@ function AddPhotoButton({ itemId, label }: { itemId: string; label: string }) {
   </Pressable>;
 }
 
+function LogoBadge({ uri, large, onError }: { uri: string; large: boolean; onError: () => void }) {
+  return <View style={[styles.badge, large && styles.badgeLarge]}>
+    <Image source={{ uri }} accessibilityLabel="브랜드 로고" style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri} onError={onError} />
+  </View>;
+}
+
 // Every frame is square and fits the whole photo inside it: restaurant photos
 // come in any shape and cropping cut off the dish or the storefront.
-export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false }: Props) {
+// Image order: the menu photo, then the brand logo, then the name placeholder.
+export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
   const canAdd = Boolean(itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
   const failed = Boolean(uri && failedUri === uri);
+  const logo = logoUri && failedLogo !== logoUri ? logoUri : null;
+  const showPhoto = Boolean(uri && !failed);
+  const badge = showPhoto && logo ? <LogoBadge uri={logo} large={large || square} onError={() => setFailedLogo(logo)} /> : null;
+  const logoImage = !showPhoto && logo
+    ? <View style={styles.logoFill}>
+        <Image source={{ uri: logo }} accessibilityLabel={`${label} 브랜드 로고`} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={logo} onError={() => setFailedLogo(logo)} />
+      </View>
+    : null;
   if (feed) {
     return <View style={[styles.frame, styles.feed]}>
-      {uri && !failed
-        ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri} onError={() => setFailedUri(uri)} />
-        : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.feedPlaceholder}>
+      {showPhoto
+        ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
+        : logoImage ?? <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.feedPlaceholder}>
             <Text numberOfLines={3} style={styles.feedPlaceholderName}>{label}</Text>
           </View>}
+      {badge}
     </View>;
   }
   // Only the thumbnail has a fixed size. react-native-web drops `height: undefined`
   // when merging styles, so a shared 86px height would win over aspectRatio and
   // turn the full-width frames into 86px-tall strips.
   return <View style={[styles.frame, large ? styles.large : square ? styles.square : styles.thumb]}>
-    {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri} onError={() => setFailedUri(uri)} />
+    {showPhoto ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
+      : logoImage && canAdd ? <>
+        {logoImage}
+        <View style={styles.addOverLogo}><AddPhotoButton itemId={itemId!} label={label} /></View>
+      </>
+      : logoImage ? logoImage
       : canAdd ? <View style={styles.empty}>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
@@ -72,6 +96,11 @@ const styles = StyleSheet.create({
   feedPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: OnePick.accent },
   feedPlaceholderName: { color: OnePick.onAccent, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   image: { width: '100%', height: '100%' },
+  // Logos are drawn for light backgrounds, so they sit on white in both themes.
+  logoFill: { width: '100%', height: '100%', padding: '14%', backgroundColor: '#FFFFFF' },
+  badge: { position: 'absolute', left: 6, bottom: 6, width: 24, height: 24, borderRadius: 12, padding: 2, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: OnePick.border },
+  badgeLarge: { left: 10, bottom: 10, width: 40, height: 40, borderRadius: 20, padding: 4 },
+  addOverLogo: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', backgroundColor: OnePick.surface, opacity: 0.94 },
   placeholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 7 },
   placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   placeholderInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },

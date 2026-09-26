@@ -21,7 +21,7 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSa
     categoryName={categoryWithChannels(pick.categoryName, pick.channels)}
     itemName={pick.name}
     review={pick.oneLineReview}
-    photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId }}
+    photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId, logoUri: pick.brandLogoUrl }}
     person={{ username: pick.username, onPress: onOpenProfile }}
     timeLabel={formatRelativeTime(pick.startedAt)}
     badge={mine ? '내 원픽' : undefined}

@@ -30,7 +30,11 @@ async function main() {
     { category_id: 'dish', category_name: '미역국', channel: 'delivery', item_id: 'x', item_name: 'x', pick_count: 9, rank: 1 },
   ];
   const client = {
-    rpc: async (name, args) => { calls.push([name, args]); return { data: rows, error: null }; },
+    rpc: async (name, args) => {
+      calls.push([name, args]);
+      if (name === 'item_brands') return { data: [{ item_id: 's1', brand_id: 'b1', brand_name: '명가', logo_path: 'b1/logo.png' }], error: null };
+      return { data: rows, error: null };
+    },
     storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: 'https://storage/' + p } }) }) },
   };
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', {
@@ -44,7 +48,9 @@ async function main() {
   const overview = await new SupabaseReadRepository(client).getDishChannelOverview('미역국');
   assert.deepEqual(plain(calls[0]), ['dish_channel_overview', { p_query: '미역국' }]);
   assert.equal(overview.categoryName, '미역국');
-  assert.deepEqual(plain(overview.channels.offline), [{ itemId: 's1', name: '미역국 명가', thumbnailUrl: 'https://storage/u/t.jpg', pickCount: 3 }]);
+  assert.deepEqual(plain(calls[1]), ['item_brands', { p_item_ids: ['s1', 'v1', 'x'] }], 'brand logos are read once for the whole overview');
+  assert.deepEqual(plain(overview.channels.offline), [{ itemId: 's1', name: '미역국 명가', thumbnailUrl: 'https://storage/u/t.jpg', brandLogoUrl: 'https://storage/b1/logo.png', pickCount: 3 }]);
+  assert.equal(overview.channels.recipe[0].brandLogoUrl, null, 'an item without a brand has no logo');
   assert.deepEqual(plain(overview.channels.online), [], 'an empty channel stays an empty list');
   assert.equal(overview.channels.recipe[0].thumbnailUrl, 'https://i.ytimg.com/v.jpg');
   assert.equal(Object.keys(overview.channels).length, 3, 'unknown channels are dropped');
