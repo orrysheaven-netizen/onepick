@@ -47,13 +47,13 @@ const recentQuery = (items) => ({ ...query(items), isFetchingNextPage: false });
 function explore({ chips = true } = {}) {
   flags.categoryChips = chips;
   const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true, channels: [] }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true, channels: [] }]);
-  const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z' }]);
+  const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z', channels: ['offline'] }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
-      useRecentPickedItems: (ids, enabled) => { calls.recent = { ids, enabled }; return recent; } },
+      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; } },
     '@/lib/categories/categoryTree': tree, '@/lib/home/homeChannels': homeChannels,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
@@ -138,10 +138,11 @@ async function main() {
     assert.match(view.text(), /맛집 찾기/); assert.doesNotMatch(view.text(), /상위 카테고리/);
     assert.ok(view.find('ItemSearch'), 'Search starts open without a ?search=1 handoff');
     assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
-    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true }));
+    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true, storesOnly: true }), 'MVP lists places only');
     assert.equal(calls.categoryId, undefined, 'Rankings stay idle without a chosen category');
     assert.match(view.text(), /최근 원픽된 맛집/);
-    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen, 상세 보기').onPress();
+    assert.match(view.text(), /ramen · 오프라인맛집/, 'Recent places carry the same channel label as rankings');
+    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen · 오프라인맛집, 상세 보기').onPress();
     assert.equal(calls.route.pathname, '/item/[itemId]'); assert.equal(calls.route.params.itemId, 'recent');
     assert.equal(view.all('Button').filter((b) => b.accessibilityLabel === '최근 원픽 더 보기').length, 0);
     recent.hasNextPage = true; view.render();
