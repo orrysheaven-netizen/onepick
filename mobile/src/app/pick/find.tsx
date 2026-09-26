@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
 import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalogItem } from '@/hooks/usePlaceCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
+import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { HOME_FEED_ROOT_SLUG, homeMenuCategories, homeMenuSuggestions, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
 import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -86,6 +87,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
   const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const menuMatches = searchMenuCategories(menus, menuQuery);
+  const recipeMenu = menus.find((menu) => menu.slug === 'recipe');
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
   const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
@@ -262,10 +264,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     attemptedPlaceReturn.current = placeCatalogId;
     void loadPlace(placeCatalogId, true);
   });
-  const chooseMenu = (categoryId: string) => {
+  const chooseMenu = (menu: { id: string; slug: string }) => {
     if (!focused.current || navigating.current) return;
     navigating.current = true;
-    router.push({ pathname: '/pick/find', params: { categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+    const route = registrationRoute(menu);
+    router.push({ ...route, params: { ...route.params, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
   };
   const requestMenu = () => {
     const itemName = menuQuery.trim();
@@ -280,6 +283,12 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     setPlaceSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
     if (router.canGoBack()) router.back(); else router.replace('/');
   };
+
+  // Recipe Picks are YouTube videos registered from a link, never a name search.
+  if (selectedCategory?.slug === 'recipe') {
+    const route = registrationRoute(selectedCategory);
+    return <Redirect href={{ ...route, params: { ...route.params, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } }} />;
+  }
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.gate}>
@@ -304,12 +313,17 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <Text style={styles.channelTitle}>{menuQuery.trim() ? '검색한 메뉴' : '자주 찾는 메뉴'}</Text>
         <View style={styles.menuList}>
           {(menuQuery.trim() ? menuMatches : suggestedMenus).map((menu) => <Chip key={menu.id} label={menu.name}
-            accessibilityLabel={`${menu.name} 메뉴 선택`} onPress={() => chooseMenu(menu.id)} />)}
+            accessibilityLabel={`${menu.name} 메뉴 선택`} onPress={() => chooseMenu(menu)} />)}
         </View>
       </View> : null}
       {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
         text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
         action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
+      {recipeMenu ? <View style={styles.channelSection}>
+        <Text style={styles.channelTitle}>레시피가 원픽인가요?</Text>
+        <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
+        <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
+      </View> : null}
       <View style={styles.block}><Button variant="ghost" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View>
     </ScrollView>
   </SafeAreaView>;
@@ -433,6 +447,7 @@ const styles = StyleSheet.create({
   channelSection: { marginTop: 16 },
   channelTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   channelRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  recipeButton: { marginTop: 10 },
   menuList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   categoryBadgeText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   categorySection: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 18, marginTop: 18 },

@@ -12,3 +12,13 @@ export interface ImportedYouTubeChannelItem {
   categoryId: string;
   created: boolean;
 }
+
+export interface YouTubeVideoEntry {
+  source: 'youtube_video';
+  externalId: string;
+  title: string;
+  channelTitle: string | null;
+  thumbnailUrl: string | null;
+  videoUrl: string;
+  existingItemId: string | null;
+}

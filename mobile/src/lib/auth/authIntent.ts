@@ -13,6 +13,7 @@ export type AuthReturnParams = {
   externalGameId?: string | string[];
   externalBookId?: string | string[];
   externalYouTubeId?: string | string[];
+  externalVideoId?: string | string[];
   externalPokemonId?: string | string[];
   placeCatalogId?: string | string[];
   linkUrl?: string | string[];
@@ -31,6 +32,7 @@ export type AuthIntent =
   | { action: 'choose_game'; externalGameId: string; categoryId: string }
   | { action: 'choose_book'; externalBookId: string; categoryId: string }
   | { action: 'choose_youtube'; externalYouTubeId: string; categoryId: string }
+  | { action: 'choose_recipe'; externalVideoId: string; categoryId: string }
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
   | { action: 'choose_place'; placeCatalogId: string; categoryId: string }
   | { action: 'suggest_link_category'; linkUrl: string; linkName?: string }
@@ -70,6 +72,9 @@ function getExternalBookId(value: string | string[] | undefined) {
 }
 function getExternalYouTubeId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^UC[A-Za-z0-9_-]{22}$/.test(value) ? value : null;
+}
+function getExternalVideoId(value: string | string[] | undefined) {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{11}$/.test(value) ? value : null;
 }
 function getExternalPokemonId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^\d{1,6}$/.test(value) ? value : null;
@@ -124,6 +129,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalYouTubeId = getExternalYouTubeId(params.externalYouTubeId);
     if (externalYouTubeId) return { action: 'choose_youtube', externalYouTubeId, categoryId: params.categoryId };
   }
+  if (params.action === 'choose_recipe' && isId(params.categoryId)) {
+    const externalVideoId = getExternalVideoId(params.externalVideoId);
+    if (externalVideoId) return { action: 'choose_recipe', externalVideoId, categoryId: params.categoryId };
+  }
   if (params.action === 'choose_pokemon' && isId(params.categoryId)) {
     const externalPokemonId = getExternalPokemonId(params.externalPokemonId);
     if (externalPokemonId) return { action: 'choose_pokemon', externalPokemonId, categoryId: params.categoryId };
@@ -165,6 +174,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_game': return { pathname: '/pick/game', params: { categoryId: intent.categoryId, externalGameId: intent.externalGameId } };
     case 'choose_book': return { pathname: '/pick/book', params: { categoryId: intent.categoryId, externalBookId: intent.externalBookId } };
     case 'choose_youtube': return { pathname: '/pick/youtube', params: { categoryId: intent.categoryId, externalYouTubeId: intent.externalYouTubeId } };
+    case 'choose_recipe': return { pathname: '/pick/recipe', params: { categoryId: intent.categoryId, externalVideoId: intent.externalVideoId } };
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
     case 'suggest_link_category': return { pathname: '/pick/link', params: { url: intent.linkUrl, ...(intent.linkName ? { name: intent.linkName } : {}) } };
