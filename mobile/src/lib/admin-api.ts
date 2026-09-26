@@ -584,6 +584,62 @@ export function createOnlineProvider(input: OnlineStoreInput & { categoryId: str
   });
 }
 
+/** Food items from the old request → approval path that have no 매장/온라인 identity yet. */
+export type AdminUnlinkedItem = {
+  item_id: string;
+  item_name: string;
+  category_id: string;
+  category_name: string;
+  category_path: string;
+  uses_place_catalog: boolean;
+  pick_count: number;
+  created_at: string;
+};
+
+export type AdminPlaceCatalogMatch = {
+  catalog_id: string;
+  name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  /** The place already has its canonical item in this category; linking would duplicate it. */
+  existing_item_id: string | null;
+};
+
+export function getUnlinkedItems(query = '') {
+  return adminRequest<AdminUnlinkedItem[]>('/rest/v1/rpc/admin_unlinked_items', {
+    method: 'POST',
+    body: JSON.stringify({ p_root_slug: 'food', p_query: query.trim() || null, p_limit: 100 }),
+  });
+}
+
+export function searchPlaceCatalogForItem(categoryId: string, query: string) {
+  return adminRequest<AdminPlaceCatalogMatch[]>('/rest/v1/rpc/search_place_catalog', {
+    method: 'POST',
+    body: JSON.stringify({ p_category_id: categoryId, p_query: query.trim(), p_limit: 10 }),
+  });
+}
+
+/** Gives an existing item a 매장 identity; its Picks, comments and history stay on the same item. */
+export function linkItemToPlace(itemId: string, catalogId: string) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_link_item_to_place', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: itemId, p_catalog_id: catalogId }),
+  });
+}
+
+/** Gives an existing item an 온라인 identity (online store + provider) without creating a new item. */
+export function linkItemToOnlineProvider(input: OnlineStoreInput & { itemId: string }) {
+  const store = cleanOnlineStoreInput(input);
+  if (!input.itemId) throw new Error('연결할 항목을 선택해 주세요.');
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_link_item_to_online_provider', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: input.itemId, ...store }),
+  });
+}
+
 /** Creates (or reuses) the online provider in the request's category and merges the request, atomically. */
 export function resolveOnlineSellerRequest(input: OnlineStoreInput & { itemId: string }) {
   const store = cleanOnlineStoreInput(input);
