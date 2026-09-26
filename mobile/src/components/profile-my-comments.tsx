@@ -22,7 +22,7 @@ export function ProfileMyComments({ query }: { query: ReturnType<typeof useMyCom
       action={{ label: '다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} />;
   }
   if (comments.length === 0) {
-    return <StateCard title="아직 남긴 댓글이 없어요" text="상품 상세의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요." />;
+    return <StateCard title="아직 남긴 댓글이 없어요" text="상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요." />;
   }
 
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -42,7 +42,7 @@ export function ProfileMyComments({ query }: { query: ReturnType<typeof useMyCom
 function MyCommentRow({ entry, onOpen }: { entry: MyCommentReadItem; onOpen: (pickId: string) => void }) {
   const { comment, pick, pickAuthor, item } = entry;
   const context = pick
-    ? `${item?.name ?? '제품'} · ${pickAuthor ? `@${pickAuthor.username}` : '사용자'}의 한줄평`
+    ? `${item?.name ?? '원픽'} · ${pickAuthor ? `@${pickAuthor.username}` : '사용자'}의 한줄평`
     : '볼 수 없는 한줄평';
   const copy = <>
     <Text numberOfLines={1} style={styles.context}>{context}</Text>

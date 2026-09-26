@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProfilePickCard } from '@/components/profile-pick-card';
 import { buildProfilePickGroups, defaultCollapsedProfilePickGroups, remainingProfileCategories } from '@/lib/profile/profilePickGroups';
+import { categoryWithChannels } from '@/lib/home/homeChannels';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
@@ -81,8 +82,8 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                   <ProfilePickCard
                     key={item.pick.id}
                     layout="tile"
-                    categoryName={item.category?.name ?? '카테고리'}
-                    itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+                    categoryName={categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
+                    itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
                     review={item.pick.oneLineReview}
                     imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
                     itemId={item.item?.id}

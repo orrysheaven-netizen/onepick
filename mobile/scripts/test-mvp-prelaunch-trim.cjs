@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { load, screen, names } = require('./mvp-screen-harness.cjs');
 // onepick.ts reads its platform font family; use the native/default variant like Metro's split.
 const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
+const homeChannels = load('lib/home/homeChannels.ts');
 const flags = constants.OnePickFeatures;
 const initialFlags = { ...flags };
 const thresholds = constants.OnePickThresholds;
@@ -35,7 +36,7 @@ function home(count = 20) {
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
-    '@/lib/home/homeChannels': { HOME_CHANNEL_TABS: [{ channel: null, label: '전체' }, { channel: 'offline', label: '매장' }, { channel: 'online', label: '온라인' }] },
+    '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
@@ -43,13 +44,13 @@ function home(count = 20) {
   view.render(); return { view, q, following, auth, calls };
 }
 function explore() {
-  const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true }]);
+  const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true, channels: [] }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true, channels: [] }]);
   const calls = {};
   const view = screen('app/(tabs)/explore.tsx', {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: '1' }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; } },
-    '@/lib/categories/categoryTree': tree,
+    '@/lib/categories/categoryTree': tree, '@/lib/home/homeChannels': homeChannels,
   });
   view.render(); view.find('Chip', (p) => p.label === 'food').onPress(); view.render();
   view.find('Chip', (p) => p.label === 'ramen').onPress(); view.render();
@@ -69,6 +70,7 @@ function profile(isPublic = false) {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
+    '@/lib/home/homeChannels': homeChannels,
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
@@ -81,7 +83,7 @@ function profile(isPublic = false) {
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
-    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false);
+    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
@@ -137,15 +139,15 @@ async function main() {
     assert.doesNotMatch(view.text(), /TOP 3|공동|명이 선택|사람 수 기준/);
     assert.ok(view.find('SectionHeader', (p) => p.title === 'ramen의 원픽'));
     assert.equal(view.all('View').some((p) => Array.isArray(p.style) && p.style.some((s) => s?.backgroundColor === constants.OnePick.accentSoft)), false);
-    const card = view.find('Pressable', (p) => p.accessibilityLabel === 'First, 제품 상세 보기'); assert.ok(card); card.onPress(); assert.equal(calls.route.params.itemId, 'first');
+    const card = view.find('Pressable', (p) => p.accessibilityLabel === 'First, 상세 보기'); assert.ok(card); card.onPress(); assert.equal(calls.route.params.itemId, 'first');
   });
   await test('Explore shows at 3, hides with flag off and honors configurable threshold', () => {
     const { view, q } = explore(); q.data[0].pickCount = 3; q.data[0].isTied = false; q.data[1].rank = 2; q.data[1].isTied = false; view.render();
     assert.match(view.text(), /TOP 3/); assert.match(view.text(), /3\s*명이 선택/); assert.match(view.text(), /같은 선택 수/);
-    assert.ok(view.find('Pressable', (p) => p.accessibilityLabel === '1위 First, 3명이 선택, 제품 상세 보기'));
+    assert.ok(view.find('Pressable', (p) => p.accessibilityLabel === '1위 First, 3명이 선택, 상세 보기'));
     flags.exploreRankingDetail = false; view.render(); assert.doesNotMatch(view.text(), /TOP 3|명이 선택|공동/);
     flags.exploreRankingDetail = true; thresholds.exploreRankingMinPicks = 4; view.render(); assert.doesNotMatch(view.text(), /TOP 3/);
-    q.data = []; view.render(); assert.match(view.text(), /아직 선택된 제품이 없어요/); assert.doesNotMatch(view.text(), /TOP 3/);
+    q.data = []; view.render(); assert.match(view.text(), /아직 선택된 원픽이 없어요/); assert.doesNotMatch(view.text(), /TOP 3/);
   });
   await test('Explore uses rank-1 count rather than first array entry or total', () => {
     const { view, q } = explore(); q.data = [{ ...q.data[0], rank: 2, pickCount: 2 }, { ...q.data[1], rank: 1, pickCount: 3 }]; view.render();
@@ -165,15 +167,15 @@ async function main() {
     assert.match(view.text(), /외부 카탈로그/); assert.equal(typeof view.find('ItemSearch').onSearchMovie, 'function'); assert.doesNotMatch(view.text(), /외부 DB/);
   });
   await test('Owner profile hides confirmed-empty activity but continues both queries', () => {
-    const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 제품 등록 요청|이전 원픽 기록|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
+    const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|이전 원픽 기록|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
     assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
     assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
-    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')), undefined);
+    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('새로고침')), undefined);
   });
   await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
-    flags.profilePickHistory = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
-    assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 제품 등록 요청/);
+    assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 원픽 등록 요청/);
     history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '이전 기록 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
     history.isError = false; history.isSuccess = true; history.data = []; history.hasNextPage = true; view.render(); button = view.find('Button', (p) => p.label === '이전 기록 더 보기'); assert.ok(button); button.onPress(); assert.equal(history.nextPages, 1);
     history.hasNextPage = false; requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }]; view.render();
@@ -182,13 +184,15 @@ async function main() {
   });
   await test('Owner header refresh appears only on profile refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
-    await view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')).onPress();
-    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 1);
+    await view.find('Button', (p) => p.accessibilityLabel === '프로필 새로고침').onPress();
+    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 0);
   });
-  await test('Pick history and social links stay hidden until restored', () => {
+  await test('Activity, pick history and social links stay hidden until restored', () => {
     const owner = profile();
+    owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }];
     owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
-    assert.doesNotMatch(owner.view.text(), /이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    flags.profileItemRequests = true; owner.view.render(); assert.match(owner.view.text(), /활동 기록/); assert.match(owner.view.text(), /New request/);
     flags.profilePickHistory = true; flags.profileSocialLinks = true; owner.view.render();
     assert.match(owner.view.text(), /이전 원픽 기록/); assert.equal(owner.view.all('ProfilePickCard').length, 1); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
     flags.profileSocialLinks = false; const visitor = profile(true); assert.equal(visitor.view.all('ProfileSocialLinks').length, 0);

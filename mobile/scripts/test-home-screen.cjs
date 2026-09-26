@@ -103,6 +103,7 @@ assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
@@ -115,7 +116,7 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
-  assert.match(page, /라면 · 매장/, 'Feed cards label a store-channel item as 매장');
+  assert.match(page, /라면 · 오프라인맛집/, 'Feed cards label a store-channel item as 오프라인맛집');
   assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the 매장 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
@@ -129,8 +130,8 @@ for (width of [390, 800, 1200]) {
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
-  press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
-  press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+  press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
   press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
@@ -171,7 +172,7 @@ assert.doesNotMatch(publicPage, /영화|책 원픽 찾기|유튜브 원픽 찾�
 press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
-press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
 
@@ -184,7 +185,7 @@ const stalePage = render();
 assert.match(stalePage, /신라면/); assert.match(stalePage, /진라면/);
 assert.match(stalePage, /마지막으로 불러온 내용/);
 assert.doesNotMatch(stalePage, /원픽을 불러오지 못했어요/);
-press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
 press('다시 불러오기'); assert.equal(queryRetries, 1);
 pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 2);
 query.isFetching = true; query.isRefetching = true;

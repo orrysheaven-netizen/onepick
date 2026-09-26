@@ -52,7 +52,8 @@ async function main() {
   cache.clear();
 
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
-  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError } };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   const repo = new SupabaseReadRepository({ rpc: () => assert.fail('Use public counts, regardless of viewer'), storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: p } }) }) } },

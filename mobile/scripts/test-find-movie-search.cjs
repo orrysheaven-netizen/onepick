@@ -13,6 +13,8 @@ function load(file, imports = {}) {
   }).outputText, { exports, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
+    if (name === '@/lib/home/homeCategoryFilters') return load('lib/home/homeCategoryFilters.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') });
+    if (name === '@/hooks/useExploreData' && !(name in imports)) return { useExploreCategories: () => ({ data: [], isPending: false, isError: false, isFetching: false, refetch() {} }) };
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
@@ -71,6 +73,7 @@ const imports = {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
+  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/components/music-search-link': { MusicSearchLink: () => null },
@@ -99,13 +102,10 @@ const render = () => {
 };
 
 let page = render();
-assert.match(page, /카테고리 선택 없이 상품명만 검색하고 등록합니다/);
-assert.match(page, /카테고리는 비워두고 상품 등록만 진행합니다/);
-assert.equal(itemSearchArgs[0], '', 'Empty product search does not query yet');
-assert.equal(itemSearchArgs[1], undefined, 'Category-free registration does not preselect a category');
-assert.equal(itemSearchArgs[2], undefined, 'Category-free registration searches the full saved catalog');
-assert.equal(inputs[0].editable, true);
-assert.ok(!presses.some((button) => String(button.accessibilityLabel ?? '').includes('콘텐츠 종류 선택')));
+assert.match(page, /어떤 메뉴의 원픽인가요/, 'MVP registration without a category starts from a menu');
+assert.ok(inputs.find((input) => input.accessibilityLabel === '메뉴 검색'));
+assert.doesNotMatch(page, /카테고리 선택 없이 이름만 검색하고 등록합니다/, 'The category-free search is replaced by the menu picker');
+assert.equal(itemSearchArgs[0], '', 'The menu picker never runs the product search');
 
 params = { categoryId: 'movie' };
 page = render();

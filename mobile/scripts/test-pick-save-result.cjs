@@ -123,7 +123,7 @@ function checkSavedNavigation() {
 async function main() {
   for (const [status, label] of [
     [{ type: 'not_selected' }, '내 원픽으로 선택'],
-    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '이 제품으로 바꾸기'],
+    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '이걸로 바꾸기'],
     [{ type: 'selected_this', pickId: newPickId, oneLineReview: '이전 한줄평' }, '한줄평 저장'],
   ]) {
     arrange(status); noSuccess(render()); submit(label); await flush();
@@ -138,7 +138,7 @@ async function main() {
   // Stale/failed metadata reads must not send the user to an older Pick or imply the save failed.
   query.data = undefined; query.isError = true;
   let page = render(); assert.match(page, /원픽이 선택됐어요/); assert.match(page, /진라면/);
-  assert.doesNotMatch(page, /제품을 불러오지 못했어요/);
+  assert.doesNotMatch(page, /정보를 불러오지 못했어요/);
   checkSavedNavigation();
 
   arrange(); mode = 'failure'; submit('내 원픽으로 선택'); await flush();
@@ -174,7 +174,7 @@ async function main() {
   assert.doesNotMatch(render(), /서버에서 확인한 나의 한줄평/, 'Late result belongs only to the unmounted old account form');
 
   arrange(); query.data = undefined; query.isError = true;
-  noSuccess(render()); assert.match(render(), /제품을 불러오지 못했어요/);
+  noSuccess(render()); assert.match(render(), /정보를 불러오지 못했어요/);
   arrange(); query.data.canChoose = false; noSuccess(render()); assert.equal(input, undefined);
   console.log('Saved Pick confirmation passed: new/change/review save, exact result IDs, explicit home browsing, no extra writes, pending/failure/retry, refresh failure, session gates and account/item scope isolation.');
 }

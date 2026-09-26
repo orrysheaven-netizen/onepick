@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useLinkCategorySuggestions } from '@/hooks/useLinkCategorySuggestions';
+import { isDeliveryAppUrl } from '@/lib/items/pickChannel';
 import type { LinkCategoryOption, LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import { OnePick } from '@/constants/onepick';
 
@@ -33,6 +34,8 @@ export default function LinkCategorySuggestionScreen() {
   const [categorySearch, setCategorySearch] = useState('');
 
   const result = suggestion.data;
+  // Delivery is one store's food (매장), never an online seller: send people to the menu → 매장 flow.
+  const isDeliveryLink = isDeliveryAppUrl(url);
   const categoryOptions = useMemo(() => {
     const text = categorySearch.trim().toLowerCase();
     if (!result || !text) return [];
@@ -42,6 +45,7 @@ export default function LinkCategorySuggestionScreen() {
   }, [result, categorySearch]);
 
   const analyze = async (placeCatalogId?: string) => {
+    if (isDeliveryAppUrl(url)) return null;
     if (!auth.user) {
       const linkUrl = url.trim();
       if (!linkUrl) return null;
@@ -137,7 +141,7 @@ export default function LinkCategorySuggestionScreen() {
         <Text style={styles.subtitle}>카테고리를 먼저 고르지 않아도 됩니다. 링크를 확인한 뒤 가능한 후보만 추천하고, 마지막 선택은 직접 합니다.</Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>네이버 지도 · 공식몰 · 상품 링크</Text>
+          <Text style={styles.label}>네이버 지도 · 공식몰 · 판매 링크</Text>
           <TextInput
             accessibilityLabel="원픽 링크"
             autoCapitalize="none"
@@ -154,9 +158,9 @@ export default function LinkCategorySuggestionScreen() {
             style={styles.input}
           />
 
-          <Text style={styles.label}>가게/상품 이름 · 자동 인식이 안 될 때만</Text>
+          <Text style={styles.label}>이름 · 자동 인식이 안 될 때만</Text>
           <TextInput
-            accessibilityLabel="가게 또는 상품 이름"
+            accessibilityLabel="원픽 이름"
             value={name}
             onChangeText={(value) => {
               setName(value);
@@ -170,10 +174,14 @@ export default function LinkCategorySuggestionScreen() {
             style={styles.input}
           />
 
+          {isDeliveryLink ? <View accessibilityRole="alert">
+            <Text style={styles.error}>배달앱 링크는 매장 원픽이에요. 메뉴를 고른 뒤 매장에서 가게 이름으로 찾아주세요. 네이버 지도 링크를 붙여넣어도 돼요.</Text>
+            <Button variant="secondary" label="메뉴 고르고 매장 찾기" onPress={() => router.push('/pick/find')} />
+          </View> : null}
           {!auth.user ? <Text style={styles.notice}>추천 요청 전에 로그인합니다. 입력한 링크와 이름은 로그인 후 그대로 이어집니다.</Text> : null}
           <Button
             label={suggestion.isPending ? '확인 중…' : auth.user ? '링크 확인하고 추천받기' : '로그인하고 추천받기'}
-            disabled={suggestion.isPending || !url.trim()}
+            disabled={suggestion.isPending || !url.trim() || isDeliveryLink}
             onPress={() => void analyze().catch(() => {})}
           />
         </View>
@@ -268,7 +276,7 @@ export default function LinkCategorySuggestionScreen() {
                       onPress={() => requestItem()}
                     />
                     <Text style={styles.muted}>
-                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '상품 이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
+                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
                     </Text>
                   </>
                 ) : null}

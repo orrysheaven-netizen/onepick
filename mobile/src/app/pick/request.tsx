@@ -24,12 +24,12 @@ function errorMessage(error: unknown) {
     if (error.code === 'IMAGE_SOURCE_UNSUPPORTED') return '지원하는 제조사 사이트의 HTTPS 링크를 넣어주세요. 다른 링크는 직접 사진 선택을 이용해주세요.';
     if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 직접 사진 선택을 이용해주세요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';
-    if (error.code === 'ITEM_NAME_INVALID') return '제품명은 1~100자로 입력해주세요.';
+    if (error.code === 'ITEM_NAME_INVALID') return '이름은 1~100자로 입력해주세요.';
     if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 입력해주세요.';
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
-  return '상품을 등록하지 못했어요. 다시 시도해주세요.';
+  return '등록하지 못했어요. 다시 시도해주세요.';
 }
 
 function hintErrorMessage(error: unknown) {
@@ -223,7 +223,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <StateCard title="사용자명을 먼저 정해주세요" text="제품 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
+          <StateCard title="사용자명을 먼저 정해주세요" text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
             action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: intent }) }} />
         </View>
       </SafeAreaView>
@@ -235,7 +235,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="상품을 등록했어요" text={`${submittedItem.name}\n관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="등록 요청을 보냈어요" text={`${submittedItem.name}\n관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -277,9 +277,9 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않습니다.</Text>
 
           {categorySuggestions.isPending ? (
-            <View style={styles.block}><StateCard loading title="상품명과 기존 카테고리를 비교하고 있어요" /></View>
+            <View style={styles.block}><StateCard loading title="이름과 기존 카테고리를 비교하고 있어요" /></View>
           ) : categorySuggestions.isError ? (
-            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요" text="상품 등록은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
+            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요" text="등록 요청은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
               action={{ label: 'AI 추천 다시 받기', onPress: () => void categorySuggestions.refetch() }} /></View>
           ) : categorySuggestions.data ? (
             <View style={styles.suggestionCard}>
@@ -371,15 +371,15 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
         <Text style={styles.subtitle}>{isOnlineRequest
           ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결합니다.'
-          : '찾는 상품이 없나요? 상품명을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.'}</Text>
+          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.'}</Text>
 
-        <Text style={styles.label}>{isOnlineRequest ? '판매처·상품 이름' : '제품명'}</Text>
+        <Text style={styles.label}>{isOnlineRequest ? '판매처·메뉴 이름' : '이름'}</Text>
         <TextInput
-          accessibilityLabel="요청 제품명"
+          accessibilityLabel="등록 요청 이름"
           editable={!submitting}
           maxLength={100}
           onChangeText={setName}
-          placeholder={isOnlineRequest ? '예: ○○곰탕 온라인몰 도가니탕' : '제품명'}
+          placeholder={isOnlineRequest ? '예: ○○곰탕 온라인몰 도가니탕' : '이름'}
           placeholderTextColor={OnePick.hint}
           style={styles.input}
           value={name}
@@ -420,23 +420,23 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>지금은 상품명만 등록하면 됩니다. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
+          <Text style={styles.noticeText}>지금은 이름만 등록하면 됩니다. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>
-          <Text style={styles.photoTitle}>제품 대표 이미지 · 선택</Text>
-          <Text style={styles.helper}>승인된 대표 사진 한 장을 같은 제품을 고른 사람들이 함께 사용해요.</Text>
+          <Text style={styles.photoTitle}>대표 이미지 · 선택</Text>
+          <Text style={styles.helper}>승인된 대표 사진 한 장을 같은 원픽을 고른 사람들이 함께 사용해요.</Text>
           {auth.user ? <>
             <Button variant="soft" fullWidth disabled={submitting} label={photo ? '사진 바꾸기' : '직접 사진 선택'} onPress={() => void getPhoto(false)} style={styles.photoButton} />
-            <Text style={styles.helper}>또는 제조사 제품·이미지 링크에서 가져올 수 있어요.</Text>
-            <TextInput accessibilityLabel="제품 이미지 링크" editable={!submitting} value={imageLink} onChangeText={setImageLink}
+            <Text style={styles.helper}>또는 공식 페이지·이미지 링크에서 가져올 수 있어요.</Text>
+            <TextInput accessibilityLabel="대표 이미지 링크" editable={!submitting} value={imageLink} onChangeText={setImageLink}
               autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" style={[styles.input, styles.linkInput]} />
             <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting || !imageLink.trim()} label="링크에서 이미지 가져오기" onPress={() => void getPhoto(true)} />
           </> : <Button variant="soft" fullWidth label="로그인하고 사진 추가" onPress={() => router.push({ pathname: '/auth/login', params: intent })} style={styles.photoButton} />}
           {photoPicker.isPending || imageImport.isPending ? <View style={styles.photoLoading}><ActivityIndicator /><Text style={styles.helper}>사진을 준비하고 있어요</Text></View> : null}
           {photoPicker.isError || imageImport.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(photoPicker.error ?? imageImport.error)}</Text> : null}
           {photo ? <>
-            <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="제품 대표 이미지 미리보기" />
+            <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="대표 이미지 미리보기" />
             <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting} label="사진 제거" onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }} />
           </> : null}
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
@@ -444,7 +444,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
         {!auth.user ? (
           <View style={styles.notice}>
-            <Text style={styles.noticeText}>요청을 보내기 전에 로그인합니다. 지금 입력한 제품 정보는 로그인 후 그대로 이어집니다.</Text>
+            <Text style={styles.noticeText}>요청을 보내기 전에 로그인합니다. 지금 입력한 정보는 로그인 후 그대로 이어집니다.</Text>
           </View>
         ) : null}
 
@@ -458,10 +458,10 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
         {source ? <Text style={styles.helper}>{`이 요청에는 원본 링크(${source.host})가 함께 저장되어 관리자 검수에 사용됩니다.`}</Text> : null}
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
-        {linkAttach.isError ? <Text style={styles.error}>상품 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
+        {linkAttach.isError ? <Text style={styles.error}>등록 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
 
         <Button size="lg" fullWidth disabled={!canSubmit || submitting} loading={registration.isPending || linkAttach.isPending}
-          label={auth.user ? '상품 등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
+          label={auth.user ? '등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
     </SafeAreaView>
   );

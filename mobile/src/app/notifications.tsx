@@ -24,12 +24,12 @@ function describe(item: AppNotification) {
     // Without it (requests sent before reviews were collected) they still choose.
     const message = item.pick_id
       ? item.outcome === 'merged'
-        ? `등록하신 제품이 ${item.item_name}(으)로 등록되어 내 원픽이 됐어요.`
+        ? `요청하신 원픽이 ${item.item_name}(으)로 등록되어 내 원픽이 됐어요.`
         : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인되어 내 원픽으로 등록됐어요.`
       : item.outcome === 'merged'
-        ? `등록하신 제품이 ${item.item_name}(으)로 등록됐어요. 원픽으로 선택해보세요.`
+        ? `요청하신 원픽이 ${item.item_name}(으)로 등록됐어요. 원픽으로 선택해보세요.`
         : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인됐어요. 원픽으로 선택해보세요.`;
-    return { sender: '제품 등록 결과', badge: '승인', message, label: message };
+    return { sender: '원픽 등록 결과', badge: '승인', message, label: message };
   }
   const message = item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`;
   return {
@@ -90,7 +90,7 @@ export default function NotificationsScreen() {
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
-          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽에 달린 댓글, 팔로우한 사람의 새 원픽, 제품 등록 결과를 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
+          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽에 달린 댓글, 팔로우한 사람의 새 원픽, 원픽 등록 결과를 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
           : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
           : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 댓글이 달리거나 팔로우한 사람이 원픽을 고르면 여기에 알려드려요.</Text></>}
       </View>}

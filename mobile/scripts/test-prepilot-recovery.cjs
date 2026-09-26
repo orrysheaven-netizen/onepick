@@ -145,10 +145,10 @@ async function main() {
   });
   await check('Metadata failure offers a guarded retry without losing the reason', async () => {
     const c = choice(); c.draft(); c.query.isError = true; c.view.render();
-    await c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
+    await c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
     c.query.isFetching = true; c.view.render();
-    assert.equal(c.view.button('제품 정보 다시 불러오기').disabled, true);
-    await c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
+    assert.equal(c.view.button('정보 다시 불러오기').disabled, true);
+    await c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
     c.query.isFetching = false; c.query.isError = false; c.view.render();
     assert.equal(c.view.input().value, '  나의 이유  '); assert.equal(c.writes.length, 0);
   });
