@@ -330,7 +330,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
         <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
       </View> : null}
-      <View style={styles.block}><Button variant="ghost" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View>
     </ScrollView>
   </SafeAreaView>;
 
@@ -339,7 +338,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
       <Text style={styles.subtitle}>{isOnlineChannel ? `택배·온라인몰로 주문한 ${selectedCategory?.name ?? '맛집'} 판매처를 검색해보세요.` : isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 검색합니다.' : '카테고리 선택 없이 이름만 검색하고 등록합니다.'}</Text>
-      {!requestedCategoryId ? <View style={styles.block}><Button variant="secondary" label="링크로 카테고리 추천받기" onPress={() => router.push('/pick/link')} /></View> : null}
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 등록만 진행합니다.</Text> : null}
