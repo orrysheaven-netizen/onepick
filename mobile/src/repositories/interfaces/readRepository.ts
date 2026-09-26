@@ -16,6 +16,12 @@ export interface CommentReadItem {
   author: Profile | null;
 }
 
+/** Keeps rows whose Pick sits under the top-level category `rootSlug` (inside) or under any other (outside). */
+export interface RootCategoryScope {
+  rootSlug: string;
+  inside: boolean;
+}
+
 /** A comment I wrote, with the review it answers. Pick/item/author are null when no longer visible. */
 export interface MyCommentReadItem {
   comment: Comment;
@@ -148,6 +154,6 @@ export interface ReadRepository {
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
-  getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null): Promise<MyCommentReadItem[]>;
+  getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }

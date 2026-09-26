@@ -8,21 +8,21 @@ import { formatRelativeTime } from '@/lib/format/relativeTime';
 import type { MyCommentReadItem } from '@/repositories/interfaces/readRepository';
 
 /**
- * The profile's "내 댓글" tab: comments I wrote, newest first, each with the review
+ * The "댓글" tab's list: comments I wrote, newest first, each with the review
  * it answers. A row opens the item screen focused on that review, where the thread
  * (and its 삭제 control) opens automatically.
  */
-export function ProfileMyComments({ query }: { query: ReturnType<typeof useMyComments> }) {
+export function ProfileMyComments({ query, emptyText }: { query: ReturnType<typeof useMyComments>; emptyText?: string }) {
   const router = useRouter();
   const comments = query.data ?? [];
 
-  if (query.isPending) return <StateCard loading title="내 댓글을 불러오고 있어요" />;
+  if (query.isPending) return <StateCard loading title="댓글을 불러오고 있어요" />;
   if (query.isError && !query.data) {
-    return <StateCard tone="danger" title="내 댓글을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+    return <StateCard tone="danger" title="댓글을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
       action={{ label: '다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} />;
   }
   if (comments.length === 0) {
-    return <StateCard title="아직 남긴 댓글이 없어요" text="상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요." />;
+    return <StateCard title="아직 남긴 댓글이 없어요" text={emptyText ?? '상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요.'} />;
   }
 
   // Straight to the item screen: the /pick/[pickId] redirect would add a blank lookup screen first.
@@ -32,8 +32,8 @@ export function ProfileMyComments({ query }: { query: ReturnType<typeof useMyCom
       {comments.map((entry) => <MyCommentRow key={entry.comment.id} entry={entry} onOpen={openReview} />)}
       {query.isFetchNextPageError ? <Text accessibilityRole="alert" style={styles.error}>다음 댓글을 불러오지 못했어요.</Text> : null}
       {query.hasNextPage ? (
-        <Button variant="secondary" size="sm" style={styles.more} accessibilityLabel="내 댓글 더 보기"
-          disabled={query.isFetching} label={query.isFetchingNextPage ? '불러오는 중…' : query.isFetchNextPageError ? '다시 불러오기' : '내 댓글 더 보기'}
+        <Button variant="secondary" size="sm" style={styles.more} accessibilityLabel="댓글 더 보기"
+          disabled={query.isFetching} label={query.isFetchingNextPage ? '불러오는 중…' : query.isFetchNextPageError ? '다시 불러오기' : '댓글 더 보기'}
           onPress={() => { if (!query.isFetching) void query.fetchNextPage({ cancelRefetch: false }); }} />
       ) : null}
     </View>
