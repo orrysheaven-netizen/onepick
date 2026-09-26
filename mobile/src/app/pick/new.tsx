@@ -13,7 +13,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
-import { isDeliveryAppUrl, type PickChannel } from '@/lib/items/pickChannel';
+import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
@@ -273,7 +273,7 @@ export default function NewPickScreen() {
             <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
               onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={OnePick.hint}
               placeholder={channel === 'online' ? '판매처 이름 검색: ○○몰, 스마트스토어…' : '매장명 검색: 을밀대, 우래옥…'} />
-            {channel === 'offline' ? <Text style={styles.helper}>지금은 서울 매장을 찾을 수 있어요. 배달로 주문한 곳도 매장으로 골라주세요.</Text> : null}
+            {channel === 'offline' ? <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE} 배달로 주문한 곳도 매장으로 골라주세요.</Text> : null}
             {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.accent} /></View> : null}
             {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요" action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
             {(search.data ?? []).map((candidate) => <Pressable key={candidate.kind === 'place' ? candidate.catalogId : candidate.providerId}
