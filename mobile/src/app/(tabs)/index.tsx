@@ -49,7 +49,7 @@ export default function HomeScreen() {
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   // Keep shared Home context (categories/current Picks) available for search and
   // badges, but do not download the invisible public feed while following is shown.
-  // 매장/온라인 tabs filter the public feed on the server (delivery counts as 매장).
+  // 오프라인/온라인 맛집 tabs filter the public feed on the server (delivery counts as offline).
   const [channel, setChannel] = useState<PickChannel | null>(null);
   const channelTab = HOME_CHANNEL_TABS.find((tab) => tab.channel === channel) ?? HOME_CHANNEL_TABS[0];
   // MVP Home is food-only: the server drops other categories so pages never come back empty.
@@ -268,7 +268,7 @@ export default function HomeScreen() {
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
           {!switchingChannel && !data.picks.length ? (channel
-            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label} 맛집을 원픽으로 고르면 여기에 보여요.`}
+            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}을 원픽으로 고르면 여기에 보여요.`}
               action={{ label: '전체 원픽 보기', accessibilityLabel: '전체 탭으로 돌아가기', onPress: () => setChannel(null) }} />
             : <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
               action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} />) : null}
