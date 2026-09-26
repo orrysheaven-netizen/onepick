@@ -183,16 +183,18 @@ async function main() {
   assert.equal(itemDetailArgs[4], false, 'Loading session keeps the detail query disabled');
   auth.isLoading = false; view.render();
   view.button('사진 등록자 @photo_owner 프로필 보기').onPress(); assert.equal(routes[0].params.username, 'photo_owner');
-  assert.doesNotMatch(view.render(), /사진 선택/);
+  assert.doesNotMatch(view.render(), /사진 업로드/);
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
   query.photoCredit = null; assert.doesNotMatch(view.render(), /사진 등록 ·/);
   query.data.item = { ...baseItem };
-  page = view.render(); assert.match(page, /이름이 잘 보이는 사진이면 충분해요/); assert.match(page, /내 사용자명이 표시되고 프로필이 연결/);
+  page = view.render(); assert.match(page, /사진을 올려주세요/, 'A missing photo is a one-line upload row');
+  assert.doesNotMatch(page, /이름이 잘 보이는 사진이면|사진 없이도/, 'The upload row carries no extra guidance before a photo is chosen');
+  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /올린 사진은 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요/, 'The chosen-photo preview keeps a one-line sharing notice');
   view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 0, 'Photo entry stays on uploader instead of jumping to the saved review');
   params.photo = undefined; view.render(); view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 1, 'Normal discussion deep links still focus the review');
-  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 선택/);
+  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 업로드/);
   assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /case 'ITEM_NOT_ELIGIBLE': return '지금은 여기에 이미지를 추가할 수 없어요.'/);
   console.log('Photo contribution passed: optional post-save offer, skip and no duplicate write, current-photo exclusion, credit reads/cache isolation, profile link and uploader focus.');
 }
