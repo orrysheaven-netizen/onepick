@@ -167,7 +167,7 @@ test('web register control uses ink on tangerine and preserves route', () => {
   assert.equal(styleOf(icon).backgroundColor, OnePick.brand);
   assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onBrand);
   readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
-  button.props.onPress(); assert.equal(navigated, '/pick/find');
+  button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
 test('web Link tabs pass one layout style object through Link asChild', () => {
   pathname = '/';

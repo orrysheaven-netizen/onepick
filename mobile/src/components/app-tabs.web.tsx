@@ -23,7 +23,7 @@ export default function AppTabs() {
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
-        <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/find')}
+        <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
           style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
           <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
