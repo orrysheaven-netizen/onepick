@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(9);
 
 -- Reuse the first open pickable menu leaf and two authenticated fixture users.
 select lives_ok($$
@@ -29,8 +29,7 @@ begin
   values
     (v_cat,'channel-test-offline','channeltestoffline','active','test_channel','offline-'||v_cat),
     (v_cat,'channel-test-online','channeltestonline','active','test_channel','online-'||v_cat),
-    (v_cat,'channel-test-recipe','channeltestrecipe','active','test_channel','recipe-'||v_cat)
-  returning id into v_offline;
+    (v_cat,'channel-test-recipe','channeltestrecipe','active','test_channel','recipe-'||v_cat);
 
   select id into v_offline from public.items where external_source='test_channel' and external_id='offline-'||v_cat;
   select id into v_online from public.items where external_source='test_channel' and external_id='online-'||v_cat;
