@@ -16,7 +16,7 @@ import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
-import { HOME_CHANNEL_TABS } from '@/lib/home/homeChannels';
+import { HOME_CHANNEL_TABS, categoryWithChannels } from '@/lib/home/homeChannels';
 import type { HomeFeedPick, PickChannel } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
@@ -27,7 +27,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
       <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryName}</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
     </View>
     <View style={styles.editorialBody}>
       <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />

@@ -25,7 +25,7 @@ function fixture(kind, platform = 'web') {
   const profile = query({ profile: { id: 'owner', username: 'owner', bio: '' }, currentPicks: [] });
   const history = query([]), requests = query([]), categories = query([category]);
   categories.refetch = function () { this.refetches++; return Promise.resolve(); };
-  const top = query([{ itemId: 'item', name: '선택된 라면', rank: 1, pickCount: 2, isTied: false }]);
+  const top = query([{ itemId: 'item', name: '선택된 라면', rank: 1, pickCount: 2, isTied: false, channels: [] }]);
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
@@ -49,7 +49,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
       browseCategoryGroups: (cs) => cs.map((c) => ({ category: c, children: [], directlySelectable: true })) },
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
-    '@/lib/home/homeChannels': { HOME_CHANNEL_TABS: [{ channel: null, label: '전체' }, { channel: 'offline', label: '매장' }, { channel: 'online', label: '온라인' }] },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
