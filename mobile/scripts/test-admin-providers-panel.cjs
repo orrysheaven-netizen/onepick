@@ -7,11 +7,18 @@ const ts = require('typescript');
 // Exercise the real component's async handlers without a browser, credentials,
 // timers or a live database. This is a deterministic hook/host harness, not E2E.
 const source = fs.readFileSync(process.argv[2] || path.join(__dirname, '../src/components/admin/data/providers-panel.tsx'), 'utf8');
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  reportDiagnostics: true,
-});
-assert.deepEqual(compiled.diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error), [], 'Panel must parse');
+const transpile = (text, label) => {
+  const output = ts.transpileModule(text, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    reportDiagnostics: true,
+  });
+  assert.deepEqual(output.diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error), [], `${label} must parse`);
+  return output;
+};
+const compiled = transpile(source, 'Panel');
+// The real category picker runs inside the same hook harness as the panel.
+const pickerPath = path.join(__dirname, '../src/components/admin/category-picker.tsx');
+const picker = fs.existsSync(pickerPath) ? transpile(fs.readFileSync(pickerPath, 'utf8'), 'Category picker') : null;
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 function deferred() {
@@ -107,26 +114,29 @@ function harness(api) {
     if (typeof node.type === 'function') return expand(node.type(node.props));
     return { ...node, props: { ...node.props, children: expand(node.props.children) } };
   }
-  const exported = {};
-  vm.runInNewContext(compiled.outputText, {
-    exports: exported, Error,
-    require(name) {
-      if (name === 'react') return hooks;
-      if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
-      if (name === 'react-native') return {
-        ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
-        StyleSheet: { create: (value) => value },
-      };
-      if (name === '@/lib/admin-api') return api;
-      if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
-      if (name === '@/constants/onepick') return { OnePick: {} };
-      if (name === '@/lib/categories/categoryTree') return {
-        categoryLabel: (item) => item.name,
-        selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
-      };
-      assert.fail(`Unexpected dependency: ${name}`);
-    },
-  });
+  const load = (code) => {
+    const moduleExports = {};
+    vm.runInNewContext(code, { exports: moduleExports, Error, require: resolve });
+    return moduleExports;
+  };
+  function resolve(name) {
+    if (name === 'react') return hooks;
+    if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
+    if (name === 'react-native') return {
+      ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
+      StyleSheet: { create: (value) => value },
+    };
+    if (name === '@/lib/admin-api') return api;
+    if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
+    if (name === '@/constants/onepick') return { OnePick: {} };
+    if (name === '@/lib/categories/categoryTree') return {
+      categoryLabel: (item) => item.name,
+      selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
+    };
+    if (name === '@/components/admin/category-picker' && picker) return load(picker.outputText);
+    assert.fail(`Unexpected dependency: ${name}`);
+  }
+  const exported = load(compiled.outputText);
   function render() {
     cursor = 0;
     dirty = false;
@@ -204,6 +214,7 @@ function harness(api) {
 async function fillForm(h) {
   await h.type('판매처 이름', '새 공식몰');
   await h.type('판매처 공식 URL', 'https://new-store.example');
+  await h.type('첫 원픽 카테고리 검색', '테스트');
   await h.press(category.name);
 }
 const cases = [];
@@ -218,6 +229,7 @@ test('initial failure retries providers, categories and brands without reloading
   assert.doesNotMatch(h.text(), /조건에 맞는 온라인 판매처가 없습니다|선택 가능한 카테고리가 없습니다/);
   assert.equal(h.button('판매처 등록').disabled, true);
   await h.press('판매처 관리 다시 불러오기');
+  await h.type('첫 원픽 카테고리 검색', '테스트');
   assert.match(h.text(), /테스트 카테고리/);
   assert.doesNotMatch(h.text(), /CATEGORY_READ_FAILED/);
   for (const name of ['getOnlineProviders', 'getCategories', 'getBrands']) assert.equal(b.calls[name].length, 2, name);
@@ -452,6 +464,22 @@ test('clearing a draft resets the list only after an explicit search', async () 
   assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
   await h.press('검색'); await h.press('활성', h.row());
   assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', 'A', 'A', '', '']);
+});
+
+test('category picker lists only matches for a typed query, capped at eight', async () => {
+  const many = Array.from({ length: 12 }, (_, index) => ({ ...copy(category), id: `bread-${index}`, name: `빵 ${index}`, slug: `bread-${index}` }));
+  const b = backend({ getCategories: async () => [...many, { ...copy(category), id: 'rice', name: '쌀', slug: 'rice' }] });
+  const h = harness(b.api);
+  await h.flush();
+  assert.doesNotMatch(h.text(), /빵 0|쌀/, 'no chips before searching');
+  await h.type('첫 원픽 카테고리 검색', '빵');
+  assert.match(h.text(), /빵 7/);
+  assert.doesNotMatch(h.text(), /빵 8|쌀/);
+  assert.match(h.text(), /외 4개/);
+  await h.press('빵 3');
+  assert.match(h.text(), /선택: 빵 3/);
+  assert.equal(h.input('첫 원픽 카테고리 검색').value, '');
+  assert.doesNotMatch(h.text(), /빵 0/, 'results close after choosing');
 });
 
 (async () => {
