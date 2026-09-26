@@ -141,7 +141,7 @@ params = { categoryId: 'dogani', query: '없는 판매처', channel: 'online' };
 page = render();
 assert.equal(onlineChip().accessibilityState?.selected, true, 'A channel=online route opens the online flow');
 assert.match(page, /등록된 온라인 판매처가 없어요/);
-assert.doesNotMatch(page, /일치하는 장소를 찾지 못했어요/);
+assert.doesNotMatch(page, /아직 등록된 가게가 없어요/);
 press('온라인 판매처 등록 요청');
 assert.equal(destination.pathname, '/pick/request');
 assert.deepEqual({ ...destination.params }, { itemName: '없는 판매처', categoryId: 'dogani', channel: 'online' });
@@ -149,8 +149,11 @@ assert.deepEqual({ ...destination.params }, { itemName: '없는 판매처', cate
 state = []; refs = []; destination = undefined;
 params = { categoryId: 'dogani', query: '없는 가게' };
 page = render();
-assert.match(page, /일치하는 장소를 찾지 못했어요/, '매장 still requires a verified place');
+assert.match(page, /아직 등록된 가게가 없어요/, '매장 still requires a verified place');
 assert.equal(presses.find((p) => textOf(p.children) === '온라인 판매처 등록 요청'), undefined);
+press('가게 등록 요청하기');
+assert.equal(destination.pathname, '/pick/request', 'An empty 매장 search can request the store instead of creating a name-only Pick');
+assert.deepEqual({ ...destination.params }, { itemName: '없는 가게', categoryId: 'dogani' });
 
 // --- 원픽 등록 without a category: menu first, then 매장/온라인 --------------------
 state = []; refs = []; destination = undefined; params = {};

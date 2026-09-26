@@ -156,8 +156,10 @@ async function main() {
     'The full category taxonomy must not be rendered by default; only filtered search results are shown');
 
   const finder = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'pick', 'find.tsx'), 'utf8');
-  assert.match(finder, /링크로 카테고리 추천받기/);
-  assert.match(finder, /router\.push\('\/pick\/link'\)/);
+  // Category suggestion by link is not offered from the finder any more; /pick/link stays
+  // reachable only for in-flight login returns (suggest_link_category).
+  assert.doesNotMatch(finder, /링크로 카테고리 추천받기/, 'The finder must not offer link category suggestions');
+  assert.doesNotMatch(finder, /\/pick\/link/, 'The finder must not link to the link suggestion screen');
 
   const edge = fs.readFileSync(
     path.join(__dirname, '..', '..', 'supabase', 'functions', 'link-category-suggestions', 'index.ts'),
