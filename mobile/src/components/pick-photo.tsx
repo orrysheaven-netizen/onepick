@@ -46,7 +46,10 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
           </View>}
     </View>;
   }
-  return <View style={[styles.frame, large && styles.large, square && styles.square]}>
+  // Only the thumbnail has a fixed size. react-native-web drops `height: undefined`
+  // when merging styles, so a shared 86px height would win over aspectRatio and
+  // turn the full-width frames into 86px-tall strips.
+  return <View style={[styles.frame, large ? styles.large : square ? styles.square : styles.thumb]}>
     {uri && !failed ? <Image source={{ uri }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri} onError={() => setFailedUri(uri)} />
       : canAdd ? <View style={styles.empty}>
         <AddPhotoButton itemId={itemId!} label={label} />
@@ -61,10 +64,11 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
 }
 
 const styles = StyleSheet.create({
-  frame: { width: 86, height: 86, borderRadius: 16, overflow: 'hidden', backgroundColor: OnePick.sunken, justifyContent: 'center', alignItems: 'center' },
-  large: { width: '100%', height: undefined, aspectRatio: 1, marginBottom: 14 },
+  frame: { borderRadius: 16, overflow: 'hidden', backgroundColor: OnePick.sunken, justifyContent: 'center', alignItems: 'center' },
+  thumb: { width: 86, height: 86 },
+  large: { width: '100%', aspectRatio: 1, marginBottom: 14 },
   feed: { width: 86, height: 86, borderRadius: 12 },
-  square: { width: '100%', height: undefined, aspectRatio: 1, borderRadius: 12 },
+  square: { width: '100%', aspectRatio: 1, borderRadius: 12 },
   feedPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: OnePick.accent },
   feedPlaceholderName: { color: OnePick.onAccent, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   image: { width: '100%', height: '100%' },
