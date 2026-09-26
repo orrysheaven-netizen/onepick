@@ -13,7 +13,7 @@ export function useManagePick() {
     onSuccess,
   });
   const removePick = useMutation({
-    mutationFn: (categoryId: string) => pickService.removePick(categoryId),
+    mutationFn: ({ categoryId, channel }: { categoryId: string; channel?: 'offline' | 'online' | 'recipe' }) => pickService.removePick(categoryId, channel),
     onSuccess,
   });
 
