@@ -43,6 +43,6 @@ assert.match(explore, /childTitle/);
 assert.match(explore, /selectionLabel/);
 assert.match(tree, /export function categoryLabel/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
-assert.match(profileGroups, /buildProfilePickGroups/);
+assert.match(profileGroups, /buildProfileThemeSections/);
 
 console.log('Explore category hierarchy checks passed: taxonomy labels, query-hydrated search, pills, reset behavior, gated ranking detail, and consistent Home/Profile category language.');
