@@ -1,4 +1,4 @@
-import csv, json, subprocess, tempfile
+import csv, json, subprocess, sys, tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]; ADAPTER=ROOT/"tools"/"sbiz_place_adapter.py"
 FIELDS=["상가업소번호","상호명","지점명","도로명주소","지번주소","시도명","시군구명","경도","위도","상권업종소분류명","상권업종대분류명"]
@@ -6,7 +6,7 @@ def write(path,rows,encoding="utf-8-sig",fields=FIELDS):
     with path.open("w",encoding=encoding,newline="") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
 def run(src,out,rep,*extra,ok=True):
-    cmd=["python3",str(ADAPTER),str(src),"--output",str(out),"--report",str(rep),"--source-updated-at","2026-09-01T00:00:00Z","--max-duplicate-ratio","1",*extra]
+    cmd=[sys.executable,str(ADAPTER),str(src),"--output",str(out),"--report",str(rep),"--source-updated-at","2026-09-01T00:00:00Z","--max-duplicate-ratio","1",*extra]
     r=subprocess.run(cmd,capture_output=True,text=True)
     assert (r.returncode==0)==ok,(r.stdout,r.stderr);return r
 def base(pid="S1",**kw):
@@ -26,18 +26,18 @@ def main():
     out.unlink();rep.unlink();write(src,[base()],encoding="cp949");run(src,out,rep,"--encoding","cp949")
     # missing logical required header fails.
     bad=d/"bad.csv";write(bad,[{k:v for k,v in base().items() if k!="경도"}],fields=[x for x in FIELDS if x!="경도"])
-    subprocess.run(["python3",str(ADAPTER),str(bad),"--print-header"],check=True,capture_output=True,text=True)
-    rr=subprocess.run(["python3",str(ADAPTER),str(bad),"--output",str(d/"x"),"--report",str(d/"y"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
+    subprocess.run([sys.executable,str(ADAPTER),str(bad),"--print-header"],check=True,capture_output=True,text=True)
+    rr=subprocess.run([sys.executable,str(ADAPTER),str(bad),"--output",str(d/"x"),"--report",str(d/"y"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
     # future source timestamp fails.
-    rr=subprocess.run(["python3",str(ADAPTER),str(src),"--output",str(d/"f"),"--report",str(d/"fr"),"--source-updated-at","2099-01-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
+    rr=subprocess.run([sys.executable,str(ADAPTER),str(src),"--output",str(d/"f"),"--report",str(d/"fr"),"--source-updated-at","2099-01-01T00:00:00Z"],capture_output=True,text=True);assert rr.returncode!=0
     # Default duplicate gate is strict.
     dd=d/"dd.csv";write(dd,[base("D1"),base("D1")])
-    rr=subprocess.run(["python3",str(ADAPTER),str(dd),"--output",str(d/"ddo"),"--report",str(d/"ddr"),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True)
+    rr=subprocess.run([sys.executable,str(ADAPTER),str(dd),"--output",str(d/"ddo"),"--report",str(d/"ddr"),"--source-updated-at","2026-09-01T00:00:00Z","--max-missing-ratio","1"],capture_output=True,text=True)
     assert rr.returncode!=0 and "duplicate-row ratio" in rr.stderr
     assert not (d/"ddo").exists(), "failed duplicate gate must not publish JSONL"
     # Multiple blocking gates are all reported in one run.
     multi=d/"multi.csv";write(multi,[base("MUL1",도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명=""),base("MUL1",도로명주소="",지번주소="",시도명="",시군구명="",상권업종소분류명="")])
-    rr=subprocess.run(["python3",str(ADAPTER),str(multi),"--output",str(d/"multio"),"--report",str(d/"multir"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True)
+    rr=subprocess.run([sys.executable,str(ADAPTER),str(multi),"--output",str(d/"multio"),"--report",str(d/"multir"),"--source-updated-at","2026-09-01T00:00:00Z"],capture_output=True,text=True)
     assert rr.returncode!=0 and "missing-field ratio" in rr.stderr and "duplicate-row ratio" in rr.stderr
     assert not (d/"multio").exists()
     # default quality gate rejects missing category/address/region.

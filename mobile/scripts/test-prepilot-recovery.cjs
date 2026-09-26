@@ -108,15 +108,18 @@ function replies() {
   const detail = { isPending: false, isError: false, data: { pick: { id: 'pick', status: 'active' } }, refetch: async () => {} };
   const comments = { data: [{ comment: { id: 'c', body: 'CACHED_PRIVATE_COMMENT' }, author: null }], isPending: false, isError: false };
   const mutation = { isPending: false, mutateAsync: async () => {}, reset() {} };
-  const reads = [], writes = [], pending = [];
+  const reads = [], writes = [], pending = [], deletes = [];
+  const removal = { isPending: false, isError: false, reset() { removal.isError = false; },
+    mutateAsync: async (id) => { deletes.push(id); if (removal.fail) { removal.isError = true; throw new Error('offline'); } } };
   mutation.mutateAsync = (payload) => { writes.push(payload); return new Promise((resolve, reject) => pending.push({ resolve, reject })); };
   const view = harness('components/pick-replies.tsx', 'PickReplies', {
     'expo-router': { useRouter: () => ({ push() {} }) }, '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/usePickDetail': { usePickDetail: () => detail },
     '@/hooks/usePickComments': { usePickComments: (...args) => { reads.push(args); return comments; } },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
+    '@/hooks/useDeleteComment': { useDeleteComment: () => removal },
   });
-  return { auth, view, comments, mutation, writes, pending, reads };
+  return { auth, view, comments, mutation, removal, deletes, writes, pending, reads };
 }
 
 let failures = 0, checks = 0;
@@ -142,10 +145,10 @@ async function main() {
   });
   await check('Metadata failure offers a guarded retry without losing the reason', async () => {
     const c = choice(); c.draft(); c.query.isError = true; c.view.render();
-    await c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
+    await c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
     c.query.isFetching = true; c.view.render();
-    assert.equal(c.view.button('제품 정보 다시 불러오기').disabled, true);
-    await c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
+    assert.equal(c.view.button('정보 다시 불러오기').disabled, true);
+    await c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, 1);
     c.query.isFetching = false; c.query.isError = false; c.view.render();
     assert.equal(c.view.input().value, '  나의 이유  '); assert.equal(c.writes.length, 0);
   });
@@ -196,11 +199,33 @@ async function main() {
   });
   await check('Reply drafts and late send results stay with their original account and Pick', async () => {
     const c = replies(); c.view.render({ pickId: 'pick' }); c.view.input().onChangeText('owner draft'); c.view.render({ pickId: 'pick' });
-    c.view.button('답글 남기기').onPress(); assert.equal(c.writes.length, 1);
+    c.view.button('댓글 남기기').onPress(); assert.equal(c.writes.length, 1);
     c.auth.user = { id: 'other' }; c.view.render({ pickId: 'pick' }); assert.equal(c.view.input().value, '');
     c.view.input().onChangeText('other draft'); c.view.render({ pickId: 'pick' });
     c.pending[0].resolve({}); await flush(); c.view.render({ pickId: 'pick' }); assert.equal(c.view.input().value, 'other draft');
     c.view.render({ pickId: 'another' }); assert.equal(c.view.input().value, '');
+  });
+  await check('Only the author sees a delete control, and it asks before deleting', async () => {
+    const c = replies();
+    c.comments.data = [
+      { comment: { id: 'mine', userId: 'owner', body: 'MY_COMMENT' }, author: { id: 'owner', username: 'owner' } },
+      { comment: { id: 'theirs', userId: 'other', body: 'THEIR_COMMENT' }, author: { id: 'other', username: 'other' } },
+    ];
+    c.view.render({ pickId: 'pick' });
+    const deleteButtons = () => c.view.nodes().filter((n) => n.props?.accessibilityLabel === '내 댓글 삭제');
+    assert.equal(deleteButtons().length, 1, 'Only my own comment is deletable');
+    c.view.button('내 댓글 삭제').onPress(); assert.equal(c.deletes.length, 0, 'The first tap only asks for confirmation');
+    assert.match(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
+    c.view.button('댓글 삭제 취소').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
+    c.view.button('내 댓글 삭제').onPress(); c.view.render({ pickId: 'pick' });
+    c.removal.fail = true; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    assert.deepEqual(c.deletes, ['mine']);
+    assert.match(c.view.render({ pickId: 'pick' }), /댓글을 삭제하지 못했어요/, 'A failed delete keeps the confirmation and says so');
+    c.removal.fail = false; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    assert.deepEqual(c.deletes, ['mine', 'mine']);
+    assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
+    c.auth.user = null; c.view.render({ pickId: 'pick' });
+    assert.equal(deleteButtons().length, 0, 'Signed-out readers cannot delete');
   });
   console.log(`Pre-pilot recovery: ${checks - failures}/${checks} checks passed.`);
   if (failures) process.exitCode = 1;

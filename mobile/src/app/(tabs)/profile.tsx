@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
+import { ProfileLabEntry } from '@/components/profile-lab-entry';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
@@ -18,10 +19,10 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { categoryLabel } from '@/lib/categories/categoryTree';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
-import type { Category } from '@/types/domain/category';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { categoryWithChannels } from '@/lib/home/homeChannels';
+import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -58,28 +59,28 @@ function ListControls({ query, label }: { query: ReturnType<typeof useMyPickHist
 function getRequestState(item: ItemRequestItem) {
   switch (item.item.status) {
     case 'pending':
-      return { label: '승인 대기', description: '관리자가 제품 정보를 확인하고 있어요.', targetId: null };
+      return { label: '승인 대기', description: '관리자가 정보를 확인하고 있어요.', targetId: null };
     case 'active':
     case 'discontinued':
-      return { label: '승인됨', description: '정식 제품으로 등록됐어요. 제품을 열어 원픽으로 선택해주세요.', targetId: item.item.id };
+      return { label: '승인됨', description: '정식으로 등록됐어요. 상세 화면에서 원픽으로 선택해주세요.', targetId: item.item.id };
     case 'merged':
       return {
-        label: '기존 제품과 연결됨',
-        description: item.mergedIntoItem ? `${item.mergedIntoItem.name} 제품으로 통합됐어요.` : '이미 등록된 정식 제품과 연결됐어요.',
+        label: '기존 원픽과 연결됨',
+        description: item.mergedIntoItem ? `${item.mergedIntoItem.name}(으)로 통합됐어요.` : '이미 정식 등록된 원픽과 연결됐어요.',
         targetId: item.mergedIntoItem && ['active', 'discontinued'].includes(item.mergedIntoItem.status) ? item.mergedIntoItem.id : null,
       };
     case 'rejected':
-      return { label: '등록되지 않음', description: '제품 정보를 확인한 결과 정식 등록이 보류됐어요.', targetId: null };
+      return { label: '등록되지 않음', description: '정보를 확인한 결과 정식 등록이 보류됐어요.', targetId: null };
     case 'hidden':
-      return { label: '숨김', description: '현재 공개되지 않는 제품이에요.', targetId: null };
+      return { label: '숨김', description: '현재 공개되지 않아요.', targetId: null };
     default:
-      return { label: item.item.status, description: '제품 상태를 확인해주세요.', targetId: null };
+      return { label: item.item.status, description: '등록 상태를 확인해주세요.', targetId: null };
   }
 }
 
-function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemRequestItem; categoryLabel?: string; onOpenItem: (itemId: string) => void }) {
+function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenItem: (itemId: string) => void }) {
   const state = getRequestState(item);
-  const category = categoryLabel ?? item.category?.name ?? '카테고리';
+  const category = item.category?.name ?? '카테고리';
   const copy = <View style={styles.requestCopy}>
     <View style={styles.requestTopRow}>
       <Text style={styles.requestCategory}>{category}</Text>
@@ -90,7 +91,7 @@ function ItemRequestCard({ item, categoryLabel, onOpenItem }: { item: ItemReques
     <Text style={styles.requestName}>{item.item.name}</Text>
     <Text style={styles.requestDescription}>{state.description}</Text>
     {item.item.requestedCategoryLabel ? <Text style={styles.requestDescription}>요청한 카테고리: {item.item.requestedCategoryLabel}</Text> : null}
-    {state.targetId ? <Text style={styles.requestAction}>정식 제품 보기 ›</Text> : null}
+    {state.targetId ? <Text style={styles.requestAction}>등록된 원픽 보기 ›</Text> : null}
   </View>;
   return <View style={styles.requestCard}>
     <PickPhoto uri={item.item.thumbnailUrl ?? item.item.imageUrl ?? item.item.imageSourceUrl} label={item.item.name}
@@ -106,8 +107,8 @@ export default function ProfileScreen() {
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
   const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
-  const historyQuery = useMyPickHistory(listUserId);
-  const requestsQuery = useMyItemRequests(listUserId);
+  const historyQuery = useMyPickHistory(OnePickFeatures.profilePickHistory ? listUserId : undefined);
+  const requestsQuery = useMyItemRequests(OnePickFeatures.profileItemRequests ? listUserId : undefined);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
 
@@ -124,7 +125,7 @@ export default function ProfileScreen() {
   }
   if (!user) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="나의 원픽을 모아보세요" text="로그인하면 카테고리별 현재 원픽과 이전 선택 기록을 한곳에서 볼 수 있어요."
+      <StateCard title="나의 원픽을 모아보세요" text="로그인하면 카테고리마다 고른 원픽을 한곳에서 볼 수 있어요."
         action={{ label: '로그인하기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'profile' } }) }} />
     </View></SafeAreaView>;
   }
@@ -148,22 +149,23 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
+  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
   // query active so a new request/history entry can make the block visible again.
-  const showRequests = !requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage;
-  const showHistory = !historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage;
-  const categoryCatalog = categoriesQuery.data ?? [];
-  // Full path (e.g. 먹을것 › 면류 › 라면) once the taxonomy is loaded; the leaf name until then.
-  const labelFor = (category: Category | null | undefined) => category
-    ? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name)
-    : undefined;
+  const showRequests = OnePickFeatures.profileItemRequests && (!requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage);
+  const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
   const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
     if (isFetching) return;
-    await Promise.all([profileQuery.refetch({ cancelRefetch: false }), historyQuery.refetch({ cancelRefetch: false }), requestsQuery.refetch({ cancelRefetch: false })]);
+    await Promise.all([
+      profileQuery.refetch({ cancelRefetch: false }),
+      // refetch() ignores `enabled`, so skip hidden lists explicitly.
+      OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
+      OnePickFeatures.profileItemRequests ? requestsQuery.refetch({ cancelRefetch: false }) : null,
+    ]);
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
@@ -178,19 +180,19 @@ export default function ProfileScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.username}>@{profile.username}</Text>
           </View>
-          {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"
+          {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
-        <ProfileSocialLinks profileUserId={profile.id} editable />
+        {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
         {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description="카테고리마다 하나 · 바꾸면 기록으로 남아요" /></View>
-        {currentPicks.length > 0 ? (
+        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={mainPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
+        {mainPicks.length > 0 ? (
           <ProfilePickGroups
-            picks={currentPicks}
+            picks={mainPicks}
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
@@ -200,6 +202,10 @@ export default function ProfileScreen() {
           <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
             action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
         )}
+        {OnePickFeatures.lab ? <View style={styles.labEntry}>
+          <ProfileLabEntry count={labPicks.length} description="콘텐츠·테크·스타일 원픽은 실험실에 따로 모아둬요."
+            onPress={() => router.push({ pathname: '/lab/[username]', params: { username: profile.username } })} />
+        </View> : null}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
@@ -220,13 +226,13 @@ export default function ProfileScreen() {
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>제품 등록 요청 상태와 이전 원픽 기록을 확인합니다.</Text>
+          <Text style={styles.secondaryDescription}>{showRequests && showHistory ? '원픽 등록 요청 상태와 이전 원픽 기록을 확인합니다.' : showRequests ? '원픽 등록 요청 상태를 확인합니다.' : '이전 원픽 기록을 확인합니다.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>
-              <Text style={styles.activitySectionTitle}>내 제품 등록 요청</Text>
+              <Text style={styles.activitySectionTitle}>내 원픽 등록 요청</Text>
             </View>
-            {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} categoryLabel={labelFor(item.category)} onOpenItem={openItem} />)}
+            {itemRequests.map((item) => <ItemRequestCard key={item.item.id} item={item} onOpenItem={openItem} />)}
             <ListControls query={requestsQuery} label="등록 요청" />
           </> : null}
 
@@ -234,8 +240,8 @@ export default function ProfileScreen() {
             <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text></View>
             {history.map((item) => <ProfilePickCard
               key={item.pick.id}
-              categoryName={labelFor(item.category) ?? '카테고리'}
-              itemName={item.item?.name ?? '제품 정보를 확인할 수 없어요'}
+              categoryName={categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
+              itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
               review={item.pick.oneLineReview}
               imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
               itemId={item.item?.id}
@@ -269,6 +275,7 @@ const styles = StyleSheet.create({
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
+  labEntry: { marginTop: 14 },
   managementSection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   activitySection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   secondaryEyebrow: { color: OnePick.hint, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },

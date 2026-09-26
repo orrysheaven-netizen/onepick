@@ -31,8 +31,16 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="comments">
+        <NativeTabs.Trigger.Label>댓글</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }}
+          md="chat_bubble"
+        />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>내 프로필</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>프로필</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'person', selected: 'person.fill' }}
           md="person"

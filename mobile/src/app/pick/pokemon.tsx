@@ -173,7 +173,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>포켓몬 카테고리를 사용할 수 없어요</Text>
-        <Text style={styles.stateText}>캐릭터 › 포켓몬 카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
+        <Text style={styles.stateText}>포켓몬 카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
       {params.externalPokemonId !== undefined && !validReturn ? <Text accessibilityRole="alert" style={styles.errorText}>포켓몬 선택 링크를 확인해주세요. 다시 검색할 수 있어요.</Text> : null}
@@ -215,7 +215,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           itemId={item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} />
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing}
           onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
-          <Text style={styles.itemCategory}>캐릭터 › 포켓몬 · 등록됨</Text>
+          <Text style={styles.itemCategory}>포켓몬 · 등록됨</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.meta}>{item.externalId ? dex(item.externalId) : ''}{item.originalName && item.originalName !== item.name ? ` · ${item.originalName}` : ''}</Text>
           <Text style={styles.itemAction}>이 포켓몬을 원픽으로 선택 ›</Text>
@@ -228,7 +228,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         style={({ pressed }) => [styles.itemCard, pressed && styles.pressed, importing && styles.disabled]}>
         <PickPhoto uri={entry.imageUrl} label={`${entry.name} 포켓몬 이미지`} />
         <View style={styles.itemCopy}>
-          <Text style={styles.itemCategory}>캐릭터 › 포켓몬 · PokéAPI</Text>
+          <Text style={styles.itemCategory}>포켓몬 · PokéAPI</Text>
           <Text style={styles.itemName}>{entry.name}</Text>
           <Text style={styles.meta}>{dex(entry.dexNumber)}{entry.englishName !== entry.name ? ` · ${entry.englishName}` : ''}</Text>
           <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '포켓몬 정보를 확인하고 있어요…' : '이 포켓몬을 원픽으로 선택 ›'}</Text>

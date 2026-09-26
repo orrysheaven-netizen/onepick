@@ -1305,7 +1305,12 @@ export type Database = {
       }
       admin_operations_snapshot: { Args: { p_days?: number }; Returns: Json }
       admin_review_pending_item: {
-        Args: { p_category_id?: string; p_item_id: string; p_status: string }
+        Args: {
+          p_category_id?: string
+          p_item_id: string
+          p_reject_reason?: string
+          p_status: string
+        }
         Returns: {
           brand_id: string | null
           category_id: string
@@ -1548,6 +1553,24 @@ export type Database = {
       }
       consume_image_import: { Args: never; Returns: undefined }
       current_user_is_admin: { Args: never; Returns: boolean }
+      explore_recent_items_page: {
+        Args: {
+          p_before_id?: string
+          p_before_time?: string
+          p_category_ids?: string[]
+          p_stores_only?: boolean
+        }
+        Returns: {
+          category_id: string
+          category_name: string
+          image_path: string
+          image_source_url: string
+          item_id: string
+          item_name: string
+          last_picked_at: string
+          thumbnail_path: string
+        }[]
+      }
       home_editorial_items: {
         Args: { p_limit?: number }
         Returns: {
@@ -1565,10 +1588,11 @@ export type Database = {
         }[]
       }
       home_pick_feed_page: {
-        Args: { p_before_id?: string; p_before_time?: string }
+        Args: { p_before_id?: string; p_before_time?: string; p_channel?: string; p_root_slug?: string }
         Returns: {
           category_id: string
           category_name: string
+          channels: string[]
           image_path: string
           image_source_url: string
           item_id: string

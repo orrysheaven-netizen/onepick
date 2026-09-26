@@ -1,3 +1,5 @@
+import type { RootCategoryScope } from '@/repositories/interfaces/readRepository';
+
 export const queryKeys = {
   home: {
     all: ['home'] as const,
@@ -6,22 +8,30 @@ export const queryKeys = {
   explore: {
     all: ['explore'] as const,
     topItems: (categoryId?: string) => ['explore', categoryId ?? 'all', 'top-items'] as const,
+    ranking: (slug?: string) => ['explore', 'ranking', slug ?? 'none'] as const,
+    rankingCategories: ['explore', 'ranking', 'categories'] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
+    recentItems: (categoryIds: string[] | null, storesOnly = false) =>
+      ['explore', 'recent-items', categoryIds ? [...categoryIds].sort().join(',') : 'all', storesOnly ? 'stores' : 'items'] as const,
   },
   categories: {
     all: ['categories'] as const,
     browse: ['categories', 'browse'] as const,
     open: ['categories', 'open'] as const,
     detail: (categoryId: string) => ['categories', 'detail', categoryId] as const,
+    bySlug: (slug: string) => ['categories', 'slug', slug] as const,
   },
   comments: {
     all: ['comments'] as const,
     byPick: (pickId: string) => ['comments', 'pick', pickId, 'cursor'] as const,
+    byUser: (userId?: string, scope?: RootCategoryScope | null) =>
+      ['comments', 'user', userId ?? 'anonymous', 'cursor', scope ? `${scope.inside ? 'in' : 'out'}:${scope.rootSlug}` : 'every-root'] as const,
   },
   items: {
     all: ['items'] as const,
     detail: (itemId: string, userId?: string) =>
       ['items', 'detail', itemId, userId ?? 'public'] as const,
+    channels: (itemId: string) => ['items', 'channels', itemId] as const,
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string, categoryIds?: string[]) =>
       ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,
@@ -30,7 +40,10 @@ export const queryKeys = {
   musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },
   gameCatalog: { search: (query: string) => ['game-catalog', 'search', query] as const },
   bookCatalog: { search: (title: string, author = '') => ['book-catalog', 'search', title, author] as const },
-  youtubeCatalog: { search: (query: string) => ['youtube-catalog', 'search', query] as const },
+  youtubeCatalog: {
+    search: (query: string) => ['youtube-catalog', 'search', query] as const,
+    video: (videoId: string) => ['youtube-catalog', 'video', videoId] as const,
+  },
   pokemonCatalog: { search: (query: string) => ['pokemon-catalog', 'search', query] as const },
   placeCatalog: {
     enabled: (categoryId: string) => ['place-catalog', 'enabled', categoryId] as const,

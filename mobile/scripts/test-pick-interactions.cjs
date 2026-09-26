@@ -74,7 +74,7 @@ async function main() {
   };
   const base = {
     '@/components/item-review-card': { ItemReviewCard: () => null },
-    '@/components/item-pick-count': { ItemPickCount: () => null },
+    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
@@ -88,13 +88,14 @@ async function main() {
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
   const { default: Item } = loadSource('app/item/[itemId].tsx', base);
   detail = { ...detail, canChoose: false, myPickStatus: { type: 'not_selected' } };
   assert.match(render(Item), /새 원픽을 선택할 수 없어요/);
-  assert.ok(!presses.some((p) => textOf(p.children) === '이 제품을 내 원픽으로'));
+  assert.ok(!presses.some((p) => textOf(p.children) === '이걸로 원픽 등록'));
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   render(Item);
   presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
@@ -128,7 +129,7 @@ async function main() {
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이 제품으로 바꾸기');
+  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이걸로 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
   assert.equal(changeButton().disabled, false);
@@ -155,7 +156,7 @@ async function main() {
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
-  assert.match(render(MissingItem), /제품을 불러오지 못했어요/);
+  assert.match(render(MissingItem), /정보를 불러오지 못했어요/);
 
   let draft = '  댓글 초안  ', attempts = 0, rejectSave, resolveSave;
   let pick = { id: 'pick', userId: 'owner', status: 'active', oneLineReview: '이유' };
@@ -164,7 +165,8 @@ async function main() {
   params = { pickId: 'pick' };
   const { PickReplies } = loadSource('components/pick-replies.tsx', {
     ...base,
-    react: { ...React, useState: () => [draft, (value) => { draft = value; }] },
+    // Only the composer draft (initial '') is driven by the test.
+    react: { ...React, useState: (initial) => initial === '' ? [draft, (value) => { draft = value; }] : React.useState(initial) },
     '@/components/pick-share-card': { PickShareCard: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
@@ -173,10 +175,11 @@ async function main() {
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
+    '@/hooks/useDeleteComment': { useDeleteComment: () => ({ isPending: false, isError: false, reset() {} }) },
   });
   const Pick = () => React.createElement(PickReplies, { pickId: 'pick' });
   render(Pick);
-  const submit = presses.find((p) => textOf(p.children) === '답글 남기기').onPress;
+  const submit = presses.find((p) => textOf(p.children) === '댓글 남기기').onPress;
   const unhandled = [];
   const capture = (error) => unhandled.push(error);
   process.on('unhandledRejection', capture);
@@ -194,7 +197,7 @@ async function main() {
     assert.equal(draft, '', 'Successful saves clear the draft');
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
-  assert.match(render(Pick), /확인이 필요한 원픽에는 새 답글을 남길 수 없습니다/);
+  assert.match(render(Pick), /확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   mutation = { isError: true, error: new AppError('PROFILE_NOT_FOUND') };
@@ -211,21 +214,21 @@ async function main() {
   });
   const failedComments = render(Pick);
   assert.match(failedComments, /이미 불러온 댓글/);
-  assert.match(failedComments, /다음 답글을 불러오지 못했어요/);
-  presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도').onPress();
+  assert.match(failedComments, /다음 댓글을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도').onPress();
   assert.equal(commentPages, 1); assert.equal(fullCommentRefreshes, 0);
   commentsQuery.isFetching = true;
   render(Pick);
-  const commentMore = presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도');
+  const commentMore = presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도');
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
   let rankRefreshes = 0;
   const rankingQuery = { data: [
-    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102 },
-    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
-    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
+    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102, channels: [] },
+    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
+    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
   ], isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
@@ -233,14 +236,16 @@ async function main() {
     react: { ...React, useState: () => ['root', () => {}] },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
+    '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+      useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);
   assert.match(ranking, /101명이 선택/);
   assert.equal(presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기'), undefined, 'Healthy rankings have no manual retry');
-  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 제품 상세 보기').onPress();
+  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 상세 보기').onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'ranked-item');
 
@@ -249,7 +254,7 @@ async function main() {
   const lowSample = render(Explore);
   assert.match(lowSample, /과자의 원픽/);
   assert.doesNotMatch(lowSample, /TOP 3|공동|명이 선택|사람 수 기준/);
-  presses.find((p) => p.accessibilityLabel === '선택된 과자, 제품 상세 보기').onPress();
+  presses.find((p) => p.accessibilityLabel === '선택된 과자, 상세 보기').onPress();
   assert.equal(destination.params.itemId, 'ranked-item', 'Low-sample cards preserve their detail route');
   rankingQuery.data[0].pickCount = 3;
   const thresholdSample = render(Explore);
@@ -277,7 +282,7 @@ async function main() {
   assert.equal(pullToRefresh.props.refreshing, true);
   pullToRefresh.props.onRefresh(); assert.equal(rankRefreshes, beforeRankRetry + 2);
   rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
-  assert.match(render(Explore), /아직 선택된 제품이 없어요/);
+  assert.match(render(Explore), /아직 선택된 원픽이 없어요/);
   console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps, profile recovery and gated ranking interaction/retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

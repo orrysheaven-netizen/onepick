@@ -14,6 +14,9 @@ concurrency:
   group: database-tests-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   database-tests:
     runs-on: ubuntu-latest
@@ -47,7 +50,7 @@ jobs:
         run: python3 tools/test_load_place_import_jsonl.py
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with:
           version: latest
 
@@ -58,7 +61,7 @@ jobs:
         run: supabase test db
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
 

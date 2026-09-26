@@ -23,7 +23,8 @@ function load(file, imports = {}) {
 async function main() {
   const { AppError } = load('errors/appError.ts');
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
-  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError } };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }

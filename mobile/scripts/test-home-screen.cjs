@@ -30,7 +30,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   currentPicks: [own, privatePick], picks: [
     // Newest first; the server already excluded the viewer's own Picks.
-    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00' },
+    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00', channels: ['offline'] },
     { pickId: 'same-as-mine', userId: 'neighbor', username: 'neighbor', profileImageUrl: null, itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이웃도 신라면', thumbnailUrl: null, startedAt: '2026-09-20T09:00:00.000000+00:00' },
   ], openCategories: [
     { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을것 › 면류 › 라면' },
@@ -64,7 +64,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
-  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts') }),
+  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts'), '@/lib/home/homeChannels': load('lib/home/homeChannels.ts') }),
   '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
@@ -82,6 +82,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   ] }) },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
+  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   }),
@@ -102,6 +103,7 @@ assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
@@ -111,37 +113,31 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /@friend/); assert.match(page, /“다른 사람의 이유”/, 'Each card quotes that person’s own reason');
   assert.match(page, /@neighbor/); assert.match(page, /이웃도 신라면/);
   assert.match(page, /내 원픽/, 'A card for the item I already picked is badged');
-  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.match(page, /나는 다른 원픽/); assert.match(page, /의견 나누기/);
+  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
+  assert.match(page, /라면 · 오프라인 맛집/, 'Feed cards label a store-channel item as 오프라인 맛집');
+  assert.match(page, /오프라인 맛집 탭 원픽 보기|>오프라인 맛집</, 'Home offers the 오프라인 맛집 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.match(page, /전체/);
   assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
   assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
-  assert.equal(typeof itemSearchProps.onSearchBook, 'function');
-  assert.equal(typeof itemSearchProps.onSearchYouTube, 'function');
+  for (const shortcut of ['onSearchMovie', 'onSearchDrama', 'onSearchMusic', 'onSearchGame', 'onSearchBook', 'onSearchYouTube', 'onSearchPokemon']) {
+    assert.equal(itemSearchProps[shortcut], undefined, `MVP Home (food only) hides the ${shortcut} search shortcut`);
+  }
   assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
-  press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
-  press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+  press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
   press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
-  press('라면에서 나는 다른 원픽 찾기'); assert.equal(destination.pathname, '/pick/find'); assert.equal(destination.params.categoryId, 'ramen');
-  press('@friend의 원픽에 의견 나누기'); assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'other');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
-  assert.doesNotMatch(page, /먹을것 › 면류 › 라면 원픽 찾기/, 'Signed-in Home hides the category grid');
-  itemSearchProps.onSearchBook('아리랑');
-  assert.equal(destination.pathname, '/pick/book');
-  assert.equal(destination.params.categoryId, 'book');
-  assert.equal(destination.params.query, '아리랑');
-  itemSearchProps.onSearchYouTube('최재천의 아마존');
-  assert.equal(destination.pathname, '/pick/youtube');
-  assert.equal(destination.params.categoryId, 'youtube');
+  assert.doesNotMatch(page, /라면 원픽 찾기/, 'Signed-in Home hides the category grid');
   itemSearchProps.onSubmitSearch('최재천의 아마존');
   assert.equal(destination.pathname, '/explore');
   assert.equal(destination.params.search, '1');
@@ -151,10 +147,14 @@ for (width of [390, 800, 1200]) {
 // Test the actual boundary using unique loaded records, without changing thresholds.
 const smallFeed = query.data.picks;
 query.data.picks = Array.from({ length: 19 }, (_, i) => ({ ...smallFeed[0], pickId: `pick-${i}`, itemId: `item-${i}` }));
+query.data.picks.push({ ...smallFeed[1], pickId: 'pick-mvp', itemId: 'item-mvp' });
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'MVP hides category chips at any feed size');
+query.data.picks.pop();
+onepickConstants.OnePickFeatures.categoryChips = true;
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
 query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
-render(); assert.ok(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'));
-assert.ok(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'));
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'A single food group needs no filter chips');
+assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
 render(); endReached(); assert.equal(pageCalls, 1);
@@ -169,12 +169,14 @@ const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Signed-out Home hides the own-profile avatar');
-assert.match(publicPage, /어떤 취향부터 골라볼까요/);
-assert.match(publicPage, /먹을것 › 면류 › 라면/);
-press('먹을것 › 면류 › 라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
+assert.match(publicPage, /어떤 맛집부터 골라볼까요/);
+assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home category cards show only the leaf name');
+assert.match(publicPage, /과자 원픽 찾기|>과자</);
+assert.doesNotMatch(publicPage, /영화|책 원픽 찾기|유튜브 원픽 찾기/, 'MVP Home starter cards are food only');
+press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
-press('진라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
 
@@ -187,7 +189,7 @@ const stalePage = render();
 assert.match(stalePage, /신라면/); assert.match(stalePage, /진라면/);
 assert.match(stalePage, /마지막으로 불러온 내용/);
 assert.doesNotMatch(stalePage, /원픽을 불러오지 못했어요/);
-press('신라면 제품 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
+press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
 press('다시 불러오기'); assert.equal(queryRetries, 1);
 pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 2);
 query.isFetching = true; query.isRefetching = true;

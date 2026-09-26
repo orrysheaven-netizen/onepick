@@ -13,6 +13,9 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, Response, URL, setTimeout, clearTimeout, require(name) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
+    if (name === '@/lib/home/homeCategoryFilters') return load('lib/home/homeCategoryFilters.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') });
+    if (name === '@/hooks/useExploreData' && !(name in imports)) return { useExploreCategories: () => ({ data: [], isPending: false, isError: false, isFetching: false, refetch() {} }) };
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
     assert.fail(`Unexpected dependency: ${name}`);
@@ -88,6 +91,7 @@ function setup(overrides = {}) {
     '@/hooks/useRegistrationCategories': { useRegistrationCategories: () => categories },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => categories },
     '@/lib/categories/categoryTree': categoryTree,
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/hooks/useItemSearch': { useItemSearch: (...args) => { queries.push(args); return local; } },
     '@/hooks/useMovieCatalog': { useMovieCatalogSearch: () => catalog, useImportMovieCatalogItem: () => mutation },
     '@/hooks/usePlaceCatalog': {

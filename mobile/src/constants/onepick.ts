@@ -91,12 +91,31 @@ export const OnePickFeatures = {
   // Keep both profile features implemented, but unmounted during the early MVP.
   tasteComposition: false,
   profileAi: false,
+  // Hidden during the early MVP; the data and components stay in place.
+  profilePickHistory: false,
+  profileSocialLinks: false,
+  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
+  // Restaurant-first MVP: Home and Explore show only OnePickMvp.browseGroupSlug,
+  // so category chips add nothing. Flip on when more top-level groups launch.
+  categoryChips: false,
+  // Restaurant-first MVP: themes other than OnePickMvp.mainThemeCode (CULTURE & ART,
+  // TECH, STYLE, …) leave the main profile, onboarding and search for the 실험실 screen.
+  lab: true,
+} as const;
+
+// While categoryChips is off, Home/Explore browse only this top-level group
+// (see docs/restaurant-mvp-foundation.md "MVP 맛집 노출 제한"). Profiles split via `lab` instead.
+export const OnePickMvp = {
+  browseGroupSlug: 'food',
+  // taste_dimensions.code shown on the main profile while OnePickFeatures.lab is on.
+  mainThemeCode: 'food',
 } as const;
 
 // Client-side exposure thresholds, not API limits or service-wide totals.
 export const OnePickThresholds = {
   exploreRankingMinPicks: 3, // Number of people choosing the rank-1 item, not the sum.
   homeCategoryFilterMinPicks: 20, // Unfiltered Picks currently loaded in Home.
+  rankingPageSize: 20, // Rows on /ranking/[slug]; the RPC caps at 50. Mirrored in functions/ranking/[slug].ts.
 } as const;

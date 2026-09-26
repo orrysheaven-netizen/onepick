@@ -13,6 +13,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlsplit
 
 MAX_BATCH = 500
 
@@ -23,15 +24,60 @@ def sql_literal(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def run_psql(database_url, sql, tuples_only=True):
-    if not shutil.which("psql"):
-        raise SystemExit("psql is required and was not found on PATH")
-    cmd = ["psql", "-v", "ON_ERROR_STOP=1", "-X", "-q"]
+LIBPQ_VARS = ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE", "PGSSLMODE", "PGCLIENTENCODING")
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
+
+
+def libpq_env(database_url):
+    """Split a postgres:// URL into libpq variables.
+
+    psql does not expand a connection URI given through PGDATABASE (it silently
+    falls back to the local socket), and putting the URL in argv would expose
+    the password in process listings, so the parts travel as PG* variables.
+    """
+    parts = urlsplit(database_url.strip())
+    if parts.scheme not in ("postgres", "postgresql") or not parts.hostname:
+        raise SystemExit("database URL must look like postgresql://user:password@host:port/dbname")
+    query = parse_qs(parts.query)
+    env = {
+        "PGHOST": parts.hostname,
+        "PGPORT": str(parts.port or 5432),
+        "PGUSER": unquote(parts.username or "postgres"),
+        "PGDATABASE": unquote(parts.path.lstrip("/")) or "postgres",
+        "PGCLIENTENCODING": "UTF8",
+    }
+    if parts.password is not None:
+        env["PGPASSWORD"] = unquote(parts.password)
+    sslmode = query.get("sslmode", [None])[0]
+    if sslmode or parts.hostname not in LOCAL_HOSTS:
+        env["PGSSLMODE"] = sslmode or "require"
+    return env
+
+
+def psql_command(tuples_only=True, docker_container=None):
+    """psql argv; with a container, runs the container's psql and forwards PG* by name only."""
+    psql = ["psql", "-v", "ON_ERROR_STOP=1", "-X", "-q"]
     if tuples_only:
-        cmd += ["-A", "-t"]
-    env = os.environ.copy()
-    env["PGDATABASE"] = database_url
-    result = subprocess.run(cmd, input=sql, text=True, capture_output=True, env=env)
+        psql += ["-A", "-t"]
+    if not docker_container:
+        return psql
+    forward = [arg for name in LIBPQ_VARS for arg in ("-e", name)]
+    return ["docker", "exec", "-i", *forward, docker_container, *psql]
+
+
+PSQL_DOCKER_CONTAINER = None
+
+
+def run_psql(database_url, sql, tuples_only=True):
+    cmd = psql_command(tuples_only, PSQL_DOCKER_CONTAINER)
+    if not shutil.which(cmd[0]):
+        raise SystemExit(
+            f"{cmd[0]} is required and was not found on PATH"
+            + ("" if PSQL_DOCKER_CONTAINER else " (or use --psql-docker <container> to run psql inside a container)")
+        )
+    env = {key: value for key, value in os.environ.items() if key not in LIBPQ_VARS}
+    env.update(libpq_env(database_url))
+    result = subprocess.run(cmd, input=sql, text=True, encoding="utf-8", capture_output=True, env=env)
     if result.returncode:
         message = (result.stderr or result.stdout).strip()
         raise RuntimeError(message or f"psql exited with {result.returncode}")
@@ -151,6 +197,11 @@ def main():
     parser.add_argument("--batch-size", type=int, default=500)
     parser.add_argument("--database-url-env", default="SUPABASE_DB_URL")
     parser.add_argument(
+        "--psql-docker",
+        metavar="CONTAINER",
+        help="run psql inside this Docker container (e.g. supabase_db_onepick) when psql is not installed",
+    )
+    parser.add_argument(
         "--promote",
         action="store_true",
         help="promote staged rows to public.place_catalog after all batches succeed",
@@ -161,6 +212,9 @@ def main():
         help="validate JSONL and print the planned batch count without connecting",
     )
     args = parser.parse_args()
+
+    global PSQL_DOCKER_CONTAINER
+    PSQL_DOCKER_CONTAINER = args.psql_docker
 
     if not 1 <= args.batch_size <= MAX_BATCH:
         raise SystemExit(f"--batch-size must be between 1 and {MAX_BATCH}")
@@ -189,6 +243,7 @@ def main():
         raise SystemExit(
             f"{args.database_url_env} must contain the Supabase database connection URL"
         )
+    libpq_env(database_url)  # fail fast on a malformed URL before creating a run row
 
     run_id = create_run(
         database_url,

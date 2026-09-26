@@ -41,10 +41,11 @@ function harness(file, imports) {
   for (const n of ['View','Text','TextInput','ScrollView','ActivityIndicator','Image','Pressable']) native[n] = n;
   const Screen = load(file, { react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/errors/appError': { AppError },
-    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' },
+    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;
@@ -91,7 +92,7 @@ async function main() {
   c.start(); assert.doesNotMatch(c.view.render(), /사진도 남겨볼까요/);
   let page = await c.finish();
   assert.match(page, /내가 고른 진라면에 사진도 남겨볼까요/);
-  assert.match(page, /같은 상품을 고른 사람들의 카드/);
+  assert.match(page, /같은 원픽을 고른 사람들의 카드/);
   assert.ok(c.view.hasButton('내 원픽 보기')); assert.ok(c.view.hasButton('다른 사람의 원픽 계속 보기'));
   assert.ok(page.indexOf('다른 사람의 원픽 계속 보기') < page.indexOf('사진도 남겨볼까요'), 'Primary browsing actions are not replaced by the optional task');
   const invitation = c.view.button('내 원픽 사진 등록').onPress;
@@ -186,13 +187,13 @@ async function main() {
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
   query.photoCredit = null; assert.doesNotMatch(view.render(), /사진 등록 ·/);
   query.data.item = { ...baseItem };
-  page = view.render(); assert.match(page, /상품 이름이 잘 보이는 사진이면 충분해요/); assert.match(page, /내 사용자명이 표시되고 프로필이 연결/);
+  page = view.render(); assert.match(page, /이름이 잘 보이는 사진이면 충분해요/); assert.match(page, /내 사용자명이 표시되고 프로필이 연결/);
   view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 0, 'Photo entry stays on uploader instead of jumping to the saved review');
   params.photo = undefined; view.render(); view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 1, 'Normal discussion deep links still focus the review');
   query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 선택/);
-  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /case 'ITEM_NOT_ELIGIBLE': return '현재 이 제품에는 이미지를 추가할 수 없어요.'/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /case 'ITEM_NOT_ELIGIBLE': return '지금은 여기에 이미지를 추가할 수 없어요.'/);
   console.log('Photo contribution passed: optional post-save offer, skip and no duplicate write, current-photo exclusion, credit reads/cache isolation, profile link and uploader focus.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

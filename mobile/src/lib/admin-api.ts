@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { canonicalItemName } from '@/lib/items/itemIdentity';
+import { isDeliveryAppUrl } from '@/lib/items/pickChannel';
 import { getAdminAccessToken } from '@/lib/admin/adminSession';
 
 type BrowserLocationLike = {
@@ -139,10 +140,27 @@ export type PendingItem = {
   status: 'pending';
   created_at: string;
   image_path: string | null;
+  thumbnail_path: string | null;
   official_url: string | null;
   requested_category_label: string | null;
-  categories: { name: string; slug: string } | null;
+  categories: {
+    name: string;
+    slug: string;
+    /** One row per category; PostgREST may embed it as an object or a one-element array. */
+    category_catalog_sources?: { place_catalog_enabled: boolean } | { place_catalog_enabled: boolean }[] | null;
+  } | null;
 };
+
+/**
+ * A 온라인 판매처 request from registration: a pending item in a restaurant (place
+ * catalog) category that carries the seller link. It is resolved by creating the
+ * online provider and merging the request, never by plain approval.
+ */
+export function isOnlineSellerRequest(item: Pick<PendingItem, 'official_url' | 'categories'>) {
+  const source = item.categories?.category_catalog_sources;
+  const placeEnabled = Array.isArray(source) ? source.some((row) => row.place_catalog_enabled) : Boolean(source?.place_catalog_enabled);
+  return placeEnabled && Boolean(item.official_url);
+}
 
 export type AdminItemCategorySuggestion = {
   item_id: string;
@@ -277,30 +295,39 @@ function browserHistory(): BrowserHistoryLike | null {
 // using an old, never-elevated access token, or vice versa. The shared
 // `supabase` client is now the only session: OAuth completion, the allowlist
 // check, the AAL check and every admin request all read from it.
+// Only the OAuth return parameters are consumed. Other query parameters, such
+// as /admin/data?tab=pending, are app state and must survive a page reload.
+const OAUTH_QUERY_KEYS = ['code', 'state', 'error', 'error_code', 'error_description'];
+
 async function completeAdminOAuthRedirect() {
   const location = browserLocation();
-  if (!location || (!location.hash && !location.search)) return;
+  if (!location) return;
 
   const queryParams = new URLSearchParams(location.search.replace(/^\?/, ''));
+  const hasOAuthQuery = OAUTH_QUERY_KEYS.some((key) => queryParams.has(key));
+  if (!hasOAuthQuery && !location.hash) return;
+
   const oauthError = queryParams.get('error_description') ?? queryParams.get('error');
+  const code = queryParams.get('code');
+  for (const key of OAUTH_QUERY_KEYS) queryParams.delete(key);
+  const remaining = queryParams.toString();
+  const cleanUrl = `${location.pathname}${remaining ? `?${remaining}` : ''}`;
+
   if (oauthError) {
-    browserHistory()?.replaceState(null, '', location.pathname);
-    throw new Error(oauthError);
+    browserHistory()?.replaceState(null, '', cleanUrl);
+    throw new Error('관리자 로그인을 완료하지 못했습니다.');
   }
 
-  const code = queryParams.get('code');
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    browserHistory()?.replaceState(null, '', location.pathname);
+    browserHistory()?.replaceState(null, '', cleanUrl);
     if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
     return;
   }
 
   // PKCE does not accept token-bearing fragments. Clear any leftover OAuth
   // material from the address bar and leave the session signed out.
-  if (location.hash || location.search) {
-    browserHistory()?.replaceState(null, '', location.pathname);
-  }
+  browserHistory()?.replaceState(null, '', cleanUrl);
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -328,6 +355,27 @@ async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T>
   return data as T;
 }
 
+async function adminCount(path: string) {
+  const current = config();
+  const token = await getAdminAccessToken();
+  const response = await fetch(`${current.supabaseUrl}${path}`, {
+    method: 'HEAD',
+    headers: { apikey: current.publishableKey, Authorization: `Bearer ${token}`, Prefer: 'count=exact' },
+  });
+  if (!response.ok) throw new Error('관리자 요청에 실패했습니다.');
+  const total = Number(response.headers.get('content-range')?.split('/')[1]);
+  return Number.isFinite(total) ? total : 0;
+}
+
+// Sidebar badges for the two work queues.
+export async function getAdminQueueCounts() {
+  const [pending, reports] = await Promise.all([
+    adminCount('/rest/v1/items?select=id&status=eq.pending'),
+    adminCount('/rest/v1/content_reports?select=id&status=in.(open,reviewing)'),
+  ]);
+  return { pending, reports };
+}
+
 export async function beginKakaoAdminSignIn() {
   const location = browserLocation();
   if (!location) throw new Error('카카오 로그인은 웹 브라우저에서 사용할 수 있습니다.');
@@ -346,7 +394,8 @@ export async function beginKakaoAdminSignIn() {
 }
 
 export async function signOutAdmin() {
-  await supabase.auth.signOut({ scope: 'local' });
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+  if (error) throw new Error('관리자 로그아웃에 실패했습니다.');
 }
 
 export async function checkAdminSession(): Promise<AdminSessionStatus> {
@@ -379,6 +428,18 @@ export function getDashboardMetrics() {
   });
 }
 
+export type AdminDatabaseUsage = {
+  generated_at: string;
+  database_bytes: number;
+  storage_bytes: number;
+  tables: Array<{ schema: string; name: string; total_bytes: number; row_estimate: number }>;
+  buckets: Array<{ bucket: string; objects: number; bytes: number }>;
+};
+
+export function getDatabaseUsage() {
+  return adminRequest<AdminDatabaseUsage>('/rest/v1/rpc/admin_database_usage', { method: 'POST', body: '{}' });
+}
+
 export function getOnePickDashboard(days: AdminOnePickDashboardWindow = 30) {
   return adminRequest<AdminOnePickDashboard>('/rest/v1/rpc/admin_onepick_dashboard', {
     method: 'POST',
@@ -406,7 +467,11 @@ export function getCategories() {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url&order=sort_order.asc,name.asc');
 }
 
-export function createCategory(input: { name: string; slug: string; parentId?: string | null }) {
+/**
+ * New categories start as draft and hidden. `openLeaf` instead creates an open,
+ * visible, pickable leaf so a pending request can be approved into it at once.
+ */
+export function createCategory(input: { name: string; slug: string; parentId?: string | null; openLeaf?: boolean }) {
   return adminRequest<AdminCategory[]>('/rest/v1/categories?select=id,parent_id,name,slug,status,is_visible,is_pickable,sort_order,ranking_min_sample,image_url', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
@@ -414,9 +479,9 @@ export function createCategory(input: { name: string; slug: string; parentId?: s
       name: input.name,
       slug: input.slug,
       parent_id: input.parentId ?? null,
-      status: 'draft',
-      is_visible: false,
-      is_pickable: false,
+      status: input.openLeaf ? 'open' : 'draft',
+      is_visible: Boolean(input.openLeaf),
+      is_pickable: Boolean(input.openLeaf),
       sort_order: 0,
     }),
   });
@@ -477,23 +542,21 @@ export function getOnlineProviders(input: { query?: string } = {}) {
 function cleanHttpsUrl(value: string) {
   const url = value.trim();
   if (!url.startsWith('https://')) throw new Error('공식 URL은 https:// 주소만 입력해 주세요.');
+  if (isDeliveryAppUrl(url)) throw new Error('배달앱 링크는 온라인 판매처가 될 수 없습니다. 배달은 매장 원픽입니다.');
   return url;
 }
 
-export function createOnlineProvider(input: {
-  categoryId: string;
+type OnlineStoreInput = {
   name: string;
   storeType: 'official_site' | 'platform_store';
   officialUrl: string;
   platform?: string | null;
   storeKey?: string | null;
-  brandId?: string | null;
-}) {
+};
+
+function cleanOnlineStoreInput(input: OnlineStoreInput) {
   const name = cleanName(input.name, 100);
   const officialUrl = cleanHttpsUrl(input.officialUrl);
-  const categoryId = input.categoryId.trim();
-  if (!categoryId) throw new Error('카테고리를 선택해 주세요.');
-
   let platform: string | null = null;
   let storeKey: string | null = null;
   if (input.storeType === 'platform_store') {
@@ -506,18 +569,93 @@ export function createOnlineProvider(input: {
       throw new Error(`스토어 키는 ${platform}: 로 시작해야 합니다.`);
     }
   }
+  return {
+    p_name: name,
+    p_store_type: input.storeType,
+    p_official_url: officialUrl,
+    p_platform: platform,
+    p_store_key: storeKey,
+  };
+}
+
+export function createOnlineProvider(input: OnlineStoreInput & { categoryId: string; brandId?: string | null }) {
+  const store = cleanOnlineStoreInput(input);
+  const categoryId = input.categoryId.trim();
+  if (!categoryId) throw new Error('카테고리를 선택해 주세요.');
 
   return adminRequest<AdminOnlineProviderUpsertResult[]>('/rest/v1/rpc/admin_upsert_online_provider_item', {
     method: 'POST',
     body: JSON.stringify({
       p_category_id: categoryId,
-      p_name: name,
-      p_store_type: input.storeType,
-      p_official_url: officialUrl,
-      p_platform: platform,
-      p_store_key: storeKey,
+      ...store,
       p_brand_id: input.brandId ?? null,
     }),
+  });
+}
+
+/** Food items from the old request → approval path that have no 매장/온라인 identity yet. */
+export type AdminUnlinkedItem = {
+  item_id: string;
+  item_name: string;
+  category_id: string;
+  category_name: string;
+  category_path: string;
+  uses_place_catalog: boolean;
+  pick_count: number;
+  created_at: string;
+};
+
+export type AdminPlaceCatalogMatch = {
+  catalog_id: string;
+  name: string;
+  branch_name: string | null;
+  road_address: string | null;
+  address: string | null;
+  region_1: string | null;
+  region_2: string | null;
+  /** The place already has its canonical item in this category; linking would duplicate it. */
+  existing_item_id: string | null;
+};
+
+export function getUnlinkedItems(query = '') {
+  return adminRequest<AdminUnlinkedItem[]>('/rest/v1/rpc/admin_unlinked_items', {
+    method: 'POST',
+    body: JSON.stringify({ p_root_slug: 'food', p_query: query.trim() || null, p_limit: 100 }),
+  });
+}
+
+export function searchPlaceCatalogForItem(categoryId: string, query: string) {
+  return adminRequest<AdminPlaceCatalogMatch[]>('/rest/v1/rpc/search_place_catalog', {
+    method: 'POST',
+    body: JSON.stringify({ p_category_id: categoryId, p_query: query.trim(), p_limit: 10 }),
+  });
+}
+
+/** Gives an existing item a 매장 identity; its Picks, comments and history stay on the same item. */
+export function linkItemToPlace(itemId: string, catalogId: string) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_link_item_to_place', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: itemId, p_catalog_id: catalogId }),
+  });
+}
+
+/** Gives an existing item an 온라인 identity (online store + provider) without creating a new item. */
+export function linkItemToOnlineProvider(input: OnlineStoreInput & { itemId: string }) {
+  const store = cleanOnlineStoreInput(input);
+  if (!input.itemId) throw new Error('연결할 항목을 선택해 주세요.');
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_link_item_to_online_provider', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: input.itemId, ...store }),
+  });
+}
+
+/** Creates (or reuses) the online provider in the request's category and merges the request, atomically. */
+export function resolveOnlineSellerRequest(input: OnlineStoreInput & { itemId: string }) {
+  const store = cleanOnlineStoreInput(input);
+  if (!input.itemId) throw new Error('처리할 요청을 선택해 주세요.');
+  return adminRequest<(AdminOnlineProviderUpsertResult & { merged_item_id: string })[]>('/rest/v1/rpc/admin_resolve_online_seller_request', {
+    method: 'POST',
+    body: JSON.stringify({ p_item_id: input.itemId, ...store }),
   });
 }
 
@@ -647,7 +785,7 @@ export function deleteItemAlias(id: string) {
 }
 
 export function getPendingItems(offset = 0) {
-  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,official_url,requested_category_label,categories(name,slug)&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
+  return adminRequest<PendingItem[]>(`/rest/v1/items?select=id,category_id,name,status,created_at,image_path,thumbnail_path,official_url,requested_category_label,categories(name,slug,category_catalog_sources(place_catalog_enabled))&status=eq.pending&order=created_at.asc&limit=${ADMIN_PAGE_SIZE}&offset=${offset}`);
 }
 
 export function getPendingItemCategorySuggestion(itemId: string) {
@@ -657,13 +795,50 @@ export function getPendingItemCategorySuggestion(itemId: string) {
   });
 }
 
-export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string) {
+/** Rejection reason: trimmed, 1–500 characters, required by the server when rejecting. */
+export const REJECT_REASON_MAX_LENGTH = 500;
+
+export function updatePendingItem(id: string, status: 'active' | 'rejected', categoryId?: string, rejectReason?: string) {
   return adminRequest<AdminItem>('/rest/v1/rpc/admin_review_pending_item', {
     method: 'POST',
     body: JSON.stringify({
       p_item_id: id,
       p_status: status,
       p_category_id: status === 'active' ? categoryId ?? null : null,
+      ...(status === 'rejected' ? { p_reject_reason: rejectReason?.trim() ?? null } : {}),
+    }),
+  });
+}
+
+export function getUserReports(userId: string) {
+  const params = new URLSearchParams({
+    select: 'id,target_type,target_id,target_user_id,reason,details,status,created_at,updated_at,resolved_at',
+    target_user_id: `eq.${userId}`,
+    order: 'created_at.desc',
+    limit: '20',
+  });
+  return adminRequest<AdminReport[]>(`/rest/v1/content_reports?${params.toString()}`);
+}
+
+export function getUserModerationHistory(userId: string) {
+  const params = new URLSearchParams({
+    select: 'id,entity_type,action,summary,created_at',
+    entity_type: 'eq.user_moderation',
+    entity_id: `eq.${userId}`,
+    order: 'created_at.desc',
+    limit: '20',
+  });
+  return adminRequest<AdminAuditLog[]>(`/rest/v1/admin_audit_logs?${params.toString()}`);
+}
+
+export function replaceItemPhoto(itemId: string, imagePath: string, thumbnailPath: string, sourceUrl?: string | null) {
+  return adminRequest<AdminItem>('/rest/v1/rpc/admin_replace_item_photo', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_item_id: itemId,
+      p_image_path: imagePath,
+      p_thumbnail_path: thumbnailPath,
+      p_image_source_url: sourceUrl ?? null,
     }),
   });
 }

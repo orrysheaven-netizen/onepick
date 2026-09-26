@@ -22,6 +22,7 @@ const { mapItemRow } = load('repositories/mappers/itemMapper.ts');
 const { SupabaseItemRepository } = load('repositories/supabase/supabaseItemRepository.ts', {
   '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
   '@/repositories/mappers/itemMapper': { mapItemRow },
+  '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
 });
 const { ItemService } = load('services/itemService.ts', { '@/errors/appError': { AppError } });
 const { MovieCatalogService } = load('services/movieCatalogService.ts');

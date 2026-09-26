@@ -32,3 +32,14 @@ export function createProfileShareUrl(username: string) {
 
   return `onepick://u/${encodedUsername}`;
 }
+
+export function createRankingShareUrl(slug: string) {
+  const encodedSlug = encodeURIComponent(slug.trim().toLowerCase());
+  const baseUrl = getShareBaseUrl();
+
+  if (baseUrl) {
+    return `${baseUrl}/ranking/${encodedSlug}`;
+  }
+
+  return `onepick://ranking/${encodedSlug}`;
+}

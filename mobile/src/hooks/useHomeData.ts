@@ -1,12 +1,12 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
-import type { ReadCursor } from '@/repositories/interfaces/readRepository';
+import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
 import { homeService } from '@/services/homeServiceInstance';
 
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
 const HOME_MAX_PAGES = 3;
 
-export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled) {
+export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'context'],
@@ -17,12 +17,16 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
   const shouldFetchFeed = enabled && feedEnabled;
   const feed = useInfiniteQuery({
     enabled: shouldFetchFeed,
-    queryKey: [...queryKeys.home.data(userId), 'infinite'],
+    // Each 매장/온라인 tab is its own server-filtered feed with its own cursor.
+    queryKey: [...queryKeys.home.data(userId), 'infinite', channel ?? 'all', rootSlug ?? 'every-root'],
     initialPageParam: null as ReadCursor | null,
-    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam),
+    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, rootSlug),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     getPreviousPageParam: () => undefined,
     maxPages: HOME_MAX_PAGES,
+    // Switching tabs keeps Home's header mounted; the screen hides the previous
+    // tab's rows while isPlaceholderData is true.
+    placeholderData: keepPreviousData,
     select: (data) => {
       const seen = new Set<string>();
       return {

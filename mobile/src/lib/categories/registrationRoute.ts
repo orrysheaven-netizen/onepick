@@ -6,6 +6,7 @@ export function registrationRoute(category: { id: string; slug: string }) {
     case 'game': return { pathname: '/pick/game' as const, params };
     case 'book': return { pathname: '/pick/book' as const, params };
     case 'youtube': return { pathname: '/pick/youtube' as const, params };
+    case 'recipe': return { pathname: '/pick/recipe' as const, params };
     case 'pokemon': return { pathname: '/pick/pokemon' as const, params };
     default: return { pathname: '/pick/find' as const, params };
   }

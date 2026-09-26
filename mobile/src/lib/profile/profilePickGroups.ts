@@ -6,6 +6,8 @@ export interface ProfilePickGroup {
   name: string;
   sortOrder: number;
   items: PickReadItem[];
+  /** 'channel' = a FOOD lane (오프라인 맛집 / 온라인 맛집 / 레시피), not a catalog parent. */
+  kind?: 'category' | 'channel';
 }
 
 const FALLBACK_SORT = Number.MAX_SAFE_INTEGER;
@@ -27,18 +29,111 @@ export function buildProfilePickGroups(picks: PickReadItem[], categories: Catego
   }
 
   return [...groups.values()]
-    .map((group) => ({
-      ...group,
-      items: [...group.items].sort((a, b) => {
-        const aSort = a.category?.sortOrder ?? FALLBACK_SORT;
-        const bSort = b.category?.sortOrder ?? FALLBACK_SORT;
-        if (aSort !== bSort) return aSort - bSort;
-        const nameDiff = (a.category?.name ?? '').localeCompare(b.category?.name ?? '');
-        if (nameDiff !== 0) return nameDiff;
-        return b.pick.updatedAt.localeCompare(a.pick.updatedAt);
-      }),
-    }))
+    .map((group) => ({ ...group, items: sortGroupItems(group.items) }))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+}
+
+function sortGroupItems(items: PickReadItem[]) {
+  return [...items].sort((a, b) => {
+    const aSort = a.category?.sortOrder ?? FALLBACK_SORT;
+    const bSort = b.category?.sortOrder ?? FALLBACK_SORT;
+    if (aSort !== bSort) return aSort - bSort;
+    const nameDiff = (a.category?.name ?? '').localeCompare(b.category?.name ?? '');
+    if (nameDiff !== 0) return nameDiff;
+    return b.pick.updatedAt.localeCompare(a.pick.updatedAt);
+  });
+}
+
+export type FoodLane = 'offline' | 'online' | 'recipe';
+
+const FOOD_LANES: { code: FoodLane; label: string }[] = [
+  { code: 'offline', label: '오프라인 맛집' },
+  { code: 'online', label: '온라인 맛집' },
+  { code: 'recipe', label: '레시피' },
+];
+
+const RECIPE_CATEGORY_SLUG = 'recipe';
+
+/**
+ * 레시피 is a category; 오프라인/온라인 is the item's sales channel. An item sold both ways
+ * counts once, as 오프라인 (Home treats delivery as 매장 too). Legacy items without a
+ * channel (packaged food, drinks) are bought at a mart or online, so they count as 온라인.
+ */
+export function resolveFoodLane(item: PickReadItem, categories: Category[]): FoodLane {
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const seen = new Set<string>();
+  let current = categoryById.get(item.pick.categoryId) ?? item.category ?? undefined;
+  while (current && !seen.has(current.id)) {
+    if (current.slug === RECIPE_CATEGORY_SLUG) return 'recipe';
+    seen.add(current.id);
+    current = current.parentId ? categoryById.get(current.parentId) : undefined;
+  }
+  return item.item?.channels?.includes('offline') ? 'offline' : 'online';
+}
+
+/** FOOD lanes in fixed order; empty lanes are left out. */
+export function buildFoodLaneGroups(picks: PickReadItem[], categories: Category[]): ProfilePickGroup[] {
+  return FOOD_LANES.map((lane, index) => ({
+    id: lane.code,
+    name: lane.label,
+    sortOrder: index,
+    kind: 'channel' as const,
+    items: sortGroupItems(picks.filter((item) => resolveFoodLane(item, categories) === lane.code)),
+  })).filter((group) => group.items.length > 0);
+}
+
+export interface ProfileThemeSection {
+  code: string;
+  label: string;
+  pickCount: number;
+  groups: ProfilePickGroup[];
+}
+
+export const OTHER_PROFILE_THEME = 'other';
+
+/** Display order and labels of the taste themes (`taste_dimensions.code`). */
+const PROFILE_THEMES: { code: string; label: string }[] = [
+  { code: 'food', label: 'FOOD' },
+  { code: 'culture', label: 'CULTURE & ART' },
+  { code: 'tech', label: 'TECH' },
+  { code: 'style', label: 'STYLE' },
+  { code: 'living', label: 'LIVING' },
+];
+
+/** A category's own theme, else the nearest ancestor's; new leaves under a mapped parent need no mapping of their own. */
+export function resolveCategoryTheme(categoryId: string | null | undefined, categories: Category[]) {
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const seen = new Set<string>();
+  let current = categoryId ? categoryById.get(categoryId) : undefined;
+  while (current && !seen.has(current.id)) {
+    if (current.themeCode) return current.themeCode;
+    seen.add(current.id);
+    current = current.parentId ? categoryById.get(current.parentId) : undefined;
+  }
+  return OTHER_PROFILE_THEME;
+}
+
+/** Splits Picks into FOOD / CULTURE & ART / … sections; FOOD holds channel lanes, the rest category groups; unmapped Picks land in a trailing 기타 section. */
+export function buildProfileThemeSections(picks: PickReadItem[], categories: Category[]): ProfileThemeSection[] {
+  const picksByTheme = new Map<string, PickReadItem[]>();
+  for (const item of picks) {
+    const code = resolveCategoryTheme(item.pick.categoryId, categories);
+    picksByTheme.set(code, [...(picksByTheme.get(code) ?? []), item]);
+  }
+
+  const known = PROFILE_THEMES.filter((theme) => picksByTheme.has(theme.code));
+  // A theme added in the DB before the app knows its label still gets its own section.
+  const unknown = [...picksByTheme.keys()]
+    .filter((code) => code !== OTHER_PROFILE_THEME && !PROFILE_THEMES.some((theme) => theme.code === code))
+    .sort()
+    .map((code) => ({ code, label: code.toUpperCase() }));
+  const other = picksByTheme.has(OTHER_PROFILE_THEME) ? [{ code: OTHER_PROFILE_THEME, label: '기타' }] : [];
+
+  return [...known, ...unknown, ...other].map((theme) => {
+    const themePicks = picksByTheme.get(theme.code) ?? [];
+    const groups = theme.code === 'food' ? buildFoodLaneGroups(themePicks, categories) : buildProfilePickGroups(themePicks, categories);
+    return { ...theme, pickCount: themePicks.length, groups };
+  });
 }
 
 export function defaultCollapsedProfilePickGroups(groups: ProfilePickGroup[], totalPickCount: number) {
@@ -53,4 +148,25 @@ export function remainingProfileCategories(groupId: string, pickedCategoryIds: S
     .filter((category) => (category.parentId ?? category.id) === groupId)
     .filter((category) => !pickedCategoryIds.has(category.id))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+}
+
+/** A theme other than the main one goes to 실험실; unmapped (기타) Picks stay on the main profile. */
+export function isLabTheme(code: string, mainThemeCode: string) {
+  return code !== mainThemeCode && code !== OTHER_PROFILE_THEME;
+}
+
+/** Splits Picks for the main profile and 실험실. With the lab off, everything stays main. */
+export function splitLabPicks(picks: PickReadItem[], categories: Category[], mainThemeCode: string, labEnabled: boolean) {
+  if (!labEnabled) return { main: picks, lab: [] as PickReadItem[] };
+  const main: PickReadItem[] = [];
+  const lab: PickReadItem[] = [];
+  for (const item of picks) {
+    (isLabTheme(resolveCategoryTheme(item.pick.categoryId, categories), mainThemeCode) ? lab : main).push(item);
+  }
+  return { main, lab };
+}
+
+/** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */
+export function isLabCategory(categoryId: string, categories: Category[], mainThemeCode: string, labEnabled: boolean) {
+  return labEnabled && isLabTheme(resolveCategoryTheme(categoryId, categories), mainThemeCode);
 }

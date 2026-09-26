@@ -107,10 +107,11 @@ async function main() {
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => attachment },
-    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-review-card': { ItemReviewCard: () => null },
+    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null }, '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/pick-photo': { PickPhoto: ({ uri }) => React.createElement('span', null, uri || '사진 없음') }, '@/errors/appError': { AppError },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   });
   const render = () => { buttons = []; stateIndex = 0; refIndex = 0; return renderToStaticMarkup(React.createElement(Detail)); };
@@ -157,7 +158,7 @@ async function main() {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
   const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
-  assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{query\.data\.currentPicks\}/, 'public profile forwards its real Pick rows to the grouped list');
+  assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{mainPicks\}/, 'public profile forwards its real (main-theme) Pick rows to the grouped list');
   const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
   assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');
   const profilePickCardSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-card.tsx'), 'utf8');

@@ -15,8 +15,9 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
-import { buildHomeCategoryFilters, filterHomeFeedByCategory } from '@/lib/home/homeCategoryFilters';
-import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
+import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
+import { HOME_CHANNEL_TABS, categoryWithChannels } from '@/lib/home/homeChannels';
+import type { HomeFeedPick, PickChannel } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
 type EditorialItem = HomeData['editorialItems'][number];
@@ -26,7 +27,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
     onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
     <View style={styles.editorialTop}>
       <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{item.categoryPath}</Text>
+      <Text numberOfLines={1} style={styles.editorialPath}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
     </View>
     <View style={styles.editorialBody}>
       <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
@@ -48,7 +49,13 @@ export default function HomeScreen() {
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   // Keep shared Home context (categories/current Picks) available for search and
   // badges, but do not download the invisible public feed while following is shown.
-  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError, !showFollowing);
+  // 오프라인/온라인 맛집 tabs filter the public feed on the server (delivery counts as offline).
+  const [channel, setChannel] = useState<PickChannel | null>(null);
+  const channelTab = HOME_CHANNEL_TABS.find((tab) => tab.channel === channel) ?? HOME_CHANNEL_TABS[0];
+  // MVP Home is food-only: the server drops other categories so pages never come back empty.
+  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError, !showFollowing, channel, HOME_FEED_ROOT_SLUG);
+  // The previous tab's rows stay cached as placeholder data; never show them under the new tab.
+  const switchingChannel = Boolean(homeQuery.isPlaceholderData);
   const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
@@ -59,7 +66,7 @@ export default function HomeScreen() {
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
-  const showCategoryFilters = categoryFilters.length > 1 &&
+  const showCategoryFilters = Boolean(OnePickFeatures.categoryChips) && categoryFilters.length > 1 &&
     (data?.picks.length ?? 0) >= OnePickThresholds.homeCategoryFilterMinPicks;
   // Disable the filter in this render, before the effect clears its saved value.
   const selectedCategoryGroup = showCategoryFilters
@@ -74,14 +81,8 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  const categories = user ? [] : searchCategories;
-  const movieCategory = searchCategories.find((category) => category.slug === 'movie');
-  const dramaCategory = searchCategories.find((category) => category.slug === 'drama');
-  const musicCategory = searchCategories.find((category) => category.slug === 'music');
-  const gameCategory = searchCategories.find((category) => category.slug === 'game');
-  const bookCategory = searchCategories.find((category) => category.slug === 'book');
-  const youtubeCategory = searchCategories.find((category) => category.slug === 'youtube');
-  const pokemonCategory = searchCategories.find((category) => category.slug === 'pokemon');
+  // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
+  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog), [user, categoryCatalog]);
   const openRegistration = (category: { id: string; slug: string }) => {
     const params = { categoryId: category.id };
     if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
@@ -109,18 +110,12 @@ export default function HomeScreen() {
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
   // Both feed scopes render the same card. Same item → the normal choose screen
-  // (signed-out readers get its login gate); different item → the category finder.
+  // (signed-out readers get its login gate).
   const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onOpenPick={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })}
-      onChooseOther={() => {
-        const category = searchCategories.find((entry) => entry.id === pick.categoryId);
-        if (category) openRegistration(category);
-        else router.push({ pathname: '/pick/find', params: { categoryId: pick.categoryId } });
-      }} />
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
   </View>;
 
   const listHeader = <>
@@ -134,13 +129,6 @@ export default function HomeScreen() {
 
     <ItemSearch compact
       onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
-      onSearchMovie={movieCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
-      onSearchDrama={dramaCategory ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: dramaCategory.id, query } }) : undefined}
-      onSearchMusic={musicCategory ? (query) => router.push({ pathname: '/pick/music', params: { categoryId: musicCategory.id, title: query } }) : undefined}
-      onSearchGame={gameCategory ? (query) => router.push({ pathname: '/pick/game', params: { categoryId: gameCategory.id, query } }) : undefined}
-      onSearchBook={bookCategory ? (query) => router.push({ pathname: '/pick/book', params: { categoryId: bookCategory.id, query } }) : undefined}
-      onSearchYouTube={youtubeCategory ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
-      onSearchPokemon={pokemonCategory ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
       onSelect={openItem} />
 
     {OnePickFeatures.follow && user ? <View style={styles.scopeRow}>
@@ -195,7 +183,7 @@ export default function HomeScreen() {
           {!followingQuery.hasNextPage && followingItems.length > 0 ? <Text style={styles.endText}>팔로우한 사람들의 원픽을 모두 확인했어요.</Text> : null}
         </> : null}
       /> : <FlatList
-        data={ready ? visiblePicks : []}
+        data={ready && !switchingChannel ? visiblePicks : []}
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
         onEndReached={() => {
@@ -231,10 +219,10 @@ export default function HomeScreen() {
         </View> : null}
 
         {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="어떤 취향부터 골라볼까요?" count={categories.length} /></View>
+          <View style={styles.nextSection}><SectionHeader title="어떤 맛집부터 골라볼까요?" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
-              const label = category.label ?? (categoryCatalog.length ? categoryLabel(category, categoryCatalog) : category.name);
+              const label = category.name;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
                 onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
                 <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
@@ -246,6 +234,14 @@ export default function HomeScreen() {
         <View style={styles.sectionHeader}>
           <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
         </View>
+
+        {ready ? <View style={styles.channelRow}>
+          {HOME_CHANNEL_TABS.map((tab) => {
+            const selected = tab.channel === channel;
+            return <Chip key={tab.label} label={tab.label} selected={selected}
+              accessibilityLabel={`${tab.label} 탭 원픽 보기`} onPress={() => setChannel(tab.channel)} />;
+          })}
+        </View> : null}
 
         {ready && showCategoryFilters ? <ScrollView
           horizontal
@@ -259,7 +255,7 @@ export default function HomeScreen() {
           })}
         </ScrollView> : null}
 
-        {isLoading ? <StateCard loading title="원픽을 불러오고 있어요" /> : null}
+        {isLoading || (ready && switchingChannel) ? <StateCard loading title="원픽을 불러오고 있어요" /> : null}
         {sessionError || (!isSessionLoading && homeQuery.isError && !data) ? <StateCard tone="danger"
           title={sessionError ? '로그인 상태를 확인하지 못했어요' : '원픽을 불러오지 못했어요'}
           text="연결 상태를 확인한 뒤 다시 시도해주세요."
@@ -271,8 +267,11 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {!data.picks.length ? <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
-            action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} /> : null}
+          {!switchingChannel && !data.picks.length ? (channel
+            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}을 원픽으로 고르면 여기에 보여요.`}
+              action={{ label: '전체 원픽 보기', accessibilityLabel: '전체 탭으로 돌아가기', onPress: () => setChannel(null) }} />
+            : <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
+              action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} />) : null}
         </> : null}
         </>}
         ListEmptyComponent={ready && data && data.picks.length > 0 && selectedCategoryGroup ? <StateCard
@@ -285,7 +284,7 @@ export default function HomeScreen() {
           {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 원픽 불러오는 중" color={OnePick.accent} /> : null}
           {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 원픽을 불러오지 못했어요."
             action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }} /> : null}
-          {!homeQuery.hasNextPage && data.picks.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
+          {!switchingChannel && !homeQuery.hasNextPage && data.picks.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
           <View style={styles.moreRow}><Button variant="ghost" label="원픽 더 둘러보기  ↗" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} /></View>
 
           {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
@@ -326,6 +325,7 @@ const styles = StyleSheet.create({
   scopeTabSelected: { backgroundColor: OnePick.surface },
   scopeText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
   scopeTextSelected: { color: OnePick.text, fontWeight: '900' },
+  channelRow: { flexDirection: 'row', gap: 8, paddingVertical: 6, marginBottom: 10 },
   categoryFilterRow: { gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   productCell: { marginBottom: 12 },
   followingEmpty: { alignItems: 'center', gap: 4 },

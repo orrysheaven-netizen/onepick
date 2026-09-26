@@ -139,6 +139,17 @@ export SUPABASE_DB_URL='<Supabase database connection URL>'
 python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl
 ```
 
+The URL is split into libpq variables (`PGHOST`, `PGUSER`, `PGPASSWORD`, …) and
+never placed in argv. psql does not expand a URL given through `PGDATABASE`, so
+do not rely on that. Remote hosts default to `sslmode=require`.
+
+Without a local `psql`, run the container's psql instead; variables are
+forwarded by name only:
+
+```bash
+python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl --psql-docker supabase_db_onepick
+```
+
 The loader uses `SET ROLE service_role` and calls the existing
 `private.stage_place_import_batch(...)` function in batches of at most 500.
 Each execution creates and finishes a row in `private.place_import_runs`.

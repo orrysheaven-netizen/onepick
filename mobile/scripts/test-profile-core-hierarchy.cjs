@@ -11,7 +11,7 @@ const publicProfile = read('src/app/u/[username].tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 
 const headerIndex = owner.indexOf('<View style={styles.header}>');
-const refreshIndex = owner.indexOf('accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"');
+const refreshIndex = owner.indexOf("'프로필 새로고침'");
 const bioIndex = owner.indexOf('<ProfileBioEditor');
 const tasteIndex = owner.indexOf('<ProfileTasteComposition');
 const aiIndex = owner.indexOf('<ProfileAiPanel');
@@ -28,14 +28,14 @@ assert.doesNotMatch(owner, /<Text style={styles\.summaryNumber}>{currentPicks\.l
 assert.doesNotMatch(owner, /불러온 이전 선택/);
 assert.doesNotMatch(owner, /summaryDivider/);
 assert.doesNotMatch(owner, /refreshButton/);
-assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel="프로필과 제품 등록 요청 상태 새로고침"/, 'header retry is an errors-only kit text button');
+assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel=\{OnePickFeatures\.profileItemRequests \? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'\}/, 'header retry is an errors-only kit text button');
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
-assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{currentPicks\.length\}/, 'owner collection is the single displayed pick count');
+assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{mainPicks\.length\}/, 'owner collection is the single displayed pick count (실험실 Picks are counted on its entry row)');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 
-assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{query\.data\.currentPicks\.length}개<\/Text>/);
-assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{query\.data\.currentPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
+assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{mainPicks\.length}개<\/Text>/);
+assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{mainPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
 assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
 assert.doesNotMatch(publicProfile, /sectionTitle:/);

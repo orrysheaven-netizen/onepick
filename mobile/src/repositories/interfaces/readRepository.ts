@@ -16,6 +16,20 @@ export interface CommentReadItem {
   author: Profile | null;
 }
 
+/** Keeps rows whose Pick sits under the top-level category `rootSlug` (inside) or under any other (outside). */
+export interface RootCategoryScope {
+  rootSlug: string;
+  inside: boolean;
+}
+
+/** A comment I wrote, with the review it answers. Pick/item/author are null when no longer visible. */
+export interface MyCommentReadItem {
+  comment: Comment;
+  pick: Pick | null;
+  pickAuthor: Profile | null;
+  item: Item | null;
+}
+
 export interface ItemRequestReadItem {
   item: Item;
   category: Category | null;
@@ -28,6 +42,9 @@ export interface ReadCursor {
 }
 
 /** One person's current choice, not an aggregate product or a follower event. */
+/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
+export type PickChannel = 'offline' | 'online';
+
 export interface HomeFeedPick {
   pickId: string;
   userId: string;
@@ -40,6 +57,8 @@ export interface HomeFeedPick {
   oneLineReview: string;
   thumbnailUrl: string | null;
   startedAt: string;
+  /** Empty for legacy items with no channel, and on the following feed. */
+  channels: PickChannel[];
 }
 
 export interface HomePickPage {
@@ -54,6 +73,32 @@ export interface CategoryTopItem {
   pickCount: number;
   rank: number;
   isTied: boolean;
+  channels: PickChannel[];
+}
+
+/** A leaf category that has a public ranking page (/ranking/<slug>). */
+export interface RankingCategory {
+  categoryId: string;
+  slug: string;
+  name: string;
+  /** Full visible path, e.g. 먹을것 › 쇼핑몰 › 김치. */
+  path: string;
+}
+
+/** One place/product per row, ordered by its latest visible active Pick. */
+export interface RecentPickedItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  thumbnailUrl: string | null;
+  lastPickedAt: string;
+  channels: PickChannel[];
+}
+
+export interface RecentPickedItemPage {
+  items: RecentPickedItem[];
+  nextCursor: ReadCursor | null;
 }
 
 export interface HomeShowcaseItem {
@@ -84,6 +129,7 @@ export interface EditorialHomeItem {
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
+  channels: PickChannel[];
 }
 
 export interface PickReadInput {
@@ -98,15 +144,29 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  getHomePicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
+  /**
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
+   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   */
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
+  getCategoryRanking(slug: string, limit?: number): Promise<CategoryTopItem[]>;
+  /** Leaf categories that have a public ranking page, in browse order. */
+  getRankingCategories(): Promise<RankingCategory[]>;
+  /**
+   * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
+   * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.
+   */
+  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
+  getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }
