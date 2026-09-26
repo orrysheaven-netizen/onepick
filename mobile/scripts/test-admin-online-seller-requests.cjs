@@ -82,6 +82,11 @@ function harness(api) {
       if (!slots[index] || changed(slots[index].deps, deps)) slots[index] = { deps, value: create() };
       return slots[index].value;
     },
+    useRef(initial) {
+      const index = cursor++;
+      if (!slots[index]) slots[index] = { value: { current: initial } };
+      return slots[index].value;
+    },
     useEffect(setup, deps) {
       const index = cursor++;
       if (!slots[index] || changed(slots[index].deps, deps)) {
@@ -107,7 +112,7 @@ function harness(api) {
       if (name === 'react') return hooks;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
       if (name === 'react-native') return {
-        ActivityIndicator: 'ActivityIndicator', Image: 'Image', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
+        ActivityIndicator: 'ActivityIndicator', Image: 'Image', Linking: { openURL: async () => undefined }, Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
         StyleSheet: { create: (value) => value },
       };
       if (name === '@/lib/admin-api') return api;
@@ -119,6 +124,7 @@ function harness(api) {
       if (name === '@/constants/onepick') return { OnePick: {} };
       if (name === '@/lib/categories/categoryTree') return {
         categoryLabel: (item) => item.name,
+        newLeafParentCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && !item.isPickable),
         selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
       };
       assert.fail(`Unexpected dependency: ${name}`);
