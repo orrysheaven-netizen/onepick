@@ -263,7 +263,7 @@ async function main() {
     await check(flow, '피드 카드 표시', async () => {
       // Count on 전체 whatever tab Home opens on: 팔로잉 is empty while the QA account follows no one.
       await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
-      const cards = page.getByRole('button', { name: /제품 상세 보기$/ });
+      const cards = page.getByRole('button', { name: / 상세 보기$/ });
       await cards.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await cards.count();
       if (!count) return { status: 'warn', detail: '표시된 카드 없음' };
@@ -363,7 +363,7 @@ async function main() {
       try {
         linkPhase = '입력·요청';
         await page.getByRole('textbox', { name: '원픽 링크' }).fill(LINK_URL);
-        await page.getByRole('textbox', { name: '가게 또는 상품 이름' }).fill(LINK_NAME);
+        await page.getByRole('textbox', { name: '원픽 이름' }).fill(LINK_NAME);
         await page.getByRole('button', { name: '링크 확인하고 추천받기', exact: true }).click();
         linkPhase = '"추천 카테고리" 또는 오류 표시 대기';
         const section = page.getByText('추천 카테고리', { exact: true });
@@ -500,7 +500,7 @@ async function main() {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       // Feed cards no longer link to a Pick directly; take the Pick id from a review's share link.
-      const open = page.getByRole('button', { name: / 제품 상세 보기$/ });
+      const open = page.getByRole('button', { name: / 상세 보기$/ });
       await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await open.first().click();
       await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
