@@ -102,6 +102,7 @@ async function main() {
     '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },
     '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/components/dish-people-picks': { DishPeoplePicks: () => null },
     '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,
@@ -136,6 +137,7 @@ async function main() {
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => catalogState },
     '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/components/dish-people-picks': { DishPeoplePicks: () => null },
     '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,

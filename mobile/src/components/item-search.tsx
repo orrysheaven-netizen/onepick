@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DishChannelOverview } from '@/components/dish-channel-overview';
+import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { PickPhoto } from '@/components/pick-photo';
 import { useDishChannels } from '@/hooks/useDishChannels';
 import { useItemSearch } from '@/hooks/useItemSearch';
@@ -150,8 +151,10 @@ export function ItemSearch({
         <Text style={styles.description}>검색 결과를 불러오지 못했어요.</Text>
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>
       </View> : null}
-      {query.hasSearchText && dish.data ? <DishChannelOverview overview={dish.data} onSelectItem={onSelect}
-        onRegister={dishChannels?.onRegister} /> : null}
+      {query.hasSearchText && dish.data ? <>
+        <DishChannelOverview overview={dish.data} onSelectItem={onSelect} onRegister={dishChannels?.onRegister} />
+        <DishPeoplePicks categoryId={dish.data.categoryId} categoryName={dish.data.categoryName} userId={dishChannels?.userId} />
+      </> : null}
       {query.hasSearchText && !isLoading && !query.isError && query.data ? <>
         <Text accessibilityLiveRegion="polite" style={styles.resultCount}>
           {query.data.length === 20 ? '검색 결과 · 최대 20개 표시' : `검색 결과 ${query.data.length}개`}

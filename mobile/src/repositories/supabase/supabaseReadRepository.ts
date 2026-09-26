@@ -144,15 +144,15 @@ export class SupabaseReadRepository implements ReadRepository {
     return { categoryId: header.category_id, categoryName: header.category_name, channels };
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug, categoryId);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
@@ -160,6 +160,7 @@ export class SupabaseReadRepository implements ReadRepository {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
       ...(channel ? { p_channel: channel } : {}),
       ...(rootSlug ? { p_root_slug: rootSlug } : {}),
+      ...(categoryId ? { p_category_id: categoryId } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');

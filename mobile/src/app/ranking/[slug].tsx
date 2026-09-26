@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { PickPhoto } from '@/components/pick-photo';
 import { Button, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -127,6 +128,8 @@ export default function CategoryRankingScreen() {
           </View>
           {ranking.isSuccess && rows.length === 0 ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {showRankingDetail && rows.length > 0 ? <Text style={styles.footnote}>같은 선택 수는 공동 순위 · 최대 {RANKING_PAGE_SIZE}개</Text> : null}
+
+          {category.data ? <DishPeoplePicks categoryId={category.data.id} categoryName={categoryName} userId={user?.id} /> : null}
 
           <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>{categoryName}, 당신의 원픽은 무엇인가요?</Text>
