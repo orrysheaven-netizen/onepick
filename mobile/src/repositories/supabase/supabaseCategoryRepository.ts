@@ -18,7 +18,7 @@ export class SupabaseCategoryRepository implements CategoryRepository {
   async getBrowseCategories() {
     const { data, error } = await this.client
       .from('categories')
-      .select('*')
+      .select('*, category_taste_dimensions(dimension_code, is_primary)')
       .eq('is_visible', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
@@ -27,7 +27,10 @@ export class SupabaseCategoryRepository implements CategoryRepository {
       throw mapSupabaseError(error);
     }
 
-    return data.map(mapCategoryRow);
+    return data.map(({ category_taste_dimensions: themes, ...row }) => ({
+      ...mapCategoryRow(row),
+      themeCode: (themes ?? []).find((theme) => theme.is_primary)?.dimension_code ?? null,
+    }));
   }
 
   async getById(categoryId: string) {
