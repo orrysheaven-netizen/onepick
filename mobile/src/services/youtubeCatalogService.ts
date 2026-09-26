@@ -24,7 +24,15 @@ export class YouTubeCatalogService {
       : Promise.reject(new AppError('VIDEO_URL_INVALID'));
   }
 
-  importVideo(externalId: string) {
-    return this.repository.importVideo(externalId.trim());
+  importVideo(externalId: string, categoryId: string) {
+    return this.repository.importVideo(externalId.trim(), categoryId);
+  }
+
+  requestVideo(externalId: string, dishName: string, review: string) {
+    const cleanDish = dishName.trim().replace(/\s+/g, ' ');
+    const cleanReview = review.trim();
+    if (!cleanDish || cleanDish.length > 60) return Promise.reject(new AppError('CATEGORY_LABEL_INVALID'));
+    if (!cleanReview || cleanReview.length > 100) return Promise.reject(new AppError('REVIEW_INVALID'));
+    return this.repository.requestVideo(externalId.trim(), cleanDish, cleanReview);
   }
 }

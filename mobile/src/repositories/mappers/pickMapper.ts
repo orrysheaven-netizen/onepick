@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Database } from '@/lib/supabase/database.types';
 import type { Pick, PickStatus } from '@/types/domain/pick';
 
@@ -9,6 +10,7 @@ export function mapPickRow(row: PickRow): Pick {
     userId: row.user_id,
     categoryId: row.category_id,
     itemId: row.item_id,
+    channel: row.channel === 'offline' || row.channel === 'online' || row.channel === 'recipe' ? row.channel as PickChannel : null,
     oneLineReview: row.one_line_review,
     purchaseUrl: row.purchase_url ?? null,
     purchaseTip: row.purchase_tip ?? null,

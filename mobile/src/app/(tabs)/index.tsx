@@ -16,7 +16,7 @@ import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
-import { HOME_CHANNEL_TABS, categoryWithChannels } from '@/lib/home/homeChannels';
+import { HOME_CHANNEL_TABS, categoryWithChannels, objectParticle } from '@/lib/home/homeChannels';
 import type { HomeFeedPick, PickChannel } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
@@ -115,7 +115,7 @@ export default function HomeScreen() {
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
+      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
   </View>;
 
   const listHeader = <>
@@ -235,13 +235,13 @@ export default function HomeScreen() {
           <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
         </View>
 
-        {ready ? <View style={styles.channelRow}>
+        {ready ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
           {HOME_CHANNEL_TABS.map((tab) => {
             const selected = tab.channel === channel;
             return <Chip key={tab.label} label={tab.label} selected={selected}
               accessibilityLabel={`${tab.label} 탭 원픽 보기`} onPress={() => setChannel(tab.channel)} />;
           })}
-        </View> : null}
+        </ScrollView> : null}
 
         {ready && showCategoryFilters ? <ScrollView
           horizontal
@@ -268,7 +268,7 @@ export default function HomeScreen() {
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
           {!switchingChannel && !data.picks.length ? (channel
-            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}을 원픽으로 고르면 여기에 보여요.`}
+            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}${objectParticle(channelTab.label)} 원픽으로 고르면 여기에 보여요.`}
               action={{ label: '전체 원픽 보기', accessibilityLabel: '전체 탭으로 돌아가기', onPress: () => setChannel(null) }} />
             : <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
               action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} />) : null}
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   scopeTabSelected: { backgroundColor: OnePick.surface },
   scopeText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
   scopeTextSelected: { color: OnePick.text, fontWeight: '900' },
-  channelRow: { flexDirection: 'row', gap: 8, paddingVertical: 6, marginBottom: 10 },
+  channelRow: { flexDirection: 'row', gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   categoryFilterRow: { gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   productCell: { marginBottom: 12 },
   followingEmpty: { alignItems: 'center', gap: 4 },

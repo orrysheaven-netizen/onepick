@@ -33,14 +33,15 @@ function getCommentErrorMessage(error: unknown) {
 /**
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
+ * `canWrite={false}` shows the thread with no way to add to it (my own review).
  */
-export function PickReplies({ pickId, compact = false }: { pickId: string; compact?: boolean }) {
+export function PickReplies({ pickId, compact = false, canWrite = true }: { pickId: string; compact?: boolean; canWrite?: boolean }) {
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
-  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} compact={compact} />;
+  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} compact={compact} canWrite={canWrite} />;
 }
 
-function RepliesContent({ auth, pickId, compact }: { auth: ReturnType<typeof useAuthSession>; pickId: string; compact: boolean }) {
+function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<typeof useAuthSession>; pickId: string; compact: boolean; canWrite: boolean }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = usePickDetail(pickId, user?.id);
@@ -52,7 +53,7 @@ function RepliesContent({ auth, pickId, compact }: { auth: ReturnType<typeof use
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
   const submittingComment = useRef(false);
-  const canComment = !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
+  const canComment = canWrite && !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;

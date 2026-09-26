@@ -37,9 +37,7 @@ sharePick.sharePick({
   pickId: 'pick', username: 'moodarchive', categoryName: '라면',
   itemName: '신라면', oneLineReview: '테스트 이유',
 });
-assert.doesNotMatch(pickPayload.title, /DEMO/i);
-assert.doesNotMatch(pickPayload.message, /DEMO/i);
-assert.match(pickPayload.message, /^@moodarchive/);
+assert.deepEqual({ ...pickPayload }, { url: 'https://onepick.example/pick/seed' }, 'Seed Picks share only their link, with no demo label');
 
 let profilePayload;
 const shareProfile = load('lib/share/shareProfile.ts', {

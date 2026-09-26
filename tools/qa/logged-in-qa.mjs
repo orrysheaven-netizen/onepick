@@ -257,7 +257,7 @@ async function main() {
       await page.getByRole('textbox', { name: '항목명 검색' }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
-    for (const label of ['홈', '탐색', '내 프로필']) {
+    for (const label of ['홈', '탐색', '프로필']) {
       await check(flow, `하단 탭 "${label}"`, () => actionable(bottomTab(page, label)));
     }
     await check(flow, '하단 "원픽 등록" 버튼', () => actionable(page.getByRole('button', { name: '원픽 등록', exact: true })));
@@ -340,21 +340,47 @@ async function main() {
         if (Date.now() > editableBy) throw new Error(`${via}검색 입력이 비활성`);
         await page.waitForTimeout(250);
       }
-      await searchInput.fill(query);
-      const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
-      await choose.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new Error(`${via}"${query}" 검색 결과에 선택 버튼 없음`); });
-      await actionable(choose);
-      await noErrorCopy(page);
-      return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음)`;
+      // The place search is `search_place_catalog` (name-only trigram match on the
+      // category's open catalog rows); item search is another /rest/v1/rpc call. Record
+      // what each answered so a miss can be told apart: no matching data, an RPC
+      // error, or a locator/rendering problem.
+      const rpcCalls = [];
+      const onRpcResponse = (response) => {
+        const match = response.url().match(/\/rest\/v1\/rpc\/([^?]+)/);
+        if (!match || response.request().method() !== 'POST') return;
+        response.text().then((body) => {
+          let rows = '';
+          try { const json = JSON.parse(body); rows = Array.isArray(json) ? `${json.length}행` : JSON.stringify(json).slice(0, 40); } catch { rows = '?'; }
+          rpcCalls.push(`${match[1]} ${response.status()} ${rows}`);
+        }).catch(() => rpcCalls.push(`${match[1]} ${response.status()}`));
+      };
+      page.on('response', onRpcResponse);
+      try {
+        await searchInput.fill(query);
+        const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
+        const noPlace = page.getByText('일치하는 장소를 찾지 못했어요');
+        const searchError = page.getByText(/검색을 불러오지 못했어요|검색 결과를 불러오지 못했어요/);
+        await choose.first().or(noPlace).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+          .catch(() => { throw new Error(`${via}"${query}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
+        if (!(await choose.count())) {
+          const state = await noPlace.isVisible() ? '일치하는 장소 없음' : '검색 오류 카드';
+          throw new Error(`${via}"${query}" ${state} · rpc=[${rpcCalls.join(', ') || '없음'}]`);
+        }
+        await actionable(choose);
+        await noErrorCopy(page);
+        return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음) · rpc=[${rpcCalls.join(', ')}]`;
+      } finally {
+        page.off('response', onRpcResponse);
+      }
     });
     await shot(page, 'pick_find');
 
     flow = '링크 추천';
-    await check(flow, '"링크로 카테고리 추천받기" → 링크 화면', async () => {
-      await page.goto(`${BASE_URL}/pick/find`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: '링크로 카테고리 추천받기', exact: true }).click();
-      await page.waitForURL(/\/pick\/link/, { timeout: STEP_TIMEOUT_MS });
+    // #366 removed the "링크로 카테고리 추천받기" entry from /pick/find; the screen itself is
+    // still routed (auth intent `suggest_link_category`), so open it by URL.
+    await check(flow, '링크 화면 직접 진입 (/pick/link)', async () => {
+      await page.goto(`${BASE_URL}/pick/link`, { waitUntil: 'networkidle' });
+      await page.getByRole('textbox', { name: '원픽 링크' }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('추천 요청 전에 로그인합니다').isVisible().catch(() => false)) throw new Error('비로그인 안내가 표시됨');
       await noErrorCopy(page);
     });
@@ -437,9 +463,10 @@ async function main() {
     }
 
     flow = '프로필';
-    await check(flow, '내 프로필 탭 이동', async () => {
+    // Bottom tabs read 프로필 / 댓글 since 1473bce (the "내" prefix was dropped).
+    await check(flow, '프로필 탭 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await bottomTab(page, '내 프로필').first().click();
+      await bottomTab(page, '프로필').first().click();
       await page.waitForURL(/\/profile/, { timeout: STEP_TIMEOUT_MS });
       await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
     });
@@ -449,8 +476,8 @@ async function main() {
       await actionable(page.getByRole('button', { name: '프로필 새로고침' }));
       await noErrorCopy(page);
     });
-    await check(flow, '"내 댓글" 탭', async () => {
-      await bottomTab(page, '내 댓글').first().click();
+    await check(flow, '"댓글" 탭', async () => {
+      await bottomTab(page, '댓글').first().click();
       await page.waitForURL(/\/comments/, { timeout: STEP_TIMEOUT_MS });
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
       const empty = page.getByText('아직 남긴 댓글이 없어요');
@@ -461,7 +488,6 @@ async function main() {
       // Read-only: open the review the comment answers and only trial-click its 삭제 control.
       await rows.first().click();
       await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByRole('button', { name: '댓글 접기', exact: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await actionable(page.getByRole('button', { name: '내 댓글 삭제' }));
       await noErrorCopy(page);
       return `내 댓글 ${count}개 · 상품 상세 이동 + 삭제 버튼 표시`;
@@ -528,21 +554,41 @@ async function main() {
 
     flow = '공유/딥링크';
     let pickId = null;
-    await check(flow, '피드 → 상품 상세 → 한줄평 공유 링크', async () => {
-      await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
-      // Feed cards no longer link to a Pick directly; take the Pick id from a review's share link.
-      const open = page.getByRole('button', { name: / 상세 보기$/ });
-      await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await open.first().click();
-      await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByRole('button', { name: /^공유( · 신고)?$/ }).first().click(); // in-page menu only; nothing is shared
-      const link = page.getByText(/\/pick\/[0-9a-f-]{36}/).first();
-      await link.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      const match = (await link.textContent())?.match(/\/pick\/([0-9a-f-]{36})/);
-      if (!match) throw new Error('한줄평 공유 링크에서 pickId를 찾지 못함');
-      pickId = match[1];
-      return '/item/:id → /pick/:id 공유 링크';
+    await check(flow, '피드 → 상품 상세 → 원픽 공유 버튼', async () => {
+      // #395: each review card's share control is now an "이 원픽 공유" icon that opens the
+      // share sheet or copies the /pick/:id link at once, so it is only trial-clicked here.
+      // The Pick id for the deep-link check comes from the picks rows the feed and the detail
+      // screen load (GET /rest/v1/picks?…), preferring a Pick of the item that was opened.
+      const pickRows = [];
+      const onPicksResponse = (response) => {
+        if (!/\/rest\/v1\/picks\?/.test(response.url()) || response.request().method() !== 'GET') return;
+        response.json().then((rows) => {
+          for (const row of Array.isArray(rows) ? rows : []) {
+            if (typeof row?.id === 'string') pickRows.push({ id: row.id, itemId: typeof row.item_id === 'string' ? row.item_id : null });
+          }
+        }).catch(() => {});
+      };
+      page.on('response', onPicksResponse);
+      try {
+        await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+        await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
+        const open = page.getByRole('button', { name: / 상세 보기$/ });
+        await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        await open.first().click();
+        await page.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
+        const itemId = decodeURIComponent(new URL(page.url()).pathname.split('/').pop() ?? '');
+        const share = page.getByRole('button', { name: '이 원픽 공유', exact: true });
+        await actionable(share); // trial click only; nothing is shared or copied
+        const deadline = Date.now() + STEP_TIMEOUT_MS;
+        while (!pickRows.length && Date.now() < deadline) await page.waitForTimeout(250);
+        const chosen = pickRows.find((row) => row.itemId === itemId) ?? pickRows[0];
+        if (!chosen) throw new Error('피드/상세 화면의 picks 응답에서 pickId를 찾지 못함');
+        pickId = chosen.id;
+        await noErrorCopy(page);
+        return `/item/:id · 공유 버튼 ${await share.count()}개 (공유하지 않음)${chosen.itemId === itemId ? '' : ' · 딥링크는 피드의 다른 원픽 사용'}`;
+      } finally {
+        page.off('response', onPicksResponse);
+      }
     });
     if (pickId) {
       await check(flow, '원픽 딥링크 직접 열기 + 공유 버튼', async () => {
@@ -558,29 +604,9 @@ async function main() {
             throw new Error(`원픽 딥링크 pickId 불일치: 요청 ${requestedPickId}, 도착 ${landedPickId ?? '없음'}`);
           }
           await noErrorCopy(fresh);
-
-          // The focused review opens its reply thread automatically. Match its
-          // position to the corresponding share toggle so another review cannot satisfy this check.
-          const replyToggles = fresh.getByRole('button', { name: /^(댓글 접기|댓글 쓰기|댓글 보기)$/ });
-          await fresh.getByRole('button', { name: '댓글 접기', exact: true }).first()
-            .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-          const replyLabels = await replyToggles.evaluateAll((els) =>
-            els.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim() ?? ''));
-          const focusedIndex = replyLabels.findIndex((label) => label === '댓글 접기');
-          if (focusedIndex < 0) throw new Error('요청한 원픽의 포커스된 한줄평을 찾지 못함');
-
-          const shareToggles = fresh.getByRole('button', { name: /^공유( · 신고)?$/ });
-          const shareCount = await shareToggles.count();
-          if (shareCount !== replyLabels.length || focusedIndex >= shareCount) {
-            throw new Error(`한줄평/공유 버튼 매핑 불일치: 한줄평 ${replyLabels.length}, 공유 ${shareCount}`);
-          }
-          await shareToggles.nth(focusedIndex).click(); // opens an in-page menu only; nothing is shared
-
-          await fresh.getByText('이 원픽을 공유해보세요').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-          const shareLink = fresh.getByText(`/pick/${requestedPickId}`, { exact: false });
-          await shareLink.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-          await actionable(fresh.getByRole('button', { name: '이미지 카드 공유' }));
-          await noErrorCopy(fresh);
+          // #395: review cards carry an "이 원픽 공유" icon each; other people's reply threads are
+          // always open now, so the focused card is no longer identifiable by its 댓글 접기 toggle.
+          await actionable(fresh.getByRole('button', { name: '이 원픽 공유', exact: true }));
           await shot(fresh, 'pick_deeplink');
         } finally { await fresh.close(); }
         return `${landed.pathname.replace(/[^/]+$/, ':id')}?pickId=:id (공유하지 않음)`;
