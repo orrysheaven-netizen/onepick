@@ -81,6 +81,7 @@ async function main() {
           imagePath: input.imagePath ?? null,
         });
       },
+      setPendingPickReview: async (itemId, review) => { calls.push(['pending-review', itemId, review]); },
       setPendingCategoryHint: async (itemId, label) => {
         calls.push(['hint', itemId, label]);
         return itemRecord({ id: itemId, name: '힌트 제품', categoryId: 'pending-product', status: 'pending', requestedCategoryLabel: label });
@@ -104,18 +105,23 @@ async function main() {
     categoryId: 'ramen',
     itemName: '진라면 매운맛 컵라면',
     variant: '',
-    oneLineReview: '',
+    oneLineReview: '  국물이 시원해요  ',
   };
+
+  await assert.rejects(() => service.register({ ...input, oneLineReview: '  ', photo: { base64: 'image' } }), (error) => error.code === 'REVIEW_INVALID');
+  await assert.rejects(() => service.register({ ...input, oneLineReview: '가'.repeat(101) }), (error) => error.code === 'REVIEW_INVALID');
+  assert.equal(calls.length, 0, 'A new product request needs its review before any upload or submit');
 
   const pending = await service.register(input);
   assert.equal(pending.type, 'pending_item', 'Unknown item becomes an approval request');
-  assert.deepEqual(calls.map(([name]) => name), ['submit'], 'Image-free item request only submits the item');
+  assert.deepEqual(calls.map(([name]) => name), ['submit', 'pending-review'], 'The request saves the review that becomes the pick on approval');
   assert.equal(calls[0][1].itemName, '진라면 매운맛');
+  assert.deepEqual(calls[1], ['pending-review', 'submitted', '국물이 시원해요']);
 
   calls = [];
   const generalProduct = await service.register({ ...input, categoryId: undefined, itemName: '새 텀블러' });
   assert.equal(generalProduct.type, 'pending_item');
-  assert.deepEqual(calls.map(([name]) => name), ['submit-unclassified'], 'General products are staged without user category selection');
+  assert.deepEqual(calls.map(([name]) => name), ['submit-unclassified', 'pending-review'], 'General products are staged without user category selection');
   assert.equal(calls[0][1].itemName, '새 텀블러');
 
   calls = [];
@@ -148,8 +154,10 @@ async function main() {
   item = null;
   submittedStatus = 'active';
   const resolved = await service.register(input);
-  assert.equal(resolved.type, 'existing_item', 'A concurrent duplicate resolves to the existing approved item');
-  assert.deepEqual(calls.map(([name]) => name), ['submit']);
+  assert.equal(resolved.type, 'pick', 'A concurrent duplicate that is already approved becomes the pick right away');
+  assert.deepEqual(calls.map(([name]) => name), ['submit', 'save']);
+  assert.equal(calls[1][1].itemId, 'submitted');
+  assert.equal(calls[1][1].oneLineReview, '국물이 시원해요');
 
   calls = [];
   submittedStatus = 'pending';
