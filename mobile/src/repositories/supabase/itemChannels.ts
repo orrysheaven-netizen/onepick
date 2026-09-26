@@ -20,7 +20,7 @@ export async function fetchItemChannels(client: AppSupabaseClient, itemIds: read
     const { data, error } = await db.from('item_channels').select('item_id, channel').in('item_id', ids);
     if (error || !Array.isArray(data)) return channels;
     for (const row of data as { item_id: string; channel: unknown }[]) {
-      if (row.channel !== 'offline' && row.channel !== 'online') continue;
+      if (row.channel !== 'offline' && row.channel !== 'online' && row.channel !== 'recipe') continue;
       const list = channels.get(row.item_id) ?? [];
       if (!list.includes(row.channel)) list.push(row.channel);
       channels.set(row.item_id, list);
