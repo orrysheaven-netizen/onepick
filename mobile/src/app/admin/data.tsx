@@ -5,6 +5,7 @@ import { adminStyles } from '@/components/admin/admin-shell';
 import { AuditPanel } from '@/components/admin/data/audit-panel';
 import { BrandsPanel } from '@/components/admin/data/brands-panel';
 import { CategoriesPanel } from '@/components/admin/data/categories-panel';
+import { ChannelLinkPanel } from '@/components/admin/data/channel-link-panel';
 import { EditorialPanel } from '@/components/admin/data/editorial-panel';
 import { ItemsPanel } from '@/components/admin/data/items-panel';
 import { PendingPanel } from '@/components/admin/data/pending-panel';
@@ -34,6 +35,7 @@ export default function AdminDataScreen() {
         {tab === 'brands' && <BrandsPanel />}
         {tab === 'providers' && <ProvidersPanel />}
         {tab === 'items' && <ItemsPanel />}
+        {tab === 'channels' && <ChannelLinkPanel />}
         {tab === 'editorial' && <EditorialPanel />}
         {tab === 'pending' && <PendingPanel />}
         {tab === 'users' && <UsersPanel />}
