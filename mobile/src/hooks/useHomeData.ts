@@ -6,7 +6,7 @@ import { homeService } from '@/services/homeServiceInstance';
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
 const HOME_MAX_PAGES = 3;
 
-export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null) {
+export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'context'],
@@ -18,9 +18,9 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
   const feed = useInfiniteQuery({
     enabled: shouldFetchFeed,
     // Each 매장/온라인 tab is its own server-filtered feed with its own cursor.
-    queryKey: [...queryKeys.home.data(userId), 'infinite', channel ?? 'all'],
+    queryKey: [...queryKeys.home.data(userId), 'infinite', channel ?? 'all', rootSlug ?? 'every-root'],
     initialPageParam: null as ReadCursor | null,
-    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel),
+    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, rootSlug),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     getPreviousPageParam: () => undefined,
     maxPages: HOME_MAX_PAGES,

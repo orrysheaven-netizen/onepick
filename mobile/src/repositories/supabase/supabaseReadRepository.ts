@@ -13,6 +13,7 @@ import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
+import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
 
 type PickRow = Database['public']['Tables']['picks']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -86,21 +87,22 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor, channel);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
     const { data, error } = await this.client.rpc(rpc, {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
       ...(channel ? { p_channel: channel } : {}),
+      ...(rootSlug ? { p_root_slug: rootSlug } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
@@ -148,7 +150,9 @@ export class SupabaseReadRepository implements ReadRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 12);
     const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       categoryId: row.category_id,
@@ -158,6 +162,7 @@ export class SupabaseReadRepository implements ReadRepository {
       editorialNote: row.editorial_note,
       editorialPriority: row.editorial_priority,
       pickCount: row.pick_count,
+      channels: channels.get(row.item_id) ?? [],
     }));
   }
 
@@ -166,14 +171,38 @@ export class SupabaseReadRepository implements ReadRepository {
     // change the aggregate. The RPC counts all current picks before limiting.
     const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const channels = await fetchItemChannels(this.countClient, rows.map((row) => row.item_id));
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       thumbnailUrl: this.cardThumbnailUrl(row),
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
+      channels: channels.get(row.item_id) ?? [],
     }));
+  }
+
+  async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // Viewer-specific like the home feed: session RLS decides which Picks count,
+    // so a blocked person's Pick never bumps an item to the top.
+    const { data, error } = await this.client.rpc('explore_recent_items_page', {
+      p_category_ids: categoryIds ?? undefined,
+      p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const last = data[19];
+    return {
+      nextCursor: data.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
+      items: data.slice(0, 20).map((row) => ({
+        itemId: row.item_id, name: row.item_name,
+        categoryId: row.category_id, categoryName: row.category_name,
+        thumbnailUrl: this.cardThumbnailUrl(row), lastPickedAt: row.last_picked_at,
+      })),
+    };
   }
 
   async countActivePicks(itemId: string) {
@@ -195,16 +224,21 @@ export class SupabaseReadRepository implements ReadRepository {
     );
   }
 
-  private mapPickItem(row: PickReadRow) {
+  private mapPickItem(row: PickReadRow, channels: Map<string, PickChannel[]>) {
     const profile = one(row.profile);
     const category = one(row.category);
-    const item = one(row.item);
+    const item = this.mapItem(one(row.item));
     return {
       pick: mapPickRow(row),
       profile: profile ? mapProfileRow(profile) : null,
       category: category ? mapCategoryRow(category) : null,
-      item: this.mapItem(item),
+      item: item ? { ...item, channels: channels.get(item.id) ?? [] } : null,
     };
+  }
+
+  private async mapPickItems(rows: PickReadRow[]) {
+    const channels = await fetchItemChannels(this.client, rows.map((row) => row.item_id));
+    return rows.map((row) => this.mapPickItem(row, channels));
   }
 
   async getPickById(pickId: string) {
@@ -215,7 +249,7 @@ export class SupabaseReadRepository implements ReadRepository {
       .maybeSingle();
 
     if (error) throw mapSupabaseError(error);
-    return data ? this.mapPickItem(data as unknown as PickReadRow) : null;
+    return data ? (await this.mapPickItems([data as unknown as PickReadRow]))[0] : null;
   }
 
   async getPicks(input: PickReadInput) {
@@ -237,7 +271,7 @@ export class SupabaseReadRepository implements ReadRepository {
 
     const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as PickReadRow[]).map((row) => this.mapPickItem(row));
+    return this.mapPickItems(data as unknown as PickReadRow[]);
   }
 
   async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {

@@ -67,6 +67,22 @@ export interface CategoryTopItem {
   pickCount: number;
   rank: number;
   isTied: boolean;
+  channels: PickChannel[];
+}
+
+/** One place/product per row, ordered by its latest visible active Pick. */
+export interface RecentPickedItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  thumbnailUrl: string | null;
+  lastPickedAt: string;
+}
+
+export interface RecentPickedItemPage {
+  items: RecentPickedItem[];
+  nextCursor: ReadCursor | null;
 }
 
 export interface HomeShowcaseItem {
@@ -97,6 +113,7 @@ export interface EditorialHomeItem {
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
+  channels: PickChannel[];
 }
 
 export interface PickReadInput {
@@ -111,13 +128,18 @@ export interface PickReadInput {
 }
 
 export interface ReadRepository {
-  /** `channel` narrows the feed server-side (Home 매장/온라인 tabs); null keeps every Pick. */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null): Promise<HomePickPage>;
+  /**
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
+   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   */
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  /** Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first. */
+  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;

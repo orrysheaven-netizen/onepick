@@ -103,6 +103,7 @@ assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
@@ -115,7 +116,7 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
-  assert.match(page, /라면 · 매장/, 'Feed cards label a store-channel item as 매장');
+  assert.match(page, /라면 · 오프라인맛집/, 'Feed cards label a store-channel item as 오프라인맛집');
   assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the 매장 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
@@ -146,6 +147,10 @@ for (width of [390, 800, 1200]) {
 // Test the actual boundary using unique loaded records, without changing thresholds.
 const smallFeed = query.data.picks;
 query.data.picks = Array.from({ length: 19 }, (_, i) => ({ ...smallFeed[0], pickId: `pick-${i}`, itemId: `item-${i}` }));
+query.data.picks.push({ ...smallFeed[1], pickId: 'pick-mvp', itemId: 'item-mvp' });
+render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'MVP hides category chips at any feed size');
+query.data.picks.pop();
+onepickConstants.OnePickFeatures.categoryChips = true;
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
 query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'A single food group needs no filter chips');

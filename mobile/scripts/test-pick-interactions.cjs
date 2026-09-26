@@ -88,6 +88,7 @@ async function main() {
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
@@ -225,9 +226,9 @@ async function main() {
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
   let rankRefreshes = 0;
   const rankingQuery = { data: [
-    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102 },
-    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
-    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 },
+    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102, channels: [] },
+    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
+    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
   ], isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
@@ -235,8 +236,10 @@ async function main() {
     react: { ...React, useState: () => ['root', () => {}] },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
+    '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+      useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);

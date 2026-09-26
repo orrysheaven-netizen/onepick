@@ -94,8 +94,18 @@ export const OnePickFeatures = {
   // Hidden during the early MVP; the data and components stay in place.
   profilePickHistory: false,
   profileSocialLinks: false,
+  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
+  // Restaurant-first MVP: Home and Explore show only OnePickMvp.browseGroupSlug,
+  // so category chips add nothing. Flip on when more top-level groups launch.
+  categoryChips: false,
+} as const;
+
+// While categoryChips is off, Home/Explore browse only this top-level group
+// (see docs/restaurant-mvp-foundation.md "MVP 맛집 노출 제한"). Profiles are unaffected.
+export const OnePickMvp = {
+  browseGroupSlug: 'food',
 } as const;
 
 // Client-side exposure thresholds, not API limits or service-wide totals.
