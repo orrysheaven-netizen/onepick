@@ -99,6 +99,15 @@ assert.match(mine, /share:m1/);
 assert.match(mine, /댓글 보기/, 'Replies to my own review open from a menu');
 assert.doesNotMatch(mine, /thread:m1/);
 
+// The session resolves after the first render; my own thread must still start collapsed.
+session = { user: null, isLoading: true };
+const beforeSession = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' });
+assert.match(beforeSession, /thread:m1/, 'Signed-out/loading viewers see the thread like any other');
+session = { user: { id: 'me' }, isLoading: false };
+assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.match(source('components/item-review-card.tsx'), /repliesToggled \?\? \(focused \|\| !isMine\)/,
+  'Open state is derived from ownership until the reader toggles, not stored from the first render');
+
 session = { user: { id: 'me' }, isLoading: true };
 assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);
 

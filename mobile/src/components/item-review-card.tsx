@@ -24,9 +24,12 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
   const isMine = user?.id === pick.userId;
   const isCurrent = pick.status === 'active' || pick.status === 'needs_review';
   const canManage = !isLoading && isMine && isCurrent;
-  const [repliesOpen, setRepliesOpen] = useState(focused || !isMine);
+  // Until the reader toggles, follow who owns the card: the session resolves after
+  // the first render, so a stored default would leave my own thread open.
+  const [repliesToggled, setRepliesToggled] = useState<boolean | null>(null);
+  const repliesOpen = repliesToggled ?? (focused || !isMine);
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  useEffect(() => { if (focused || !isMine) setRepliesOpen(true); }, [focused, isMine]);
+  useEffect(() => { if (focused) setRepliesToggled(true); }, [focused]);
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -55,7 +58,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, focused,
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
       {isMine ? (
-        <Pressable accessibilityRole="button" onPress={() => setRepliesOpen((open) => !open)}
+        <Pressable accessibilityRole="button" onPress={() => setRepliesToggled(!repliesOpen)}
           style={({ pressed }) => [styles.repliesToggle, pressed && styles.pressed]}>
           <Text style={styles.repliesToggleText}>{repliesOpen ? '댓글 숨기기' : '댓글 보기'}</Text>
         </Pressable>
