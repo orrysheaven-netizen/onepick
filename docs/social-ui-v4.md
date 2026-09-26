@@ -3,6 +3,7 @@
 상태: **디자인 기준안 확정 / 구현 전**
 
 Figma: https://www.figma.com/design/77VUmD5myMWbuISkIPz37W/
+최종 제목 위계 기준: `15 Title Hierarchy Final Check` — A안 기본 / D안 메뉴 고정 화면 / B안 좁은 한 줄 목록.
 
 ## 목표
 
