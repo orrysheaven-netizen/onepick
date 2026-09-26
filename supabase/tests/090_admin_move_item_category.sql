@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(21);
 set local plpgsql.check_asserts = on;
 
 create temporary table mic_ids(key text primary key, id uuid not null) on commit drop;
@@ -177,6 +177,24 @@ select is(
 select is(
   (select i.category_id from public.items i where i.id=(select id from mic_ids where key='item')),
   (select id from mic_ids where key='right'), 'The item is in the new category'
+);
+select ok(
+  exists(
+    select 1 from pg_locks l
+    where l.locktype='advisory' and l.pid=pg_backend_pid() and l.objsubid=1
+      and ((l.classid::bigint<<32)|l.objid::bigint)
+          =hashtextextended('item-alias:'||(select id from mic_ids where key='right')::text||':이동해장집',0)
+  ),
+  'The move holds the target''s alias lock for the item''s name, like item_aliases writes do'
+);
+select is(
+  (select l.summary-'name'-'active_pick_count' from public.admin_audit_logs l
+    where l.entity_id=(select id from mic_ids where key='item') and l.summary->>'operation'='category_move'),
+  jsonb_build_object('operation','category_move',
+    'from_category_id',(select id from mic_ids where key='wrong'),
+    'to_category_id',(select id from mic_ids where key='right'),
+    'pick_count',3),
+  'The audit log keeps both ends of the move'
 );
 select ok(
   (select ip.category_id=(select id from mic_ids where key='right')

@@ -187,6 +187,7 @@ declare
   v_reason text;
   v_place_id uuid;
   v_provider_id uuid;
+  v_normalized text;
 begin
   if not private.is_admin_mfa() then
     raise exception 'ADMIN_REQUIRED' using errcode='42501';
@@ -199,6 +200,25 @@ begin
 
   -- Freeze this item's Picks so the conflict check stays true until commit.
   perform 1 from public.picks where item_id=v_item.id for update;
+
+  -- Take the same per-category name/alias locks as private.prepare_item_alias
+  -- for every name the item brings into the target, in a fixed order, so a
+  -- concurrent alias write in the target cannot pass its check against the
+  -- pre-move state.
+  if p_target_category_id is not null then
+    for v_normalized in
+      select k from (
+        select v_item.normalized_name as k
+        union
+        select ia.normalized_alias from public.item_aliases ia where ia.item_id=v_item.id
+      ) keys
+      order by k
+    loop
+      perform pg_advisory_xact_lock(
+        hashtextextended('item-alias:'||p_target_category_id::text||':'||v_normalized,0)
+      );
+    end loop;
+  end if;
 
   v_check := private.item_category_move_check(v_item,p_target_category_id);
   v_reason := v_check->>'blocked_reason';
@@ -231,6 +251,20 @@ begin
   set constraints public.picks_item_category_fk,
                   public.item_places_item_category_fk,
                   public.item_providers_item_category_fk immediate;
+
+  -- items_admin_audit records only the new category; keep both ends of the move.
+  insert into public.admin_audit_logs(actor_user_id,entity_type,entity_id,action,summary)
+  values(
+    auth.uid(),'item',v_item.id,'update',
+    jsonb_build_object(
+      'operation','category_move',
+      'name',v_item.name,
+      'from_category_id',v_item.category_id,
+      'to_category_id',p_target_category_id,
+      'active_pick_count',(v_check->>'active_pick_count')::integer,
+      'pick_count',(v_check->>'pick_count')::integer
+    )
+  );
 
   return v_check;
 end;
