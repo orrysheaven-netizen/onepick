@@ -9,7 +9,7 @@ import { Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
-import { useImportYouTubeVideo, useYouTubeVideoLookup } from '@/hooks/useYouTubeCatalog';
+import { useYouTubeVideoLookup } from '@/hooks/useYouTubeCatalog';
 import { acceptYouTubePolicyConsent, getYouTubePolicyConsent } from '@/lib/youtube/consent';
 import { YOUTUBE_VIDEO_ID_PATTERN, parseYouTubeVideoUrl, youtubeVideoUrl } from '@/lib/youtube/videoLink';
 import type { YouTubeVideoEntry } from '@/types/domain/youtubeCatalog';
@@ -69,9 +69,8 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const videoId = parseYouTubeVideoUrl(trimmedLink);
   const lookupEnabled = Boolean(consent && authReady && user && category && videoId);
   const lookup = useYouTubeVideoLookup(videoId, lookupEnabled);
-  const importVideo = useImportYouTubeVideo();
   const video = lookup.data?.externalId === videoId ? lookup.data : undefined;
-  const importing = importVideo.isPending;
+  const importing = false;
 
   const focused = useRef(false);
   const navigating = useRef(false);
@@ -97,35 +96,22 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     }
   };
 
-  const chooseItem = (itemId: string, categoryId: string) => {
-    if (!canAct() || latest.current.categoryId !== categoryId) return;
-    navigating.current = true;
-    router.push({
-      pathname: '/pick/choose',
-      params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) },
-    });
-  };
-
   const login = () => {
     if (!canAct() || !category || !videoId) return;
     navigating.current = true;
     router.push({ pathname: '/auth/login', params: { action: 'choose_recipe', externalVideoId: videoId, categoryId: category.id } });
   };
 
-  const register = async (entry: YouTubeVideoEntry) => {
-    if (!canAct() || importing || !category || !user) return;
-    if (entry.existingItemId) { chooseItem(entry.existingItemId, category.id); return; }
-    const owner = user.id;
-    const categoryId = category.id;
-    setImportError(null);
-    try {
-      const item = await importVideo.mutateAsync(entry.externalId);
-      if (!focused.current || latest.current.userId !== owner || latest.current.videoId !== entry.externalId) return;
-      if (item.categoryId !== categoryId) throw new AppError('ITEM_CATEGORY_MISMATCH');
-      chooseItem(item.itemId, item.categoryId);
-    } catch (error) {
-      if (focused.current && latest.current.userId === owner) setImportError(error);
-    }
+  const chooseMenu = (entry: YouTubeVideoEntry) => {
+    if (!canAct() || !category || !user) return;
+    navigating.current = true;
+    router.push({
+      pathname: '/pick/find',
+      params: {
+        recipeVideoId: entry.externalId,
+        ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+      },
+    });
   };
 
   const back = () => {
@@ -197,8 +183,8 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           </View>
           <ExternalLink href={video.videoUrl} style={styles.externalLink}>YouTube에서 영상 보기 ›</ExternalLink>
-          <Button fullWidth size="lg" label="이 레시피를 원픽으로 등록" loading={importing} disabled={importing}
-            accessibilityLabel={`${video.title} 레시피를 원픽으로 등록`} onPress={() => void register(video)} style={styles.submit} />
+          <Button fullWidth size="lg" label="요리 메뉴 선택" disabled={importing}
+            accessibilityLabel={`${video.title} 레시피의 요리 메뉴 선택`} onPress={() => chooseMenu(video)} style={styles.submit} />
           {importError ? <Text accessibilityRole="alert" style={styles.errorText}>{recipeErrorMessage(importError)}</Text> : null}
         </View> : null}
       </> : null}
