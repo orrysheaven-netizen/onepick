@@ -20,9 +20,15 @@ function subjectParticle(word: string) {
 
 function describe(item: AppNotification) {
   if (item.kind === 'item_review') {
-    const message = item.outcome === 'merged'
-      ? `요청하신 원픽이 ${item.item_name}(으)로 등록됐어요. 원픽으로 선택해보세요.`
-      : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인됐어요. 원픽으로 선택해보세요.`;
+    // With pick_id the approval already made the product the requester's pick.
+    // Without it (requests sent before reviews were collected) they still choose.
+    const message = item.pick_id
+      ? item.outcome === 'merged'
+        ? `요청하신 원픽이 ${item.item_name}(으)로 등록되어 내 원픽이 됐어요.`
+        : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인되어 내 원픽으로 등록됐어요.`
+      : item.outcome === 'merged'
+        ? `요청하신 원픽이 ${item.item_name}(으)로 등록됐어요. 원픽으로 선택해보세요.`
+        : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인됐어요. 원픽으로 선택해보세요.`;
     return { sender: '원픽 등록 결과', badge: '승인', message, label: message };
   }
   const message = item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`;
@@ -47,7 +53,7 @@ export default function NotificationsScreen() {
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
   const open = (item: AppNotification) => {
     if (!ready) return;
-    if (item.kind === 'item_review') {
+    if (item.kind === 'item_review' && !item.pick_id) {
       if (item.item_id) router.push({ pathname: '/pick/choose', params: { itemId: item.item_id } });
     } else if (item.pick_id) {
       router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });

@@ -27,7 +27,7 @@ export interface AttachItemPhotoInput {
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
   | { type: 'pending_item'; item: Item }
-  | { type: 'existing_item'; item: Item };
+
 
 export const CATEGORY_HINT_MAX_LENGTH = 60;
 
@@ -123,9 +123,12 @@ export class RegistrationService {
     if (!name || name.length > 100) throw new AppError('ITEM_NAME_INVALID');
     if (item && item.status !== 'active' && item.status !== 'discontinued') throw new AppError('ITEM_NOT_ELIGIBLE');
 
+    // The one-line review is the pick. A new product request carries it too, so
+    // approval can make the product the requester's pick without asking again.
+    const review = input.oneLineReview.trim();
+    if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
+
     if (item) {
-      const review = input.oneLineReview.trim();
-      if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
 
       let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
       if (input.photo && !hasPhoto(item)) {
@@ -168,12 +171,22 @@ export class RegistrationService {
       if (uploaded && submitted.imagePath !== uploaded.imagePath) {
         await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       }
+      // Resubmitting the same request returns the same pending item, so a retry
+      // after a failure here is safe.
+      await this.itemRepository.setPendingPickReview(submitted.id, review);
       return { type: 'pending_item', item: submitted };
     }
 
     if (submitted.status === 'active' || submitted.status === 'discontinued') {
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
-      return { type: 'existing_item', item: submitted };
+      // Someone else's request for the same product was approved meanwhile: pick it now.
+      const pick = await this.pickRepository.registerPick({
+        categoryId: submitted.categoryId,
+        itemId: submitted.id,
+        itemName: submitted.name,
+        oneLineReview: review,
+      });
+      return { type: 'pick', pick };
     }
 
     if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
