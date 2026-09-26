@@ -134,14 +134,15 @@ async function main() {
   const renderComments = () => { presses = []; return renderToStaticMarkup(React.createElement(ProfileMyComments, { query: myComments })); };
   assert.match(renderComments(), /아직 남긴 댓글이 없어요/);
   myComments.data = [
-    { comment: { id: 'c1', body: '저도 이거 좋아요', createdAt: '2026-09-26T00:00:00Z' }, pick: { id: 'p1', oneLineReview: '국물이 좋아요' }, pickAuthor: { username: 'friend' }, item: { name: '신라면' } },
+    { comment: { id: 'c1', body: '저도 이거 좋아요', createdAt: '2026-09-26T00:00:00Z' }, pick: { id: 'p1', itemId: 'i1', oneLineReview: '국물이 좋아요' }, pickAuthor: { username: 'friend' }, item: { name: '신라면' } },
     { comment: { id: 'c2', body: '숨겨진 곳의 댓글', createdAt: '2026-09-25T00:00:00Z' }, pick: null, pickAuthor: null, item: null },
   ];
   const list = renderComments();
   assert.match(list, /신라면 · @friend의 한줄평/); assert.match(list, /국물이 좋아요/); assert.match(list, /저도 이거 좋아요/);
   assert.match(list, /볼 수 없는 한줄평/); assert.match(list, /숨겨진 곳의 댓글/);
   assert.equal(presses.length, 1, 'Only rows with a visible review are pressable');
-  presses[0].onPress(); assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'p1');
+  presses[0].onPress(); assert.equal(destination.pathname, '/item/[itemId]');
+  assert.deepEqual({ ...destination.params }, { itemId: 'i1', pickId: 'p1' }, 'Rows open the focused review without the /pick redirect');
   let nextPages = 0;
   Object.assign(myComments, { hasNextPage: true, fetchNextPage: async (options) => { assert.equal(options.cancelRefetch, false); nextPages++; } });
   renderComments(); presses.find((props) => props.accessibilityLabel === '내 댓글 더 보기').onPress(); assert.equal(nextPages, 1);
