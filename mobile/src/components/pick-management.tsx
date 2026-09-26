@@ -60,7 +60,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await removePick.mutateAsync(pick.categoryId);
+      await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel });
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.

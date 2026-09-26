@@ -176,7 +176,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, myPickStatus, picks, canChoose } = query.data;
+  const { category, myPickStatus, pickChannel, picks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
@@ -186,7 +186,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       return;
     }
     if (!canChoose) return;
-    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId } });
+    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
 
   return (
