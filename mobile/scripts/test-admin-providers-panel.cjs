@@ -370,6 +370,90 @@ test('effect setup/cleanup replay cannot publish an obsolete initial load', asyn
   assert.doesNotMatch(h.text(), /낡은 초기 결과/);
 });
 
+// A draft search must not change the scope of refreshes or read-only retries.
+for (const mutation of ['create', 'status', 'brand']) {
+  test(`${mutation} refresh and retry keep the submitted search, not the draft`, async () => {
+    for (const failRefresh of [false, true]) {
+      let reads = 0;
+      const b = backend({ getOnlineProviders: async () => {
+        if (++reads === 3 && failRefresh) throw new Error('REFRESH_FAILED');
+        return [copy(provider)];
+      } });
+      const h = harness(b.api);
+      await h.flush();
+      await h.type('판매처 검색', 'A'); await h.press('검색');
+      await h.type('판매처 검색', 'B');
+      if (mutation === 'create') { await fillForm(h); await h.press('판매처 등록'); }
+      if (mutation === 'status') await h.press('숨김', h.row());
+      if (mutation === 'brand') await h.press(brands[0].name, h.row());
+      assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
+      assert.equal(h.input('판매처 검색').value, 'B', 'Keep the draft in the input');
+      if (failRefresh) {
+        assert.match(h.text(), /변경은 저장되었습니다.*목록 조회에 실패/);
+        await h.type('판매처 검색', 'C'); await h.press('목록 다시 불러오기');
+        assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
+        assert.equal(h.input('판매처 검색').value, 'C');
+      }
+      const writes = ['createOnlineProvider', 'setProviderStatus', 'setProviderBrand']
+        .reduce((total, name) => total + b.calls[name].length, 0);
+      assert.equal(writes, 1, 'Refresh/retry must not resend any write');
+    }
+  });
+}
+
+test('a draft before the first search does not change the initial list scope on save', async () => {
+  const b = backend(); const h = harness(b.api);
+  await h.flush(); await h.type('판매처 검색', 'not-submitted');
+  await h.press('숨김', h.row());
+  assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', '']);
+});
+
+test('retrying failed initial data does not submit a draft search', async () => {
+  let attempts = 0;
+  const b = backend({ getBrands: async () => {
+    if (++attempts === 1) throw new Error('BRAND_READ_FAILED');
+    return copy(brands);
+  } });
+  const h = harness(b.api);
+  await h.flush(); await h.type('판매처 검색', 'not-submitted');
+  await h.press('판매처 관리 다시 불러오기');
+  assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', '']);
+  assert.equal(h.input('판매처 검색').value, 'not-submitted');
+  assert.equal(b.calls.getCategories.length, 2);
+  assert.equal(b.calls.getBrands.length, 2);
+});
+
+test('retrying an explicitly failed search keeps that attempted term', async () => {
+  let reads = 0;
+  const b = backend({ getOnlineProviders: async () => {
+    if (++reads === 3) throw new Error('SEARCH_FAILED');
+    return [copy(provider)];
+  } });
+  const h = harness(b.api);
+  await h.flush(); await h.type('판매처 검색', 'A'); await h.press('검색');
+  await h.type('판매처 검색', 'B'); await h.press('검색');
+  await h.type('판매처 검색', 'C'); await h.press('목록 다시 불러오기');
+  assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', 'A', 'B', 'B']);
+});
+
+test('Search and Enter commit the current draft, including same-render input', async () => {
+  const b = backend(); const h = harness(b.api);
+  await h.flush(); await h.type('판매처 검색', 'A'); await h.press('검색');
+  const input = h.input('판매처 검색');
+  input.onChangeText('B'); input.onSubmitEditing();
+  await h.flush(); await h.press('숨김', h.row());
+  assert.deepEqual(b.calls.getOnlineProviders.map(([query]) => query.query), ['', 'A', 'B', 'B']);
+});
+
+test('clearing a draft resets the list only after an explicit search', async () => {
+  const b = backend(); const h = harness(b.api);
+  await h.flush(); await h.type('판매처 검색', 'A'); await h.press('검색');
+  await h.type('판매처 검색', ''); await h.press('숨김', h.row());
+  assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
+  await h.press('검색'); await h.press('활성', h.row());
+  assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', 'A', 'A', '', '']);
+});
+
 (async () => {
   let failures = 0;
   for (const { name, run } of cases) {
