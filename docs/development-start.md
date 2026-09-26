@@ -43,14 +43,25 @@ Database CI recreates the project from migrations and runs every pgTAP suite und
 
 ### Applying migrations to the linked project
 
-Merging a PR does not apply its migrations to the linked Supabase project: the
-Cloudflare build ships only the web bundle, and the Supabase GitHub integration
-deploys only Edge Functions. After a PR that adds a migration is merged:
+Merging a PR deploys neither its migrations nor its Edge Functions to the linked
+Supabase project; the Cloudflare build ships only the web bundle. Deploy from
+GitHub Actions, which always checks out `main`:
+
+1. **Deploy Database Migrations**: run with `mode=dry-run`, review the pending
+   list, then run again with `mode=apply`.
+2. **Deploy Edge Functions**: run with `mode=dry-run` (the summary lists each
+   function's deployed version, `verify_jwt`, and whether `main` changed since),
+   then `mode=apply`. `functions` is `all` or a comma-separated list of slugs.
+   `verify_jwt` comes from `supabase/config.toml`. Apply refuses to run while
+   migrations are pending, so always deploy the database first.
+
+Local fallback, only when Actions is unavailable:
 
 ```bash
 git checkout main && git pull
 supabase migration list --linked
 supabase db push
+supabase functions deploy <slug> --project-ref ygoipwzakzdnkaaxyrgb
 ```
 
 Push only from a `main` checkout. Pushing from a feature branch records that branch's
@@ -91,4 +102,4 @@ Account deletion is server-side because deleting an Auth user requires an admin/
 
 ## Pull request workflow
 
-`main` is the single trunk (see `CLAUDE.md`). Branch from `main`, open a PR against `main`, and merge once Mobile CI and Database Tests are green. `main` is also what the Cloudflare Pages tester site and Supabase Edge Function deploys build from, so there is no separate integration branch to keep in sync. A PR that adds a migration additionally needs `supabase db push` from a `main` checkout after the merge (see [Applying migrations to the linked project](#applying-migrations-to-the-linked-project)).
+`main` is the single trunk (see `CLAUDE.md`). Branch from `main`, open a PR against `main`, and merge once Mobile CI and Database Tests are green. `main` is also what the Cloudflare Pages tester site and the Supabase deploy workflows build from, so there is no separate integration branch to keep in sync. A PR that adds a migration or changes an Edge Function additionally needs the **Deploy Database Migrations** and/or **Deploy Edge Functions** workflow run with `mode=apply` after the merge (see [Applying migrations to the linked project](#applying-migrations-to-the-linked-project)).
