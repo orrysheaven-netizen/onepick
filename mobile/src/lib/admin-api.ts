@@ -619,6 +619,38 @@ export type AdminPlaceCatalogMatch = {
   existing_item_id: string | null;
 };
 
+export type AdminItemLinkSuggestion = {
+  suggestion_id: string;
+  item_id: string;
+  item_name: string;
+  item_status: string;
+  category_name: string;
+  place_id: string | null;
+  place_name: string | null;
+  place_branch_name: string | null;
+  place_road_address: string | null;
+  current_map_url: string | null;
+  url: string;
+  username: string | null;
+  created_at: string;
+};
+
+/** Naver map links users left while registering a pick, newest first. */
+export function getItemLinkSuggestions(limit = 100) {
+  return adminRequest<AdminItemLinkSuggestion[]>('/rest/v1/rpc/admin_pending_item_link_suggestions', {
+    method: 'POST',
+    body: JSON.stringify({ p_limit: limit }),
+  });
+}
+
+/** Approving sets the store's map link for every menu item of that store. */
+export function reviewItemLinkSuggestion(suggestionId: string, approve: boolean) {
+  return adminRequest<unknown>('/rest/v1/rpc/admin_review_item_link_suggestion', {
+    method: 'POST',
+    body: JSON.stringify({ p_suggestion_id: suggestionId, p_approve: approve }),
+  });
+}
+
 export function getUnlinkedItems(query = '') {
   return adminRequest<AdminUnlinkedItem[]>('/rest/v1/rpc/admin_unlinked_items', {
     method: 'POST',
