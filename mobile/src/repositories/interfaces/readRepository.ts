@@ -67,6 +67,7 @@ export interface CategoryTopItem {
   pickCount: number;
   rank: number;
   isTied: boolean;
+  channels: PickChannel[];
 }
 
 /** One place/product per row, ordered by its latest visible active Pick. */
@@ -112,6 +113,7 @@ export interface EditorialHomeItem {
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
+  channels: PickChannel[];
 }
 
 export interface PickReadInput {

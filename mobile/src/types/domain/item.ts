@@ -1,3 +1,5 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
+
 export type ItemStatus =
   | 'pending'
   | 'active'
@@ -26,6 +28,8 @@ export interface Item {
   collectionName?: string | null;
   /** Free-text category hint on a pending registration request. */
   requestedCategoryLabel?: string | null;
+  /** Sales channels (offline store / online) for 맛집 items; empty or absent otherwise. */
+  channels?: PickChannel[];
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

@@ -21,6 +21,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyComments, useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
+import { categoryWithChannels } from '@/lib/home/homeChannels';
 import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
@@ -252,7 +253,7 @@ export default function ProfileScreen() {
             <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text></View>
             {history.map((item) => <ProfilePickCard
               key={item.pick.id}
-              categoryName={item.category?.name ?? '카테고리'}
+              categoryName={categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
               itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
               review={item.pick.oneLineReview}
               imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}

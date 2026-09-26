@@ -15,16 +15,22 @@ function load(file, imports = {}) {
 async function main() {
   const channels = load('lib/home/homeChannels.ts');
   assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '매장'], ['online', '온라인']]);
-  assert.equal(channels.homeChannelLabel(['offline']), '매장');
-  assert.equal(channels.homeChannelLabel(['online']), '온라인');
-  assert.equal(channels.homeChannelLabel(['online', 'offline']), '매장·온라인', 'Labels follow tab order, not server order');
+  assert.equal(channels.homeChannelLabel(['offline']), '오프라인맛집');
+  assert.equal(channels.homeChannelLabel(['online']), '온라인맛집');
+  assert.equal(channels.homeChannelLabel(['online', 'offline']), '오프라인맛집·온라인맛집', 'Labels follow tab order, not server order');
+  assert.equal(channels.categoryWithChannels('도가니탕', ['offline']), '도가니탕 · 오프라인맛집');
+  assert.equal(channels.categoryWithChannels('도가니탕', ['online']), '도가니탕 · 온라인맛집');
+  assert.equal(channels.categoryWithChannels('라면', []), '라면', 'Items without a channel show only the category');
+  assert.equal(channels.categoryWithChannels('라면', undefined), '라면');
   assert.equal(channels.homeChannelLabel([]), null, 'Legacy items without a channel get no label');
+  assert.equal(channels.homeChannelLabel(undefined), null, 'Rows without channels (e.g. an older cache) do not crash');
   assert.equal(channels.isPickChannel('offline'), true);
   assert.equal(channels.isPickChannel('delivery'), false, 'Delivery is not its own channel; it counts as 매장');
 
   const { AppError } = load('errors/appError.ts');
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
-  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError } };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }

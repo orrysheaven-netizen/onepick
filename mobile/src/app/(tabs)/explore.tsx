@@ -9,6 +9,7 @@ import { ItemSearch } from '@/components/item-search';
 import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
+import { homeChannelLabel } from '@/lib/home/homeChannels';
 import type { Category } from '@/types/domain/category';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
 
@@ -194,6 +195,7 @@ export default function ExploreScreen() {
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
                 <Text style={styles.rankName}>{item.name}</Text>
+                {homeChannelLabel(item.channels) ? <Text style={styles.rankCount}>{homeChannelLabel(item.channels)}</Text> : null}
                 {showRankingDetail ? <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text> : null}
               </View>
               <Text style={styles.arrow}>›</Text>
