@@ -1737,7 +1737,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      remove_pick: { Args: { p_category_id: string; p_channel?: string | null }; Returns: boolean }
       reserve_external_catalog_slot: {
         Args: { p_interval_ms: number; p_provider: string }
         Returns: number
