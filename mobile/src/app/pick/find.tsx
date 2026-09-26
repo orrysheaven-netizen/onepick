@@ -180,6 +180,14 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       params: { itemName: query.trim(), ...(selectedCategory ? { categoryId: selectedCategory.id } : {}), ...(isOnlineChannel ? { channel: 'online' } : {}) },
     });
   };
+  const requestPlace = () => {
+    if (!canAct() || !hasQuery || !selectedCategory || !isPlaceSearch) return;
+    navigating.current = true;
+    router.push({
+      pathname: '/pick/request',
+      params: { itemName: query.trim(), categoryId: selectedCategory.id },
+    });
+  };
   const loginForMovie = (externalId: string) => {
     if (!canAct() || !selectedCategory || !isCatalogCategory) return;
     navigating.current = true;
@@ -416,7 +424,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록합니다."
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
-      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="일치하는 장소를 찾지 못했어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다." /></View> : null}
+      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다."
+        action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
       {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요" text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
