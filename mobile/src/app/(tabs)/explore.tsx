@@ -6,6 +6,7 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
+import { ProfileLabEntry } from '@/components/profile-lab-entry';
 import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
@@ -209,6 +210,9 @@ export default function ExploreScreen() {
               onPress={() => router.push({ pathname: '/ranking/[slug]', params: { slug: selectedCategory.slug } })} />
           </View> : null}
         </View> : null}
+        {OnePickFeatures.lab ? <View style={styles.labEntry}>
+          <ProfileLabEntry count={0} description="맛집 말고 콘텐츠·테크·스타일 원픽은 실험실에서 골라요." onPress={() => router.push('/lab')} />
+        </View> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -216,6 +220,7 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
+  labEntry: { marginTop: 28 },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
   title: { color: OnePick.text, fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

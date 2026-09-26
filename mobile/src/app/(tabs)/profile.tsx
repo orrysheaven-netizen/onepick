@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
+import { ProfileLabEntry } from '@/components/profile-lab-entry';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
@@ -20,7 +21,8 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -147,6 +149,7 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
+  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
@@ -186,10 +189,10 @@ export default function ProfileScreen() {
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
         {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={currentPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
-        {currentPicks.length > 0 ? (
+        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={mainPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
+        {mainPicks.length > 0 ? (
           <ProfilePickGroups
-            picks={currentPicks}
+            picks={mainPicks}
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
@@ -199,6 +202,10 @@ export default function ProfileScreen() {
           <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
             action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
         )}
+        {OnePickFeatures.lab ? <View style={styles.labEntry}>
+          <ProfileLabEntry count={labPicks.length} description="콘텐츠·테크·스타일 원픽은 실험실에 따로 모아둬요."
+            onPress={() => router.push({ pathname: '/lab/[username]', params: { username: profile.username } })} />
+        </View> : null}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
@@ -268,6 +275,7 @@ const styles = StyleSheet.create({
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
+  labEntry: { marginTop: 14 },
   managementSection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   activitySection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   secondaryEyebrow: { color: OnePick.hint, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },

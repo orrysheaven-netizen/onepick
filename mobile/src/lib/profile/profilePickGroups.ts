@@ -149,3 +149,24 @@ export function remainingProfileCategories(groupId: string, pickedCategoryIds: S
     .filter((category) => !pickedCategoryIds.has(category.id))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
 }
+
+/** A theme other than the main one goes to 실험실; unmapped (기타) Picks stay on the main profile. */
+export function isLabTheme(code: string, mainThemeCode: string) {
+  return code !== mainThemeCode && code !== OTHER_PROFILE_THEME;
+}
+
+/** Splits Picks for the main profile and 실험실. With the lab off, everything stays main. */
+export function splitLabPicks(picks: PickReadItem[], categories: Category[], mainThemeCode: string, labEnabled: boolean) {
+  if (!labEnabled) return { main: picks, lab: [] as PickReadItem[] };
+  const main: PickReadItem[] = [];
+  const lab: PickReadItem[] = [];
+  for (const item of picks) {
+    (isLabTheme(resolveCategoryTheme(item.pick.categoryId, categories), mainThemeCode) ? lab : main).push(item);
+  }
+  return { main, lab };
+}
+
+/** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */
+export function isLabCategory(categoryId: string, categories: Category[], mainThemeCode: string, labEnabled: boolean) {
+  return labEnabled && isLabTheme(resolveCategoryTheme(categoryId, categories), mainThemeCode);
+}

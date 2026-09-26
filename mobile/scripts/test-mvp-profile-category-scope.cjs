@@ -75,10 +75,17 @@ async function main() {
 
   const ownerScreen = read('src/app/(tabs)/profile.tsx');
   const publicScreen = read('src/app/u/[username].tsx');
-  assert.match(ownerScreen, /picks=\{currentPicks\}/, 'Owner profile passes the complete current Pick collection to ProfilePickGroups');
-  assert.match(publicScreen, /picks=\{query\.data\.currentPicks\}/, 'Public profile passes the complete current Pick collection to ProfilePickGroups');
+  const labScreen = read('src/app/lab/[username].tsx');
+  // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
+  for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
+    assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
+    assert.match(screen, /picks=\{mainPicks\}/, `${name} profile shows the main-theme Picks`);
+    assert.match(screen, /<ProfileLabEntry count=\{labPicks\.length\}/, `${name} profile links the rest to 실험실`);
+  }
+  assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
+  assert.match(labScreen, /picks=\{labPicks\}/);
 
-  console.log('MVP profile scope checks passed: restaurant-first discovery never hides existing non-restaurant Picks from profiles.');
+  console.log('MVP profile scope checks passed: services keep every Pick; profiles show the main theme and move the rest to 실험실 instead of hiding it.');
 }
 
 main().catch((error) => {

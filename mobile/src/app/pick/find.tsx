@@ -21,7 +21,8 @@ import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
-import { OnePick } from '@/constants/onepick';
+import { isLabCategory } from '@/lib/profile/profilePickGroups';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 type Params = {
   categoryId?: string | string[];
@@ -83,6 +84,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   // MVP registration starts from a restaurant menu (e.g. 도가니탕), then asks 매장/온라인.
   const menuMode = !requestedCategoryId && Boolean(HOME_FEED_ROOT_SLUG);
   const menuTree = useExploreCategories(menuMode && authReady);
+  // Theme lookup for hiding 실험실 results from the unscoped search.
+  const themeCatalog = useExploreCategories(authReady && OnePickFeatures.lab);
   const menus = useMemo(() => homeMenuCategories(menuTree.data ?? []), [menuTree.data]);
   const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
   const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
@@ -119,7 +122,10 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const canSearchMovieCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 60;
   const canSearchPlaceCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 100;
   const searchedItems = hasSearchScope && !search.isWaiting && !search.isError
-    ? (search.data ?? []).filter((item) => !selectedCategory || item.categoryId === selectedCategory.id) : [];
+    ? (search.data ?? []).filter((item) => selectedCategory
+      ? item.categoryId === selectedCategory.id
+      // Unscoped search stays on the main theme; 실험실 passes a categoryId, so its searches are unaffected.
+      : !isLabCategory(item.categoryId, themeCatalog.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab)) : [];
   const localItems = isOnlineChannel ? searchedItems.filter((item) => item.externalSource === 'onepick_provider')
     : isPlaceCategory ? searchedItems.filter((item) => item.externalSource === 'onepick_place') : searchedItems;
   const externalMovies = (movieCatalog.data ?? []).filter((movie) => movie.source === source &&

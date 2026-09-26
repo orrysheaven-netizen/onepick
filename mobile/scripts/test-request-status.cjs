@@ -90,7 +90,7 @@ async function main() {
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
-    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
