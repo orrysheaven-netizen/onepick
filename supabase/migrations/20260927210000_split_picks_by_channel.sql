@@ -114,6 +114,18 @@ begin
     raise exception 'ITEM_NOT_ELIGIBLE' using errcode='P0001';
   end if;
 
+  -- DB is deployed before the app. Older clients do not send p_channel, so
+  -- infer the item's primary/single channel during the rollout instead of
+  -- creating a parallel null-channel Pick.
+  if v_channel is null then
+    select ch.channel into v_channel
+    from public.item_channels ch
+    where ch.item_id=p_item_id
+    order by ch.is_primary desc,
+      case ch.channel when 'offline' then 0 when 'online' then 1 when 'recipe' then 2 else 3 end
+    limit 1;
+  end if;
+
   if v_channel is not null and not exists (
     select 1 from public.item_channels ch
     where ch.item_id=p_item_id and ch.channel=v_channel
