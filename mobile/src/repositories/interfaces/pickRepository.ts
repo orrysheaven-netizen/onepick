@@ -39,7 +39,7 @@ export interface RecentPicksInput {
 
 export interface PickRepository {
   getById(pickId: string): Promise<Pick | null>;
-  getCurrentPick(userId: string, categoryId: string): Promise<Pick | null>;
+  getCurrentPick(userId: string, categoryId: string, channel?: 'offline' | 'online' | 'recipe'): Promise<Pick | null>;
   getCurrentPicksByUser(userId: string): Promise<Pick[]>;
   getActivePicksByUser(userId: string): Promise<Pick[]>;
   getHistoryByUser(userId: string, limit?: number): Promise<Pick[]>;
