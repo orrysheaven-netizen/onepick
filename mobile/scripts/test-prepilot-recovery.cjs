@@ -51,8 +51,8 @@ function harness(file, exportName, imports) {
   const Screen = load(file, {
     react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
-    '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
+    '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/report-action': { ReportAction: 'ReportAction' }, ...imports,
   })[exportName];
   function walk(value, location) {

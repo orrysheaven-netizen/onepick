@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { PickPhotoStep } from '@/components/pick-photo-step';
 import { BrandMark, Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -60,6 +61,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
+  // The item as returned by a photo saved in step 1; keeps the new photo on
+  // screen even before the detail query refreshes.
+  const [photoItem, setPhotoItem] = useState<Item | null>(null);
   const photoOfferClosed = useRef(false);
   const reviewInput = useRef<TextInput>(null);
   // Mutation state arrives on a later render. A synchronous phase also guards
@@ -67,7 +71,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const submitPhase = useRef<'idle' | 'saving' | 'saved'>('idle');
   // Preserve the acknowledged result even if a later detail refresh fails.
   // Navigation uses the returned Pick IDs, never a potentially stale myPickStatus.
-  const item = savedChoice?.item ?? itemQuery.data?.item;
+  const loadedItem = itemQuery.data?.item;
+  const item = savedChoice?.item ?? (photoItem && photoItem.id === loadedItem?.id ? photoItem : loadedItem);
   const pickStatus = itemQuery.data?.myPickStatus;
   // Food menus keep one Pick per channel (오프라인 맛집 / 온라인 맛집 / 레시피).
   const pickChannel = itemQuery.data?.pickChannel ?? null;
@@ -132,8 +137,15 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isSuccess = savedChoice !== null;
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
+  // No itemId: the card's own "사진 등록" shortcut leaves this screen and would drop
+  // the typed review. Photos are added in step 1 below instead.
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
-    itemId={savedChoice ? undefined : item.id} itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
+    itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
+  // Photo first, review last: an item without a photo gets an optional photo
+  // step above the review. Editing the review of the current pick skips it.
+  const needsPhotoStep = Boolean(user && item && !savedChoice && pickStatus?.type !== 'selected_this'
+    && ['active', 'discontinued'].includes(item.status)
+    && !item.imagePath && !item.imageUrl && !item.thumbnailUrl && !item.imageSourceUrl);
   // The receipt keeps its save snapshot, but the OPTIONAL photo invitation uses
   // current, successfully refreshed item data. Unknown/failed reads are not empty photos.
   const photoCandidate = itemQuery.data?.item;
@@ -191,7 +203,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             </View>
           </View>
           {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
-          <View style={styles.inputHeader}><Text style={styles.inputLabel}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
+          {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={choosePick.isPending}
+            onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
+          <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!choosePick.isPending}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
