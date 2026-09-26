@@ -44,7 +44,7 @@ function loadApi(fetchFn) {
 
   // Every refusal the RPC can raise has an admin-facing explanation in the panel.
   const panel = fs.readFileSync(path.join(__dirname, '../src/components/admin/data/items-panel.tsx'), 'utf8');
-  const migration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260927130000_add_admin_move_item_category.sql'), 'utf8');
+  const migration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260927140000_add_admin_move_item_category.sql'), 'utf8');
   const reasons = [...migration.matchAll(/then '([A-Z_]+)'/g)].map((match) => match[1]);
   assert.ok(reasons.length >= 8, 'The migration lists its refusal reasons');
   for (const reason of [...reasons, 'ITEM_NOT_FOUND']) {
