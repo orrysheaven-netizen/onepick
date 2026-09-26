@@ -1,13 +1,14 @@
 // Tabs of the admin /admin/data page and the sidebar sections that group them.
 // Kept outside the route file so the dashboard (and anything else that
 // deep-links into a tab) can import the type without importing a screen.
-export type AdminDataTab = 'categories' | 'brands' | 'providers' | 'items' | 'editorial' | 'pending' | 'users' | 'reports' | 'audit';
+export type AdminDataTab = 'categories' | 'brands' | 'providers' | 'items' | 'channels' | 'editorial' | 'pending' | 'users' | 'reports' | 'audit';
 
 export const ADMIN_DATA_TABS: Array<{ key: AdminDataTab; label: string; description: string }> = [
   { key: 'categories', label: '카테고리', description: '최대 3단계까지 카테고리를 구성하고, 노출 여부·Pick 가능 여부·상태와 정렬 순서를 관리합니다.' },
   { key: 'brands', label: '브랜드', description: '상품 등록에 사용할 브랜드를 추가하고 활성 상태를 관리합니다.' },
   { key: 'providers', label: '판매처', description: '온라인 공식 판매처를 생성·검색하고 브랜드 연결과 노출 상태를 관리합니다.' },
   { key: 'items', label: '상품', description: '상품 상태, 운영 메타데이터와 검색 별칭을 관리합니다.' },
+  { key: 'channels', label: '맛집 채널 연결', description: '매장·온라인 정보 없이 등록된 기존 음식 원픽 항목을 장소나 온라인 판매처에 연결합니다. 연결하면 홈의 매장/온라인 탭에 나오고, 기존 원픽은 그대로 유지됩니다.' },
   { key: 'editorial', label: '홈 추천', description: '초기 운영에서 먼저 소개할 원픽을 직접 고릅니다. 사용자 추천 수·인기 순위와는 별도입니다.' },
   { key: 'pending', label: '검수 대기', description: '사용자가 추가한 pending 상품을 승인, 반려하거나 기존 상품과 병합합니다.' },
   { key: 'users', label: '사용자', description: '사용자를 조회하고 계정을 정지하거나 해제합니다. 정지된 사용자의 공개 콘텐츠는 숨겨지고 새 Pick·댓글 작성이 차단됩니다.' },
@@ -33,7 +34,7 @@ function tabItem(tab: AdminDataTab): AdminNavItem {
 export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { title: null, items: [{ href: '/admin/dashboard', label: '원픽 대시보드' }] },
   { title: '처리 대기', items: [tabItem('pending'), tabItem('reports')] },
-  { title: '콘텐츠', items: [tabItem('categories'), tabItem('brands'), tabItem('providers'), tabItem('items'), tabItem('editorial')] },
+  { title: '콘텐츠', items: [tabItem('categories'), tabItem('brands'), tabItem('providers'), tabItem('items'), tabItem('channels'), tabItem('editorial')] },
   { title: '사용자·기록', items: [tabItem('users'), tabItem('audit')] },
   {
     title: 'QA 도구',
