@@ -66,7 +66,7 @@ export default function HomeScreen() {
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
-  const showCategoryFilters = categoryFilters.length > 1 &&
+  const showCategoryFilters = Boolean(OnePickFeatures.categoryChips) && categoryFilters.length > 1 &&
     (data?.picks.length ?? 0) >= OnePickThresholds.homeCategoryFilterMinPicks;
   // Disable the filter in this render, before the effect clears its saved value.
   const selectedCategoryGroup = showCategoryFilters
