@@ -81,7 +81,7 @@ function profile(isPublic = false) {
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
-    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false);
+    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
@@ -168,10 +168,10 @@ async function main() {
     const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|이전 원픽 기록|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
     assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
     assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
-    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')), undefined);
+    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('새로고침')), undefined);
   });
   await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
-    flags.profilePickHistory = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
     assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 원픽 등록 요청/);
     history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '이전 기록 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
@@ -182,13 +182,15 @@ async function main() {
   });
   await test('Owner header refresh appears only on profile refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
-    await view.find('Button', (p) => p.accessibilityLabel?.includes('상태 새로고침')).onPress();
-    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 1);
+    await view.find('Button', (p) => p.accessibilityLabel === '프로필 새로고침').onPress();
+    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 0);
   });
-  await test('Pick history and social links stay hidden until restored', () => {
+  await test('Activity, pick history and social links stay hidden until restored', () => {
     const owner = profile();
+    owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }];
     owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
-    assert.doesNotMatch(owner.view.text(), /이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    flags.profileItemRequests = true; owner.view.render(); assert.match(owner.view.text(), /활동 기록/); assert.match(owner.view.text(), /New request/);
     flags.profilePickHistory = true; flags.profileSocialLinks = true; owner.view.render();
     assert.match(owner.view.text(), /이전 원픽 기록/); assert.equal(owner.view.all('ProfilePickCard').length, 1); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
     flags.profileSocialLinks = false; const visitor = profile(true); assert.equal(visitor.view.all('ProfileSocialLinks').length, 0);

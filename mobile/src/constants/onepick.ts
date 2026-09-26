@@ -94,6 +94,7 @@ export const OnePickFeatures = {
   // Hidden during the early MVP; the data and components stay in place.
   profilePickHistory: false,
   profileSocialLinks: false,
+  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
 } as const;

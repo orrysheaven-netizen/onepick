@@ -22,8 +22,8 @@ function load(file, imports = {}) {
   return exports;
 }
 
-// History and SNS are hidden in the MVP; keep covering their retained behaviour for when they return.
-Object.assign(require('./design-tokens.cjs').OnePickFeatures, { profilePickHistory: true, profileSocialLinks: true });
+// History, SNS and item requests are hidden in the MVP; keep covering their retained behaviour for when they return.
+Object.assign(require('./design-tokens.cjs').OnePickFeatures, { profilePickHistory: true, profileSocialLinks: true, profileItemRequests: true });
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 
