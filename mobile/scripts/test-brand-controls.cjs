@@ -185,13 +185,13 @@ test('web Link tabs pass one layout style object through Link asChild', () => {
   }
 });
 test('web tab routes and nested selection remain unchanged', () => {
-  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/profile/edit', '내 프로필']]) {
+  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/comments', '내 댓글'], ['/profile/edit', '내 프로필']]) {
     pathname = url;
     const tree = expand(AppTabs());
     const active = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityState?.selected);
     assert.equal(active.length, 1);
     assert.equal(active[0].props.accessibilityLabel, selected);
-    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/profile']);
+    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/comments', '/profile']);
   }
 });
 test('brand home link passes one style object through Link asChild', () => {

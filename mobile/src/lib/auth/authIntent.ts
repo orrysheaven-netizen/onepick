@@ -39,6 +39,7 @@ export type AuthIntent =
   | { action: 'view_profile'; username: string }
   | { action: 'join_from_profile' }
   | { action: 'profile' }
+  | { action: 'my_comments' }
   | { action: 'home' };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -139,6 +140,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
   if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
+  if (params.action === 'my_comments') return { action: 'my_comments' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
 
@@ -172,6 +174,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     // A visitor who came to make their own Picks lands on the feed, not back on the profile they read.
     case 'join_from_profile': return '/';
     case 'profile': return '/profile';
+    case 'my_comments': return '/comments';
     default: return '/';
   }
 }
