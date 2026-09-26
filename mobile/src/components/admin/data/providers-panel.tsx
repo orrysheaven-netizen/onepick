@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AdminCategoryPicker } from '@/components/admin/category-picker';
 import {
   createOnlineProvider,
   getBrands,
@@ -16,7 +17,7 @@ import type {
   AdminOnlineProvider,
   AdminProviderStatus,
 } from '@/lib/admin-api';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
@@ -270,18 +271,16 @@ export function ProvidersPanel() {
 
           <View>
             <Text style={adminStyles.label}>첫 원픽 카테고리</Text>
-            <View style={adminStyles.row}>
-              {initialized && eligibleCategories.length === 0 && <Text style={adminStyles.muted}>선택 가능한 카테고리가 없습니다.</Text>}
-              {eligibleCategories.map((category) => (
-                <Choice
-                  key={category.id}
-                  active={categoryId === category.id}
-                  disabled={actionsDisabled}
-                  label={categoryLabel(category, domainCategories)}
-                  onPress={() => setCategoryId(category.id)}
-                />
-              ))}
-            </View>
+            {initialized && (
+              <AdminCategoryPicker
+                accessibilityLabel="첫 원픽 카테고리 검색"
+                categories={domainCategories}
+                selectable={eligibleCategories}
+                value={categoryId}
+                disabled={actionsDisabled}
+                onChange={setCategoryId}
+              />
+            )}
           </View>
 
           <View>

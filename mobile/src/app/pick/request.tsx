@@ -386,23 +386,6 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           value={name}
         />
 
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.label, styles.reviewLabel]}>한 줄 이유 <Text style={styles.required}>필수</Text></Text>
-          <Text style={styles.counter}>{review.length}/100</Text>
-        </View>
-        <TextInput
-          accessibilityLabel="원픽 한줄평"
-          editable={!submitting}
-          maxLength={100}
-          multiline
-          onChangeText={setReview}
-          placeholder="예: 결국 기본으로 돌아오게 되는 맛"
-          placeholderTextColor={OnePick.hint}
-          style={[styles.input, styles.reviewInput]}
-          value={review}
-        />
-        <Text style={styles.helper}>승인되면 이 이유와 함께 내 원픽으로 바로 등록돼요. 따로 다시 고를 필요 없어요.</Text>
-
         {isOnlineRequest ? <>
           <Text style={styles.label}>판매처 링크</Text>
           <TextInput accessibilityLabel="온라인 판매처 링크" editable={!submitting} value={sellerLink} onChangeText={setSellerLink}
@@ -442,6 +425,23 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </> : null}
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
         </View>
+
+        <View style={styles.reviewHeader}>
+          <Text style={[styles.label, styles.reviewLabel]}>한 줄 이유 <Text style={styles.required}>필수</Text></Text>
+          <Text style={styles.counter}>{review.length}/100</Text>
+        </View>
+        <TextInput
+          accessibilityLabel="원픽 한줄평"
+          editable={!submitting}
+          maxLength={100}
+          multiline
+          onChangeText={setReview}
+          placeholder="예: 결국 기본으로 돌아오게 되는 맛"
+          placeholderTextColor={OnePick.hint}
+          style={[styles.input, styles.reviewInput]}
+          value={review}
+        />
+        <Text style={styles.helper}>승인되면 이 이유와 함께 내 원픽으로 바로 등록돼요. 따로 다시 고를 필요 없어요.</Text>
 
         {!auth.user ? (
           <View style={styles.notice}>
