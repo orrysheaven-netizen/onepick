@@ -31,7 +31,7 @@ async function main() {
   const shared = [];
   assert.equal(await load('web', { share: async (data) => { shared.push(data); } })(input), 'shared');
   assert.equal(shared[0].url, 'https://onepick.test/pick/p1');
-  assert.match(shared[0].text, /@onepick_qa님의 내장탕 원픽: 중앙해장/);
+  assert.deepEqual({ ...shared[0] }, { url: 'https://onepick.test/pick/p1' }, 'Only the link is shared');
   const abort = Object.assign(new Error('cancel'), { name: 'AbortError' });
   assert.equal(await load('web', { share: async () => { throw abort; } })(input), 'dismissed');
 
@@ -45,7 +45,10 @@ async function main() {
   let nativePayload;
   const native = load('ios', undefined, { share: async (payload) => { nativePayload = payload; return { action: 'sharedAction' }; }, dismissedAction: 'dismissedAction' });
   assert.equal(await native(input), 'shared');
-  assert.match(nativePayload.message, /https:\/\/onepick\.test\/pick\/p1$/);
+  assert.deepEqual({ ...nativePayload }, { url: 'https://onepick.test/pick/p1' }, 'iOS shares only the link');
+  let androidPayload;
+  await load('android', undefined, { share: async (payload) => { androidPayload = payload; return { action: 'sharedAction' }; }, dismissedAction: 'dismissedAction' })(input);
+  assert.deepEqual({ ...androidPayload }, { message: 'https://onepick.test/pick/p1' }, 'Android shares only the link');
   const dismissed = load('ios', undefined, { share: async () => ({ action: 'dismissedAction' }), dismissedAction: 'dismissedAction' });
   assert.equal(await dismissed(input), 'dismissed');
 

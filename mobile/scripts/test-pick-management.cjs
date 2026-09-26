@@ -129,7 +129,7 @@ async function main() {
   });
   const render = () => renderToStaticMarkup(React.createElement(ItemReviewCard, { pick: data.pick, profile: data.profile, categoryName: data.category.name, itemName: data.item.name, focused: false, highlighted: false, onRemoved() {} }));
   // The owner's corner actions replace the old 내 원픽 관리 box and badge.
-  const manage = />수정<[\s\S]*>해제</;
+  const manage = />수정<[\s\S]*>원픽 해제</;
   assert.match(render(), manage);
   assert.match(render(), /내 한줄평/);
   assert.doesNotMatch(render(), /내 원픽 관리|내 원픽</);

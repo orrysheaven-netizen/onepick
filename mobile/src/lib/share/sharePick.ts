@@ -17,10 +17,9 @@ function isAbort(error: unknown) {
   return Boolean(error && typeof error === 'object' && 'name' in error && (error as { name?: string }).name === 'AbortError');
 }
 
+/** Shares only the Pick link; the page it opens carries the item and review. */
 export async function sharePick(input: SharePickInput): Promise<SharePickResult> {
   const url = createPickShareUrl(input.pickId);
-  const title = `${input.itemName} · OnePick`;
-  const text = [`@${input.username}님의 ${input.categoryName} 원픽: ${input.itemName}`, `“${input.oneLineReview}”`].join('\n');
 
   if (Platform.OS === 'web') {
     // react-native-web's Share rejects outright when navigator.share is missing
@@ -28,7 +27,7 @@ export async function sharePick(input: SharePickInput): Promise<SharePickResult>
     const nav = typeof navigator !== 'undefined' ? navigator : undefined;
     if (nav?.share) {
       try {
-        await nav.share({ title, text, url });
+        await nav.share({ url });
         return 'shared';
       } catch (error) {
         if (isAbort(error)) return 'dismissed';
@@ -42,6 +41,7 @@ export async function sharePick(input: SharePickInput): Promise<SharePickResult>
     throw new Error('SHARE_UNSUPPORTED');
   }
 
-  const result = await Share.share({ title, message: `${text}\n${url}` });
+  // iOS shares `url` as a link; Android reads only `message`.
+  const result = await Share.share(Platform.OS === 'ios' ? { url } : { message: url });
   return Share.dismissedAction && result.action === Share.dismissedAction ? 'dismissed' : 'shared';
 }
