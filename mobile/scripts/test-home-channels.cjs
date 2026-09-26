@@ -14,12 +14,12 @@ function load(file, imports = {}) {
 
 async function main() {
   const channels = load('lib/home/homeChannels.ts');
-  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '매장'], ['online', '온라인']]);
-  assert.equal(channels.homeChannelLabel(['offline']), '오프라인맛집');
-  assert.equal(channels.homeChannelLabel(['online']), '온라인맛집');
-  assert.equal(channels.homeChannelLabel(['online', 'offline']), '오프라인맛집·온라인맛집', 'Labels follow tab order, not server order');
-  assert.equal(channels.categoryWithChannels('도가니탕', ['offline']), '도가니탕 · 오프라인맛집');
-  assert.equal(channels.categoryWithChannels('도가니탕', ['online']), '도가니탕 · 온라인맛집');
+  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '오프라인 맛집'], ['online', '온라인 맛집']]);
+  assert.equal(channels.homeChannelLabel(['offline']), '오프라인 맛집');
+  assert.equal(channels.homeChannelLabel(['online']), '온라인 맛집');
+  assert.equal(channels.homeChannelLabel(['online', 'offline']), '오프라인 맛집·온라인 맛집', 'Labels follow tab order, not server order');
+  assert.equal(channels.categoryWithChannels('도가니탕', ['offline']), '도가니탕 · 오프라인 맛집');
+  assert.equal(channels.categoryWithChannels('도가니탕', ['online']), '도가니탕 · 온라인 맛집');
   assert.equal(channels.categoryWithChannels('라면', []), '라면', 'Items without a channel show only the category');
   assert.equal(channels.categoryWithChannels('라면', undefined), '라면');
   assert.equal(channels.homeChannelLabel([]), null, 'Legacy items without a channel get no label');
