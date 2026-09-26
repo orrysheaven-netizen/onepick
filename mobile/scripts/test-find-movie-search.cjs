@@ -73,6 +73,7 @@ const imports = {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
+  '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/components/music-search-link': { MusicSearchLink: () => null },

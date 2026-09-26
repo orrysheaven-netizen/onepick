@@ -55,6 +55,7 @@ function harness(file, imports) {
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/onepick-brand': { OnePickBrand: 'OnePickBrand' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,
   }).default;
   function walk(value, loc) {

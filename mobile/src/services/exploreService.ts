@@ -15,6 +15,12 @@ export class ExploreService {
     return this.readRepository.getCategoryTopItems(categoryId);
   }
 
+  getRecentItems(categoryIds: string[] | null, cursor: ReadCursor | null = null, storesOnly = false) {
+    // An empty scope means nothing is browsable yet, not "every category".
+    if (categoryIds && !categoryIds.length) return Promise.resolve({ items: [], nextCursor: null });
+    return this.readRepository.getRecentPickedItems(categoryIds, cursor, storesOnly);
+  }
+
   async getExploreData(categoryId?: string, cursor: ReadCursor | null = null, limit = EXPLORE_PAGE_SIZE) {
     const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 99) : EXPLORE_PAGE_SIZE;
     const [openCategories, rows] = await Promise.all([

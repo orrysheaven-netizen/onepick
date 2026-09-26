@@ -23,6 +23,26 @@ export function useCategoryTopItems(categoryId?: string) {
   });
 }
 
+/** Places/products in scope, one per item, most recently picked first. */
+export function useRecentPickedItems(categoryIds: string[] | null, enabled = true, storesOnly = false) {
+  return useInfiniteQuery({
+    enabled,
+    queryKey: queryKeys.explore.recentItems(categoryIds, storesOnly),
+    initialPageParam: null as ReadCursor | null,
+    queryFn: ({ pageParam }) => exploreService.getRecentItems(categoryIds, pageParam, storesOnly),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    select: (data) => {
+      // A Pick between page fetches can move an item up; keep its first (newest) row only.
+      const seen = new Set<string>();
+      return data.pages.flatMap((page) => page.items).filter((item) => {
+        if (seen.has(item.itemId)) return false;
+        seen.add(item.itemId);
+        return true;
+      });
+    },
+  });
+}
+
 export function useExploreData(categoryId?: string, enabled = true) {
   return useInfiniteQuery({
     enabled,

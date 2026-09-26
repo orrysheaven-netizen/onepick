@@ -103,14 +103,16 @@ type ItemReviewNotificationRow = {
   recipient_id: string;
   outcome: 'approved' | 'merged' | 'rejected';
   target_item_id: string;
+  pick_id: string | null;
   /** Admin's reason, set only for rejected rows. */
   reason: string | null;
   created_at: string;
   read_at: string | null;
 };
-// item_review rows have no pick or sender: pick_id and username are null and
-// item_id is the approved product to pick. Rejected rows point at the request
-// itself (nothing to pick) and carry the admin's reason in body.
+// item_review rows have no sender: username is null, item_id is the approved
+// product and pick_id is the pick approval created (null if none was made).
+// Rejected rows point at the request itself (nothing to pick) and carry the
+// admin's reason in body.
 export type NotificationPageRow = {
   kind: 'comment' | 'pick_change' | 'item_review';
   id: string;
@@ -185,6 +187,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
       notification_page: {
         Args: { p_before_time?: string; p_before_id?: string };
         Returns: NotificationPageRow[];
+      };
+      set_pending_item_pick_review: {
+        Args: { p_item_id: string; p_review: string };
+        Returns: { item_id: string; user_id: string; one_line_review: string; created_at: string; updated_at: string };
       };
       item_photo_credit: {
         Args: { p_item_id: string };

@@ -67,6 +67,23 @@ export interface CategoryTopItem {
   pickCount: number;
   rank: number;
   isTied: boolean;
+  channels: PickChannel[];
+}
+
+/** One place/product per row, ordered by its latest visible active Pick. */
+export interface RecentPickedItem {
+  itemId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  thumbnailUrl: string | null;
+  lastPickedAt: string;
+  channels: PickChannel[];
+}
+
+export interface RecentPickedItemPage {
+  items: RecentPickedItem[];
+  nextCursor: ReadCursor | null;
 }
 
 export interface HomeShowcaseItem {
@@ -97,6 +114,7 @@ export interface EditorialHomeItem {
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
+  channels: PickChannel[];
 }
 
 export interface PickReadInput {
@@ -121,6 +139,11 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  /**
+   * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
+   * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.
+   */
+  getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
