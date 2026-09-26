@@ -1,19 +1,19 @@
 import type { PickChannel } from '@/repositories/interfaces/readRepository';
 
 /**
- * Home 매장/온라인 tabs. Delivery counts as 매장 (it is one store's food);
- * 온라인 means shipped or online-store sales. Items without a channel (legacy
- * products) only appear under 전체.
+ * Home 오프라인 맛집/온라인 맛집 tabs. Delivery counts as offline (it is one
+ * store's food); online means shipped or online-store sales. Items without a
+ * channel (legacy products) only appear under 전체.
  */
 export const HOME_CHANNEL_TABS: readonly { channel: PickChannel | null; label: string }[] = [
   { channel: null, label: '전체' },
-  { channel: 'offline', label: '매장' },
-  { channel: 'online', label: '온라인' },
+  { channel: 'offline', label: '오프라인 맛집' },
+  { channel: 'online', label: '온라인 맛집' },
 ];
 
-// Content labels (cards, detail, rankings). The tabs and the registration choice keep
-// the short 매장/온라인 wording.
-const CHANNEL_LABELS: Record<PickChannel, string> = { offline: '오프라인맛집', online: '온라인맛집' };
+// Content labels (cards, detail, rankings) match the Home tabs. The registration
+// choice keeps the short 매장/온라인 wording with its own descriptions.
+const CHANNEL_LABELS: Record<PickChannel, string> = { offline: '오프라인 맛집', online: '온라인 맛집' };
 
 export function isPickChannel(value: unknown): value is PickChannel {
   return value === 'offline' || value === 'online';
@@ -27,7 +27,7 @@ export function homeChannelLabel(channels: readonly PickChannel[] | null | undef
   return labels.length ? labels.join('·') : null;
 }
 
-/** "도가니탕 · 오프라인맛집" for items with a channel; the category name alone otherwise. */
+/** "도가니탕 · 오프라인 맛집" for items with a channel; the category name alone otherwise. */
 export function categoryWithChannels(categoryName: string, channels: readonly PickChannel[] | null | undefined) {
   const label = homeChannelLabel(channels);
   return label ? `${categoryName} · ${label}` : categoryName;
