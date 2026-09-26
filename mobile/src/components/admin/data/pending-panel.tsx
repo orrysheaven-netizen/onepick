@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, TextInp
 
 import { adminStyles } from '@/components/admin/admin-shell';
 import { AppError } from '@/errors/appError';
-import { ADMIN_PAGE_SIZE, createCategory, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, isOnlineSellerRequest, mergePendingItem, resolveOnlineSellerRequest, updatePendingItem } from '@/lib/admin-api';
+import { ADMIN_PAGE_SIZE, REJECT_REASON_MAX_LENGTH, createCategory, getCategories, getMergeCandidates, getPendingItemCategorySuggestion, getPendingItems, isOnlineSellerRequest, mergePendingItem, resolveOnlineSellerRequest, updatePendingItem } from '@/lib/admin-api';
 import type { AdminCategory, AdminItem, AdminItemCategorySuggestion, PendingItem } from '@/lib/admin-api';
 import { chooseItemPhoto, importItemPhoto, itemPhotoUrl, saveItemPhoto } from '@/lib/admin/itemPhoto';
 import { categoryLabel, newLeafParentCategories, selectableCategories } from '@/lib/categories/categoryTree';
@@ -35,6 +35,8 @@ const CATEGORY_RESULT_LIMIT = 30;
 type SuggestionConfidence = AdminItemCategorySuggestion['suggestions'][number]['confidence'];
 const CONFIDENCE_LABELS: Record<SuggestionConfidence, string> = { high: '높음', medium: '보통', low: '낮음' };
 
+const QUICK_REJECT_REASONS = ['중복 상품', '원픽 대상 아님', '정보 부족', '부적절한 내용', '배달앱 링크'];
+
 function confidenceRank(confidence: SuggestionConfidence) {
   return confidence === 'high' ? 2 : confidence === 'medium' ? 1 : 0;
 }
@@ -55,6 +57,7 @@ function reviewErrorMessage(caught: unknown, fallback: string) {
   if (message.includes('ITEM_NAME_INVALID')) return '상품명이 비어 있거나 100자를 넘어 승인할 수 없습니다.';
   if (message.includes('SOURCE_ITEM_NOT_PENDING')) return '이미 처리된 요청입니다. 목록을 새로고침해 주세요.';
   if (message.includes('online_stores_not_delivery_app')) return '배달앱 링크는 온라인 판매처가 될 수 없습니다. 배달은 매장 원픽이므로 반려해 주세요.';
+  if (message.includes('REJECT_REASON_INVALID')) return `반려 사유를 1~${REJECT_REASON_MAX_LENGTH}자로 입력해 주세요.`;
   if (message.includes('SOURCE_ITEM_IN_USE')) return '이 요청에 이미 원픽이 연결되어 있어 병합할 수 없습니다.';
   return message || fallback;
 }
@@ -95,6 +98,7 @@ export function PendingPanel() {
   const [platform, setPlatform] = useState('');
   const [storeKey, setStoreKey] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -152,6 +156,7 @@ export function PendingPanel() {
   const isSellerRequest = Boolean(selected && isOnlineSellerRequest(selected));
   const busy = processing || !!mergingId || resolving;
   const canResolve = !busy && Boolean(sellerName.trim()) && Boolean(sellerUrl.trim());
+  const canReject = !busy && Boolean(rejectReason.trim());
 
   useEffect(() => {
     if (createdCategoryId.current) {
@@ -173,6 +178,7 @@ export function PendingPanel() {
     setStoreType('official_site');
     setPlatform('');
     setStoreKey('');
+    setRejectReason('');
     const ownCategoryIsSelectable = Boolean(
       selected
       && selected.categories?.slug !== 'pending-product'
@@ -263,12 +269,20 @@ export function PendingPanel() {
       setError('승인할 실제 카테고리를 먼저 선택해 주세요.');
       return;
     }
-    if (status === 'rejected' && !window.confirm(`${selected.name} 상품을 반려하시겠습니까?`)) return;
+    if (status === 'rejected' && !rejectReason.trim()) {
+      setError('반려 사유를 입력해 주세요.');
+      return;
+    }
     setProcessing(true);
     setError('');
     setMessage('');
     try {
-      await updatePendingItem(selected.id, status, status === 'active' ? reviewCategoryId : undefined);
+      await updatePendingItem(
+        selected.id,
+        status,
+        status === 'active' ? reviewCategoryId : undefined,
+        status === 'rejected' ? rejectReason : undefined,
+      );
       removeSelected(
         selected.name,
         status === 'active' && reviewCategory ? `상품을 ${reviewCategoryLabel(reviewCategory)} 카테고리로 승인했습니다.` : '상품을 반려했습니다.',
@@ -670,6 +684,30 @@ export function PendingPanel() {
                 {!mergeSearching && mergeCandidates.length === 0 && <Text style={styles.mergeEmpty}>검색하면 병합 가능한 기존 상품이 여기에 표시됩니다.</Text>}
               </View>
 
+              <View style={styles.rejectBox}>
+                <Text style={styles.mergeTitle}>반려 사유</Text>
+                <Text style={adminStyles.muted}>반려하면 요청한 사용자에게 이 사유가 알림으로 전달됩니다.</Text>
+                <View style={styles.categoryChoices}>
+                  {QUICK_REJECT_REASONS.map((reason) => (
+                    <Pressable key={reason} accessibilityRole="button" accessibilityState={{ selected: rejectReason === reason }} disabled={busy}
+                      onPress={() => setRejectReason(reason)} style={[styles.categoryChoice, rejectReason === reason && styles.categoryChoiceSelected]}>
+                      <Text style={[styles.categoryChoiceText, rejectReason === reason && styles.categoryChoiceTextSelected]}>{reason}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  accessibilityLabel="반려 사유"
+                  value={rejectReason}
+                  onChangeText={setRejectReason}
+                  editable={!busy}
+                  multiline
+                  maxLength={REJECT_REASON_MAX_LENGTH}
+                  placeholder="직접 입력하거나 위에서 골라 주세요."
+                  style={[adminStyles.input, styles.rejectInput]}
+                />
+                <Text style={styles.rejectCount}>{rejectReason.trim().length}/{REJECT_REASON_MAX_LENGTH}</Text>
+              </View>
+
               <View style={adminStyles.row}>
                 {isSellerRequest ? null : <Pressable
                   accessibilityState={{ disabled: busy || !reviewCategoryId }}
@@ -679,7 +717,7 @@ export function PendingPanel() {
                 >
                   <Text style={adminStyles.primaryButtonText}>{processing ? '처리 중' : '승인'}</Text>
                 </Pressable>}
-                <Pressable disabled={busy} onPress={() => process('rejected')} style={[adminStyles.dangerButton, busy && { opacity: 0.5 }]}>
+                <Pressable accessibilityState={{ disabled: !canReject }} disabled={!canReject} onPress={() => process('rejected')} style={[adminStyles.dangerButton, !canReject && { opacity: 0.5 }]}>
                   <Text style={adminStyles.dangerButtonText}>반려</Text>
                 </Pressable>
               </View>
@@ -781,4 +819,7 @@ const styles = StyleSheet.create({
   candidateName: { color: OnePick.text, fontSize: 13, fontWeight: '700', marginBottom: 3 },
   mergeEmpty: { color: OnePick.hint, fontSize: 12, paddingTop: 4 },
   newCategoryBox: { gap: 10, borderWidth: 1, borderColor: OnePick.accent, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
+  rejectBox: { gap: 10, borderWidth: 1, borderColor: OnePick.border, borderRadius: 10, padding: 14, backgroundColor: OnePick.surface },
+  rejectInput: { minHeight: 72, textAlignVertical: 'top' },
+  rejectCount: { alignSelf: 'flex-end', color: OnePick.hint, fontSize: 11 },
 });

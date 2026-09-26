@@ -20,6 +20,10 @@ function subjectParticle(word: string) {
 
 function describe(item: AppNotification) {
   if (item.kind === 'item_review') {
+    if (item.outcome === 'rejected') {
+      const message = `등록 요청하신 ${item.item_name}${subjectParticle(item.item_name)} 반려됐어요.`;
+      return { sender: '원픽 등록 결과', badge: '반려', message, label: item.body ? `${message} 사유: ${item.body}` : message };
+    }
     // With pick_id the approval already made the product the requester's pick.
     // Without it (requests sent before reviews were collected) they still choose.
     const message = item.pick_id
@@ -53,9 +57,10 @@ export default function NotificationsScreen() {
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
   const open = (item: AppNotification) => {
     if (!ready) return;
-    if (item.kind === 'item_review' && !item.pick_id) {
+    // A rejected request has nothing to pick; opening it only marks it read.
+    if (item.kind === 'item_review' && item.outcome !== 'rejected' && !item.pick_id) {
       if (item.item_id) router.push({ pathname: '/pick/choose', params: { itemId: item.item_id } });
-    } else if (item.pick_id) {
+    } else if (item.pick_id && item.outcome !== 'rejected') {
       router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });
     }
     if (!item.read_at) void read.mutateAsync({ kind: item.kind, id: item.id }).catch(() => undefined);
@@ -80,7 +85,7 @@ export default function NotificationsScreen() {
           style={({ pressed }) => [styles.card, !item.read_at && styles.unread, pressed && { opacity: 0.65 }]}>
           <View style={styles.row}><Text style={styles.sender}>{copy.sender}</Text>{!item.read_at ? <Text style={styles.newLabel}>{copy.badge}</Text> : null}</View>
           <Text style={styles.message}>{copy.message}</Text>
-          {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : `“${item.body}”`}</Text> : null}
+          {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : item.kind === 'item_review' ? `사유: ${item.body}` : `“${item.body}”`}</Text> : null}
           <Text style={styles.time}>{formatNotificationTime(item.created_at)}</Text>
         </Pressable>;
       }}

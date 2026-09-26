@@ -87,7 +87,7 @@ begin
   perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   perform public.admin_review_pending_item(req_b,'active');
   perform public.admin_review_pending_item(req_c,'active');
-  perform public.admin_review_pending_item(req_e,'rejected');
+  perform public.admin_review_pending_item(req_e,'rejected',null,'정보 부족');
   perform public.admin_review_pending_item(req_f,'active');
   reset role;
 
