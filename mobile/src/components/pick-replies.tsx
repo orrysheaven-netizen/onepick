@@ -30,13 +30,17 @@ function getCommentErrorMessage(error: unknown) {
   return '댓글을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
-export function PickReplies({ pickId }: { pickId: string }) {
+/**
+ * `compact` embeds the thread in a review card: no card frame, no empty-state line,
+ * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
+ */
+export function PickReplies({ pickId, compact = false }: { pickId: string; compact?: boolean }) {
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
-  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} />;
+  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} compact={compact} />;
 }
 
-function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSession>; pickId: string }) {
+function RepliesContent({ auth, pickId, compact }: { auth: ReturnType<typeof useAuthSession>; pickId: string; compact: boolean }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = usePickDetail(pickId, user?.id);
@@ -46,6 +50,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
   // One inline confirmation at a time; native Alert does not exist on web.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
+  const [composing, setComposing] = useState(!compact);
   const submittingComment = useRef(false);
   const canComment = !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
 
@@ -61,6 +66,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
     try {
       await createComment.mutateAsync({ userId: user.id, body: trimmedComment });
       setCommentBody('');
+      if (compact) setComposing(false);
     } catch {
       // Keep the draft; mutation state shows the failure and allows retry.
     } finally {
@@ -91,11 +97,11 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
   );
 
   return (
-            <View style={styles.commentsCard}>
-              <View style={styles.commentsHeader}>
-                <Text style={styles.commentsTitle}>댓글</Text>
+            <View style={compact ? styles.commentsInline : styles.commentsCard}>
+              {!compact || commentsQuery.data?.length ? <View style={styles.commentsHeader}>
+                <Text style={compact ? styles.commentsTitleCompact : styles.commentsTitle}>댓글</Text>
                 <Text style={styles.commentsCount}>{commentsQuery.data?.length ?? 0}개{commentsQuery.hasNextPage ? '+' : ''}</Text>
-              </View>
+              </View> : null}
 
               {commentsQuery.isPending ? (
                 <View style={styles.commentsState}>
@@ -116,7 +122,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                 </View>
               ) : null}
 
-              {!commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
+              {!compact && !commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
                 <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
@@ -198,7 +204,12 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                 </Pressable>
               ) : null}
 
-              {canComment ? (
+              {canComment && !composing ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="댓글 쓰기" onPress={() => setComposing(true)}
+                  style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+                  <Text style={styles.textActionLabel}>댓글 쓰기</Text>
+                </Pressable>
+              ) : canComment ? (
                 user ? (
                   <View style={styles.commentComposer}>
                     <View style={styles.commentInputHeader}>
@@ -252,7 +263,7 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
                     <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
                   </Pressable>
                 )
-              ) : (
+              ) : compact ? null : (
                 <Text style={styles.historyCommentNotice}>
                   {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다.' : '현재 댓글을 남길 수 없는 원픽입니다.'}
                 </Text>
@@ -265,6 +276,8 @@ function RepliesContent({ auth, pickId }: { auth: ReturnType<typeof useAuthSessi
 const styles = StyleSheet.create({
   commentAuthorLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   commentsCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
+  commentsInline: { marginTop: 4 },
+  commentsTitleCompact: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   commentsHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
   commentsTitle: { color: OnePick.text, fontSize: 16, fontWeight: '800' },
   commentsCount: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },

@@ -6,6 +6,8 @@ export interface Category {
   name: string;
   /** Full visible path for selectable leaves, e.g. 먹을것 › 쇼핑몰 › 김치. */
   label?: string;
+  /** Top-level group slug for selectable leaves (e.g. 'food'), set by getOpenCategories. */
+  rootSlug?: string | null;
   slug: string;
   status: CategoryStatus;
   isVisible: boolean;
