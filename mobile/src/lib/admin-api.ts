@@ -295,30 +295,39 @@ function browserHistory(): BrowserHistoryLike | null {
 // using an old, never-elevated access token, or vice versa. The shared
 // `supabase` client is now the only session: OAuth completion, the allowlist
 // check, the AAL check and every admin request all read from it.
+// Only the OAuth return parameters are consumed. Other query parameters, such
+// as /admin/data?tab=pending, are app state and must survive a page reload.
+const OAUTH_QUERY_KEYS = ['code', 'state', 'error', 'error_code', 'error_description'];
+
 async function completeAdminOAuthRedirect() {
   const location = browserLocation();
-  if (!location || (!location.hash && !location.search)) return;
+  if (!location) return;
 
   const queryParams = new URLSearchParams(location.search.replace(/^\?/, ''));
+  const hasOAuthQuery = OAUTH_QUERY_KEYS.some((key) => queryParams.has(key));
+  if (!hasOAuthQuery && !location.hash) return;
+
   const oauthError = queryParams.get('error_description') ?? queryParams.get('error');
+  const code = queryParams.get('code');
+  for (const key of OAUTH_QUERY_KEYS) queryParams.delete(key);
+  const remaining = queryParams.toString();
+  const cleanUrl = `${location.pathname}${remaining ? `?${remaining}` : ''}`;
+
   if (oauthError) {
-    browserHistory()?.replaceState(null, '', location.pathname);
+    browserHistory()?.replaceState(null, '', cleanUrl);
     throw new Error('관리자 로그인을 완료하지 못했습니다.');
   }
 
-  const code = queryParams.get('code');
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    browserHistory()?.replaceState(null, '', location.pathname);
+    browserHistory()?.replaceState(null, '', cleanUrl);
     if (error) throw new Error(error.message || '로그인을 완료하지 못했습니다.');
     return;
   }
 
   // PKCE does not accept token-bearing fragments. Clear any leftover OAuth
   // material from the address bar and leave the session signed out.
-  if (location.hash || location.search) {
-    browserHistory()?.replaceState(null, '', location.pathname);
-  }
+  browserHistory()?.replaceState(null, '', cleanUrl);
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

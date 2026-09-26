@@ -294,6 +294,28 @@ async function main() {
     assert.equal(replaced, '/admin', 'The code must not linger in the URL bar');
   }
 
+  // --- App query parameters (the data tab) survive a reload; only OAuth params are removed ---
+  {
+    const supabase = createSupabase({ session: { access_token: 'admin-token', refresh_token: 'r' }, isAdmin: true, aalLevel: 'aal2' });
+    let replaced = 'untouched';
+    const { checkAdminSession } = load(supabase, async () => assert.fail('should not fetch'), {
+      location: { origin: 'https://admin.onepick.example', pathname: '/admin/data', search: '?tab=pending', hash: '' },
+      history: { replaceState: (_data, _unused, url) => { replaced = url; } },
+    });
+    assert.equal(await checkAdminSession(), 'signed-in');
+    assert.equal(replaced, 'untouched', 'A deep link to a data tab must not be rewritten');
+  }
+  {
+    const supabase = createSupabase({ session: null, isAdmin: true, aalLevel: 'aal2' });
+    let replaced;
+    const { checkAdminSession } = load(supabase, async () => assert.fail('should not fetch'), {
+      location: { origin: 'https://admin.onepick.example', pathname: '/admin/data', search: '?tab=users&code=auth-code-456', hash: '' },
+      history: { replaceState: (_data, _unused, url) => { replaced = url; } },
+    });
+    assert.equal(await checkAdminSession(), 'signed-in');
+    assert.equal(replaced, '/admin/data?tab=users', 'Only the OAuth code is stripped; the tab stays');
+  }
+
   console.log('Admin session checks passed: unified shared-session gating, AAL1/AAL2 transitions, non-admin rejection, sign-out, token refresh and OAuth completion.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
