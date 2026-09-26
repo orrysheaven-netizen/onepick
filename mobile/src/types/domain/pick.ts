@@ -6,6 +6,7 @@ export interface Pick {
   categoryId: string;
   itemId: string;
   oneLineReview: string;
+  channel: 'offline' | 'online' | 'recipe' | null;
   // Where this person bought it, and the buying advice that makes the pick a
   // 쇼핑꿀팁. There is no theme field: the badge derives from purchaseTip.
   purchaseUrl: string | null;
