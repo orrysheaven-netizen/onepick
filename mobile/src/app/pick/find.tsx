@@ -13,6 +13,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useImportMovieCatalogItem, useMovieCatalogSearch } from '@/hooks/useMovieCatalog';
+import { useImportYouTubeVideo } from '@/hooks/useYouTubeCatalog';
 import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalogItem } from '@/hooks/usePlaceCatalog';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
@@ -32,6 +33,7 @@ type Params = {
   /** Restaurant categories only: 'online' opens the 온라인 판매처 flow; anything else is 매장. */
   channel?: string | string[];
   query?: string | string[];
+  recipeVideoId?: string | string[];
   onboarding?: string | string[];
 };
 type Selection = { externalId: string; replace: boolean } & (
@@ -68,7 +70,7 @@ function placeErrorMessage(error: unknown) {
 export default function FindPickItemScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.placeCatalogId ?? null, params.channel ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.placeCatalogId ?? null, params.channel ?? null, params.query ?? null, params.recipeVideoId ?? null, params.onboarding ?? null]);
   return <FindPickItemContent key={key} auth={auth} params={params} />;
 }
 
@@ -87,9 +89,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   // Theme lookup for hiding 실험실 results from the unscoped search.
   const themeCatalog = useExploreCategories(authReady && OnePickFeatures.lab);
   const menus = useMemo(() => homeMenuCategories(menuTree.data ?? []), [menuTree.data]);
-  const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
+  const recipeVideoId = scalar(params.recipeVideoId);
+  const recipeTargetMenus = useMemo(() => recipeVideoId ? menus.filter((menu) => menu.slug !== 'recipe') : menus, [menus, recipeVideoId]);
+  const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []).filter((menu) => !recipeVideoId || menu.slug !== 'recipe'), [menuTree.data, recipeVideoId]);
   const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
-  const menuMatches = searchMenuCategories(menus, menuQuery);
+  const menuMatches = searchMenuCategories(recipeTargetMenus, menuQuery);
   const recipeMenu = menus.find((menu) => menu.slug === 'recipe');
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
@@ -117,6 +121,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const importMovie = useImportMovieCatalogItem(mediaType);
   const placeCatalog = usePlaceCatalogSearch(query, selectedCategory?.id, Boolean(hasSearchScope && isPlaceSearch));
   const selectPlace = useSelectPlaceCatalogItem();
+  const importRecipeVideo = useImportYouTubeVideo();
   const normalizedQuery = query.trim().replace(/\s+/g, ' ');
   const hasQuery = normalizedQuery.length > 0;
   const canSearchMovieCatalog = normalizedQuery.length >= 2 && normalizedQuery.length <= 60;
@@ -270,8 +275,29 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     attemptedPlaceReturn.current = placeCatalogId;
     void loadPlace(placeCatalogId, true);
   });
-  const chooseMenu = (menu: { id: string; slug: string }) => {
+  const chooseMenu = async (menu: { id: string; slug: string }) => {
     if (!focused.current || navigating.current) return;
+    if (recipeVideoId) {
+      if (!user || menu.slug === 'recipe' || importRecipeVideo.isPending) return;
+      busy.current = true;
+      try {
+        const item = await importRecipeVideo.mutateAsync({ externalId: recipeVideoId, categoryId: menu.id });
+        if (!focused.current || item.categoryId !== menu.id) return;
+        navigating.current = true;
+        router.push({
+          pathname: '/pick/choose',
+          params: {
+            itemId: item.itemId,
+            categoryId: item.categoryId,
+            channel: 'recipe',
+            ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+          },
+        });
+      } finally {
+        busy.current = false;
+      }
+      return;
+    }
     navigating.current = true;
     const route = registrationRoute(menu);
     router.push({ ...route, params: { ...route.params, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
@@ -308,8 +334,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   if (menuMode) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-      <Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.</Text>
+      <Text style={styles.title}>{recipeVideoId ? '레시피 메뉴 선택' : '나의 원픽 찾기'}</Text>
+      <Text style={styles.subtitle}>{recipeVideoId ? '이 YouTube 레시피가 어떤 요리 메뉴인지 골라주세요.' : '어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.'}</Text>
       <TextInput autoFocus accessibilityLabel="메뉴 검색" autoCapitalize="none" maxLength={100} onChangeText={setMenuQuery}
         placeholder="메뉴 검색: 도가니탕, 국밥…" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={menuQuery} />
       {menuTree.isPending ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>메뉴를 불러오고 있어요</Text></View> : null}
@@ -319,13 +345,13 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <Text style={styles.channelTitle}>{menuQuery.trim() ? '검색한 메뉴' : '자주 찾는 메뉴'}</Text>
         <View style={styles.menuList}>
           {(menuQuery.trim() ? menuMatches : suggestedMenus).map((menu) => <Chip key={menu.id} label={menu.name}
-            accessibilityLabel={`${menu.name} 메뉴 선택`} onPress={() => chooseMenu(menu)} />)}
+            accessibilityLabel={`${menu.name} 메뉴 선택`} onPress={() => void chooseMenu(menu)} />)}
         </View>
       </View> : null}
       {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
         text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
         action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
-      {recipeMenu ? <View style={styles.channelSection}>
+      {recipeMenu && !recipeVideoId ? <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>레시피가 원픽인가요?</Text>
         <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
         <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
