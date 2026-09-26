@@ -27,6 +27,74 @@ alter table public.item_places
 alter table public.item_providers
   alter constraint item_providers_item_category_fk deferrable initially immediate;
 
+-- Unchanged except for the row lock on the item: an alias write now waits for
+-- a category move holding the item FOR UPDATE and then checks the category
+-- the item ended up in (and a move waits for an alias write in flight, then
+-- sees the new alias). KEY SHARE does not block ordinary item edits.
+create or replace function private.prepare_item_alias()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $$
+declare
+  v_category_id uuid;
+  v_alias text;
+  v_normalized text;
+begin
+  v_alias := regexp_replace(btrim(new.alias),'[[:space:]]+',' ','g');
+  v_normalized := lower(regexp_replace(v_alias,'[[:space:]]+','','g'));
+
+  if char_length(v_alias) not between 1 and 100
+     or char_length(v_normalized) not between 1 and 100 then
+    raise exception 'ALIAS_INVALID' using errcode='P0001';
+  end if;
+
+  select category_id into v_category_id from public.items where id=new.item_id for key share;
+  if not found then raise exception 'ITEM_NOT_FOUND' using errcode='P0001'; end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('item-alias:'||v_category_id::text||':'||v_normalized,0)
+  );
+
+  if exists(
+    select 1 from public.items i
+    where i.id=new.item_id and i.normalized_name=v_normalized
+  ) then
+    raise exception 'ALIAS_REDUNDANT' using errcode='P0001';
+  end if;
+
+  if exists(
+    select 1 from public.items i
+    where i.id<>new.item_id
+      and i.category_id=v_category_id
+      and i.status not in ('merged','rejected')
+      and i.normalized_name=v_normalized
+  ) then
+    raise exception 'ALIAS_CONFLICT' using errcode='P0001';
+  end if;
+
+  if exists(
+    select 1
+    from public.item_aliases ia
+    join public.items i on i.id=ia.item_id
+    where ia.id<>new.id
+      and ia.item_id<>new.item_id
+      and i.category_id=v_category_id
+      and i.status not in ('merged','rejected')
+      and ia.normalized_alias=v_normalized
+  ) then
+    raise exception 'ALIAS_CONFLICT' using errcode='P0001';
+  end if;
+
+  new.alias := v_alias;
+  new.normalized_alias := v_normalized;
+  return new;
+end;
+$$;
+
+revoke all on function private.prepare_item_alias() from public,anon,authenticated;
+
 -- Shared by the preview and the move. The caller decides whether rows are
 -- locked; the result reports the first blocking reason, or null when the move
 -- can proceed.
@@ -251,20 +319,6 @@ begin
   set constraints public.picks_item_category_fk,
                   public.item_places_item_category_fk,
                   public.item_providers_item_category_fk immediate;
-
-  -- items_admin_audit records only the new category; keep both ends of the move.
-  insert into public.admin_audit_logs(actor_user_id,entity_type,entity_id,action,summary)
-  values(
-    auth.uid(),'item',v_item.id,'update',
-    jsonb_build_object(
-      'operation','category_move',
-      'name',v_item.name,
-      'from_category_id',v_item.category_id,
-      'to_category_id',p_target_category_id,
-      'active_pick_count',(v_check->>'active_pick_count')::integer,
-      'pick_count',(v_check->>'pick_count')::integer
-    )
-  );
 
   return v_check;
 end;

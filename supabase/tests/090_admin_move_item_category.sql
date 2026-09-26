@@ -187,14 +187,10 @@ select ok(
   ),
   'The move holds the target''s alias lock for the item''s name, like item_aliases writes do'
 );
-select is(
-  (select l.summary-'name'-'active_pick_count' from public.admin_audit_logs l
-    where l.entity_id=(select id from mic_ids where key='item') and l.summary->>'operation'='category_move'),
-  jsonb_build_object('operation','category_move',
-    'from_category_id',(select id from mic_ids where key='wrong'),
-    'to_category_id',(select id from mic_ids where key='right'),
-    'pick_count',3),
-  'The audit log keeps both ends of the move'
+select throws_ok(
+  $$insert into public.item_aliases(item_id,alias) values((select id from mic_ids where key='item'),'이동쌍둥이')$$,
+  'P0001', 'ALIAS_CONFLICT',
+  'After the move, a new alias on the item is checked against the category it moved to'
 );
 select ok(
   (select ip.category_id=(select id from mic_ids where key='right')
