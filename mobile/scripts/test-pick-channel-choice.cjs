@@ -21,7 +21,11 @@ function load(file, imports = {}) {
 
 // --- Channel rules -----------------------------------------------------------
 const channels = load('lib/items/pickChannel.ts');
-assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인']);
+assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인', '레시피']);
+assert.equal(channels.parsePickChannel('recipe'), 'offline', 'Search state never becomes recipe; the recipe chip opens the link flow instead');
+const findScreen = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
+assert.match(findScreen, /if \(option\.channel === 'recipe'\) \{ openRecipe\(\); return; \}/, 'the 레시피 chip opens the recipe link flow');
+assert.match(findScreen, /pathname: '\/pick\/recipe', params: \{\s+\.\.\.\(selectedCategory \? \{ categoryId: selectedCategory\.id \} : \{\}\)/, 'with the chosen menu as the dish');
 assert.match(channels.PICK_CHANNEL_OPTIONS[0].description, /배달/, '매장 explicitly includes delivery');
 assert.equal(channels.parsePickChannel('online'), 'online');
 assert.equal(channels.parsePickChannel('delivery'), 'offline', 'Unknown route values fall back to 매장');
@@ -125,14 +129,14 @@ assert.equal(storeChip().accessibilityState?.selected, true, 'Restaurant registr
 assert.equal(placeSearchArgs[2], true, '매장 searches the place catalog');
 assert.match(page, /○○곰탕 본점/); assert.doesNotMatch(page, /온라인몰|예전 도가니탕/, '매장 lists only place-backed items');
 assert.match(page, /배달앱 주문은 매장으로/);
-assert.match(page, /매장 등록은 현재 서울 음식점만 가능해요/, '매장 search states that only Seoul restaurants are covered');
-assert.equal(channels.PLACE_COVERAGE_NOTICE, '매장 등록은 현재 서울 음식점만 가능해요.');
+assert.match(page, /매장 등록은 현재 서울·경기 음식점만 가능해요/, '매장 search states which regions are covered');
+assert.equal(channels.PLACE_COVERAGE_NOTICE, '매장 등록은 현재 서울·경기 음식점만 가능해요.');
 
 onlineChip().onPress();
 page = render();
 assert.equal(onlineChip().accessibilityState?.selected, true);
 assert.equal(placeSearchArgs[2], false, '온라인 never queries the place catalog');
-assert.doesNotMatch(page, /서울 음식점만/, 'Online sellers are not limited to Seoul');
+assert.doesNotMatch(page, /음식점만 가능해요/, 'Online sellers are not limited by region');
 assert.ok(inputs.find((input) => input.accessibilityLabel === '원픽 온라인 판매처 검색'));
 assert.match(page, /○○곰탕 온라인몰/); assert.match(page, /이 판매처를 원픽으로 선택/);
 assert.doesNotMatch(page, /본점|예전 도가니탕/, '온라인 lists only online-provider items');

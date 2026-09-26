@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { youtubeVideoUrl } from '@/lib/youtube/videoLink';
 import { youtubeCatalogService } from '@/services';
-import type { YouTubeVideoEntry } from '@/types/domain/youtubeCatalog';
+import type { YouTubeVideoLookup } from '@/types/domain/youtubeCatalog';
 
 const SEARCH_DELAY_MS = 300;
 const FRESH_RESULT_MS = 10 * 60_000;
@@ -54,11 +54,20 @@ export function useYouTubeVideoLookup(videoId: string | null, enabled: boolean) 
 export function useImportYouTubeVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (externalId: string) => youtubeCatalogService.importVideo(externalId),
+    mutationFn: (input: { externalId: string; categoryId: string }) => youtubeCatalogService.importVideo(input.externalId, input.categoryId),
     // Mark the cached preview as registered instead of refetching it (each lookup spends YouTube quota).
-    onSuccess: (item, externalId) => {
-      queryClient.setQueryData<YouTubeVideoEntry>(queryKeys.youtubeCatalog.video(externalId),
-        (current) => current ? { ...current, existingItemId: item.itemId } : current);
+    onSuccess: (item, input) => {
+      queryClient.setQueryData<YouTubeVideoLookup>(queryKeys.youtubeCatalog.video(input.externalId),
+        (current) => current
+          ? { ...current, video: { ...current.video, existingItemId: item.itemId, existingCategoryId: item.categoryId } }
+          : current);
     },
+  });
+}
+
+export function useRequestYouTubeVideo() {
+  return useMutation({
+    mutationFn: (input: { externalId: string; dishName: string; review: string }) =>
+      youtubeCatalogService.requestVideo(input.externalId, input.dishName, input.review),
   });
 }

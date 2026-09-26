@@ -1,11 +1,10 @@
-import type { PickChannel } from './pickChannel';
-
-/** Where to find a restaurant item: its store (map page) or its online shop. */
-export type ItemChannelLink = { channel: PickChannel; url: string; host: string };
+/** Where to find a restaurant item: its store (map page) or its online shop. Recipe videos link from their video card. */
+type LinkChannel = 'offline' | 'online';
+export type ItemChannelLink = { channel: LinkChannel; url: string; host: string };
 
 type ItemChannelRow = { channel?: unknown; target_url?: unknown; is_primary?: unknown };
 
-export const ITEM_CHANNEL_LINK_LABELS: Record<PickChannel, string> = {
+export const ITEM_CHANNEL_LINK_LABELS: Record<LinkChannel, string> = {
   offline: '매장 정보 보기',
   online: '온라인몰에서 보기',
 };

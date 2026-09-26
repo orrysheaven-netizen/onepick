@@ -17,7 +17,7 @@ export type HomePickFeedRow = {
   image_path: string | null;
   image_source_url: string | null;
   started_at: string;
-  /** home_pick_feed_page only: the item's sales channels ('offline' | 'online'). */
+  /** home_pick_feed_page only: the Pick's channel for food Picks, else the item's channels ('offline' | 'online' | 'recipe'). */
   channels?: string[] | null;
 };
 
@@ -198,13 +198,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       item_review_notifications: TableShape<ItemReviewNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
-    Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'change_pick' | 'register_pick'> & {
-      change_pick: Omit<Database['public']['Functions']['change_pick'], 'Args'> & {
-        Args: Database['public']['Functions']['change_pick']['Args'] & { p_channel?: 'offline' | 'online' };
-      };
-      register_pick: Omit<Database['public']['Functions']['register_pick'], 'Args'> & {
-        Args: Database['public']['Functions']['register_pick']['Args'] & { p_channel?: 'offline' | 'online' };
-      };
+    Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
       search_store_catalog: {
         Args: { p_query: string; p_limit?: number };
         Returns: StoreCatalogRow[];
@@ -250,8 +244,16 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: never;
         Returns: { category_id: string; slug: string; name: string; category_path: string | null; sort_order: number }[];
       };
+      dish_channel_overview: {
+        Args: { p_query: string };
+        Returns: {
+          category_id: string; category_name: string; channel: string | null;
+          item_id: string | null; item_name: string | null; thumbnail_path: string | null;
+          image_path: string | null; image_source_url: string | null; pick_count: number; rank: number;
+        }[];
+      };
       home_pick_feed_page: {
-        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online'; p_root_slug?: string };
+        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
         Returns: HomePickFeedRow[];
       };
       home_following_feed_page: {
@@ -271,8 +273,8 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Returns: NotificationPageRow[];
       };
       set_pending_item_pick_review: {
-        Args: { p_item_id: string; p_review: string; p_channel?: 'offline' | 'online' };
-        Returns: { item_id: string; user_id: string; one_line_review: string; created_at: string; updated_at: string };
+        Args: { p_item_id: string; p_review: string; p_channel?: string | null };
+        Returns: { item_id: string; user_id: string; one_line_review: string; channel: string | null; created_at: string; updated_at: string };
       };
       item_photo_credit: {
         Args: { p_item_id: string };

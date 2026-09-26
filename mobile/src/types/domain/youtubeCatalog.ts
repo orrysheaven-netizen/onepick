@@ -21,4 +21,23 @@ export interface YouTubeVideoEntry {
   thumbnailUrl: string | null;
   videoUrl: string;
   existingItemId: string | null;
+  /** The dish an already-registered video belongs to. */
+  existingCategoryId: string | null;
+}
+
+/** A dish the video title mentions ("초간단 미역국" → 미역국). */
+export interface RecipeDishSuggestion {
+  categoryId: string;
+  name: string;
+  path: string | null;
+}
+
+export interface YouTubeVideoLookup {
+  video: YouTubeVideoEntry;
+  suggestions: RecipeDishSuggestion[];
+}
+
+/** A recipe for a dish not in the catalog yet: waits for an administrator. */
+export interface RequestedRecipeVideo {
+  itemId: string;
 }

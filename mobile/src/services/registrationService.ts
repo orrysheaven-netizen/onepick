@@ -7,6 +7,7 @@ import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { Pick } from '@/types/domain/pick';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import type { Item } from '@/types/domain/item';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 export interface RegisterPickInput {
   userId: string;
@@ -16,8 +17,8 @@ export interface RegisterPickInput {
   variant: string;
   oneLineReview: string;
   photo?: PickPhotoDraft | null;
-  /** Food picks: the channel the pick (or the pick made on approval) belongs to. */
-  channel?: 'offline' | 'online';
+  /** Food only: the channel the Pick (or the Pick made on approval) is saved under. */
+  channel?: PickChannel;
 }
 
 export interface AttachItemPhotoInput {
@@ -145,7 +146,7 @@ export class RegistrationService {
         oneLineReview: review,
         ...uploaded,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
-        channel: input.channel,
+        ...(input.channel ? { channel: input.channel } : {}),
       });
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       return { type: 'pick', pick };
@@ -188,7 +189,7 @@ export class RegistrationService {
         itemId: submitted.id,
         itemName: submitted.name,
         oneLineReview: review,
-        channel: input.channel,
+        ...(input.channel ? { channel: input.channel } : {}),
       });
       return { type: 'pick', pick };
     }

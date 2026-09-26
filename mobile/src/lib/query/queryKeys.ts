@@ -35,6 +35,7 @@ export const queryKeys = {
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string, categoryIds?: string[]) =>
       ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,
+    dishChannels: (query: string, userId?: string) => ['items', 'dish-channels', query, userId ?? 'public'] as const,
   },
   movieCatalog: { search: (query: string) => ['movie-catalog', 'search', query] as const },
   musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },
