@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AdminCategoryPicker } from '@/components/admin/category-picker';
 import { ADMIN_PAGE_SIZE, createItem, createItemAlias, deleteItemAlias, getBrands, getCategories, getItemAliases, getItemEditorialFeature, getItems, setItemEditorialFeature, updateItem, updateItemAlias } from '@/lib/admin-api';
 import type { AdminBrand, AdminCategory, AdminItem, AdminItemAlias, AdminItemStatus } from '@/lib/admin-api';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
@@ -235,14 +236,13 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
 
         <View>
           <Text style={adminStyles.label}>카테고리</Text>
-          <View style={adminStyles.row}>
-            {eligible.length === 0 && <Text style={adminStyles.muted}>선택 가능한 카테고리가 없습니다.</Text>}
-            {eligible.map((category) => (
-              <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.statusChoice, categoryId === category.id && styles.statusChoiceActive]}>
-                <Text style={[styles.statusChoiceText, categoryId === category.id && styles.statusChoiceTextActive]}>{categoryLabel(category, domainCategories)}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AdminCategoryPicker
+            accessibilityLabel="새 상품 카테고리 검색"
+            categories={domainCategories}
+            selectable={eligible}
+            value={categoryId}
+            onChange={setCategoryId}
+          />
         </View>
 
         <View>

@@ -17,7 +17,7 @@ import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalog
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { HOME_FEED_ROOT_SLUG, homeMenuCategories, homeMenuSuggestions, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
-import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
+import { PICK_CHANNEL_OPTIONS, PLACE_COVERAGE_NOTICE, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
@@ -370,6 +370,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
             }} />)}
         </View>
         <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 매장으로 골라주세요.</Text>
+        {isPlaceSearch ? <Text accessibilityRole="text" style={styles.coverageNotice}>{PLACE_COVERAGE_NOTICE} 다른 지역은 차례로 추가할게요.</Text> : null}
       </View> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
@@ -437,7 +438,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록합니다."
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
-      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다."
+      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다.`}
         action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
       {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요" text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
@@ -471,6 +472,7 @@ const styles = StyleSheet.create({
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   channelSection: { marginTop: 16 },
+  coverageNotice: { color: OnePick.accent, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6 },
   channelTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   channelRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   recipeButton: { marginTop: 10 },
