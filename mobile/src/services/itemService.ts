@@ -82,6 +82,8 @@ export class ItemService {
     return {
       item,
       category,
+      // Restaurants live under the 'food' root; their detail title names the menu (lib/items/itemTitle).
+      isRestaurant: openCategories.some((category) => category.id === item.categoryId && category.rootSlug === 'food'),
       myPickStatus,
       picks: reviews,
       focusAvailable: !focusPickId || reviews.some(({ pick }) => pick.id === focusPickId),

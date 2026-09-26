@@ -11,7 +11,7 @@ insert into public.profiles(id,username,onboarding_completed) values
 
 select is((select count(*)::int from public.categories where slug in ('ramen','beer','soju','snacks') and is_pickable and is_visible and status='open'),4,'four initial selectable categories');
 select is((select count(*)::int from public.categories c join public.categories p on p.id=c.parent_id where c.slug in ('beer','soju') and p.slug='alcohol' and not p.is_pickable),2,'alcohol is only a grouping');
-select ok(not has_function_privilege('anon','public.register_pick(uuid,uuid,text,text,text,text,text)','execute'),'anonymous registration denied');
+select ok(not has_function_privilege('anon','public.register_pick(uuid,uuid,text,text,text,text,text,text)','execute'),'anonymous registration denied');
 select ok(not has_function_privilege('anon','public.consume_image_import()','execute'),'anonymous image importing denied');
 select ok(not has_table_privilege('authenticated','private.image_import_limits','update'),'users cannot reset quota');
 select is(private.canonical_item_name('진라면 매운맛 봉지면 120g 5봉','ramen'),'진라면 매운맛','bag and quantity ignored');

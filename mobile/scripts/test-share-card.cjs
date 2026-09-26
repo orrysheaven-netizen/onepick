@@ -111,13 +111,12 @@ async function main() {
   assert.match(downloadAnchor.download, /^onepick-/);
   assert.match(downloadAnchor.href, /^data:image\/png;base64,/);
 
-  const source = fs.readFileSync(path.join(__dirname, '../src/components/pick-share-card.tsx'), 'utf8');
-  assert.match(source, /이미지 카드 공유/);
-  assert.match(source, /링크 공유/);
-  assert.match(source, /고른 이유/, 'the share preview labels the reason in Korean');
-  assert.match(source, /Platform\.OS === 'web'/);
+  const source = fs.readFileSync(path.join(__dirname, '../src/components/pick-share-actions.tsx'), 'utf8');
+  // Review cards share the link from a small icon; the image card drawing stays covered above.
+  assert.match(source, /accessibilityLabel="이 원픽 공유"/);
+  assert.match(source, /링크를 복사했어요/);
   assert.doesNotMatch(source, /DEMO DATA/);
 
-  console.log('Share-card checks passed: PNG drawing, file sharing, download fallback and dual share UI.');
+  console.log('Share-card checks passed: PNG drawing, file sharing, download fallback and the review-card share icon.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
