@@ -95,6 +95,7 @@ assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 
 const endedOther = card({ id: 'o-old', userId: 'someone', status: 'replaced', oneLineReview: '예전에도 좋았다' }, { username: 'someone' });
 assert.match(endedOther, /@someone/);
 assert.doesNotMatch(endedOther, /이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|원픽 아님/, 'Ended reviews stay neutral and do not reveal history state');
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o-old', compact: true, canWrite: false }, 'Ended review threads keep existing comments but do not invite new comments');
 
 const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기' }, { username: 'me' });
 assert.match(mine, /내 한줄평/);
