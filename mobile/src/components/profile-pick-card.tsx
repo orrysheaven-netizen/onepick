@@ -19,6 +19,7 @@ type Props = {
   statusText?: string | null;
   onPressPick: () => void;
   onPressItem?: () => void;
+  onPressProvider?: () => void;
   /** `tile` is the 2-column collection card: square photo on top, one press opens the Pick. */
   layout?: 'row' | 'tile';
 };
@@ -37,6 +38,7 @@ export function ProfilePickCard({
   statusText,
   onPressPick,
   onPressItem,
+  onPressProvider,
   layout = 'row',
 }: Props) {
   if (layout === 'tile') {
@@ -75,8 +77,15 @@ export function ProfilePickCard({
           {providerName || channelLabel ? (
             <View style={styles.contextRow}>
               {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
-              {providerName ? <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text> : null}
-              <Text style={styles.chevron}>›</Text>
+              {providerName ? (onPressProvider
+                ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
+                    onPress={(event) => { event.stopPropagation?.(); onPressProvider(); }}
+                    style={({ pressed }) => [styles.providerLink, pressed && styles.pressed]}>
+                    <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>
+                    <Text style={styles.providerArrow}>›</Text>
+                  </Pressable>
+                : <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>) : null}
+              {!providerName || !onPressProvider ? <Text style={styles.chevron}>›</Text> : null}
             </View>
           ) : (
             <View style={styles.categoryRow}>
@@ -130,7 +139,9 @@ const styles = StyleSheet.create({
   contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
   channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: OnePick.accentSoft },
   channelBadgeText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  providerLink: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { flex: 1, minWidth: 0, color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
   category: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
