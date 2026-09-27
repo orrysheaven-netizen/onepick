@@ -33,7 +33,10 @@ function home(count = 20) {
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; } },
-    '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
+    '@/hooks/useFollow': {
+      useFollowCounts: () => ({ data: { followingCount: 0, followerCount: 0 }, isSuccess: true, isError: false }),
+      useFollowingFeed: (...args) => { calls.following = args; return following; },
+    },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
