@@ -21,10 +21,12 @@ function shortDate(iso: string) {
  * opens the item, 댓글 focuses this person's Pick thread, and 공유 reuses the
  * existing Pick deep link.
  */
-export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenComments }: {
+export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOpenProfile, onOpenComments }: {
   pick: HomeFeedPick;
   /** The viewer already has this exact item as a current Pick. */
   mine?: boolean;
+  /** The surrounding screen already names the menu; use D hierarchy for the provider. */
+  menuContext?: boolean;
   onOpenItem: () => void;
   onOpenProfile: () => void;
   onOpenComments: () => void;
@@ -69,6 +71,7 @@ export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenComm
     channelLabel={channelLabel}
     providerName={providerName}
     itemName={menuName}
+    menuContext={menuContext}
     review={pick.oneLineReview}
     photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId, logoUri: pick.brandLogoUrl, label: contentName }}
     person={{ username: pick.username, onPress: onOpenProfile }}

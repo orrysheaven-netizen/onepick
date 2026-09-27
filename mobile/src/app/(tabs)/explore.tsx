@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
 import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
@@ -40,6 +40,11 @@ export default function ExploreScreen() {
   const scope = useMemo(() => browseScope(categoryCatalog, {
     chips: Boolean(OnePickFeatures.categoryChips), groupSlug: OnePickMvp.browseGroupSlug,
   }), [categoryCatalog]);
+  const menuCategories = useMemo(() => {
+    if (scope.leafIds === null) return [];
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    return scope.leafIds.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category));
+  }, [categoryCatalog, scope.leafIds]);
   // External catalogs (movie, book...) are offered only for categories being browsed.
   const inScope = (category?: Category) =>
     category && (scope.leafIds === null || scope.leafIds.includes(category.id)) ? category : undefined;
@@ -56,11 +61,10 @@ export default function ExploreScreen() {
   const youtubeCategory = inScope(categories.data?.find((category) => category.slug === 'youtube'));
   const pokemonCategory = inScope(categories.data?.find((category) => category.slug === 'pokemon'));
   const topItems = useCategoryTopItems(selectedCategoryId);
-  // Nothing selected: newest-picked places first (one row per place). Waits for the
-  // category tree so the MVP scope is known before the first request.
-  // The MVP list is places only (items with a 매장/온라인 channel), not packaged products.
-  const recentItems = useRecentPickedItems(scope.leafIds, !selectedCategoryId && Boolean(categories.data), !scope.showChips);
-  const recentTitle = scope.showChips ? '최근 원픽된 항목' : '최근 원픽된 맛집';
+  // The restaurant-first MVP lands on menus. Keep the older recent-item browse only
+  // for the future category-chip mode so we do not fetch an unused provider list.
+  const recentItems = useRecentPickedItems(scope.leafIds, scope.showChips && !selectedCategoryId && Boolean(categories.data), false);
+  const recentTitle = '최근 원픽된 항목';
   // Gate all ranking details together, including accessibility and first-place styling.
   // A sum across TOP 3 would reveal rankings too early (e.g. three different 1-pick items).
   const topPickCount = topItems.data?.find((item) => item.rank === 1)?.pickCount ?? 0;
@@ -87,7 +91,7 @@ export default function ExploreScreen() {
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
-    if (!selectedCategoryId && categories.data && !recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false });
+    if (scope.showChips && !selectedCategoryId && categories.data && !recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false });
   };
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
 
@@ -96,14 +100,14 @@ export default function ExploreScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{scope.showChips ? '카테고리 탐색' : '맛집 찾기'}</Text>
+          <Text style={styles.title}>{scope.showChips ? '카테고리 탐색' : '탐색'}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
             {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
           </Pressable>
         </View>
-        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '가게 이름으로 찾거나, 최근 원픽된 맛집을 둘러보세요.'}</Text>
+        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '메뉴를 누르면 그 메뉴를 고른 사람들의 현재 원픽을 볼 수 있어요.'}</Text>
         {searchOpen ? <View style={styles.searchPanel}>
           <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
           <Text style={styles.searchHint}>
@@ -154,7 +158,26 @@ export default function ExploreScreen() {
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
         </View> : null}
-        {!selectedCategoryId && categories.data ? <View style={styles.rankingSection}>
+        {!scope.showChips && !selectedCategoryId && categories.data ? <View style={styles.menuSection}>
+          <SectionHeader title="메뉴" description="메뉴를 누르면 사람들의 현재 원픽과 한줄평을 볼 수 있어요." />
+          <View style={styles.menuList}>
+            {menuCategories.map((category) => <Pressable key={category.id} accessibilityRole="button"
+              accessibilityLabel={`${category.name} 메뉴 원픽 보기`}
+              onPress={() => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } })}
+              style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
+              {category.imageUrl
+                ? <Image source={{ uri: category.imageUrl }} accessibilityIgnoresInvertColors style={styles.menuImage} />
+                : <View style={styles.menuFallback} accessible={false}><Text style={styles.menuInitial}>{category.name.slice(0, 1)}</Text></View>}
+              <View style={styles.menuCopy}>
+                <Text style={styles.menuName}>{category.name}</Text>
+                <Text style={styles.menuHint}>원픽 보기</Text>
+              </View>
+              <Text style={styles.menuArrow}>›</Text>
+            </Pressable>)}
+          </View>
+          {!menuCategories.length ? <StateCard title="아직 공개된 메뉴가 없어요" text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
+        </View> : null}
+        {!selectedCategoryId && categories.data && scope.showChips ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <SectionHeader title={recentTitle} description="가장 최근에 누군가의 원픽이 된 순서예요." />
           </View>
@@ -253,6 +276,16 @@ const styles = StyleSheet.create({
   childCount: { color: OnePick.hint, fontSize: 11, fontWeight: '700' },
   childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 13 },
   selectionLabel: { color: OnePick.accent, fontSize: 12, fontWeight: '800', marginTop: 18 },
+  menuSection: { marginTop: 20, marginBottom: 18 },
+  menuList: { marginTop: 8, borderTopWidth: 1, borderTopColor: OnePick.border },
+  menuRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: OnePick.border },
+  menuImage: { width: 56, height: 56, borderRadius: 12, backgroundColor: OnePick.sunken },
+  menuFallback: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
+  menuInitial: { color: OnePick.accentDeep, fontSize: 18, fontWeight: '800' },
+  menuCopy: { flex: 1, minWidth: 0, gap: 2 },
+  menuName: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
+  menuHint: { color: OnePick.muted, fontSize: 12, lineHeight: 17 },
+  menuArrow: { color: OnePick.hint, fontSize: 25, marginLeft: 6 },
   rankingSection: { marginTop: 8, marginBottom: 18 },
   rankingLoading: { marginVertical: 20 },
   rankCard: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 10, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface },

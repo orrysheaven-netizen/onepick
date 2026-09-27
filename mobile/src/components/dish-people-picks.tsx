@@ -13,6 +13,8 @@ type Props = {
   categoryId: string;
   categoryName: string;
   userId?: string;
+  /** The menu is already named by the surrounding view, so cards use D hierarchy. */
+  menuContext?: boolean;
 };
 
 /**
@@ -20,7 +22,7 @@ type Props = {
  * first, with the Home channel tabs. The feed leaves the viewer out, so their own
  * Pick for the dish is read separately and shown first as "내 원픽".
  */
-export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
+export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true }: Props) {
   const router = useRouter();
   const [channel, setChannel] = useState<PickChannel | null>(null);
   const query = useDishPicks(categoryId, channel, userId);
@@ -28,7 +30,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
   const mine = (useMyDishPicks(categoryId, userId).data ?? [])
     .filter((pick) => !channel || pick.channels.includes(channel));
   const renderCard = (pick: HomeFeedPick, isMine: boolean) => <View key={pick.pickId} style={styles.cell}>
-    <HomeFeedCard pick={pick} mine={isMine}
+    <HomeFeedCard pick={pick} mine={isMine} menuContext={menuContext}
       onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
       onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
       onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
@@ -39,7 +41,8 @@ export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
 
   return (
     <View accessibilityLabel={`${categoryName} 사람들의 원픽`} style={styles.container}>
-      <SectionHeader title={`사람들의 ${categoryName} 원픽`} description="최근 고른 순 · 누가 어디를 왜 골랐는지 볼 수 있어요" />
+      <SectionHeader title={menuContext ? '사람들의 원픽' : `사람들의 ${categoryName} 원픽`}
+        description="최근 고른 순 · 누가 어디를 왜 골랐는지 볼 수 있어요" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
         {HOME_CHANNEL_TABS.map((tab) => <Chip key={tab.label} label={tab.label} selected={tab.channel === channel}
           accessibilityLabel={`${categoryName} ${tab.label} 원픽 보기`} onPress={() => setChannel(tab.channel)} />)}

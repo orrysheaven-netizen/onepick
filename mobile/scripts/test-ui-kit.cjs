@@ -156,6 +156,19 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.match(noPhoto, /한줄평 준비 중/);
   assert.doesNotMatch(noPhoto, /data-feed="true"/, 'No image data means no empty image placeholder on the feed card');
   assert.equal(pressables.length, 1, 'No person row means no profile pressable');
+
+  const menuContext = render(React.createElement(ui.PickCard, {
+    channelLabel: '매장', providerName: '서울집', itemName: '미역국', menuContext: true, review: '원픽 이유',
+    photo: {}, onPress() {}, accessibilityLabel: '메뉴 고정 화면 원픽 상세 보기',
+  }));
+  assert.match(menuContext, /서울집/);
+  assert.doesNotMatch(menuContext, />미역국</, 'D hierarchy omits the menu title when the screen already names the menu');
+
+  const recipeFallback = render(React.createElement(ui.PickCard, {
+    channelLabel: '레시피', itemName: '미역국', menuContext: true, review: '레시피 이유',
+    photo: {}, onPress() {}, accessibilityLabel: '출처 없는 레시피 원픽 상세 보기',
+  }));
+  assert.match(recipeFallback, />미역국</, 'D hierarchy keeps the menu title when no recipe provider/source is available');
 }
 
 console.log('UI kit passed: Button variants/states, Chip selection, SectionHeader, StateCard states, Avatar, PickCard order.');
