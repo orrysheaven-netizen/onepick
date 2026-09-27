@@ -6,6 +6,10 @@ import { OnePick } from '@/constants/onepick';
 type Props = {
   categoryName: string;
   itemName: string;
+  /** Food-channel provider/source shown before the menu title. */
+  providerName?: string | null;
+  /** Short channel badge, e.g. 매장 / 온라인 / 레시피. */
+  channelLabel?: string | null;
   review: string;
   imageUri?: string | null;
   itemId?: string;
@@ -22,6 +26,8 @@ type Props = {
 export function ProfilePickCard({
   categoryName,
   itemName,
+  providerName,
+  channelLabel,
   review,
   imageUri,
   itemId,
@@ -37,7 +43,7 @@ export function ProfilePickCard({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
+        accessibilityLabel={`${providerName ? `${providerName} ${itemName}` : `${categoryName} ${itemName}`} 원픽 상세 보기`}
         onPress={onPressPick}
         style={({ pressed }) => [styles.tile, muted && styles.cardMuted, pressed && styles.pressed]}>
         <PickPhoto square uri={imageUri} label={itemName} itemId={itemId} itemStatus={itemStatus} hasPhoto={hasPhoto} />
@@ -66,12 +72,20 @@ export function ProfilePickCard({
           accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
           onPress={onPressPick}
           style={({ pressed }) => [styles.mainAction, pressed && styles.pressed]}>
-          <View style={styles.categoryRow}>
-            <View style={styles.categoryPill}>
-              <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
+          {providerName || channelLabel ? (
+            <View style={styles.contextRow}>
+              {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
+              {providerName ? <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text> : null}
+              <Text style={styles.chevron}>›</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
-          </View>
+          ) : (
+            <View style={styles.categoryRow}>
+              <View style={styles.categoryPill}>
+                <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+          )}
 
           <Text numberOfLines={2} style={styles.name}>{itemName}</Text>
           <Text numberOfLines={2} style={styles.review}>“{review}”</Text>
@@ -112,7 +126,11 @@ const styles = StyleSheet.create({
   tileName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700', letterSpacing: -0.3 },
   tileReview: { color: OnePick.muted, fontSize: 13, lineHeight: 18 },
   body: { flex: 1, minWidth: 0, paddingLeft: 12 },
-  mainAction: { minHeight: 76 },
+  mainAction: { minHeight: 0 },
+  contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
+  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: OnePick.accentSoft },
+  channelBadgeText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  providerName: { flex: 1, minWidth: 0, color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '500' },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
   category: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
