@@ -19,9 +19,10 @@ type Props = {
   categories: Category[];
   onPressPick: (pickId: string) => void;
   onPressItem: (itemId: string) => void;
+  onPressProvider?: (providerId: string) => void;
 };
 
-export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem }: Props) {
+export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem, onPressProvider }: Props) {
   const sections = useMemo(() => buildProfileThemeSections(picks, categories), [picks, categories]);
   // The same parent can appear under two themes when a leaf is mapped elsewhere, so collapse state keys by theme too.
   const groups = useMemo(() => sections.flatMap((section) => section.groups.map((group) => ({ ...group, id: `${section.code}:${group.id}` }))), [sections]);
@@ -119,6 +120,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
                         hasPhoto={Boolean(item.item?.imagePath)}
                         onPressPick={() => onPressPick(item.pick.id)}
                         onPressItem={item.item ? () => onPressItem(item.pick.itemId) : undefined}
+                        onPressProvider={item.item?.providerId && onPressProvider ? () => onPressProvider(item.item!.providerId!) : undefined}
                       />;
                     })}
                   </View>
