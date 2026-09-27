@@ -404,7 +404,7 @@ export default function NewPickScreen() {
           <Text style={styles.title}>왜 여기가 원픽인가요?</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           {!itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
-            ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+            ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀝니다.</Text></View> : null}
           <View style={styles.reviewHeader}><Text style={styles.section}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving} value={review}
             onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
