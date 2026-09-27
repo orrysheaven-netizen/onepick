@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
-const { screen, names } = require('./mvp-screen-harness.cjs');
+const { load, screen, names } = require('./mvp-screen-harness.cjs');
+const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
 
 const category = {
   id: 'soup', slug: 'miyeokguk', name: '미역국',
@@ -24,7 +25,7 @@ const view = screen('app/menu/[slug].tsx', {
     useLocalSearchParams: () => ({ slug: 'miyeokguk' }),
   },
   'expo-router/head': { default: 'Head' },
-  '@/constants/onepick': require('../src/constants/onepick.ts'),
+  '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'viewer' } }) },
   '@/hooks/useExploreData': { useCategoryBySlug: (slug) => { calls.slug = slug; return query(category); } },
   '@/components/dish-people-picks': names('DishPeoplePicks'),
