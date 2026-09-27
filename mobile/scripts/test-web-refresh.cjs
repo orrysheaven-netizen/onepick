@@ -138,21 +138,12 @@ async function main() {
     view.find('Chip', (p) => p.label === '전체').onPress(); view.render();
     assert.equal(view.find('SectionHeader').title, '최근 원픽된 항목', 'Clearing the category swaps rankings for the recent list');
   });
-  await test('Web profile refresh updates all three queries and reveals newly arrived request status', async () => {
+  await test('Web profile refresh never restores operational lists through legacy flags', async () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, profile, history, requests, calls } = fixture('profile');
-    assert.doesNotMatch(view.text(), /활동 기록/); assert.ok(button(view, profileLabel));
-    const originalRefetch = requests.refetch;
-    requests.refetch = function (options) {
-      this.data = [{ item: { id: 'request', name: '새 제품', status: 'pending' }, category }];
-      return originalRefetch.call(this, options);
-    };
-    await button(view, profileLabel).onPress(); view.render(); assert.match(view.text(), /승인 대기/);
-    requests.refetch = function (options) { this.data[0].item.status = 'active'; return originalRefetch.call(this, options); };
-    await button(view, profileLabel).onPress(); view.render(); assert.match(view.text(), /승인됨/);
-    assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [2, 2, 2]);
-    assert.equal(calls.historyId, 'owner'); assert.equal(calls.requestsId, 'owner');
-    assert.equal(view.all('ProfileAiPanel').length, 0); assert.equal(view.all('ProfileTasteComposition').length, 0);
+    await button(view, hiddenListsProfileLabel).onPress();
+    assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);
+    assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, undefined);
   });
   await test('Web profile refresh skips the hidden activity lists', async () => {
     const { view, profile, history, requests, calls } = fixture('profile');
@@ -160,19 +151,14 @@ async function main() {
     await button(view, hiddenListsProfileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);
     assert.equal(calls.historyId, undefined); assert.equal(calls.requestsId, undefined);
   });
-  await test('Web profile refresh is disabled while any related query fetches', async () => {
-    flags.profilePickHistory = true; flags.profileItemRequests = true;
+  await test('Web profile refresh disables only during its own fetch and retries stale data', async () => {
     const { view, profile, history, requests } = fixture('profile');
-    for (const busy of [profile, history, requests]) {
-      busy.isFetching = true; view.render(); assert.equal(button(view, profileLabel).disabled, true);
-      await button(view, profileLabel).onPress();
-      assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [0, 0, 0]);
-      busy.isFetching = false;
-    }
-    profile.isRefetchError = true; view.render(); assert.equal(button(view, profileLabel).label, '다시 불러오기');
-    assert.equal(view.all('Button').filter((p) => p.accessibilityLabel === profileLabel).length, 1);
-    await button(view, profileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 1, 1]);
-    profile.isRefetchError = false; view.render(); assert.equal(button(view, profileLabel).label, '새로고침');
+    profile.isFetching = true; view.render();
+    assert.equal(button(view, hiddenListsProfileLabel).disabled, true);
+    await button(view, hiddenListsProfileLabel).onPress(); assert.equal(profile.refetches, 0);
+    profile.isFetching = false; profile.isRefetchError = true; view.render();
+    await button(view, hiddenListsProfileLabel).onPress();
+    assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);
   });
   await test('Web profile refresh never bypasses session, missing data or loading gates', () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
@@ -195,8 +181,8 @@ async function main() {
       const e = fixture('explore', platform); assert.equal(e.view.find('SectionHeader').action, undefined);
       e.view.find('RefreshControl').onRefresh(); assert.equal(e.top.refetches, 1); assert.equal(e.categories.refetches, 1);
       const p = fixture('profile', platform); assert.equal(button(p.view, profileLabel), undefined);
-      await p.view.find('RefreshControl').onRefresh(); assert.deepEqual([p.profile.refetches, p.history.refetches, p.requests.refetches], [1, 1, 1]);
-      p.profile.isRefetchError = true; p.view.render(); assert.ok(button(p.view, profileLabel));
+      await p.view.find('RefreshControl').onRefresh(); assert.deepEqual([p.profile.refetches, p.history.refetches, p.requests.refetches], [1, 0, 0]);
+      p.profile.isRefetchError = true; p.view.render(); assert.ok(button(p.view, hiddenListsProfileLabel));
     }
   });
   console.log(`Web refresh runtime cases passed: ${passed}/${passed}. Synthetic hooks/hosts only; no live account or browser.`);

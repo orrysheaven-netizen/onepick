@@ -18,21 +18,9 @@ assert.ok(managementIndex > picksIndex, 'profile tools must follow the core prof
 assert.ok(onboardingIndex > managementIndex, 'taste continuation belongs inside profile tools');
 assert.ok(publicIndex > onboardingIndex, 'public profile action belongs inside profile tools');
 assert.ok(adminIndex > publicIndex, 'admin tools stay after user-facing profile tools');
-assert.ok(activityIndex > adminIndex, 'activity records must be separated from profile tools');
-assert.ok(requestIndex > activityIndex, 'item requests belong inside activity records');
-assert.ok(historyIndex > requestIndex, 'pick history follows item requests');
-
-assert.doesNotMatch(profile, /PROFILE TOOLS/);
-assert.doesNotMatch(profile, /ACTIVITY/);
-assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.activitySection\}>/);
-assert.match(profile, /showRequests \? <>/);
-assert.match(profile, /showHistory \? <>/);
-assert.match(profile, /취향 선택을 이어가거나 공개 프로필을 확인해요\./);
-assert.match(profile, /managementSection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
-assert.match(profile, /activitySection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
-assert.match(profile, /activitySectionTitle: \{ color: OnePick\.text, fontSize: 15, fontWeight: '800' \}/);
-assert.match(profile, /signOutArea: \{ marginTop: 26, paddingTop: 18, borderTopWidth: 1/);
-
+assert.equal(activityIndex, -1, 'No operational/history panel');
+assert.equal(requestIndex, -1); assert.equal(historyIndex, -1);
+assert.doesNotMatch(profile, /useMyItemRequests|useMyPickHistory|showRequests|showHistory/);
 assert.doesNotMatch(profile, /onboardingButton/);
 assert.doesNotMatch(profile, /publicProfileButton/);
 assert.doesNotMatch(profile, /publicProfileTitle/);

@@ -4,7 +4,6 @@ import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Scrol
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
-import { NotificationButton } from '@/components/notification-button';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
 import { PickPhoto } from '@/components/pick-photo';
@@ -117,7 +116,6 @@ export default function HomeScreen() {
     <View style={styles.nativeHeader}>
       <OnePickBrand />
       <View style={styles.headerActions}>
-        {user ? <NotificationButton userId={user.id} /> : null}
         {user ? <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} /> : null}
       </View>
     </View>

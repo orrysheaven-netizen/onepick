@@ -12,12 +12,17 @@ const flattenStyle = (style) => Array.isArray(style) ? Object.assign({}, ...styl
 const native = { ActivityIndicator: 'Spinner', Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: (styles) => styles, flatten: flattenStyle } };
 let pathname = '/';
 let navigated = null;
+const auth = { user: { id: 'owner' }, isLoading: false, error: null };
+const unread = { data: 0 };
+const countCalls = [];
 const mocks = {
+  '@/hooks/useAuthSession': { useAuthSession: () => auth },
+  '@/hooks/useNotifications': { useNotificationCount: (userId, enabled) => { countCalls.push({userId, enabled}); return unread; } },
   react: { useState: (initial) => [initial, () => {}] },
   'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
   'react-native': native,
   '@/constants/onepick': tokens,
-  'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
+  'expo-router': { Tabs: { Screen: 'Screen' }, Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
   'expo-image': { Image: 'Image' },
   '../../public/brand/onepick-logo-horizontal.svg': 'logo-light.svg',
@@ -40,6 +45,7 @@ function load(file) {
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
 const AppTabs = load('src/components/app-tabs.web.tsx').default;
+const NativeAppTabs = load('src/components/onepick-tabs.tsx').default;
 const { OnePickBrand } = load('src/components/onepick-brand.tsx');
 const flat = (style) => Array.isArray(style) ? style.flatMap(flat) : style ? [style] : [];
 const styleOf = (node, pressed = false) => Object.assign({}, ...flat(typeof node.props.style === 'function' ? node.props.style({ pressed }) : node.props.style));
@@ -148,51 +154,65 @@ test('unselected/dashed chip appearance and callback stay available', () => {
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
 });
-test('web active tab uses ink icon on tangerine and an ink label', () => {
-  pathname = '/explore';
-  const tree = expand(AppTabs());
-  const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '탐색')[0];
-  assert.equal(tab.props.accessibilityState.selected, true);
-  const background = styleOf(first(tab, 'View')).backgroundColor;
-  const iconColor = first(tab, 'svg').props.stroke;
-  assert.equal(background, OnePick.brand);
-  assert.equal(iconColor, OnePick.onBrand);
-  readable(iconColor, background, styleOf(tab, true).opacity ?? 1);
-  readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
-});
-test('web register control uses ink on tangerine and preserves route', () => {
-  const tree = expand(AppTabs());
-  const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
-  const icon = first(button, 'View');
-  assert.equal(styleOf(icon).backgroundColor, OnePick.brand);
-  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onBrand);
-  readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
-  button.props.onPress(); assert.equal(navigated, '/pick/new');
-});
-test('web Link tabs pass one layout style object through Link asChild', () => {
-  pathname = '/';
-  const tree = expand(AppTabs());
-  for (const label of ['홈', '탐색', '댓글', '프로필']) {
-    const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
-    assert.ok(tab, label);
-    assert.ok(tab.props.style && typeof tab.props.style === 'object' && !Array.isArray(tab.props.style), 'Link tab style must be a plain object');
-    assert.equal(tab.props.style.flex, 1);
-    assert.equal(tab.props.style.minHeight, 56);
-    assert.equal(tab.props.style.alignItems, 'center');
-    assert.equal(tab.props.style.justifyContent, 'center');
-    assert.equal(typeof tab.props.onPressIn, 'function');
-    assert.equal(typeof tab.props.onPressOut, 'function');
-  }
-});
-test('web tab routes and nested selection remain unchanged', () => {
-  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/comments', '댓글'], ['/profile/edit', '프로필']]) {
+test('Figma navigation preserves URL-backed links, selected state and touch sizes', () => {
+  for (const [url, label] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
     pathname = url;
     const tree = expand(AppTabs());
-    const active = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityState?.selected);
+    const active = all(tree, (n) => n.props.accessibilityState?.selected);
     assert.equal(active.length, 1);
-    assert.equal(active[0].props.accessibilityLabel, selected);
-    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/comments', '/profile']);
+    assert.equal(active[0].props.accessibilityLabel, label);
+    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/notifications', '/profile']);
+    for (const tab of all(tree, n => n.props.accessibilityRole === 'tab')) {
+      assert.equal(typeof tab.props.style, 'object', 'Link asChild requires a concrete style');
+      assert.equal(Array.isArray(tab.props.style), false);
+      assert.equal(styleOf(tab).minHeight, 64);
+      readable(styleOf(first(tab, 'Text')).color, '#ffffff');
+    }
   }
+});
+test('central registration is a black circular action and never selects a tab', () => {
+  const tree = expand(AppTabs());
+  const button = all(tree, n => n.props.accessibilityLabel === '원픽 등록')[0];
+  assert.equal(button.props.accessibilityRole, 'button');
+  const icon = styleOf(first(button, 'View'));
+  assert.equal(icon.width, 48); assert.equal(icon.height, 48); assert.equal(icon.borderRadius, 24);
+  assert.equal(icon.backgroundColor, '#141416');
+  readable(styleOf(first(button, 'Text')).color, icon.backgroundColor);
+  button.props.onPress(); assert.equal(navigated, '/pick/new');
+});
+test('unread dot has no number, survives a transient count error and hides on logout', () => {
+  const dot = tree => all(tree, n => n.props.testID === 'notification-unread-dot');
+  unread.data = 42;
+  let tree = expand(AppTabs());
+  assert.equal(dot(tree).length, 1);
+  assert.equal(all(tree, n => n.type === 'Text' && /42/.test(String(n.props.children))).length, 0);
+  assert.ok(all(tree, n => n.props.accessibilityLabel === '알림, 읽지 않은 알림 있음').length);
+  unread.isError = true; assert.equal(dot(expand(AppTabs())).length, 1);
+  auth.user = null; assert.equal(dot(expand(AppTabs())).length, 0);
+  assert.equal(countCalls.at(-1).enabled, false);
+  auth.user = { id: 'owner' }; auth.error = new Error('session');
+  assert.equal(dot(expand(AppTabs())).length, 0);
+  auth.error = null; unread.data = 0; unread.isError = false;
+  assert.equal(dot(expand(AppTabs())).length, 0);
+});
+test('native tab events can cancel navigation; registration always opens the stack', () => {
+  const routes = ['index', 'explore', 'register', 'notifications', 'profile'].map(name => ({ name, key: `${name}-key` }));
+  let prevented = false;
+  const events = [], changes = [];
+  const nativeTree = () => expand(NativeAppTabs().props.tabBar({
+    state: { index: 0, routes },
+    navigation: {
+      emit: event => { events.push(event); return { defaultPrevented: prevented }; },
+      navigate: (...args) => changes.push(args),
+    },
+  }));
+  const action = label => all(nativeTree(), n => n.props.accessibilityLabel === label)[0];
+  action('홈').props.onPress(); assert.equal(changes.length, 0);
+  prevented = true; action('알림').props.onPress(); assert.equal(changes.length, 0);
+  prevented = false; action('알림').props.onPress(); assert.equal(changes.at(-1)[0], 'notifications');
+  assert.equal(events.at(-1).type, 'tabPress');
+  action('프로필').props.onLongPress(); assert.equal(events.at(-1).type, 'tabLongPress');
+  action('원픽 등록').props.onPress(); assert.equal(navigated, '/pick/new');
 });
 test('brand home link passes one style object through Link asChild', () => {
   // expo-router's Slot merges the child style with `{ ...style }`: an array

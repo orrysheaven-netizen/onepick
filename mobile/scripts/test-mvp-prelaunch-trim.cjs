@@ -195,37 +195,30 @@ async function main() {
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render(); view.find('Chip', (p) => p.label === 'movie').onPress(); view.render();
     assert.match(view.text(), /외부 카탈로그/); assert.equal(typeof view.find('ItemSearch').onSearchMovie, 'function'); assert.doesNotMatch(view.text(), /외부 DB/);
   });
-  await test('Owner profile hides confirmed-empty activity but continues both queries', () => {
-    const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|원픽 활동|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
-    assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
-    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('새로고침')), undefined);
-  });
-  await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
+  await test('Owner profile never loads operational request/history lists, even if old flags are enabled', () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
-    const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
-    assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 원픽 등록 요청/);
-    history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '활동 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
-    history.isError = false; history.isSuccess = true; history.data = []; history.hasNextPage = true; view.render(); button = view.find('Button', (p) => p.label === '활동 더 보기'); assert.ok(button); button.onPress(); assert.equal(history.nextPages, 1);
-    history.hasNextPage = false; requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }]; view.render();
-    assert.match(view.text(), /New request/); assert.equal(view.all('Text').some((p) => p.children === '원픽 활동'), false);
-    requests.isError = true; requests.isSuccess = false; view.render(); assert.match(view.text(), /New request/); assert.match(view.text(), /최신 목록/);
+    const { view, calls } = profile();
+    assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|원픽 활동/);
+    assert.equal(calls.history, 0); assert.equal(calls.requests, 0);
+    assert.equal(view.all('ProfileBioEditor').length, 0);
+    assert.equal(view.all('SignOutButton').length, 0);
+    assert.ok(view.find('Button', p => p.label === '프로필 편집'));
+    assert.ok(view.find('Button', p => p.label === '설정'));
+    flags.profilePickHistory = false; flags.profileItemRequests = false;
   });
   await test('Owner header refresh appears only on profile refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
     await view.find('Button', (p) => p.accessibilityLabel === '프로필 새로고침').onPress();
     assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 0);
   });
-  await test('Activity, pick history and social links stay hidden until restored', () => {
-    const owner = profile();
-    owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }];
-    owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
-    assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|원픽 활동|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
-    flags.profileItemRequests = true; owner.view.render(); assert.match(owner.view.text(), /활동 기록/); assert.match(owner.view.text(), /New request/);
-    flags.profilePickHistory = true; flags.profileSocialLinks = true; owner.view.render();
-    assert.match(owner.view.text(), /원픽 활동/); assert.equal(owner.view.all('ProfilePickCard').length, 1); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
-    flags.profileSocialLinks = false; const visitor = profile(true); assert.equal(visitor.view.all('ProfileSocialLinks').length, 0);
-    flags.profileSocialLinks = true; visitor.view.render(); assert.equal(visitor.view.all('ProfileSocialLinks').length, 1);
+  await test('Removed activity panels cannot reappear through legacy flags or cached requests', () => {
+    const owner = profile(); flags.profileItemRequests = true; flags.profilePickHistory = true;
+    owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' } }];
+    owner.history.data = [{ pick: { id: 'old', status: 'replaced' } }];
+    owner.view.render();
+    assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|원픽 활동/);
+    assert.equal(owner.view.all('ProfilePickCard').length, 0);
+    flags.profileItemRequests = false; flags.profilePickHistory = false;
   });
   await test('Both profile features can be restored independently', () => {
     for (const isPublic of [false, true]) for (const taste of [false, true]) for (const ai of [false, true]) {

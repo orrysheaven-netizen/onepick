@@ -9,10 +9,12 @@ const appConfig = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'
 
 assert.match(webTabs, /\bSlot\b/, 'Web tab shell must render the current file route through Slot');
 assert.match(webTabs, /<Slot\s*\/>/, 'Web tab shell must render Slot directly');
-assert.match(webTabs, /href="\/"[^>]*icon="home"/, 'Home tab must link to /');
-assert.match(webTabs, /href="\/explore"[^>]*icon="explore"/, 'Explore tab must link to /explore');
-assert.match(webTabs, /href="\/comments"[^>]*icon="comments"/, 'My comments tab must link to /comments');
-assert.match(webTabs, /href="\/profile"[^>]*icon="profile"/, 'Profile tab must link to /profile');
+for (const href of ['/', '/explore', '/notifications', '/profile']) {
+  assert.ok(webTabs.includes(`href: '${href}'`), `Missing URL-backed tab ${href}`);
+}
+assert.ok(fs.existsSync(path.join(root, 'src/app/(tabs)/notifications.tsx')));
+assert.ok(fs.existsSync(path.join(root, 'src/app/comments.tsx')));
+assert.ok(!fs.existsSync(path.join(root, 'src/app/(tabs)/comments.tsx')));
 assert.doesNotMatch(webTabs, /expo-router\/ui|\bTabSlot\b|\bTabList\b|\bTabTrigger\b/,
   'Web routes must not be owned by a second client-side tab navigator');
 

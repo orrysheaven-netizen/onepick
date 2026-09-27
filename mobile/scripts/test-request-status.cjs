@@ -99,15 +99,18 @@ async function main() {
   });
   const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
   const button = (label) => presses.find((props) => textOf(props.children).includes(label));
-  const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 원픽 등록 요청 상태 새로고침');
+  const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필 새로고침');
 
-  assert.match(render(), /승인 대기/);
+  assert.doesNotMatch(render(), /승인 대기|등록 요청|원픽 활동/);
+  button('프로필 편집').onPress(); assert.equal(destination, '/profile/edit');
+  button('설정').onPress(); assert.equal(destination, '/settings');
+  button('댓글 ›').onPress(); assert.equal(destination, '/comments');
   assert.doesNotMatch(render(), /내 댓글/, 'My comments moved to their own bottom tab');
 
   // The 댓글 bottom tab: signed-out visitors get a login that returns here; members see their list.
   let commentsUser, commentsScope, commentsProps, loginRoute;
   const commentsQuery = listQuery();
-  const { default: MyComments } = load('app/(tabs)/comments.tsx', {
+  const { default: MyComments } = load('app/comments.tsx', {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { loginRoute = route; } }) },
@@ -119,13 +122,10 @@ async function main() {
   });
   const renderMyComments = () => { presses = []; commentsProps = undefined; return renderToStaticMarkup(React.createElement(MyComments)); };
   const myCommentsScreen = renderMyComments();
-  assert.match(myCommentsScreen, /MY_COMMENTS_LIST/); assert.doesNotMatch(myCommentsScreen, /내 댓글/, 'The screen is just 댓글');
+  assert.match(myCommentsScreen, /MY_COMMENTS_LIST/); assert.match(myCommentsScreen, /내 댓글/);
   assert.equal(commentsUser, 'owner'); assert.equal(commentsProps.query, commentsQuery);
-  // Top tabs split the MVP theme from the rest, and the theme tab is the default.
-  assert.deepEqual(presses.filter((props) => props.accessibilityRole === 'tab').map((props) => [props.accessibilityLabel, props.accessibilityState.selected]),
-    [['먹을것 댓글 보기', true], ['그 외 댓글 보기', false]]);
-  assert.deepEqual({ ...commentsScope }, { rootSlug: 'food', inside: true });
-  assert.match(commentsProps.emptyText, /먹을것 한줄평/);
+  assert.equal(presses.filter(props => props.accessibilityRole === 'tab').length, 0);
+  assert.equal(commentsScope, undefined, 'All comments are requested without a theme filter');
   auth.user = null;
   assert.match(renderMyComments(), /로그인하기/); assert.equal(commentsUser, undefined); assert.equal(commentsProps, undefined);
   button('로그인하기').onPress(); assert.equal(loginRoute.params.action, 'my_comments');
@@ -157,97 +157,20 @@ async function main() {
   renderComments(); presses.find((props) => props.accessibilityLabel === '댓글 더 보기').onPress(); assert.equal(nextPages, 1);
   Object.assign(myComments, { data: undefined, isError: true });
   assert.match(renderComments(), /댓글을 불러오지 못했어요/);
-  render(); // Back on the profile screen: its pull-to-refresh and press targets.
-  assert.equal(bioProps.profileUserId, 'owner');
-  assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
-  assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
-  assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable item');
-  assert.equal(refreshButton(), undefined, 'Healthy profile has no manual refresh');
-  await pullToRefresh.props.onRefresh();
-  assert.equal(refreshes, 1);
-  assert.match(render(), /승인됨/);
-  button('waiting 제품').onPress();
-  assert.equal(destination.pathname, '/item/[itemId]');
-  assert.equal(destination.params.itemId, 'waiting', 'Approval leads to the same shared item');
-  profileQuery.isRefetchError = true;
-  render(); await refreshButton().onPress();
-  assert.equal(refreshes, 2);
-  assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Pull refresh and error retry update all three queries');
-
-  profileQuery.isFetching = true; profileQuery.isRefetching = true;
-  assert.match(render(), /확인 중…/);
-  assert.equal(refreshButton().disabled, true);
-  assert.equal(pullToRefresh.props.refreshing, true);
-  profileQuery.isFetching = false; profileQuery.isRefetching = false; profileQuery.isRefetchError = false;
-
-  requestsQuery.data = [
-    request('merged', 'merged', { id: 'canonical', name: '정식 라면', status: 'active' }),
-    request('merged-hidden', 'merged', { id: 'private', name: '숨긴 제품', status: 'hidden' }),
-    request('merged-missing', 'merged'),
-    request('rejected', 'rejected'), request('hidden', 'hidden'), request('old', 'discontinued'),
-  ];
   render();
-  button('merged 제품').onPress();
-  assert.equal(destination.params.itemId, 'canonical', 'Merged requests open the canonical item, not the duplicate');
-  for (const id of ['merged-hidden', 'merged-missing', 'rejected', 'hidden']) {
-    assert.equal(button(`${id} 제품`), undefined, `${id} must not open a non-public item`);
-  }
-  button('old 제품').onPress();
-  assert.equal(destination.params.itemId, 'old');
-
-  profileQuery.isError = true; profileQuery.isRefetchError = true;
-  const stale = render();
-  assert.match(stale, /마지막으로 확인한 내용을 표시/);
-  assert.match(stale, /내 원픽 등록 요청/, 'A transient refresh error keeps already loaded requests visible');
-  assert.ok(refreshButton());
-  profileQuery.isError = false; profileQuery.isRefetchError = false;
-
-  // Each list retains its cards on errors and retries the appropriate operation.
-  for (const [query, label] of [[requestsQuery, '등록 요청'], [historyQuery, '활동']]) {
-    let nextCalls = 0, refetchCalls = 0, nextOptions;
-    query.fetchNextPage = async (options) => { nextCalls++; nextOptions = options; };
-    query.refetch = async () => { refetchCalls++; };
-    query.hasNextPage = true;
-    const control = () => presses.find((props) => props.accessibilityLabel?.startsWith(`${label} `));
-    assert.match(render(), /활동 기록/);
-    assert.match(control().accessibilityLabel, /더 보기/);
-    await control().onPress();
-    assert.equal(nextCalls, 1); assert.equal(nextOptions.cancelRefetch, false);
-    query.isError = true; query.isFetchNextPageError = true;
-    assert.match(render(), /다음 목록을 불러오지 못했어요/);
-    assert.ok(button('merged 제품'), 'A page error preserves already loaded requests');
-    await control().onPress(); assert.equal(nextCalls, 2); assert.equal(refetchCalls, 0);
-    query.isFetching = true;
-    render(); assert.equal(control().disabled, true); assert.equal(refreshButton(), undefined);
-    await control().onPress(); await pullToRefresh.props.onRefresh();
-    assert.equal(nextCalls, 2); assert.equal(refetchCalls, 0, 'Refresh and more actions must not interrupt a pending page');
-    query.isFetching = false; query.isFetchNextPageError = false;
-    assert.match(render(), /최신 목록을 확인하지 못했어요/);
-    await control().onPress(); assert.equal(refetchCalls, 1); assert.equal(nextCalls, 2);
-    const data = query.data; query.data = undefined; query.hasNextPage = false;
-    assert.match(render(), new RegExp(`${label}을 불러오지 못했어요`));
-    await control().onPress(); assert.equal(refetchCalls, 2);
-    assert.match(render(), /음식 원픽/, 'A failed list must not take down the profile');
-    query.isPending = true; query.isError = false;
-    render(); assert.equal(control(), undefined, 'The pending list must not offer a misleading retry');
-    query.isPending = false; query.data = data;
-  }
-
-  historyQuery.data = [{ pick: { id: 'old-pick', oneLineReview: 'Previous choice', status: 'replaced' }, item: { name: '이전 제품' }, category }];
-  render(); button('이전 제품').onPress();
-  assert.equal(destination.pathname, '/pick/[pickId]'); assert.equal(destination.params.pickId, 'old-pick');
-
-  const savedRequests = requestsQuery.data, savedHistory = historyQuery.data;
-  requestsQuery.data = []; historyQuery.data = [];
-  assert.doesNotMatch(render(), /활동 기록|내 원픽 등록 요청|원픽 활동|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
-  assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner', 'Hidden lists retain their active user scope');
-  historyQuery.isPending = true; historyQuery.data = undefined;
-  assert.match(render(), /활동 기록/); assert.match(render(), /원픽 활동/, 'Pending is not confirmed empty');
-  historyQuery.isPending = false; historyQuery.data = [];
-  requestsQuery.isError = true;
-  assert.match(render(), /내 원픽 등록 요청/, 'An empty cached list still exposes its error and retry');
-  requestsQuery.isError = false; requestsQuery.data = savedRequests; historyQuery.data = savedHistory;
-
+  assert.equal(bioProps, undefined, 'Editing has its own route');
+  assert.equal(socialProps.editable, undefined, 'Profile is read-only');
+  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
+  assert.equal(refreshButton(), undefined);
+  await pullToRefresh.props.onRefresh(); assert.equal(refreshes, 1);
+  assert.equal(requestRefreshes, 0); assert.equal(historyRefreshes, 0);
+  profileQuery.isRefetchError = true;
+  assert.match(render(), /마지막으로 확인한 내용을 표시/);
+  await refreshButton().onPress(); assert.equal(refreshes, 2);
+  profileQuery.isFetching = true; render(); assert.equal(refreshButton().disabled, true);
+  profileQuery.isFetching = false; profileQuery.isRefetchError = false;
+  requestsQuery.isError = true; historyQuery.isPending = true;
+  assert.doesNotMatch(render(), /등록 요청|승인 대기|원픽 활동/);
   const cached = profileQuery.data;
   profileQuery.data = undefined;
   assert.match(render(), /프로필을 불러오지 못했어요/);
@@ -263,6 +186,6 @@ async function main() {
   auth.user = { id: 'owner' }; auth.isLoading = true;
   assert.doesNotMatch(render(), /merged 제품|이전 제품/);
   assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
-  console.log('Request status checks passed: approval/merge routes, error-only refresh, confirmed-empty sections, independent pagination/loading/errors/retries, history routes and logout privacy.');
+  console.log('Profile privacy and comments passed: no operational/history queries, edit/settings/comments navigation, unfiltered comments pagination, retry and logout privacy.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

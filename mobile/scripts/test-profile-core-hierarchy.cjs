@@ -11,14 +11,14 @@ const publicProfile = read('src/app/u/[username].tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 
 const headerIndex = owner.indexOf('<View style={styles.header}>');
-const refreshIndex = owner.indexOf("'프로필 새로고침'");
-const bioIndex = owner.indexOf('<ProfileBioEditor');
+const refreshIndex = owner.indexOf('accessibilityLabel="프로필 새로고침"');
+const bioIndex = owner.indexOf('{profile.bio ?');
 const tasteIndex = owner.indexOf('<ProfileTasteComposition');
 const aiIndex = owner.indexOf('<ProfileAiPanel');
 const picksIndex = owner.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 
 assert.ok(headerIndex >= 0, 'owner profile header is missing');
-assert.ok(refreshIndex > headerIndex && refreshIndex < bioIndex, 'error refresh belongs in the profile header, before profile content');
+assert.ok(refreshIndex > headerIndex, 'Stale-data retry remains available');
 assert.ok(tasteIndex > bioIndex, 'gated taste composition follows profile info');
 assert.ok(aiIndex > tasteIndex, 'gated AI follows taste composition');
 assert.ok(picksIndex > aiIndex, 'category picks follow gated AI');
@@ -28,7 +28,6 @@ assert.doesNotMatch(owner, /<Text style={styles\.summaryNumber}>{currentPicks\.l
 assert.doesNotMatch(owner, /불러온 이전 선택/);
 assert.doesNotMatch(owner, /summaryDivider/);
 assert.doesNotMatch(owner, /refreshButton/);
-assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel=\{OnePickFeatures\.profileItemRequests \? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'\}/, 'header retry is an errors-only kit text button');
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 assert.match(owner, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'owner collection count follows the selected taste tab');

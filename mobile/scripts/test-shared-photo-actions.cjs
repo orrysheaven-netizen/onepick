@@ -154,10 +154,12 @@ async function main() {
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));
   cache.clear();
-  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
+  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
   const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
+  const ownerProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
+  assert.match(ownerProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{visibleProfilePicks\}/, 'owner profile passes current picks through the shared groups');
   assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{visibleProfilePicks\}/, 'public profile forwards the selected taste-scope Pick rows to the grouped list');
   const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
   assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');

@@ -68,10 +68,10 @@ assert.equal(itemButton.hitSlop, 4, 'compact product action keeps an expanded to
 assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.name\}>/);
 assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.review\}>/);
 assert.match(source, /categoryPill/);
-assert.match(owner, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
+assert.doesNotMatch(owner, /useMyPickHistory/, 'Owner profile must not query previous pick records');
 assert.match(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
 assert.match(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
-assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 1, 'owner profile still uses the shared card for history picks');
+assert.equal((owner.match(/<ProfilePickCard/g) || []).length, 0, 'No history cards outside the current collection');
 assert.match(groups, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
 assert.match(groups, /<ProfilePickCard/, 'current owner/public groups render the same shared card');
 assert.doesNotMatch(publicProfile, /원픽 상세 보기 ›/);

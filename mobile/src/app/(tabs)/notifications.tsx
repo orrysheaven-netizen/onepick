@@ -66,9 +66,9 @@ export default function NotificationsScreen() {
     if (!item.read_at) void read.mutateAsync({ kind: item.kind, id: item.id }).catch(() => undefined);
   };
 
-  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+  return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="홈으로" style={styles.action} onPress={() => router.replace('/')}><Text style={styles.link}>‹ 홈</Text></Pressable>
+      <View style={styles.action} />
       <Text style={styles.title}>알림</Text>
       {ready ? <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={refresh} style={styles.action}><Text style={styles.link}>새로고침</Text></Pressable> : <View style={styles.action} />}
     </View>

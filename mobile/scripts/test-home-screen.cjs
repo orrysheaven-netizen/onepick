@@ -103,8 +103,7 @@ const press = (label) => {
 // The real enabled follow flag must not force a new member into an empty feed.
 const allFirstPage = render();
 assert.match(allFirstPage, /팔로잉/, 'Following remains an available member scope');
-assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
-assert.match(allFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
+assert.doesNotMatch(allFirstPage, /data-notification-user/, 'Notifications are in the bottom bar, not duplicated in the home header');
 assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');

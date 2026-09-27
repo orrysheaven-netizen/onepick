@@ -30,7 +30,7 @@ assert.match(queryKeys, /profileTaste:\s*\{/);
 assert.match(queryKeys, /composition: \(profileId: string, viewerId\?: string\)/);
 assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 
-const infoIndex = profile.indexOf('<ProfileBioEditor');
+const infoIndex = profile.indexOf('{profile.bio ?');
 const tasteIndex = profile.indexOf('<ProfileTasteComposition');
 const aiIndex = profile.indexOf('<ProfileAiPanel');
 const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
