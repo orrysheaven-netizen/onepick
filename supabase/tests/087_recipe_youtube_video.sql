@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(19);
 
 -- The single 레시피 category is retired; recipes are a channel of each dish.
 select ok(exists(
@@ -70,6 +70,38 @@ select throws_ok($$
   insert into public.items(category_id,name,normalized_name,status,external_source,external_id)
   values((select id from public.categories where slug='kimchi-jjigae'),'직접 넣은 영상','직접넣은영상','active','youtube_video','CCCCCCCCCCC')
 $$,'42501',null,'clients cannot insert recipe video items directly');
+reset role;
+
+-- #426 M10: a newly imported video waits for review; before approval it is
+-- visible to its requester only, never to guests, other members or search.
+insert into auth.users(id,aud,role,created_at,updated_at) values
+  ('d1111111-1111-4111-8111-111111111111','authenticated','authenticated',now(),now()),
+  ('d2222222-2222-4222-8222-222222222222','authenticated','authenticated',now(),now());
+insert into public.profiles(id,username,onboarding_completed) values
+  ('d1111111-1111-4111-8111-111111111111','recipe_requester',true),
+  ('d2222222-2222-4222-8222-222222222222','recipe_other',true);
+insert into public.items(category_id,name,normalized_name,status,created_by,external_source,external_id,original_name,creator_name,official_url,external_refreshed_at)
+values((select id from public.categories where slug='doenjang-jjigae'),'대기 중인 된장찌개 레시피','대기중인된장찌개레시피','pending',
+  'd1111111-1111-4111-8111-111111111111','youtube_video','DDDDDDDDDDD','대기 중인 된장찌개 레시피','요리 채널',
+  'https://www.youtube.com/watch?v=DDDDDDDDDDD',now());
+
+set local role anon;
+select ok(not exists(select 1 from public.items where external_id='DDDDDDDDDDD'),
+  'guests cannot see a pending recipe video');
+select ok(not exists(select 1 from public.search_items('된장찌개',array[(select id from public.categories where slug='doenjang-jjigae')],20)
+  where external_id='DDDDDDDDDDD'),'a pending recipe video is not searchable before approval');
+reset role;
+
+select set_config('request.jwt.claim.sub','d2222222-2222-4222-8222-222222222222',true);
+set local role authenticated;
+select ok(not exists(select 1 from public.items where external_id='DDDDDDDDDDD'),
+  'other members cannot see a pending recipe video');
+reset role;
+
+select set_config('request.jwt.claim.sub','d1111111-1111-4111-8111-111111111111',true);
+set local role authenticated;
+select ok(exists(select 1 from public.items where external_id='DDDDDDDDDDD' and status='pending'),
+  'the requester can see their own pending video to finish the request');
 reset role;
 
 select * from finish();

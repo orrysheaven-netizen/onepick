@@ -18,6 +18,7 @@ async function functionError(error: unknown) {
   if (response?.status === 429 || body?.error === 'RATE_LIMITED') return new AppError('RATE_LIMITED');
   if (body?.error === 'CATALOG_NOT_CONFIGURED') return new AppError('CATALOG_NOT_CONFIGURED');
   if (body?.error === 'ITEM_NOT_ELIGIBLE') return new AppError('ITEM_NOT_ELIGIBLE');
+  if (body?.error === 'ITEM_ALREADY_PENDING') return new AppError('ITEM_ALREADY_PENDING');
   if (body?.error === 'VIDEO_URL_INVALID') return new AppError('VIDEO_URL_INVALID');
   if (body?.error === 'CHANNEL_NOT_FOUND' || body?.error === 'VIDEO_NOT_FOUND' || body?.error === 'EXTERNAL_ID_INVALID') return new AppError('ITEM_NOT_FOUND');
   if (body?.error === 'CATEGORY_NOT_FOUND') return new AppError('CATEGORY_NOT_FOUND');

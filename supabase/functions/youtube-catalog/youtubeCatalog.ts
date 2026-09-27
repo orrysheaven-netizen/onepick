@@ -361,7 +361,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const key = apiKey();
     if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
-    const findExisting = () => client.from('items').select('id,category_id,status,external_refreshed_at')
+    const findExisting = () => client.from('items').select('id,category_id,status,created_by,external_refreshed_at')
       .eq('external_source', YOUTUBE_VIDEO_SOURCE).eq('external_id', id).maybeSingle();
     let existing = await findExisting();
     if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
@@ -377,7 +377,19 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       }
       existing = { ...existing, data: null };
     }
-    if (existing.data && !['active', 'discontinued'].includes(existing.data.status)) {
+    // A new video waits for administrator review (#426 M10), like a newly selected
+    // place (#401). While it waits, someone else cannot take the video over; its
+    // requester gets the same request back to finish the one-line review.
+    let ownPendingDish: string | null = null;
+    if (existing.data?.status === 'pending') {
+      if (existing.data.created_by !== user.id) return json({ error: 'ITEM_ALREADY_PENDING' }, 409);
+      const accepts = await recipeCategory(client, existing.data.category_id);
+      if (accepts === null) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (!accepts || requesting) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+      ownPendingDish = existing.data.category_id;
+      if (!lookup) return json({ itemId: existing.data.id, categoryId: ownPendingDish, created: false, pending: true });
+    }
+    if (existing.data && !ownPendingDish && !['active', 'discontinued'].includes(existing.data.status)) {
       return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }
     // A video registered under a dish keeps that dish. One left in the retired 레시피
@@ -405,6 +417,19 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     let rawItems: unknown[] | null = Array.isArray(cached) ? cached : null;
     let fetchedNow = false;
     if (!rawItems) {
+      // Every videos.list call spends the app-wide YouTube key, so registration is
+      // rate limited before it, like a lookup (reserved above). A new video also
+      // takes its import quota here rather than after the call, so repeated unknown
+      // IDs stop at the quota instead of draining the key.
+      if (!lookup) {
+        const limited = await reserveSearch(client, req, user.id);
+        if (limited) return limited;
+        if (!existing.data) {
+          const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+          if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+          if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+        }
+      }
       const remote = await fetchYouTube(videoDetailsUrl(key, id));
       if (remote.error) return remote.error;
       rawItems = Array.isArray(remote.data.items) ? remote.data.items.slice(0, 1) : [];
@@ -416,7 +441,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const now = new Date().toISOString();
 
     if (lookup) {
-      if (existing.data && existingDish && fetchedNow) {
+      if (existing.data && existingDish && fetchedNow && !ownPendingDish) {
         const updated = await client.from('items').update(videoFields(video, now)).eq('id', existing.data.id);
         if (updated.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       }
@@ -449,10 +474,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
 
-    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
-    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
-
+    // The import quota for this new video was reserved before calling YouTube.
     let targetCategory = dishId;
     if (requesting) {
       const pending = await client.from('categories').select('id').eq('slug', 'pending-product').maybeSingle();
@@ -462,7 +484,11 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const inserted = await client.from('items').insert({
       category_id: targetCategory,
       ...videoFields(video, now),
-      ...(requesting ? { status: 'pending', created_by: user.id, requested_category_label: dishName } : {}),
+      // Every new video is a request: approval publishes it (and makes the
+      // requester's Pick from their pending review).
+      status: 'pending',
+      created_by: user.id,
+      ...(requesting ? { requested_category_label: dishName } : {}),
       external_source: YOUTUBE_VIDEO_SOURCE,
       external_id: id,
       release_year: null,
@@ -479,13 +505,16 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       }
       return json(requesting
         ? { itemId: inserted.data.id, categoryId: null, created: true, pending: true }
-        : { itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
+        : { itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true, pending: true });
     }
     if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     const winner = await findExisting();
-    if (winner.error || !winner.data || !['active', 'discontinued'].includes(winner.data.status)) {
-      return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (winner.error || !winner.data) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (winner.data.status === 'pending') {
+      if (winner.data.created_by !== user.id || requesting) return json({ error: 'ITEM_ALREADY_PENDING' }, 409);
+      return json({ itemId: winner.data.id, categoryId: winner.data.category_id, created: false, pending: true });
     }
+    if (!['active', 'discontinued'].includes(winner.data.status)) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
     return json({ itemId: winner.data.id, categoryId: winner.data.category_id, created: false });
   };
 
@@ -598,6 +627,15 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: existing.data.id, categoryId: category.id, created: false });
     }
 
+    // Rate limit before spending the shared YouTube key (see handleVideo); a new
+    // channel takes its import quota before the call, not after.
+    const limited = await reserveSearch(client, req, user.id);
+    if (limited) return limited;
+    if (!existing.data) {
+      const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+    }
     const remote = await fetchYouTube(channelsUrl(key, { type: 'id', value: id }));
     if (remote.error) return remote.error;
     const source = Array.isArray(remote.data.items) ? remote.data.items : [];
@@ -619,10 +657,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
 
-    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
-    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
-
+    // The import quota for this new channel was reserved before calling YouTube.
     const inserted = await client.from('items').insert({
       category_id: category.id,
       name: channel.title,
