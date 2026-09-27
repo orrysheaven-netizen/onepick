@@ -58,9 +58,14 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 16, marginBottom: 12 },
-  mine: { backgroundColor: OnePick.accentSoft, borderColor: OnePick.accentSoft },
-  highlight: { borderColor: OnePick.accent, borderWidth: 2, backgroundColor: OnePick.accentSoft },
+  card: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: OnePick.border,
+    backgroundColor: 'transparent',
+    paddingVertical: 16,
+  },
+  mine: { backgroundColor: 'transparent' },
+  highlight: { backgroundColor: OnePick.accentSoft, borderRadius: 14, paddingHorizontal: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   author: { flex: 1, minWidth: 0 },
   mineLabel: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '800' },
