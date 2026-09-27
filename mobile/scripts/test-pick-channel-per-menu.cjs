@@ -106,7 +106,7 @@ async function main() {
 
   const choose = fs.readFileSync(path.join(__dirname, '../src/app/pick/choose.tsx'), 'utf8');
   assert.match(choose, /\.\.\.\(pickChannel \? \{ channel: pickChannel \} : \{\}\)/, 'The choose screen saves under the resolved channel');
-  assert.match(choose, /이 메뉴의 \$\{channelLabel\(pickChannel\)\} 원픽이 이걸로 바뀌고/, 'Replacing names the channel');
+  assert.match(choose, /이 메뉴의 \$\{channelLabel\(pickChannel\)\} 원픽이 이걸로 바뀝니다/, 'Replacing names the channel without advertising history');
   const find = fs.readFileSync(path.join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
   assert.match(find, /\.\.\.\(isPlaceCategory \? \{ channel \} : \{\}\)/, '매장/온라인 search passes its channel to the choose screen');
 
