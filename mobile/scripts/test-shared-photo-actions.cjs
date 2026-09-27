@@ -158,7 +158,7 @@ async function main() {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
   const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
-  assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{mainPicks\}/, 'public profile forwards its real (main-theme) Pick rows to the grouped list');
+  assert.match(publicProfileSource, /<ProfilePickGroups[\s\S]*?picks=\{visibleProfilePicks\}/, 'public profile forwards the selected taste-scope Pick rows to the grouped list');
   const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
   assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');
   const profilePickCardSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-card.tsx'), 'utf8');

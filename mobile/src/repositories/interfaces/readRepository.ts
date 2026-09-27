@@ -62,6 +62,8 @@ export interface HomeFeedPick {
   startedAt: string;
   /** Empty for legacy items with no channel, and on the following feed. */
   channels: PickChannel[];
+  /** Public provider profile for store/online items. */
+  providerId?: string | null;
 }
 
 export interface HomePickPage {
@@ -184,10 +186,11 @@ export interface ReadRepository {
   /** The dish the query names exactly (e.g. 미역국) split by channel; null when the query is not a dish. */
   getDishChannelOverview(query: string): Promise<DishChannelOverview | null>;
   /**
-   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
-   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs), `rootSlug`
+   * keeps one top-level category tree (MVP: 'food') and `categoryId` one dish
+   * (the 미역국 page); null keeps every Pick.
    */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;

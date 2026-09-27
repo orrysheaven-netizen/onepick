@@ -74,8 +74,8 @@ begin
   assert not exists (
     select 1 from pg_proc
     where proname='home_pick_feed_page' and pronamespace='public'::regnamespace
-      and oid<>'public.home_pick_feed_page(timestamptz,uuid,text,text)'::regprocedure
-  ), 'Only the channel-aware overload remains, so two-argument calls stay unambiguous';
+      and oid<>'public.home_pick_feed_page(timestamptz,uuid,text,text,uuid)'::regprocedure
+  ), 'Only the latest (dish-aware) overload remains, so shorter calls stay unambiguous';
 end;
 $flow$;
 $test$, 'Home feed channel tabs: 전체 keeps everything, 매장/온라인 filter server-side with the same cursor');

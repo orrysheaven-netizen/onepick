@@ -91,6 +91,7 @@ async function main() {
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
+    '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
@@ -226,7 +227,7 @@ async function main() {
     const data = query.data; query.data = undefined; query.hasNextPage = false;
     assert.match(render(), new RegExp(`${label}을 불러오지 못했어요`));
     await control().onPress(); assert.equal(refetchCalls, 2);
-    assert.match(render(), /카테고리별 원픽/, 'A failed list must not take down the profile');
+    assert.match(render(), /음식 원픽/, 'A failed list must not take down the profile');
     query.isPending = true; query.isError = false;
     render(); assert.equal(control(), undefined, 'The pending list must not offer a misleading retry');
     query.isPending = false; query.data = data;

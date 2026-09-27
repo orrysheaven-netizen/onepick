@@ -27,6 +27,7 @@ function errorMessage(error: unknown) {
     if (error.code === 'ITEM_NAME_INVALID') return '이름은 1~100자로 입력해주세요.';
     if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 입력해주세요.';
     if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
+    if (error.code === 'ITEM_ALREADY_PENDING') return '다른 사람이 먼저 등록 요청했어요. 관리자 승인 후 원픽으로 고를 수 있어요.';
     if (error.code === 'PROFILE_NOT_FOUND') return '사용자명을 먼저 정해주세요.';
   }
   return '등록하지 못했어요. 다시 시도해주세요.';

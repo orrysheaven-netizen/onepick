@@ -471,7 +471,7 @@ async function main() {
     });
     await check(flow, '핵심 요소 표시', async () => {
       // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
-      await page.getByText('카테고리별 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByText('음식 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await actionable(page.getByRole('button', { name: '프로필 새로고침' }));
       await noErrorCopy(page);
     });

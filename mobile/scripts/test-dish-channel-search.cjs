@@ -43,6 +43,7 @@ async function main() {
     '@/repositories/mappers/categoryMapper': {}, '@/repositories/mappers/commentMapper': {}, '@/repositories/mappers/itemMapper': {},
     '@/repositories/mappers/pickMapper': {}, '@/repositories/mappers/profileMapper': {},
     '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
     './itemChannels': { fetchItemChannels: async () => new Map() },
   });
   const overview = await new SupabaseReadRepository(client).getDishChannelOverview('미역국');

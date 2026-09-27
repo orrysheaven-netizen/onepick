@@ -36,7 +36,7 @@ function screen(relative, imports, platform = 'ios') {
   const Screen = load(relative, {
     react,
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
-    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator'), Platform: { OS: platform }, StyleSheet: { create: (value) => value } },
+    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image'), Platform: { OS: platform }, StyleSheet: { create: (value) => value } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/components/ui': names('Avatar BrandMark Button Chip SectionHeader StateCard'),
     ...imports,

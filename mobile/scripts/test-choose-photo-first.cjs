@@ -64,7 +64,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   '@/components/ui': ui,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
-  '@/hooks/useChoosePick': { useChoosePick: () => ({ isPending: false, isError: false, error: null, mutateAsync: async () => ({}) }) },
+  '@/hooks/useChoosePick': { useChoosePick: () => ({ isPending: false, isError: false, error: null, mutateAsync: async () => ({}) }), useRequestPendingPick: () => ({ isPending: false, error: null }) },
 });
 
 function arrange(item, status = { type: 'not_selected' }) {

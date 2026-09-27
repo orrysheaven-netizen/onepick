@@ -15,7 +15,7 @@ const refreshIndex = owner.indexOf("'프로필 새로고침'");
 const bioIndex = owner.indexOf('<ProfileBioEditor');
 const tasteIndex = owner.indexOf('<ProfileTasteComposition');
 const aiIndex = owner.indexOf('<ProfileAiPanel');
-const picksIndex = owner.indexOf('카테고리별 원픽');
+const picksIndex = owner.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 
 assert.ok(headerIndex >= 0, 'owner profile header is missing');
 assert.ok(refreshIndex > headerIndex && refreshIndex < bioIndex, 'error refresh belongs in the profile header, before profile content');
@@ -31,11 +31,11 @@ assert.doesNotMatch(owner, /refreshButton/);
 assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel=\{OnePickFeatures\.profileItemRequests \? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'\}/, 'header retry is an errors-only kit text button');
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
-assert.match(owner, /<SectionHeader title="카테고리별 원픽" count=\{mainPicks\.length\}/, 'owner collection is the single displayed pick count (실험실 Picks are counted on its entry row)');
+assert.match(owner, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'owner collection count follows the selected taste tab');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 
 assert.match(publicProfile, /<Text style={styles\.summaryLabel}>현재 원픽<\/Text><Text style={styles\.summaryNumber}>{mainPicks\.length}개<\/Text>/);
-assert.match(publicProfile, /<SectionHeader title="카테고리별 원픽" count=\{mainPicks\.length\}/, 'public collection uses the same kit section header as the owner profile');
+assert.match(publicProfile, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'public collection uses the same taste-tab section header as the owner profile');
 assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
 assert.doesNotMatch(publicProfile, /sectionTitle:/);

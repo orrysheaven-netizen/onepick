@@ -101,7 +101,7 @@ function choice() {
   const view = harness('app/pick/choose.tsx', 'default', {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   const draft = () => { view.render(); view.input().onChangeText('  나의 이유  '); view.render(); };
   return { view, auth, params, query, data, result, writes, pending, destinations, mutation, draft };

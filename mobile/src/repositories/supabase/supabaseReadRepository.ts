@@ -18,6 +18,7 @@ import { mapPickRow } from '@/repositories/mappers/pickMapper';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
+import { fetchItemProviderIds } from '@/repositories/supabase/itemProviders';
 
 type PickRow = Database['public']['Tables']['picks']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -144,15 +145,15 @@ export class SupabaseReadRepository implements ReadRepository {
     return { categoryId: header.category_id, categoryName: header.category_name, channels };
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug);
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug, categoryId);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
@@ -160,12 +161,16 @@ export class SupabaseReadRepository implements ReadRepository {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
       ...(channel ? { p_channel: channel } : {}),
       ...(rootSlug ? { p_root_slug: rootSlug } : {}),
+      ...(categoryId ? { p_category_id: categoryId } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
     const rows = data.slice(0, 20);
-    const logos = await this.brandLogoUrls(this.client, rows.map((row) => row.item_id));
+    const [logos, providerIds] = await Promise.all([
+      this.brandLogoUrls(this.client, rows.map((row) => row.item_id)),
+      fetchItemProviderIds(this.client, rows.map((row) => row.item_id)),
+    ]);
     return {
       nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
       items: rows.map((row) => ({
@@ -177,6 +182,7 @@ export class SupabaseReadRepository implements ReadRepository {
         thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
         startedAt: row.started_at,
         channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online' || channel === 'recipe'),
+        providerId: providerIds.get(row.item_id) ?? null,
       })),
     };
   }
@@ -335,7 +341,7 @@ export class SupabaseReadRepository implements ReadRepository {
     );
   }
 
-  private mapPickItem(row: PickReadRow, channels: Map<string, PickChannel[]>) {
+  private mapPickItem(row: PickReadRow, channels: Map<string, PickChannel[]>, providerIds: Map<string, string>) {
     const profile = one(row.profile);
     const category = one(row.category);
     const item = this.mapItem(one(row.item));
@@ -343,13 +349,17 @@ export class SupabaseReadRepository implements ReadRepository {
       pick: mapPickRow(row),
       profile: profile ? mapProfileRow(profile) : null,
       category: category ? mapCategoryRow(category) : null,
-      item: item ? { ...item, channels: channels.get(item.id) ?? [] } : null,
+      item: item ? { ...item, channels: channels.get(item.id) ?? [], providerId: providerIds.get(item.id) ?? null } : null,
     };
   }
 
   private async mapPickItems(rows: PickReadRow[]) {
-    const channels = await fetchItemChannels(this.client, rows.map((row) => row.item_id));
-    return rows.map((row) => this.mapPickItem(row, channels));
+    const itemIds = rows.map((row) => row.item_id);
+    const [channels, providerIds] = await Promise.all([
+      fetchItemChannels(this.client, itemIds),
+      fetchItemProviderIds(this.client, itemIds),
+    ]);
+    return rows.map((row) => this.mapPickItem(row, channels, providerIds));
   }
 
   async getPickById(pickId: string) {

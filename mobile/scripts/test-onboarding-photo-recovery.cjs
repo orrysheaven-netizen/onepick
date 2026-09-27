@@ -108,7 +108,7 @@ function setup(file, extra = {}) {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useItemDetail': { useItemDetail: () => query },
-    '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => mutation },
     '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
