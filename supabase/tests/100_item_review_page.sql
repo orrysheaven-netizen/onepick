@@ -14,7 +14,7 @@ declare
   cur_pick uuid := gen_random_uuid(); rep_pick uuid := gen_random_uuid(); rem_pick uuid := gen_random_uuid();
   hid_pick uuid := gen_random_uuid(); nr_pick uuid := gen_random_uuid(); susp_pick uuid := gen_random_uuid();
   blk_pick uuid := gen_random_uuid(); rep_now_pick uuid := gen_random_uuid();
-  got uuid[]; row_json jsonb; n integer;
+  got uuid[]; row_json jsonb; n integer; last_row jsonb; page uuid[]; walked uuid[] := '{}'; guard integer := 0; raised boolean;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
     select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,cur_u,rep_u,rem_u,hid_u,nr_u,susp_u,blk_u]) id;
@@ -51,12 +51,61 @@ begin
     from public.item_review_page(item_x) with ordinality as t(r, ord);
   assert got=array[cur_pick,blk_pick,rem_pick,rep_pick], 'Guests see current Picks first, then ended ones, newest first inside each group: '||coalesce(got::text,'null');
   select r into row_json from public.item_review_page(item_x) r where r->>'id'=rep_pick::text;
-  assert row_json->'ended_at' = 'null'::jsonb and row_json->'replaced_by_pick_id' = 'null'::jsonb, 'When and by what a Pick ended is blanked';
-  assert row_json->>'status' = 'replaced', 'The row keeps its status for the app''s current-first logic';
+  assert not (row_json ?| array['status','ended_at','replaced_by_pick_id','updated_at','created_at','purchase_url','purchase_tip']),
+    'Ended rows carry no lifecycle status, end/update/creation time or purchase fields: '||row_json::text;
+  assert (row_json->>'is_current')::boolean = false, 'An ended Pick is only marked not current';
+  assert (select array_agg(k order by k) from jsonb_object_keys(row_json) k)
+    = array['category','category_id','channel','id','is_current','item','item_id','one_line_review','profile','started_at','user_id'],
+    'Rows are an explicit allowlist: '||row_json::text;
+  select r into last_row from public.item_review_page(item_x) r where r->>'id'=rem_pick::text;
+  assert (last_row->>'is_current')::boolean = false and not (last_row ? 'status'), 'Replaced and removed Picks look the same';
+  select r into row_json from public.item_review_page(item_x) r where r->>'id'=cur_pick::text;
+  assert (row_json->>'is_current')::boolean = true and not (row_json ? 'status'), 'A current Pick is marked current';
   assert row_json->'profile'->>'username' like 'irp_%' and (row_json->'item'->>'id')::uuid = item_x
     and (row_json->'category'->>'id')::uuid = menu, 'Rows carry the embedded profile, item and category like the PostgREST select';
-  select count(*) into n from public.item_review_page(item_x, 1);
+  select count(*) into n from public.item_review_page(item_x, p_limit => 1);
   assert n=1, 'p_limit is applied';
+
+  -- Keyset paging: walking one row at a time reaches every review, across the
+  -- current -> ended boundary, in the same order as one big page.
+  last_row := null;
+  loop
+    guard := guard + 1;
+    assert guard < 10, 'Paging terminates';
+    select array_agg((r->>'id')::uuid order by ord), (array_agg(r order by ord desc))[1] into page, row_json
+      from public.item_review_page(item_x,
+        (last_row->>'is_current')::boolean, (last_row->>'started_at')::timestamptz, (last_row->>'id')::uuid, 1)
+      with ordinality as t(r, ord);
+    exit when page is null;
+    walked := walked || page;
+    last_row := row_json;
+  end loop;
+  assert walked=array[cur_pick,blk_pick,rem_pick,rep_pick], 'One-row pages reach every review in order: '||walked::text;
+  -- A page that ends inside the current group continues into the ended group.
+  select r into last_row from public.item_review_page(item_x, p_limit => 2) with ordinality as t(r, ord) where ord = 2;
+  select array_agg((r->>'id')::uuid order by ord) into got
+    from public.item_review_page(item_x, (last_row->>'is_current')::boolean, (last_row->>'started_at')::timestamptz, (last_row->>'id')::uuid, 20)
+    with ordinality as t(r, ord);
+  assert got=array[rem_pick,rep_pick], 'The page after the last current review starts with ended ones: '||coalesce(got::text,'null');
+  -- A cursor inside the ended group only returns older ended reviews.
+  select r into last_row from public.item_review_page(item_x) r where r->>'id'=rem_pick::text;
+  select array_agg((r->>'id')::uuid order by ord) into got
+    from public.item_review_page(item_x, false, (last_row->>'started_at')::timestamptz, rem_pick, 20)
+    with ordinality as t(r, ord);
+  assert got=array[rep_pick], 'Paging inside the ended group: '||coalesce(got::text,'null');
+  -- Half cursors are rejected.
+  raised := false;
+  begin
+    perform public.item_review_page(item_x, true, null, cur_pick, 20);
+  exception when sqlstate '22023' then raised := true;
+  end;
+  assert raised, 'A cursor without started_at is rejected with 22023';
+  raised := false;
+  begin
+    perform public.item_review_page(item_x, null, now(), cur_pick, 20);
+  exception when sqlstate '22023' then raised := true;
+  end;
+  assert raised, 'A cursor without is_current is rejected with 22023';
   select count(*) into n from public.item_review_page(item_y);
   assert n=1, 'Only Picks of the requested item are returned';
   -- RLS is unchanged: the table itself still hides ended Picks from guests.
@@ -84,11 +133,11 @@ begin
   assert got=array[nr_pick,cur_pick,blk_pick,rem_pick,rep_pick], 'Own needs_review Pick is included in the current group: '||coalesce(got::text,'null');
   reset role;
 
-  assert (select prosecdef from pg_proc where oid='public.item_review_page(uuid,integer)'::regprocedure), 'The reader is security definer (RLS stays closed)';
-  assert has_function_privilege('anon','public.item_review_page(uuid,integer)','execute'), 'Guests may read item reviews';
+  assert (select prosecdef from pg_proc where oid='public.item_review_page(uuid,boolean,timestamptz,uuid,integer)'::regprocedure), 'The reader is security definer (RLS stays closed)';
+  assert has_function_privilege('anon','public.item_review_page(uuid,boolean,timestamptz,uuid,integer)','execute'), 'Guests may read item reviews';
   assert not has_function_privilege('anon','private.pick_thread_visible(public.picks,uuid)','execute'), 'The visibility helper is private';
 end;
 $flow$;
-$test$, 'item_review_page: current first, ended kept without ended_at, hidden/needs_review/suspended/blocked excluded, RLS unchanged');
+$test$, 'item_review_page: current first, ended kept as is_current=false with allowlisted fields, keyset paging, hidden/needs_review/suspended/blocked excluded, RLS unchanged');
 select * from finish();
 rollback;

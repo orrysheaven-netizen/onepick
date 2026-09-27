@@ -7,19 +7,23 @@
 -- `picks?user_id=eq.X&status=eq.replaced`, which decision 2 forbids. Instead two
 -- item-scoped readers expose ended reviews without any per-person entry point:
 --
---   item_review_page(p_item_id, p_limit)
+--   item_review_page(p_item_id, p_after_is_current, p_after_started_at,
+--                    p_after_id, p_limit)
 --     reviews on one item: current Picks first, then ended ones; hidden Picks,
 --     other people's needs_review Picks, suspended authors and blocked members
---     are left out. ended_at / replaced_by_pick_id are blanked: the UI never
---     says when or by what a Pick ended.
+--     are left out. Rows carry an explicit allowlist, not the whole picks row:
+--     the lifecycle status is reduced to is_current (replaced and removed look
+--     the same), and ended_at / replaced_by_pick_id / updated_at / created_at /
+--     purchase_* never leave the database, so the UI cannot say when or by what
+--     a Pick ended. Keyset cursor = the last row's (is_current, started_at, id).
 --   pick_comment_page(p_pick_id, p_after_time, p_after_id, p_limit)
 --     comments under one review that item_review_page would show, oldest first,
 --     with author_current_pick_matches_item: the commenter currently holds this
 --     item in this channel as an active Pick (`✓ 이 집 원픽`, decisions 4·6).
 --
--- Both return rows shaped like the app's existing embedded selects
--- (`*, profile, category, item` / `*, author`) so the app swaps the query, not
--- the mapper. New comments stay limited to active Picks (decision A).
+-- pick_comment_page rows keep the app's `*, author` shape. item_review_page rows
+-- need their own small mapper (is_current instead of status). New comments stay
+-- limited to active Picks (decision A).
 
 begin;
 
@@ -48,35 +52,58 @@ revoke all on function private.pick_thread_visible(public.picks, uuid) from publ
 
 create or replace function public.item_review_page(
   p_item_id uuid,
+  p_after_is_current boolean default null,
+  p_after_started_at timestamptz default null,
+  p_after_id uuid default null,
   p_limit integer default 20
 )
 returns setof jsonb
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
-  select (to_jsonb(p) - 'ended_at' - 'replaced_by_pick_id')
-    || jsonb_build_object(
-      'ended_at', null,
-      'replaced_by_pick_id', null,
+begin
+  if not (
+    (p_after_is_current is null and p_after_started_at is null and p_after_id is null)
+    or (p_after_is_current is not null and p_after_started_at is not null and p_after_id is not null)
+  ) then
+    raise exception 'INVALID_PAGINATION_CURSOR' using errcode = '22023';
+  end if;
+
+  return query
+  select jsonb_build_object(
+      'id', r.id,
+      'user_id', r.user_id,
+      'category_id', r.category_id,
+      'item_id', r.item_id,
+      'channel', r.channel,
+      'one_line_review', r.one_line_review,
+      'is_current', r.is_current,
+      'started_at', r.started_at,
       'profile', to_jsonb(pr),
       'category', to_jsonb(c),
       'item', to_jsonb(i)
     )
-  from public.picks p
-  join public.profiles pr on pr.id = p.user_id
-  join public.categories c on c.id = p.category_id
-  join public.items i on i.id = p.item_id and i.category_id = p.category_id
-  where p.item_id = p_item_id
-    and private.pick_thread_visible(p, auth.uid())
-  order by (p.status in ('active', 'needs_review')) desc, p.started_at desc, p.id desc
+  from (
+    select p.*, p.status in ('active', 'needs_review') as is_current
+    from public.picks p
+    where p.item_id = p_item_id
+      and private.pick_thread_visible(p, auth.uid())
+  ) r
+  join public.profiles pr on pr.id = r.user_id
+  join public.categories c on c.id = r.category_id
+  join public.items i on i.id = r.item_id and i.category_id = r.category_id
+  where p_after_id is null
+     or (r.is_current, r.started_at, r.id) < (p_after_is_current, p_after_started_at, p_after_id)
+  order by r.is_current desc, r.started_at desc, r.id desc
   limit least(greatest(coalesce(p_limit, 20), 1), 100);
+end;
 $$;
-revoke all on function public.item_review_page(uuid, integer) from public;
-grant execute on function public.item_review_page(uuid, integer) to anon, authenticated, service_role;
-comment on function public.item_review_page(uuid, integer) is
-  'Item detail reviews: current Picks first, then ended (replaced/removed) ones, without ended_at; hidden, others'' needs_review, suspended and blocked members excluded.';
+revoke all on function public.item_review_page(uuid, boolean, timestamptz, uuid, integer) from public;
+grant execute on function public.item_review_page(uuid, boolean, timestamptz, uuid, integer) to anon, authenticated, service_role;
+comment on function public.item_review_page(uuid, boolean, timestamptz, uuid, integer) is
+  'Item detail reviews: current Picks first, then ended ones, keyset-paged by (is_current, started_at, id). Allowlisted fields only: status is reduced to is_current and no end/update/creation time or purchase fields are returned. Hidden, others'' needs_review, suspended and blocked members excluded.';
 
 create or replace function public.pick_comment_page(
   p_pick_id uuid,
