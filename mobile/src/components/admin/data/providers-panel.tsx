@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { adminStyles } from '@/components/admin/admin-shell';
+import { AdminBrandPicker } from '@/components/admin/brand-picker';
 import { AdminCategoryPicker } from '@/components/admin/category-picker';
 import {
   createOnlineProvider,
@@ -285,12 +286,7 @@ export function ProvidersPanel() {
 
           <View>
             <Text style={adminStyles.label}>브랜드 · 선택 사항</Text>
-            <View style={adminStyles.row}>
-              <Choice active={!brandId} disabled={actionsDisabled} label="미지정" onPress={() => setBrandId(null)} />
-              {activeBrands.map((brand) => (
-                <Choice key={brand.id} active={brandId === brand.id} disabled={actionsDisabled} label={brand.name} onPress={() => setBrandId(brand.id)} />
-              ))}
-            </View>
+            {initialized && <AdminBrandPicker accessibilityLabel="판매처 브랜드 검색" brands={activeBrands} value={brandId} disabled={actionsDisabled} onChange={setBrandId} />}
           </View>
 
           <View style={styles.actions}>
@@ -365,18 +361,14 @@ export function ProvidersPanel() {
             </View>
 
             <Text style={[adminStyles.label, styles.brandLabel]}>브랜드 연결</Text>
-            <View style={adminStyles.row}>
-              <Choice active={!provider.brand_id} disabled={actionsDisabled} label="미지정" onPress={() => changeBrand(provider, null)} />
-              {activeBrands.map((brand) => (
-                <Choice
-                  key={brand.id}
-                  active={provider.brand_id === brand.id}
-                  disabled={actionsDisabled}
-                  label={brand.name}
-                  onPress={() => changeBrand(provider, brand.id)}
-                />
-              ))}
-            </View>
+            <AdminBrandPicker
+              accessibilityLabel={`${provider.name} 브랜드 검색`}
+              // Keep a linked brand visible even if it was deactivated later.
+              brands={brands.filter((brand) => brand.is_active || brand.id === provider.brand_id)}
+              value={provider.brand_id}
+              disabled={actionsDisabled}
+              onChange={(nextBrandId) => changeBrand(provider, nextBrandId)}
+            />
           </View>
         ))}
       </View>
