@@ -79,7 +79,7 @@ export function ProfilePickCard({
               {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
               {providerName ? (onPressProvider
                 ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
-                    onPress={(event) => { event.stopPropagation?.(); onPressProvider(); }}
+                    onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
                     style={({ pressed }) => [styles.providerLink, pressed && styles.pressed]}>
                     <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>
                     <Text style={styles.providerArrow}>›</Text>
