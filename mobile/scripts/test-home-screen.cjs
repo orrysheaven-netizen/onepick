@@ -71,7 +71,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   }),
-  '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
+  '@/hooks/useFollow': {
+    useFollowCounts: () => ({ data: { followingCount: 0, followerCount: 0 }, isSuccess: true, isError: false }),
+    useFollowingFeed: () => followingQuery,
+  },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
@@ -100,7 +103,8 @@ const press = (label) => {
   assert.ok(button, label); button.onPress();
 };
 
-// The real enabled follow flag must not force a new member into an empty feed.
+// Zero follows defaults to the public feed. The async count-driven switch for
+// existing followers is covered by test-follow's source contract.
 const allFirstPage = render();
 assert.match(allFirstPage, /팔로잉/, 'Following remains an available member scope');
 assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
