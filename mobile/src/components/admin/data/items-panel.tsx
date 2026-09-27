@@ -170,6 +170,9 @@ export function ItemsPanel() {
           {selected && <ItemEditor item={selected} onSaved={(next) => {
             setItems((current) => current.map((item) => item.id === next.id ? next : item));
             setMessage(`${next.name} 상품을 저장했습니다.`);
+          }} onMoved={(next) => {
+            // The move section shows its own result; only refresh the list here.
+            setItems((current) => current.map((item) => item.id === next.id ? next : item));
           }} onError={setError} />}
         </View>
       </View>
@@ -277,7 +280,7 @@ function NewItemPanel({ onCreated, onCancel, onError }: { onCreated: (item: Admi
   );
 }
 
-function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (item: AdminItem) => void; onError: (message: string) => void }) {
+function ItemEditor({ item, onSaved, onMoved, onError }: { item: AdminItem; onSaved: (item: AdminItem) => void; onMoved: (item: AdminItem) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState(item.status);
   const [modelCode, setModelCode] = useState(item.model_code ?? '');
   const [officialUrl, setOfficialUrl] = useState(item.official_url ?? '');
@@ -342,7 +345,7 @@ function ItemEditor({ item, onSaved, onError }: { item: AdminItem; onSaved: (ite
         <Text style={adminStyles.primaryButtonText}>{saving ? '저장 중' : '상품 정보 저장'}</Text>
       </Pressable>
 
-      <CategoryMoveEditor item={item} onMoved={onSaved} />
+      <CategoryMoveEditor item={item} onMoved={onMoved} />
       <EditorialFeatureEditor item={item} />
       <AliasManager itemId={item.id} itemName={item.name} />
     </View>
