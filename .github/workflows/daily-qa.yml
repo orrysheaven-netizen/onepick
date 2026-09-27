@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload report and screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-qa-live-web
           path: qa-output
@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload report and screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-qa-logged-in
           path: qa-output
@@ -123,7 +123,7 @@ jobs:
 
       - name: Upload summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-qa-real-user-errors
           path: qa-output
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: daily-qa-db-health
           path: qa-output

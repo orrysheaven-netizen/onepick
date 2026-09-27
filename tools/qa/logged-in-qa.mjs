@@ -24,11 +24,11 @@ import { chromium, devices } from 'playwright';
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
-// Registration is menu-first (#356): /pick/find starts with a restaurant-menu step, and
-// the item/place search opens only after a menu is chosen. The menu name doubles as the
-// search term there, since the place search is scoped to that menu's category.
+// Registration is store-first (#412): /pick/new starts with a store/seller-name
+// search (step 1), then a menu step (step 2) scoped to the chosen store. The
+// store query is one of the screen's own placeholder examples.
+const STORE_QUERY = process.env.QA_STORE_QUERY || '을밀대';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
-const PICK_SEARCH_QUERY = process.env.QA_PICK_SEARCH_QUERY || MENU_QUERY;
 // A non-Naver link keeps the check deterministic: the Edge Function does not fetch
 // it, so the suggestion comes only from the typed name matching the taxonomy.
 const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
@@ -129,6 +129,12 @@ async function check(flow, name, fn) {
 async function actionable(locator) {
   await locator.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
   await locator.first().click({ trial: true, timeout: STEP_TIMEOUT_MS });
+}
+
+// Escapes a value (e.g. an operator-supplied QA_* env var) for safe interpolation
+// into a RegExp source string.
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Bottom tab bar items are `Pressable accessibilityRole="tab"` wrapped in
@@ -307,43 +313,18 @@ async function main() {
     await check(flow, '등록 화면 진입', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: '원픽 등록', exact: true }).click();
-      await page.waitForURL(/\/pick\/find/, { timeout: STEP_TIMEOUT_MS });
+      // Store-first flow (#412): the button now opens /pick/new (a single-screen
+      // 6-step wizard), not the old /pick/find.
+      await page.waitForURL(/\/pick\/new/, { timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
     });
-    await check(flow, '등록할 항목 검색·선택 가능', async () => {
-      // Menu-first flow: "메뉴 검색" + "<메뉴> 메뉴 선택" chips, then router.push to
-      // /pick/find?categoryId=… where the "원픽 … 검색" input lives. Without a menu step
-      // (categoryId given, or menu mode off) the search input renders right away.
-      const menuInput = page.getByRole('textbox', { name: '메뉴 검색', exact: true });
-      const searchInput = page.getByRole('textbox', { name: /원픽 .*검색$/ }).first();
-      await menuInput.or(searchInput).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      let via = '';
-      let query = SEARCH_QUERY;
-      if (await menuInput.isVisible()) {
-        await menuInput.fill(MENU_QUERY);
-        const menu = page.getByRole('button', { name: / 메뉴 선택$/ });
-        await menu.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-          .catch(() => { throw new Error(`메뉴 검색 "${MENU_QUERY}"에 "메뉴 선택" 버튼 없음`); });
-        const menuName = ((await menu.first().getAttribute('aria-label')) ?? MENU_QUERY).replace(/ 메뉴 선택$/, '');
-        await menu.first().click();
-        await page.waitForURL(/\/pick\/find\?.*categoryId=/, { timeout: STEP_TIMEOUT_MS })
-          .catch(() => { throw new Error('메뉴 선택 후 categoryId 검색 화면으로 이동하지 않음'); });
-        via = `메뉴 "${menuName}" 선택 → `;
-        query = PICK_SEARCH_QUERY;
-      }
-      await searchInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new Error(`${via}"원픽 … 검색" 입력 없음`); });
-      // After the menu push the input renders before the category/place-capability
-      // queries settle, and is `editable={false}` until then.
-      const editableBy = Date.now() + STEP_TIMEOUT_MS;
-      while (!(await searchInput.isEditable())) {
-        if (Date.now() > editableBy) throw new Error(`${via}검색 입력이 비활성`);
-        await page.waitForTimeout(250);
-      }
-      // The place search is `search_place_catalog` (name-only trigram match on the
-      // category's open catalog rows); item search is another /rest/v1/rpc call. Record
-      // what each answered so a miss can be told apart: no matching data, an RPC
-      // error, or a locator/rendering problem.
+    await check(flow, '매장 검색·선택 가능 (1/6 매장)', async () => {
+      // Step 1 searches stores/sellers by name (useStoreSearch → search_place_catalog
+      // or a seller search), scoped to the default "매장" channel. Selecting a row
+      // only sets local state (pickStore) and advances the step client-side — no
+      // network write, so a real click is safe here.
+      const storeInput = page.getByRole('textbox', { name: '매장명 검색', exact: true });
+      await storeInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const rpcCalls = [];
       const onRpcResponse = (response) => {
         const match = response.url().match(/\/rest\/v1\/rpc\/([^?]+)/);
@@ -356,24 +337,42 @@ async function main() {
       };
       page.on('response', onRpcResponse);
       try {
-        await searchInput.fill(query);
-        const choose = page.getByRole('button', { name: / 원픽 선택$| 선택$/ });
-        const noPlace = page.getByText('일치하는 장소를 찾지 못했어요');
-        const searchError = page.getByText(/검색을 불러오지 못했어요|검색 결과를 불러오지 못했어요/);
-        await choose.first().or(noPlace).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-          .catch(() => { throw new Error(`${via}"${query}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
-        if (!(await choose.count())) {
-          const state = await noPlace.isVisible() ? '일치하는 장소 없음' : '검색 오류 카드';
-          throw new Error(`${via}"${query}" ${state} · rpc=[${rpcCalls.join(', ') || '없음'}]`);
+        await storeInput.fill(STORE_QUERY);
+        const result = page.getByRole('button', { name: /선택$/ });
+        const noStore = page.getByText(/를 찾지 못했어요/);
+        const searchError = page.getByText('검색하지 못했어요');
+        await result.first().or(noStore).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+          .catch(() => { throw new Error(`"${STORE_QUERY}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
+        if (!(await result.count())) {
+          const state = await searchError.isVisible().catch(() => false) ? '검색 오류 카드' : '일치 매장 없음';
+          throw new Error(`"${STORE_QUERY}" ${state} · rpc=[${rpcCalls.join(', ') || '없음'}]`);
         }
-        await actionable(choose);
+        await result.first().click();
         await noErrorCopy(page);
-        return `${via}"${query}" 선택 버튼 ${await choose.count()}개 (제출하지 않음) · rpc=[${rpcCalls.join(', ')}]`;
+        return `"${STORE_QUERY}" 선택 버튼 ${await result.count()}개 → 매장 선택 · rpc=[${rpcCalls.join(', ')}]`;
       } finally {
         page.off('response', onRpcResponse);
       }
     });
-    await shot(page, 'pick_find');
+    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/6 메뉴)', async () => {
+      // Step 2 lists menus for the chosen store. Picking a chip only sets local
+      // state (chooseMenu, no network call); the "다음" button's press
+      // (confirmMenu → selectItem.mutateAsync) is a write, so it is only
+      // trial-clicked, never pressed.
+      const menuInput = page.getByRole('textbox', { name: '메뉴 검색', exact: true });
+      await menuInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+        .catch(() => { throw new Error('매장 선택 후 메뉴 단계로 이동하지 않음'); });
+      await menuInput.fill(MENU_QUERY);
+      const chip = page.getByRole('button', { name: new RegExp(`^${escapeRegExp(MENU_QUERY)}$|^AI 추천 `) });
+      await chip.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+        .catch(() => { throw new Error(`메뉴 검색 "${MENU_QUERY}"에 일치하는 메뉴·AI 추천 없음`); });
+      await chip.first().click();
+      const next = page.getByRole('button', { name: /\(으\)로 다음$/ });
+      await actionable(next);
+      await noErrorCopy(page);
+      return '메뉴 선택 → "다음" 버튼 활성화 (제출하지 않음)';
+    });
+    await shot(page, 'pick_new');
 
     flow = '링크 추천';
     // #366 removed the "링크로 카테고리 추천받기" entry from /pick/find; the screen itself is
