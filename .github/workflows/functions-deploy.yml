@@ -173,7 +173,8 @@ jobs:
           set -euo pipefail
           # verify_jwt and other per-function settings come from supabase/config.toml.
           mapfile -t targets < "$RUNNER_TEMP/targets.txt"
-          supabase functions deploy "${targets[@]}" --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy "${targets[@]}" --project-ref "$SUPABASE_PROJECT_REF" 2>&1 \
+            | tee "$RUNNER_TEMP/deploy.log"
 
       - name: Verify deployed functions
         if: env.MODE == 'apply'
@@ -189,6 +190,11 @@ jobs:
           before = {f["slug"]: f for f in json.load(open(f"{tmp}/before.json"))}
           after = {f["slug"]: f for f in json.load(open(f"{tmp}/after.json"))}
           config = tomllib.load(open("supabase/config.toml", "rb")).get("functions", {})
+          # The CLI skips uploading a function whose bundle is identical to the
+          # deployed one, so its version legitimately stays the same.
+          skip_prefix = "No change found in Function: "
+          unchanged = {line.strip()[len(skip_prefix):] for line in open(f"{tmp}/deploy.log")
+                       if line.strip().startswith(skip_prefix)}
 
           failures, rows = [], []
           for slug in targets:
@@ -199,7 +205,10 @@ jobs:
                   failures.append(f"{slug}: missing after deploy")
                   continue
               problems = []
-              if fn["version"] <= old_version:
+              if slug in unchanged:
+                  if fn["version"] != old_version:
+                      problems.append(f"reported unchanged but version {old_version} → {fn['version']}")
+              elif fn["version"] <= old_version:
                   problems.append(f"version stayed at {fn['version']}")
               if fn["status"] != "ACTIVE":
                   problems.append(f"status {fn['status']}")
@@ -207,7 +216,7 @@ jobs:
                   problems.append(f"verify_jwt {fn['verify_jwt']} != config {want_jwt}")
               failures += [f"{slug}: {p}" for p in problems]
               rows.append(f"| {slug} | {old_version} → {fn['version']} | {fn['verify_jwt']} | "
-                          f"{'; '.join(problems) or 'ok'} |")
+                          f"{'; '.join(problems) or ('unchanged' if slug in unchanged else 'ok')} |")
 
           lines = ["### Edge Functions after deploy", "",
                    "| Function | Version | verify_jwt | Result |", "| --- | --- | --- | --- |", *rows, ""]
