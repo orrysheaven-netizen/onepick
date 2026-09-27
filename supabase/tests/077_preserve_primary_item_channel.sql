@@ -78,6 +78,10 @@ from public.select_place_catalog_item(
 
 reset role;
 
+-- The first selection is a pending request; approve it so reselection takes
+-- the active-item path this test covers.
+update public.items set status='active' where id=(select item_id from channel_item);
+
 -- place_catalog intentionally has no map_url. The user-selection flow
 -- materializes public.places first; then a trusted source/admin may enrich the
 -- canonical place URL before a later reselection refreshes the offline channel.

@@ -54,6 +54,7 @@ function reviewErrorMessage(caught: unknown, fallback: string) {
   const message = caught instanceof Error ? caught.message : '';
   if (message.includes('CATEGORY_NOT_PICKABLE')) return '선택한 카테고리는 원픽 대상이 아닙니다. 운영 중인 하위 카테고리를 골라 주세요.';
   if (message.includes('ITEM_DUPLICATE')) return '같은 카테고리에 같은 이름의 정식 상품이 이미 있습니다. 병합을 사용해 주세요.';
+  if (message.includes('PLACE_ITEM_CATEGORY_LOCKED')) return '매장 원픽은 사용자가 고른 메뉴 카테고리로만 승인할 수 있습니다. 카테고리가 맞지 않으면 반려해 주세요.';
   if (message.includes('ITEM_NAME_INVALID')) return '상품명이 비어 있거나 100자를 넘어 승인할 수 없습니다.';
   if (message.includes('SOURCE_ITEM_NOT_PENDING')) return '이미 처리된 요청입니다. 목록을 새로고침해 주세요.';
   if (message.includes('online_stores_not_delivery_app')) return '배달앱 링크는 온라인 판매처가 될 수 없습니다. 배달은 매장 원픽이므로 반려해 주세요.';

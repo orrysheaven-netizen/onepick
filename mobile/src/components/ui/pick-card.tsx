@@ -13,6 +13,8 @@ type Props = {
   providerName?: string | null;
   /** The main content title. For food channel Picks this is the menu name. */
   itemName: string;
+  /** D hierarchy: the surrounding screen already names the menu, so provider becomes the headline. */
+  menuContext?: boolean;
   /** The one-line reason. Always rendered in quotes; it is the point of the card. */
   review?: string | null;
   /** Shown in place of a missing review. */
@@ -36,7 +38,7 @@ type Props = {
 };
 
 export function PickCard({
-  channelLabel, providerName, itemName, review, fallbackText, photo,
+  channelLabel, providerName, itemName, menuContext = false, review, fallbackText, photo,
   person, statusLabel, onPress, accessibilityLabel, footer,
 }: Props) {
   const showPhoto = Boolean(photo.uri || photo.logoUri || photo.hasPhoto);
@@ -66,9 +68,9 @@ export function PickCard({
         <View style={styles.copy}>
           {showContext ? <View style={styles.contextRow}>
             {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
-            {providerName ? <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text> : null}
+            {providerName ? <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text> : null}
           </View> : null}
-          <Text style={styles.itemName}>{itemName}</Text>
+          {!menuContext || !providerName ? <Text style={styles.itemName}>{itemName}</Text> : null}
           {review
             ? <Text numberOfLines={3} style={styles.review}>{`“${review}”`}</Text>
             : fallbackText ? <Text style={styles.fallback}>{fallbackText}</Text> : null}
@@ -94,6 +96,7 @@ const styles = StyleSheet.create({
   channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
   channelBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: OnePick.accentDeep },
   providerName: { ...OnePickType.label, color: OnePick.text, fontWeight: '500', flexShrink: 1 },
+  providerNameMenuContext: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.4, flexShrink: 1 },
   itemName: { fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.4, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.label, color: OnePick.muted },

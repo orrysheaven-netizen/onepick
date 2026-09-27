@@ -4,6 +4,9 @@ export const queryKeys = {
   home: {
     all: ['home'] as const,
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
+    dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
+      ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
+    myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
   },
   explore: {
     all: ['explore'] as const,

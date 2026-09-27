@@ -102,7 +102,7 @@ export class StoreFirstService {
   }
 
   /** The store × menu item for a catalog place or an online seller. */
-  async selectItem(categoryId: string, store: StoreCandidate): Promise<{ itemId: string; categoryId: string; hasPhoto: boolean }> {
+  async selectItem(categoryId: string, store: StoreCandidate): Promise<{ itemId: string; categoryId: string; hasPhoto: boolean; pending: boolean }> {
     if (!UUID.test(categoryId)) throw new AppError('CATEGORY_NOT_FOUND');
     const { data, error } = store.kind === 'place'
       ? await this.client.rpc('select_place_catalog_item', { p_category_id: categoryId, p_catalog_id: store.catalogId })
@@ -111,7 +111,8 @@ export class StoreFirstService {
     const row = object(data);
     if (typeof row.id !== 'string' || row.category_id !== categoryId) throw new AppError('INTERNAL_ERROR');
     const hasPhoto = [row.image_path, row.thumbnail_path, row.image_source_url].some((value) => typeof value === 'string' && value.length > 0);
-    return { itemId: row.id, categoryId, hasPhoto };
+    // A place picked for the first time is the user's own request waiting for review.
+    return { itemId: row.id, categoryId, hasPhoto, pending: row.status === 'pending' };
   }
 
   async suggestMapLink(itemId: string, url: string) {

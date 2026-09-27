@@ -82,16 +82,10 @@ export default function HomeScreen() {
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
   // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog), [user, categoryCatalog]);
-  const openRegistration = (category: { id: string; slug: string }) => {
-    const params = { categoryId: category.id };
-    if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
-    if (category.slug === 'game') return router.push({ pathname: '/pick/game', params });
-    if (category.slug === 'book') return router.push({ pathname: '/pick/book', params });
-    if (category.slug === 'youtube') return router.push({ pathname: '/pick/youtube', params });
-    if (category.slug === 'pokemon') return router.push({ pathname: '/pick/pokemon', params });
-    return router.push({ pathname: '/pick/find', params });
-  };
+  // A menu card opens that menu's page (ranking + everyone's Picks) before any
+  // registration; the page has its own "원픽 고르기" button.
+  const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
+  const openMenu = (category: { slug: string }) => router.push({ pathname: '/ranking/[slug]', params: { slug: category.slug } });
   const ready = !isLoading && !sessionError && Boolean(data);
 
   useEffect(() => {
@@ -219,13 +213,13 @@ export default function HomeScreen() {
         </View> : null}
 
         {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="어떤 맛집부터 골라볼까요?" /></View>
+          <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
               const label = category.name;
-              return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
-                onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
+              return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 사람들의 원픽 보기'}
+                onPress={() => openMenu(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>사람들의 원픽 보기  ›</Text>
               </Pressable>;
             })}
           </View>

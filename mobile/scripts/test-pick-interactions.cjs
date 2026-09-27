@@ -121,7 +121,7 @@ async function main() {
   detail.canChoose = false;
 
   const { default: Choose } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   assert.match(render(Choose), /지금은 선택할 수 없어요/);
   assert.equal(inputs.length, 0, 'Unavailable items must not show the submission form');
@@ -144,7 +144,7 @@ async function main() {
       },
       useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
     },
-    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
@@ -171,7 +171,7 @@ async function main() {
   assert.match(renderChoice(), /원픽이 선택됐어요/);
 
   const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
