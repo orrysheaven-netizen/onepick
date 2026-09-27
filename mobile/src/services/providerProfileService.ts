@@ -128,28 +128,37 @@ export class ProviderProfileService {
       throw new AppError('PROVIDER_NOT_FOUND');
     }
 
-    let subtitle: string | null = null;
-    let link: ProviderProfileLink | null = null;
-
-    if (provider.kind === 'offline_branch' && provider.place_id) {
-      const { data, error } = await this.db().from('places')
+    const contextPromise = provider.kind === 'offline_branch' && provider.place_id
+      ? this.db().from('places')
         .select('id,road_address,address,region_1,region_2,map_url')
         .eq('id', provider.place_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const place = data as PlaceRow | null;
+        .maybeSingle()
+      : provider.kind === 'online_store' && provider.online_store_id
+        ? this.db().from('online_stores')
+          .select('id,host,official_url')
+          .eq('id', provider.online_store_id)
+          .maybeSingle()
+        : Promise.resolve({ data: null, error: null });
+    const mappingPromise = this.db()
+      .from('item_providers')
+      .select('item_id,category_id,provider_id')
+      .eq('provider_id', providerId);
+
+    const [contextResult, mappingResult] = await Promise.all([contextPromise, mappingPromise]);
+    if (contextResult.error) throw mapSupabaseError(contextResult.error);
+    if (mappingResult.error) throw mapSupabaseError(mappingResult.error);
+
+    let subtitle: string | null = null;
+    let link: ProviderProfileLink | null = null;
+    if (provider.kind === 'offline_branch') {
+      const place = contextResult.data as PlaceRow | null;
       if (place) {
         subtitle = displayAddress(place);
         const safe = safeChannelUrl(place.map_url);
         if (safe) link = { label: '지도 보기', ...safe };
       }
-    } else if (provider.kind === 'online_store' && provider.online_store_id) {
-      const { data, error } = await this.db().from('online_stores')
-        .select('id,host,official_url')
-        .eq('id', provider.online_store_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const store = data as OnlineStoreRow | null;
+    } else {
+      const store = contextResult.data as OnlineStoreRow | null;
       if (store) {
         subtitle = store.host;
         const safe = safeChannelUrl(store.official_url);
@@ -157,12 +166,7 @@ export class ProviderProfileService {
       }
     }
 
-    const { data: mappingData, error: mappingError } = await this.db()
-      .from('item_providers')
-      .select('item_id,category_id,provider_id')
-      .eq('provider_id', providerId);
-    if (mappingError) throw mapSupabaseError(mappingError);
-    const mappings = (mappingData ?? []) as ItemProviderRow[];
+    const mappings = (mappingResult.data ?? []) as ItemProviderRow[];
     const itemIds = mappings.map((row) => row.item_id);
     const categoryIds = [...new Set(mappings.map((row) => row.category_id))];
 
