@@ -26,8 +26,10 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
   const sections = useMemo(() => buildProfileThemeSections(picks, categories), [picks, categories]);
   // The same parent can appear under two themes when a leaf is mapped elsewhere, so collapse state keys by theme too.
   const groups = useMemo(() => sections.flatMap((section) => section.groups.map((group) => ({ ...group, id: `${section.code}:${group.id}` }))), [sections]);
-  // Without theme data (catalog still loading) everything is 기타; skip the lone header then.
-  const showThemeHeaders = !(sections.length === 1 && sections[0].code === 'other');
+  // The screen-level SectionHeader already names the selected taste scope. A lone
+  // theme header (for example FOOD 5 directly under 음식 원픽 5) only repeats it;
+  // keep theme labels when multiple themes need separation.
+  const showThemeHeaders = sections.length > 1;
   const groupSignature = groups.map((group) => group.id).join('|');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => defaultCollapsedProfilePickGroups(groups, picks.length));
 
@@ -100,7 +102,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                       const channelLabel = isFoodChannel ? CHANNEL_LABELS[group.id] : undefined;
                       const providerName = isFoodChannel
                         ? (group.id === 'recipe'
-                          ? item.item?.creatorName ?? item.item?.name ?? null
+                          ? item.item?.creatorName ?? null
                           : item.item?.name ?? null)
                         : undefined;
                       const menuName = isFoodChannel

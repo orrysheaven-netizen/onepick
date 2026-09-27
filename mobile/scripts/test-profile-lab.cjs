@@ -51,7 +51,8 @@ assert.equal(grouping.isLabCategory('naengmyeon', categories, 'food', true), fal
 assert.equal(grouping.isLabCategory('misc', categories, 'food', true), false);
 assert.equal(grouping.isLabCategory('movie', categories, 'food', false), false);
 
-// Wiring: every main flow filters 실험실 themes out; 실험실 has its own route and entries.
+// Wiring: profiles expose other tastes in place. Legacy /lab routes remain callable,
+// but Explore no longer advertises a second 실험실 entry.
 const lab = read('src/app/lab/[username].tsx');
 const labIndex = read('src/app/lab/index.tsx');
 const owner = read('src/app/(tabs)/profile.tsx');
@@ -67,14 +68,21 @@ assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: pr
 assert.match(owner, /profileScope === 'food' \? mainPicks : labPicks/, 'owner toggles 음식 and 다른 취향 in place');
 assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
+// 실험실 is the only place to start a non-food Pick; with Explore's door gone the
+// owner's 다른 취향 tab must still lead there, whether it is empty or not.
+assert.match(owner, /const openLab = \(\) => router\.push\('\/lab'\);/, 'the owner profile can open 실험실');
+assert.match(owner, /label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 다른 취향 tab offers the 실험실 entry');
+assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="다른 취향 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
+  'a filled 다른 취향 tab keeps the 실험실 entry');
 assert.match(publicProfile, /profileScope === 'food' \? mainPicks : labPicks/, 'public profile toggles the same scopes in place');
 assert.match(publicProfile, /음식 원픽 보기/);
 assert.match(publicProfile, /다른 취향 원픽 보기/);
 assert.match(publicProfile, /const currentPicks = mainPicks;/, 'the share card carries only main-theme Picks');
-assert.match(explore, /router\.push\('\/lab'\)/, 'Explore has a 실험실 entry');
+assert.doesNotMatch(explore, /router\.push\('\/lab'\)/, 'Explore no longer duplicates the 다른 취향 entry with a 실험실 door');
+assert.doesNotMatch(explore, /ProfileLabEntry/, 'Explore does not render the legacy lab entry component');
 assert.match(onboarding, /!isLabCategory\(category\.id, categoryCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'onboarding offers only main-theme categories');
 assert.match(onboarding, /catalogReady = !OnePickFeatures\.lab \|\| Boolean\(categoryCatalog\.data\) \|\| categoryCatalog\.isError/, 'onboarding waits for themes but falls back on a catalog error');
 assert.match(find, /: !isLabCategory\(item\.categoryId, themeCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'unscoped search hides 실험실 results');
 assert.match(find, /\? item\.categoryId === selectedCategory\.id/, 'a category-scoped (실험실) search is unaffected');
 
-console.log('실험실 checks passed: main/lab split, flag off, unknown themes, lab route and entries, onboarding and search scope.');
+console.log('실험실 checks passed: main/lab split, profile taste tabs, hidden Explore entry, legacy routes, onboarding and search scope.');

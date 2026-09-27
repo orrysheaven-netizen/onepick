@@ -190,8 +190,8 @@ async function main() {
   );
   assert.match(
     profileSource,
-    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
-    'the owner profile must expose the same stable public-profile share payload',
+    /shareProfile\({ username: profile\.username, pickCount: mainPicks\.length }\)/,
+    'the owner profile must share the food-scope count used by the public profile',
   );
   assert.match(profileSource, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/, 'the owner profile exposes its direct share CTA');
   assert.match(
@@ -223,7 +223,7 @@ async function main() {
 
     await shareProfile({ username: 'First_User', pickCount: 5 });
     assert.equal(sharePayload.url, 'https://onepick.example/u/first_user');
-    assert.match(sharePayload.message, /현재 원픽 5개/);
+    assert.match(sharePayload.message, /음식 원픽 5개/);
     assert.match(sharePayload.message, /https:\/\/onepick\.example\/u\/first_user/);
   } finally {
     if (oldShareBase === undefined) delete process.env.EXPO_PUBLIC_SHARE_BASE_URL;

@@ -148,7 +148,9 @@ assert.match(component, /onPressProvider=\{item\.item\?\.providerId && onPressPr
 assert.match(component, /groupBody: \{ gap: 10 \}/, 'rows stack vertically without a 2-column grid');
 assert.doesNotMatch(component, /remaining/, 'profiles no longer list categories still without a Pick');
 assert.match(component, /buildProfileThemeSections\(picks, categories\)/);
-assert.match(component, /sections\[0\]\.code === 'other'/, 'the lone 기타 header is hidden while the catalog loads');
+assert.match(component, /showThemeHeaders = sections\.length > 1/, 'a single theme header is hidden because the screen section already names the taste scope');
+assert.match(component, /group\.id === 'recipe'[\s\S]*?item\.item\?\.creatorName \?\? null/, 'recipe provider is shown only when creator metadata exists');
+assert.doesNotMatch(component, /creatorName \?\? item\.item\?\.name/, 'recipe titles are never guessed as provider names');
 
 assert.equal(grouping.remainingProfileCategories, undefined, 'the remaining-category helper is gone');
 
