@@ -179,7 +179,7 @@ export default function ProfileScreen() {
     setIsSharingProfile(true);
     setProfileShareError(false);
     try {
-      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
+      await shareProfile({ username: profile.username, pickCount: mainPicks.length });
     } catch {
       setProfileShareError(true);
     } finally {
