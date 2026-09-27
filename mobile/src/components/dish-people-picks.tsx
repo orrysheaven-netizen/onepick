@@ -31,7 +31,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId }: Props) {
     <HomeFeedCard pick={pick} mine={isMine}
       onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
       onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
+      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
   const loadMore = () => {
     if (query.hasNextPage && !query.isFetching) void query.fetchNextPage({ cancelRefetch: false });
