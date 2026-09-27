@@ -9,6 +9,26 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COUNT_PAGE_SIZE = 1000;
 
 export type ProviderProfileKind = 'offline_branch' | 'online_store';
+export type ProviderSocialPlatform =
+  | 'instagram'
+  | 'youtube'
+  | 'tiktok'
+  | 'threads'
+  | 'facebook'
+  | 'x'
+  | 'naver_blog'
+  | 'blog';
+
+const SOCIAL_LABELS: Record<ProviderSocialPlatform, string> = {
+  instagram: 'Instagram',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+  threads: 'Threads',
+  facebook: 'Facebook',
+  x: 'X',
+  naver_blog: 'Naver Blog',
+  blog: 'Blog',
+};
 
 export interface ProviderProfileItem {
   itemId: string;
@@ -25,6 +45,13 @@ export interface ProviderProfileLink {
   host: string;
 }
 
+export interface ProviderSocialLink {
+  platform: ProviderSocialPlatform;
+  label: string;
+  url: string;
+  host: string;
+}
+
 export interface ProviderProfile {
   id: string;
   kind: ProviderProfileKind;
@@ -33,6 +60,7 @@ export interface ProviderProfile {
   branchName: string | null;
   subtitle: string | null;
   link: ProviderProfileLink | null;
+  socialLinks: ProviderSocialLink[];
   items: ProviderProfileItem[];
 }
 
@@ -70,6 +98,12 @@ type ProviderItemRow = {
 };
 type ProviderCategoryRow = { id: string; name: string; status: string; is_visible: boolean };
 type PickCountRow = { item_id: string };
+type ProviderSocialLinkRow = {
+  provider_id: string;
+  platform: string;
+  url: string;
+  sort_order: number;
+};
 
 function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
   const path = row.thumbnail_path ?? row.image_path;
@@ -128,6 +162,13 @@ export class ProviderProfileService {
       throw new AppError('PROVIDER_NOT_FOUND');
     }
 
+    const socialPromise = this.db()
+      .from('provider_social_links')
+      .select('provider_id,platform,url,sort_order')
+      .eq('provider_id', providerId)
+      .order('sort_order', { ascending: true })
+      .order('platform', { ascending: true });
+
     let subtitle: string | null = null;
     let link: ProviderProfileLink | null = null;
 
@@ -157,11 +198,21 @@ export class ProviderProfileService {
       }
     }
 
-    const { data: mappingData, error: mappingError } = await this.db()
-      .from('item_providers')
-      .select('item_id,category_id,provider_id')
-      .eq('provider_id', providerId);
+    const [{ data: mappingData, error: mappingError }, socialResult] = await Promise.all([
+      this.db()
+        .from('item_providers')
+        .select('item_id,category_id,provider_id')
+        .eq('provider_id', providerId),
+      socialPromise,
+    ]);
     if (mappingError) throw mapSupabaseError(mappingError);
+    if (socialResult.error) throw mapSupabaseError(socialResult.error);
+    const socialLinks = ((socialResult.data ?? []) as ProviderSocialLinkRow[]).flatMap((row): ProviderSocialLink[] => {
+      if (!(row.platform in SOCIAL_LABELS)) return [];
+      const platform = row.platform as ProviderSocialPlatform;
+      const safe = safeChannelUrl(row.url);
+      return safe ? [{ platform, label: SOCIAL_LABELS[platform], ...safe }] : [];
+    });
     const mappings = (mappingData ?? []) as ItemProviderRow[];
     const itemIds = mappings.map((row) => row.item_id);
     const categoryIds = [...new Set(mappings.map((row) => row.category_id))];
@@ -175,6 +226,7 @@ export class ProviderProfileService {
         branchName: provider.branch_name,
         subtitle,
         link,
+        socialLinks,
         items: [],
       };
     }
@@ -220,6 +272,7 @@ export class ProviderProfileService {
       branchName: provider.branch_name,
       subtitle,
       link,
+      socialLinks,
       items,
     };
   }
