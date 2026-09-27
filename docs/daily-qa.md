@@ -53,9 +53,9 @@ QA_MODE=pr QA_BASE_URL=<미리보기 URL> node live-qa.mjs   # 결과: tools/qa/
 - **Secret**: GitHub Environment `daily-qa`의 `ONEPICK_QA_EMAIL`, `ONEPICK_QA_PASSWORD`만 쓴다. 이 Environment는 `main`만 쓸 수 있고, job은 `main`의 schedule·workflow_dispatch에서만 돈다. Secret이 없으면 "건너뜀"을 기록하고 성공으로 끝난다. 확인 항목이 실패하면 job이 실패한다.
 - **기록**: 자기 프로필 화면은 캡처하지 않는다. 다른 스크린샷에서는 QA 사용자명을 가린다. 리포트에서는 자격 증명, 토큰, 이메일 형식 문자열, QA 사용자명을 지운다. 결과는 아티팩트 `daily-qa-logged-in`과 로그의 `===QA-LOGIN-REPORT-BEGIN===` 표시로 찾는다.
 
-`tools/qa/real-user-errors.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다.
+`tools/qa/real-user-errors.mjs`는 `SUPABASE_ACCESS_TOKEN` 환경 변수(워크플로에서는 QA 전용 저장소 비밀값 `SUPABASE_QA_ACCESS_TOKEN`을 넣는다. 배포용 토큰은 `Production` 환경에만 있다)로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다.
 
-`tools/qa/db-health.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 Management API의 `/v1/projects/{ref}/advisors/performance`, `/security`를 읽고, 읽기 전용 쿼리 엔드포인트로 `pg_stat_statements` 상위 10개 느린 쿼리를 가져온다(job `db-health`). **읽기 전용**이며 인덱스·RLS는 고치지 않는다(수정은 자동화 계획 G-수정, ChatGPT/Codex 담당).
+`tools/qa/db-health.mjs`는 같은 QA 전용 토큰(`SUPABASE_QA_ACCESS_TOKEN` → `SUPABASE_ACCESS_TOKEN` 환경 변수)으로 Management API의 `/v1/projects/{ref}/advisors/performance`, `/security`를 읽고, 읽기 전용 쿼리 엔드포인트로 `pg_stat_statements` 상위 10개 느린 쿼리를 가져온다(job `db-health`). **읽기 전용**이며 인덱스·RLS는 고치지 않는다(수정은 자동화 계획 G-수정, ChatGPT/Codex 담당).
 
 - `pg_stat_statements`는 리터럴을 이미 `$1`/`$2`로 정규화하므로 사용자 데이터가 남지 않고, 쿼리 텍스트는 200자로 한 번 더 자른다.
 - Secret이 없으면 "건너뜀"을 기록하고 성공(exit 0)으로 끝난다. advisor·느린 쿼리 조회 중 하나가 실패해도 나머지 섹션은 계속 만들고 "조회 실패"에 이유만 남긴다.

@@ -117,7 +117,7 @@ jobs:
 
       - name: Summarize real-user errors
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/real-user-errors.mjs
 
@@ -146,7 +146,7 @@ jobs:
 
       - name: Check DB health
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/db-health.mjs
 
