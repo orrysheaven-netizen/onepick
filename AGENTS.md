@@ -8,15 +8,19 @@ The primary checkout is shared by several concurrent agent sessions. Never check
 
 ## Role division
 
-ChatGPT/Codex is the primary builder; Claude Code is the independent reviewer/QA. GitHub is the source of truth, and agents should not implement the same feature in parallel. See `docs/ai-role-division.md`.
+ChatGPT/Codex is the **Product Builder** and Claude Code is the **Platform / Reliability** owner. Workload is tracked by `size:S/M/L` points with a 60:40 Codex:Claude target, but protected security ownership overrides the ratio. GitHub is the source of truth, and agents must not implement the same feature in parallel. See `docs/ai-role-division.md`.
+
+At session start, read the `[AI Ops] OnePick 작업·인계 대시보드` issue first, then your `handoff:*` issues, then only the referenced task/PR. Avoid broad repository rereads unless the task requires them.
+
+Codex must not implement Supabase migrations, RLS/GRANT/SECURITY DEFINER, Auth core, Storage policies, secret/permission handling, or security-sensitive workflows. Create or update the task with `handoff:claude` instead. Claude security/DB PRs receive a narrow Codex review limited to the PR diff, permission changes, migration/rollback, and related tests.
 
 ## Daily QA report (check at the start of every session)
 
 Claude Code files a QA report every morning at 07:00 KST as a GitHub issue titled `[Daily QA] YYYY-MM-DD` with the label `qa-report`. It covers errors and slowness that real users hit on the tester site. Before starting other work:
 
 1. Open the most recent **open** issue labeled `qa-report` in `orrysheaven-netizen/onepick`. If there is none, continue normally.
-2. Handle its "수정 요청" items in order, High first then Medium. Skip items marked `진행 중`; an open PR already covers them. Ask the user first only if an item conflicts with the task they gave you.
-3. Open one PR against `main` per item. Include `Refs #<issue>` and the item title in the PR body, and meet the item's "완료 기준".
+2. Route its "수정 요청" items by `docs/ai-role-division.md`. Codex handles product/UI/general bugs; protected areas (migrations, RLS/GRANT/SECURITY DEFINER, Auth core, Storage, secret/permission handling, security-sensitive workflows) are not Codex implementation work and must be handed off with `handoff:claude`. Skip items marked `진행 중`; an open PR already covers them. Ask the user first only if an item conflicts with the task they gave you.
+3. For Codex-owned items, open one PR against `main` per item. Include `Refs #<issue>` and the item title in the PR body, and meet the item's "완료 기준". For protected items, do not open a Codex fix PR; record the handoff instead.
 4. If an item is a false positive or can't be fixed, comment on the issue with the reason. Don't silently skip it.
 5. Don't close the report issue yourself. The next morning's run re-measures, marks each item 해결됨 or 미해결, and rolls the leftovers into a new issue.
 
@@ -28,4 +32,4 @@ User-facing QA uses only the dedicated QA general-user account. Never use an adm
 
 ## Automation plan (check with the QA report)
 
-Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Anything labeled `security-urgent` comes first, and security Medium and above come before new features. Then check the issue labeled `automation-plan` and take any unchecked item assigned to ChatGPT/Codex whose deadline has arrived. Don't implement items owned by Claude. Plan and schedule: `docs/automation-plan.md`.
+Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Security findings owned by Claude are not Codex implementation work; Codex only handles explicit `handoff:codex` review or product-side follow-up. Then check `handoff:codex`, `owner:codex`, and the automation-plan issue for due Codex work. Do not implement Claude-owned protected areas. Plan and schedule: `docs/automation-plan.md`.
