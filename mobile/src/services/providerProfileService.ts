@@ -78,7 +78,7 @@ function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
 
 function displayAddress(place: PlaceRow) {
   return place.road_address ?? place.address
-    ?? [place.region_1, place.region_2].filter(Boolean).join(' ') || null;
+    ?? ([place.region_1, place.region_2].filter(Boolean).join(' ') || null);
 }
 
 export class ProviderProfileService {
