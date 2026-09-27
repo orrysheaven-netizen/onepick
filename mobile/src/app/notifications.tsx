@@ -83,7 +83,11 @@ export default function NotificationsScreen() {
           accessibilityLabel={`${item.read_at ? '읽은' : '새'} 알림, ${copy.label}`}
           onPress={() => open(item)}
           style={({ pressed }) => [styles.card, !item.read_at && styles.unread, pressed && { opacity: 0.65 }]}>
-          <View style={styles.row}><Text style={styles.sender}>{copy.sender}</Text>{!item.read_at ? <Text style={styles.newLabel}>{copy.badge}</Text> : null}</View>
+          <View style={styles.row}>
+            {!item.read_at ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
+            <Text style={styles.sender}>{copy.sender}</Text>
+            {!item.read_at ? <Text style={styles.newLabel}>{copy.badge}</Text> : null}
+          </View>
           <Text style={styles.message}>{copy.message}</Text>
           {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : item.kind === 'item_review' ? `사유: ${item.body}` : `“${item.body}”`}</Text> : null}
           <Text style={styles.time}>{formatNotificationTime(item.created_at)}</Text>
@@ -109,15 +113,22 @@ const styles = StyleSheet.create({
   title: { color: OnePick.text, fontSize: 22, fontWeight: '800' },
   action: { minWidth: 64, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   link: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
-  content: { padding: 20, paddingBottom: 32 },
-  card: { borderRadius: 18, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 18, marginBottom: 12 },
-  unread: { backgroundColor: OnePick.accentSoft },
-  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
-  sender: { fontSize: 16, color: OnePick.text, fontWeight: '700' },
-  newLabel: { fontSize: 12, color: OnePick.accent, fontWeight: '700' },
-  message: { fontSize: 14, lineHeight: 22, color: OnePick.muted, marginTop: 6 },
-  body: { fontSize: 16, lineHeight: 24, color: OnePick.text, marginTop: 12 },
-  time: { fontSize: 12, color: OnePick.muted, marginTop: 12 },
+  content: { paddingHorizontal: 20, paddingBottom: 32 },
+  card: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: OnePick.border,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 2,
+    paddingVertical: 16,
+  },
+  unread: { backgroundColor: 'transparent' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  unreadDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: OnePick.brand },
+  sender: { fontSize: 14, lineHeight: 20, color: OnePick.text, fontWeight: '700' },
+  newLabel: { fontSize: 11, lineHeight: 14, color: OnePick.text, fontWeight: '700', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  message: { fontSize: 14, lineHeight: 21, color: OnePick.text, marginTop: 5 },
+  body: { fontSize: 13, lineHeight: 19, color: OnePick.muted, marginTop: 4 },
+  time: { fontSize: 12, lineHeight: 16, color: OnePick.hint, marginTop: 5 },
   empty: { paddingVertical: 48, alignItems: 'center', gap: 10 },
   error: { color: OnePick.danger, fontSize: 14, lineHeight: 22, marginBottom: 12 },
   more: { alignItems: 'center', minHeight: 48, justifyContent: 'center' },
