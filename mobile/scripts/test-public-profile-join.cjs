@@ -23,7 +23,7 @@ assert.match(
 );
 
 // The visitor should read the collection before being asked to sign up.
-const picksIndex = profile.indexOf('카테고리별 원픽');
+const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 const shareIndex = profile.indexOf('이 취향 컬렉션을 공유해보세요');
 assert.ok(picksIndex >= 0 && shareIndex >= 0, 'the picks and share sections must stay on the public profile');
 assert.ok(joinIndex > picksIndex, 'the join call to action must follow the category picks');
