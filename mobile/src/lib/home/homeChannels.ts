@@ -4,15 +4,15 @@ import type { PickChannel } from '@/lib/items/pickChannel';
 const CHANNEL_ORDER: readonly PickChannel[] = ['offline', 'online', 'recipe'];
 
 /**
- * Home 오프라인 맛집/온라인 맛집/레시피 tabs, filtered by the Pick's channel.
+ * Home 매장/온라인/레시피 tabs, filtered by the Pick's channel.
  * Delivery counts as offline (it is one store's food); online means shipped or
  * online-store sales; recipe means cooked from a video. Picks without a channel
  * only appear under 전체.
  */
 export const HOME_CHANNEL_TABS: readonly { channel: PickChannel | null; label: string }[] = [
   { channel: null, label: '전체' },
-  { channel: 'offline', label: '오프라인 맛집' },
-  { channel: 'online', label: '온라인 맛집' },
+  { channel: 'offline', label: '매장' },
+  { channel: 'online', label: '온라인' },
   { channel: 'recipe', label: '레시피' },
 ];
 

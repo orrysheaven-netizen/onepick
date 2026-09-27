@@ -116,14 +116,14 @@ async function main() {
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
-  await test('Home 오프라인/온라인 맛집 tabs request a server-filtered feed and default to all', () => {
+  await test('Home 매장/온라인 tabs request a server-filtered feed and default to all', () => {
     const { view, calls } = home(2);
-    assert.deepEqual(view.all('Chip').filter(isChannelChip).map((p) => p.label), ['전체', '오프라인 맛집', '온라인 맛집', '레시피']);
+    assert.deepEqual(view.all('Chip').filter(isChannelChip).map((p) => p.label), ['전체', '매장', '온라인', '레시피']);
     assert.equal(calls.home[3], null, 'Home starts on the unfiltered 전체 tab');
-    view.find('Chip', (p) => p.accessibilityLabel === '오프라인 맛집 탭 원픽 보기').onPress(); view.render();
+    view.find('Chip', (p) => p.accessibilityLabel === '매장 탭 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[3], 'offline');
-    assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '오프라인 맛집 탭 원픽 보기').selected, true);
-    view.find('Chip', (p) => p.accessibilityLabel === '온라인 맛집 탭 원픽 보기').onPress(); view.render();
+    assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '매장 탭 원픽 보기').selected, true);
+    view.find('Chip', (p) => p.accessibilityLabel === '온라인 탭 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[3], 'online');
     view.find('Chip', (p) => p.accessibilityLabel === '전체 탭 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[3], null);
