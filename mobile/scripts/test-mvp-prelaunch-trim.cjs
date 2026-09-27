@@ -133,24 +133,18 @@ async function main() {
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
     assert.equal(view.find('FlatList').data.length, 20, 'Hidden chips never filter the feed');
   });
-  await test('MVP Explore: no chips, search open, food-scoped recent places, no off-scope catalogs', () => {
-    const { view, recent, calls } = explore({ chips: false });
+  await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
+    const { view, calls } = explore({ chips: false });
     assert.equal(view.all('Chip').length, 0);
-    assert.match(view.text(), /맛집 찾기/); assert.doesNotMatch(view.text(), /상위 카테고리/);
+    assert.match(view.text(), /탐색/); assert.doesNotMatch(view.text(), /상위 카테고리|최근 원픽된 맛집/);
     assert.ok(view.find('ItemSearch'), 'Search starts open without a ?search=1 handoff');
     assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
-    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: true, storesOnly: true }), 'MVP lists places only');
-    assert.equal(calls.categoryId, undefined, 'Rankings stay idle without a chosen category');
-    assert.match(view.text(), /최근 원픽된 맛집/);
-    assert.match(view.text(), /ramen · 오프라인 맛집/, 'Recent places carry the same channel label as rankings');
-    view.find('Pressable', (p) => p.accessibilityLabel === 'Recent place, ramen · 오프라인 맛집, 상세 보기').onPress();
-    assert.equal(calls.route.pathname, '/item/[itemId]'); assert.equal(calls.route.params.itemId, 'recent');
-    assert.equal(view.all('Button').filter((b) => b.accessibilityLabel === '최근 원픽 더 보기').length, 0);
-    recent.hasNextPage = true; view.render();
-    view.find('Button', (b) => b.accessibilityLabel === '최근 원픽 더 보기').onPress();
-    assert.equal(recent.nextPages, 1);
-    recent.data = []; recent.hasNextPage = false; view.render();
-    assert.ok(view.find('StateCard', (s) => s.title === '아직 원픽된 곳이 없어요'));
+    assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: false, storesOnly: false }), 'MVP does not load an unused recent-provider feed');
+    assert.equal(calls.categoryId, undefined, 'Product rankings stay idle without a chosen category');
+    assert.match(view.text(), /메뉴/); assert.match(view.text(), /ramen/); assert.match(view.text(), /원픽 보기/);
+    view.find('Pressable', (p) => p.accessibilityLabel === 'ramen 메뉴 원픽 보기').onPress();
+    assert.equal(calls.route.pathname, '/menu/[slug]'); assert.equal(calls.route.params.slug, 'ramen');
+    assert.doesNotMatch(view.text(), /Recent place/, 'Menu discovery replaces the old recent-provider landing list');
   });
   await test('Home restoration threshold, signed-out avatar and editorial copy', () => {
     flags.categoryChips = true;

@@ -86,13 +86,12 @@ async function main() {
 
   const itemSearch = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'item-search.tsx'), 'utf8');
   const explore = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', '(tabs)', 'explore.tsx'), 'utf8');
-  const home = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', '(tabs)', 'index.tsx'), 'utf8');
   const screen = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'pick', 'book.tsx'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase', 'functions', 'book-catalog', 'bookCatalog.ts'), 'utf8');
   assert.match(itemSearch, /onSearchBook/);
   assert.match(itemSearch, /도서 DB에서 검색/);
   assert.match(explore, /pathname: '\/pick\/book'/);
-  assert.match(home, /pathname: '\/pick\/book'/);
+  // Home is food-only and its menu cards open /ranking; book registration starts from Explore.
   assert.match(screen, /Google Books/);
   assert.match(screen, /책 제목/);
   assert.match(screen, /작가 이름/);
