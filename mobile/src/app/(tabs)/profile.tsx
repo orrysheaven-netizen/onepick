@@ -263,7 +263,7 @@ export default function ProfileScreen() {
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>{showRequests && showHistory ? '원픽 등록 요청 상태와 이전 원픽 기록을 확인합니다.' : showRequests ? '원픽 등록 요청 상태를 확인합니다.' : '이전 원픽 기록을 확인합니다.'}</Text>
+          <Text style={styles.secondaryDescription}>{showRequests ? '원픽 등록 요청 상태를 확인합니다.' : '원픽 활동을 확인합니다.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>
@@ -274,7 +274,7 @@ export default function ProfileScreen() {
           </> : null}
 
           {showHistory ? <>
-            <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>이전 원픽 기록</Text></View>
+            <View style={[styles.sectionHeader, styles.historyHeader]}><Text style={styles.activitySectionTitle}>원픽 활동</Text></View>
             {history.map((item) => <ProfilePickCard
               key={item.pick.id}
               categoryName={categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
@@ -289,7 +289,7 @@ export default function ProfileScreen() {
               onPressPick={() => openPick(item.pick.id)}
               onPressItem={item.item ? () => openItem(item.pick.itemId) : undefined}
             />)}
-            <ListControls query={historyQuery} label="이전 기록" />
+            <ListControls query={historyQuery} label="활동" />
           </> : null}
         </View> : null}
 
