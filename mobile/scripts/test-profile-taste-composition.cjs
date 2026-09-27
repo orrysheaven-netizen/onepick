@@ -33,7 +33,7 @@ assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 const infoIndex = profile.indexOf('<ProfileBioEditor');
 const tasteIndex = profile.indexOf('<ProfileTasteComposition');
 const aiIndex = profile.indexOf('<ProfileAiPanel');
-const picksIndex = profile.indexOf('카테고리별 원픽');
+const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 
 assert.ok(infoIndex >= 0, 'profile info section is missing');
 assert.ok(tasteIndex > infoIndex, 'gated taste composition must follow profile info');
@@ -45,7 +45,7 @@ assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
 const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');
-const publicPicksIndex = publicProfile.indexOf('카테고리별 원픽');
+const publicPicksIndex = publicProfile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 const publicSafetyIndex = publicProfile.indexOf('사용자 관리');
 
 assert.ok(publicInfoIndex >= 0, 'public profile info section is missing');

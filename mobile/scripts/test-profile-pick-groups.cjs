@@ -141,8 +141,10 @@ assert.match(component, /모두 펼치기/);
 assert.match(component, /모두 접기/);
 assert.match(component, /accessibilityState=\{\{ expanded: !isCollapsed \}\}/);
 assert.match(component, /<ProfilePickCard/);
-assert.match(component, /layout="tile"/, 'current Picks render as 2-column tiles');
-assert.match(component, /groupBody: \{ flexDirection: 'row', flexWrap: 'wrap'/, 'tiles wrap into a grid');
+assert.match(component, /layout="row"/, 'current Picks render as readable v4 rows');
+assert.match(component, /providerName=\{providerName\}/, 'food rows keep provider/source separate from the menu title');
+assert.match(component, /channelLabel=\{channelLabel\}/, 'food rows show the short channel badge before the provider');
+assert.match(component, /groupBody: \{ gap: 10 \}/, 'rows stack vertically without a 2-column grid');
 assert.doesNotMatch(component, /remaining/, 'profiles no longer list categories still without a Pick');
 assert.match(component, /buildProfileThemeSections\(picks, categories\)/);
 assert.match(component, /sections\[0\]\.code === 'other'/, 'the lone 기타 header is hidden while the catalog loads');
@@ -150,9 +152,15 @@ assert.match(component, /sections\[0\]\.code === 'other'/, 'the lone 기타 head
 assert.equal(grouping.remainingProfileCategories, undefined, 'the remaining-category helper is gone');
 
 assert.match(owner, /<ProfilePickGroups/);
+assert.match(owner, /picks=\{visibleProfilePicks\}/, 'owner profile switches between 음식 and 다른 취향 in place');
+assert.match(owner, /음식 원픽 보기/);
+assert.match(owner, /다른 취향 원픽 보기/);
 assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.match(publicProfile, /<ProfilePickGroups/);
+assert.match(publicProfile, /picks=\{visibleProfilePicks\}/, 'public profile uses the same in-place taste tabs');
+assert.match(publicProfile, /음식 원픽 보기/);
+assert.match(publicProfile, /다른 취향 원픽 보기/);
 assert.match(publicProfile, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 
