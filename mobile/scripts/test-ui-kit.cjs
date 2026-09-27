@@ -129,20 +129,19 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   link.onPress(); assert.equal(opened, 1);
 }
 
-// PickCard: person/state → channel/provider → menu → one-line reason, then low-noise actions.
+// PickCard: person → channel/provider → menu → one-line reason, then low-noise actions.
 {
   let opened = 0; let profile = 0;
   const html = render(React.createElement(ui.PickCard, {
     channelLabel: '매장', providerName: '서울집', itemName: '미역국', review: '국물이 진한데 부담스럽지 않음',
     photo: { uri: 'https://example.test/miyeokguk.jpg', itemId: 'soup', label: '서울집 미역국' },
     person: { username: 'friend', onPress: () => profile++ },
-    statusLabel: '새로 고름 · 9/27',
     onPress: () => opened++, accessibilityLabel: '서울집 상세 보기',
     footer: React.createElement('span', null, '✓ 내 원픽 · 댓글 · 공유'),
   }));
   assert.match(html, /“국물이 진한데 부담스럽지 않음”/);
-  assert.match(html, /✓ 내 원픽/); assert.match(html, /새로 고름 · 9\/27/);
-  assert.ok(html.indexOf('@friend') < html.indexOf('서울집'), 'Person and Pick state precede the provider');
+  assert.match(html, /✓ 내 원픽/); assert.doesNotMatch(html, /새로 고름|9\/27/, 'Pick cards do not display selection time/status text');
+  assert.ok(html.indexOf('@friend') < html.indexOf('서울집'), 'Person precedes the provider');
   assert.ok(html.indexOf('서울집') < html.indexOf('미역국'), 'A hierarchy keeps provider before the menu title');
   assert.match(html, />매장</);
   assert.match(html, /data-feed="true"/, 'A feed card with a real image uses the square feed photo frame');
