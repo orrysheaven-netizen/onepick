@@ -16,7 +16,7 @@ select ok(
 select ok(
   position(
     'open_leaf_categories as materialized'
-    in lower(pg_get_functiondef('public.home_pick_feed_page(timestamptz,uuid,text,text)'::regprocedure))
+    in lower(pg_get_functiondef('public.home_pick_feed_page(timestamptz,uuid,text,text,uuid)'::regprocedure))
   ) > 0,
   'Home feed materializes open leaf categories once'
 );
