@@ -12,7 +12,7 @@ import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
-import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
+import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
 import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
@@ -76,7 +76,8 @@ export default function NewPickScreen() {
   const [sellerUrl, setSellerUrl] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
-  const [menu, setMenu] = useState<{ categoryId: string; name: string } | null>(null);
+  // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
+  const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   // Known from the selected item row itself, before the item detail loads.
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
@@ -111,6 +112,7 @@ export default function NewPickScreen() {
   const choosePick = useChoosePick();
   const registration = useRegisterPick();
   const attachSellerLink = useAttachPendingItemLink();
+  const menuHint = useSetMenuHint();
 
   const item = itemDetail.data?.item;
   const itemHasPhoto = Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
@@ -119,7 +121,7 @@ export default function NewPickScreen() {
   const needsPhoto = isNew || !(itemHadPhoto || itemHasPhoto);
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const saving = choosePick.isPending || registration.isPending || attachSellerLink.isPending;
+  const saving = choosePick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
 
   const nextFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : needsPhoto ? 4 : 5;
@@ -153,7 +155,7 @@ export default function NewPickScreen() {
 
   const confirmMenu = async () => {
     if (!store || !menu || busy.current) return;
-    if (store.kind === 'new') { setStep(nextFrom(2)); return; }
+    if (store.kind === 'new' || !menu.categoryId) { setStep(nextFrom(2)); return; }
     busy.current = true;
     try {
       const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
@@ -197,19 +199,20 @@ export default function NewPickScreen() {
     setSaveError(null);
     try {
       if (store.kind !== 'new') {
-        if (!itemId) return;
+        if (!itemId || !menu.categoryId) return;
         const pick = await choosePick.mutateAsync({
           categoryId: menu.categoryId, itemId, oneLineReview: trimmedReview, channel: storeChannel,
         });
         setDone({ type: 'pick', pickId: pick.id, itemId: pick.itemId });
       } else {
         const result = await registration.mutateAsync({
-          userId: user.id, categoryId: menu.categoryId, itemName: store.name, variant: '',
+          userId: user.id, categoryId: menu.categoryId ?? undefined, itemName: store.name, variant: '',
           oneLineReview: trimmedReview, photo, channel: store.channel,
         });
         if (result.type === 'pick') {
           setDone({ type: 'pick', pickId: result.pick.id, itemId: result.pick.itemId });
         } else {
+          if (!menu.categoryId) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: menu.name });
           if (store.sellerUrl) await attachSellerLink.mutateAsync({ itemId: result.item.id, url: store.sellerUrl });
           let saved = false;
           if (mapLink.trim() && isNaverMapUrl(mapLink)) {
@@ -228,10 +231,32 @@ export default function NewPickScreen() {
   const menuMatches = useMemo(() => {
     const options = (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled);
     const q = menuQuery.trim().replace(/\s+/g, '').toLowerCase();
-    return q ? options.filter((option) => option.name.replace(/\s+/g, '').toLowerCase().includes(q)).slice(0, 30) : options.slice(0, 30);
+    // "클래식 밀크티" should still find a "밀크티" menu, so match both ways.
+    return q ? options.filter((option) => {
+      const name = option.name.replace(/\s+/g, '').toLowerCase();
+      return name.includes(q) || q.includes(name);
+    }).slice(0, 30) : options.slice(0, 30);
   }, [menus.data, menuQuery, storeChannel]);
   const aiAllowed = new Set((menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled).map((option) => option.categoryId));
   const aiSuggestions = (suggestions.data?.suggestions ?? []).filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId));
+  const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  // No menu fits: carry on as a request. The store and the typed menu go to an
+  // administrator, who picks the category; approval then makes the pick.
+  const requestMenu = () => {
+    if (!store || !requestedMenu || requestedMenu.length > 60) return;
+    if (store.kind !== 'new') {
+      setStore({
+        kind: 'new',
+        name: store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name,
+        channel: storeChannel,
+        sellerUrl: store.kind === 'seller' ? store.officialUrl : null,
+      });
+      if (store.kind === 'place' && store.mapUrl) setMapLink(store.mapUrl);
+    }
+    setItemId(null); setItemHadPhoto(false);
+    setMenu({ categoryId: null, name: requestedMenu });
+    setStep(storeChannel === 'offline' ? 3 : 4);
+  };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setLinkSaved(false); }
     setMenu({ categoryId: option.categoryId, name: option.name });
@@ -328,6 +353,12 @@ export default function NewPickScreen() {
           <View style={styles.chips}>
             {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
           </View>
+          {menus.data && requestedMenu && menuMatches.length === 0 ? <View style={styles.card}>
+            <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
+            <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
+            {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 60자까지 적을 수 있어요.</Text> : null}
+            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
+          </View> : null}
           {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           <Button fullWidth size="lg" label={menu ? `${menu.name}(으)로 다음` : '메뉴를 골라주세요'} disabled={!menu}
             loading={selectItem.isPending} onPress={() => void confirmMenu()} style={styles.primary} />
