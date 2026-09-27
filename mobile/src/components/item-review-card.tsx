@@ -51,7 +51,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      <PickReplies pickId={pick.id} compact canWrite={!isMine} />
+      <PickReplies pickId={pick.id} compact canWrite={!isMine && isCurrent} />
     </View>
   );
 }
