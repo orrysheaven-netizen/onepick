@@ -111,7 +111,9 @@ export class ItemService {
     if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
       const focused = cachedFocus ?? await this.readRepository.getPickById(focusPickId);
       if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
-        reviews.push({
+        // Keep a current focused review near the top for deep-link continuity;
+        // the current-first sort below moves an ended focused review behind all current ones.
+        reviews.splice(ownReview.length, 0, {
           pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
         });
       }
