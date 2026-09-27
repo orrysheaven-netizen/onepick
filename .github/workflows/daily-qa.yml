@@ -105,6 +105,10 @@ jobs:
 
   real-user-errors:
     runs-on: ubuntu-latest
+    # Reads Management API data with the deploy token, which lives only in the
+    # Production environment (main only). SUPABASE_QA_ACCESS_TOKEN is
+    # edge_functions_read only (docs/deployment-consistency.md).
+    environment: Production
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -117,7 +121,7 @@ jobs:
 
       - name: Summarize real-user errors
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/real-user-errors.mjs
 
@@ -134,6 +138,10 @@ jobs:
   # only. Without SUPABASE_ACCESS_TOKEN the script records a skip and exits 0.
   db-health:
     runs-on: ubuntu-latest
+    # Reads Management API data with the deploy token, which lives only in the
+    # Production environment (main only). SUPABASE_QA_ACCESS_TOKEN is
+    # edge_functions_read only (docs/deployment-consistency.md).
+    environment: Production
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -146,7 +154,7 @@ jobs:
 
       - name: Check DB health
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/db-health.mjs
 
