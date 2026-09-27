@@ -13,6 +13,9 @@ function load(file, imports = {}) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     assert.fail(`Unexpected import: ${name}`);
   } });
@@ -41,11 +44,11 @@ function harness(file, imports) {
   for (const n of ['View','Text','TextInput','ScrollView','ActivityIndicator','Image','Pressable']) native[n] = n;
   const Screen = load(file, { react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/errors/appError': { AppError },
-    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
+    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;
@@ -81,7 +84,7 @@ function choice() {
   const view = harness('app/pick/choose.tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => destinations.push(r), replace: (r) => destinations.push(r), canGoBack: () => true, back() {} }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
-    '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('내 원픽으로 선택').onPress(); };
   const finish = async () => { pending[0].resolve({ id: pickId, itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' }); await flush(); return view.render(); };
@@ -176,23 +179,25 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => ({}), useAttachItemPhoto: () => ({}) },
   });
-  assert.match(view.render(), /사진 등록 · @photo_owner/);
+  assert.match(view.render(), /사진 @photo_owner/);
   assert.equal(itemDetailArgs[3], true, 'Item detail screen requests photo attribution');
   assert.equal(itemDetailArgs[4], true, 'Resolved session enables the detail query');
   auth.isLoading = true; view.render();
   assert.equal(itemDetailArgs[4], false, 'Loading session keeps the detail query disabled');
   auth.isLoading = false; view.render();
   view.button('사진 등록자 @photo_owner 프로필 보기').onPress(); assert.equal(routes[0].params.username, 'photo_owner');
-  assert.doesNotMatch(view.render(), /사진 선택/);
+  assert.doesNotMatch(view.render(), /사진 업로드/);
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
   query.photoCredit = null; assert.doesNotMatch(view.render(), /사진 등록 ·/);
   query.data.item = { ...baseItem };
-  page = view.render(); assert.match(page, /이름이 잘 보이는 사진이면 충분해요/); assert.match(page, /내 사용자명이 표시되고 프로필이 연결/);
+  page = view.render(); assert.match(page, /사진을 올려주세요/, 'A missing photo is a one-line upload row');
+  assert.doesNotMatch(page, /이름이 잘 보이는 사진이면|사진 없이도/, 'The upload row carries no extra guidance before a photo is chosen');
+  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /올린 사진은 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요/, 'The chosen-photo preview keeps a one-line sharing notice');
   view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 0, 'Photo entry stays on uploader instead of jumping to the saved review');
   params.photo = undefined; view.render(); view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 1, 'Normal discussion deep links still focus the review');
-  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 선택/);
+  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 업로드/);
   assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /case 'ITEM_NOT_ELIGIBLE': return '지금은 여기에 이미지를 추가할 수 없어요.'/);
   console.log('Photo contribution passed: optional post-save offer, skip and no duplicate write, current-photo exclusion, credit reads/cache isolation, profile link and uploader focus.');
 }

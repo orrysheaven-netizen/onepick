@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Fail fast before starting a local database when concurrent branches reused a version.
       - name: Check unique migration versions
@@ -46,10 +46,13 @@ jobs:
       - name: Test SBIZ place adapter
         run: python3 tools/test_sbiz_place_adapter.py
 
+      - name: Test place import loader
+        run: python3 tools/test_load_place_import_jsonl.py
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with:
-          version: latest
+          version: 2.118.0
 
       - name: Start local database
         run: supabase db start

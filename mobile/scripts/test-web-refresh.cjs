@@ -53,6 +53,7 @@ function fixture(kind, platform = 'web') {
       browseCategoryGroups: (cs) => cs.map((c) => ({ category: c, children: [], directlySelectable: true })) },
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
+    '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);

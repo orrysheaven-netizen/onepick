@@ -1,4 +1,5 @@
 import type { Href } from 'expo-router';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 export type AuthReturnParams = {
   action?: string | string[];
@@ -24,15 +25,16 @@ export type AuthReturnParams = {
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
+  | { action: 'store_pick' }
   | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string; channel?: 'online'; oneLineReview?: string }
-  | { action: 'choose_pick'; itemId: string; categoryId: string }
+  | { action: 'choose_pick'; itemId: string; categoryId: string; channel?: PickChannel }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
   | { action: 'choose_drama'; externalId: string; categoryId: string }
   | { action: 'choose_music'; externalMusicId: string; categoryId: string }
   | { action: 'choose_game'; externalGameId: string; categoryId: string }
   | { action: 'choose_book'; externalBookId: string; categoryId: string }
   | { action: 'choose_youtube'; externalYouTubeId: string; categoryId: string }
-  | { action: 'choose_recipe'; externalVideoId: string; categoryId: string }
+  | { action: 'choose_recipe'; externalVideoId: string; categoryId?: string }
   | { action: 'choose_pokemon'; externalPokemonId: string; categoryId: string }
   | { action: 'choose_place'; placeCatalogId: string; categoryId: string }
   | { action: 'suggest_link_category'; linkUrl: string; linkName?: string }
@@ -108,7 +110,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
       ...(oneLineReview ? { oneLineReview } : {}),
     } : { action: 'home' };
   }
-  if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId };
+  if (params.action === 'choose_pick' && isId(params.itemId) && isId(params.categoryId)) {
+    const channel = params.channel === 'offline' || params.channel === 'online' || params.channel === 'recipe' ? params.channel : undefined;
+    return { action: 'choose_pick', itemId: params.itemId, categoryId: params.categoryId, ...(channel ? { channel } : {}) };
+  }
   if ((params.action === 'choose_movie' || params.action === 'choose_drama') && isId(params.categoryId)) {
     const externalId = getExternalId(params.externalId);
     if (externalId) return { action: params.action, externalId, categoryId: params.categoryId };
@@ -129,9 +134,10 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
     const externalYouTubeId = getExternalYouTubeId(params.externalYouTubeId);
     if (externalYouTubeId) return { action: 'choose_youtube', externalYouTubeId, categoryId: params.categoryId };
   }
-  if (params.action === 'choose_recipe' && isId(params.categoryId)) {
+  if (params.action === 'choose_recipe') {
+    // The dish is optional: a recipe link can be confirmed against any dish after login.
     const externalVideoId = getExternalVideoId(params.externalVideoId);
-    if (externalVideoId) return { action: 'choose_recipe', externalVideoId, categoryId: params.categoryId };
+    if (externalVideoId) return { action: 'choose_recipe', externalVideoId, ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}) };
   }
   if (params.action === 'choose_pokemon' && isId(params.categoryId)) {
     const externalPokemonId = getExternalPokemonId(params.externalPokemonId);
@@ -149,6 +155,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'add_item_photo' && isId(params.itemId)) return { action: 'add_item_photo', itemId: params.itemId };
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
   if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
+  if (params.action === 'store_pick') return { action: 'store_pick' };
   if (params.action === 'my_comments') return { action: 'my_comments' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
@@ -157,6 +164,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   if (needsUsername) return { pathname: '/auth/username', params: { ...intent } };
   switch (intent.action) {
     case 'register_pick': return { pathname: '/pick/register', params: { ...intent } };
+    case 'store_pick': return '/pick/new';
     case 'request_item': return {
       pathname: '/pick/request',
       params: {
@@ -167,14 +175,14 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
         ...(intent.oneLineReview ? { oneLineReview: intent.oneLineReview } : {}),
       },
     };
-    case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId } };
+    case 'choose_pick': return { pathname: '/pick/choose', params: { itemId: intent.itemId, categoryId: intent.categoryId, ...(intent.channel ? { channel: intent.channel } : {}) } };
     case 'choose_movie': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalMovieId: intent.externalId } };
     case 'choose_drama': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, externalDramaId: intent.externalId } };
     case 'choose_music': return { pathname: '/pick/music', params: { categoryId: intent.categoryId, externalMusicId: intent.externalMusicId } };
     case 'choose_game': return { pathname: '/pick/game', params: { categoryId: intent.categoryId, externalGameId: intent.externalGameId } };
     case 'choose_book': return { pathname: '/pick/book', params: { categoryId: intent.categoryId, externalBookId: intent.externalBookId } };
     case 'choose_youtube': return { pathname: '/pick/youtube', params: { categoryId: intent.categoryId, externalYouTubeId: intent.externalYouTubeId } };
-    case 'choose_recipe': return { pathname: '/pick/recipe', params: { categoryId: intent.categoryId, externalVideoId: intent.externalVideoId } };
+    case 'choose_recipe': return { pathname: '/pick/recipe', params: { externalVideoId: intent.externalVideoId, ...(intent.categoryId ? { categoryId: intent.categoryId } : {}) } };
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
     case 'suggest_link_category': return { pathname: '/pick/link', params: { url: intent.linkUrl, ...(intent.linkName ? { name: intent.linkName } : {}) } };

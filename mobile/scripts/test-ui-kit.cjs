@@ -129,30 +129,55 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   link.onPress(); assert.equal(opened, 1);
 }
 
-// PickCard: person → category → item → reason, with the review always quoted.
+// PickCard: person/state → channel/provider → menu → one-line reason, then low-noise actions.
 {
   let opened = 0; let profile = 0;
   const html = render(React.createElement(ui.PickCard, {
-    categoryName: '라면', itemName: '신라면', review: '결국 돌아오게 되는 맛', badge: '내 원픽',
-    photo: { uri: null, itemId: 'ramen' },
-    person: { username: 'friend', label: '@friend 외 4명이 추천', onPress: () => profile++ },
-    timeLabel: '2시간 전',
-    onPress: () => opened++, accessibilityLabel: '신라면 제품 상세 보기',
-    footer: React.createElement(ui.Button, { label: '나도 이게 원픽', variant: 'soft', size: 'sm' }),
+    channelLabel: '매장', providerName: '서울집', itemName: '미역국', review: '국물이 진한데 부담스럽지 않음',
+    photo: { uri: 'https://example.test/miyeokguk.jpg', itemId: 'soup', label: '서울집 미역국' },
+    person: { username: 'friend', onPress: () => profile++ },
+    statusLabel: '새로 고름 · 9/27',
+    onPress: () => opened++, accessibilityLabel: '서울집 상세 보기',
+    footer: React.createElement('span', null, '✓ 내 원픽 · 댓글 · 공유'),
   }));
-  assert.match(html, /“결국 돌아오게 되는 맛”/);
-  assert.match(html, /내 원픽/); assert.match(html, /2시간 전/);
-  assert.ok(html.indexOf('@friend 외 4명이 추천') < html.indexOf('라면'), 'Person row precedes the item');
-  assert.ok(html.indexOf('신라면') < html.indexOf('나도 이게 원픽'), 'Footer actions follow the body');
-  assert.match(html, /data-feed="true"/, 'Feed card uses the square feed photo frame');
-  pressable('신라면 제품 상세 보기').onPress(); assert.equal(opened, 1);
+  assert.match(html, /“국물이 진한데 부담스럽지 않음”/);
+  assert.match(html, /✓ 내 원픽/); assert.match(html, /새로 고름 · 9\/27/);
+  assert.ok(html.indexOf('@friend') < html.indexOf('서울집'), 'Person and Pick state precede the provider');
+  assert.ok(html.indexOf('서울집') < html.indexOf('미역국'), 'A hierarchy keeps provider before the menu title');
+  assert.match(html, />매장</);
+  assert.match(html, /data-feed="true"/, 'A feed card with a real image uses the square feed photo frame');
+  pressable('서울집 상세 보기').onPress(); assert.equal(opened, 1);
   pressable('@friend 프로필 보기').onPress(); assert.equal(profile, 1);
 
-  const noReview = render(React.createElement(ui.PickCard, {
-    categoryName: '영화', itemName: '기생충', fallbackText: '12명이 추천', photo: {}, onPress() {}, accessibilityLabel: '기생충 제품 상세 보기',
+  let provider = 0;
+  render(React.createElement(ui.PickCard, {
+    channelLabel: '매장', providerName: '서울집', itemName: '미역국', review: '원픽 이유',
+    photo: {}, onPress() {}, onPressProvider: () => provider++, accessibilityLabel: '서울집 미역국 상세 보기',
   }));
-  assert.match(noReview, /12명이 추천/); assert.doesNotMatch(noReview, /“/);
+  const providerLink = pressable('서울집 제공처 프로필 보기');
+  assert.ok(providerLink, 'Provider context is independently navigable when a provider profile exists');
+  providerLink.onPress({ stopPropagation() {} }); assert.equal(provider, 1);
+
+  const noPhoto = render(React.createElement(ui.PickCard, {
+    providerName: '서울집', itemName: '미역국', fallbackText: '한줄평 준비 중', photo: {},
+    onPress() {}, accessibilityLabel: '사진 없는 원픽 상세 보기',
+  }));
+  assert.match(noPhoto, /한줄평 준비 중/);
+  assert.doesNotMatch(noPhoto, /data-feed="true"/, 'No image data means no empty image placeholder on the feed card');
   assert.equal(pressables.length, 1, 'No person row means no profile pressable');
+
+  const menuContext = render(React.createElement(ui.PickCard, {
+    channelLabel: '매장', providerName: '서울집', itemName: '미역국', menuContext: true, review: '원픽 이유',
+    photo: {}, onPress() {}, accessibilityLabel: '메뉴 고정 화면 원픽 상세 보기',
+  }));
+  assert.match(menuContext, /서울집/);
+  assert.doesNotMatch(menuContext, />미역국</, 'D hierarchy omits the menu title when the screen already names the menu');
+
+  const recipeFallback = render(React.createElement(ui.PickCard, {
+    channelLabel: '레시피', itemName: '미역국', menuContext: true, review: '레시피 이유',
+    photo: {}, onPress() {}, accessibilityLabel: '출처 없는 레시피 원픽 상세 보기',
+  }));
+  assert.match(recipeFallback, />미역국</, 'D hierarchy keeps the menu title when no recipe provider/source is available');
 }
 
 console.log('UI kit passed: Button variants/states, Chip selection, SectionHeader, StateCard states, Avatar, PickCard order.');

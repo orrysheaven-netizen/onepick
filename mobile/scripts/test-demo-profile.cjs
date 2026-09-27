@@ -30,16 +30,14 @@ assert.equal(seed.isSeedProfileId(null), false);
 
 let pickPayload;
 const sharePick = load('lib/share/sharePick.ts', {
-  'react-native': { Share: { share: async (payload) => { pickPayload = payload; return payload; } } },
+  'react-native': { Platform: { OS: 'ios' }, Share: { share: async (payload) => { pickPayload = payload; return payload; } } },
   './shareLinks': { createPickShareUrl: () => 'https://onepick.example/pick/seed' },
 });
 sharePick.sharePick({
   pickId: 'pick', username: 'moodarchive', categoryName: '라면',
   itemName: '신라면', oneLineReview: '테스트 이유',
 });
-assert.doesNotMatch(pickPayload.title, /DEMO/i);
-assert.doesNotMatch(pickPayload.message, /DEMO/i);
-assert.match(pickPayload.message, /^@moodarchive/);
+assert.deepEqual({ ...pickPayload }, { url: 'https://onepick.example/pick/seed' }, 'Seed Picks share only their link, with no demo label');
 
 let profilePayload;
 const shareProfile = load('lib/share/shareProfile.ts', {
@@ -56,7 +54,7 @@ assert.doesNotMatch(source('app/(tabs)/index.tsx'), />DEMO</);
 assert.doesNotMatch(source('components/item-review-card.tsx'), /DEMO · 테스트 데이터/);
 assert.doesNotMatch(source('app/u/[username].tsx'), /DEMO · 테스트 데이터/);
 assert.match(source('app/u/[username].tsx'), /user && !isSeed/);
-assert.match(source('components/pick-share-card.tsx'), /isSeedProfileId\(props\.authorUserId\)/);
-assert.doesNotMatch(source('components/pick-share-card.tsx'), /DEMO DATA/);
+assert.match(source('components/pick-share-actions.tsx'), /isSeedProfileId\(props\.authorUserId\)/);
+assert.doesNotMatch(source('components/pick-share-actions.tsx'), /DEMO DATA/);
 
 console.log('Seed profile checks passed: stable-id detection, ordinary handles and unlabelled sharing/UI.');

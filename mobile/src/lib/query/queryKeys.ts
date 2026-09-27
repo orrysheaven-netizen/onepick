@@ -4,6 +4,9 @@ export const queryKeys = {
   home: {
     all: ['home'] as const,
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
+    dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
+      ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
+    myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
   },
   explore: {
     all: ['explore'] as const,
@@ -35,6 +38,7 @@ export const queryKeys = {
     byCategory: (categoryId: string) => ['items', 'category', categoryId] as const,
     search: (query: string, categoryId?: string, categoryIds?: string[]) =>
       ['items', 'search', query, categoryId ?? (categoryIds ? [...categoryIds].sort().join(',') : 'all')] as const,
+    dishChannels: (query: string, userId?: string) => ['items', 'dish-channels', query, userId ?? 'public'] as const,
   },
   movieCatalog: { search: (query: string) => ['movie-catalog', 'search', query] as const },
   musicCatalog: { search: (title: string, artist: string) => ['music-catalog', 'search', title, artist] as const },
@@ -55,6 +59,10 @@ export const queryKeys = {
     current: (userId: string, categoryId: string) => ['picks', 'current', userId, categoryId] as const,
     byUser: (userId: string) => ['picks', 'user', userId] as const,
     byCategory: (categoryId: string) => ['picks', 'category', categoryId] as const,
+  },
+  providers: {
+    all: ['providers'] as const,
+    detail: (providerId?: string) => ['providers', 'detail', providerId ?? 'missing'] as const,
   },
   profiles: {
     all: ['profiles'] as const,

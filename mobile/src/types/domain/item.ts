@@ -28,8 +28,10 @@ export interface Item {
   collectionName?: string | null;
   /** Free-text category hint on a pending registration request. */
   requestedCategoryLabel?: string | null;
-  /** Sales channels (offline store / online) for 맛집 items; empty or absent otherwise. */
+  /** Sales channels (store / online / recipe) for food items; empty or absent otherwise. */
   channels?: PickChannel[];
+  /** Public provider profile for store/online items. Legacy/catalog items may not have one. */
+  providerId?: string | null;
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

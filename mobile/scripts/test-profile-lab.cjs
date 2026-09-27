@@ -61,11 +61,15 @@ const onboarding = read('src/app/onboarding.tsx');
 const find = read('src/app/pick/find.tsx');
 
 assert.match(lab, /usePublicProfile\(username, user\?\.id\)/);
-assert.match(lab, /onPressCategory=\{isMine \?/, 'only the owner gets pick-more tiles in 실험실');
+assert.doesNotMatch(lab, /onPressCategory/, '실험실 lists Picks only; the owner starts categories from the list below');
 assert.match(lab, /isLabCategory\(category\.id, categories, OnePickMvp\.mainThemeCode, true\)/, 'the owner can start any lab category');
 assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: profileQuery\.data\.profile\.username \}/, '/lab opens my own 실험실');
-assert.match(owner, /<ProfileLabEntry count=\{labPicks\.length\}/);
-assert.match(publicProfile, /OnePickFeatures\.lab && \(labPicks\.length > 0 \|\| query\.data\.isMine\)/, 'visitors see the lab row only when there is something in it');
+assert.match(owner, /profileScope === 'food' \? mainPicks : labPicks/, 'owner toggles 음식 and 다른 취향 in place');
+assert.match(owner, /음식 원픽 보기/);
+assert.match(owner, /다른 취향 원픽 보기/);
+assert.match(publicProfile, /profileScope === 'food' \? mainPicks : labPicks/, 'public profile toggles the same scopes in place');
+assert.match(publicProfile, /음식 원픽 보기/);
+assert.match(publicProfile, /다른 취향 원픽 보기/);
 assert.match(publicProfile, /const currentPicks = mainPicks;/, 'the share card carries only main-theme Picks');
 assert.match(explore, /router\.push\('\/lab'\)/, 'Explore has a 실험실 entry');
 assert.match(onboarding, /!isLabCategory\(category\.id, categoryCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'onboarding offers only main-theme categories');

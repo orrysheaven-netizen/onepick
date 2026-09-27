@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
 import type { Pick, PickStatus } from '@/types/domain/pick';
@@ -41,9 +42,9 @@ export interface ReadCursor {
   id: string;
 }
 
+export type { PickChannel } from '@/lib/items/pickChannel';
+
 /** One person's current choice, not an aggregate product or a follower event. */
-/** Sales channel of a Pick's item: a store (incl. delivery) or online/shipped sales. */
-export type PickChannel = 'offline' | 'online';
 
 export interface HomeFeedPick {
   pickId: string;
@@ -56,9 +57,13 @@ export interface HomeFeedPick {
   categoryName: string;
   oneLineReview: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   startedAt: string;
   /** Empty for legacy items with no channel, and on the following feed. */
   channels: PickChannel[];
+  /** Public provider profile for store/online items. */
+  providerId?: string | null;
 }
 
 export interface HomePickPage {
@@ -70,6 +75,8 @@ export interface CategoryTopItem {
   itemId: string;
   name: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   pickCount: number;
   rank: number;
   isTied: boolean;
@@ -92,6 +99,8 @@ export interface RecentPickedItem {
   categoryId: string;
   categoryName: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   lastPickedAt: string;
   channels: PickChannel[];
 }
@@ -107,6 +116,8 @@ export interface HomeShowcaseItem {
   categoryId: string;
   categoryName: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   pickCount: number;
   latestPickId: string | null;
   latestPickerUsername: string | null;
@@ -126,6 +137,8 @@ export interface EditorialHomeItem {
   categoryName: string;
   categoryPath: string;
   thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
   editorialNote: string | null;
   editorialPriority: number;
   pickCount: number;
@@ -143,12 +156,41 @@ export interface PickReadInput {
   orderBy?: 'started_at' | 'updated_at';
 }
 
+/** The brand an item belongs to (99밀크티 for its 강남점 milk tea). */
+export interface ItemBrand {
+  brandId: string;
+  name: string;
+  logoUrl: string | null;
+}
+
+/** One item of a dish shown in one channel, with how many people picked it there. */
+export interface DishChannelItem {
+  itemId: string;
+  name: string;
+  thumbnailUrl: string | null;
+  /** The item's brand logo, used as the card image when there is no photo. */
+  brandLogoUrl?: string | null;
+  pickCount: number;
+}
+
+/** A searched dish shown three ways: 오프라인 맛집, 온라인 맛집 and 레시피. */
+export interface DishChannelOverview {
+  categoryId: string;
+  categoryName: string;
+  channels: Record<PickChannel, DishChannelItem[]>;
+}
+
 export interface ReadRepository {
+  /** Optional so test doubles need not stub it; a missing brand is never an error. */
+  getItemBrand?(itemId: string): Promise<ItemBrand | null>;
+  /** The dish the query names exactly (e.g. 미역국) split by channel; null when the query is not a dish. */
+  getDishChannelOverview(query: string): Promise<DishChannelOverview | null>;
   /**
-   * `channel` narrows the feed server-side (Home 매장/온라인 tabs) and `rootSlug`
-   * keeps one top-level category tree (MVP: 'food'); null keeps every Pick.
+   * `channel` narrows the feed server-side (Home 매장/온라인 tabs), `rootSlug`
+   * keeps one top-level category tree (MVP: 'food') and `categoryId` one dish
+   * (the 미역국 page); null keeps every Pick.
    */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
   getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;

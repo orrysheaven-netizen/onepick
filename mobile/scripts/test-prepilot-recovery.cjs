@@ -14,6 +14,9 @@ function load(file, imports) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     assert.fail(`Unexpected dependency: ${name}`);
   } });
@@ -48,8 +51,8 @@ function harness(file, exportName, imports) {
   const Screen = load(file, {
     react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
-    '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
+    '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/report-action': { ReportAction: 'ReportAction' }, ...imports,
   })[exportName];
   function walk(value, location) {
@@ -98,7 +101,7 @@ function choice() {
   const view = harness('app/pick/choose.tsx', 'default', {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   const draft = () => { view.render(); view.input().onChangeText('  나의 이유  '); view.render(); };
   return { view, auth, params, query, data, result, writes, pending, destinations, mutation, draft };

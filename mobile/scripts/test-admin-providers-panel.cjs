@@ -7,11 +7,20 @@ const ts = require('typescript');
 // Exercise the real component's async handlers without a browser, credentials,
 // timers or a live database. This is a deterministic hook/host harness, not E2E.
 const source = fs.readFileSync(process.argv[2] || path.join(__dirname, '../src/components/admin/data/providers-panel.tsx'), 'utf8');
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  reportDiagnostics: true,
-});
-assert.deepEqual(compiled.diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error), [], 'Panel must parse');
+const transpile = (text, label) => {
+  const output = ts.transpileModule(text, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    reportDiagnostics: true,
+  });
+  assert.deepEqual(output.diagnostics.filter((item) => item.category === ts.DiagnosticCategory.Error), [], `${label} must parse`);
+  return output;
+};
+const compiled = transpile(source, 'Panel');
+// The real admin pickers run inside the same hook harness as the panel.
+const pickers = Object.fromEntries(['category-picker', 'brand-picker', 'search-picker'].flatMap((name) => {
+  const file = path.join(__dirname, `../src/components/admin/${name}.tsx`);
+  return fs.existsSync(file) ? [[`@/components/admin/${name}`, transpile(fs.readFileSync(file, 'utf8'), name)]] : [];
+}));
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 function deferred() {
@@ -107,26 +116,29 @@ function harness(api) {
     if (typeof node.type === 'function') return expand(node.type(node.props));
     return { ...node, props: { ...node.props, children: expand(node.props.children) } };
   }
-  const exported = {};
-  vm.runInNewContext(compiled.outputText, {
-    exports: exported, Error,
-    require(name) {
-      if (name === 'react') return hooks;
-      if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
-      if (name === 'react-native') return {
-        ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
-        StyleSheet: { create: (value) => value },
-      };
-      if (name === '@/lib/admin-api') return api;
-      if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
-      if (name === '@/constants/onepick') return { OnePick: {} };
-      if (name === '@/lib/categories/categoryTree') return {
-        categoryLabel: (item) => item.name,
-        selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
-      };
-      assert.fail(`Unexpected dependency: ${name}`);
-    },
-  });
+  const load = (code) => {
+    const moduleExports = {};
+    vm.runInNewContext(code, { exports: moduleExports, Error, require: resolve });
+    return moduleExports;
+  };
+  function resolve(name) {
+    if (name === 'react') return hooks;
+    if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
+    if (name === 'react-native') return {
+      ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable', Text: 'Text', TextInput: 'TextInput', View: 'View',
+      StyleSheet: { create: (value) => value },
+    };
+    if (name === '@/lib/admin-api') return api;
+    if (name === '@/components/admin/admin-shell') return { adminStyles: {} };
+    if (name === '@/constants/onepick') return { OnePick: {} };
+    if (name === '@/lib/categories/categoryTree') return {
+      categoryLabel: (item) => item.name,
+      selectableCategories: (items) => items.filter((item) => item.status === 'open' && item.isVisible && item.isPickable),
+    };
+    if (pickers[name]) return load(pickers[name].outputText);
+    assert.fail(`Unexpected dependency: ${name}`);
+  }
+  const exported = load(compiled.outputText);
   function render() {
     cursor = 0;
     dirty = false;
@@ -204,6 +216,7 @@ function harness(api) {
 async function fillForm(h) {
   await h.type('판매처 이름', '새 공식몰');
   await h.type('판매처 공식 URL', 'https://new-store.example');
+  await h.type('첫 원픽 카테고리 검색', '테스트');
   await h.press(category.name);
 }
 const cases = [];
@@ -218,6 +231,7 @@ test('initial failure retries providers, categories and brands without reloading
   assert.doesNotMatch(h.text(), /조건에 맞는 온라인 판매처가 없습니다|선택 가능한 카테고리가 없습니다/);
   assert.equal(h.button('판매처 등록').disabled, true);
   await h.press('판매처 관리 다시 불러오기');
+  await h.type('첫 원픽 카테고리 검색', '테스트');
   assert.match(h.text(), /테스트 카테고리/);
   assert.doesNotMatch(h.text(), /CATEGORY_READ_FAILED/);
   for (const name of ['getOnlineProviders', 'getCategories', 'getBrands']) assert.equal(b.calls[name].length, 2, name);
@@ -265,6 +279,7 @@ test('all writes share a synchronous lock and fields cannot change during save',
   const h = harness(b.api);
   await h.flush(); await fillForm(h);
   const hide = h.button('숨김', h.row()).onPress;
+  await h.type('기존 공식몰 브랜드 검색', '테스트');
   const brand = h.button(brands[0].name, h.row()).onPress;
   const create = h.button('판매처 등록').onPress;
   hide(); hide(); brand(); create(); // Same render, before any state is committed.
@@ -329,10 +344,11 @@ test('brand link/unlink and hidden/pending/active transitions preserve RPC argum
   const b = backend();
   const h = harness(b.api);
   await h.flush();
+  await h.type('기존 공식몰 브랜드 검색', '테스트');
   await h.press(brands[0].name, h.row());
-  assert.equal(h.button(brands[0].name, h.row()).accessibilityState?.selected, true);
-  await h.press('미지정', h.row());
-  assert.equal(h.button('미지정', h.row()).accessibilityState?.selected, true);
+  assert.match(h.text(h.row()), /선택: 테스트 브랜드/);
+  await h.press('기존 공식몰 브랜드 검색 미지정으로 변경', h.row());
+  assert.match(h.text(h.row()), /선택: 미지정/);
   for (const label of ['숨김', '대기', '활성']) await h.press(label, h.row());
   assert.deepEqual(b.calls.setProviderBrand, [['provider-a', 'brand-a'], ['provider-a', null]]);
   assert.deepEqual(b.calls.setProviderStatus, [['provider-a', 'hidden'], ['provider-a', 'pending'], ['provider-a', 'active']]);
@@ -385,7 +401,7 @@ for (const mutation of ['create', 'status', 'brand']) {
       await h.type('판매처 검색', 'B');
       if (mutation === 'create') { await fillForm(h); await h.press('판매처 등록'); }
       if (mutation === 'status') await h.press('숨김', h.row());
-      if (mutation === 'brand') await h.press(brands[0].name, h.row());
+      if (mutation === 'brand') { await h.type('기존 공식몰 브랜드 검색', '테스트'); await h.press(brands[0].name, h.row()); }
       assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
       assert.equal(h.input('판매처 검색').value, 'B', 'Keep the draft in the input');
       if (failRefresh) {
@@ -452,6 +468,40 @@ test('clearing a draft resets the list only after an explicit search', async () 
   assert.equal(b.calls.getOnlineProviders.at(-1)[0].query, 'A');
   await h.press('검색'); await h.press('활성', h.row());
   assert.deepEqual(b.calls.getOnlineProviders.map(([input]) => input.query), ['', 'A', 'A', '', '']);
+});
+
+test('category picker lists only matches for a typed query, capped at eight', async () => {
+  const many = Array.from({ length: 12 }, (_, index) => ({ ...copy(category), id: `bread-${index}`, name: `빵 ${index}`, slug: `bread-${index}` }));
+  const b = backend({ getCategories: async () => [...many, { ...copy(category), id: 'rice', name: '쌀', slug: 'rice' }] });
+  const h = harness(b.api);
+  await h.flush();
+  assert.doesNotMatch(h.text(), /빵 0|쌀/, 'no chips before searching');
+  await h.type('첫 원픽 카테고리 검색', '빵');
+  assert.match(h.text(), /빵 7/);
+  assert.doesNotMatch(h.text(), /빵 8|쌀/);
+  assert.match(h.text(), /외 4개/);
+  await h.press('빵 3');
+  assert.match(h.text(), /선택: 빵 3/);
+  assert.equal(h.input('첫 원픽 카테고리 검색').value, '');
+  assert.doesNotMatch(h.text(), /빵 0/, 'results close after choosing');
+});
+
+test('brand pickers list only typed matches and pass the chosen brand to create', async () => {
+  const many = Array.from({ length: 12 }, (_, index) => ({ id: `brand-${index}`, name: `브랜드 ${index}`, is_active: true }));
+  const b = backend({ getBrands: async () => [...many, { id: 'off', name: '브랜드 꺼짐', is_active: false }] });
+  const h = harness(b.api);
+  await h.flush();
+  assert.doesNotMatch(h.text(), /브랜드 0/, 'no brand chips before searching');
+  assert.equal((h.text().match(/선택: 미지정/g) || []).length, 2, 'form and row both start unlinked');
+  await h.type('판매처 브랜드 검색', '브랜드');
+  assert.match(h.text(), /브랜드 7/);
+  assert.doesNotMatch(h.text(), /브랜드 8|브랜드 꺼짐/);
+  assert.match(h.text(), /외 4개/);
+  await h.press('브랜드 5');
+  assert.match(h.text(), /선택: 브랜드 5/);
+  await fillForm(h);
+  await h.press('판매처 등록');
+  assert.equal(b.calls.createOnlineProvider[0][0].brandId, 'brand-5');
 });
 
 (async () => {

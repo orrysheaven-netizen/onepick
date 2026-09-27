@@ -64,7 +64,25 @@ const addable = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null,
 assert.match(addable, /사진 등록/, 'An addable item shows the add-photo button');
 assert.doesNotMatch(addable, /사진 없음|사진 준비 중/, 'The add state is the button alone, without an empty-state caption');
 
-console.log('PickPhoto checks passed: real images stay intact and missing images use intentional product placeholders.');
+// Brand logo: the image when a menu has no photo, a corner badge when it has one.
+const logo = 'https://example.test/brand.png';
+const logoOnly = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '클래식 밀크티', logoUri: logo }));
+assert.match(logoOnly, /src="https:\/\/example\.test\/brand\.png"/, 'A missing photo falls back to the brand logo');
+assert.match(logoOnly, /alt="클래식 밀크티 브랜드 로고"/);
+assert.doesNotMatch(logoOnly, /사진 준비 중/);
+const feedLogo = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '클래식 밀크티', logoUri: logo, feed: true }));
+assert.match(feedLogo, /brand\.png/, 'Feed cards use the logo too');
+assert.doesNotMatch(feedLogo, /이미지 준비 중/);
+const photoAndLogo = renderToStaticMarkup(React.createElement(PickPhoto, { uri: 'https://example.test/tea.jpg', label: '클래식 밀크티', logoUri: logo, feed: true }));
+assert.match(photoAndLogo, /tea\.jpg/, 'The menu photo stays the main image');
+assert.match(photoAndLogo, /alt="브랜드 로고"/, 'The logo becomes a corner badge on the photo');
+const addableLogo = renderToStaticMarkup(React.createElement(PickPhoto, { uri: null, label: '클래식 밀크티', logoUri: logo, itemId: 'a1111111-1111-4111-8111-111111111111' }));
+assert.match(addableLogo, /brand\.png/);
+assert.match(addableLogo, /사진 등록/, 'The logo does not hide the add-photo button');
+const noLogo = renderToStaticMarkup(React.createElement(PickPhoto, { uri: 'https://example.test/tea.jpg', label: '밀크티' }));
+assert.doesNotMatch(noLogo, /브랜드 로고/, 'No badge without a brand logo');
+
+console.log('PickPhoto checks passed: real images stay intact, brand logos fill in for missing photos, and other missing images use intentional product placeholders.');
 
 // Every frame fits the whole photo: restaurant photos come in any shape.
 for (const frame of [{}, { feed: true }, { square: true }, { large: true }]) {

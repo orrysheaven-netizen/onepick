@@ -13,6 +13,9 @@ function load(file, imports = {}) {
   }).outputText, { exports, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);
@@ -53,11 +56,11 @@ const { default: Choose } = load('app/pick/choose.tsx', {
     push: (route) => destinations.push({ action: 'push', route }), back() {},
   }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
-  '@/components/pick-photo': { PickPhoto: () => null }, '@/errors/appError': { AppError },
-  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+  '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/errors/appError': { AppError },
+  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
-  '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+  '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
 });
 
 function arrange(status = { type: 'not_selected' }) {

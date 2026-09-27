@@ -16,7 +16,7 @@ import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
-import { HOME_CHANNEL_TABS, categoryWithChannels } from '@/lib/home/homeChannels';
+import { HOME_CHANNEL_TABS, categoryWithChannels, objectParticle } from '@/lib/home/homeChannels';
 import type { HomeFeedPick, PickChannel } from '@/repositories/interfaces/readRepository';
 
 type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
@@ -30,7 +30,7 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
       <Text numberOfLines={1} style={styles.editorialPath}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
     </View>
     <View style={styles.editorialBody}>
-      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
       <View style={styles.editorialCopy}>
         <Text style={styles.itemName}>{item.name}</Text>
         {item.editorialNote ? <Text numberOfLines={3} style={styles.editorialNote}>{item.editorialNote}</Text> : null}
@@ -82,16 +82,10 @@ export default function HomeScreen() {
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
   // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  const categories = useMemo(() => user ? [] : homeStarterCategories(categoryCatalog), [user, categoryCatalog]);
-  const openRegistration = (category: { id: string; slug: string }) => {
-    const params = { categoryId: category.id };
-    if (category.slug === 'music') return router.push({ pathname: '/pick/music', params });
-    if (category.slug === 'game') return router.push({ pathname: '/pick/game', params });
-    if (category.slug === 'book') return router.push({ pathname: '/pick/book', params });
-    if (category.slug === 'youtube') return router.push({ pathname: '/pick/youtube', params });
-    if (category.slug === 'pokemon') return router.push({ pathname: '/pick/pokemon', params });
-    return router.push({ pathname: '/pick/find', params });
-  };
+  // A menu card opens that menu's page (ranking + everyone's Picks) before any
+  // registration; the page has its own "원픽 고르기" button.
+  const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
+  const openMenu = (category: { slug: string }) => router.push({ pathname: '/ranking/[slug]', params: { slug: category.slug } });
   const ready = !isLoading && !sessionError && Boolean(data);
 
   useEffect(() => {
@@ -109,13 +103,14 @@ export default function HomeScreen() {
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
-  // Both feed scopes render the same card. Same item → the normal choose screen
-  // (signed-out readers get its login gate).
+  // Both feed scopes render the same current-Pick card. Home is for reading
+  // someone's choice and reason; choosing my own Pick stays in the registration flow.
   const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId } })} />
+      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId! } }) : undefined}
+      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
 
   const listHeader = <>
@@ -219,13 +214,13 @@ export default function HomeScreen() {
         </View> : null}
 
         {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="어떤 맛집부터 골라볼까요?" /></View>
+          <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
               const label = category.name;
-              return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 원픽 찾기'}
-                onPress={() => openRegistration(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>추천 원픽 고르기  ↗</Text>
+              return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 사람들의 원픽 보기'}
+                onPress={() => openMenu(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
+                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>사람들의 원픽 보기  ›</Text>
               </Pressable>;
             })}
           </View>
@@ -235,13 +230,13 @@ export default function HomeScreen() {
           <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
         </View>
 
-        {ready ? <View style={styles.channelRow}>
+        {ready ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
           {HOME_CHANNEL_TABS.map((tab) => {
             const selected = tab.channel === channel;
             return <Chip key={tab.label} label={tab.label} selected={selected}
               accessibilityLabel={`${tab.label} 탭 원픽 보기`} onPress={() => setChannel(tab.channel)} />;
           })}
-        </View> : null}
+        </ScrollView> : null}
 
         {ready && showCategoryFilters ? <ScrollView
           horizontal
@@ -268,10 +263,10 @@ export default function HomeScreen() {
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
           {!switchingChannel && !data.picks.length ? (channel
-            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}을 원픽으로 고르면 여기에 보여요.`}
+            ? <StateCard title={`아직 ${channelTab.label} 원픽이 없어요`} text={`누군가 ${channelTab.label}${objectParticle(channelTab.label)} 원픽으로 고르면 여기에 보여요.`}
               action={{ label: '전체 원픽 보기', accessibilityLabel: '전체 탭으로 돌아가기', onPress: () => setChannel(null) }} />
             : <StateCard title="아직 공개된 원픽이 없어요" text="누군가 첫 원픽을 고르면 이유와 함께 여기에 보여요."
-              action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/find') } : undefined} />) : null}
+              action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/new') } : undefined} />) : null}
         </> : null}
         </>}
         ListEmptyComponent={ready && data && data.picks.length > 0 && selectedCategoryGroup ? <StateCard
@@ -325,7 +320,7 @@ const styles = StyleSheet.create({
   scopeTabSelected: { backgroundColor: OnePick.surface },
   scopeText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
   scopeTextSelected: { color: OnePick.text, fontWeight: '900' },
-  channelRow: { flexDirection: 'row', gap: 8, paddingVertical: 6, marginBottom: 10 },
+  channelRow: { flexDirection: 'row', gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   categoryFilterRow: { gap: 8, paddingVertical: 6, paddingRight: 4, marginBottom: 10 },
   productCell: { marginBottom: 12 },
   followingEmpty: { alignItems: 'center', gap: 4 },

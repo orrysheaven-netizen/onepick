@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          logo_path: string | null
           logo_url: string | null
           name: string
           normalized_name: string
@@ -59,6 +60,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name: string
           normalized_name: string
@@ -69,6 +71,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name?: string
           normalized_name?: string
@@ -768,6 +771,7 @@ export type Database = {
       picks: {
         Row: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -783,6 +787,7 @@ export type Database = {
         }
         Insert: {
           category_id: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -798,6 +803,7 @@ export type Database = {
         }
         Update: {
           category_id?: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -1469,6 +1475,7 @@ export type Database = {
       change_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_item_id: string
           p_one_line_review: string
           p_purchase_tip?: string | null
@@ -1476,6 +1483,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1588,7 +1596,7 @@ export type Database = {
         }[]
       }
       home_pick_feed_page: {
-        Args: { p_before_id?: string; p_before_time?: string; p_channel?: string; p_root_slug?: string }
+        Args: { p_before_id?: string; p_before_time?: string; p_category_id?: string; p_channel?: string; p_root_slug?: string }
         Returns: {
           category_id: string
           category_name: string
@@ -1638,6 +1646,15 @@ export type Database = {
         Returns: {
           items: Json
           minimum_pick_count: number
+        }[]
+      }
+      item_brands: {
+        Args: { p_item_ids: string[] }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          item_id: string
+          logo_path: string | null
         }[]
       }
       item_photo_credit: {
@@ -1703,6 +1720,7 @@ export type Database = {
       register_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_image_path?: string
           p_image_source_url?: string
           p_item_id: string
@@ -1712,6 +1730,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1732,7 +1751,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      remove_pick: {
+        Args: { p_category_id: string; p_channel?: string | null }
+        Returns: boolean
+      }
       reserve_external_catalog_slot: {
         Args: { p_interval_ms: number; p_provider: string }
         Returns: number
@@ -1903,6 +1925,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string

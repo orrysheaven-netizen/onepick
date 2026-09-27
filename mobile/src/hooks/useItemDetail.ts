@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { AppError } from '@/errors/appError';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import { itemService, pickService } from '@/services';
@@ -17,6 +18,7 @@ export function useItemDetail(
   focusPickId?: string,
   includePhotoCredit = false,
   enabled = true,
+  channel?: PickChannel,
 ) {
   const queryClient = useQueryClient();
   type PickDetail = Awaited<ReturnType<typeof pickService.getPickDetail>>;
@@ -34,8 +36,8 @@ export function useItemDetail(
     : undefined;
 
   const detail = useQuery({
-    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null],
-    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus),
+    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null, channel ?? null],
+    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus, channel),
     enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });

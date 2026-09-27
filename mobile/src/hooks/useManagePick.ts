@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import type { PickChannel } from '@/lib/items/pickChannel';
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import type { UpdatePickReviewInput } from '@/repositories/interfaces/pickRepository';
 import { pickService } from '@/services';
@@ -13,7 +14,7 @@ export function useManagePick() {
     onSuccess,
   });
   const removePick = useMutation({
-    mutationFn: (categoryId: string) => pickService.removePick(categoryId),
+    mutationFn: (input: { categoryId: string; channel?: PickChannel | null }) => pickService.removePick(input.categoryId, input.channel),
     onSuccess,
   });
 

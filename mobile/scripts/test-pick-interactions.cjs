@@ -16,6 +16,8 @@ function loadSource(relativePath, imports = {}) {
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
+      // Pure channel helpers load as-is.
+      if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
@@ -34,7 +36,7 @@ async function main() {
   let currentPick = null;
   const service = new ItemService(
     { getById: async () => item },
-    { getCurrentPick: async () => currentPick },
+    { getCurrentPicksInCategory: async () => (currentPick ? [currentPick] : []) },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
     { getPicks: async () => [], getPickById: async () => null },
   );
@@ -75,8 +77,8 @@ async function main() {
   const base = {
     '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null },
-    '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
@@ -88,7 +90,7 @@ async function main() {
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': loadSource('lib/items/itemTitle.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
@@ -97,12 +99,29 @@ async function main() {
   assert.match(render(Item), /새 원픽을 선택할 수 없어요/);
   assert.ok(!presses.some((p) => textOf(p.children) === '이걸로 원픽 등록'));
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
+  detail.canChoose = true;
+  const ownDetail = render(Item);
+  // My own review is edited on its card (수정 · 해제); the hero has no button for it.
+  assert.ok(!presses.some((p) => /원픽 등록|원픽 바꾸기|보기\/수정/.test(textOf(p.children))), 'No choose button for my own Pick');
+  assert.doesNotMatch(ownDetail, /새 원픽을 선택할 수 없어요/);
+  assert.equal(destination, undefined, 'Own review stays on the product page');
+  // The Pick state is one shape: colored when it is my Pick (not pressable), uncolored otherwise.
+  assert.ok(!presses.some((p) => p.accessibilityLabel === '원픽으로 고르기' || p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'My own Pick mark is not a button');
+  detail.myPickStatus = { type: 'not_selected' };
   render(Item);
-  presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
-  assert.equal(destination, undefined, 'Own review action stays on the product page');
+  const chooseMark = presses.find((p) => p.accessibilityLabel === '원픽으로 고르기');
+  assert.ok(chooseMark, 'An item that is not my Pick shows the uncolored mark as a button');
+  assert.ok(!presses.some((p) => /이걸로 원픽 등록|아직/.test(textOf(p.children))), 'No sentence-style or "아직" label');
+  chooseMark.onPress(); assert.equal(destination.pathname, '/pick/choose');
+  destination = undefined;
+  detail.myPickStatus = { type: 'selected_other', currentPickId: 'previous', currentItemId: 'previous-item' };
+  render(Item);
+  assert.ok(presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
+  detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
+  detail.canChoose = false;
 
   const { default: Choose } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   assert.match(render(Choose), /지금은 선택할 수 없어요/);
   assert.equal(inputs.length, 0, 'Unavailable items must not show the submission form');
@@ -125,7 +144,7 @@ async function main() {
       },
       useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
     },
-    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
@@ -152,7 +171,7 @@ async function main() {
   assert.match(renderChoice(), /원픽이 선택됐어요/);
 
   const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
@@ -167,10 +186,10 @@ async function main() {
     ...base,
     // Only the composer draft (initial '') is driven by the test.
     react: { ...React, useState: (initial) => initial === '' ? [draft, (value) => { draft = value; }] : React.useState(initial) },
-    '@/components/pick-share-card': { PickShareCard: () => null },
-    '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
-    '@/components/pick-management': { PickManagement: () => null },
+    '@/components/pick-share-actions': { PickShareActions: () => null },
+    '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
+    '@/components/pick-management': { PickManagement: () => null, PickManagementActions: () => null },
     '@/components/report-action': { ReportAction: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },

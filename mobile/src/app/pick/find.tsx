@@ -17,7 +17,7 @@ import { usePlaceCatalogCapability, usePlaceCatalogSearch, useSelectPlaceCatalog
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { registrationRoute } from '@/lib/categories/registrationRoute';
 import { HOME_FEED_ROOT_SLUG, homeMenuCategories, homeMenuSuggestions, searchMenuCategories } from '@/lib/home/homeCategoryFilters';
-import { PICK_CHANNEL_OPTIONS, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
+import { PICK_CHANNEL_OPTIONS, PLACE_COVERAGE_NOTICE, parsePickChannel, type PickChannel } from '@/lib/items/pickChannel';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieCatalog';
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
@@ -60,6 +60,8 @@ function placeErrorMessage(error: unknown) {
     if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인한 뒤 선택한 장소를 이어가주세요.';
     if (error.code === 'ITEM_NOT_FOUND') return '이 장소는 현재 원픽 장소 목록에서 찾을 수 없어요. 다시 검색해주세요.';
     if (error.code === 'ITEM_NOT_ELIGIBLE') return '지금은 이 장소를 선택할 수 없어요. 다른 지점을 찾아주세요.';
+    if (error.code === 'ITEM_ALREADY_PENDING') return '다른 사람이 먼저 등록 요청한 장소예요. 관리자 승인 후 원픽으로 고를 수 있어요.';
+    if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'CATEGORY_NOT_FOUND' || error.code === 'CATEGORY_NOT_PICKABLE' || error.code === 'ITEM_CATEGORY_MISMATCH') return '맛집 카테고리 정보를 확인하지 못했어요. 카테고리를 다시 불러와주세요.';
   }
   return '장소 정보를 불러오지 못했어요. 선택한 장소로 다시 시도할 수 있어요.';
@@ -90,7 +92,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const suggestedMenus = useMemo(() => homeMenuSuggestions(menuTree.data ?? []), [menuTree.data]);
   const [menuQuery, setMenuQuery] = useState(() => (scalar(params.query) ?? '').slice(0, 100));
   const menuMatches = searchMenuCategories(menus, menuQuery);
-  const recipeMenu = menus.find((menu) => menu.slug === 'recipe');
   const selectedCategory = !categories.isError ? categories.data?.find((category) => category.id === requestedCategoryId) : undefined;
   const categoryScopeReady = !requestedCategoryId || Boolean(selectedCategory);
   const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
@@ -169,7 +170,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     if (!canAct()) return;
     if (latest.current.categoryId && latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+    // A food menu keeps one Pick per channel; the chosen 매장/온라인 decides which one this replaces.
+    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(isPlaceCategory ? { channel } : {}), ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
   };
   const requestItem = () => {
     if (!canAct() || !hasQuery) return;
@@ -178,6 +180,22 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     router.push({
       pathname: '/pick/request',
       params: { itemName: query.trim(), ...(selectedCategory ? { categoryId: selectedCategory.id } : {}), ...(isOnlineChannel ? { channel: 'online' } : {}) },
+    });
+  };
+  const openRecipe = () => {
+    if (!canAct()) return;
+    navigating.current = true;
+    router.push({ pathname: '/pick/recipe', params: {
+      ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
+      ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+    } });
+  };
+  const requestPlace = () => {
+    if (!canAct() || !hasQuery || !selectedCategory || !isPlaceSearch) return;
+    navigating.current = true;
+    router.push({
+      pathname: '/pick/request',
+      params: { itemName: query.trim(), categoryId: selectedCategory.id },
     });
   };
   const loginForMovie = (externalId: string) => {
@@ -199,7 +217,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const continuePlace = (item: ImportedPlaceItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, channel: 'offline', ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
     if (replace) router.replace(route); else router.push(route);
   };
   const loadMovie = async (externalId: string, replace = false) => {
@@ -325,11 +343,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
         text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
         action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
-      {recipeMenu ? <View style={styles.channelSection}>
+      <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>레시피가 원픽인가요?</Text>
-        <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크로 레시피 원픽을 등록할 수 있어요.</Text>
-        <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={() => chooseMenu(recipeMenu)} style={styles.recipeButton} />
-      </View> : null}
+        <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크를 붙여넣고 어떤 요리의 레시피인지 고르면 돼요.</Text>
+        <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={openRecipe} style={styles.recipeButton} />
+      </View>
     </ScrollView>
   </SafeAreaView>;
 
@@ -346,9 +364,15 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <View style={styles.channelRow}>
           {PICK_CHANNEL_OPTIONS.map((option) => <Chip key={option.channel} label={option.label} selected={channel === option.channel}
             accessibilityLabel={`${option.label}: ${option.description}`}
-            onPress={() => { if (busy.current || importing || channel === option.channel) return; setChannel(option.channel); setSelection(null); setPlaceSelection(null); }} />)}
+            onPress={() => {
+              if (busy.current || importing || channel === option.channel) return;
+              // A recipe is registered from a video link, with this menu preselected as its dish.
+              if (option.channel === 'recipe') { openRecipe(); return; }
+              setChannel(option.channel); setSelection(null); setPlaceSelection(null);
+            }} />)}
         </View>
         <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 매장으로 골라주세요.</Text>
+        {isPlaceSearch ? <Text accessibilityRole="text" style={styles.coverageNotice}>{PLACE_COVERAGE_NOTICE} 다른 지역은 차례로 추가할게요.</Text> : null}
       </View> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
@@ -416,7 +440,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록합니다."
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
-      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="일치하는 장소를 찾지 못했어요" text="가게 이름이나 지점명을 바꿔서 검색해보세요. 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다." /></View> : null}
+      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다.`}
+        action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
       {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요" text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
@@ -449,6 +474,7 @@ const styles = StyleSheet.create({
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   categoryBadge: { alignSelf: 'flex-start', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginTop: 16 },
   channelSection: { marginTop: 16 },
+  coverageNotice: { color: OnePick.accent, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6 },
   channelTitle: { color: OnePick.text, fontSize: 14, fontWeight: '800' },
   channelRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   recipeButton: { marginTop: 10 },

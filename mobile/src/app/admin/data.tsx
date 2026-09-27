@@ -8,6 +8,7 @@ import { CategoriesPanel } from '@/components/admin/data/categories-panel';
 import { ChannelLinkPanel } from '@/components/admin/data/channel-link-panel';
 import { EditorialPanel } from '@/components/admin/data/editorial-panel';
 import { ItemsPanel } from '@/components/admin/data/items-panel';
+import { LinkSuggestionsPanel } from '@/components/admin/data/link-suggestions-panel';
 import { PendingPanel } from '@/components/admin/data/pending-panel';
 import { ProvidersPanel } from '@/components/admin/data/providers-panel';
 import { ReportsPanel } from '@/components/admin/data/reports-panel';
@@ -38,6 +39,7 @@ export default function AdminDataScreen() {
         {tab === 'channels' && <ChannelLinkPanel />}
         {tab === 'editorial' && <EditorialPanel />}
         {tab === 'pending' && <PendingPanel />}
+        {tab === 'links' && <LinkSuggestionsPanel />}
         {tab === 'users' && <UsersPanel />}
         {tab === 'reports' && <ReportsPanel />}
         {tab === 'audit' && <AuditPanel />}
