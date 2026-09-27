@@ -164,7 +164,7 @@ export default function ExploreScreen() {
             action={{ label: recentItems.isFetching ? '불러오는 중…' : '다시 불러오기', accessibilityLabel: '최근 원픽 다시 불러오기', disabled: recentItems.isFetching,
               onPress: () => { if (!recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false }); } }} /> : null}
           {recentItems.data?.map((item) => <View key={item.itemId} style={styles.rankCard}>
-            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
             <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}, ${categoryWithChannels(item.categoryName, item.channels)}, 상세 보기`}
               onPress={() => openItem(item.itemId)} style={({ pressed }) => [styles.rankAction, pressed && styles.pressed]}>
               <View style={styles.rankCopy}>
@@ -200,7 +200,7 @@ export default function ExploreScreen() {
               {item.isTied ? <Text style={styles.rankTie}>공동</Text> : null}
               <Text style={styles.rankNumber}>{item.rank}</Text>
             </View> : null}
-            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} />
+            <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
             <Pressable accessibilityRole="button"
               accessibilityLabel={showRankingDetail
                 ? `${item.isTied ? '공동 ' : ''}${item.rank}위 ${item.name}, ${item.pickCount}명이 선택, 상세 보기`

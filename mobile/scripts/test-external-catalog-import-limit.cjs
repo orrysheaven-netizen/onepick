@@ -17,7 +17,7 @@ for (const relative of files) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8');
   const authIndex = source.indexOf('auth.getUser');
   const quotaIndex = source.indexOf('reserve_external_catalog_import');
-  const existingIndex = source.indexOf('const existing = await findExisting()');
+  const existingIndex = source.search(/(?:const|let) existing = await findExisting\(\)/);
 
   assert.match(source, /action\s*===\s*['"]import['"]/,
     relative + ' must expose an import path');

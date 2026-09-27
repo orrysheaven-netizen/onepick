@@ -47,6 +47,8 @@ export type AdminBrand = {
   normalized_name: string;
   slug: string | null;
   logo_url: string | null;
+  /** Object path in the brand-logos bucket (`<brand id>/<file>`). */
+  logo_path: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -496,7 +498,7 @@ export function updateCategory(id: string, patch: Partial<Pick<AdminCategory, 'n
 }
 
 export function getBrands() {
-  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at&order=name.asc');
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at&order=name.asc');
 }
 
 function cleanName(value: string, max: number) {
@@ -507,7 +509,7 @@ function cleanName(value: string, max: number) {
 
 export function createBrand(input: { name: string; slug?: string | null }) {
   const name = cleanName(input.name, 80);
-  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at', {
+  return adminRequest<AdminBrand[]>('/rest/v1/brands?select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -519,8 +521,8 @@ export function createBrand(input: { name: string; slug?: string | null }) {
   });
 }
 
-export function updateBrand(id: string, patch: { is_active?: boolean }) {
-  return adminRequest<AdminBrand[]>(`/rest/v1/brands?id=eq.${encodeURIComponent(id)}&select=id,name,normalized_name,slug,logo_url,is_active,created_at,updated_at`, {
+export function updateBrand(id: string, patch: { is_active?: boolean; logo_path?: string | null }) {
+  return adminRequest<AdminBrand[]>(`/rest/v1/brands?id=eq.${encodeURIComponent(id)}&select=id,name,normalized_name,slug,logo_url,logo_path,is_active,created_at,updated_at`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(patch),
@@ -616,6 +618,38 @@ export type AdminPlaceCatalogMatch = {
   /** The place already has its canonical item in this category; linking would duplicate it. */
   existing_item_id: string | null;
 };
+
+export type AdminItemLinkSuggestion = {
+  suggestion_id: string;
+  item_id: string;
+  item_name: string;
+  item_status: string;
+  category_name: string;
+  place_id: string | null;
+  place_name: string | null;
+  place_branch_name: string | null;
+  place_road_address: string | null;
+  current_map_url: string | null;
+  url: string;
+  username: string | null;
+  created_at: string;
+};
+
+/** Naver map links users left while registering a pick, newest first. */
+export function getItemLinkSuggestions(limit = 100) {
+  return adminRequest<AdminItemLinkSuggestion[]>('/rest/v1/rpc/admin_pending_item_link_suggestions', {
+    method: 'POST',
+    body: JSON.stringify({ p_limit: limit }),
+  });
+}
+
+/** Approving sets the store's map link for every menu item of that store. */
+export function reviewItemLinkSuggestion(suggestionId: string, approve: boolean) {
+  return adminRequest<unknown>('/rest/v1/rpc/admin_review_item_link_suggestion', {
+    method: 'POST',
+    body: JSON.stringify({ p_suggestion_id: suggestionId, p_approve: approve }),
+  });
+}
 
 export function getUnlinkedItems(query = '') {
   return adminRequest<AdminUnlinkedItem[]>('/rest/v1/rpc/admin_unlinked_items', {

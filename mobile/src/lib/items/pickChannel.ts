@@ -27,7 +27,7 @@ export const PICK_CHANNEL_OPTIONS: readonly { channel: PickChannel; label: strin
  * Where 매장 (place) search has data. The place catalog is loaded region by region
  * (SBIZ 상가정보, docs/place-catalog.md); update this when a new region is loaded.
  */
-export const PLACE_COVERAGE_REGIONS: readonly string[] = ['서울'];
+export const PLACE_COVERAGE_REGIONS: readonly string[] = ['서울', '경기', '인천'];
 export const PLACE_COVERAGE_NOTICE = `매장 등록은 현재 ${PLACE_COVERAGE_REGIONS.join('·')} 음식점만 가능해요.`;
 
 /** Route params are untrusted; anything but 'online' means the default 매장 flow. */

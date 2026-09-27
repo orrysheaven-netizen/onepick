@@ -51,7 +51,15 @@ function loadApi(fetchFn) {
     assert.ok(panel.includes(`code.includes('${reason}')`), `${reason} has a message in the items panel`);
   }
 
-  console.log('Admin item category move checks passed: RPC request shapes, MFA session, refusal messages.');
+  // The move section reports its own result; it must not also raise the generic "saved" banner.
+  assert.ok(panel.includes('<CategoryMoveEditor item={item} onMoved={onMoved} />'), 'The move uses its own callback, not onSaved');
+  const movedStart = panel.indexOf('onMoved={(next) => {');
+  assert.ok(movedStart >= 0, 'The panel passes a move handler');
+  const movedHandler = panel.slice(movedStart, panel.indexOf('onError={setError}', movedStart));
+  assert.ok(movedHandler.includes('setItems('), 'A move refreshes the item list');
+  assert.ok(!movedHandler.includes('setMessage('), 'A move does not show the generic save message');
+
+  console.log('Admin item category move checks passed: RPC request shapes, MFA session, refusal messages, single move message.');
 })().catch((error) => {
   console.error(error);
   process.exit(1);

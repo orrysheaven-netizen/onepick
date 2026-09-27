@@ -23,7 +23,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="grid_view" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/find') }}>
+      <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/new') }}>
         <NativeTabs.Trigger.Label>원픽 등록</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf="plus.circle.fill"

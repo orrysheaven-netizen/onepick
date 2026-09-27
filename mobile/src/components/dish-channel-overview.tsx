@@ -33,7 +33,7 @@ export function DishChannelOverview({ overview, onSelectItem, onRegister }: Prop
                 onPress={() => onSelectItem(item.itemId)}
                 style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
                 <Text style={styles.rank}>{index + 1}</Text>
-                <PickPhoto uri={item.thumbnailUrl} label={item.name} />
+                <PickPhoto uri={item.thumbnailUrl} label={item.name} logoUri={item.brandLogoUrl} />
                 <View style={styles.copy}>
                   <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
                   <Text style={styles.meta}>{item.pickCount}명이 원픽</Text>
