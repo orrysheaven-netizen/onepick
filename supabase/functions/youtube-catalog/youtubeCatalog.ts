@@ -405,6 +405,19 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     let rawItems: unknown[] | null = Array.isArray(cached) ? cached : null;
     let fetchedNow = false;
     if (!rawItems) {
+      // Every videos.list call spends the app-wide YouTube key, so registration is
+      // rate limited before it, like a lookup (reserved above). A new video also
+      // takes its import quota here rather than after the call, so repeated unknown
+      // IDs stop at the quota instead of draining the key.
+      if (!lookup) {
+        const limited = await reserveSearch(client, req, user.id);
+        if (limited) return limited;
+        if (!existing.data) {
+          const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+          if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+          if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+        }
+      }
       const remote = await fetchYouTube(videoDetailsUrl(key, id));
       if (remote.error) return remote.error;
       rawItems = Array.isArray(remote.data.items) ? remote.data.items.slice(0, 1) : [];
@@ -449,10 +462,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
 
-    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
-    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
-
+    // The import quota for this new video was reserved before calling YouTube.
     let targetCategory = dishId;
     if (requesting) {
       const pending = await client.from('categories').select('id').eq('slug', 'pending-product').maybeSingle();
@@ -598,6 +608,15 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: existing.data.id, categoryId: category.id, created: false });
     }
 
+    // Rate limit before spending the shared YouTube key (see handleVideo); a new
+    // channel takes its import quota before the call, not after.
+    const limited = await reserveSearch(client, req, user.id);
+    if (limited) return limited;
+    if (!existing.data) {
+      const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+    }
     const remote = await fetchYouTube(channelsUrl(key, { type: 'id', value: id }));
     if (remote.error) return remote.error;
     const source = Array.isArray(remote.data.items) ? remote.data.items : [];
@@ -619,10 +638,7 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
 
-    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
-    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
-
+    // The import quota for this new channel was reserved before calling YouTube.
     const inserted = await client.from('items').insert({
       category_id: category.id,
       name: channel.title,

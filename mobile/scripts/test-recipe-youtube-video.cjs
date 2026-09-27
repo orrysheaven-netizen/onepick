@@ -296,17 +296,42 @@ async function main() {
   assert.equal(old.external_id, null, 'and gives up the video identity');
   assert.equal(old.external_source, null);
 
-  for (const mode of ['no-auth', 'suspended', 'bad-id', 'missing-dish', 'not-a-dish', 'pending-item', 'no-key', 'quota']) {
+  for (const mode of ['no-auth', 'suspended', 'bad-id', 'missing-dish', 'not-a-dish', 'pending-item', 'no-key', 'quota', 'rate-limited']) {
     const t = setup();
     if (mode === 'suspended') t.state.suspended = true;
     if (mode === 'pending-item') t.state.rows.push({ id: 'pending', category_id: DISH, external_source: 'youtube_video', external_id: videoId, status: 'pending' });
     if (mode === 'no-key') t.state.apiKey = '';
     if (mode === 'quota') t.state.importAllowed = false;
+    if (mode === 'rate-limited') t.state.searchAllowed = false;
     const categoryId = mode === 'missing-dish' ? undefined : mode === 'not-a-dish' ? 'c9999999-9999-4999-8999-999999999999' : DISH;
     const res = await t.request('video_import', { externalId: mode === 'bad-id' ? 'bad' : videoId, ...(categoryId ? { categoryId } : {}) }, mode !== 'no-auth');
     assert.ok(res.status >= 400, mode);
+    if (mode === 'quota' || mode === 'rate-limited') assert.equal(res.status, 429, mode + ' is reported as RATE_LIMITED');
     assert.equal(t.state.writes.length, 0, mode);
-    if (!['quota'].includes(mode)) assert.equal(t.state.upstream.length, 0, mode + ' fails before YouTube');
+    assert.equal(t.state.upstream.length, 0, mode + ' fails before YouTube');
+  }
+
+  // #426 H1: repeated registrations of unknown video IDs stop at the caller's
+  // limits before any YouTube call, so they cannot drain the shared API key.
+  for (const action of ['video_import', 'video_request']) {
+    const flood = setup();
+    let allowed = 2;
+    flood.state.videoItems = [];
+    const extra = action === 'video_import' ? { categoryId: DISH } : { dishName: '파김치', review: '좋아요' };
+    const statuses = [];
+    for (let i = 0; i < 5; i += 1) {
+      flood.state.importAllowed = allowed-- > 0;
+      const unknownId = 'unknownVid' + i;
+      statuses.push((await flood.request(action, { externalId: unknownId, ...extra })).status);
+    }
+    assert.deepEqual(statuses, [404, 404, 429, 429, 429], action + ': unknown IDs are not found until the import quota runs out');
+    assert.equal(flood.state.upstream.length, 2, action + ': YouTube is called only while the caller still has quota');
+    assert.equal(flood.state.importQuotaCalls, 5, action + ': every new video reserves the import quota before the call');
+    assert.ok(flood.state.searchQuotaCalls >= 5, action + ': every call that could reach YouTube is rate limited first');
+    const blocked = setup();
+    blocked.state.searchAllowed = false;
+    assert.equal((await blocked.request(action, { externalId: videoId, ...extra })).status, 429, action + ' honours the rate limit');
+    assert.equal(blocked.state.upstream.length, 0, action + ': a rate-limited caller never reaches YouTube');
   }
 
   // A dish missing from the catalog: the video waits for review with its dish name and review.

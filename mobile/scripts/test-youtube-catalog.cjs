@@ -55,7 +55,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 function setup() {
   const state = {
     rows: [], writes: [], updates: [], upstream: [], cache: new Map(), auth: true, suspended: false,
-    searchAllowed: true, searchQuotaCalls: 0, lastSearchQuotaArgs: null, apiKey: 'server-key',
+    searchAllowed: true, searchQuotaCalls: 0, lastSearchQuotaArgs: null, importAllowed: true, importQuotaCalls: 0, apiKey: 'server-key',
     categories: [
       { id:'youtube',parent_id:'content',slug:'youtube',status:'open',is_visible:true,is_pickable:true },
       { id:'content',parent_id:null,slug:'content',status:'open',is_visible:true,is_pickable:false },
@@ -74,7 +74,8 @@ function setup() {
         return { data: state.searchAllowed, error: null };
       }
       if (name === 'reserve_external_catalog_import') {
-        return { data: true, error: null };
+        state.importQuotaCalls++;
+        return { data: state.importAllowed, error: null };
       }
       throw new Error('Unexpected RPC: ' + name);
     },
@@ -257,6 +258,18 @@ async function main() {
       // Category and input validation failures also happen before upstream.
       assert.equal(t.state.upstream.length,0,mode);
     }
+  }
+
+  // #426 H1: channel import is rate limited, and a new channel takes its import
+  // quota, before any YouTube call — unknown IDs cannot drain the shared key.
+  for(const mode of ['import-quota','rate-limited']){
+    const t=setup();
+    if(mode==='import-quota') t.state.importAllowed=false;
+    if(mode==='rate-limited') t.state.searchAllowed=false;
+    const res=await t.request('import');
+    assert.equal(res.status,429,mode+' returns RATE_LIMITED');
+    assert.equal(t.state.upstream.length,0,mode+' never reaches YouTube');
+    assert.equal(t.state.writes.length,0,mode);
   }
 
   const { AppError }=load('mobile/src/errors/appError.ts');
