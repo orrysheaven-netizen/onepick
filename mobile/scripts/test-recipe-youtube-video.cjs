@@ -219,9 +219,11 @@ async function main() {
   assert.equal((await missingRes.json()).error, 'VIDEO_NOT_FOUND');
 
   // Import: one item per video, under the confirmed dish, with a recipe channel.
+  // #426 M10: a new video is a request that waits for administrator review.
   const saved = await (await s.request('video_import', { externalId: videoId, categoryId: DISH })).json();
   assert.equal(saved.created, true);
   assert.equal(saved.categoryId, DISH);
+  assert.equal(saved.pending, true, 'a new video is reported as a pending request');
   const row = s.state.writes[0];
   assert.equal(row.category_id, DISH);
   assert.equal(row.external_source, 'youtube_video');
@@ -231,7 +233,8 @@ async function main() {
   assert.equal(row.creator_name, '요리 채널');
   assert.equal(row.official_url, 'https://www.youtube.com/watch?v=' + videoId);
   assert.equal(row.image_source_url, 'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg');
-  assert.equal(row.status, 'active');
+  assert.equal(row.status, 'pending', 'a new video is not public before review');
+  assert.equal(row.created_by, 'user', 'the requester is recorded for review and approval');
   assert.ok(Date.parse(row.external_refreshed_at));
   assert.equal(s.state.importQuotaCalls, 1, 'new items consume the external import quota');
   assert.deepEqual(JSON.parse(JSON.stringify(s.state.channels[0])),
@@ -239,11 +242,40 @@ async function main() {
     'the recipe channel links the video');
 
   const upstreamBefore = s.state.upstream.length;
+  const retried = await (await s.request('video_import', { externalId: videoId, categoryId: OTHER_DISH })).json();
+  assert.deepEqual([retried.itemId, retried.categoryId, retried.created, retried.pending], [saved.itemId, DISH, false, true],
+    'the requester gets the same pending request back, under its dish');
+  assert.equal(s.state.upstream.length, upstreamBefore, 'a retried request does not call YouTube');
+  assert.equal(s.state.writes.length, 1);
+
+  const pendingLookup = await (await s.request('video_lookup', { url: 'https://www.youtube.com/watch?v=' + videoId + '&t=1' })).json();
+  assert.equal(pendingLookup.video.existingItemId, saved.itemId, 'lookup hands the requester their own pending request');
+  s.state.cache.clear();
+  s.state.videoItems = [{ ...s.state.videoItems[0], snippet: { ...s.state.videoItems[0].snippet, title: '제목 바뀐 영상' } }];
+  await s.request('video_lookup', { url: 'https://youtu.be/' + videoId });
+  assert.equal(s.state.rows[0].status, 'pending', 'a lookup refresh never publishes a pending video');
+  assert.equal(s.state.updates.length, 0, 'a pending video is not rewritten by lookups');
+
+  for (const action of ['video_lookup', 'video_import', 'video_request']) {
+    const other = setup();
+    other.state.rows.push({ id: 'theirs', category_id: DISH, external_source: 'youtube_video', external_id: videoId, status: 'pending', created_by: 'someone-else' });
+    const extra = action === 'video_lookup' ? { url: 'https://youtu.be/' + videoId }
+      : action === 'video_import' ? { externalId: videoId, categoryId: DISH } : { externalId: videoId, dishName: '파김치', review: '좋아요' };
+    const res = await other.request(action, extra);
+    assert.equal(res.status, 409, action + ': a pending video requested by someone else is not taken over');
+    assert.equal((await res.json()).error, 'ITEM_ALREADY_PENDING', action);
+    assert.equal(other.state.writes.length + other.state.updates.length, 0, action + ' never writes');
+    assert.equal(other.state.upstream.length, 0, action + ' does not call YouTube');
+  }
+
+  // After approval the video is public and behaves like any registered recipe.
+  s.state.rows[0].status = 'active';
+  s.state.cache.clear();
   const again = await (await s.request('video_import', { externalId: videoId, categoryId: OTHER_DISH })).json();
   assert.equal(again.created, false);
   assert.equal(again.itemId, saved.itemId, 'the same video maps to the same item');
   assert.equal(again.categoryId, DISH, 'a registered video keeps its dish');
-  assert.equal(s.state.upstream.length, upstreamBefore, 'fresh items are reused without calling YouTube');
+  assert.equal(again.pending, undefined, 'an approved video is not pending');
   assert.equal(s.state.writes.length, 1);
 
   const known = await (await s.request('video_lookup', { url: 'https://youtu.be/' + videoId })).json();
@@ -289,6 +321,7 @@ async function main() {
   assert.equal(turnedDown.state.updates.length, 0, 'lookup never writes');
   const reborn = await (await turnedDown.request('video_import', { externalId: videoId, categoryId: DISH })).json();
   assert.equal(reborn.created, true, 'registering creates a new item');
+  assert.equal(reborn.pending, true, 'and the new item waits for review again');
   assert.notEqual(reborn.itemId, 'old');
   assert.equal(reborn.categoryId, DISH);
   const old = turnedDown.state.rows.find((r) => r.id === 'old');
@@ -392,6 +425,9 @@ async function main() {
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'ITEM_NOT_FOUND');
   failure = { context: new Response(JSON.stringify({ error: 'CATEGORY_NOT_PICKABLE' }), { status: 409 }) };
   await assert.rejects(() => repo.importVideo(videoId, DISH), (error) => error.code === 'CATEGORY_NOT_PICKABLE');
+  failure = { context: new Response(JSON.stringify({ error: 'ITEM_ALREADY_PENDING' }), { status: 409 }) };
+  await assert.rejects(() => repo.importVideo(videoId, DISH), (error) => error.code === 'ITEM_ALREADY_PENDING',
+    'someone else’s pending video reaches the screen as ITEM_ALREADY_PENDING');
 
   const { YouTubeCatalogService } = load('mobile/src/services/youtubeCatalogService.ts', {
     '@/errors/appError': { AppError }, '@/lib/youtube/videoLink': videoLink,

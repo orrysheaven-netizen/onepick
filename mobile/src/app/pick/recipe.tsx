@@ -35,6 +35,7 @@ function recipeErrorMessage(error: unknown) {
     if (error.code === 'RATE_LIMITED') return 'YouTube 확인 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'ITEM_NOT_FOUND') return '영상을 찾지 못했어요. 비공개이거나 삭제된 영상인지 확인해주세요.';
     if (error.code === 'ITEM_NOT_ELIGIBLE') return '지금은 이 영상을 레시피 원픽으로 등록할 수 없어요.';
+    if (error.code === 'ITEM_ALREADY_PENDING') return '다른 사람이 먼저 등록 요청한 영상이에요. 관리자 승인 후 레시피 원픽으로 고를 수 있어요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '이 요리에는 레시피를 등록할 수 없어요. 다른 요리를 골라주세요.';
     if (error.code === 'CATEGORY_LABEL_INVALID') return '요리 이름을 1~60자로 적어주세요.';
     if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 적어주세요.';
