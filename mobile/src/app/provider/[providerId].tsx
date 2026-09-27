@@ -19,14 +19,13 @@ export default function ProviderProfileScreen() {
   const [linkError, setLinkError] = useState(false);
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
-  const openLink = async () => {
-    if (!query.data?.link) return;
+  const openExternal = async (url: string) => {
     setLinkError(false);
     try {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(query.data.link.url, '_blank', 'noopener,noreferrer');
+        window.open(url, '_blank', 'noopener,noreferrer');
       } else {
-        await Linking.openURL(query.data.link.url);
+        await Linking.openURL(url);
       }
     } catch {
       setLinkError(true);
@@ -61,7 +60,7 @@ export default function ProviderProfileScreen() {
             <Text style={styles.sectionEyebrow}>연결</Text>
             <Pressable accessibilityRole="link"
               accessibilityLabel={`${query.data.link.label}, ${query.data.link.host}, 새 창`}
-              onPress={() => void openLink()}
+              onPress={() => void openExternal(query.data!.link!.url)}
               style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
               <View style={styles.linkCopy}>
                 <Text style={styles.linkLabel}>{query.data.link.label}</Text>
@@ -69,8 +68,22 @@ export default function ProviderProfileScreen() {
               </View>
               <Text style={styles.external}>↗</Text>
             </Pressable>
-            {linkError ? <Text accessibilityRole="alert" style={styles.error}>링크를 열지 못했어요. 다시 시도해주세요.</Text> : null}
           </View> : null}
+
+          {query.data.socialLinks.length ? <View style={styles.socials}>
+            <Text style={styles.sectionEyebrow}>SNS</Text>
+            <View style={styles.socialRow}>
+              {query.data.socialLinks.map((social) => <Pressable key={social.platform} accessibilityRole="link"
+                accessibilityLabel={`${social.label}, ${social.host}, 새 창`}
+                onPress={() => void openExternal(social.url)}
+                style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
+                <Text style={styles.socialLabel}>{social.label}</Text>
+                <Text style={styles.socialExternal}>↗</Text>
+              </Pressable>)}
+            </View>
+          </View> : null}
+
+          {linkError ? <Text accessibilityRole="alert" style={styles.error}>링크를 열지 못했어요. 다시 시도해주세요.</Text> : null}
 
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>{query.data.kind === 'offline_branch' ? '이곳의 원픽' : '이 판매처의 원픽'}</Text>
@@ -115,6 +128,12 @@ const styles = StyleSheet.create({
   linkLabel: { ...OnePickType.label, color: OnePick.text },
   linkHost: { ...OnePickType.caption, color: OnePick.muted, marginTop: 2 },
   external: { color: OnePick.text, fontSize: 18, fontWeight: '700' },
+  socials: { marginTop: 16 },
+  socialRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  socialButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12,
+    borderRadius: OnePickRadius.pill, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface },
+  socialLabel: { ...OnePickType.label, color: OnePick.text },
+  socialExternal: { color: OnePick.hint, fontSize: 14, fontWeight: '700' },
   error: { ...OnePickType.caption, color: OnePick.danger, marginTop: 8 },
   menuSection: { marginTop: 28 },
   sectionTitle: { ...OnePickType.title, color: OnePick.text, marginBottom: 10 },
