@@ -94,7 +94,9 @@ export const OnePickFeatures = {
   // Hidden during the early MVP; the data and components stay in place.
   profilePickHistory: false,
   profileSocialLinks: false,
-  profileItemRequests: false,
+  // Members must see their own pending item requests (검수 대기) on their
+  // profile: it is the only place that shows the request's state.
+  profileItemRequests: true,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
   // Restaurant-first MVP: Home and Explore show only OnePickMvp.browseGroupSlug,

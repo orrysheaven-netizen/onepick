@@ -92,7 +92,7 @@ function profile(isPublic = false) {
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
-    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
+    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, true, 'Members see their own item request states (검수 대기)');
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
@@ -213,11 +213,11 @@ async function main() {
   });
   await test('Owner header refresh appears only on profile refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
-    await view.find('Button', (p) => p.accessibilityLabel === '프로필 새로고침').onPress();
-    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 0);
+    await view.find('Button', (p) => p.accessibilityLabel === '프로필과 원픽 등록 요청 상태 새로고침').onPress();
+    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 1, 'The visible request list refreshes with the profile; hidden history does not');
   });
   await test('Activity, pick history and social links stay hidden until restored', () => {
-    const owner = profile();
+    flags.profileItemRequests = false; const owner = profile();
     owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }];
     owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
     assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|이전 원픽 기록|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);

@@ -155,6 +155,7 @@ async function main() {
     assert.equal(view.all('ProfileAiPanel').length, 0); assert.equal(view.all('ProfileTasteComposition').length, 0);
   });
   await test('Web profile refresh skips the hidden activity lists', async () => {
+    flags.profilePickHistory = false; flags.profileItemRequests = false;
     const { view, profile, history, requests, calls } = fixture('profile');
     assert.equal(button(view, profileLabel), undefined);
     await button(view, hiddenListsProfileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);
