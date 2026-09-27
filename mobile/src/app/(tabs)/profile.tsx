@@ -228,6 +228,7 @@ export default function ProfileScreen() {
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
+            onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
           />
         ) : (
           <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
