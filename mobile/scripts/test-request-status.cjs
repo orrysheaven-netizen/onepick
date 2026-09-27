@@ -239,10 +239,10 @@ async function main() {
 
   const savedRequests = requestsQuery.data, savedHistory = historyQuery.data;
   requestsQuery.data = []; historyQuery.data = [];
-  assert.doesNotMatch(render(), /활동 기록|내 원픽 등록 요청|이전 원픽 기록|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
+  assert.doesNotMatch(render(), /활동 기록|내 원픽 등록 요청|원픽 활동|불러온 \d+개/, 'Confirmed-empty activity is entirely absent');
   assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner', 'Hidden lists retain their active user scope');
   historyQuery.isPending = true; historyQuery.data = undefined;
-  assert.match(render(), /활동 기록/); assert.match(render(), /이전 원픽 기록/, 'Pending is not confirmed empty');
+  assert.match(render(), /활동 기록/); assert.match(render(), /원픽 활동/, 'Pending is not confirmed empty');
   historyQuery.isPending = false; historyQuery.data = [];
   requestsQuery.isError = true;
   assert.match(render(), /내 원픽 등록 요청/, 'An empty cached list still exposes its error and retry');
