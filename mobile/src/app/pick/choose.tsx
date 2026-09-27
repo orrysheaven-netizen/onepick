@@ -218,7 +218,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               <Text style={styles.itemState}>{isOwnRequest ? '관리자 확인 후 이 한줄평으로 내 원픽에 등록돼요.' : pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
+          {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀝니다.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀝니다.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
