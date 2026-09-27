@@ -60,7 +60,8 @@ join fmr_ids i on i.key=v.ikey
 join fmr_ids c on c.key=v.ckey;
 
 -- Age rows explicitly: now() is constant inside the test transaction.
---   soup:   u1 A offline (1d) + u1 B recipe (2d) → u1 counted once
+--   soup:   u1 A offline (1d) + u1 B online (2d) → u1 counted once
+--           (items without item_channels accept offline/online; recipe needs a YouTube item)
 --           u2 A offline (3d), u3 B online (6d), u4 C offline (8d, too old)
 --           u5 C offline replaced within the week (not current)
 --   noodle: u1, u2, u3 (all recent) → ties with soup at 3 people
@@ -71,7 +72,7 @@ select u.id, i.category_id, i.id, v.channel, 'fmr', v.status, now() - v.age,
   case when v.status = 'active' then null else now() - interval '1 hour' end
 from (values
   ('u1','soup_a','offline','active',interval '1 day'),
-  ('u1','soup_b','recipe','active',interval '2 days'),
+  ('u1','soup_b','online','active',interval '2 days'),
   ('u2','soup_a','offline','active',interval '3 days'),
   ('u3','soup_b','online','active',interval '6 days'),
   ('u4','soup_c','offline','active',interval '8 days'),

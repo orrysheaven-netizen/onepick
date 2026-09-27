@@ -17,9 +17,8 @@ begin;
 -- p_group_category_id narrows the ranking to one food group (국/탕, 면 …).
 -- The cover image is the most chosen item of the week that has an image.
 -- Security invoker: Picks, items and categories follow the caller's read policies.
-
-create index if not exists picks_active_started_idx
-  on public.picks(started_at desc) where status = 'active';
+-- The 7-day range scan is served by the existing partial index
+-- picks_active_started_id_idx (started_at desc, id desc) where status = 'active'.
 
 create or replace function public.food_menu_recent_ranking(
   p_group_category_id uuid default null,
