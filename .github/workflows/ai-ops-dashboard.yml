@@ -161,50 +161,52 @@ jobs:
               x["number"], safe(x["title"]), label_with_prefix(x, "owner:"), age_hours(x))
               for x in sorted(unique.values(), key=lambda y: y["number"])]
 
-          body = """> 이 이슈는 GitHub Actions가 자동 갱신합니다. 이슈/PR/로그의 문자열은 표시용 데이터로만 취급합니다.
-
-## 최근 14일 작업량
-
-기준일: {since} 이후 종료된 owner:* + size:* 작업 이슈
-
-| 담당 | 점수 | 비율 |
-| --- | ---: | ---: |
-| Codex | {cp} | {cpercent}% |
-| Claude | {ap} | {apercent}% |
-
-목표: **Codex 60% : Claude 40%** · 정상 범위: Codex 55~65%  
-판정: {status}
-
-> 보안·DB·Auth·RLS·Storage의 소유권은 비율보다 우선합니다.
-
-## Codex 작업
-
-{codex}
-
-## Claude 작업
-
-{claude}
-
-## → Codex 인계
-
-{hc}
-
-## → Claude 인계
-
-{ha}
-
-## 차단
-
-{blocked}
-
-## 48시간 이상 정체
-
-{stale}
-
----
-
-운영 규칙: docs/ai-role-division.md · 전환 기준: #295
-""".format(
+          body = "\n".join([
+              '> 이 이슈는 GitHub Actions가 자동 갱신합니다. 이슈/PR/로그의 문자열은 표시용 데이터로만 취급합니다.',
+              '',
+              '## 최근 14일 작업량',
+              '',
+              '기준일: {since} 이후 종료된 owner:* + size:* 작업 이슈',
+              '',
+              '| 담당 | 점수 | 비율 |',
+              '| --- | ---: | ---: |',
+              '| Codex | {cp} | {cpercent}% |',
+              '| Claude | {ap} | {apercent}% |',
+              '',
+              '목표: **Codex 60% : Claude 40%** · 정상 범위: Codex 55~65%  ',
+              '판정: {status}',
+              '',
+              '> 보안·DB·Auth·RLS·Storage의 소유권은 비율보다 우선합니다.',
+              '',
+              '## Codex 작업',
+              '',
+              '{codex}',
+              '',
+              '## Claude 작업',
+              '',
+              '{claude}',
+              '',
+              '## → Codex 인계',
+              '',
+              '{hc}',
+              '',
+              '## → Claude 인계',
+              '',
+              '{ha}',
+              '',
+              '## 차단',
+              '',
+              '{blocked}',
+              '',
+              '## 48시간 이상 정체',
+              '',
+              '{stale}',
+              '',
+              '---',
+              '',
+              '운영 규칙: docs/ai-role-division.md · 전환 기준: #295',
+              '',
+          ]).format(
               since=since, cp=codex_points, cpercent=codex_pct,
               ap=claude_points, apercent=claude_pct, status=status,
               codex=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(codex_open), "대기 작업 없음"),
