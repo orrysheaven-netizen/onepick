@@ -106,16 +106,23 @@ export class ItemService {
       .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
 
     const reviews = [...ownReview, ...otherReviews];
-    // Shared links can reference a review beyond the first page or a previous choice.
+    // Shared links can reference a review beyond the first page or an ended choice.
     // Read through the same permission-checked repository and verify its product.
     if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
       const focused = cachedFocus ?? await this.readRepository.getPickById(focusPickId);
       if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
-        reviews.splice(ownReview.length, 0, {
+        reviews.push({
           pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
         });
       }
     }
+    // Product detail is not a history screen: if ended reviews are readable, keep
+    // current Picks first and leave ended reviews neutral behind them.
+    reviews.sort((a, b) => {
+      const aCurrent = a.pick.status === 'active' || a.pick.status === 'needs_review';
+      const bCurrent = b.pick.status === 'active' || b.pick.status === 'needs_review';
+      return Number(bCurrent) - Number(aCurrent);
+    });
 
     const canChoose = Boolean(
       openCategories.some((category) => category.id === item.categoryId) &&
