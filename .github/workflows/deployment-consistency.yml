@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Test deployment evaluator
@@ -40,7 +40,7 @@ jobs:
       DEPLOYMENT_CHECK_OUTPUT: ${{ github.workspace }}/deployment-consistency.json
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
           persist-credentials: false
