@@ -14,7 +14,7 @@ function load(file, imports = {}) {
 
 async function main() {
   const channels = load('lib/home/homeChannels.ts');
-  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '오프라인 맛집'], ['online', '온라인 맛집'], ['recipe', '레시피']]);
+  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '매장'], ['online', '온라인'], ['recipe', '레시피']]);
   assert.equal(channels.objectParticle('오프라인 맛집'), '을');
   assert.equal(channels.objectParticle('레시피'), '를');
   assert.equal(channels.homeChannelLabel(['offline']), '오프라인 맛집');
@@ -46,6 +46,7 @@ async function main() {
   });
   const client = {
     rpc: async (name, args) => {
+      if (name === 'item_brands') return { data: [], error: null };
       rpcCalls.push([name, args]);
       return { data: [row(1, ['offline']), row(2, ['offline', 'online', 'unknown']), row(3, null)], error: null };
     },
