@@ -8,6 +8,12 @@ import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
+const CHANNEL_LABELS: Record<string, string> = {
+  offline: '매장',
+  online: '온라인',
+  recipe: '레시피',
+};
+
 type Props = {
   picks: PickReadItem[];
   categories: Category[];
@@ -88,12 +94,24 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
 
                 {!isCollapsed ? (
                   <View style={styles.groupBody}>
-                    {group.items.map((item) => (
-                      <ProfilePickCard
+                    {group.items.map((item) => {
+                      const isFoodChannel = group.kind === 'channel';
+                      const channelLabel = isFoodChannel ? CHANNEL_LABELS[group.id] : undefined;
+                      const providerName = isFoodChannel
+                        ? (group.id === 'recipe'
+                          ? item.item?.creatorName ?? item.item?.name ?? null
+                          : item.item?.name ?? null)
+                        : undefined;
+                      const menuName = isFoodChannel
+                        ? item.category?.name ?? '카테고리'
+                        : item.item?.name ?? '정보를 확인할 수 없어요';
+                      return <ProfilePickCard
                         key={item.pick.id}
-                        layout="tile"
-                        categoryName={group.kind === 'channel' ? item.category?.name ?? '카테고리' : categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
-                        itemName={item.item?.name ?? '정보를 확인할 수 없어요'}
+                        layout="row"
+                        categoryName={isFoodChannel ? item.category?.name ?? '카테고리' : categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
+                        itemName={menuName}
+                        providerName={providerName}
+                        channelLabel={channelLabel}
                         review={item.pick.oneLineReview}
                         imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
                         itemId={item.item?.id}
@@ -101,8 +119,8 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem 
                         hasPhoto={Boolean(item.item?.imagePath)}
                         onPressPick={() => onPressPick(item.pick.id)}
                         onPressItem={item.item ? () => onPressItem(item.pick.itemId) : undefined}
-                      />
-                    ))}
+                      />;
+                    })}
                   </View>
                 ) : null}
               </View>
@@ -139,6 +157,6 @@ const styles = StyleSheet.create({
   countPill: { borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 7, paddingVertical: 2 },
   countText: { color: OnePick.muted, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   groupChevron: { color: OnePick.hint, fontSize: 16, lineHeight: 18, marginLeft: 8 },
-  groupBody: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  groupBody: { gap: 10 },
   pressed: { opacity: 0.68 },
 });
