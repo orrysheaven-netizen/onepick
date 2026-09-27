@@ -68,6 +68,12 @@ assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: pr
 assert.match(owner, /profileScope === 'food' \? mainPicks : labPicks/, 'owner toggles 음식 and 다른 취향 in place');
 assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
+// 실험실 is the only place to start a non-food Pick; with Explore's door gone the
+// owner's 다른 취향 tab must still lead there, whether it is empty or not.
+assert.match(owner, /const openLab = \(\) => router\.push\('\/lab'\);/, 'the owner profile can open 실험실');
+assert.match(owner, /label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 다른 취향 tab offers the 실험실 entry');
+assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="다른 취향 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
+  'a filled 다른 취향 tab keeps the 실험실 entry');
 assert.match(publicProfile, /profileScope === 'food' \? mainPicks : labPicks/, 'public profile toggles the same scopes in place');
 assert.match(publicProfile, /음식 원픽 보기/);
 assert.match(publicProfile, /다른 취향 원픽 보기/);

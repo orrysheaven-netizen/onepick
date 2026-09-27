@@ -174,6 +174,7 @@ export default function ProfileScreen() {
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
+  const openLab = () => router.push('/lab');
   const shareMyProfile = async () => {
     if (isSharingProfile) return;
     setIsSharingProfile(true);
@@ -233,8 +234,15 @@ export default function ProfileScreen() {
         ) : (
           <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
             text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
-            action={profileScope === 'food' ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') } : undefined} />
+            action={profileScope === 'food'
+              ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
+              : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
         )}
+        {/* The 실험실 is the only place to pick 영화·책·게임 and other non-food themes. */}
+        {profileScope === 'other' && visibleProfilePicks.length > 0 ? (
+          <Button variant="secondary" fullWidth label="다른 취향 원픽 고르기" accessibilityLabel="실험실에서 다른 취향 원픽 고르기"
+            onPress={openLab} style={styles.otherTasteEntry} />
+        ) : null}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
@@ -307,6 +315,7 @@ const styles = StyleSheet.create({
   profileShareRow: { gap: 8, marginTop: 14, marginBottom: 14 },
   shareError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   profileScopeTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  otherTasteEntry: { marginTop: 14 },
   profileScopeTab: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 999, backgroundColor: OnePick.sunken },
   profileScopeTabSelected: { backgroundColor: OnePick.text },
   profileScopeText: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
