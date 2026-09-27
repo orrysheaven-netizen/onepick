@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,7 +12,7 @@ import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/com
 import { OnePick, OnePickFeatures, OnePickThresholds } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
-import { useFollowingFeed } from '@/hooks/useFollow';
+import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
@@ -43,9 +43,27 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
-  // Start with public Picks even before a new member follows anyone.
-  // The following scope stays available without downloading an invisible feed.
+  // Resolve the member's initial scope once per account. A member who follows
+  // anyone starts on 팔로잉; a new member (or a count-read failure) falls back to 전체.
+  // Manual tab changes after this initialization are never overwritten.
+  const followCounts = useFollowCounts(OnePickFeatures.follow ? user?.id : undefined);
   const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
+  const initializedScopeUser = useRef<string | null>(null);
+  useEffect(() => {
+    if (!OnePickFeatures.follow || !user) {
+      initializedScopeUser.current = null;
+      setFeedScope('all');
+      return;
+    }
+    if (initializedScopeUser.current === user.id) return;
+    if (followCounts.isSuccess) {
+      initializedScopeUser.current = user.id;
+      setFeedScope((followCounts.data?.followingCount ?? 0) > 0 ? 'following' : 'all');
+    } else if (followCounts.isError) {
+      initializedScopeUser.current = user.id;
+      setFeedScope('all');
+    }
+  }, [followCounts.data?.followingCount, followCounts.isError, followCounts.isSuccess, user?.id]);
   const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
   // Keep shared Home context (categories/current Picks) available for search and
   // badges, but do not download the invisible public feed while following is shown.
