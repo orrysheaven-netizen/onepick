@@ -205,8 +205,8 @@ async function main() {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
     assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 원픽 등록 요청/);
-    history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '이전 기록 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
-    history.isError = false; history.isSuccess = true; history.data = []; history.hasNextPage = true; view.render(); button = view.find('Button', (p) => p.label === '이전 기록 더 보기'); assert.ok(button); button.onPress(); assert.equal(history.nextPages, 1);
+    history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '활동 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
+    history.isError = false; history.isSuccess = true; history.data = []; history.hasNextPage = true; view.render(); button = view.find('Button', (p) => p.label === '활동 더 보기'); assert.ok(button); button.onPress(); assert.equal(history.nextPages, 1);
     history.hasNextPage = false; requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }]; view.render();
     assert.match(view.text(), /New request/); assert.equal(view.all('Text').some((p) => p.children === '원픽 활동'), false);
     requests.isError = true; requests.isSuccess = false; view.render(); assert.match(view.text(), /New request/); assert.match(view.text(), /최신 목록/);
