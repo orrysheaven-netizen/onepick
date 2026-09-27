@@ -56,6 +56,29 @@ export type AdminBrand = {
 
 export type AdminProviderStatus = 'pending' | 'active' | 'hidden';
 
+export type AdminProviderSocialPlatform =
+  | 'instagram'
+  | 'youtube'
+  | 'tiktok'
+  | 'threads'
+  | 'facebook'
+  | 'x'
+  | 'naver_blog'
+  | 'blog';
+
+export type AdminProviderSocialLink = {
+  provider_id: string;
+  platform: AdminProviderSocialPlatform;
+  url: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+const PROVIDER_SOCIAL_PLATFORMS = new Set<AdminProviderSocialPlatform>([
+  'instagram', 'youtube', 'tiktok', 'threads', 'facebook', 'x', 'naver_blog', 'blog',
+]);
+
 export type AdminOnlineStore = {
   id: string;
   store_type: 'official_site' | 'platform_store';
@@ -704,6 +727,50 @@ export function setProviderStatus(providerId: string, status: AdminProviderStatu
   return adminRequest<AdminOnlineProvider>('/rest/v1/rpc/admin_set_provider_status', {
     method: 'POST',
     body: JSON.stringify({ p_provider_id: providerId, p_status: status }),
+  });
+}
+
+
+export function getProviderSocialLinks(providerId: string) {
+  const id = providerId.trim();
+  if (!id) throw new Error('제공처를 선택해 주세요.');
+  const params = new URLSearchParams({
+    select: 'provider_id,platform,url,sort_order,created_at,updated_at',
+    provider_id: `eq.${id}`,
+    order: 'sort_order.asc,platform.asc',
+  });
+  return adminRequest<AdminProviderSocialLink[]>(`/rest/v1/provider_social_links?${params.toString()}`);
+}
+
+export function replaceProviderSocialLinks(
+  providerId: string,
+  links: Array<{ platform: AdminProviderSocialPlatform; url: string; sortOrder?: number }>,
+) {
+  const id = providerId.trim();
+  if (!id) throw new Error('제공처를 선택해 주세요.');
+  if (links.length > 10) throw new Error('SNS 링크는 최대 10개까지 등록할 수 있습니다.');
+
+  const seen = new Set<AdminProviderSocialPlatform>();
+  const cleaned = links.map((link, index) => {
+    const platform = link.platform.trim().toLowerCase() as AdminProviderSocialPlatform;
+    const url = link.url.trim();
+    const sortOrder = link.sortOrder ?? index;
+    if (!PROVIDER_SOCIAL_PLATFORMS.has(platform) || seen.has(platform)) {
+      throw new Error('SNS 종류가 올바르지 않거나 중복되었습니다.');
+    }
+    if (!url.startsWith('https://') || /\s/.test(url) || url.length > 2048) {
+      throw new Error('SNS URL은 공백 없는 https:// 주소만 입력해 주세요.');
+    }
+    if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 1000) {
+      throw new Error('SNS 표시 순서가 올바르지 않습니다.');
+    }
+    seen.add(platform);
+    return { platform, url, sort_order: sortOrder };
+  });
+
+  return adminRequest<AdminProviderSocialLink[]>('/rest/v1/rpc/admin_replace_provider_social_links', {
+    method: 'POST',
+    body: JSON.stringify({ p_provider_id: id, p_links: cleaned }),
   });
 }
 
