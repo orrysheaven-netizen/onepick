@@ -116,7 +116,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
         </>
       ) : (
         <>
-          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 이전 선택 기록은 남고, 이 카테고리에서 다시 원픽을 고를 수 있어요.</Text>
+          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 해제한 뒤 이 카테고리에서 다시 원픽을 고를 수 있어요.</Text>
           <Pressable
             accessibilityRole="button"
             disabled={isBusy}
