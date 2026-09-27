@@ -7,12 +7,6 @@ import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import { sharePick } from '@/lib/share/sharePick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
-function shortDate(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
 /**
  * One person's current Pick on Home (docs/people-first-home.md):
  * person → current-Pick state → channel/provider → menu → one-line reason.
@@ -45,9 +39,6 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
     : channel ? undefined : pick.categoryName;
   const menuName = channel ? pick.categoryName : pick.name;
   const contentName = providerName ? `${providerName} ${menuName}` : menuName;
-  const pickedDate = shortDate(pick.startedAt);
-  const statusLabel = pickedDate ? `새로 고름 · ${pickedDate}` : '새로 고름';
-
   const handleShare = async () => {
     if (sharing) return;
     setSharing(true);
@@ -76,7 +67,6 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
     review={pick.oneLineReview}
     photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId, logoUri: pick.brandLogoUrl, label: contentName }}
     person={{ username: pick.username, onPress: onOpenProfile }}
-    statusLabel={statusLabel}
     onPress={onOpenItem}
     onPressProvider={pick.providerId ? onOpenProvider : undefined}
     accessibilityLabel={pick.name + ' 상세 보기'}

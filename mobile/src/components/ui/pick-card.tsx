@@ -29,8 +29,6 @@ type Props = {
   };
   /** Who picked it. */
   person?: { username: string; label?: string; onPress?: () => void; accessibilityLabel?: string };
-  /** Current-Pick state, e.g. "새로 고름 · 9/27". */
-  statusLabel?: string;
   onPress: () => void;
   /** Optional internal provider profile link for the context row. */
   onPressProvider?: () => void;
@@ -41,7 +39,7 @@ type Props = {
 
 export function PickCard({
   channelLabel, providerName, itemName, menuContext = false, review, fallbackText, photo,
-  person, statusLabel, onPress, onPressProvider, accessibilityLabel, footer,
+  person, onPress, onPressProvider, accessibilityLabel, footer,
 }: Props) {
   const showPhoto = Boolean(photo.uri || photo.logoUri || photo.hasPhoto);
   const showContext = Boolean(channelLabel || providerName);
@@ -58,7 +56,6 @@ export function PickCard({
                   <Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text>
                 </Pressable>
               : <Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text>}
-            {statusLabel ? <Text style={styles.status}>{statusLabel}</Text> : null}
           </View>
         </View>
       ) : null}
@@ -97,7 +94,6 @@ const styles = StyleSheet.create({
   personCopy: { flex: 1, minWidth: 0, gap: 1 },
   profileLink: { alignSelf: 'flex-start', maxWidth: '100%' },
   personLabel: { ...OnePickType.label, color: OnePick.text },
-  status: { ...OnePickType.caption, color: OnePick.hint },
   body: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   bodyWithoutPhoto: { minHeight: 0 },
   copy: { flex: 1, minWidth: 0, gap: 4 },
