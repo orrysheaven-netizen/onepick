@@ -43,7 +43,6 @@ begin
     (blk_pick,   blk_u,   menu, item_x, 'online', 'blocked',       'active',   base, null),
     (hid_pick,   hid_u,   menu, item_x, 'online', 'hidden review', 'hidden',   base - interval '2 days', base);
   update public.picks set replaced_by_pick_id = owner_now where id = ended_pick;
-  insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'PCP fixture',now());
   -- The comment write guard requires auth.uid() = user_id even for direct
   -- inserts, so each fixture comment is written as its author.
   for c in select * from (values
@@ -61,6 +60,8 @@ begin
       values(c.id, c.pick_id, c.user_id, c.body, base + make_interval(mins => c.minute));
   end loop;
   perform set_config('request.jwt.claim.sub','',true);
+  -- Suspend after writing: suspended members cannot write, but their old comments exist.
+  insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'PCP fixture',now());
 
   -- Guests read the ended thread through the RPC, never through the table.
   perform set_config('request.jwt.claim.sub','',true);
