@@ -79,8 +79,10 @@ async function main() {
   // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
     assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
-    assert.match(screen, /picks=\{mainPicks\}/, `${name} profile shows the main-theme Picks`);
-    assert.match(screen, /<ProfileLabEntry count=\{labPicks\.length\}/, `${name} profile links the rest to 실험실`);
+    assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? mainPicks : labPicks/, `${name} profile keeps both scopes available`);
+    assert.match(screen, /picks=\{visibleProfilePicks\}/, `${name} profile switches the visible collection without dropping Picks`);
+    assert.match(screen, /음식 원픽 보기/);
+    assert.match(screen, /다른 취향 원픽 보기/);
   }
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
