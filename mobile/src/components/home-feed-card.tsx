@@ -21,7 +21,7 @@ function shortDate(iso: string) {
  * opens the item, 댓글 focuses this person's Pick thread, and 공유 reuses the
  * existing Pick deep link.
  */
-export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOpenProfile, onOpenComments }: {
+export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOpenProfile, onOpenComments, onOpenProvider }: {
   pick: HomeFeedPick;
   /** The viewer already has this exact item as a current Pick. */
   mine?: boolean;
@@ -30,6 +30,7 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
   onOpenItem: () => void;
   onOpenProfile: () => void;
   onOpenComments: () => void;
+  onOpenProvider?: () => void;
 }) {
   const [sharing, setSharing] = useState(false);
   const [shareNotice, setShareNotice] = useState<'copied' | 'error' | null>(null);
@@ -77,6 +78,7 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
     person={{ username: pick.username, onPress: onOpenProfile }}
     statusLabel={statusLabel}
     onPress={onOpenItem}
+    onPressProvider={pick.providerId ? onOpenProvider : undefined}
     accessibilityLabel={pick.name + ' 상세 보기'}
     footer={<>
       {mine ? <Text style={styles.mine}>✓ 내 원픽</Text> : null}
