@@ -69,7 +69,7 @@ export function ProfilePickCard({
       <View style={styles.body}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
+          accessibilityLabel={`${providerName ? `${providerName} ${itemName}` : `${categoryName} ${itemName}`} 원픽 상세 보기`}
           onPress={onPressPick}
           style={({ pressed }) => [styles.mainAction, pressed && styles.pressed]}>
           {providerName || channelLabel ? (
