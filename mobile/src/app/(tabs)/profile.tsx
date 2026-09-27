@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
-import { ProfileLabEntry } from '@/components/profile-lab-entry';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
@@ -20,8 +20,8 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
-import { splitLabPicks } from '@/lib/profile/profilePickGroups';
-import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { shareProfile } from '@/lib/share/shareProfile';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -102,6 +102,8 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [isSharingProfile, setIsSharingProfile] = useState(false);
+  const [profileShareError, setProfileShareError] = useState(false);
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
@@ -148,7 +150,6 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
-  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
@@ -169,6 +170,18 @@ export default function ProfileScreen() {
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
+  const shareMyProfile = async () => {
+    if (isSharingProfile) return;
+    setIsSharingProfile(true);
+    setProfileShareError(false);
+    try {
+      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
+    } catch {
+      setProfileShareError(true);
+    } finally {
+      setIsSharingProfile(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -183,15 +196,20 @@ export default function ProfileScreen() {
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
         </View>
         <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
+        <View style={styles.shareRow}>
+          <Button variant="secondary" fullWidth label="프로필 공유" accessibilityLabel="내 프로필 공유"
+            loading={isSharingProfile} onPress={() => void shareMyProfile()} />
+          {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
+        </View>
         {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
         {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={mainPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
-        {mainPicks.length > 0 ? (
+        <View style={styles.sectionHeader}><SectionHeader title="원픽" count={currentPicks.length} description="음식과 다른 취향을 나눠서 볼 수 있어요." /></View>
+        {currentPicks.length > 0 ? (
           <ProfilePickGroups
-            picks={mainPicks}
+            picks={currentPicks}
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
@@ -200,11 +218,6 @@ export default function ProfileScreen() {
           <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
             action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
         )}
-        {OnePickFeatures.lab ? <View style={styles.labEntry}>
-          <ProfileLabEntry count={labPicks.length} description="콘텐츠·테크·스타일 원픽은 실험실에 따로 모아둬요."
-            onPress={() => router.push({ pathname: '/lab/[username]', params: { username: profile.username } })} />
-        </View> : null}
-
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
           <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필을 확인해요.</Text>
@@ -273,7 +286,8 @@ const styles = StyleSheet.create({
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
-  labEntry: { marginTop: 14 },
+  shareRow: { marginBottom: 16, gap: 8 },
+  shareError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   managementSection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   activitySection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   secondaryEyebrow: { color: OnePick.hint, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
