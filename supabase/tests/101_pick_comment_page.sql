@@ -17,7 +17,7 @@ declare
   c_cur uuid := gen_random_uuid(); c_rem uuid := gen_random_uuid(); c_store uuid := gen_random_uuid();
   c_owner uuid := gen_random_uuid(); c_susp uuid := gen_random_uuid(); c_blk uuid := gen_random_uuid(); c_hid uuid := gen_random_uuid();
   base timestamptz := now() - interval '1 day';
-  got uuid[]; badges boolean[]; n integer; cursor_time timestamptz;
+  got uuid[]; badges boolean[]; n integer; cursor_time timestamptz; c record;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
     select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,owner_u,cur_u,rem_u,store_u,susp_u,blk_u,hid_u]) id;
@@ -44,14 +44,23 @@ begin
     (hid_pick,   hid_u,   menu, item_x, 'online', 'hidden review', 'hidden',   base - interval '2 days', base);
   update public.picks set replaced_by_pick_id = owner_now where id = ended_pick;
   insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'PCP fixture',now());
-  insert into public.comments(id,pick_id,user_id,body,created_at) values
-    (c_cur,   ended_pick, cur_u,   'same item, same channel',      base + interval '1 minute'),
-    (c_rem,   ended_pick, rem_u,   'used to pick it',              base + interval '2 minutes'),
-    (c_store, ended_pick, store_u, 'same item, other channel',     base + interval '3 minutes'),
-    (c_owner, ended_pick, owner_u, 'author, now on Y',             base + interval '4 minutes'),
-    (c_susp,  ended_pick, susp_u,  'suspended commenter',          base + interval '5 minutes'),
-    (c_blk,   ended_pick, blk_u,   'blocked by the viewer',        base + interval '6 minutes'),
-    (c_hid,   hid_pick,   cur_u,   'under a hidden review',        base + interval '7 minutes');
+  -- The comment write guard requires auth.uid() = user_id even for direct
+  -- inserts, so each fixture comment is written as its author.
+  for c in select * from (values
+    (c_cur,   ended_pick, cur_u,   'same item, same channel',  1),
+    (c_rem,   ended_pick, rem_u,   'used to pick it',          2),
+    (c_store, ended_pick, store_u, 'same item, other channel', 3),
+    (c_owner, ended_pick, owner_u, 'author, now on Y',         4),
+    (c_susp,  ended_pick, susp_u,  'suspended commenter',      5),
+    (c_blk,   ended_pick, blk_u,   'blocked by the viewer',    6),
+    (c_hid,   hid_pick,   cur_u,   'under a hidden review',    7)
+  ) as v(id, pick_id, user_id, body, minute)
+  loop
+    perform set_config('request.jwt.claim.sub', c.user_id::text, true);
+    insert into public.comments(id,pick_id,user_id,body,created_at)
+      values(c.id, c.pick_id, c.user_id, c.body, base + make_interval(mins => c.minute));
+  end loop;
+  perform set_config('request.jwt.claim.sub','',true);
 
   -- Guests read the ended thread through the RPC, never through the table.
   perform set_config('request.jwt.claim.sub','',true);
