@@ -11,9 +11,9 @@ import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
 /**
- * One review on an item, with its comment thread always open. My own review shows
- * the comments others left but no 댓글 쓰기, and carries the small 수정 · 원픽 해제
- * actions where the 내 원픽 badge used to be.
+ * One review on an item, with its comment thread always open. Current Picks get
+ * one positive badge; ended Picks keep the same neutral review presentation so
+ * the UI never exposes someone's past-Pick state.
  */
 export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
@@ -30,7 +30,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
       <View style={styles.header}>
         {isMine ? (
-          <Text style={[styles.author, styles.mineLabel]}>{isCurrent ? '내 한줄평' : '내 이전 한줄평'}</Text>
+          <Text style={[styles.author, styles.mineLabel]}>내 한줄평</Text>
         ) : <>
           <Avatar name={profile?.username ?? '?'} size={24} />
           <View style={styles.author}>
@@ -41,14 +41,13 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
               </Pressable>
             ) : <Text style={styles.username}>사용자</Text>}
           </View>
-          {!isCurrent ? <Text style={styles.history}>이전 원픽</Text> : null}
         </>}
+        {isCurrent ? <Text style={styles.currentBadge}>✓ 이 집 원픽</Text> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
       <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>
-      {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 댓글은 계속 볼 수 있어요.</Text> : null}
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
@@ -73,5 +72,5 @@ const styles = StyleSheet.create({
   profileLink: { minHeight: 36, justifyContent: 'center' },
   review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 10 },
   myReview: { fontWeight: '600' },
-  history: { color: OnePick.muted, fontSize: 12, lineHeight: 16 },
+  currentBadge: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 15, fontWeight: '800' },
 });
