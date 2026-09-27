@@ -47,8 +47,8 @@ function sortGroupItems(items: PickReadItem[]) {
 export type FoodLane = 'offline' | 'online' | 'recipe';
 
 const FOOD_LANES: { code: FoodLane; label: string }[] = [
-  { code: 'offline', label: '오프라인 맛집' },
-  { code: 'online', label: '온라인 맛집' },
+  { code: 'offline', label: '매장' },
+  { code: 'online', label: '온라인' },
   { code: 'recipe', label: '레시피' },
 ];
 
