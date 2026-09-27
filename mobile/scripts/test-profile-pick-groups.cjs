@@ -144,6 +144,7 @@ assert.match(component, /<ProfilePickCard/);
 assert.match(component, /layout="row"/, 'current Picks render as readable v4 rows');
 assert.match(component, /providerName=\{providerName\}/, 'food rows keep provider/source separate from the menu title');
 assert.match(component, /channelLabel=\{channelLabel\}/, 'food rows show the short channel badge before the provider');
+assert.match(component, /onPressProvider=\{item\.item\?\.providerId && onPressProvider/, 'provider-backed rows expose their internal provider profile');
 assert.match(component, /groupBody: \{ gap: 10 \}/, 'rows stack vertically without a 2-column grid');
 assert.doesNotMatch(component, /remaining/, 'profiles no longer list categories still without a Pick');
 assert.match(component, /buildProfileThemeSections\(picks, categories\)/);
@@ -156,12 +157,14 @@ assert.match(owner, /picks=\{visibleProfilePicks\}/, 'owner profile switches bet
 assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
 assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
+assert.match(owner, /pathname: '\/provider\/\[providerId\]'/, 'owner profile routes provider context to the provider profile');
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.match(publicProfile, /<ProfilePickGroups/);
 assert.match(publicProfile, /picks=\{visibleProfilePicks\}/, 'public profile uses the same in-place taste tabs');
 assert.match(publicProfile, /음식 원픽 보기/);
 assert.match(publicProfile, /다른 취향 원픽 보기/);
 assert.match(publicProfile, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
+assert.match(publicProfile, /pathname: '\/provider\/\[providerId\]'/, 'public profile routes provider context to the provider profile');
 assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 
 assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
