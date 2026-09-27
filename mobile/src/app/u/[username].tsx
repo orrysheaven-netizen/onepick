@@ -115,7 +115,7 @@ export default function PublicProfileScreen() {
             <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
           </View> : null}
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{mainPicks.length}개</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>음식 원픽</Text><Text style={styles.summaryNumber}>{mainPicks.length}개</Text></View>
           {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
           {OnePickFeatures.profileAi ? <ProfileAiComment
             profileId={query.data.profile.id}
