@@ -203,7 +203,7 @@ async function main() {
   profileQuery.isError = false; profileQuery.isRefetchError = false;
 
   // Each list retains its cards on errors and retries the appropriate operation.
-  for (const [query, label] of [[requestsQuery, '등록 요청'], [historyQuery, '이전 기록']]) {
+  for (const [query, label] of [[requestsQuery, '등록 요청'], [historyQuery, '활동']]) {
     let nextCalls = 0, refetchCalls = 0, nextOptions;
     query.fetchNextPage = async (options) => { nextCalls++; nextOptions = options; };
     query.refetch = async () => { refetchCalls++; };
