@@ -114,7 +114,7 @@ export class ProviderProfileService {
   }
 
   async get(providerId: string): Promise<ProviderProfile> {
-    if (!UUID.test(providerId)) throw new AppError('INVALID_INPUT');
+    if (!UUID.test(providerId)) throw new AppError('PROVIDER_NOT_FOUND');
 
     const { data: providerData, error: providerError } = await this.db()
       .from('providers')
@@ -125,7 +125,7 @@ export class ProviderProfileService {
     const provider = providerData as ProviderRow | null;
     if (!provider || provider.status !== 'active'
       || (provider.kind !== 'offline_branch' && provider.kind !== 'online_store')) {
-      throw new AppError('ITEM_NOT_FOUND', 'PROVIDER_NOT_FOUND');
+      throw new AppError('PROVIDER_NOT_FOUND');
     }
 
     let subtitle: string | null = null;
