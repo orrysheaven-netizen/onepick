@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(13);
 
 create temporary table pss_ids(key text primary key, id uuid not null) on commit drop;
 grant select on pss_ids to anon, authenticated;
@@ -20,7 +20,9 @@ begin
     ('psstest','contains-'||v_suffix,'원조뷁뛟곰탕','원조뷁뛟곰탕','서울 3','open',null),
     ('psstest','fuzzy-'||v_suffix,'뷁뛟곰탄','뷁뛟곰탄','서울 4','open',null),
     ('psstest','closed-'||v_suffix,'뷁뛟곰탕 폐점','뷁뛟곰탕폐점','서울 5','closed',now()),
-    ('psstest','short-'||v_suffix,'뷁뛟','뷁뛟','서울 6','open',null);
+    ('psstest','short-'||v_suffix,'뷁뛟','뷁뛟','서울 6','open',null),
+    -- similarity to 뷁뛟곰탕 is 0.286: only the second (0.25–0.3) fuzzy pass finds it
+    ('psstest','weak-'||v_suffix,'뷁뛟탕','뷁뛟탕','서울 7','open',null);
   insert into pss_ids values ('cat',v_cat);
 end;
 $fixtures$;
@@ -45,7 +47,7 @@ select is(
        catalog_id,place_provider,provider_place_id,name,branch_name,road_address,address,region_1,region_2,
        latitude,longitude,provider_category,existing_item_id,ord)
      where s.place_provider='psstest'),
-  array['exact','prefix','contains','fuzzy','short'],
+  array['exact','prefix','contains','fuzzy','short','weak'],
   'Exact, prefix, contains, then similar names by score — closed places never appear'
 );
 
@@ -55,7 +57,7 @@ select is(
        catalog_id,place_provider,provider_place_id,name,branch_name,road_address,address,region_1,region_2,
        latitude,longitude,provider_category,existing_item_id,ord)
      where s.place_provider='psstest'),
-  array['short','fuzzy','exact','prefix','contains'],
+  array['short','weak','fuzzy','exact','prefix','contains'],
   '2-character queries use the bigram index; every name starting with the query ranks as a prefix match'
 );
 
@@ -98,6 +100,36 @@ select is(
      where s.provider_place_id like 'closed-%'),
   0,
   'Running as the owner never exposes closed places to guests'
+);
+reset role;
+
+select ok(
+  exists(select 1 from pg_indexes where schemaname='public' and indexname='place_catalog_normalized_name_pattern'
+         and indexdef like '%text_pattern_ops%'),
+  'Exact and prefix tiers use a text_pattern_ops btree'
+);
+
+-- More than the 200-row cap in both the prefix and contains tiers.
+insert into public.place_catalog(place_provider,provider_place_id,name,normalized_name,road_address)
+  select 'psstest','bulkp-'||g,'뷁뛟곰탕'||lpad(g::text,3,'0'),'뷁뛟곰탕'||lpad(g::text,3,'0'),'서울' from generate_series(1,250) g;
+insert into public.place_catalog(place_provider,provider_place_id,name,normalized_name,road_address)
+  select 'psstest','bulkc-'||g,lpad(g::text,3,'0')||'뷁뛟곰탕',lpad(g::text,3,'0')||'뷁뛟곰탕','서울' from generate_series(1,250) g;
+
+set local role anon;
+select is(
+  (select array[count(*)::int, count(*) filter (where s.provider_place_id like 'bulkp-%')::int]
+     from public.search_place_catalog((select id from pss_ids where key='cat'),'뷁뛟곰탕',20) s),
+  array[20, 19],
+  'Capped tiers still fill the page: prefix matches rank above contains matches'
+);
+select is(
+  (select split_part(s.provider_place_id,'-',1)
+     from public.search_place_catalog((select id from pss_ids where key='cat'),'뷁뛟곰탕',20) with ordinality as s(
+       catalog_id,place_provider,provider_place_id,name,branch_name,road_address,address,region_1,region_2,
+       latitude,longitude,provider_category,existing_item_id,ord)
+     order by s.ord limit 1),
+  'exact',
+  'An exact match is never lost behind the prefix/contains caps'
 );
 reset role;
 
