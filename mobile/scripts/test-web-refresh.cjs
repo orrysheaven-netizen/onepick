@@ -42,7 +42,10 @@ function fixture(kind, platform = 'web') {
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; } },
-    '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
+    '@/hooks/useFollow': {
+      useFollowCounts: () => ({ data: { followingCount: 0, followerCount: 0 }, isSuccess: true, isError: false }),
+      useFollowingFeed: (...args) => { calls.following = args; return following; },
+    },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
       useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
