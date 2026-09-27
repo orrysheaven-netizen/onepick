@@ -50,10 +50,11 @@ begin
     (store_only,'offline',true),
     (plain_item,'offline',true),
     (plain_item,'online',false);
-  insert into public.user_follows(follower_id,followee_id) values(viewer,friend);
 
+  -- Follow as the viewer: the follow trigger only accepts the caller's own follower_id.
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   set local role authenticated;
+  insert into public.user_follows(follower_id,followee_id) values(viewer,friend);
 
   select array_agg(f.pick_id order by f.started_at desc, f.pick_id desc) into all_got
     from public.home_following_feed_page() f;
