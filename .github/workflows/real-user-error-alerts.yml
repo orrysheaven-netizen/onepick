@@ -43,7 +43,8 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: daily-qa
+    # Deploy token lives only in Production (main only); see daily-qa.yml.
+    environment: Production
     permissions:
       contents: read
       issues: write

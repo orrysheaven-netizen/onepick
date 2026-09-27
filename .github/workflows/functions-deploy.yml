@@ -32,6 +32,9 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Deploy credentials live only in the Production environment (main only),
+    # not at repository level (#426 M9).
+    environment: Production
     timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
