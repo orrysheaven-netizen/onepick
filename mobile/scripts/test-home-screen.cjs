@@ -64,7 +64,13 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
-  '@/components/home-feed-card': load('components/home-feed-card.tsx', { '@/components/ui': ui, '@/lib/format/relativeTime': load('lib/format/relativeTime.ts'), '@/lib/home/homeChannels': load('lib/home/homeChannels.ts') }),
+  '@/components/home-feed-card': load('components/home-feed-card.tsx', {
+    'react-native': native,
+    '@/components/ui': ui,
+    '@/constants/onepick': onepickConstants,
+    '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
+    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
+  }),
   '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
@@ -112,12 +118,14 @@ for (width of [390, 800, 1200]) {
   const page = render();
   assert.match(page, /@friend/); assert.match(page, /“다른 사람의 이유”/, 'Each card quotes that person’s own reason');
   assert.match(page, /@neighbor/); assert.match(page, /이웃도 신라면/);
-  assert.match(page, /내 원픽/, 'A card for the item I already picked is badged');
-  assert.match(page, /이미 내 원픽이에요/); assert.match(page, /나도 이게 원픽/); assert.doesNotMatch(page, /나는 다른 원픽|의견 나누기/, 'Home cards drop the finder and comment shortcuts; comments live on the item screen');
-  assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'No aggregate counts or English badges on the people feed');
-  assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the item');
-  assert.match(page, /라면 · 오프라인 맛집/, 'Feed cards label a store-channel item as 오프라인 맛집');
-  assert.match(page, /오프라인 맛집 탭 원픽 보기|>오프라인 맛집</, 'Home offers the 오프라인 맛집 tab');
+  assert.match(page, /✓ 내 원픽/, 'A card for the exact item I already picked shows the current-Pick state');
+  assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
+  assert.match(page, /댓글/); assert.match(page, /공유/);
+  assert.match(page, /새로 고름 · 9\/21/, 'Home frames the row as a current Pick instead of a relative-time post');
+  assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
+  assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the provider/menu content');
+  assert.match(page, />매장</, 'Feed cards use the short 매장 channel badge');
+  assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the short 매장 tab');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.match(page, /전체/);
@@ -133,8 +141,9 @@ for (width of [390, 800, 1200]) {
   press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
-  press('진라면 나도 이게 원픽'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.categoryId, 'ramen');
-  press('신라면 내 한줄평 보기'); assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'ramen', 'My own item opens my review instead of a duplicate pick');
+  press('진라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.pickId, 'other');
+  press('신라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'ramen'); assert.equal(destination.params.pickId, 'same-as-mine');
+  assert.ok(presses.find((p) => p.accessibilityLabel === '진라면 공유'), 'Each Home Pick exposes the existing deep-link share action');
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.doesNotMatch(page, /라면 원픽 찾기/, 'Signed-in Home hides the category grid');
@@ -174,8 +183,9 @@ assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home categor
 assert.match(publicPage, /과자 원픽 찾기|>과자</);
 assert.doesNotMatch(publicPage, /영화|책 원픽 찾기|유튜브 원픽 찾기/, 'MVP Home starter cards are food only');
 press('라면 원픽 찾기'); assert.equal(destination.params.categoryId, 'ramen');
-assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
-assert.match(publicPage, /나도 이게 원픽/, 'Visitors can still follow a Pick; the choose screen asks them to log in');
+assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|✓ 내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
+assert.doesNotMatch(publicPage, /나도 이게 원픽/, 'Home no longer promotes copying someone else’s Pick');
+assert.match(publicPage, /댓글/); assert.match(publicPage, /공유/);
 press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
