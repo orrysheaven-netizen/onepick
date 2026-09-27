@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
-import { ProfileLabEntry } from '@/components/profile-lab-entry';
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
@@ -21,6 +21,7 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
 import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
@@ -110,6 +111,9 @@ export default function ProfileScreen() {
   const requestsQuery = useMyItemRequests(OnePickFeatures.profileItemRequests ? listUserId : undefined);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
+  const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
+  const [isSharingProfile, setIsSharingProfile] = useState(false);
+  const [profileShareError, setProfileShareError] = useState(false);
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -149,6 +153,7 @@ export default function ProfileScreen() {
 
   const { profile, currentPicks } = profileQuery.data;
   const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
+  const visibleProfilePicks = profileScope === 'food' ? mainPicks : labPicks;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
@@ -169,6 +174,18 @@ export default function ProfileScreen() {
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
+  const shareMyProfile = async () => {
+    if (isSharingProfile) return;
+    setIsSharingProfile(true);
+    setProfileShareError(false);
+    try {
+      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
+    } catch {
+      setProfileShareError(true);
+    } finally {
+      setIsSharingProfile(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -188,22 +205,36 @@ export default function ProfileScreen() {
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
         {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={mainPicks.length} description={OnePickFeatures.profilePickHistory ? '카테고리마다 하나 · 바꾸면 기록으로 남아요' : '카테고리마다 하나'} /></View>
-        {mainPicks.length > 0 ? (
+        <View style={styles.profileShareRow}>
+          <Button variant="secondary" fullWidth label={isSharingProfile ? '공유 중…' : '프로필 공유'}
+            accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />
+          {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
+        </View>
+        {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
+          <Pressable accessibilityRole="tab" accessibilityLabel="음식 원픽 보기" accessibilityState={{ selected: profileScope === 'food' }}
+            onPress={() => setProfileScope('food')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'food' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
+            <Text style={[styles.profileScopeText, profileScope === 'food' && styles.profileScopeTextSelected]}>음식</Text>
+          </Pressable>
+          <Pressable accessibilityRole="tab" accessibilityLabel="다른 취향 원픽 보기" accessibilityState={{ selected: profileScope === 'other' }}
+            onPress={() => setProfileScope('other')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'other' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
+            <Text style={[styles.profileScopeText, profileScope === 'other' && styles.profileScopeTextSelected]}>다른 취향</Text>
+          </Pressable>
+        </View> : null}
+        <View style={styles.sectionHeader}><SectionHeader title={profileScope === 'food' ? '음식 원픽' : '다른 취향'} count={visibleProfilePicks.length}
+          description={profileScope === 'food' ? '지금 가장 좋아하는 메뉴별 하나' : '음식 밖에서 고른 지금의 원픽'} /></View>
+        {visibleProfilePicks.length > 0 ? (
           <ProfilePickGroups
-            picks={mainPicks}
+            picks={visibleProfilePicks}
             categories={categoriesQuery.data ?? []}
             onPressPick={openPick}
             onPressItem={openItem}
+            onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
           />
         ) : (
-          <StateCard title="아직 고른 원픽이 없어요" text="홈에서 지금 가장 좋아하는 하나를 골라보세요."
-            action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
+          <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
+            text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
+            action={profileScope === 'food' ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') } : undefined} />
         )}
-        {OnePickFeatures.lab ? <View style={styles.labEntry}>
-          <ProfileLabEntry count={labPicks.length} description="콘텐츠·테크·스타일 원픽은 실험실에 따로 모아둬요."
-            onPress={() => router.push({ pathname: '/lab/[username]', params: { username: profile.username } })} />
-        </View> : null}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
@@ -273,7 +304,13 @@ const styles = StyleSheet.create({
   summaryNumber: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   summaryLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   actionCopy: { flex: 1 },
-  labEntry: { marginTop: 14 },
+  profileShareRow: { gap: 8, marginTop: 14, marginBottom: 14 },
+  shareError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, textAlign: 'center' },
+  profileScopeTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  profileScopeTab: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 999, backgroundColor: OnePick.sunken },
+  profileScopeTabSelected: { backgroundColor: OnePick.text },
+  profileScopeText: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  profileScopeTextSelected: { color: OnePick.onAccent },
   managementSection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   activitySection: { marginTop: 30, paddingTop: 22, borderTopWidth: 1, borderTopColor: OnePick.border },
   secondaryEyebrow: { color: OnePick.hint, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },

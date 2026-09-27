@@ -60,6 +60,10 @@ export const queryKeys = {
     byUser: (userId: string) => ['picks', 'user', userId] as const,
     byCategory: (categoryId: string) => ['picks', 'category', categoryId] as const,
   },
+  providers: {
+    all: ['providers'] as const,
+    detail: (providerId?: string) => ['providers', 'detail', providerId ?? 'missing'] as const,
+  },
   profiles: {
     all: ['profiles'] as const,
     mine: (userId: string) => ['profiles', 'mine', userId] as const,

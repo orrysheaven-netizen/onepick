@@ -149,6 +149,15 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   pressable('서울집 상세 보기').onPress(); assert.equal(opened, 1);
   pressable('@friend 프로필 보기').onPress(); assert.equal(profile, 1);
 
+  let provider = 0;
+  render(React.createElement(ui.PickCard, {
+    channelLabel: '매장', providerName: '서울집', itemName: '미역국', review: '원픽 이유',
+    photo: {}, onPress() {}, onPressProvider: () => provider++, accessibilityLabel: '서울집 미역국 상세 보기',
+  }));
+  const providerLink = pressable('서울집 제공처 프로필 보기');
+  assert.ok(providerLink, 'Provider context is independently navigable when a provider profile exists');
+  providerLink.onPress({ stopPropagation() {} }); assert.equal(provider, 1);
+
   const noPhoto = render(React.createElement(ui.PickCard, {
     providerName: '서울집', itemName: '미역국', fallbackText: '한줄평 준비 중', photo: {},
     onPress() {}, accessibilityLabel: '사진 없는 원픽 상세 보기',

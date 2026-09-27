@@ -62,6 +62,8 @@ export interface HomeFeedPick {
   startedAt: string;
   /** Empty for legacy items with no channel, and on the following feed. */
   channels: PickChannel[];
+  /** Public provider profile for store/online items. */
+  providerId?: string | null;
 }
 
 export interface HomePickPage {
