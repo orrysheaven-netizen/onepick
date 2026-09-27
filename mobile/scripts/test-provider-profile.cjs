@@ -112,6 +112,12 @@ async function main() {
     (error) => error instanceof AppError && error.code === 'PROVIDER_NOT_FOUND',
   );
 
+  const screen = fs.readFileSync(path.join(root, 'src/app/provider/[providerId].tsx'), 'utf8');
+  assert.match(screen, /query\.data\.link \? <View style=\{styles\.links\}>/, 'external action links are optional');
+  assert.match(screen, /query\.data\.kind === 'offline_branch' \? '이곳의 원픽' : '이 판매처의 원픽'/);
+  assert.match(screen, /원픽 \{item\.pickCount\.toLocaleString\(\)\}/, 'provider menus use OnePick count language');
+  assert.doesNotMatch(screen, /Instagram|YouTube|SNS/, 'provider SNS remains outside PR 4');
+
   console.log('Provider profile checks passed: offline/online identity, optional safe link, menu rows, public Pick counts and hidden/not-found states.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
