@@ -81,7 +81,7 @@ async function main() {
   assert.match(migration, /p_channel text default null/);
   assert.match(migration, /grant execute on function public\.home_pick_feed_page\(timestamptz, uuid, text\) to anon, authenticated/);
 
-  const dishMigration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260927190000_add_home_feed_category_filter.sql'), 'utf8');
+  const dishMigration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260927200000_add_home_feed_category_filter.sql'), 'utf8');
   assert.match(dishMigration, /p_category_id is null or p\.category_id = p_category_id/);
   assert.match(dishMigration, /grant execute on function public\.home_pick_feed_page\(timestamptz, uuid, text, text, uuid\) to anon, authenticated/);
 
