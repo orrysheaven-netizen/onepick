@@ -131,6 +131,12 @@ async function actionable(locator) {
   await locator.first().click({ trial: true, timeout: STEP_TIMEOUT_MS });
 }
 
+// Escapes a value (e.g. an operator-supplied QA_* env var) for safe interpolation
+// into a RegExp source string.
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Bottom tab bar items are `Pressable accessibilityRole="tab"` wrapped in
 // expo-router `Link asChild`, which injects `role="link"` on web; RN gives `role`
 // precedence, so the DOM exposes them as links. Accept either role.
@@ -357,7 +363,7 @@ async function main() {
       await menuInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
         .catch(() => { throw new Error('매장 선택 후 메뉴 단계로 이동하지 않음'); });
       await menuInput.fill(MENU_QUERY);
-      const chip = page.getByRole('button', { name: new RegExp(`^${MENU_QUERY}$|^AI 추천 `) });
+      const chip = page.getByRole('button', { name: new RegExp(`^${escapeRegExp(MENU_QUERY)}$|^AI 추천 `) });
       await chip.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
         .catch(() => { throw new Error(`메뉴 검색 "${MENU_QUERY}"에 일치하는 메뉴·AI 추천 없음`); });
       await chip.first().click();
