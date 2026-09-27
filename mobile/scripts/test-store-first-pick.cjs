@@ -73,7 +73,10 @@ const { default: Screen } = load('app/pick/new.tsx', {
   '@/components/pick-photo-step': { PickPhotoStep: (props) => { photoSteps.push(props); return React.createElement('aside', null, 'PHOTO-STEP'); } },
   '@/components/ui': ui, '@/errors/appError': { AppError },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useChoosePick': { useChoosePick: () => mutation('choose', (input) => ({ id: 'pick-1', itemId: input.itemId })) },
+  '@/hooks/useChoosePick': {
+    useChoosePick: () => mutation('choose', (input) => ({ id: 'pick-1', itemId: input.itemId })),
+    useRequestPendingPick: () => mutation('requestPick', (input) => input.oneLineReview),
+  },
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
   '@/hooks/useLinkCategorySuggestions': { useAttachPendingItemLink: () => mutation('sellerLink', () => undefined) },
   '@/hooks/useRegisterPick': {
@@ -281,10 +284,27 @@ async function main() {
   page = render();
   assert.match(page, /등록 요청을 보냈어요/);
 
+  // A catalog store picked for the first time is a pending request: no photo
+  // step, and the review is sent with the request instead of becoming a Pick.
+  reset();
+  selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: false, pending: true };
+  render(); input('매장명 검색').onChangeText('우래옥'); render();
+  press('우래옥 선택'); render();
+  press('수육'); render(); press('수육(으)로 다음'); await flush();
+  page = render();
+  assert.equal(step(page), '5', 'A pending store skips the photo step');
+  assert.match(page, /관리자가 우래옥을\(를\) 확인해 승인하면/);
+  input('원픽 한줄평').onChangeText('수육이 부드러워요'); render();
+  press('등록 요청하고 원픽 남기기'); await flush();
+  assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]));
+  assert.equal(calls.filter(([name]) => name === 'choose').length, 0, 'A pending store is not picked directly');
+  page = render();
+  assert.match(page, /등록 요청을 보냈어요/);
+
   // The Naver link rule matches the database check.
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first pick checks passed: store-name search, AI and manual menus, link/photo steps skipped when present, review kept across steps, offline/online channels, and new store requests saved only at the end.');
+  console.log('Store-first pick checks passed: store-name search, AI and manual menus, link/photo steps skipped when present, review kept across steps, offline/online channels, new store requests saved only at the end, and pending catalog stores sent for review.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

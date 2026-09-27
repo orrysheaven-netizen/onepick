@@ -8,7 +8,7 @@ import { Button, Chip, StateCard } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useChoosePick } from '@/hooks/useChoosePick';
+import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
@@ -50,6 +50,7 @@ function errorMessage(error: unknown) {
       case 'CATEGORY_NOT_PICKABLE': return '이 메뉴는 지금 고를 수 없어요. 다른 메뉴를 골라주세요.';
       case 'ITEM_NOT_ELIGIBLE':
       case 'ITEM_NOT_FOUND': return '지금은 이 매장을 원픽으로 고를 수 없어요.';
+      case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록 요청한 매장이에요. 관리자 승인 후 원픽으로 고를 수 있어요.';
       case 'PROVIDER_NOT_FOUND': return '이 판매처는 지금 고를 수 없어요.';
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
       case 'ITEM_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
@@ -81,6 +82,7 @@ export default function NewPickScreen() {
   const [itemId, setItemId] = useState<string | null>(null);
   // Known from the selected item row itself, before the item detail loads.
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
+  const [itemPending, setItemPending] = useState(false);
   const [mapLink, setMapLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSaved, setLinkSaved] = useState(false);
@@ -110,6 +112,7 @@ export default function NewPickScreen() {
   const suggestLink = useSuggestMapLink();
   const choosePhoto = useChoosePhoto();
   const choosePick = useChoosePick();
+  const requestPick = useRequestPendingPick();
   const registration = useRegisterPick();
   const attachSellerLink = useAttachPendingItemLink();
   const menuHint = useSetMenuHint();
@@ -118,10 +121,12 @@ export default function NewPickScreen() {
   const itemHasPhoto = Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
   // Online sellers already carry their shop link; a store with an approved map link needs none.
   const needsLink = storeChannel === 'offline' && !(store?.kind === 'place' && store.mapUrl);
-  const needsPhoto = isNew || !(itemHadPhoto || itemHasPhoto);
+  // A pending request cannot take a photo yet (attach_item_photo needs a reviewed item).
+  const isRequest = isNew || itemPending;
+  const needsPhoto = isNew || (!itemPending && !(itemHadPhoto || itemHasPhoto));
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const saving = choosePick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
+  const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
 
   const nextFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : needsPhoto ? 4 : 5;
@@ -141,7 +146,7 @@ export default function NewPickScreen() {
 
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:${candidate.channel}:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
     }
     setStore(candidate);
     setStep(2);
@@ -161,7 +166,8 @@ export default function NewPickScreen() {
       const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
-      setStep(needsLink ? 3 : selected.hasPhoto ? 5 : 4);
+      setItemPending(selected.pending);
+      setStep(needsLink ? 3 : selected.hasPhoto || selected.pending ? 5 : 4);
     } catch { /* The mutation error is shown under the menu list. */ }
     finally { busy.current = false; }
   };
@@ -200,6 +206,12 @@ export default function NewPickScreen() {
     try {
       if (store.kind !== 'new') {
         if (!itemId || !menu.categoryId) return;
+        if (itemPending) {
+          await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
+          setDone({ type: 'pending', itemName: store.name, linkSaved });
+          setStep(6);
+          return;
+        }
         const pick = await choosePick.mutateAsync({
           categoryId: menu.categoryId, itemId, oneLineReview: trimmedReview, channel: storeChannel,
         });
@@ -253,12 +265,12 @@ export default function NewPickScreen() {
       });
       if (store.kind === 'place' && store.mapUrl) setMapLink(store.mapUrl);
     }
-    setItemId(null); setItemHadPhoto(false);
+    setItemId(null); setItemHadPhoto(false); setItemPending(false);
     setMenu({ categoryId: null, name: requestedMenu });
     setStep(storeChannel === 'offline' ? 3 : 4);
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
-    if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setLinkSaved(false); }
+    if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
     setMenu({ categoryId: option.categoryId, name: option.name });
   };
 
@@ -391,16 +403,16 @@ export default function NewPickScreen() {
         {step === 5 && store && menu ? <>
           <Text style={styles.title}>왜 여기가 원픽인가요?</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
-          {itemDetail.data?.myPickStatus?.type === 'selected_other'
+          {!itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
             ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
           <View style={styles.reviewHeader}><Text style={styles.section}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving} value={review}
             onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
             placeholder="예: 육수가 깔끔해서 계속 생각나요" placeholderTextColor={OnePick.hint} />
           {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
-          {isNew ? <Text style={styles.helper}>관리자가 {store.name}을(를) 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록돼요.</Text> : null}
+          {isRequest ? <Text style={styles.helper}>관리자가 {store.name}을(를) 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록돼요.</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
-          <Button fullWidth size="lg" label={isNew ? '등록 요청하고 원픽 남기기' : '원픽 등록'} loading={saving} onPress={() => void save()} style={styles.primary} />
+          <Button fullWidth size="lg" label={isRequest ? '등록 요청하고 원픽 남기기' : '원픽 등록'} loading={saving} onPress={() => void save()} style={styles.primary} />
         </> : null}
 
         {step === 6 && done && store && menu ? <View style={styles.doneCard}>

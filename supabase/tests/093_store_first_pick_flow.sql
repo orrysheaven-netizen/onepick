@@ -100,6 +100,11 @@ begin
   perform set_config('request.jwt.claim.sub',member::text,true);
   v_item := public.select_place_catalog_item(menu,catalog);
   v_menu2 := public.select_place_catalog_item(menu2,catalog);
+  -- New catalog places start as pending requests (096_review_new_catalog_places);
+  -- approve them so another member can suggest a link as on any existing store.
+  reset role;
+  update public.items set status='active' where id in (v_item.id,v_menu2.id);
+  set local role authenticated;
   begin
     perform public.suggest_item_map_link(v_item.id,'https://example.com/map');
     assert false, 'Only Naver map links are accepted';

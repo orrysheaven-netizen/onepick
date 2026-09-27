@@ -60,6 +60,8 @@ function placeErrorMessage(error: unknown) {
     if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인한 뒤 선택한 장소를 이어가주세요.';
     if (error.code === 'ITEM_NOT_FOUND') return '이 장소는 현재 원픽 장소 목록에서 찾을 수 없어요. 다시 검색해주세요.';
     if (error.code === 'ITEM_NOT_ELIGIBLE') return '지금은 이 장소를 선택할 수 없어요. 다른 지점을 찾아주세요.';
+    if (error.code === 'ITEM_ALREADY_PENDING') return '다른 사람이 먼저 등록 요청한 장소예요. 관리자 승인 후 원픽으로 고를 수 있어요.';
+    if (error.code === 'RATE_LIMITED') return '등록 요청이 많아요. 잠시 후 다시 시도해주세요.';
     if (error.code === 'CATEGORY_NOT_FOUND' || error.code === 'CATEGORY_NOT_PICKABLE' || error.code === 'ITEM_CATEGORY_MISMATCH') return '맛집 카테고리 정보를 확인하지 못했어요. 카테고리를 다시 불러와주세요.';
   }
   return '장소 정보를 불러오지 못했어요. 선택한 장소로 다시 시도할 수 있어요.';
