@@ -1,8 +1,8 @@
 # QA·운영 자동화 계획 (Claude ↔ ChatGPT/Codex)
 
-결정일: 2026-09-23. 역할 분담은 `docs/ai-role-division.md`, 일일 QA는 `docs/daily-qa.md`를 따른다.
+결정일: 2026-09-23. 2026-09-25부터 역할 분담 v2는 `docs/ai-role-division.md`, 일일 QA는 `docs/daily-qa.md`를 따른다.
 
-원칙: **사람이 따로 알리거나 시작 버튼을 누르지 않는다.** 각자 정해진 시각에 GitHub을 읽고 일한다. 진행 상황의 유일한 원본은 GitHub(이슈·PR·Actions)이다. 한 작업은 한 에이전트만 맡는다.
+원칙: **사람이 따로 알리거나 시작 버튼을 누르지 않는다.** 각자 정해진 시각에 GitHub을 읽고 일한다. 진행 상황의 유일한 원본은 GitHub(이슈·PR·Actions)이다. 한 작업은 한 에이전트만 맡는다. 작업량은 `size:S/M/L` 점수로 최근 14일 Codex 60% : Claude 40%를 목표로 하며, 보안 소유권은 비율보다 우선한다.
 
 ## 역할 분담
 
@@ -25,12 +25,12 @@
 | 시각 | 주체 | 일 |
 | --- | --- | --- |
 | 매일 06:00 | Actions `Daily QA` | 라이브 측정, 실사용자 오류 집계 |
-| 매일 06:30 | Claude 루틴 | `[Security QA]` 보안 점검 이슈 (`docs/daily-security.md`) |
-| 매일 07:00 | Claude 루틴 | `[Daily QA]` 이슈 작성 |
-| 매일 07:30 | ChatGPT 예약 작업 | 보안·QA 리포트를 읽고 오늘의 Codex 작업 순서 정리 (보안 우선) |
-| 매일 09~23시, 2시간마다 | Claude 루틴 | 열린 PR 리뷰와 QA 항목 수정 확인 (C) |
+| 매일 06:30 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Security QA]` 보안 점검 이슈 (`docs/daily-security.md`) |
+| 매일 07:00 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Daily QA]` 이슈 작성 |
+| 매일 07:30 | ChatGPT 예약 작업 | AI Ops 대시보드와 `handoff:codex`를 확인해 Codex의 제품·일반 버그·제한 리뷰 작업만 정리. 보안·DB 보호 영역 수정은 Claude 소유 |
+| 매일 09~23시, 2시간마다 | Claude 루틴 | 먼저 `handoff:claude` 한 건을 수락/진행한 뒤 열린 PR 리뷰와 QA 항목 수정 확인 (C) |
 | 매시 정각 (D 완료 후) | Actions | 실사용자 오류 급증 감지 |
-| 매주 월 08:00 | Claude 루틴 | `[Weekly QA]` 주간 추세 (I) |
+| 매주 월 08:00 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Weekly QA]` 주간 추세 (I) |
 | 매주 월 09:00 | Dependabot (H 완료 후) | 의존성 업데이트 PR |
 
 ### 단계별 마감
@@ -54,3 +54,16 @@
 - 항목마다 담당·마감 체크박스를 둔다. 완료한 에이전트가 PR 링크와 함께 체크한다.
 - PR 본문에는 `Refs #<추적 이슈>`와 항목 문자(A~I)를 적는다.
 - 상대가 맡은 항목은 구현하지 않는다. 리뷰와 댓글로만 참여한다.
+
+
+## 역할 분담 v2 운영 (2026-09-25)
+
+- 기준 이슈: #295 `[AI 운영] ChatGPT/Codex 60 : Claude 40 역할 분담 v2`
+- 공용 상태판: #296 `[AI Ops] OnePick 작업·인계 대시보드`
+- 완료 보고는 별도 완료 이슈가 아니라 원래 작업 이슈의 `## 완료 리포트` 댓글로 남긴다.
+- 후속 담당이 바뀌면 `state:handoff` + `handoff:codex` 또는 `handoff:claude`를 붙인다.
+- 두 AI는 세션 시작 시 #296 → 자기 handoff → 해당 작업 이슈/PR 순서로 읽는다.
+- Claude의 모든 예약 루틴과 일반 세션은 `CLAUDE.md`의 공통 handoff preflight를 먼저 수행한다. 한 번에 한 이슈만 수락하고, 수락 즉시 `handoff:claude`를 제거해 중복 실행을 막는다.
+- 예약 루틴의 필수 산출물(Security QA, Daily QA, Weekly QA 등)은 handoff 수락 때문에 생략하지 않는다.
+- AI Ops workflow는 GitHub 이슈/라벨/PR 데이터만 사용하고 외부 AI API를 호출하지 않는다.
+- 기존 A~I 자동화 항목의 역사적 결정은 유지하되, 현재 담당이 v2 보호 영역과 충돌하면 `docs/ai-role-division.md`가 우선한다.
