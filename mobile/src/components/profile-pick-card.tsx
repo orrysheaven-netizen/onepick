@@ -7,6 +7,10 @@ type Props = {
   categoryName: string;
   itemName: string;
   review: string;
+  /** Food A hierarchy: [channel][provider] → menu → one-line review. */
+  channelLabel?: string | null;
+  providerName?: string | null;
+  menuName?: string | null;
   imageUri?: string | null;
   itemId?: string;
   itemStatus?: string;
@@ -23,6 +27,9 @@ export function ProfilePickCard({
   categoryName,
   itemName,
   review,
+  channelLabel,
+  providerName,
+  menuName,
   imageUri,
   itemId,
   itemStatus,
@@ -33,11 +40,16 @@ export function ProfilePickCard({
   onPressItem,
   layout = 'row',
 }: Props) {
+  const foodHierarchy = Boolean(channelLabel && menuName);
+  const displayProvider = providerName?.trim() || itemName;
+  const displayMenu = menuName?.trim() || categoryName;
+  const pickLabel = foodHierarchy ? `${channelLabel} ${displayProvider} ${displayMenu}` : `${categoryName} ${itemName}`;
+
   if (layout === 'tile') {
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
+        accessibilityLabel={`${pickLabel} 원픽 상세 보기`}
         onPress={onPressPick}
         style={({ pressed }) => [styles.tile, muted && styles.cardMuted, pressed && styles.pressed]}>
         <PickPhoto square uri={imageUri} label={itemName} itemId={itemId} itemStatus={itemStatus} hasPhoto={hasPhoto} />
@@ -63,17 +75,27 @@ export function ProfilePickCard({
       <View style={styles.body}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${categoryName} ${itemName} 원픽 상세 보기`}
+          accessibilityLabel={`${pickLabel} 원픽 상세 보기`}
           onPress={onPressPick}
           style={({ pressed }) => [styles.mainAction, pressed && styles.pressed]}>
-          <View style={styles.categoryRow}>
-            <View style={styles.categoryPill}>
-              <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
+          {foodHierarchy ? <>
+            <View style={styles.foodContextRow}>
+              <View style={styles.channelPill}>
+                <Text numberOfLines={1} style={styles.channelText}>{channelLabel}</Text>
+              </View>
+              <Text numberOfLines={1} style={styles.providerName}>{displayProvider}</Text>
+              <Text style={styles.chevron}>›</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
-          </View>
-
-          <Text numberOfLines={2} style={styles.name}>{itemName}</Text>
+            <Text numberOfLines={2} style={styles.name}>{displayMenu}</Text>
+          </> : <>
+            <View style={styles.categoryRow}>
+              <View style={styles.categoryPill}>
+                <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+            <Text numberOfLines={2} style={styles.name}>{itemName}</Text>
+          </>}
           <Text numberOfLines={2} style={styles.review}>“{review}”</Text>
           {statusText ? <Text style={styles.status}>{statusText}</Text> : null}
         </Pressable>
@@ -81,7 +103,7 @@ export function ProfilePickCard({
         {onPressItem ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${itemName} 상세 보기`}
+            accessibilityLabel={`${displayProvider} 상세 보기`}
             hitSlop={4}
             onPress={onPressItem}
             style={({ pressed }) => [styles.itemAction, pressed && styles.pressed]}>
@@ -98,12 +120,9 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: OnePick.border,
-    backgroundColor: OnePick.surface,
-    borderRadius: 20,
-    padding: 12,
-    marginBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: OnePick.border,
+    paddingVertical: 12,
   },
   cardMuted: { opacity: 0.68 },
   tile: { flexGrow: 1, flexBasis: '46%', maxWidth: '48.5%', gap: 10, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 12 },
@@ -114,6 +133,10 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0, paddingLeft: 12 },
   mainAction: { minHeight: 76 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  foodContextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
+  channelPill: { borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
+  channelText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  providerName: { flex: 1, minWidth: 0, color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '500' },
   categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
   category: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24, marginTop: -2 },
