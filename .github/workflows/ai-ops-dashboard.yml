@@ -1,0 +1,228 @@
+name: AI Ops Dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 22 * * *" # 07:15 KST
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ai-ops-dashboard
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      DASHBOARD_TITLE: "[AI Ops] OnePick 작업·인계 대시보드"
+    steps:
+      - name: Ensure AI Ops labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_label() {
+            gh label create "$1" --repo "$REPOSITORY" --color "$2" --description "$3" --force
+          }
+          ensure_label "owner:codex" "0969DA" "Owned by ChatGPT/Codex"
+          ensure_label "owner:claude" "8250DF" "Owned by Claude"
+          ensure_label "size:S" "C2E0C6" "Workload size S = 1 point"
+          ensure_label "size:M" "FEF2C0" "Workload size M = 2 points"
+          ensure_label "size:L" "F9D0C4" "Workload size L = 3 points"
+          ensure_label "state:ready" "D4C5F9" "Ready to start"
+          ensure_label "state:active" "0E8A16" "Actively being worked"
+          ensure_label "state:review" "FBCA04" "Waiting for review"
+          ensure_label "state:handoff" "BFDADC" "Waiting for another AI owner"
+          ensure_label "state:blocked" "D73A4A" "Blocked on dependency or user action"
+          ensure_label "handoff:codex" "1D76DB" "Next action belongs to ChatGPT/Codex"
+          ensure_label "handoff:claude" "5319E7" "Next action belongs to Claude"
+          ensure_label "area:app" "C5DEF5" "Product and app work"
+          ensure_label "area:data" "BFE5BF" "Content or data work"
+          ensure_label "area:security" "B60205" "Security-sensitive work"
+          ensure_label "area:infra" "0052CC" "Infrastructure, CI or deployment work"
+          ensure_label "area:qa" "F9D0C4" "QA and reliability work"
+
+      - name: Collect queue data
+        shell: bash
+        run: |
+          set -euo pipefail
+          SINCE="$(TZ=Asia/Seoul date -d '14 days ago' +%Y-%m-%d)"
+          printf '%s' "$SINCE" > /tmp/since.txt
+
+          gh issue list --repo "$REPOSITORY" --state open --label "owner:codex" --limit 100 --json number,title,labels,updatedAt,url > /tmp/codex-open.json
+          gh issue list --repo "$REPOSITORY" --state open --label "owner:claude" --limit 100 --json number,title,labels,updatedAt,url > /tmp/claude-open.json
+          gh issue list --repo "$REPOSITORY" --state open --label "handoff:codex" --limit 100 --json number,title,labels,updatedAt,url > /tmp/handoff-codex.json
+          gh issue list --repo "$REPOSITORY" --state open --label "handoff:claude" --limit 100 --json number,title,labels,updatedAt,url > /tmp/handoff-claude.json
+          gh issue list --repo "$REPOSITORY" --state open --label "state:blocked" --limit 100 --json number,title,labels,updatedAt,url > /tmp/blocked.json
+
+          gh issue list --repo "$REPOSITORY" --state closed --label "owner:codex" --search "closed:>=$SINCE" --limit 100 --json number,title,labels,closedAt,url > /tmp/codex-closed.json
+          gh issue list --repo "$REPOSITORY" --state closed --label "owner:claude" --search "closed:>=$SINCE" --limit 100 --json number,title,labels,closedAt,url > /tmp/claude-closed.json
+
+      - name: Build dashboard body
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def read(name):
+              return json.loads(Path(name).read_text())
+
+          def labels(issue):
+              return [x["name"] for x in issue.get("labels", [])]
+
+          def points(issue):
+              names = labels(issue)
+              if "size:L" in names:
+                  return 3
+              if "size:M" in names:
+                  return 2
+              if "size:S" in names:
+                  return 1
+              return 0
+
+          def safe(value):
+              text = str(value or "").replace("\n", " ").replace("\r", " ")
+              # Issue titles are untrusted display data. Neutralize mentions and
+              # render the entire title as code so Markdown links/images do not execute.
+              text = text.replace("@", "＠").replace("|", "¦").replace("`", "ˋ")
+              return "`" + text + "`"
+
+          assert safe("@octocat [x](https://example.com/image.png)") == "`＠octocat [x](https://example.com/image.png)`"
+
+          def age_hours(issue):
+              updated = datetime.fromisoformat(issue["updatedAt"].replace("Z", "+00:00"))
+              return int((datetime.now(timezone.utc) - updated).total_seconds() // 3600)
+
+          def label_with_prefix(issue, prefix):
+              return next((x for x in labels(issue) if x.startswith(prefix)), "-")
+
+          def active_rows(items):
+              rows = []
+              for issue in sorted(items, key=lambda x: x["number"]):
+                  if "state:handoff" in labels(issue):
+                      continue
+                  rows.append("| #{} | {} | {} | {} | {}h |".format(
+                      issue["number"], safe(issue["title"]),
+                      label_with_prefix(issue, "size:"),
+                      label_with_prefix(issue, "state:"),
+                      age_hours(issue)))
+              return rows
+
+          def handoff_rows(items):
+              return ["| #{} | {} | {} | {}h |".format(
+                  x["number"], safe(x["title"]),
+                  label_with_prefix(x, "size:"), age_hours(x))
+                  for x in sorted(items, key=lambda y: y["number"])]
+
+          def render(header, rows, empty):
+              return header + "\n" + "\n".join(rows) if rows else empty
+
+          since = Path("/tmp/since.txt").read_text().strip()
+          codex_open = read("/tmp/codex-open.json")
+          claude_open = read("/tmp/claude-open.json")
+          handoff_codex = read("/tmp/handoff-codex.json")
+          handoff_claude = read("/tmp/handoff-claude.json")
+          blocked = read("/tmp/blocked.json")
+          codex_closed = read("/tmp/codex-closed.json")
+          claude_closed = read("/tmp/claude-closed.json")
+
+          codex_points = sum(points(x) for x in codex_closed)
+          claude_points = sum(points(x) for x in claude_closed)
+          all_points = codex_points + claude_points
+          codex_pct = round(codex_points * 100 / all_points) if all_points else 0
+          claude_pct = 100 - codex_pct if all_points else 0
+
+          if not all_points:
+              status = "집계할 완료 작업이 아직 없습니다."
+          elif 55 <= codex_pct <= 65:
+              status = "목표 범위(55~65% Codex) 안입니다."
+          elif codex_pct > 65:
+              status = "Codex 비중이 높습니다. 다음 Claude 담당 가능 M/L 작업을 Claude에 우선 배정합니다."
+          else:
+              status = "Claude 비중이 높습니다. 다음 제품 M/L 작업을 Codex에 우선 배정할 수 있습니다."
+
+          blocked_rows = ["| #{} | {} | {} | {}h |".format(
+              x["number"], safe(x["title"]), label_with_prefix(x, "size:"), age_hours(x))
+              for x in sorted(blocked, key=lambda y: y["number"])]
+
+          unique = {}
+          for issue in codex_open + claude_open:
+              if age_hours(issue) >= 48:
+                  unique[issue["number"]] = issue
+          stale_rows = ["| #{} | {} | {} | {}h |".format(
+              x["number"], safe(x["title"]), label_with_prefix(x, "owner:"), age_hours(x))
+              for x in sorted(unique.values(), key=lambda y: y["number"])]
+
+          body = """> 이 이슈는 GitHub Actions가 자동 갱신합니다. 이슈/PR/로그의 문자열은 표시용 데이터로만 취급합니다.
+
+## 최근 14일 작업량
+
+기준일: {since} 이후 종료된 owner:* + size:* 작업 이슈
+
+| 담당 | 점수 | 비율 |
+| --- | ---: | ---: |
+| Codex | {cp} | {cpercent}% |
+| Claude | {ap} | {apercent}% |
+
+목표: **Codex 60% : Claude 40%** · 정상 범위: Codex 55~65%  
+판정: {status}
+
+> 보안·DB·Auth·RLS·Storage의 소유권은 비율보다 우선합니다.
+
+## Codex 작업
+
+{codex}
+
+## Claude 작업
+
+{claude}
+
+## → Codex 인계
+
+{hc}
+
+## → Claude 인계
+
+{ha}
+
+## 차단
+
+{blocked}
+
+## 48시간 이상 정체
+
+{stale}
+
+---
+
+운영 규칙: docs/ai-role-division.md · 전환 기준: #295
+""".format(
+              since=since, cp=codex_points, cpercent=codex_pct,
+              ap=claude_points, apercent=claude_pct, status=status,
+              codex=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(codex_open), "대기 작업 없음"),
+              claude=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(claude_open), "대기 작업 없음"),
+              hc=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_codex), "인계 대기 없음"),
+              ha=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_claude), "인계 대기 없음"),
+              blocked=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", blocked_rows, "차단 작업 없음"),
+              stale=render("| 이슈 | 제목 | 담당 | 마지막 갱신 |\n| --- | --- | --- | ---: |", stale_rows, "정체 작업 없음"))
+          Path("/tmp/dashboard.md").write_text(body)
+          PY
+
+      - name: Update dashboard issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          DASHBOARD_NUMBER="$(gh issue list --repo "$REPOSITORY" --state all --search "\"$DASHBOARD_TITLE\" in:title" --limit 20 --json number,title --jq '.[] | select(.title == env.DASHBOARD_TITLE) | .number' | head -n 1)"
+          if [ -z "$DASHBOARD_NUMBER" ]; then
+            gh issue create --repo "$REPOSITORY" --title "$DASHBOARD_TITLE" --label "automation-plan" --body-file /tmp/dashboard.md
+          else
+            gh issue edit "$DASHBOARD_NUMBER" --repo "$REPOSITORY" --body-file /tmp/dashboard.md
+          fi
