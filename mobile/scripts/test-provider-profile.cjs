@@ -21,7 +21,14 @@ function load(relative, imports = {}) {
 }
 
 class Query {
-  constructor(rows) { this.rows = rows; this.filters = []; this.start = 0; this.end = null; }
+  constructor(rows, name, hooks) {
+    this.rows = rows;
+    this.name = name;
+    this.hooks = hooks;
+    this.filters = [];
+    this.start = 0;
+    this.end = null;
+  }
   select() { return this; }
   eq(key, value) { this.filters.push((row) => row[key] === value); return this; }
   in(key, values) { this.filters.push((row) => values.includes(row[key])); return this; }
@@ -31,13 +38,19 @@ class Query {
     if (this.end !== null) rows = rows.slice(this.start, this.end + 1);
     return rows;
   }
-  async maybeSingle() { return { data: this.result()[0] ?? null, error: null }; }
+  async maybeSingle() {
+    if (this.hooks.beforeMaybeSingle) await this.hooks.beforeMaybeSingle(this.name);
+    return { data: this.result()[0] ?? null, error: null };
+  }
   then(resolve, reject) { return Promise.resolve({ data: this.result(), error: null }).then(resolve, reject); }
 }
 
-function client(tables) {
+function client(tables, hooks = {}) {
   return {
-    from: (name) => new Query(tables[name] ?? []),
+    from: (name) => {
+      if (hooks.onFrom) hooks.onFrom(name);
+      return new Query(tables[name] ?? [], name, hooks);
+    },
     storage: { from: () => ({ getPublicUrl: (value) => ({ data: { publicUrl: 'https://storage.test/' + value } }) }) },
   };
 }
@@ -90,6 +103,25 @@ async function main() {
   assert.deepEqual({ ...offline.link }, { label: '지도 보기', url: 'https://map.example/seoul-house', host: 'map.example' });
   assert.deepEqual(Array.from(offline.items, (item) => [item.menuName, item.pickCount]), [['미역국', 2], ['국밥', 1]], 'provider menus sort by current Pick count');
   assert.equal(offline.items[0].thumbnailUrl, 'https://storage.test/soup-thumb.jpg');
+
+  let mappingStartedResolve;
+  const mappingStarted = new Promise((resolve) => { mappingStartedResolve = resolve; });
+  const concurrentDb = client(tables, {
+    onFrom: (name) => {
+      if (name === 'item_providers') mappingStartedResolve();
+    },
+    beforeMaybeSingle: async (name) => {
+      if (name !== 'places') return;
+      await Promise.race([
+        mappingStarted,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('item_providers must start before the place lookup settles')),
+          100,
+        )),
+      ]);
+    },
+  });
+  await new ProviderProfileService(concurrentDb, concurrentDb).get(providerId);
 
   const onlineProvider = '77777777-7777-4777-8777-777777777777';
   const storeId = '88888888-8888-4888-8888-888888888888';
