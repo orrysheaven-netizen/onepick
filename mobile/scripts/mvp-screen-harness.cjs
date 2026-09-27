@@ -31,6 +31,11 @@ function screen(relative, imports, platform = 'ios') {
       return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
     },
     useMemo: (fn) => fn(),
+    useRef(initial) {
+      const i = cursor++;
+      if (!(i in states)) states[i] = { current: initial };
+      return states[i];
+    },
     useEffect: (fn) => { effects.push(fn); },
   };
   const Screen = load(relative, {
