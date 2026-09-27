@@ -498,9 +498,10 @@ async function main() {
       await page.getByText('공개 프로필 보기').first().click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
-      // The public profile keeps its "현재 원픽 N개" summary card before and after #308. Only visible
-      // matches count: a still-mounted own-profile screen can hold the same label while hidden.
-      await page.getByText('현재 원픽', { exact: true }).filter({ visible: true }).first()
+      // The public profile's summary card reads "음식 원픽 N개" since #445 (before: "현재 원픽").
+      // Only visible matches count: a still-mounted own-profile screen can hold the same label
+      // while hidden.
+      await page.getByText(/^(음식|현재) 원픽$/).filter({ visible: true }).first()
         .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
