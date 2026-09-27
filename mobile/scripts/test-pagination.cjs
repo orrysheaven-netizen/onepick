@@ -30,7 +30,9 @@ const row = (i, timestamp = time) => ({
 async function main() {
   const { AppError } = load('errors/appError.ts');
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
-  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError } };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
@@ -182,7 +184,9 @@ async function main() {
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const hooksImports = {
     '@tanstack/react-query': { useInfiniteQuery: (options) => options },
-    '@/lib/query/queryKeys': { queryKeys }, '@/services': { exploreService: explore, commentService, profileService },
+    '@/lib/query/queryKeys': { queryKeys },
+    '@/services/exploreServiceInstance': { exploreService: explore },
+    '@/services': { commentService, profileService },
   };
   const { useExploreData } = load('hooks/useExploreData.ts', hooksImports);
   const { usePickComments } = load('hooks/usePickComments.ts', hooksImports);

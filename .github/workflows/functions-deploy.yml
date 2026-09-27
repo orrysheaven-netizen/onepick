@@ -1,0 +1,233 @@
+name: Deploy Edge Functions
+
+# Merging to main does not deploy Edge Functions. Run this workflow manually
+# after Deploy Database Migrations (apply) so functions never run ahead of the
+# schema they depend on.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Choose dry-run first. Apply only after reviewing the function status table."
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+      functions:
+        description: "all, or comma-separated function slugs (e.g. youtube-catalog,movie-catalog)"
+        required: true
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: onepick-functions-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
+      MODE: ${{ inputs.mode }}
+      FUNCTIONS_INPUT: ${{ inputs.functions }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          # Full history so the status table can compare each function's last
+          # change on main with its deployed time.
+          fetch-depth: 0
+
+      - name: Require deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
+        with:
+          version: 2.118.0
+
+      - name: Resolve target functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets=()
+          if [ "$(echo "$FUNCTIONS_INPUT" | tr -d '[:space:]')" = "all" ]; then
+            for dir in supabase/functions/*/; do
+              slug="$(basename "$dir")"
+              case "$slug" in _*) continue ;; esac
+              [ -f "$dir/index.ts" ] && targets+=("$slug")
+            done
+          else
+            IFS=',' read -r -a requested <<< "$FUNCTIONS_INPUT"
+            for raw in "${requested[@]}"; do
+              slug="$(echo "$raw" | tr -d '[:space:]')"
+              [ -z "$slug" ] && continue
+              if ! [[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] || [ ! -f "supabase/functions/$slug/index.ts" ]; then
+                echo "::error::Unknown function '$slug'. Use a directory name under supabase/functions."
+                exit 1
+              fi
+              targets+=("$slug")
+            done
+          fi
+          if [ "${#targets[@]}" -eq 0 ]; then
+            echo "::error::No functions selected."
+            exit 1
+          fi
+          printf '%s\n' "${targets[@]}" | sort -u > "$RUNNER_TEMP/targets.txt"
+          echo "Targets:"; cat "$RUNNER_TEMP/targets.txt"
+
+      - name: Snapshot deployed functions
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF" -o json > "$RUNNER_TEMP/before.json"
+
+      - name: Show function status
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, subprocess, tomllib
+          from datetime import datetime, timezone
+
+          tmp = os.environ["RUNNER_TEMP"]
+          targets = open(f"{tmp}/targets.txt").read().split()
+          remote = {f["slug"]: f for f in json.load(open(f"{tmp}/before.json"))}
+          config = tomllib.load(open("supabase/config.toml", "rb")).get("functions", {})
+
+          def last_change_ms(slug):
+              out = subprocess.run(
+                  ["git", "log", "-1", "--format=%ct", "--",
+                   f"supabase/functions/{slug}", "supabase/functions/_shared"],
+                  capture_output=True, text=True, check=True).stdout.strip()
+              return int(out) * 1000 if out else 0
+
+          def fmt(ms):
+              return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+          rows = []
+          for slug in targets:
+              want_jwt = config.get(slug, {}).get("verify_jwt", True)
+              changed = last_change_ms(slug)
+              fn = remote.get(slug)
+              if fn is None:
+                  rows.append((slug, "-", "-", f"{want_jwt}", fmt(changed), "not deployed"))
+                  continue
+              notes = []
+              if changed > fn["updated_at"]:
+                  notes.append("main changed after deploy")
+              if fn["verify_jwt"] != want_jwt:
+                  notes.append(f"verify_jwt {fn['verify_jwt']} != config {want_jwt}")
+              rows.append((slug, str(fn["version"]), fmt(fn["updated_at"]),
+                           f"{fn['verify_jwt']} / {want_jwt}", fmt(changed),
+                           "; ".join(notes) or "up to date"))
+
+          lines = [
+              "### Edge Functions before deploy",
+              "",
+              "| Function | Version | Deployed | verify_jwt (remote / config) | Last change on main | Status |",
+              "| --- | --- | --- | --- | --- | --- |",
+              *("| " + " | ".join(r) + " |" for r in rows),
+              "",
+          ]
+          if os.environ["MODE"] != "apply":
+              lines.append("Dry run only. Rerun Deploy Edge Functions with `mode=apply` to deploy.")
+          text = "\n".join(lines)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(text + "\n")
+          PY
+
+      - name: Link onepick-dev
+        if: env.MODE == 'apply'
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Require database to be deployed first
+        if: env.MODE == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log_file="$(mktemp)"
+          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          if grep -q '^Would push these migrations:' "$log_file"; then
+            echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
+            exit 1
+          fi
+
+      - name: Deploy functions
+        if: env.MODE == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # verify_jwt and other per-function settings come from supabase/config.toml.
+          mapfile -t targets < "$RUNNER_TEMP/targets.txt"
+          supabase functions deploy "${targets[@]}" --project-ref "$SUPABASE_PROJECT_REF" 2>&1 \
+            | tee "$RUNNER_TEMP/deploy.log"
+
+      - name: Verify deployed functions
+        if: env.MODE == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "$SUPABASE_PROJECT_REF" -o json > "$RUNNER_TEMP/after.json"
+          python3 - <<'PY'
+          import json, os, tomllib
+
+          tmp = os.environ["RUNNER_TEMP"]
+          targets = open(f"{tmp}/targets.txt").read().split()
+          before = {f["slug"]: f for f in json.load(open(f"{tmp}/before.json"))}
+          after = {f["slug"]: f for f in json.load(open(f"{tmp}/after.json"))}
+          config = tomllib.load(open("supabase/config.toml", "rb")).get("functions", {})
+          # The CLI skips uploading a function whose bundle is identical to the
+          # deployed one, so its version legitimately stays the same.
+          skip_prefix = "No change found in Function: "
+          unchanged = {line.strip()[len(skip_prefix):] for line in open(f"{tmp}/deploy.log")
+                       if line.strip().startswith(skip_prefix)}
+
+          failures, rows = [], []
+          for slug in targets:
+              fn = after.get(slug)
+              old_version = before.get(slug, {}).get("version", 0)
+              want_jwt = config.get(slug, {}).get("verify_jwt", True)
+              if fn is None:
+                  failures.append(f"{slug}: missing after deploy")
+                  continue
+              problems = []
+              if slug in unchanged:
+                  if fn["version"] != old_version:
+                      problems.append(f"reported unchanged but version {old_version} → {fn['version']}")
+              elif fn["version"] <= old_version:
+                  problems.append(f"version stayed at {fn['version']}")
+              if fn["status"] != "ACTIVE":
+                  problems.append(f"status {fn['status']}")
+              if fn["verify_jwt"] != want_jwt:
+                  problems.append(f"verify_jwt {fn['verify_jwt']} != config {want_jwt}")
+              failures += [f"{slug}: {p}" for p in problems]
+              rows.append(f"| {slug} | {old_version} → {fn['version']} | {fn['verify_jwt']} | "
+                          f"{'; '.join(problems) or ('unchanged' if slug in unchanged else 'ok')} |")
+
+          lines = ["### Edge Functions after deploy", "",
+                   "| Function | Version | verify_jwt | Result |", "| --- | --- | --- | --- |", *rows, ""]
+          if failures:
+              lines.append("Verification failed:")
+              lines += [f"- {f}" for f in failures]
+          text = "\n".join(lines)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(text + "\n")
+          for f in failures:
+              print(f"::error::{f}")
+          raise SystemExit(1 if failures else 0)
+          PY

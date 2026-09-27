@@ -1,0 +1,127 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+
+function load(relativePath, imports = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', 'src', relativePath), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, {
+    exports,
+    require: (name) => {
+      if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name in imports) return imports[name];
+      if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+      assert.fail(`Unexpected runtime dependency: ${name}`);
+    },
+  });
+  return exports;
+}
+
+const source = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
+
+// Restaurant titles name the menu: 가게이름 + 메뉴명.
+const { itemTitle } = load('lib/items/itemTitle.ts');
+assert.equal(itemTitle('중앙해장', '내장탕', true), '중앙해장 내장탕');
+assert.equal(itemTitle('대성집 도가니탕', '도가니탕', true), '대성집 도가니탕', 'Names that already end with the menu are not doubled');
+assert.equal(itemTitle('신라면', '라면', false), '신라면', 'Non-restaurant items keep their own name');
+assert.equal(itemTitle('중앙해장', null, true), '중앙해장');
+
+// The service marks items under the food root, read from the open categories.
+const { categoryRootSlug } = load('lib/categories/categoryTree.ts');
+const tree = [
+  { id: 'food', parentId: null, slug: 'food' },
+  { id: 'soups', parentId: 'food', slug: 'food-soups-rice' },
+  { id: 'naejang', parentId: 'soups', slug: 'naejangtang' },
+];
+assert.equal(categoryRootSlug(tree[2], tree), 'food');
+assert.match(source('repositories/supabase/supabaseCategoryRepository.ts'), /rootSlug: categoryRootSlug\(category, categories\)/);
+assert.match(source('services/itemService.ts'), /category\.rootSlug === 'food'/);
+
+// Only the number is bold, and "현재" is gone.
+const nativeComponent = (tag) => ({ children, style, accessibilityLabel, onPress }) => React.createElement(tag, {
+  'data-bold': [].concat(style || []).some((entry) => entry && entry.fontWeight === '800') ? 'true' : undefined,
+  'aria-label': accessibilityLabel, onClick: onPress,
+}, children);
+let count = { data: 12 };
+const { ItemPickCount } = load('components/item-pick-count.tsx', {
+  'react-native': { Text: nativeComponent('span') },
+  '@/hooks/useItemPickCount': { useItemPickCount: () => count },
+});
+const countHtml = renderToStaticMarkup(React.createElement(ItemPickCount, { itemId: 'i' }));
+assert.match(countHtml, /<span data-bold="true">12<\/span>명이 원픽으로 선택/);
+assert.doesNotMatch(countHtml, /현재/);
+
+// Detail hero: tiny credit, no guide text, no own-review button, no section header.
+const detail = source('app/item/[itemId].tsx');
+assert.match(detail, />사진 @\{credit\.username\}</);
+assert.doesNotMatch(detail, /사진 등록 · @|아래에서 함께 볼 수 있어요|내 원픽 한줄평 보기\/수정|title="원픽 한줄평"|각 한줄평에서 댓글로 대화해요/);
+assert.match(detail, /itemTitle\(item\.name, category\?\.name, isRestaurant\)/);
+
+// Review cards: other people's threads open, mine behind "댓글 보기"; a share icon on every card.
+const replies = [];
+const native = {
+  Pressable: nativeComponent('button'), Text: nativeComponent('span'), View: nativeComponent('div'),
+  StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
+};
+let session = { user: { id: 'me' }, isLoading: false };
+const { ItemReviewCard } = load('components/item-review-card.tsx', {
+  'expo-router': { useRouter: () => ({ push() {} }) },
+  'react-native': native,
+  '@/components/pick-management': {
+    PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
+    PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
+  },
+  '@/components/pick-replies': { PickReplies: ({ pickId, compact, canWrite }) => { replies.push({ pickId, compact, canWrite }); return React.createElement('i', null, `thread:${pickId}`); } },
+  '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
+  '@/components/ui': { Avatar: () => null },
+  '@/hooks/useAuthSession': { useAuthSession: () => session },
+});
+const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
+  pick, profile, categoryName: '내장탕', itemName: '중앙해장', focused: false, highlighted: false, onRemoved() {},
+}));
+const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다' }, { username: 'someone' });
+assert.match(other, /thread:o1/, "Other people's comments are shown expanded");
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o1', compact: true, canWrite: true });
+assert.match(other, /share:o1/);
+assert.match(other, /@someone/);
+assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고/);
+
+const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기' }, { username: 'me' });
+assert.match(mine, /내 한줄평/);
+assert.doesNotMatch(mine, /@me|내 원픽</, 'My own card shows 내 한줄평 instead of my id or the 내 원픽 badge');
+assert.match(mine, /수정 · 해제/);
+assert.match(mine, /share:m1/);
+assert.doesNotMatch(mine, /댓글 보기|댓글 숨기기/, 'My own review has no comment toggle');
+assert.match(mine, /thread:m1/, 'Comments others left on my review stay visible');
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'm1', compact: true, canWrite: false }, 'No 댓글 쓰기 on my own review');
+
+// The session resolves after the first render; once it says the card is mine, writing is withdrawn.
+session = { user: null, isLoading: true };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, true, 'Signed-out/loading viewers see the thread like any other');
+session = { user: { id: 'me' }, isLoading: false };
+assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
+assert.equal(replies.pop().canWrite, false, 'Ownership is read on every render, not stored from the first one');
+
+session = { user: { id: 'me' }, isLoading: true };
+assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);
+
+// Share actions: icon per card, 신고 only behind ⋯ and never on my own Pick.
+const shareSource = source('components/pick-share-actions.tsx');
+assert.match(shareSource, /accessibilityLabel="이 원픽 공유"/);
+assert.match(shareSource, /<Text style=\{styles\.more\}>⋯<\/Text>/);
+assert.match(shareSource, /menuOpen && canReport && user \? <View style=\{styles\.menu\}>\s*<ReportAction/);
+assert.match(shareSource, /user\.id !== props\.authorUserId/);
+
+// Compact threads keep the composer behind "댓글 쓰기" and drop the empty-state line.
+const repliesSource = source('components/pick-replies.tsx');
+assert.match(repliesSource, /useState\(!compact\)/);
+assert.match(repliesSource, /canComment && !composing \?/);
+assert.match(repliesSource, /!compact && !commentsQuery\.isPending/);
+
+console.log('Item detail simplify passed: restaurant titles, bold count, trimmed hero, per-card share, open threads for others and my own management actions.');

@@ -3,15 +3,22 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type {
+  DishChannelItem,
+  DishChannelOverview,
+  ItemBrand,
+  PickChannel,
   PickReadInput,
   ReadCursor,
   ReadRepository,
+  RootCategoryScope,
 } from '@/repositories/interfaces/readRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
 import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
+import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
+import { fetchItemProviderIds } from '@/repositories/supabase/itemProviders';
 
 type PickRow = Database['public']['Tables']['picks']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -41,6 +48,9 @@ type PickReadRow = PickRow & {
 };
 type CommentReadRow = CommentRow & {
   author: Related<ProfileRow>;
+};
+type MyCommentReadRow = CommentRow & {
+  pick: Related<PickRow & { profile: Related<ProfileRow>; item: Related<ItemRow> }>;
 };
 type ItemRequestReadRow = ItemRow & {
   category: Related<CategoryRow>;
@@ -82,33 +92,97 @@ export class SupabaseReadRepository implements ReadRepository {
       : row.image_source_url ?? null;
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null) {
-    return this.pickFeedPage('home_pick_feed_page', cursor);
+  /**
+   * Brand logo URL per item (99밀크티's logo for its 강남점 milk tea). A card only
+   * falls back to it, so a failed lookup degrades to the plain placeholder.
+   */
+  private async brandLogoUrls(client: AppSupabaseClient, itemIds: readonly string[]) {
+    const logos = new Map<string, string>();
+    const ids = [...new Set(itemIds)];
+    if (!ids.length) return logos;
+    try {
+      const { data, error } = await client.rpc('item_brands', { p_item_ids: ids });
+      if (error || !Array.isArray(data)) return logos;
+      for (const row of data) {
+        if (row.logo_path) logos.set(row.item_id, client.storage.from('brand-logos').getPublicUrl(row.logo_path).data.publicUrl);
+      }
+    } catch {
+      // Keep the card without a logo.
+    }
+    return logos;
+  }
+
+  async getItemBrand(itemId: string): Promise<ItemBrand | null> {
+    try {
+      const { data, error } = await this.countClient.rpc('item_brands', { p_item_ids: [itemId] });
+      const row = !error && Array.isArray(data) ? data[0] : undefined;
+      if (!row) return null;
+      return {
+        brandId: row.brand_id, name: row.brand_name,
+        logoUrl: row.logo_path ? this.countClient.storage.from('brand-logos').getPublicUrl(row.logo_path).data.publicUrl : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async getDishChannelOverview(query: string): Promise<DishChannelOverview | null> {
+    const { data, error } = await this.client.rpc('dish_channel_overview', { p_query: query });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const header = data.find((row) => row.channel === null) ?? data[0];
+    const logos = await this.brandLogoUrls(this.client, data.flatMap((row) => row.item_id ? [row.item_id] : []));
+    const channels: Record<PickChannel, DishChannelItem[]> = { offline: [], online: [], recipe: [] };
+    for (const row of data) {
+      if (row.channel !== 'offline' && row.channel !== 'online' && row.channel !== 'recipe') continue;
+      if (!row.item_id || !row.item_name) continue;
+      channels[row.channel].push({
+        itemId: row.item_id, name: row.item_name,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        pickCount: Number(row.pick_count) || 0,
+      });
+    }
+    return { categoryId: header.category_id, categoryName: header.category_name, channels };
+  }
+
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
+    return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug, categoryId);
   }
 
   async getFollowingPicks(cursor: ReadCursor | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null) {
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
     if (cursor) cursorFilter('started_at', cursor, false);
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
     const { data, error } = await this.client.rpc(rpc, {
       p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+      ...(channel ? { p_channel: channel } : {}),
+      ...(rootSlug ? { p_root_slug: rootSlug } : {}),
+      ...(categoryId ? { p_category_id: categoryId } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
+    const rows = data.slice(0, 20);
+    const [logos, providerIds] = await Promise.all([
+      this.brandLogoUrls(this.client, rows.map((row) => row.item_id)),
+      fetchItemProviderIds(this.client, rows.map((row) => row.item_id)),
+    ]);
     return {
       nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
-      items: data.slice(0, 20).map((row) => ({
+      items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
         profileImageUrl: row.profile_image_url,
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,
-        thumbnailUrl: this.cardThumbnailUrl(row), startedAt: row.started_at,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        startedAt: row.started_at,
+        channels: (row.channels ?? []).filter((channel): channel is PickChannel => channel === 'offline' || channel === 'online' || channel === 'recipe'),
+        providerId: providerIds.get(row.item_id) ?? null,
       })),
     };
   }
@@ -121,6 +195,7 @@ export class SupabaseReadRepository implements ReadRepository {
     if (!data || !Array.isArray(data.items)) throw new AppError('INTERNAL_ERROR');
     const rows = data.items as unknown as HomeShowcaseItemRow[];
     const last = rows[19];
+    const logos = await this.brandLogoUrls(this.countClient, rows.slice(0, 20).map((row) => row.item_id));
     return {
       minimumPickCount: data.minimum_pick_count,
       nextCursor: rows.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
@@ -129,6 +204,7 @@ export class SupabaseReadRepository implements ReadRepository {
           itemId: row.item_id, name: row.name,
           categoryId: row.category_id, categoryName: row.category_name,
           thumbnailUrl: this.cardThumbnailUrl(row),
+          brandLogoUrl: logos.get(row.item_id) ?? null,
           pickCount: row.pick_count,
           latestPickId: row.latest_pick_id,
           latestPickerUsername: row.latest_picker_username,
@@ -142,16 +218,23 @@ export class SupabaseReadRepository implements ReadRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 12);
     const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       categoryId: row.category_id,
       categoryName: row.category_name,
       categoryPath: row.category_path ?? row.category_name,
       thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
       editorialNote: row.editorial_note,
       editorialPriority: row.editorial_priority,
       pickCount: row.pick_count,
+      channels: channels.get(row.item_id) ?? [],
     }));
   }
 
@@ -160,14 +243,83 @@ export class SupabaseReadRepository implements ReadRepository {
     // change the aggregate. The RPC counts all current picks before limiting.
     const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
     if (error) throw mapSupabaseError(error);
-    return (data ?? []).map((row) => ({
+    const rows = data ?? [];
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
+    return rows.map((row) => ({
       itemId: row.item_id,
       name: row.name,
       thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
+      channels: channels.get(row.item_id) ?? [],
     }));
+  }
+
+  async getCategoryRanking(slug: string, limit = 20) {
+    // Public aggregate, like getCategoryTopItems: the page is shared and crawled,
+    // so every viewer must see the same numbers.
+    const { data, error } = await this.countClient.rpc('category_ranking', { p_slug: slug, p_limit: limit });
+    if (error) throw mapSupabaseError(error);
+    const rows = data ?? [];
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.countClient, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.countClient, rows.map((row) => row.item_id)),
+    ]);
+    return rows.map((row) => ({
+      itemId: row.item_id,
+      name: row.name,
+      thumbnailUrl: this.cardThumbnailUrl(row),
+      brandLogoUrl: logos.get(row.item_id) ?? null,
+      pickCount: row.pick_count,
+      rank: row.rank,
+      isTied: row.is_tied,
+      channels: channels.get(row.item_id) ?? [],
+    }));
+  }
+
+  async getRankingCategories() {
+    const { data, error } = await this.countClient.rpc('ranking_categories');
+    if (error) throw mapSupabaseError(error);
+    return (data ?? []).map((row) => ({
+      categoryId: row.category_id,
+      slug: row.slug,
+      name: row.name,
+      path: row.category_path ?? row.name,
+    }));
+  }
+
+  async getRecentPickedItems(categoryIds: string[] | null = null, cursor: ReadCursor | null = null, storesOnly = false) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // Viewer-specific like the home feed: session RLS decides which Picks count,
+    // so a blocked person's Pick never bumps an item to the top.
+    const { data, error } = await this.client.rpc('explore_recent_items_page', {
+      p_category_ids: categoryIds ?? undefined,
+      p_before_time: cursor?.timestamp, p_before_id: cursor?.id,
+      ...(storesOnly ? { p_stores_only: true } : {}),
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const last = data[19];
+    const rows = data.slice(0, 20);
+    const [channels, logos] = await Promise.all([
+      fetchItemChannels(this.client, rows.map((row) => row.item_id)),
+      this.brandLogoUrls(this.client, rows.map((row) => row.item_id)),
+    ]);
+    return {
+      nextCursor: data.length > 20 && last ? { timestamp: last.last_picked_at, id: last.item_id } : null,
+      items: rows.map((row) => ({
+        itemId: row.item_id, name: row.item_name,
+        categoryId: row.category_id, categoryName: row.category_name,
+        thumbnailUrl: this.cardThumbnailUrl(row), brandLogoUrl: logos.get(row.item_id) ?? null,
+        lastPickedAt: row.last_picked_at,
+        channels: channels.get(row.item_id) ?? [],
+      })),
+    };
   }
 
   async countActivePicks(itemId: string) {
@@ -189,16 +341,25 @@ export class SupabaseReadRepository implements ReadRepository {
     );
   }
 
-  private mapPickItem(row: PickReadRow) {
+  private mapPickItem(row: PickReadRow, channels: Map<string, PickChannel[]>, providerIds: Map<string, string>) {
     const profile = one(row.profile);
     const category = one(row.category);
-    const item = one(row.item);
+    const item = this.mapItem(one(row.item));
     return {
       pick: mapPickRow(row),
       profile: profile ? mapProfileRow(profile) : null,
       category: category ? mapCategoryRow(category) : null,
-      item: this.mapItem(item),
+      item: item ? { ...item, channels: channels.get(item.id) ?? [], providerId: providerIds.get(item.id) ?? null } : null,
     };
+  }
+
+  private async mapPickItems(rows: PickReadRow[]) {
+    const itemIds = rows.map((row) => row.item_id);
+    const [channels, providerIds] = await Promise.all([
+      fetchItemChannels(this.client, itemIds),
+      fetchItemProviderIds(this.client, itemIds),
+    ]);
+    return rows.map((row) => this.mapPickItem(row, channels, providerIds));
   }
 
   async getPickById(pickId: string) {
@@ -209,7 +370,7 @@ export class SupabaseReadRepository implements ReadRepository {
       .maybeSingle();
 
     if (error) throw mapSupabaseError(error);
-    return data ? this.mapPickItem(data as unknown as PickReadRow) : null;
+    return data ? (await this.mapPickItems([data as unknown as PickReadRow]))[0] : null;
   }
 
   async getPicks(input: PickReadInput) {
@@ -231,7 +392,7 @@ export class SupabaseReadRepository implements ReadRepository {
 
     const { data, error } = await query;
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as PickReadRow[]).map((row) => this.mapPickItem(row));
+    return this.mapPickItems(data as unknown as PickReadRow[]);
   }
 
   async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
@@ -252,6 +413,68 @@ export class SupabaseReadRepository implements ReadRepository {
       return {
         comment: mapCommentRow(row),
         author: author ? mapProfileRow(author) : null,
+      };
+    });
+  }
+
+  /** The root category with this slug and every visible category beneath it. */
+  private async categoryIdsUnderRoot(rootSlug: string) {
+    const { data, error } = await this.client.from('categories').select('id, parent_id, slug');
+    if (error) throw mapSupabaseError(error);
+    const root = data.find((category) => category.slug === rootSlug && !category.parent_id);
+    if (!root) return [];
+    const ids = new Set([root.id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const category of data) {
+        if (category.parent_id && ids.has(category.parent_id) && !ids.has(category.id)) {
+          ids.add(category.id);
+          grew = true;
+        }
+      }
+    }
+    return [...ids];
+  }
+
+  async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null, scope?: RootCategoryScope | null) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const rootIds = scope ? await this.categoryIdsUnderRoot(scope.rootSlug) : [];
+    if (scope?.inside && rootIds.length === 0) return [];
+    // A scoped list filters on the Pick's category, so the Pick join must be inner. Comment
+    // RLS already hides comments whose Pick I can't see, so this drops nothing extra.
+    let query = this.client
+      .from('comments')
+      .select(`
+        *,
+        pick:picks!comments_pick_id_fkey${scope ? '!inner' : ''}(
+          *,
+          profile:profiles!picks_user_id_fkey(*),
+          item:items!picks_item_category_fk(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(safeLimit);
+
+    if (scope && rootIds.length) {
+      query = scope.inside
+        ? query.in('pick.category_id', rootIds)
+        : query.not('pick.category_id', 'in', `(${rootIds.join(',')})`);
+    }
+    if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
+    const { data, error } = await query;
+    if (error) throw mapSupabaseError(error);
+    return (data as unknown as MyCommentReadRow[]).map((row) => {
+      const pick = one(row.pick);
+      const pickAuthor = pick ? one(pick.profile) : null;
+      const item = pick ? one(pick.item) : null;
+      return {
+        comment: mapCommentRow(row),
+        pick: pick ? mapPickRow(pick) : null,
+        pickAuthor: pickAuthor ? mapProfileRow(pickAuthor) : null,
+        item: item ? mapItemRow(item) : null,
       };
     });
   }

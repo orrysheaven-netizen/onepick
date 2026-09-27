@@ -36,6 +36,8 @@ async function main() {
   assert.match(edgeFunction, /catalog_user_is_suspended/,
     'Suspended users must be checked through the service-role-only catalog RPC');
   const importBody = edgeFunction.slice(edgeFunction.indexOf('async function importMovie'), edgeFunction.indexOf('// Same deployed function'));
+  assert.ok(edgeFunction.includes(String.raw`if (!/^\d{1,12}$/.test(id))`),
+    'Movie import must accept numeric TMDB ids instead of a literal \\d prefix');
   assert.ok(importBody.indexOf('client.auth.getUser(accessToken)') < importBody.indexOf('fetchTmdb(url, client)'),
     'Movie import authentication must happen before any TMDB request');
 

@@ -73,6 +73,9 @@ function setup() {
         state.lastSearchQuotaArgs = args;
         return { data: state.searchAllowed, error: null };
       }
+      if (name === 'reserve_external_catalog_import') {
+        return { data: true, error: null };
+      }
       throw new Error('Unexpected RPC: ' + name);
     },
     from(table) {
@@ -257,8 +260,9 @@ async function main() {
   }
 
   const { AppError }=load('mobile/src/errors/appError.ts');
+  const videoLink=load('mobile/src/lib/youtube/videoLink.ts');
   const { SupabaseYouTubeCatalogRepository }=load('mobile/src/repositories/supabase/supabaseYouTubeCatalogRepository.ts',{
-    '@/errors/appError':{AppError},
+    '@/errors/appError':{AppError},'@/lib/youtube/videoLink':videoLink,
   });
   const calls=[]; let failure=null; let sessionToken='user-jwt';
   const repo=new SupabaseYouTubeCatalogRepository({
@@ -283,7 +287,7 @@ async function main() {
   failure={context:new Response(JSON.stringify({error:'RATE_LIMITED'}),{status:429})};
   await assert.rejects(()=>repo.search('테스트 채널'),(error)=>error.code==='RATE_LIMITED');
 
-  const { YouTubeCatalogService }=load('mobile/src/services/youtubeCatalogService.ts');
+  const { YouTubeCatalogService }=load('mobile/src/services/youtubeCatalogService.ts',{'@/errors/appError':{AppError},'@/lib/youtube/videoLink':videoLink});
   const serviceCalls=[]; const service=new YouTubeCatalogService({
     search:async(...args)=>{serviceCalls.push(args);return[mappedSearch];},
     importChannel:async()=>({created:true}),

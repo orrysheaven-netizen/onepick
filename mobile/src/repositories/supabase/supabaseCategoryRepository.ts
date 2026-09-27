@@ -1,5 +1,5 @@
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryLabel, categoryRootSlug, selectableCategories } from '@/lib/categories/categoryTree';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import { mapCategoryRow } from '@/repositories/mappers/categoryMapper';
@@ -12,13 +12,14 @@ export class SupabaseCategoryRepository implements CategoryRepository {
     return selectableCategories(categories).map((category) => ({
       ...category,
       label: categoryLabel(category, categories),
+      rootSlug: categoryRootSlug(category, categories),
     }));
   }
 
   async getBrowseCategories() {
     const { data, error } = await this.client
       .from('categories')
-      .select('*')
+      .select('*, category_taste_dimensions(dimension_code, is_primary)')
       .eq('is_visible', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
@@ -27,7 +28,10 @@ export class SupabaseCategoryRepository implements CategoryRepository {
       throw mapSupabaseError(error);
     }
 
-    return data.map(mapCategoryRow);
+    return data.map(({ category_taste_dimensions: themes, ...row }) => ({
+      ...mapCategoryRow(row),
+      themeCode: (themes ?? []).find((theme) => theme.is_primary)?.dimension_code ?? null,
+    }));
   }
 
   async getById(categoryId: string) {

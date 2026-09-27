@@ -1,10 +1,10 @@
-import { Redirect, Slot, usePathname } from 'expo-router';
+import { Redirect, Slot, useGlobalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AdminShell, adminStyles } from '@/components/admin/admin-shell';
-import { beginKakaoAdminSignIn, checkAdminSession, signOutAdmin } from '@/lib/admin-api';
+import { AdminShell, adminStyles, type AdminQueueCounts } from '@/components/admin/admin-shell';
+import { beginKakaoAdminSignIn, checkAdminSession, getAdminQueueCounts, signOutAdmin } from '@/lib/admin-api';
 import { OnePick } from '@/constants/onepick';
 
 type AuthState = 'checking' | 'signedOut' | 'needsMfa' | 'signedIn';
@@ -17,9 +17,11 @@ const STATUS_TO_STATE: Record<Awaited<ReturnType<typeof checkAdminSession>>, Aut
 
 export default function AdminLayout() {
   const pathname = usePathname();
+  const { tab } = useGlobalSearchParams<{ tab?: string }>();
   const [authState, setAuthState] = useState<AuthState>('checking');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [queueCounts, setQueueCounts] = useState<AdminQueueCounts>({});
 
   useEffect(() => {
     checkAdminSession()
@@ -29,6 +31,16 @@ export default function AdminLayout() {
         setAuthState('signedOut');
       });
   }, []);
+
+  // Refreshed on every admin navigation so a processed queue drops its badge.
+  useEffect(() => {
+    if (authState !== 'signedIn') return;
+    let active = true;
+    getAdminQueueCounts()
+      .then((counts) => { if (active) setQueueCounts(counts); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [authState, pathname, tab]);
 
   if (Platform.OS !== 'web') {
     return (
@@ -89,12 +101,8 @@ export default function AdminLayout() {
     return <Redirect href="/auth/admin-security" />;
   }
 
-  if (pathname === '/admin') {
-    return <Redirect href="/admin/dashboard" />;
-  }
-
   return (
-    <AdminShell onSignOut={() => {
+    <AdminShell queueCounts={queueCounts} onSignOut={() => {
       void signOutAdmin().finally(() => setAuthState('signedOut'));
     }}>
       <Slot />

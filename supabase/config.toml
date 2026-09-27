@@ -81,6 +81,17 @@ public = true
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/jpeg"]
 
+[storage.buckets.brand-logos]
+public = true
+file_size_limit = "1MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
 [functions.sbiz-place-catalog]
 # Admin-only bootstrap endpoint; handler validates the caller and keeps the provider key server-side.
+verify_jwt = false
+
+
+[functions.link-category-suggestions]
+# Authenticated users only; the handler revalidates the caller JWT. Naver links
+# follow only HTTPS redirects that stay on Naver-owned hosts.
 verify_jwt = false

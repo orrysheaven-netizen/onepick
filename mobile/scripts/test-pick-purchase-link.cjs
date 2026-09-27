@@ -16,6 +16,9 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
@@ -51,12 +54,12 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   },
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ replace() {}, push() {}, back() {}, canGoBack: () => true }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
-  '@/components/pick-photo': { PickPhoto: () => null }, '@/errors/appError': { AppError },
+  '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/errors/appError': { AppError },
   '@/constants/onepick': { ...require('./design-tokens.cjs'), OnePickFeatures: { follow: false, purchaseLinks: true } },
-  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+  '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
-  '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+  '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
 });
 
 function arrange(status = { type: 'not_selected' }) {
@@ -109,8 +112,8 @@ async function checkQuestionOnlyAfterALink() {
   assert.match(page, /살 때 알아두면 좋은 게 있나요/, '링크를 넣으면 한 번 물어본다');
   assert.equal(field('살 때 팁'), undefined, '묻기만 하고 팁 칸을 먼저 열지 않는다');
 
-  // "그냥 제품 링크예요"를 고르면 팁 없이 링크만 저장된다.
-  render(); button('그냥 제품 링크예요').onPress();
+  // "그냥 판매 링크예요"를 고르면 팁 없이 링크만 저장된다.
+  render(); button('그냥 판매 링크예요').onPress();
   render(); button('내 원픽으로 선택').onPress(); await flush();
   assert.equal(attempts[0].purchaseUrl, 'https://www.coupang.com/vp/products/1');
   assert.equal(attempts[0].purchaseTip, '', '팁 없음은 빈 문자열로 보내 이전 팁을 지운다');

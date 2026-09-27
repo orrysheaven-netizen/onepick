@@ -23,7 +23,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="grid_view" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/find') }}>
+      <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/new') }}>
         <NativeTabs.Trigger.Label>원픽 등록</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf="plus.circle.fill"
@@ -31,8 +31,16 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="comments">
+        <NativeTabs.Trigger.Label>댓글</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }}
+          md="chat_bubble"
+        />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>내 프로필</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>프로필</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'person', selected: 'person.fill' }}
           md="person"

@@ -12,6 +12,9 @@ function load(file, imports = {}) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
+    // Pure channel helpers of the choose screen load as-is.
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     assert.fail(`Unexpected dependency: ${name}`);
   } });
@@ -52,9 +55,10 @@ function harness(file, imports) {
   const Screen = load(file, {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
-    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/onepick-brand': { OnePickBrand: 'OnePickBrand' },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' } }),
+    '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/components/onepick-brand': { OnePickBrand: 'OnePickBrand' },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports,
   }).default;
   function walk(value, loc) {
@@ -104,10 +108,10 @@ function setup(file, extra = {}) {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useItemDetail': { useItemDetail: () => query },
-    '@/hooks/useChoosePick': { useChoosePick: () => mutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => mutation },
-    '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' },
+    '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' }, ...extra,
   });
   return { auth, params, destinations, attempts, pending, mutation, query, picker, view };
@@ -163,26 +167,26 @@ async function main() {
   });
   await check('Photo confirmation survives a later read failure without stale content or duplicate upload', async () => {
     const c = setup('app/item/[itemId].tsx'); c.params.photo = '1';
-    c.view.render(); c.view.button('사진 선택').onPress(); await flush(); c.view.render();
+    c.view.render(); c.view.button('사진 업로드').onPress(); await flush(); c.view.render();
     c.view.button('대표 이미지 등록').onPress();
     c.pending[0].resolve({ ...c.query.data.item, imagePath: 'owner/photo.jpg', imageUrl: 'https://storage.test/photo.jpg' });
     await flush(); assert.equal(c.attempts.length, 1);
     c.query.isError = true; c.query.error = new Error('offline'); c.query.data = undefined;
     const page = c.view.render(); assert.match(page, /사진 등록 요청은 처리됐어요/);
-    assert.doesNotMatch(page, /대표 이미지 등록|사진 선택/);
+    assert.doesNotMatch(page, /대표 이미지 등록|사진 업로드/);
     assert.equal(c.view.nodes().some((n) => n.type === 'ItemReviewCard'), false);
-    const before = c.query.retries; c.view.button('제품 정보 다시 불러오기').onPress(); await flush();
+    const before = c.query.retries; c.view.button('정보 다시 불러오기').onPress(); await flush();
     assert.equal(c.query.retries, before+1); assert.equal(c.attempts.length, 1, 'Only refetch, never upload again');
-    c.query.isFetching = true; c.view.render(); assert.equal(c.view.button('제품 정보 다시 불러오기').disabled, true);
-    c.view.button('제품 정보 다시 불러오기').onPress(); assert.equal(c.query.retries, before+1);
+    c.query.isFetching = true; c.view.render(); assert.equal(c.view.button('정보 다시 불러오기').disabled, true);
+    c.view.button('정보 다시 불러오기').onPress(); assert.equal(c.query.retries, before+1);
     c.auth.isLoading = true; assert.doesNotMatch(c.view.render(), /사진 등록 요청은 처리됐어요|private-draft/);
     c.auth.isLoading = false; c.auth.user = { id: 'other' }; assert.doesNotMatch(c.view.render(), /사진 등록 요청은 처리됐어요/);
   });
   await check('Invalid item links cannot spin forever and photo sessions show errors before disabled-query loading', async () => {
     const c = setup('app/item/[itemId].tsx'); delete c.params.itemId; c.query.data = undefined; c.query.isPending = true;
-    assert.doesNotMatch(c.view.render(), /제품 정보를 불러오고 있어요/);
+    assert.doesNotMatch(c.view.render(), /정보를 불러오고 있어요/);
     c.params.itemId = id; c.query.isPending = false; c.query.isError = true; c.query.error = new AppError('ITEM_NOT_FOUND');
-    const missing = c.view.render(); assert.match(missing, /제품을 볼 수 없어요/); assert.doesNotMatch(missing, /제품 정보를 불러오고 있어요/);
+    const missing = c.view.render(); assert.match(missing, /정보를 볼 수 없어요/); assert.doesNotMatch(missing, /정보를 불러오고 있어요/);
     c.auth.error = new Error('session');
     assert.match(c.view.render(), /로그인 상태를 확인하지 못했어요/);
   });

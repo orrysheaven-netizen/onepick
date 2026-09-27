@@ -16,6 +16,8 @@ function loadSource(relativePath, imports = {}) {
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
+      // Pure channel helpers load as-is.
+      if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
@@ -34,7 +36,7 @@ async function main() {
   let currentPick = null;
   const service = new ItemService(
     { getById: async () => item },
-    { getCurrentPick: async () => currentPick },
+    { getCurrentPicksInCategory: async () => (currentPick ? [currentPick] : []) },
     { getById: async () => category, getOpenCategories: async () => category.status === 'open' && category.isVisible && category.isPickable ? [category] : [] },
     { getPicks: async () => [], getPickById: async () => null },
   );
@@ -63,6 +65,7 @@ async function main() {
   let destination, params = { itemId: 'item' }, pullToRefresh;
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const native = {
+    Platform: { OS: 'ios' },
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
     ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,
@@ -73,9 +76,9 @@ async function main() {
   };
   const base = {
     '@/components/item-review-card': { ItemReviewCard: () => null },
-    '@/components/item-pick-count': { ItemPickCount: () => null },
-    '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null },
+    '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
@@ -87,20 +90,38 @@ async function main() {
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
     },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': loadSource('lib/items/itemTitle.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };
   const { default: Item } = loadSource('app/item/[itemId].tsx', base);
   detail = { ...detail, canChoose: false, myPickStatus: { type: 'not_selected' } };
   assert.match(render(Item), /새 원픽을 선택할 수 없어요/);
-  assert.ok(!presses.some((p) => textOf(p.children) === '이 제품을 내 원픽으로'));
+  assert.ok(!presses.some((p) => textOf(p.children) === '이걸로 원픽 등록'));
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
+  detail.canChoose = true;
+  const ownDetail = render(Item);
+  // My own review is edited on its card (수정 · 해제); the hero has no button for it.
+  assert.ok(!presses.some((p) => /원픽 등록|원픽 바꾸기|보기\/수정/.test(textOf(p.children))), 'No choose button for my own Pick');
+  assert.doesNotMatch(ownDetail, /새 원픽을 선택할 수 없어요/);
+  assert.equal(destination, undefined, 'Own review stays on the product page');
+  // The Pick state is one shape: colored when it is my Pick (not pressable), uncolored otherwise.
+  assert.ok(!presses.some((p) => p.accessibilityLabel === '원픽으로 고르기' || p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'My own Pick mark is not a button');
+  detail.myPickStatus = { type: 'not_selected' };
   render(Item);
-  presses.find((p) => textOf(p.children) === '내 원픽 한줄평 보기/수정').onPress();
-  assert.equal(destination, undefined, 'Own review action stays on the product page');
+  const chooseMark = presses.find((p) => p.accessibilityLabel === '원픽으로 고르기');
+  assert.ok(chooseMark, 'An item that is not my Pick shows the uncolored mark as a button');
+  assert.ok(!presses.some((p) => /이걸로 원픽 등록|아직/.test(textOf(p.children))), 'No sentence-style or "아직" label');
+  chooseMark.onPress(); assert.equal(destination.pathname, '/pick/choose');
+  destination = undefined;
+  detail.myPickStatus = { type: 'selected_other', currentPickId: 'previous', currentItemId: 'previous-item' };
+  render(Item);
+  assert.ok(presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
+  detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
+  detail.canChoose = false;
 
   const { default: Choose } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   assert.match(render(Choose), /지금은 선택할 수 없어요/);
   assert.equal(inputs.length, 0, 'Unavailable items must not show the submission form');
@@ -123,11 +144,11 @@ async function main() {
       },
       useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
     },
-    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation },
+    '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이 제품으로 바꾸기');
+  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이걸로 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
   assert.equal(changeButton().disabled, false);
@@ -150,11 +171,11 @@ async function main() {
   assert.match(renderChoice(), /원픽이 선택됐어요/);
 
   const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
-    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}) },
+    ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ isPending: true }) },
   });
   params = {};
-  assert.match(render(MissingItem), /제품을 불러오지 못했어요/);
+  assert.match(render(MissingItem), /정보를 불러오지 못했어요/);
 
   let draft = '  댓글 초안  ', attempts = 0, rejectSave, resolveSave;
   let pick = { id: 'pick', userId: 'owner', status: 'active', oneLineReview: '이유' };
@@ -163,19 +184,21 @@ async function main() {
   params = { pickId: 'pick' };
   const { PickReplies } = loadSource('components/pick-replies.tsx', {
     ...base,
-    react: { ...React, useState: () => [draft, (value) => { draft = value; }] },
-    '@/components/pick-share-card': { PickShareCard: () => null },
-    '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
-    '@/components/pick-management': { PickManagement: () => null },
+    // Only the composer draft (initial '') is driven by the test.
+    react: { ...React, useState: (initial) => initial === '' ? [draft, (value) => { draft = value; }] : React.useState(initial) },
+    '@/components/pick-share-actions': { PickShareActions: () => null },
+    '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
+    '@/components/pick-management': { PickManagement: () => null, PickManagementActions: () => null },
     '@/components/report-action': { ReportAction: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
     '@/hooks/usePickComments': { usePickComments: () => commentsQuery },
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
+    '@/hooks/useDeleteComment': { useDeleteComment: () => ({ isPending: false, isError: false, reset() {} }) },
   });
   const Pick = () => React.createElement(PickReplies, { pickId: 'pick' });
   render(Pick);
-  const submit = presses.find((p) => textOf(p.children) === '답글 남기기').onPress;
+  const submit = presses.find((p) => textOf(p.children) === '댓글 남기기').onPress;
   const unhandled = [];
   const capture = (error) => unhandled.push(error);
   process.on('unhandledRejection', capture);
@@ -193,7 +216,7 @@ async function main() {
     assert.equal(draft, '', 'Successful saves clear the draft');
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
-  assert.match(render(Pick), /확인이 필요한 원픽에는 새 답글을 남길 수 없습니다/);
+  assert.match(render(Pick), /확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   mutation = { isError: true, error: new AppError('PROFILE_NOT_FOUND') };
@@ -210,44 +233,66 @@ async function main() {
   });
   const failedComments = render(Pick);
   assert.match(failedComments, /이미 불러온 댓글/);
-  assert.match(failedComments, /다음 답글을 불러오지 못했어요/);
-  presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도').onPress();
+  assert.match(failedComments, /다음 댓글을 불러오지 못했어요/);
+  presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도').onPress();
   assert.equal(commentPages, 1); assert.equal(fullCommentRefreshes, 0);
   commentsQuery.isFetching = true;
   render(Pick);
-  const commentMore = presses.find((p) => textOf(p.children) === '답글 더 보기 다시 시도');
+  const commentMore = presses.find((p) => textOf(p.children) === '댓글 더 보기 다시 시도');
   assert.equal(commentMore.disabled, true);
   commentMore.onPress(); assert.equal(commentPages, 1, 'Background refresh must not be interrupted by loading more comments');
 
   const browseCategories = [{ id: 'root', parentId: null, name: '과자', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 }];
   let rankRefreshes = 0;
-  const rankingQuery = { data: [{ itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101 }],
-    isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
+  const rankingQuery = { data: [
+    { itemId: 'leader', name: '첫 번째 과자', thumbnailUrl: null, rank: 1, isTied: false, pickCount: 102, channels: [] },
+    { itemId: 'ranked-item', name: '선택된 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
+    { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
+  ], isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
+    '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+      useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);
   assert.match(ranking, /원픽 TOP 3/);
   assert.match(ranking, /101명이 선택/);
-  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 제품 상세 보기').onPress();
+  assert.equal(presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기'), undefined, 'Healthy rankings have no manual retry');
+  presses.find((p) => p.accessibilityLabel === '공동 2위 선택된 과자, 101명이 선택, 상세 보기').onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'ranked-item');
+
+  const highSample = rankingQuery.data;
+  rankingQuery.data = [{ ...highSample[1], rank: 1, isTied: false, pickCount: 2 }];
+  const lowSample = render(Explore);
+  assert.match(lowSample, /과자의 원픽/);
+  assert.doesNotMatch(lowSample, /TOP 3|공동|명이 선택|사람 수 기준/);
+  presses.find((p) => p.accessibilityLabel === '선택된 과자, 상세 보기').onPress();
+  assert.equal(destination.params.itemId, 'ranked-item', 'Low-sample cards preserve their detail route');
+  rankingQuery.data[0].pickCount = 3;
+  const thresholdSample = render(Explore);
+  assert.match(thresholdSample, /원픽 TOP 3/);
+  assert.match(thresholdSample, /3명이 선택/);
+  rankingQuery.data = highSample;
+
   rankingQuery.isError = true;
-  assert.match(render(Explore), /순위를 갱신하지 못했어요/);
+  const staleRanking = render(Explore);
+  assert.match(staleRanking, /최신 원픽을 확인하지 못했어요/);
+  assert.match(staleRanking, /선택된 과자/, 'A refresh error keeps previously loaded cards');
   rankingQuery.data = undefined;
-  assert.match(render(Explore), /제품 순위를 불러오지 못했어요/);
+  assert.match(render(Explore), /원픽을 불러오지 못했어요/);
   const beforeRankRetry = rankRefreshes;
-  presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침').onPress();
+  presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기').onPress();
   assert.equal(rankRefreshes, beforeRankRetry + 1);
   rankingQuery.isFetching = true;
   render(Explore);
-  const rankRefresh = presses.find((p) => p.accessibilityLabel === '제품 순위 새로고침');
+  const rankRefresh = presses.find((p) => p.accessibilityLabel === '카테고리 원픽 다시 불러오기');
   assert.equal(rankRefresh.disabled, true);
   rankRefresh.onPress(); pullToRefresh.props.onRefresh();
   assert.equal(rankRefreshes, beforeRankRetry + 1, 'Refreshing must not cancel a pending ranking request');
@@ -256,7 +301,7 @@ async function main() {
   assert.equal(pullToRefresh.props.refreshing, true);
   pullToRefresh.props.onRefresh(); assert.equal(rankRefreshes, beforeRankRetry + 2);
   rankingQuery.isFetching = false; rankingQuery.isError = false; rankingQuery.data = [];
-  assert.match(render(Explore), /아직 선택된 제품이 없어요/);
-  console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps and profile recovery.');
+  assert.match(render(Explore), /아직 선택된 원픽이 없어요/);
+  console.log('Interaction checks passed: item/category eligibility, read-model item picks, review prefill, comment failure/retry, duplicate taps, profile recovery and gated ranking interaction/retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

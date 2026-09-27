@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { meaningfulPickChangeCount } from '../_shared/profileAiPickChanges.ts';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -22,39 +23,20 @@ function relation(value: unknown) {
   return object(Array.isArray(value) ? value[0] : value);
 }
 
-function meaningfulChangeCount(previousValue: unknown, currentRows: unknown[]): number {
-  const previousRows = Array.isArray(previousValue) ? previousValue.map(object) : [];
-  const hasIds = previousRows.some((row) => text(row.categoryId).length > 0);
-
-  const previous = new Map<string, string>();
-  for (const row of previousRows) {
-    const categoryName = text(row.category);
-    const itemName = text(row.item);
-    const categoryKey = hasIds && text(row.categoryId)
-      ? text(row.categoryId) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.itemId)
-      ? text(row.itemId) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) previous.set(categoryKey, JSON.stringify([itemKey, text(row.review)]));
-  }
-
-  const current = new Map<string, string>();
-  for (const value of currentRows) {
+function snapshotRows(rows: unknown[]) {
+  return rows.map((value) => {
     const row = object(value);
     const category = relation(row.categories);
     const item = relation(row.items);
-    const categoryName = text(category.name);
-    const itemName = text(item.name);
-    const categoryKey = hasIds && text(row.category_id)
-      ? text(row.category_id) : categoryName ? `name:${categoryName}` : '';
-    const itemKey = hasIds && text(row.item_id)
-      ? text(row.item_id) : itemName ? `name:${itemName}` : '';
-    if (categoryKey) current.set(categoryKey, JSON.stringify([itemKey, text(row.one_line_review)]));
-  }
-
-  const keys = new Set([...previous.keys(), ...current.keys()]);
-  let changed = 0;
-  for (const key of keys) if (previous.get(key) !== current.get(key)) changed += 1;
-  return changed;
+    return {
+      categoryId: text(row.category_id),
+      category: text(category.name),
+      channel: text(row.channel),
+      itemId: text(row.item_id),
+      item: text(item.name),
+      review: text(row.one_line_review),
+    };
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -79,12 +61,11 @@ Deno.serve(async (req: Request) => {
   if (authError || !user || user.is_anonymous) return reply({ error: 'AUTH_REQUIRED' }, 401);
 
   const admin = createClient(url, serviceRole, options);
-  // current_user_is_admin reads auth.uid() from the caller's own JWT, so it
-  // must run on userClient (the service-role admin client carries no real
-  // end-user identity).
-  const [picksResult, reviewResult, adminResult] = await Promise.all([
+  // Admin cooldown bypass requires both allowlist membership and an AAL2
+  // caller session. The service-role client cannot supply either caller fact.
+  const [picksResult, reviewResult, assuranceResult, adminResult] = await Promise.all([
     admin.from('picks')
-      .select('category_id,item_id,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
+      .select('category_id,item_id,channel,one_line_review,categories!picks_category_id_fkey!inner(name,is_visible),items!picks_item_category_fk!inner(name,status)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .eq('categories.is_visible', true)
@@ -94,11 +75,13 @@ Deno.serve(async (req: Request) => {
       .select('generated_at,pick_snapshot,is_visible,is_stale')
       .eq('profile_id', user.id)
       .maybeSingle(),
+    userClient.auth.mfa.getAuthenticatorAssuranceLevel(match[1]),
     userClient.rpc('current_user_is_admin'),
   ]);
 
   if (picksResult.error || reviewResult.error || adminResult.error) return reply({ error: 'AI_STATUS_FAILED' }, 500);
-  const isAdmin = adminResult.data === true;
+  const isAdmin = adminResult.data === true &&
+    !assuranceResult.error && assuranceResult.data.currentLevel === 'aal2';
 
   const currentRows = picksResult.data ?? [];
   const currentPickCount = currentRows.length;
@@ -125,7 +108,7 @@ Deno.serve(async (req: Request) => {
 
   const snapshot = Array.isArray(review.pick_snapshot) ? review.pick_snapshot : [];
   const reviewPickCount = snapshot.length;
-  const changedCount = meaningfulChangeCount(snapshot, currentRows);
+  const changedCount = meaningfulPickChangeCount(snapshot, snapshotRows(currentRows));
   let retryAfterSeconds = 0;
   let canGenerate = false;
   let reason = 'NEED_CHANGES';

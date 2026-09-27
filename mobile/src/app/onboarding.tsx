@@ -17,7 +17,8 @@ import {
 import { categoryPath } from '@/lib/categories/categoryTree';
 import { chooseOnboardingCategory } from '@/lib/onboarding/categorySequence';
 import { Button, StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { isLabCategory } from '@/lib/profile/profilePickGroups';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -42,13 +43,20 @@ export default function OnboardingScreen() {
     [events, selectedIds],
   );
 
-  const current = useMemo(() => chooseOnboardingCategory({
-    categories: categories.data ?? [],
+  // 실험실 themes are not offered here; wait for the catalog so none slips in before themes
+  // are known (a failed catalog falls back to every category rather than an empty flow).
+  const catalogReady = !OnePickFeatures.lab || Boolean(categoryCatalog.data) || categoryCatalog.isError;
+  const mainCategories = useMemo(() => (categories.data ?? []).filter((category) =>
+    !isLabCategory(category.id, categoryCatalog.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab)),
+  [categories.data, categoryCatalog.data]);
+
+  const current = useMemo(() => !catalogReady ? null : chooseOnboardingCategory({
+    categories: mainCategories,
     currentCategoryId: progress.data?.state?.currentCategoryId,
     handledCategoryIds: handled,
     events,
     userId: user?.id ?? 'anonymous',
-  }), [categories.data, events, handled, progress.data?.state?.currentCategoryId, user?.id]);
+  }), [catalogReady, mainCategories, events, handled, progress.data?.state?.currentCategoryId, user?.id]);
 
   useEffect(() => {
     if (!user || !current || setCurrent.isPending) return;
@@ -63,7 +71,7 @@ export default function OnboardingScreen() {
   const currentCategoryName = current?.name ?? fallbackParts.at(-1) ?? '';
 
   const pickCount = profile.data?.currentPicks.length ?? 0;
-  const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending;
+  const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending || !catalogReady;
   const canEvaluate = pickCount >= 10;
 
   const skip = async () => {

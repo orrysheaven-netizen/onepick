@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          logo_path: string | null
           logo_url: string | null
           name: string
           normalized_name: string
@@ -59,6 +60,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name: string
           normalized_name: string
@@ -69,6 +71,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_path?: string | null
           logo_url?: string | null
           name?: string
           normalized_name?: string
@@ -768,6 +771,7 @@ export type Database = {
       picks: {
         Row: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -783,6 +787,7 @@ export type Database = {
         }
         Insert: {
           category_id: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -798,6 +803,7 @@ export type Database = {
         }
         Update: {
           category_id?: string
+          channel?: string | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -1305,7 +1311,12 @@ export type Database = {
       }
       admin_operations_snapshot: { Args: { p_days?: number }; Returns: Json }
       admin_review_pending_item: {
-        Args: { p_category_id?: string; p_item_id: string; p_status: string }
+        Args: {
+          p_category_id?: string
+          p_item_id: string
+          p_reject_reason?: string
+          p_status: string
+        }
         Returns: {
           brand_id: string | null
           category_id: string
@@ -1464,6 +1475,7 @@ export type Database = {
       change_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_item_id: string
           p_one_line_review: string
           p_purchase_tip?: string | null
@@ -1471,6 +1483,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1548,6 +1561,24 @@ export type Database = {
       }
       consume_image_import: { Args: never; Returns: undefined }
       current_user_is_admin: { Args: never; Returns: boolean }
+      explore_recent_items_page: {
+        Args: {
+          p_before_id?: string
+          p_before_time?: string
+          p_category_ids?: string[]
+          p_stores_only?: boolean
+        }
+        Returns: {
+          category_id: string
+          category_name: string
+          image_path: string
+          image_source_url: string
+          item_id: string
+          item_name: string
+          last_picked_at: string
+          thumbnail_path: string
+        }[]
+      }
       home_editorial_items: {
         Args: { p_limit?: number }
         Returns: {
@@ -1565,10 +1596,11 @@ export type Database = {
         }[]
       }
       home_pick_feed_page: {
-        Args: { p_before_id?: string; p_before_time?: string }
+        Args: { p_before_id?: string; p_before_time?: string; p_category_id?: string; p_channel?: string; p_root_slug?: string }
         Returns: {
           category_id: string
           category_name: string
+          channels: string[]
           image_path: string
           image_source_url: string
           item_id: string
@@ -1614,6 +1646,15 @@ export type Database = {
         Returns: {
           items: Json
           minimum_pick_count: number
+        }[]
+      }
+      item_brands: {
+        Args: { p_item_ids: string[] }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          item_id: string
+          logo_path: string | null
         }[]
       }
       item_photo_credit: {
@@ -1679,6 +1720,7 @@ export type Database = {
       register_pick: {
         Args: {
           p_category_id: string
+          p_channel?: string | null
           p_image_path?: string
           p_image_source_url?: string
           p_item_id: string
@@ -1688,6 +1730,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string
@@ -1708,7 +1751,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      remove_pick: { Args: { p_category_id: string }; Returns: boolean }
+      remove_pick: {
+        Args: { p_category_id: string; p_channel?: string | null }
+        Returns: boolean
+      }
       reserve_external_catalog_slot: {
         Args: { p_interval_ms: number; p_provider: string }
         Returns: number
@@ -1879,6 +1925,7 @@ export type Database = {
         }
         Returns: {
           category_id: string
+          channel: string | null
           created_at: string
           ended_at: string | null
           id: string

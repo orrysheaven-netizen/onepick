@@ -31,7 +31,7 @@ async function main() {
     react: { useState: () => [settled, (value) => { settled = value; }], useEffect: (effect) => { cleanup?.(); cleanup = effect(); } },
     '@tanstack/react-query': { useQuery: (options) => options, useQueryClient: () => ({ getQueryState: () => undefined }) },
     '@/lib/query/queryKeys': { queryKeys },
-    '@/services': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
+    '@/services/itemServiceInstance': { itemService: { search: async (...args) => { calls.push(args); return []; } } },
   }, {
     setTimeout: (callback, delay) => { assert.equal(delay, 150); timer = callback; return 1; },
     clearTimeout: () => { timer = undefined; },
@@ -58,6 +58,7 @@ async function main() {
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
     '@/errors/appError': { AppError: Error },
     '@/repositories/mappers/itemMapper': { mapItemRow: (row) => ({ ...row, categoryId: row.category_id }) },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
   });
   const repository = new SupabaseItemRepository({
     rpc: async (fn, args) => {
@@ -100,6 +101,9 @@ async function main() {
     '@/components/drama-search-link': { DramaSearchLink: () => null },
     '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },
+    '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/components/dish-people-picks': { DishPeoplePicks: () => null },
+    '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,
       Pressable: ({ children, onPress }) => { presses.push(onPress); return React.createElement('button', null, children); },
@@ -132,6 +136,9 @@ async function main() {
     react: { useState: () => ['인터스텔라', () => {}] },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => catalogState },
+    '@/components/dish-channel-overview': { DishChannelOverview: () => null },
+    '@/components/dish-people-picks': { DishPeoplePicks: () => null },
+    '@/hooks/useDishChannels': { useDishChannels: () => ({ data: null }) },
     'react-native': {
       ActivityIndicator: () => null,
       Pressable: (props) => { externalPresses.push(props); return React.createElement('button', null, props.children); },

@@ -10,6 +10,8 @@ import type {
   SubmitUnclassifiedItemInput,
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
+import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 const PUBLIC_ITEM_STATUSES = ['active', 'discontinued'] as const;
 type ItemRow = Database['public']['Tables']['items']['Row'];
@@ -41,7 +43,9 @@ export class SupabaseItemRepository implements ItemRepository {
       .maybeSingle();
 
     if (error) throw mapSupabaseError(error);
-    return data ? this.mapRow(data) : null;
+    if (!data) return null;
+    const channels = await fetchItemChannels(this.client, [data.id]);
+    return { ...this.mapRow(data), channels: channels.get(data.id) ?? [] };
   }
 
   async submitItem(input: SubmitItemInput) {
@@ -67,6 +71,15 @@ export class SupabaseItemRepository implements ItemRepository {
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');
     return this.mapRow(data);
+  }
+
+  async setPendingPickReview(itemId: string, review: string, channel?: PickChannel) {
+    const { error } = await this.client.rpc('set_pending_item_pick_review', {
+      p_item_id: itemId,
+      p_review: review,
+      ...(channel ? { p_channel: channel } : {}),
+    });
+    if (error) throw mapSupabaseError(error);
   }
 
   async setPendingCategoryHint(itemId: string, label: string | null) {

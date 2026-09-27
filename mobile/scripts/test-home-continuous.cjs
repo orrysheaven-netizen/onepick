@@ -34,7 +34,7 @@ async function main() {
       useInfiniteQuery: (options) => { feedOptions = options; return feedResult; },
     },
     '@/lib/query/queryKeys': { queryKeys },
-    '@/services': { homeService: {
+    '@/services/homeServiceInstance': { homeService: {
       getHomeContext: (user) => { contextRequest = user; return contextResult.data; },
       getHomePicks: (cursor) => { feedRequest = cursor; return feedResult.data; },
     } },
@@ -83,7 +83,9 @@ async function main() {
 
   // Preserve the existing repository cursor/lookahead regression coverage.
   const { AppError } = load('errors/appError.ts');
-  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (e) => e } };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (e) => e },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }

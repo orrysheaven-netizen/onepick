@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
-import { exploreService } from '@/services';
+import { exploreService } from '@/services/exploreServiceInstance';
 
 const CATEGORY_BROWSE_STALE_TIME = 5 * 60_000;
 
@@ -20,6 +20,56 @@ export function useCategoryTopItems(categoryId?: string) {
     queryKey: queryKeys.explore.topItems(categoryId),
     enabled: Boolean(categoryId),
     queryFn: () => categoryId ? exploreService.getCategoryTopItems(categoryId) : Promise.resolve([]),
+  });
+}
+
+const RANKING_STALE_TIME = 60_000;
+
+/** Public ranking page list for /ranking/[slug]. */
+export function useCategoryRanking(slug?: string, limit?: number) {
+  return useQuery({
+    queryKey: queryKeys.explore.ranking(slug),
+    enabled: Boolean(slug),
+    staleTime: RANKING_STALE_TIME,
+    queryFn: () => slug ? exploreService.getCategoryRanking(slug, limit) : Promise.resolve([]),
+  });
+}
+
+export function useRankingCategories(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.explore.rankingCategories,
+    enabled,
+    staleTime: CATEGORY_BROWSE_STALE_TIME,
+    queryFn: () => exploreService.getRankingCategories(),
+  });
+}
+
+export function useCategoryBySlug(slug?: string) {
+  return useQuery({
+    queryKey: queryKeys.categories.bySlug(slug ?? ''),
+    enabled: Boolean(slug),
+    staleTime: CATEGORY_BROWSE_STALE_TIME,
+    queryFn: () => slug ? exploreService.getCategoryBySlug(slug) : Promise.resolve(null),
+  });
+}
+
+/** Places/products in scope, one per item, most recently picked first. */
+export function useRecentPickedItems(categoryIds: string[] | null, enabled = true, storesOnly = false) {
+  return useInfiniteQuery({
+    enabled,
+    queryKey: queryKeys.explore.recentItems(categoryIds, storesOnly),
+    initialPageParam: null as ReadCursor | null,
+    queryFn: ({ pageParam }) => exploreService.getRecentItems(categoryIds, pageParam, storesOnly),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    select: (data) => {
+      // A Pick between page fetches can move an item up; keep its first (newest) row only.
+      const seen = new Set<string>();
+      return data.pages.flatMap((page) => page.items).filter((item) => {
+        if (seen.has(item.itemId)) return false;
+        seen.add(item.itemId);
+        return true;
+      });
+    },
   });
 }
 

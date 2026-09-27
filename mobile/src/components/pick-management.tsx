@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -18,13 +18,31 @@ function getErrorMessage(error: unknown) {
   return '변경하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.';
 }
 
-export function PickManagement({ pick, categoryName, onRemoved }: {
+export type PickManagementMode = 'idle' | 'edit' | 'remove';
+
+/** The two small corner actions on my review card that open the edit/remove panel. */
+export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'remove') => void }) {
+  return <View style={styles.actions}>
+    <Pressable accessibilityRole="button" accessibilityLabel="한줄평 수정" onPress={() => onOpen('edit')} style={styles.actionLink}>
+      <Text style={styles.actionText}>수정</Text>
+    </Pressable>
+    <Text style={styles.actionDot}>·</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="원픽 선택 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
+      <Text style={styles.actionText}>원픽 해제</Text>
+    </Pressable>
+  </View>;
+}
+
+/** Edit / remove panel for my Pick. The review card owns `mode`; idle renders only the saved notice. */
+export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChange }: {
   pick: Pick;
   categoryName: string;
   onRemoved: () => void;
+  mode: PickManagementMode;
+  onModeChange: (mode: PickManagementMode) => void;
 }) {
   const { updateReview, removePick } = useManagePick();
-  const [mode, setMode] = useState<'idle' | 'edit' | 'remove'>('idle');
+  const setMode = onModeChange;
   const [review, setReview] = useState(pick.oneLineReview);
   const [saved, setSaved] = useState(false);
   const submitting = useRef(false);
@@ -33,14 +51,14 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
   const canSave = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const error = mode === 'edit' ? updateReview.error : mode === 'remove' ? removePick.error : null;
 
-  const open = (nextMode: 'edit' | 'remove') => {
-    if (submitting.current) return;
+  // Each time the card opens a panel (mode change only), start from the saved review with no stale errors.
+  useEffect(() => {
+    if (mode === 'idle' || submitting.current) return;
     updateReview.reset();
     removePick.reset();
     setSaved(false);
     setReview(pick.oneLineReview);
-    setMode(nextMode);
-  };
+  }, [mode]);
 
   const saveReview = async () => {
     if (!canSave || submitting.current) return;
@@ -60,7 +78,7 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await removePick.mutateAsync(pick.categoryId);
+      await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel });
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.
@@ -69,20 +87,13 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
     }
   };
 
+  if (mode === 'idle') {
+    return saved ? <Text accessibilityLiveRegion="polite" style={styles.savedNotice}>한줄평을 저장했어요.</Text> : null;
+  }
+
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>내 원픽 관리</Text>
-      {mode === 'idle' ? (
-        <>
-          {saved ? <Text accessibilityLiveRegion="polite" style={styles.description}>한줄평을 저장했어요.</Text> : null}
-          <Pressable accessibilityRole="button" onPress={() => open('edit')} style={styles.button}>
-            <Text style={styles.buttonText}>한줄평 수정</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => open('remove')} style={styles.secondaryButton}>
-            <Text style={styles.secondaryText}>원픽 선택 해제</Text>
-          </Pressable>
-        </>
-      ) : mode === 'edit' ? (
+      {mode === 'edit' ? (
         <>
           <Text style={styles.description}>이 원픽을 고른 이유를 수정해주세요.</Text>
           <TextInput
@@ -116,18 +127,20 @@ export function PickManagement({ pick, categoryName, onRemoved }: {
         </>
       )}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{getErrorMessage(error)}</Text> : null}
-      {mode !== 'idle' ? (
-        <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setMode('idle')} style={[styles.secondaryButton, isBusy && styles.disabled]}>
-          <Text style={styles.secondaryText}>취소</Text>
-        </Pressable>
-      ) : null}
+      <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setMode('idle')} style={[styles.secondaryButton, isBusy && styles.disabled]}>
+        <Text style={styles.secondaryText}>취소</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
-  title: { color: OnePick.text, fontSize: 16, fontWeight: '800' },
+  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 8 },
+  actions: { flexDirection: 'row', alignItems: 'center' },
+  actionLink: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 4 },
+  actionText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  actionDot: { color: OnePick.hint, fontSize: 12 },
+  savedNotice: { color: OnePick.success, fontSize: 12, lineHeight: 18, marginBottom: 4 },
   description: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   input: { minHeight: 96, borderRadius: 15, backgroundColor: OnePick.background, padding: 13, color: OnePick.text, fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
   counter: { color: OnePick.muted, fontSize: 12, textAlign: 'right', marginTop: 6 },

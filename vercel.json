@@ -1,14 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": {
-      "feature/shared-item-photo-actions": false,
-      "feature/game-catalog": false,
-      "feature/youtube-channel-catalog": false,
-      "feature/pokemon-catalog": false,
-      "main": false
-    }
-  },
+  "ignoreCommand": "bash tools/vercel-ignore-build.sh",
   "installCommand": "cd mobile && npm ci",
   "buildCommand": "cd mobile && npm run build:web",
   "outputDirectory": "mobile/dist",

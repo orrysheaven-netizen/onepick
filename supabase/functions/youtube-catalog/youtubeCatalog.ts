@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const YOUTUBE_SOURCE = 'youtube_channel' as const;
+export const YOUTUBE_VIDEO_SOURCE = 'youtube_video' as const;
+const CHANNEL_CATEGORY_SLUG = 'youtube';
+const DISH_NAME_MAX = 60;
+const REVIEW_MAX = 100;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const clean = (value: unknown, max: number) => typeof value === 'string'
@@ -72,6 +77,73 @@ export function mapYouTubeChannel(value: unknown): YouTubeChannelEntry | null {
   };
 }
 
+export type YouTubeVideoEntry = {
+  source: typeof YOUTUBE_VIDEO_SOURCE;
+  externalId: string;
+  title: string;
+  channelTitle: string | null;
+  thumbnailUrl: string | null;
+  videoUrl: string;
+  existingItemId: string | null;
+};
+
+export function videoUrl(id: string) {
+  return VIDEO_ID.test(id) ? `https://www.youtube.com/watch?v=${id}` : null;
+}
+
+export function mapYouTubeVideo(value: unknown): YouTubeVideoEntry | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const id = clean(row.id, 20);
+  const snippet = row.snippet;
+  if (!VIDEO_ID.test(id) || !snippet || typeof snippet !== 'object' || Array.isArray(snippet)) return null;
+  const details = snippet as Record<string, unknown>;
+  const title = clean(details.title, 100);
+  if (!title) return null;
+  return {
+    source: YOUTUBE_VIDEO_SOURCE,
+    externalId: id,
+    title,
+    channelTitle: clean(details.channelTitle, 100) || null,
+    thumbnailUrl: thumbnailUrl(details.thumbnails),
+    videoUrl: videoUrl(id)!,
+    existingItemId: null,
+  };
+}
+
+const VIDEO_HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com'];
+const SHORT_VIDEO_HOSTS = ['youtu.be', 'www.youtu.be'];
+
+/**
+ * Video ID from a shared YouTube video link (watch, youtu.be, Shorts, live, embed).
+ * Channel, playlist-only and non-YouTube links return null. Keep in sync with
+ * mobile/src/lib/youtube/videoLink.ts.
+ */
+export function parseYouTubeVideoUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2048 || /\s/.test(trimmed)) return null;
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  if (url.username || url.password || url.port) return null;
+  const host = url.hostname.toLowerCase();
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (SHORT_VIDEO_HOSTS.includes(host)) {
+    return parts.length === 1 && VIDEO_ID.test(parts[0]) ? parts[0] : null;
+  }
+  if (!VIDEO_HOSTS.includes(host)) return null;
+  if (parts.length === 1 && parts[0] === 'watch') {
+    const id = url.searchParams.get('v') ?? '';
+    return VIDEO_ID.test(id) ? id : null;
+  }
+  if (parts.length === 2 && ['shorts', 'live', 'embed'].includes(parts[0]) && VIDEO_ID.test(parts[1])) return parts[1];
+  return null;
+}
+
 export function normalizeItemName(value: string) {
   return value.toLocaleLowerCase('ko-KR').replace(/\s+/g, '');
 }
@@ -117,9 +189,9 @@ type Dependencies = {
   json: (body: unknown, status?: number) => Response;
 };
 
-async function catalogCategory(client: SupabaseClient) {
+async function catalogCategory(client: SupabaseClient, slug: string) {
   const categoryResult = await client.from('categories').select('id,parent_id')
-    .eq('slug', 'youtube').eq('status', 'open').eq('is_visible', true).eq('is_pickable', true).maybeSingle();
+    .eq('slug', slug).eq('status', 'open').eq('is_visible', true).eq('is_pickable', true).maybeSingle();
   const category = categoryResult.data;
   if (categoryResult.error || !category) return null;
   const children = await client.from('categories').select('id').eq('parent_id', category.id).limit(1);
@@ -145,6 +217,12 @@ function videosUrl(apiKey: string, videoId: string) {
   url.searchParams.set('part', 'snippet');
   url.searchParams.set('id', videoId);
   url.searchParams.set('key', apiKey);
+  return url;
+}
+
+function videoDetailsUrl(apiKey: string, videoId: string) {
+  const url = videosUrl(apiKey, videoId);
+  url.searchParams.set('fields', 'items(id,snippet(title,channelTitle,thumbnails))');
   return url;
 }
 
@@ -195,7 +273,224 @@ function isFresh(value: unknown, maxAgeMs: number) {
 
 export function createYouTubeCatalogHandler(deps: Dependencies) {
   const { client: makeClient, fetchYouTube, readCache, writeCache, apiKey, json } = deps;
+
+  const authenticate = async (client: SupabaseClient, req: Request) => {
+    const authorization = req.headers.get('Authorization') ?? '';
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!token) return null;
+    const { data, error } = await client.auth.getUser(token);
+    return error || !data.user || data.user.is_anonymous ? null : data.user;
+  };
+
+  const reserveSearch = async (client: SupabaseClient, req: Request, userId: string) => {
+    const forwarded = req.headers.get('cf-connecting-ip')
+      ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      ?? null;
+    let ipHash: string | null = null;
+    if (forwarded && forwarded.length <= 128) {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(forwarded));
+      ipHash = [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+    const quota = await client.rpc('reserve_youtube_catalog_search', { p_user_id: userId, p_ip_hash: ipHash });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+    return null;
+  };
+
+  const videoFields = (video: YouTubeVideoEntry, now: string) => ({
+    name: video.title,
+    normalized_name: normalizeItemName(video.title),
+    official_url: video.videoUrl,
+    image_source_url: video.thumbnailUrl,
+    original_name: video.title,
+    creator_name: video.channelTitle,
+    external_refreshed_at: now,
+    status: 'active',
+  });
+
+  // Recipe videos: a shared video link becomes one item per video ID under the dish
+  // the member confirms (미역국, 김치찌개, …) with a recipe channel pointing at the
+  // video. A dish missing from the catalog becomes a pending request carrying its name.
+  const recipeCategory = async (client: SupabaseClient, categoryId: string) => {
+    const accepted = await client.rpc('category_accepts_recipe', { p_category_id: categoryId });
+    return accepted.error ? null : accepted.data === true;
+  };
+  const ensureRecipeChannel = async (client: SupabaseClient, itemId: string, url: string) => {
+    // A video stays pickable as a recipe without this row; the row only adds the
+    // video link and label, so a failure here does not fail the registration.
+    await client.from('item_channels')
+      .upsert({ item_id: itemId, channel: 'recipe', target_url: url, is_primary: true }, { onConflict: 'item_id,channel' });
+  };
+
+  const handleVideo = async (body: Record<string, unknown>, req: Request): Promise<Response> => {
+    const lookup = body.action === 'video_lookup';
+    const requesting = body.action === 'video_request';
+    const rawId = typeof body.externalId === 'string' ? body.externalId.trim() : '';
+    const id = lookup
+      ? parseYouTubeVideoUrl(typeof body.url === 'string' ? body.url : '')
+      : (VIDEO_ID.test(rawId) ? rawId : null);
+    if (!id) return json({ error: lookup ? 'VIDEO_URL_INVALID' : 'EXTERNAL_ID_INVALID' }, 400);
+    const dishId = body.action === 'video_import' && typeof body.categoryId === 'string' && UUID.test(body.categoryId)
+      ? body.categoryId : null;
+    if (body.action === 'video_import' && !dishId) return json({ error: 'CATEGORY_REQUIRED' }, 400);
+    const dishName = requesting ? clean(body.dishName, DISH_NAME_MAX + 1) : '';
+    if (requesting && (!dishName || dishName.length > DISH_NAME_MAX)) return json({ error: 'DISH_NAME_INVALID' }, 400);
+    // The one-line review travels with the request so approval can make the Pick.
+    const review = requesting && typeof body.review === 'string' ? body.review.trim() : '';
+    if (requesting && (!review || review.length > REVIEW_MAX)) return json({ error: 'REVIEW_INVALID' }, 400);
+
+    const client = makeClient();
+    if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+    const user = await authenticate(client, req);
+    if (!user) return json({ error: 'AUTH_REQUIRED' }, 401);
+
+    if (lookup) {
+      const limited = await reserveSearch(client, req, user.id);
+      if (limited) return limited;
+    } else {
+      const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: user.id });
+      if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+    }
+    if (dishId) {
+      const accepts = await recipeCategory(client, dishId);
+      if (accepts === null) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (!accepts) return json({ error: 'CATEGORY_NOT_PICKABLE' }, 409);
+    }
+    const key = apiKey();
+    if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
+
+    const findExisting = () => client.from('items').select('id,category_id,status,external_refreshed_at')
+      .eq('external_source', YOUTUBE_VIDEO_SOURCE).eq('external_id', id).maybeSingle();
+    let existing = await findExisting();
+    if (existing.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    // A rejected video (a turned-down request, or a retired recipe an administrator
+    // removed) must not block the video forever. Registering releases its video
+    // identity so the video starts over as a new item; the rejected row and its Pick
+    // history stay as they are. A lookup only treats it as unregistered.
+    if (existing.data?.status === 'rejected') {
+      if (!lookup) {
+        const released = await client.from('items').update({ external_source: null, external_id: null })
+          .eq('id', existing.data.id).eq('status', 'rejected');
+        if (released.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      existing = { ...existing, data: null };
+    }
+    if (existing.data && !['active', 'discontinued'].includes(existing.data.status)) {
+      return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+    }
+    // A video registered under a dish keeps that dish. One left in the retired 레시피
+    // category can move to the confirmed dish as long as nobody picked it.
+    let existingDish: string | null = null;
+    if (existing.data) {
+      const accepts = await recipeCategory(client, existing.data.category_id);
+      if (accepts === null) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (accepts) existingDish = existing.data.category_id;
+    }
+    if (existing.data && !existingDish && !lookup) {
+      if (requesting) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+      const picked = await client.from('picks').select('id').eq('item_id', existing.data.id).limit(1);
+      if (picked.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      if (picked.data?.length) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
+    }
+
+    if (!lookup && existing.data && existingDish && isFresh(existing.data.external_refreshed_at, 20 * 24 * 60 * 60_000)) {
+      await ensureRecipeChannel(client, existing.data.id, videoUrl(id)!);
+      return json({ itemId: existing.data.id, categoryId: existingDish, created: false });
+    }
+
+    const cacheKey = `video:\n${id}`;
+    const cached = lookup ? await readCache(client, cacheKey, 10 * 60_000) : null;
+    let rawItems: unknown[] | null = Array.isArray(cached) ? cached : null;
+    let fetchedNow = false;
+    if (!rawItems) {
+      const remote = await fetchYouTube(videoDetailsUrl(key, id));
+      if (remote.error) return remote.error;
+      rawItems = Array.isArray(remote.data.items) ? remote.data.items.slice(0, 1) : [];
+      await writeCache(client, cacheKey, rawItems);
+      fetchedNow = true;
+    }
+    const video = rawItems.map(mapYouTubeVideo).find((entry) => entry?.externalId === id) ?? null;
+    if (!video) return json({ error: 'VIDEO_NOT_FOUND' }, 404);
+    const now = new Date().toISOString();
+
+    if (lookup) {
+      if (existing.data && existingDish && fetchedNow) {
+        const updated = await client.from('items').update(videoFields(video, now)).eq('id', existing.data.id);
+        if (updated.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      let suggestions: { categoryId: string; name: string; path: string | null }[] = [];
+      if (!existingDish) {
+        // Suggestions only help; without them the member searches the dish instead.
+        const suggested = await client.rpc('recipe_dish_suggestions', { p_title: video.title });
+        if (!suggested.error && Array.isArray(suggested.data)) {
+          suggestions = (suggested.data as Record<string, unknown>[]).slice(0, 5).map((row) => ({
+            categoryId: typeof row.category_id === 'string' ? row.category_id : '',
+            name: clean(row.name, 100),
+            path: clean(row.path, 300) || null,
+          })).filter((row) => UUID.test(row.categoryId) && row.name);
+        }
+      }
+      return json({
+        video: { ...video, existingItemId: existingDish ? existing.data!.id : null, existingCategoryId: existingDish },
+        suggestions,
+      });
+    }
+
+    if (existing.data) {
+      // A known video under its dish is refreshed; one outside any dish moves to the
+      // confirmed dish (nobody picked it, checked above).
+      const fields = existingDish ? videoFields(video, now) : { ...videoFields(video, now), category_id: dishId };
+      const updated = await client.from('items').update(fields)
+        .eq('id', existing.data.id).select('id,category_id').maybeSingle();
+      if (updated.error || !updated.data) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      await ensureRecipeChannel(client, updated.data.id, video.videoUrl);
+      return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
+    }
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+
+    let targetCategory = dishId;
+    if (requesting) {
+      const pending = await client.from('categories').select('id').eq('slug', 'pending-product').maybeSingle();
+      if (pending.error || !pending.data) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
+      targetCategory = pending.data.id;
+    }
+    const inserted = await client.from('items').insert({
+      category_id: targetCategory,
+      ...videoFields(video, now),
+      ...(requesting ? { status: 'pending', created_by: user.id, requested_category_label: dishName } : {}),
+      external_source: YOUTUBE_VIDEO_SOURCE,
+      external_id: id,
+      release_year: null,
+      collection_name: null,
+    }).select('id,category_id').maybeSingle();
+    if (!inserted.error && inserted.data) {
+      await ensureRecipeChannel(client, inserted.data.id, video.videoUrl);
+      if (requesting) {
+        const intent = await client.from('pending_item_picks').upsert(
+          { item_id: inserted.data.id, user_id: user.id, one_line_review: review, channel: 'recipe' },
+          { onConflict: 'item_id' },
+        );
+        if (intent.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+      }
+      return json(requesting
+        ? { itemId: inserted.data.id, categoryId: null, created: true, pending: true }
+        : { itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true });
+    }
+    if (inserted.error?.code !== '23505') return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    const winner = await findExisting();
+    if (winner.error || !winner.data || !['active', 'discontinued'].includes(winner.data.status)) {
+      return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    }
+    return json({ itemId: winner.data.id, categoryId: winner.data.category_id, created: false });
+  };
+
   return async (body: Record<string, unknown>, req: Request): Promise<Response> => {
+    if (body.action === 'video_lookup' || body.action === 'video_import' || body.action === 'video_request') return handleVideo(body, req);
     if (body.action !== 'search' && body.action !== 'import') return json({ error: 'ACTION_INVALID' }, 400);
     const query = clean(body.query, 1000);
     const id = typeof body.externalId === 'string' ? body.externalId.trim() : '';
@@ -206,37 +501,19 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
 
-    const authorization = req.headers.get('Authorization') ?? '';
-    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-    if (!token) return json({ error: 'AUTH_REQUIRED' }, 401);
-    const { data: authData, error: authError } = await client.auth.getUser(token);
-    if (authError || !authData.user || authData.user.is_anonymous) {
-      return json({ error: 'AUTH_REQUIRED' }, 401);
-    }
+    const user = await authenticate(client, req);
+    if (!user) return json({ error: 'AUTH_REQUIRED' }, 401);
 
     if (body.action === 'search') {
-      const forwarded = req.headers.get('cf-connecting-ip')
-        ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-        ?? null;
-      let ipHash: string | null = null;
-      if (forwarded && forwarded.length <= 128) {
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(forwarded));
-        ipHash = [...new Uint8Array(digest)]
-          .map((byte) => byte.toString(16).padStart(2, '0')).join('');
-      }
-      const quota = await client.rpc('reserve_youtube_catalog_search', {
-        p_user_id: authData.user.id,
-        p_ip_hash: ipHash,
-      });
-      if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
+      const limited = await reserveSearch(client, req, user.id);
+      if (limited) return limited;
     } else {
-      const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: authData.user.id });
+      const suspended = await client.rpc('catalog_user_is_suspended', { p_user_id: user.id });
       if (suspended.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       if (suspended.data === true) return json({ error: 'ITEM_NOT_ELIGIBLE' }, 409);
     }
 
-    const category = await catalogCategory(client);
+    const category = await catalogCategory(client, CHANNEL_CATEGORY_SLUG);
     if (!category) return json({ error: 'CATEGORY_NOT_FOUND' }, 503);
     const key = apiKey();
     if (!key) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
@@ -341,6 +618,10 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
       if (updated.error || !updated.data) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
       return json({ itemId: updated.data.id, categoryId: updated.data.category_id, created: false });
     }
+
+    const quota = await client.rpc('reserve_external_catalog_import', { p_user_id: user.id });
+    if (quota.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
+    if (quota.data !== true) return json({ error: 'RATE_LIMITED' }, 429);
 
     const inserted = await client.from('items').insert({
       category_id: category.id,

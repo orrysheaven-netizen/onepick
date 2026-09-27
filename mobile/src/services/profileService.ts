@@ -1,6 +1,6 @@
 import { AppError } from '@/errors/appError';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { ReadCursor, ReadRepository, RootCategoryScope } from '@/repositories/interfaces/readRepository';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -62,6 +62,16 @@ export class ProfileService {
     return {
       items,
       nextCursor: rows.length > 20 && last ? { timestamp: last.startedAt, id: last.id } : null,
+    };
+  }
+
+  async getMyComments(userId: string, cursor: ReadCursor | null = null, scope: RootCategoryScope | null = null) {
+    const rows = await this.readRepository.getCommentsByUser(userId, 21, cursor, scope);
+    const items = rows.slice(0, 20);
+    const last = items[items.length - 1]?.comment;
+    return {
+      items,
+      nextCursor: rows.length > 20 && last ? { timestamp: last.createdAt, id: last.id } : null,
     };
   }
 

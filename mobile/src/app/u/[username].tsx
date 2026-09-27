@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,8 +17,9 @@ import { useProfileAiComment } from '@/hooks/useProfileAi';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
+import { splitLabPicks } from '@/lib/profile/profilePickGroups';
 import { isSeedProfileId } from '@/lib/seedProfiles';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -26,17 +27,26 @@ export default function PublicProfileScreen() {
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
   const categoriesQuery = useExploreCategories(Boolean(query.data));
-  const aiCommentQuery = useProfileAiComment(query.data?.profile.id);
+  // Always call the hook; an absent profileId disables its network query.
+  const aiCommentQuery = useProfileAiComment(OnePickFeatures.profileAi ? query.data?.profile.id : undefined);
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
+  const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
+  // 실험실 themes stay off the main profile and its share card while the lab is on.
+  const { main: mainPicks, lab: labPicks } = useMemo(
+    () => splitLabPicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab),
+    [query.data?.currentPicks, categoriesQuery.data],
+  );
+  const visibleProfilePicks = profileScope === 'food' ? mainPicks : labPicks;
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
-    const { profile, currentPicks } = query.data;
+    const { profile } = query.data;
+    const currentPicks = mainPicks;
     setIsSharing(true);
     setShareError(false);
     setCardNotice(null);
@@ -49,7 +59,7 @@ export default function PublicProfileScreen() {
             categoryName: entry.category?.name ?? '',
             itemName: entry.item?.name ?? '',
           })),
-          aiComment: aiCommentQuery.data ?? null,
+          aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
         });
         if (result === 'downloaded-with-link') {
           setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
@@ -104,27 +114,39 @@ export default function PublicProfileScreen() {
               onRequireLogin={() => router.push({ pathname: '/auth/login', params: { action: 'view_profile', username: query.data!.profile.username } })} />
             <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
           </View> : null}
-          <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} />
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{query.data.currentPicks.length}개</Text></View>
-          <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" />
-          <ProfileAiComment
+          {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>현재 원픽</Text><Text style={styles.summaryNumber}>{mainPicks.length}개</Text></View>
+          {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
+          {OnePickFeatures.profileAi ? <ProfileAiComment
             profileId={query.data.profile.id}
             showPrivate={query.data.isMine}
             sectionTitle="AI 취향평가"
-            sectionDescription="위 취향 구성은 선택의 큰 틀입니다. AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
-          />
-          <View style={styles.sectionHeader}><SectionHeader title="카테고리별 원픽" count={query.data.currentPicks.length} /></View>
-          {query.data.currentPicks.length > 0 ? (
+            sectionDescription="AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
+          /> : null}
+          {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
+            <Pressable accessibilityRole="tab" accessibilityLabel="음식 원픽 보기" accessibilityState={{ selected: profileScope === 'food' }}
+              onPress={() => setProfileScope('food')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'food' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
+              <Text style={[styles.profileScopeText, profileScope === 'food' && styles.profileScopeTextSelected]}>음식</Text>
+            </Pressable>
+            <Pressable accessibilityRole="tab" accessibilityLabel="다른 취향 원픽 보기" accessibilityState={{ selected: profileScope === 'other' }}
+              onPress={() => setProfileScope('other')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'other' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
+              <Text style={[styles.profileScopeText, profileScope === 'other' && styles.profileScopeTextSelected]}>다른 취향</Text>
+            </Pressable>
+          </View> : null}
+          <View style={styles.sectionHeader}><SectionHeader title={profileScope === 'food' ? '음식 원픽' : '다른 취향'} count={visibleProfilePicks.length} /></View>
+          {visibleProfilePicks.length > 0 ? (
             <ProfilePickGroups
-              picks={query.data.currentPicks}
+              picks={visibleProfilePicks}
               categories={categoriesQuery.data ?? []}
               onPressPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
               onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
+              onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
             />
-          ) : <StateCard title="아직 공개된 원픽이 없어요" text="이 사용자가 원픽을 고르면 여기에 표시됩니다." />}
+          ) : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
+            text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
-            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요. 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.</Text>
+            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
             <Button fullWidth style={styles.joinButton} label="내 원픽 만들기"
               accessibilityLabel="로그인하고 내 원픽 만들기"
               onPress={() => router.push({ pathname: '/auth/login', params: { action: 'join_from_profile' } })} />
@@ -170,6 +192,11 @@ const styles = StyleSheet.create({
   safetyText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 5 },
   safetyActions: { gap: 10, marginTop: 12 },
   sectionHeader: { marginBottom: 10 },
+  profileScopeTabs: { flexDirection: 'row', gap: 8, marginTop: 14, marginBottom: 16 },
+  profileScopeTab: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 999, backgroundColor: OnePick.sunken },
+  profileScopeTabSelected: { backgroundColor: OnePick.text },
+  profileScopeText: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  profileScopeTextSelected: { color: OnePick.onAccent },
   joinCard: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 18, marginTop: 22 },
   joinTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
   joinText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 18, marginTop: 7 },

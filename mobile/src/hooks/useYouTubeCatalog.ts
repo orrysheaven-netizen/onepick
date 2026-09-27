@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { queryKeys } from '@/lib/query/queryKeys';
+import { youtubeVideoUrl } from '@/lib/youtube/videoLink';
 import { youtubeCatalogService } from '@/services';
+import type { YouTubeVideoLookup } from '@/types/domain/youtubeCatalog';
 
 const SEARCH_DELAY_MS = 300;
 const FRESH_RESULT_MS = 10 * 60_000;
@@ -36,4 +38,36 @@ export function useYouTubeCatalogSearch(searchText: string, enabled: boolean) {
 
 export function useImportYouTubeChannel() {
   return useMutation({ mutationFn: (externalId: string) => youtubeCatalogService.importChannel(externalId) });
+}
+
+/** Recipe video preview for a parsed video ID; the canonical link drops share/tracking params. */
+export function useYouTubeVideoLookup(videoId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.youtubeCatalog.video(videoId ?? ''),
+    queryFn: ({ signal }) => youtubeCatalogService.lookupVideo(youtubeVideoUrl(videoId!), signal),
+    enabled: enabled && Boolean(videoId),
+    staleTime: FRESH_RESULT_MS,
+    retry: false,
+  });
+}
+
+export function useImportYouTubeVideo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { externalId: string; categoryId: string }) => youtubeCatalogService.importVideo(input.externalId, input.categoryId),
+    // Mark the cached preview as registered instead of refetching it (each lookup spends YouTube quota).
+    onSuccess: (item, input) => {
+      queryClient.setQueryData<YouTubeVideoLookup>(queryKeys.youtubeCatalog.video(input.externalId),
+        (current) => current
+          ? { ...current, video: { ...current.video, existingItemId: item.itemId, existingCategoryId: item.categoryId } }
+          : current);
+    },
+  });
+}
+
+export function useRequestYouTubeVideo() {
+  return useMutation({
+    mutationFn: (input: { externalId: string; dishName: string; review: string }) =>
+      youtubeCatalogService.requestVideo(input.externalId, input.dishName, input.review),
+  });
 }

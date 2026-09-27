@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { meaningfulPickChangeCount } from '../_shared/profileAiPickChanges.ts';
 import {
   PROFILE_AI_COOLDOWN_SECONDS,
   PROFILE_AI_MIN_CHANGES,
@@ -38,6 +39,7 @@ function buildSnapshot(rows: unknown[]) {
       pickId: textOrNull(pick.id, 36),
       categoryId: textOrNull(category.id, 36),
       category: textOrNull(category.name),
+      channel: textOrNull(pick.channel, 16),
       itemId: textOrNull(item.id, 36),
       item: textOrNull(item.name),
       originalName: textOrNull(item.original_name),
@@ -48,37 +50,6 @@ function buildSnapshot(rows: unknown[]) {
   }).filter((pick) =>
     pick.pickId && pick.categoryId && pick.category && pick.itemId && pick.item && pick.review
   );
-}
-
-function meaningfulChangeCount(previousValue: unknown, currentValue: unknown): number {
-  const previous = Array.isArray(previousValue) ? previousValue.map(record) : [];
-  const current = Array.isArray(currentValue) ? currentValue.map(record) : [];
-
-  const signatureByCategory = (rows: Record<string, unknown>[]) => {
-    const result = new Map<string, string>();
-    for (const row of rows) {
-      const categoryId = textOrNull(row.categoryId, 36);
-      const category = textOrNull(row.category, 300);
-      const key = categoryId ?? (category ? `name:${category}` : null);
-      if (!key) continue;
-
-      const itemId = textOrNull(row.itemId, 36);
-      const item = textOrNull(row.item, 300);
-      const review = textOrNull(row.review, 100) ?? '';
-      const itemKey = itemId ?? (item ? `name:${item}` : '');
-      result.set(key, JSON.stringify([itemKey, review]));
-    }
-    return result;
-  };
-
-  const before = signatureByCategory(previous);
-  const after = signatureByCategory(current);
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  let changed = 0;
-  for (const key of keys) {
-    if (before.get(key) !== after.get(key)) changed += 1;
-  }
-  return changed;
 }
 
 async function fingerprint(value: unknown) {
@@ -182,7 +153,7 @@ Deno.serve(async (req: Request) => {
     };
     const readSnapshot = async () => {
       const { data, error } = await publicClient.from('picks')
-        .select('id,one_line_review,updated_at,categories!picks_category_id_fkey!inner(id,name),items!picks_item_category_fk!inner(id,name,original_name,release_year,creator_name,collection_name)')
+        .select('id,channel,one_line_review,updated_at,categories!picks_category_id_fkey!inner(id,name),items!picks_item_category_fk!inner(id,name,original_name,release_year,creator_name,collection_name)')
         .eq('user_id', user.id).eq('status', 'active').eq('categories.is_visible', true)
         .in('items.status', ['active', 'discontinued']).order('id', { ascending: true }).limit(50);
       if (error) throw new Error('AI_SOURCE_READ_FAILED');
@@ -227,16 +198,16 @@ Deno.serve(async (req: Request) => {
 
     // These reads are independent once a valid public snapshot exists. Running
     // them together removes serial PostgREST round trips without weakening
-    // the source-version check or public snapshot RLS. current_user_is_admin
-    // reads auth.uid() from the caller's own JWT, so it must run on userClient
-    // (publicClient/admin carry no real end-user identity).
-    const [latestSourceVersion, existingResult, actorResult, adminResult] = await Promise.all([
+    // the source-version check or public snapshot RLS. Admin cooldown bypass
+    // requires both allowlist membership and the caller's AAL2 session.
+    const [latestSourceVersion, existingResult, actorResult, assuranceResult, adminResult] = await Promise.all([
       readSourceVersion(),
       admin.from('profile_ai_reviews')
         .select(`${REVIEW_COLUMNS},source_fingerprint,source_version,model_name,prompt_version`)
         .eq('profile_id', user.id).maybeSingle(),
       admin.from('system_actors')
         .select(ACTOR_COLUMNS).eq('slug', 'onepick_ai').eq('is_active', true).single(),
+      userClient.auth.mfa.getAuthenticatorAssuranceLevel(authorization.slice(7)),
       userClient.rpc('current_user_is_admin'),
     ]);
     if (latestSourceVersion !== sourceVersion) return finish('stale', reply({ error: 'AI_REVIEW_STALE' }, 409));
@@ -245,7 +216,8 @@ Deno.serve(async (req: Request) => {
     const { data: actor, error: actorError } = actorResult;
     if (actorError || !actor) throw new Error('AI_ACTOR_NOT_FOUND');
     if (adminResult.error) throw new Error('AI_ADMIN_CHECK_FAILED');
-    const isAdmin = adminResult.data === true;
+    const isAdmin = adminResult.data === true &&
+      !assuranceResult.error && assuranceResult.data.currentLevel === 'aal2';
 
     const sourceFingerprint = await fingerprint(snapshot);
 
@@ -276,7 +248,7 @@ Deno.serve(async (req: Request) => {
           }, 409));
         }
       } else {
-        const changedCount = meaningfulChangeCount(existing.pick_snapshot, snapshot);
+        const changedCount = meaningfulPickChangeCount(existing.pick_snapshot, snapshot);
         if (changedCount < PROFILE_AI_MIN_CHANGES) {
           return finish('not_enough_changes', reply({
             error: 'AI_NOT_ENOUGH_CHANGES',

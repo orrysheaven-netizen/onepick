@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 
@@ -47,9 +47,9 @@ jobs:
           test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with:
-          version: latest
+          version: 2.118.0
 
       - name: Link onepick-dev
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"

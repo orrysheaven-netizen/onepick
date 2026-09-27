@@ -6,7 +6,7 @@
 
 | 시각 (KST) | 주체 | 하는 일 |
 | --- | --- | --- |
-| 06:00 | GitHub Actions `Daily QA` (`.github/workflows/daily-qa.yml`) | 테스터 사이트를 실제 휴대폰 환경처럼 열어 측정하고, 실사용자 오류 집계를 만든다 |
+| 06:00 | GitHub Actions `Daily QA` (`.github/workflows/daily-qa.yml`) | 테스터 사이트를 실제 휴대폰 환경처럼 열어 측정하고, 실사용자 오류 집계와 DB 점검(성능·보안 advisor, 느린 쿼리)을 만든다 |
 | 07:00 | Claude Code Routine "OnePick daily QA" | Actions 결과와 최근 24시간 변경을 분석해 GitHub 이슈 `[Daily QA] YYYY-MM-DD`(라벨 `qa-report`)를 만든다 |
 | 이후 | 역할별 담당 | 제품/UI/일반 버그는 Codex, 보안·DB·성능·광범위 리팩터링은 Claude가 수정 PR을 만든다. PR 본문에 `Refs #<이슈>`를 남긴다 |
 | 다음 날 07:00 | Claude | 전날 항목이 고쳐졌는지 다시 측정하고, 전날 이슈를 닫으며 남은 항목을 새 이슈로 넘긴다 |
@@ -25,21 +25,48 @@ Claude 클라우드 세션은 네트워크 정책 때문에 `onepick-5cl.pages.d
 
 기준값은 `live-qa.mjs`의 `LIMITS`에서만 조정한다. URL은 쿼리스트링을 지우고 기록한다. 쿼리스트링에 토큰이나 필터가 들어갈 수 있기 때문이다.
 
+### PR 미리보기 모드 (자동화 계획 B-도구)
+
+`QA_MODE=pr`로 실행하면 `live-qa.mjs`가 짧은 경로 세트(`/`, `/explore`, 홈 1회 로드)만 돌고 저속 4G 실행과 홈→상세 전환은 건너뛴다. `report.md`/`report.json`과 `===QA-REPORT-BEGIN/END===` 마커는 그대로 남기고, 추가로 `<out>/verdict.json`을 쓴다.
+
+```json
+{ "pass": true, "budgetViolations": [], "findings": [] }
+```
+
+- `findings`는 전체 리포트의 발견 사항(`report.json`의 `findings`)과 같다.
+- `budgetViolations`는 화면별 예산 초과 항목이다. 각 항목은 `{ page, metric, value, limit }`이고 `metric`은 `jsKb` / `fcpMs` / `readyMs` / `supabaseCallsPerPage` 중 하나다. 저속 4G 실행이나 화면 전환에는 별도 완화된 기준이 있어 이 예산 판정에서 제외한다.
+- `pass`는 High 발견 사항과 예산 초과가 모두 없을 때만 `true`다.
+- `QA_MODE=pr`일 때만 `pass`가 `false`면 프로세스 종료 코드가 1이 된다(전체 야간 실행은 항상 0으로 끝난다).
+
+ChatGPT/Codex의 PR 미리보기 워크플로(B-워크플로, 아직 미구현)는 Cloudflare 미리보기 배포가 끝난 뒤 다음처럼 실행해 결과를 PR 댓글로 남기면 된다. 필수 체크로 걸지 않으므로 종료 코드 1은 PR을 막지 않고, 댓글 내용으로만 알린다.
+
+```bash
+cd tools/qa && npm ci && npx playwright install --with-deps chromium
+QA_MODE=pr QA_BASE_URL=<미리보기 URL> node live-qa.mjs   # 결과: tools/qa/qa-output/verdict.json
+```
+
 `tools/qa/logged-in-qa.mjs`는 QA 전용 일반 사용자 계정으로 로그인한 상태를 390×844 모바일 뷰포트에서 측정한다(job `logged-in`).
 
-- **흐름**: 로그인 → 홈(하단 탭, 팔로잉/전체 피드, 카드) → 검색(즉시 결과, 검색 실행, 제품 상세) → 원픽 등록 화면(검색·선택 버튼) → 내 프로필(핵심 요소, 공개 프로필) → 다른 사용자 프로필의 팔로우 버튼 → 알림(진입 버튼, 알림 화면) → 원픽·프로필 딥링크 직접 열기와 공유 버튼
-- **읽기 전용**: 등록·팔로우·공유는 누르지 않는다. 버튼은 보이고 눌릴 수 있는지만 Playwright trial click으로 확인한다.
+- **흐름**: 로그인 → 홈(하단 탭, 팔로잉/전체 피드, 카드) → 검색(즉시 결과, 검색 실행, 제품 상세) → 원픽 등록 화면(`/pick/new` 6단계 중 1/6 매장 검색·선택 → 2/6 메뉴 선택 후 "다음" 버튼 활성화 확인, 제출하지 않음) → 링크 추천(`/pick/link` 직접 진입, 비네이버 링크 + 이름 "도가니탕"으로 추천 확인, 등록 요청 버튼 2개) → 프로필(핵심 요소: "카테고리별 원픽"·새로고침 버튼, 공개 프로필 이동 후 "현재 원픽" 요약) → 다른 사용자 프로필의 팔로우 버튼 → 알림(진입 버튼, 알림 화면) → 원픽·프로필 딥링크 직접 열기와 "이 원픽 공유"/"프로필 공유하기" 버튼(누르지 않음)
+- **읽기 전용**: 등록·팔로우·공유는 누르지 않는다. 링크 추천 조회 버튼만 누른다(카테고리를 읽기만 하고, 네이버 링크가 아니라 외부 요청도 없다). 버튼은 보이고 눌릴 수 있는지만 Playwright trial click으로 확인한다.
 - **로그인 방식**: 앱에는 소셜 로그인만 있으므로 Supabase 비밀번호 로그인으로 세션을 만들어 브라우저에 넣는다. 로그인 폼을 입력하지 않으므로 자격 증명이 화면에 나오지 않는다. 끝나면 그 세션을 폐기한다.
 - **Secret**: GitHub Environment `daily-qa`의 `ONEPICK_QA_EMAIL`, `ONEPICK_QA_PASSWORD`만 쓴다. 이 Environment는 `main`만 쓸 수 있고, job은 `main`의 schedule·workflow_dispatch에서만 돈다. Secret이 없으면 "건너뜀"을 기록하고 성공으로 끝난다. 확인 항목이 실패하면 job이 실패한다.
 - **기록**: 자기 프로필 화면은 캡처하지 않는다. 다른 스크린샷에서는 QA 사용자명을 가린다. 리포트에서는 자격 증명, 토큰, 이메일 형식 문자열, QA 사용자명을 지운다. 결과는 아티팩트 `daily-qa-logged-in`과 로그의 `===QA-LOGIN-REPORT-BEGIN===` 표시로 찾는다.
 
 `tools/qa/real-user-errors.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 `client_error_events`와 `product_analytics_events`를 읽는다. 최근 24시간과 8일 동안의 **집계만** 가져오고, 사용자 ID나 경로는 가져오지 않는다.
 
+`tools/qa/db-health.mjs`는 `SUPABASE_ACCESS_TOKEN`으로 Management API의 `/v1/projects/{ref}/advisors/performance`, `/security`를 읽고, 읽기 전용 쿼리 엔드포인트로 `pg_stat_statements` 상위 10개 느린 쿼리를 가져온다(job `db-health`). **읽기 전용**이며 인덱스·RLS는 고치지 않는다(수정은 자동화 계획 G-수정, ChatGPT/Codex 담당).
+
+- `pg_stat_statements`는 리터럴을 이미 `$1`/`$2`로 정규화하므로 사용자 데이터가 남지 않고, 쿼리 텍스트는 200자로 한 번 더 자른다.
+- Secret이 없으면 "건너뜀"을 기록하고 성공(exit 0)으로 끝난다. advisor·느린 쿼리 조회 중 하나가 실패해도 나머지 섹션은 계속 만들고 "조회 실패"에 이유만 남긴다.
+- 결과: `db-health.md`. 아티팩트 `daily-qa-db-health`로 14일 보관하고, 로그에서는 `===QA-REPORT-BEGIN===` 표시로 찾는다.
+
 로컬에서는 다음처럼 실행한다.
 
 ```bash
 cd tools/qa && npm ci && npx playwright install chromium
 QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/qa-output/
+SUPABASE_ACCESS_TOKEN=<PAT> node db-health.mjs               # 결과: tools/qa/qa-output/db-health.md
 ```
 
 ## 로그인 상태 QA 계정 규칙
@@ -56,7 +83,7 @@ QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/
 
 0. **공통 handoff preflight**: 먼저 `CLAUDE.md`의 "Claude handoff queue" 절을 실행한다. `handoff:claude` 작업이 있으면 한 건만 원자적으로 수락(`owner:claude` + `state:active`, handoff 라벨 제거)하되, 07:00 Daily QA 리포트 자체는 건너뛰지 않는다.
 1. **Actions 결과 확인**: 오늘 06:00 KST 이후 `main`에서 실행된 `Daily QA`를 찾는다(`actions_list`). 없거나 실패했으면 `workflow_dispatch`로 한 번 실행한다. 끝나지 않았으면 몇 분 기다린다. 그래도 결과가 없으면 리포트에 "라이브 측정 없음"과 그 이유를 적는다.
-2. **로그 추출**: `live-web`과 `real-user-errors` 잡 로그에서 `===QA-REPORT-BEGIN===`부터 `END`까지, `logged-in` 잡 로그에서 `===QA-LOGIN-REPORT-BEGIN===`부터 `END`까지를 가져온다(`get_job_logs`).
+2. **로그 추출**: `live-web`, `real-user-errors`, `db-health` 잡 로그에서 `===QA-REPORT-BEGIN===`부터 `END`까지, `logged-in` 잡 로그에서 `===QA-LOGIN-REPORT-BEGIN===`부터 `END`까지를 가져온다(`get_job_logs`). `db-health`는 읽기 전용 점검이므로 발견 사항은 "수정 요청"이 아니라 리포트 본문에 그대로 옮기고, 인덱스·RLS 수정이 필요하면 자동화 계획 G-수정 항목으로 남긴다(ChatGPT/Codex 담당).
 3. **배포 확인**: 리포트의 배포 커밋을 `main` HEAD와 비교한다. 다르면 배포 지연 또는 실패로 기록한다. `main`의 필수 CI(`typecheck`, `verify-web`, `database-tests`)가 실패했는지도 확인한다.
 4. **최근 24시간 변경 검토**: `main`에 병합된 커밋과 PR의 diff를 읽는다. 다음 네 가지를 코드 근거와 함께 찾는다.
    - 사용자가 겪을 오류(예외 처리 누락, 오류 상태 누락, 무한 로딩)

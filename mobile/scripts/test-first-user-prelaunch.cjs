@@ -189,6 +189,12 @@ async function main() {
     'the owner profile must open its public profile by username',
   );
   assert.match(
+    profileSource,
+    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    'the owner profile must expose the same stable public-profile share payload',
+  );
+  assert.match(profileSource, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/, 'the owner profile exposes its direct share CTA');
+  assert.match(
     publicProfileSource,
     /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
     'the public profile fallback must share the loaded username and current Pick count',

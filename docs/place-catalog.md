@@ -2,6 +2,25 @@
 
 Provider-scale restaurant records stay separate from both generic `items` and the canonical OnePick `places` table.
 
+
+## Current coverage (2026-09-26)
+
+**매장 (place) search covers Seoul, Gyeonggi and Incheon restaurants**: SBIZ 상가(상권)정보
+2026-06-30, 상권업종대분류명=음식 — 서울특별시 141,126 + 경기도 185,804 + 인천광역시 40,973 open rows.
+Other regions cannot be selected yet; users see "매장 등록은 현재 서울·경기·인천 음식점만
+가능해요" and can send a store request instead. The app copy comes from
+`PLACE_COVERAGE_REGIONS` in `mobile/src/lib/items/pickChannel.ts` — update it together
+with each new region load.
+
+Gyeonggi (93 files) and Incheon (21 files) were staged with `supabase db query --linked -f` (Management API, no DB
+password) in files of 4×500 rows, then `select private.promote_place_imports('sbiz')`.
+Rows with the same `source_updated_at` are not rewritten, so re-promoting leaves Seoul
+untouched.
+
+Size (free plan, 500 MB database limit): before Gyeonggi the database was 162 MB
+(`place_catalog` ≈0.49 KB/row, `private.place_import_raw` ≈0.53 KB/row); Seoul +
+Gyeonggi measured 352 MB; with Incheon ≈395 MB. Nationwide (음식 rows 840,255) would need the Pro plan (8 GB disk).
+
 ## Layers
 
 1. `private.place_import_raw`: service-role-only staging for provider payloads.
@@ -102,3 +121,89 @@ Explicit grants are part of the migration; RLS is not treated as a substitute fo
 5. LOCALDATA EPSG:5174 adapter and cross-check
 6. admin catalog→canonical place approval workflow
 7. user place-search provider integration
+
+
+## SBIZ Seoul food bootstrap
+
+The first production bootstrap is intentionally limited to **Seoul + the SBIZ large
+category `음식`**. Nationwide import is a separate change.
+
+1. Normalize and measure the reviewed source snapshot:
+
+```bash
+python tools/sbiz_place_adapter.py <SBIZ_SEOUL_CSV> \
+  --output tmp/sbiz-seoul-food.jsonl \
+  --report tmp/sbiz-seoul-food-report.json \
+  --source-updated-at <SOURCE_SNAPSHOT_TIMESTAMP> \
+  --region-1 서울특별시 \
+  --large-category 음식
+```
+
+The report records the source SHA-256, scanned/in-scope/accepted counts, missing
+address/region/category/coordinate counts, duplicate provider IDs, dropped
+duplicate rows, and identity-churn collisions. Review this report before any DB
+write. Do not use `--force` to bypass a failed quality gate.
+
+2. Validate the load plan without connecting:
+
+```bash
+python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl --dry-run
+```
+
+3. Stage the reviewed JSONL. Keep the database connection URL only in the local
+environment; never commit it or a service-role key.
+
+```bash
+export SUPABASE_DB_URL='<Supabase database connection URL>'
+python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl
+```
+
+The URL is split into libpq variables (`PGHOST`, `PGUSER`, `PGPASSWORD`, …) and
+never placed in argv. psql does not expand a URL given through `PGDATABASE`, so
+do not rely on that. Remote hosts default to `sslmode=require`.
+
+Without a local `psql`, run the container's psql instead; variables are
+forwarded by name only:
+
+```bash
+python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl --psql-docker supabase_db_onepick
+```
+
+The loader uses `SET ROLE service_role` and calls the existing
+`private.stage_place_import_batch(...)` function in batches of at most 500.
+Each execution creates and finishes a row in `private.place_import_runs`.
+Replaying the same provider ID + source timestamp is idempotent.
+
+4. After the staging counts and report are reviewed, promote:
+
+```bash
+python tools/load_place_import_jsonl.py tmp/sbiz-seoul-food.jsonl --promote
+```
+
+The `--promote` path calls:
+
+```sql
+select private.promote_place_imports('sbiz');
+```
+
+Re-running the same snapshot is safe: staging reports the rows as existing and
+promotion returns zero unless a newer source timestamp is present.
+
+5. Verify after production promotion:
+
+```sql
+select count(*)
+from public.place_catalog
+where business_status='open';
+
+select region_1, count(*)
+from public.place_catalog
+where place_provider='sbiz' and business_status='open'
+group by region_1
+order by count(*) desc;
+```
+
+For the first bootstrap, all newly imported SBIZ rows must be Seoul food rows.
+Do not run `db push`, deploy functions, or perform the real production import
+from CI or an agent session; the repository owner performs those steps after
+review.

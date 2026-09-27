@@ -4,13 +4,13 @@ const path = require('node:path');
 
 const profile = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
 
-const picksIndex = profile.indexOf('카테고리별 원픽');
+const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 const managementIndex = profile.indexOf('내 프로필 관리');
 const onboardingIndex = profile.indexOf('취향 고르기 이어가기');
 const publicIndex = profile.indexOf('공개 프로필 보기');
 const adminIndex = profile.indexOf('관리자 데이터 관리');
 const activityIndex = profile.indexOf('활동 기록');
-const requestIndex = profile.indexOf('내 제품 등록 요청');
+const requestIndex = profile.indexOf('내 원픽 등록 요청');
 const historyIndex = profile.indexOf('<Text style={styles.activitySectionTitle}>이전 원픽 기록</Text>');
 
 assert.ok(picksIndex >= 0, 'core category picks are missing');
@@ -22,8 +22,12 @@ assert.ok(activityIndex > adminIndex, 'activity records must be separated from p
 assert.ok(requestIndex > activityIndex, 'item requests belong inside activity records');
 assert.ok(historyIndex > requestIndex, 'pick history follows item requests');
 
-assert.match(profile, /PROFILE TOOLS/);
-assert.match(profile, /ACTIVITY/);
+assert.doesNotMatch(profile, /PROFILE TOOLS/);
+assert.doesNotMatch(profile, /ACTIVITY/);
+assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.activitySection\}>/);
+assert.match(profile, /showRequests \? <>/);
+assert.match(profile, /showHistory \? <>/);
+assert.match(profile, /취향 선택을 이어가거나 공개 프로필을 확인해요\./);
 assert.match(profile, /managementSection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
 assert.match(profile, /activitySection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
 assert.match(profile, /activitySectionTitle: \{ color: OnePick\.text, fontSize: 15, fontWeight: '800' \}/);
@@ -33,4 +37,4 @@ assert.doesNotMatch(profile, /onboardingButton/);
 assert.doesNotMatch(profile, /publicProfileButton/);
 assert.doesNotMatch(profile, /publicProfileTitle/);
 
-console.log('Profile secondary zones checks passed: core profile, profile tools, activity records, and sign-out are visually separated.');
+console.log('Profile secondary zones checks passed: core profile, profile tools, conditional activity records, and sign-out are visually separated.');

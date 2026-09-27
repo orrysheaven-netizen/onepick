@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Pick } from '@/types/domain/pick';
 
 // purchaseUrl / purchaseTip follow the RPC contract: undefined leaves the
@@ -12,6 +13,8 @@ export interface ChangePickInput extends PurchaseLinkInput {
   categoryId: string;
   itemId: string;
   oneLineReview: string;
+  /** Food Picks only. Omitted, the server uses the item's own channel. */
+  channel?: PickChannel;
 }
 
 export interface UpdatePickReviewInput extends PurchaseLinkInput {
@@ -27,6 +30,7 @@ export interface RegisterPickRecordInput {
   imagePath?: string;
   thumbnailPath?: string;
   imageSourceUrl?: string;
+  channel?: PickChannel;
 }
 
 export interface RecentPicksInput {
@@ -38,7 +42,8 @@ export interface RecentPicksInput {
 
 export interface PickRepository {
   getById(pickId: string): Promise<Pick | null>;
-  getCurrentPick(userId: string, categoryId: string): Promise<Pick | null>;
+  /** Every current Pick in the category: one per channel for food, at most one elsewhere. */
+  getCurrentPicksInCategory(userId: string, categoryId: string): Promise<Pick[]>;
   getCurrentPicksByUser(userId: string): Promise<Pick[]>;
   getActivePicksByUser(userId: string): Promise<Pick[]>;
   getHistoryByUser(userId: string, limit?: number): Promise<Pick[]>;
@@ -46,5 +51,5 @@ export interface PickRepository {
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
-  removePick(categoryId: string): Promise<void>;
+  removePick(categoryId: string, channel?: PickChannel | null): Promise<void>;
 }
