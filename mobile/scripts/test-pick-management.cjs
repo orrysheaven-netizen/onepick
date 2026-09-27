@@ -142,7 +142,10 @@ async function main() {
   session.isLoading = false;
   data.isCurrent = false;
   data.pick.status = 'replaced';
-  assert.doesNotMatch(render(), manage);
+  const ended = render();
+  assert.doesNotMatch(ended, manage);
+  assert.match(ended, /내 한줄평/);
+  assert.doesNotMatch(ended, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|✓ 이 집 원픽/);
   data.isCurrent = true;
   data.pick.status = 'needs_review';
   assert.match(render(), manage);
