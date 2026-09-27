@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Fail fast before starting a local database when concurrent branches reused a version.
       - name: Check unique migration versions
