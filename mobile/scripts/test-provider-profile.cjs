@@ -26,6 +26,7 @@ class Query {
   eq(key, value) { this.filters.push((row) => row[key] === value); return this; }
   in(key, values) { this.filters.push((row) => values.includes(row[key])); return this; }
   range(start, end) { this.start = start; this.end = end; return this; }
+  order() { return this; }
   result() {
     let rows = this.rows.filter((row) => this.filters.every((fn) => fn(row)));
     if (this.end !== null) rows = rows.slice(this.start, this.end + 1);
@@ -67,6 +68,10 @@ async function main() {
       { item_id: soup, category_id: soupCat, provider_id: providerId },
       { item_id: rice, category_id: riceCat, provider_id: providerId },
     ],
+    provider_social_links: [
+      { provider_id: providerId, platform: 'instagram', url: 'https://instagram.com/seoul-house', sort_order: 1 },
+      { provider_id: providerId, platform: 'youtube', url: 'https://youtube.com/@seoul-house', sort_order: 2 },
+    ],
     items: [
       { id: soup, name: '서울집', category_id: soupCat, status: 'active', image_path: null, thumbnail_path: 'soup-thumb.jpg', image_source_url: null },
       { id: rice, name: '서울집', category_id: riceCat, status: 'active', image_path: null, thumbnail_path: null, image_source_url: 'https://images.example/rice.jpg' },
@@ -90,6 +95,10 @@ async function main() {
   assert.deepEqual({ ...offline.link }, { label: '지도 보기', url: 'https://map.example/seoul-house', host: 'map.example' });
   assert.deepEqual(Array.from(offline.items, (item) => [item.menuName, item.pickCount]), [['미역국', 2], ['국밥', 1]], 'provider menus sort by current Pick count');
   assert.equal(offline.items[0].thumbnailUrl, 'https://storage.test/soup-thumb.jpg');
+  assert.deepEqual(Array.from(offline.socialLinks, (link) => [link.platform, link.label, link.host]), [
+    ['instagram', 'Instagram', 'instagram.com'],
+    ['youtube', 'YouTube', 'youtube.com'],
+  ]);
 
   const onlineProvider = '77777777-7777-4777-8777-777777777777';
   const storeId = '88888888-8888-4888-8888-888888888888';
@@ -97,10 +106,13 @@ async function main() {
   tables.online_stores.push({ id: storeId, host: '99tea.example', official_url: 'https://99tea.example/store' });
   tables.item_providers.splice(0, tables.item_providers.length,
     { item_id: soup, category_id: soupCat, provider_id: onlineProvider });
+  tables.provider_social_links.splice(0, tables.provider_social_links.length,
+    { provider_id: onlineProvider, platform: 'threads', url: 'https://threads.net/@99tea', sort_order: 0 });
   const online = await new ProviderProfileService(client(tables), client(tables)).get(onlineProvider);
   assert.equal(online.channelLabel, '온라인');
   assert.equal(online.subtitle, '99tea.example');
   assert.deepEqual({ ...online.link }, { label: '공식몰 보기', url: 'https://99tea.example/store', host: '99tea.example' });
+  assert.equal(online.socialLinks[0].label, 'Threads');
 
   tables.providers[0].status = 'hidden';
   await assert.rejects(
@@ -114,9 +126,10 @@ async function main() {
 
   const screen = fs.readFileSync(path.join(root, 'src/app/provider/[providerId].tsx'), 'utf8');
   assert.match(screen, /query\.data\.link \? <View style=\{styles\.links\}>/, 'external action links are optional');
+  assert.match(screen, /query\.data\.socialLinks\.length \? <View style=\{styles\.socials\}>/, 'SNS section is also optional');
+  assert.match(screen, />SNS</);
   assert.match(screen, /query\.data\.kind === 'offline_branch' \? '이곳의 원픽' : '이 판매처의 원픽'/);
   assert.match(screen, /원픽 \{item\.pickCount\.toLocaleString\(\)\}/, 'provider menus use OnePick count language');
-  assert.doesNotMatch(screen, /Instagram|YouTube|SNS/, 'provider SNS remains outside PR 4');
 
   console.log('Provider profile checks passed: offline/online identity, optional safe link, menu rows, public Pick counts and hidden/not-found states.');
 }
