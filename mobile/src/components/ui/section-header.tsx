@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickType } from '@/constants/onepick';
-
 import { Button } from './button';
 
 type Props = {
@@ -12,14 +11,17 @@ type Props = {
 };
 
 export function SectionHeader({ title, count, description, action }: Props) {
+  const weeklyMenus=title==='메뉴별 원픽 보기';
+  const shownTitle=weeklyMenus?'이번 주 많이 고른 메뉴':title;
+  const shownDescription=weeklyMenus?'최근 7일 동안 현재 원픽으로 고른 사람 수예요':description;
   return (
     <View style={styles.row}>
       <View style={styles.copy}>
         <Text style={styles.title}>
-          {title}
+          {shownTitle}
           {count !== undefined ? <Text style={styles.count}>  {count.toLocaleString()}</Text> : null}
         </Text>
-        {description ? <Text style={styles.description}>{description}</Text> : null}
+        {shownDescription ? <Text style={styles.description}>{shownDescription}</Text> : null}
       </View>
       {action ? <Button variant="ghost" size="sm" label={action.label} onPress={action.onPress} accessibilityLabel={action.accessibilityLabel} disabled={action.disabled} /> : null}
     </View>
