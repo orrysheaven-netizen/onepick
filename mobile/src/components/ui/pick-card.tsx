@@ -7,48 +7,67 @@ import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 import { Avatar } from './avatar';
 
 type Props = {
-  categoryName: string;
+  /** Short channel badge shown before the provider, e.g. 매장 / 온라인 / 레시피. */
+  channelLabel?: string | null;
+  /** Store, seller, brand or source. Kept visually separate from the menu title. */
+  providerName?: string | null;
+  /** The main content title. For food channel Picks this is the menu name. */
   itemName: string;
   /** The one-line reason. Always rendered in quotes; it is the point of the card. */
   review?: string | null;
-  /** Shown in place of a missing review, e.g. "12명이 추천". */
+  /** Shown in place of a missing review. */
   fallbackText?: string;
-  photo: { uri?: string | null; itemId?: string; itemStatus?: string; hasPhoto?: boolean; logoUri?: string | null };
-  /** Who picked it. Rendered first: the feed reads person → category → item → reason. */
+  photo: {
+    uri?: string | null;
+    itemId?: string;
+    itemStatus?: string;
+    hasPhoto?: boolean;
+    logoUri?: string | null;
+    label?: string;
+  };
+  /** Who picked it. */
   person?: { username: string; label?: string; onPress?: () => void; accessibilityLabel?: string };
-  timeLabel?: string;
-  /** Small pill next to the category, e.g. "내 원픽". */
-  badge?: string;
+  /** Current-Pick state, e.g. "새로 고름 · 9/27". */
+  statusLabel?: string;
   onPress: () => void;
   accessibilityLabel: string;
-  /** Action row under the body (Buttons, comment count). */
+  /** Low-noise state/actions under the body. */
   footer?: ReactNode;
 };
 
-export function PickCard({ categoryName, itemName, review, fallbackText, photo, person, timeLabel, badge, onPress, accessibilityLabel, footer }: Props) {
+export function PickCard({
+  channelLabel, providerName, itemName, review, fallbackText, photo,
+  person, statusLabel, onPress, accessibilityLabel, footer,
+}: Props) {
+  const showPhoto = Boolean(photo.uri || photo.logoUri || photo.hasPhoto);
+  const showContext = Boolean(channelLabel || providerName);
+
   return (
     <View style={styles.card}>
       {person ? (
         <View style={styles.personRow}>
           <Avatar name={person.username} size={32} onPress={person.onPress} accessibilityLabel={person.accessibilityLabel} />
-          {person.onPress
-            ? <Pressable accessibilityRole="button" accessibilityLabel={person.accessibilityLabel ?? `@${person.username} 프로필 보기`} onPress={person.onPress}
-                style={({ pressed }) => [styles.personCopy, pressed && styles.pressed]}>
-                <Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text>
-              </Pressable>
-            : <View style={styles.personCopy}><Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text></View>}
-          {timeLabel ? <Text style={styles.time}>{timeLabel}</Text> : null}
+          <View style={styles.personCopy}>
+            {person.onPress
+              ? <Pressable accessibilityRole="button" accessibilityLabel={person.accessibilityLabel ?? `@${person.username} 프로필 보기`} onPress={person.onPress}
+                  style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
+                  <Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text>
+                </Pressable>
+              : <Text numberOfLines={1} style={styles.personLabel}>{person.label ?? `@${person.username}`}</Text>}
+            {statusLabel ? <Text style={styles.status}>{statusLabel}</Text> : null}
+          </View>
         </View>
       ) : null}
 
       <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-        style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
-        <PickPhoto feed uri={photo.uri} label={itemName} itemId={photo.itemId} itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} logoUri={photo.logoUri} />
+        style={({ pressed }) => [styles.body, !showPhoto && styles.bodyWithoutPhoto, pressed && styles.pressed]}>
+        {showPhoto ? <PickPhoto feed uri={photo.uri} label={photo.label ?? itemName} itemId={photo.itemId}
+          itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} logoUri={photo.logoUri} /> : null}
         <View style={styles.copy}>
-          <View style={styles.categoryRow}>
-            <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
-            {badge ? <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View> : null}
-          </View>
+          {showContext ? <View style={styles.contextRow}>
+            {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
+            {providerName ? <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text> : null}
+          </View> : null}
           <Text style={styles.itemName}>{itemName}</Text>
           {review
             ? <Text numberOfLines={3} style={styles.review}>{`“${review}”`}</Text>
@@ -62,20 +81,22 @@ export function PickCard({ categoryName, itemName, review, fallbackText, photo, 
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 12, padding: 16, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: OnePickRadius.card },
+  card: { gap: 10, padding: 14, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: OnePickRadius.card },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  personCopy: { flex: 1, minWidth: 0 },
+  personCopy: { flex: 1, minWidth: 0, gap: 1 },
+  profileLink: { alignSelf: 'flex-start', maxWidth: '100%' },
   personLabel: { ...OnePickType.label, color: OnePick.text },
-  time: { ...OnePickType.caption, color: OnePick.hint },
-  body: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  status: { ...OnePickType.caption, color: OnePick.hint },
+  body: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  bodyWithoutPhoto: { minHeight: 0 },
   copy: { flex: 1, minWidth: 0, gap: 4 },
-  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  category: { ...OnePickType.caption, fontWeight: '600', color: OnePick.accentDeep, flexShrink: 1 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
-  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: OnePick.accentDeep },
-  itemName: { fontSize: 17, lineHeight: 24, fontWeight: '700', letterSpacing: -0.4, color: OnePick.text },
+  contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
+  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
+  channelBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: OnePick.accentDeep },
+  providerName: { ...OnePickType.label, color: OnePick.text, fontWeight: '500', flexShrink: 1 },
+  itemName: { fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.4, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.label, color: OnePick.muted },
-  footer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6 },
   pressed: { opacity: 0.6 },
 });

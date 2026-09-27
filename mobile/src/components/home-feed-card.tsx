@@ -1,35 +1,101 @@
-import { Button, PickCard } from '@/components/ui';
-import { formatRelativeTime } from '@/lib/format/relativeTime';
-import { categoryWithChannels } from '@/lib/home/homeChannels';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+import { PickCard } from '@/components/ui';
+import { OnePick, OnePickType } from '@/constants/onepick';
+import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
+import { sharePick } from '@/lib/share/sharePick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
+function shortDate(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 /**
- * One person's current Pick on Home (docs/people-first-home.md): who → category →
- * item → reason, then "나도 이게 원픽", which opens the normal choose screen (the
- * reader still writes their own reason). Comments live on the item screen, which
- * the card itself opens. Nothing here writes or notifies.
+ * One person's current Pick on Home (docs/people-first-home.md):
+ * person → current-Pick state → channel/provider → menu → one-line reason.
+ *
+ * Home deliberately has no like button and no "나도 이게 원픽" CTA. The card
+ * opens the item, 댓글 focuses this person's Pick thread, and 공유 reuses the
+ * existing Pick deep link.
  */
-export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onChooseSame }: {
+export function HomeFeedCard({ pick, mine, onOpenItem, onOpenProfile, onOpenComments }: {
   pick: HomeFeedPick;
-  /** The viewer already has this item as their Pick in this category. */
+  /** The viewer already has this exact item as a current Pick. */
   mine?: boolean;
   onOpenItem: () => void;
   onOpenProfile: () => void;
-  onChooseSame: () => void;
+  onOpenComments: () => void;
 }) {
+  const [sharing, setSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState<'copied' | 'error' | null>(null);
+  const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
+  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
+
+  // Store/online provider items are named for their provider. Recipe videos need
+  // creator_name in the feed read model before we can show a source name without
+  // guessing, so recipe keeps only the channel badge until that data contract lands.
+  const providerName = channel === 'offline' || channel === 'online'
+    ? pick.name
+    : channel ? undefined : pick.categoryName;
+  const menuName = channel ? pick.categoryName : pick.name;
+  const contentName = providerName ? `${providerName} ${menuName}` : menuName;
+  const pickedDate = shortDate(pick.startedAt);
+  const statusLabel = pickedDate ? `새로 고름 · ${pickedDate}` : '새로 고름';
+
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    setShareNotice(null);
+    try {
+      const result = await sharePick({
+        pickId: pick.pickId,
+        username: pick.username,
+        categoryName: pick.categoryName,
+        itemName: contentName,
+        oneLineReview: pick.oneLineReview,
+      });
+      if (result === 'copied') setShareNotice('copied');
+    } catch {
+      setShareNotice('error');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return <PickCard
-    categoryName={categoryWithChannels(pick.categoryName, pick.channels)}
-    itemName={pick.name}
+    channelLabel={channelLabel}
+    providerName={providerName}
+    itemName={menuName}
     review={pick.oneLineReview}
-    photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId, logoUri: pick.brandLogoUrl }}
+    photo={{ uri: pick.thumbnailUrl, itemId: pick.itemId, logoUri: pick.brandLogoUrl, label: contentName }}
     person={{ username: pick.username, onPress: onOpenProfile }}
-    timeLabel={formatRelativeTime(pick.startedAt)}
-    badge={mine ? '내 원픽' : undefined}
+    statusLabel={statusLabel}
     onPress={onOpenItem}
     accessibilityLabel={pick.name + ' 상세 보기'}
     footer={<>
-      {mine
-        ? <Button variant="ghost" size="sm" label="이미 내 원픽이에요" accessibilityLabel={`${pick.name} 내 한줄평 보기`} onPress={onChooseSame} />
-        : <Button variant="soft" size="sm" label="나도 이게 원픽" accessibilityLabel={`${pick.name} 나도 이게 원픽`} onPress={onChooseSame} />}
+      {mine ? <Text style={styles.mine}>✓ 내 원픽</Text> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 댓글 보기`}
+        onPress={onOpenComments} style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+        <Text style={styles.actionText}>댓글</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 공유`} disabled={sharing}
+        onPress={() => void handleShare()} style={({ pressed }) => [styles.action, (pressed || sharing) && styles.pressed]}>
+        <Text style={styles.actionText}>{sharing ? '공유 중…' : '공유'}</Text>
+      </Pressable>
+      {shareNotice ? <Text accessibilityLiveRegion="polite" style={shareNotice === 'error' ? styles.error : styles.notice}>
+        {shareNotice === 'copied' ? '링크를 복사했어요.' : '공유하지 못했어요. 다시 시도해주세요.'}
+      </Text> : null}
     </>} />;
 }
+
+const styles = StyleSheet.create({
+  mine: { ...OnePickType.caption, fontWeight: '600', color: OnePick.text },
+  action: { minHeight: 32, justifyContent: 'center' },
+  actionText: { ...OnePickType.caption, fontWeight: '600', color: OnePick.muted },
+  notice: { ...OnePickType.caption, color: OnePick.success },
+  error: { ...OnePickType.caption, color: OnePick.danger },
+  pressed: { opacity: 0.55 },
+});

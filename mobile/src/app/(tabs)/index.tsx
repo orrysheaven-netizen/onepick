@@ -109,13 +109,13 @@ export default function HomeScreen() {
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) => pick.itemId === itemId && pick.status === 'active'));
-  // Both feed scopes render the same card. Same item → the normal choose screen
-  // (signed-out readers get its login gate).
+  // Both feed scopes render the same current-Pick card. Home is for reading
+  // someone's choice and reason; choosing my own Pick stays in the registration flow.
   const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onChooseSame={() => router.push({ pathname: '/pick/choose', params: { itemId: pick.itemId, categoryId: pick.categoryId, ...(pick.channels?.length === 1 ? { channel: pick.channels[0] } : {}) } })} />
+      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
 
   const listHeader = <>
