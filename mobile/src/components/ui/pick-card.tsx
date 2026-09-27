@@ -32,6 +32,8 @@ type Props = {
   /** Current-Pick state, e.g. "새로 고름 · 9/27". */
   statusLabel?: string;
   onPress: () => void;
+  /** Optional internal provider profile link for the context row. */
+  onPressProvider?: () => void;
   accessibilityLabel: string;
   /** Low-noise state/actions under the body. */
   footer?: ReactNode;
@@ -39,7 +41,7 @@ type Props = {
 
 export function PickCard({
   channelLabel, providerName, itemName, menuContext = false, review, fallbackText, photo,
-  person, statusLabel, onPress, accessibilityLabel, footer,
+  person, statusLabel, onPress, onPressProvider, accessibilityLabel, footer,
 }: Props) {
   const showPhoto = Boolean(photo.uri || photo.logoUri || photo.hasPhoto);
   const showContext = Boolean(channelLabel || providerName);
@@ -68,7 +70,14 @@ export function PickCard({
         <View style={styles.copy}>
           {showContext ? <View style={styles.contextRow}>
             {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
-            {providerName ? <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text> : null}
+            {providerName ? (onPressProvider
+              ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
+                  onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
+                  style={({ pressed }) => [styles.providerLink, pressed && styles.pressed]}>
+                  <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text>
+                  <Text style={styles.providerArrow}>›</Text>
+                </Pressable>
+              : <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text>) : null}
           </View> : null}
           {!menuContext || !providerName ? <Text style={styles.itemName}>{itemName}</Text> : null}
           {review
@@ -95,8 +104,10 @@ const styles = StyleSheet.create({
   contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
   channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
   channelBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: OnePick.accentDeep },
+  providerLink: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { ...OnePickType.label, color: OnePick.text, fontWeight: '500', flexShrink: 1 },
   providerNameMenuContext: { color: OnePick.text, fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.4, flexShrink: 1 },
+  providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },
   itemName: { fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.4, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.label, color: OnePick.muted },

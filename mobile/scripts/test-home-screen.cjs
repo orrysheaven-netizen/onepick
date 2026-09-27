@@ -30,7 +30,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
   refetch: (options) => { assert.equal(options.cancelRefetch, false); queryRetries++; }, data: {
   currentPicks: [own, privatePick], picks: [
     // Newest first; the server already excluded the viewer's own Picks.
-    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00', channels: ['offline'] },
+    { pickId: 'other', userId: 'friend', username: 'friend', profileImageUrl: null, itemId: 'jin', name: '진라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '다른 사람의 이유', thumbnailUrl: null, startedAt: '2026-09-21T09:00:00.000000+00:00', channels: ['offline'], providerId: '11111111-1111-4111-8111-111111111111' },
     { pickId: 'same-as-mine', userId: 'neighbor', username: 'neighbor', profileImageUrl: null, itemId: 'ramen', name: '신라면', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이웃도 신라면', thumbnailUrl: null, startedAt: '2026-09-20T09:00:00.000000+00:00' },
   ], openCategories: [
     { id: 'ramen', parentId: 'food', name: '라면', slug: 'ramen', label: '먹을것 › 면류 › 라면' },
@@ -141,6 +141,7 @@ for (width of [390, 800, 1200]) {
   press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
+  press('진라면 제공처 프로필 보기'); assert.equal(destination.pathname, '/provider/[providerId]'); assert.equal(destination.params.providerId, '11111111-1111-4111-8111-111111111111');
   press('진라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.pickId, 'other');
   press('신라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'ramen'); assert.equal(destination.params.pickId, 'same-as-mine');
   assert.ok(presses.find((p) => p.accessibilityLabel === '진라면 공유'), 'Each Home Pick exposes the existing deep-link share action');
