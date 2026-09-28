@@ -23,7 +23,8 @@ assert.match(register, /Redirect href="\/pick\/new"/, 'register tab must use sto
 const choose = read('src/app/pick/choose.tsx');
 const storeFirst = read('src/app/pick/new.tsx');
 assert.match(choose, />원픽을 정했어요<\/Text>/, 'choose completion copy is unified');
-assert.match(storeFirst, /done\.type === 'pick' \? '원픽을 정했어요'/, 'store-first completion copy is unified');
+assert.match(storeFirst, /<Text style={styles\.dialogTitle}>원픽을 정했어요<\/Text>/, 'store-first completion copy is unified');
+assert.doesNotMatch(storeFirst, /등록 요청을 보냈어요|승인 대기/, 'store-first completion has no pending-request success state');
 
 const book = read('src/app/pick/book.tsx');
 const pokemon = read('src/app/pick/pokemon.tsx');

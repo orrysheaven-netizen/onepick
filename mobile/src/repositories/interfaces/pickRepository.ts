@@ -33,6 +33,29 @@ export interface RegisterPickRecordInput {
   channel?: PickChannel;
 }
 
+export interface RegisterItemPickInput {
+  categoryId: string;
+  channel: PickChannel;
+  oneLineReview: string;
+  itemId?: string | null;
+  catalogId?: string | null;
+  providerId?: string | null;
+  linkUrl?: string | null;
+  imagePath?: string | null;
+  thumbnailPath?: string | null;
+  imageSourceUrl?: string | null;
+  expectedPreviousPickId: string | null;
+  requestId: string;
+}
+
+export interface RegisterItemPickResult {
+  itemId: string;
+  pickId: string;
+  published: boolean;
+  replacedPickId: string | null;
+  retried: boolean;
+}
+
 export interface RecentPicksInput {
   excludeUserId?: string;
   categoryId?: string;
@@ -50,6 +73,7 @@ export interface PickRepository {
   getRecentPicks(input: RecentPicksInput): Promise<Pick[]>;
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
+  registerItemPick(input: RegisterItemPickInput): Promise<RegisterItemPickResult>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
   removePick(categoryId: string, channel?: PickChannel | null): Promise<void>;
   deleteReview(pickId: string): Promise<void>;

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import { observabilityService, registrationService } from '@/services';
-import type { RegisterPickInput } from '@/services/registrationService';
+import type { ImmediatePickRegistrationInput, RegisterPickInput } from '@/services/registrationService';
 import type { AttachItemPhotoInput } from '@/services/registrationService';
 
 export function useRegistrationCategories() {
@@ -22,6 +22,24 @@ export function useAttachItemPhoto() {
   return useMutation({
     mutationFn: (input: AttachItemPhotoInput) => registrationService.attachItemPhoto(input),
     onSuccess: () => invalidatePickData(client),
+  });
+}
+
+export function useRegisterItemPick() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ImmediatePickRegistrationInput) => registrationService.registerImmediatePick(input),
+    onSuccess: (result, input) => {
+      invalidatePickData(client);
+      void observabilityService.captureProductEvent({
+        eventName: 'pick_created',
+        pickId: result.pickId,
+        itemId: result.itemId,
+        categoryId: input.categoryId,
+        source: 'register_item_pick',
+        path: '/pick/new',
+      });
+    },
   });
 }
 

@@ -103,18 +103,51 @@ export class StoreFirstService {
     return { suggestions, needsNewCategory: payload.needsNewCategory === true };
   }
 
-  /** The store × menu item for a catalog place or an online seller. */
-  async selectItem(categoryId: string, store: StoreCandidate): Promise<{ itemId: string; categoryId: string; hasPhoto: boolean; pending: boolean }> {
+  /** Read-only lookup used by Figma 75 to decide whether the photo/link steps are needed.
+   * Product creation is deferred to register_item_pick so a new product stays private
+   * and immediately becomes the caller's needs_review Pick.
+   */
+  async selectItem(categoryId: string, store: StoreCandidate): Promise<{ itemId: string | null; categoryId: string; hasPhoto: boolean; pending: boolean }> {
     if (!UUID.test(categoryId)) throw new AppError('CATEGORY_NOT_FOUND');
-    const { data, error } = store.kind === 'place'
-      ? await this.client.rpc('select_place_catalog_item', { p_category_id: categoryId, p_catalog_id: store.catalogId })
-      : await this.client.rpc('select_online_provider_item', { p_category_id: categoryId, p_provider_id: store.providerId });
-    if (error) throw mapSupabaseError(error);
-    const row = object(data);
-    if (typeof row.id !== 'string' || row.category_id !== categoryId) throw new AppError('INTERNAL_ERROR');
-    const hasPhoto = [row.image_path, row.thumbnail_path, row.image_source_url].some((value) => typeof value === 'string' && value.length > 0);
-    // A place picked for the first time is the user's own request waiting for review.
-    return { itemId: row.id, categoryId, hasPhoto, pending: row.status === 'pending' };
+
+    let itemId: string | null = null;
+    if (store.kind === 'place') {
+      const { data, error } = await this.client.rpc('search_place_catalog', {
+        p_category_id: categoryId,
+        p_query: store.name,
+        p_limit: 20,
+      });
+      if (error) throw mapSupabaseError(error);
+      itemId = (data ?? []).find((row) => row.catalog_id === store.catalogId)?.existing_item_id ?? null;
+    } else {
+      // Provider tables are newer than the generated base types; this is read-only.
+      const db = this.client as unknown as {
+        from(name: 'item_providers'): {
+          select(columns: string): {
+            eq(column: string, value: string): {
+              eq(column: string, value: string): {
+                maybeSingle(): Promise<{ data: { item_id?: string } | null; error: { code?: string | null; message?: string | null; details?: string | null; hint?: string | null } | null }>;
+              };
+            };
+          };
+        };
+      };
+      const { data, error } = await db.from('item_providers').select('item_id')
+        .eq('provider_id', store.providerId).eq('category_id', categoryId).maybeSingle();
+      if (error) throw mapSupabaseError(error);
+      itemId = typeof data?.item_id === 'string' ? data.item_id : null;
+    }
+
+    if (!itemId) return { itemId: null, categoryId, hasPhoto: false, pending: false };
+
+    const { data: item, error: itemError } = await this.client.from('items')
+      .select('id,category_id,status,image_path,thumbnail_path,image_source_url')
+      .eq('id', itemId).maybeSingle();
+    if (itemError) throw mapSupabaseError(itemError);
+    if (!item || item.category_id !== categoryId) return { itemId: null, categoryId, hasPhoto: false, pending: false };
+    const hasPhoto = [item.image_path, item.thumbnail_path, item.image_source_url]
+      .some((value) => typeof value === 'string' && value.length > 0);
+    return { itemId: item.id, categoryId, hasPhoto, pending: item.status === 'pending' };
   }
 
   async suggestMapLink(itemId: string, url: string) {

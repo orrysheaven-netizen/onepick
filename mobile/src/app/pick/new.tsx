@@ -1,34 +1,29 @@
+import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PickPhotoStep } from '@/components/pick-photo-step';
 import { StateCard } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
-import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
-import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
-import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
+import { useChoosePhoto, useRegisterItemPick } from '@/hooks/useRegisterPick';
+import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
+import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
-// 원픽 등록 6단계: 매장 → 메뉴 → 네이버 링크 → 사진 → 한줄평 → 완료.
+// 원픽 등록 4단계: 매장 → 메뉴 → 사진 → 한줄평. 지도 링크는 매장 단계 안에서 받는다.
 // Everything the user enters lives in this one screen's state, so moving back
 // and forth between steps never loses a typed review or a chosen photo.
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
-type NewStore = { kind: 'new'; name: string; channel: PickChannel; sellerUrl: string | null };
+type Step = 1 | 2 | 4 | 5 | 6;
+type NewStore = { kind: 'new'; name: string; channel: 'offline'; roadAddress: string; mapUrl: string };
 type Store = StoreCandidate | NewStore;
-type Done =
-  | { type: 'pick'; pickId: string; itemId: string }
-  | { type: 'pending'; itemName: string; linkSaved: boolean };
-
+type Done = { pickId: string; itemId: string };
 
 
 type FlowButtonProps = {
@@ -77,17 +72,6 @@ function FieldLabel({ label, required = true }: { label: string; required?: bool
   </View>;
 }
 
-function httpsUrl(value: string) {
-  const url = value.trim();
-  if (!url || url.length > 2048) return null;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? url : null;
-  } catch {
-    return null;
-  }
-}
-
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     switch (error.code) {
@@ -96,12 +80,18 @@ function errorMessage(error: unknown) {
       case 'CATEGORY_NOT_PICKABLE': return '이 메뉴는 지금 고를 수 없어요. 다른 메뉴를 골라주세요.';
       case 'ITEM_NOT_ELIGIBLE':
       case 'ITEM_NOT_FOUND': return '지금은 이 매장을 원픽으로 고를 수 없어요.';
-      case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록 요청한 매장이에요. 관리자 승인 후 원픽으로 고를 수 있어요.';
+      case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록한 항목이에요. 잠시 후 다시 확인해주세요.';
+      case 'ITEM_LINK_REQUIRED': return '이 원픽을 바로 확인할 수 있는 링크를 입력해주세요.';
       case 'PROVIDER_NOT_FOUND': return '이 판매처는 지금 고를 수 없어요.';
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
-      case 'ITEM_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
+      case 'ITEM_NAME_INVALID':
+      case 'PLACE_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
+      case 'PLACE_ADDRESS_REQUIRED': return '도로명 주소를 입력해주세요.';
       case 'LINK_INVALID': return '네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.';
       case 'RATE_LIMITED': return '요청이 많아요. 잠시 후 다시 시도해주세요.';
+      case 'PICK_CHANGED_ELSEWHERE': return '다른 기기에서 원픽이 바뀌었어요. 최신 선택을 확인한 뒤 다시 등록해주세요.';
+      case 'USER_SUSPENDED': return '현재 계정에서는 원픽을 등록할 수 없어요.';
+      case 'PHOTO_REQUIRED': return '대표 사진을 올려주세요.';
       case 'PHOTO_INVALID': return '사진을 읽지 못했어요. JPG·PNG 사진을 다시 선택해주세요.';
       case 'PHOTO_TOO_LARGE': return '사진이 너무 커요. 다른 사진을 선택해주세요.';
       case 'PHOTO_UPLOAD_FAILED': return '사진을 저장하지 못했어요. 선택한 사진은 그대로 있어요.';
@@ -116,37 +106,33 @@ export default function NewPickScreen() {
   const auth = useAuthSession();
   const user = auth.user;
   const [step, setStep] = useState<Step>(1);
-  const [channel, setChannel] = useState<PickChannel>('offline');
-  const [channelChosen, setChannelChosen] = useState(false);
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [newName, setNewName] = useState('');
-  const [sellerUrl, setSellerUrl] = useState('');
+  const [roadAddress, setRoadAddress] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
   const [manualCategory, setManualCategory] = useState(false);
   const [categoryQuery, setCategoryQuery] = useState('');
-  // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   // Known from the selected item row itself, before the item detail loads.
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
   const [itemPending, setItemPending] = useState(false);
   const [mapLink, setMapLink] = useState('');
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkSaved, setLinkSaved] = useState(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [review, setReview] = useState('');
   const [showReviewError, setShowReviewError] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
+  const [pickChangedElsewhere, setPickChangedElsewhere] = useState(false);
   const busy = useRef(false);
+  const requestIdRef = useRef<string | null>(null);
 
-  const isNew = store?.kind === 'new';
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
-  const storeChannel: PickChannel = store ? (store.kind === 'seller' ? 'online' : store.kind === 'place' ? 'offline' : store.channel) : channel;
-  const search = useStoreSearch(channel, query, Boolean(user) && step === 1 && channelChosen && !requesting);
+  const storeChannel: PickChannel = store?.kind === 'seller' ? 'online' : 'offline';
+  const search = useStoreSearch('offline', query, Boolean(user) && step === 1 && !requesting);
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const suggestionStore = useMemo(() => store ? {
     name: store.name,
@@ -157,10 +143,7 @@ export default function NewPickScreen() {
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
   const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
-  const availableMenus = useMemo(
-    () => (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled),
-    [menus.data, storeChannel],
-  );
+  const availableMenus = useMemo(() => (menus.data ?? []).filter((option) => option.placeEnabled), [menus.data]);
   const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
   const requestedMenuKey = compactMenuName(requestedMenu);
   const exactMenuMatches = requestedMenuKey
@@ -183,109 +166,61 @@ export default function NewPickScreen() {
 
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
-  const suggestLink = useSuggestMapLink();
   const choosePhoto = useChoosePhoto();
-  const choosePick = useChoosePick();
-  const requestPick = useRequestPendingPick();
-  const registration = useRegisterPick();
-  const attachSellerLink = useAttachPendingItemLink();
-  const menuHint = useSetMenuHint();
+  const registration = useRegisterItemPick();
 
   const item = itemDetail.data?.item;
   const itemHasPhoto = Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
-  // v6 asks for a map link only when the user is adding a new offline store.
-  const needsLink = isNew && storeChannel === 'offline';
-  // A pending request cannot take a photo yet (attach_item_photo needs a reviewed item).
-  const isRequest = isNew || itemPending;
-  const needsPhoto = isNew || (!itemPending && !(itemHadPhoto || itemHasPhoto));
+  const needsPhoto = !(itemHadPhoto || itemHasPhoto);
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
+  const saving = registration.isPending;
 
   const previousFrom = (from: Step): Step => {
-    if (from === 2) return needsLink ? 3 : 1;
-    if (from === 3) return 1;
-    if (from === 5) return needsPhoto ? 4 : 2;
+    if (from === 2) return 1;
     if (from === 4) return 2;
-    return (from - 1) as Step;
+    if (from === 5) return 4;
+    return 5;
   };
   const goBack = () => {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    if (step === 1 && channelChosen) { setChannelChosen(false); setRequesting(false); return; }
+    if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
   };
-  const chooseChannel = (next: PickChannel) => {
-    setChannel(next);
-    setChannelChosen(true);
-    setQuery('');
-    setRequesting(false);
-    setNewName('');
-    setSellerUrl('');
-    setStore(null);
-    setMenuQuery('');
-    setAiMenuName('');
-    setManualCategory(false);
-    setCategoryQuery('');
-    setMenu(null);
-    setItemId(null);
-    setItemHadPhoto(false);
-    setItemPending(false);
-    setMapLink('');
-    setLinkError(null);
-    setLinkSaved(false);
-    setPhoto(null);
-    setReview('');
-    setDone(null);
-    setSaveError(null);
-  };
-
   const pickStore = (candidate: Store) => {
-    if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:${candidate.channel}:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
+    if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`)) {
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhoto(null);
+      setPickChangedElsewhere(false); requestIdRef.current = null;
     }
     setStore(candidate);
     setAiMenuName('');
     setManualCategory(false);
     setCategoryQuery('');
-    setStep(candidate.kind === 'new' && candidate.channel === 'offline' ? 3 : 2);
+    setStep(2);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
-  const validSellerUrl = httpsUrl(sellerUrl);
-  const sellerUrlError = channel === 'online' && sellerUrl.trim() && (!validSellerUrl || isDeliveryAppUrl(sellerUrl))
-    ? (isDeliveryAppUrl(sellerUrl) ? '배달앱 주문은 매장으로 골라주세요.' : 'https://로 시작하는 판매처 링크를 입력해주세요.') : null;
+  const newRoadAddress = roadAddress.trim().replace(/\s+/g, ' ');
+  const validMapLink = isNaverMapUrl(mapLink);
   const canRequest = newStoreName.length >= 1 && newStoreName.length <= 100
-    && (channel === 'offline' || (Boolean(validSellerUrl) && !isDeliveryAppUrl(sellerUrl)));
+    && newRoadAddress.length >= 1 && newRoadAddress.length <= 300
+    && validMapLink;
 
   const confirmMenu = async () => {
     if (!store || !effectiveMenu || busy.current) return;
     if (!menu) setMenu(effectiveMenu);
-    if (store.kind === 'new' || !effectiveMenu.categoryId) { setStep(needsPhoto ? 4 : 5); return; }
+    if (store.kind === 'new' || !effectiveMenu.categoryId) {
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setStep(4); return;
+    }
     busy.current = true;
     try {
       const selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
       setItemPending(selected.pending);
-      setStep(selected.hasPhoto || selected.pending ? 5 : 4);
+      setStep(selected.hasPhoto ? 5 : 4);
     } catch { /* The mutation error is shown under the menu list. */ }
-    finally { busy.current = false; }
-  };
-
-  const confirmLink = async (skip: boolean) => {
-    setLinkError(null);
-    if (skip || !mapLink.trim()) { setMapLink(skip ? '' : mapLink); setStep(2); return; }
-    if (!isNaverMapUrl(mapLink)) { setLinkError('네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.'); return; }
-    // A new store has no item yet; its link is sent right after the request is saved.
-    if (isNew || !itemId) { setStep(2); return; }
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      await suggestLink.mutateAsync({ itemId, url: mapLink.trim() });
-      setLinkSaved(true);
-      setStep(2);
-    } catch (error) { setLinkError(errorMessage(error)); }
     finally { busy.current = false; }
   };
 
@@ -302,43 +237,43 @@ export default function NewPickScreen() {
   const save = async () => {
     if (!user || !store || !menu || busy.current || saving) return;
     if (!reviewValid) { setShowReviewError(true); return; }
+    if (!menu.categoryId) { setSaveError(new AppError('CATEGORY_NOT_PICKABLE')); return; }
+    if (needsPhoto && !photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
+
     busy.current = true;
     setSaveError(null);
+    const requestId = requestIdRef.current ?? Crypto.randomUUID();
+    requestIdRef.current = requestId;
+
     try {
-      if (store.kind !== 'new') {
-        if (!itemId || !menu.categoryId) return;
-        if (itemPending) {
-          await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
-          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId, label: requestedMenu });
-          setDone({ type: 'pending', itemName: store.name, linkSaved });
-          setStep(6);
-          return;
-        }
-        const pick = await choosePick.mutateAsync({
-          categoryId: menu.categoryId, itemId, oneLineReview: trimmedReview, channel: storeChannel,
-        });
-        setDone({ type: 'pick', pickId: pick.id, itemId: pick.itemId });
-      } else {
-        const result = await registration.mutateAsync({
-          userId: user.id, categoryId: menu.categoryId ?? undefined, itemName: store.name, variant: '',
-          oneLineReview: trimmedReview, photo, channel: store.channel,
-        });
-        if (result.type === 'pick') {
-          setDone({ type: 'pick', pickId: result.pick.id, itemId: result.pick.itemId });
-        } else {
-          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: requestedMenu });
-          if (store.sellerUrl) await attachSellerLink.mutateAsync({ itemId: result.item.id, url: store.sellerUrl });
-          let saved = false;
-          if (mapLink.trim() && isNaverMapUrl(mapLink)) {
-            saved = await suggestLink.mutateAsync({ itemId: result.item.id, url: mapLink.trim() }).then(() => true, () => false);
-          }
-          setDone({ type: 'pending', itemName: result.item.name, linkSaved: saved });
-        }
-      }
+      const result = await registration.mutateAsync({
+        userId: user.id,
+        categoryId: menu.categoryId,
+        channel: storeChannel,
+        oneLineReview: trimmedReview,
+        requestId,
+        itemId: itemId ?? undefined,
+        catalogId: store.kind === 'place' && !itemId ? store.catalogId : undefined,
+        providerId: store.kind === 'seller' && !itemId ? store.providerId : undefined,
+        newPlace: store.kind === 'new' ? {
+          name: store.name,
+          roadAddress: store.roadAddress,
+          mapUrl: store.mapUrl,
+        } : undefined,
+        photo: needsPhoto ? photo : undefined,
+      });
+
+      setDone({ pickId: result.pickId, itemId: result.itemId });
+      setPickChangedElsewhere(false);
       setStep(6);
     } catch (error) {
-      if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
-      setSaveError(error);
+      if (error instanceof AppError && error.code === 'PICK_CHANGED_ELSEWHERE') {
+        setPickChangedElsewhere(true);
+        setSaveError(null);
+      } else {
+        if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
+        setSaveError(error);
+      }
     } finally { busy.current = false; }
   };
 
@@ -361,26 +296,11 @@ export default function NewPickScreen() {
         return label.includes(normalizedCategoryQuery);
       })
     : availableMenus).slice(0, 20);
-  // No menu fits: carry on as a request. The store and the typed menu go to an
-  // administrator, who picks the category; approval then makes the pick.
-  const requestMenu = () => {
-    if (!store || !requestedMenu || requestedMenu.length > 40) return;
-    if (store.kind !== 'new') {
-      setStore({
-        kind: 'new',
-        name: store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name,
-        channel: storeChannel,
-        sellerUrl: store.kind === 'seller' ? store.officialUrl : null,
-      });
-      if (store.kind === 'place' && store.mapUrl) setMapLink(store.mapUrl);
-    }
-    setItemId(null); setItemHadPhoto(false); setItemPending(false);
-    setMenu({ categoryId: null, name: requestedMenu });
-    // This fallback came from a store we already identified, so v6 does not ask for a new-store link again.
-    setStep(4);
-  };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
-    if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
+    if (menu?.categoryId !== option.categoryId) {
+      setItemId(null); setItemHadPhoto(false); setItemPending(false);
+      setPickChangedElsewhere(false); requestIdRef.current = null;
+    }
     setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
   };
 
@@ -420,106 +340,81 @@ export default function NewPickScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {header}
 
-        {step === 1 && !channelChosen ? <>
+        {step === 1 ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>1 / 6</Text>
-            <Text style={styles.title}>어디에서 고른 원픽인가요?</Text>
-            <Text style={styles.helper}>매장과 온라인 판매처는 각각 따로 원픽을 정할 수 있어요.</Text>
-            <View style={styles.channelChoice}>
-              <FlowButton variant="secondary" label="매장" onPress={() => chooseChannel('offline')} />
-              <FlowButton variant="secondary" label="온라인" onPress={() => chooseChannel('online')} />
-              <FlowButton variant="text" label="레시피는 메뉴부터 찾기" onPress={() => router.push('/pick/find')} />
-            </View>
-          </View>
-        </> : null}
-
-        {step === 1 && channelChosen ? <>
-          <View style={styles.body}>
-            <Text style={styles.stepMeta}>2 / 6 · {channel === 'online' ? '온라인 판매처' : '오프라인 매장'}</Text>
+            <Text style={styles.stepMeta}>1 / 4 · 오프라인 매장</Text>
             <Text style={styles.title}>상호명을 검색해 주세요</Text>
             {!requesting ? <>
               <View style={styles.fieldBlock}>
-                <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
-                <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
+                <FieldLabel label="상호명" />
+                <TextInput accessibilityLabel="매장명 검색" autoFocus autoCapitalize="none" maxLength={100}
                   onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={OnePick.textTertiary}
-                  placeholder={channel === 'online' ? '판매처명을 입력해 주세요' : '상호명을 입력해 주세요'} />
+                  placeholder="상호명을 입력해 주세요" />
                 {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
-                  ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · {channel === 'online' ? '판매처를 확인해 주세요.' : '지점과 주소를 확인해 주세요.'}</Text>
-                  : channel === 'offline' ? <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text> : null}
+                  ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해 주세요.</Text>
+                  : <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text>}
               </View>
               {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
               {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요" action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
               <View style={styles.results}>
-                {(search.data ?? []).map((candidate) => <Pressable key={candidate.kind === 'place' ? candidate.catalogId : candidate.providerId}
+                {(search.data ?? []).filter((candidate) => candidate.kind === 'place').map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
                   style={({ pressed }) => [styles.resultCard, pressed && styles.flowPressed]}>
-                  <Text style={styles.resultTitle}>{candidate.name}{candidate.kind === 'place' && candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
+                  <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
                   <Text style={styles.resultMeta} numberOfLines={1}>
-                    {candidate.kind === 'place'
-                      ? [candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')
-                      : candidate.host}
+                    {[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}
                   </Text>
                 </Pressable>)}
               </View>
               {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
-                ? <Text style={styles.helper}>검색한 이름의 {channel === 'online' ? '판매처' : '매장'}를 찾지 못했어요.</Text> : null}
+                ? <Text style={styles.helper}>검색한 이름의 매장을 찾지 못했어요.</Text> : null}
             </> : <View style={styles.requestPanel}>
-              <Text style={styles.panelTitle}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text>
-              <Text style={styles.helper}>찾는 곳이 없으면 이름을 직접 등록할 수 있어요.</Text>
+              <Text style={styles.panelTitle}>매장 직접 등록</Text>
+              <Text style={styles.helper}>검색에 없는 매장은 주소와 네이버 지도 링크로 확인해요.</Text>
               <View style={styles.fieldBlock}>
-                <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
+                <FieldLabel label="상호명" />
                 <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
-                  placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.textTertiary} />
+                  placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
               </View>
-              {channel === 'online' ? <View style={styles.fieldBlock}>
-                <FieldLabel label="판매처 링크" />
-                <TextInput accessibilityLabel="판매처 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={sellerUrl}
-                  onChangeText={setSellerUrl} style={styles.input} placeholder="https://…" placeholderTextColor={OnePick.textTertiary} />
-                {sellerUrlError ? <Text accessibilityRole="alert" style={styles.error}>{sellerUrlError}</Text>
-                  : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요.</Text>}
-              </View> : null}
+              <View style={styles.fieldBlock}>
+                <FieldLabel label="도로명 주소" />
+                <TextInput accessibilityLabel="도로명 주소" maxLength={300} value={roadAddress} onChangeText={setRoadAddress} style={styles.input}
+                  placeholder="예: 서울 마포구 숭문길 24" placeholderTextColor={OnePick.textTertiary} />
+              </View>
+              <View style={styles.fieldBlock}>
+                <FieldLabel label="네이버 지도 링크" />
+                <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
+                  value={mapLink} onChangeText={setMapLink} style={styles.input}
+                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
+                {mapLink.trim() && !validMapLink
+                  ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
+                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 사용해 주세요.</Text>}
+              </View>
             </View>}
           </View>
           <View style={styles.footer}>
             {!requesting
-              ? <FlowButton variant="secondary" label={channel === 'online' ? '찾는 판매처가 없어요' : '찾는 매장이 없어요'}
+              ? <FlowButton variant="secondary" label="찾는 매장이 없어요"
                   onPress={() => { setRequesting(true); setNewName(query); }} />
               : <>
                 <FlowButton label="다음" disabled={!canRequest}
-                  onPress={() => pickStore({ kind: 'new', name: newStoreName, channel, sellerUrl: channel === 'online' ? validSellerUrl : null })} />
+                  onPress={() => pickStore({ kind: 'new', name: newStoreName, channel: 'offline', roadAddress: newRoadAddress, mapUrl: mapLink.trim() })} />
                 <FlowButton variant="text" label="다시 검색하기" onPress={() => setRequesting(false)} />
               </>}
           </View>
         </> : null}
 
-        {step === 3 && store ? <>
-          <View style={styles.body}>
-            <Text style={styles.stepMeta}>3 / 6 · {storeDisplayName} · 오프라인 매장</Text>
-            <Text style={styles.title}>매장 링크를 남겨주세요</Text>
-            <View style={styles.fieldBlock}>
-              <FieldLabel label="네이버 지도 링크" required={false} />
-              <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={mapLink}
-                onChangeText={(value) => { setMapLink(value); setLinkError(null); }} style={styles.input}
-                placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
-              {linkError ? <Text accessibilityRole="alert" style={styles.error}>{linkError}</Text>
-                : <Text style={styles.helper}>네이버 지도에서 가게를 열고 공유 → 링크 복사를 누르면 돼요.</Text>}
-            </View>
-          </View>
-          <View style={styles.footer}>
-            <FlowButton label="다음" loading={suggestLink.isPending} onPress={() => void confirmLink(false)} />
-            <FlowButton variant="text" label="건너뛰기" onPress={() => void confirmLink(true)} />
-          </View>
-        </> : null}
-
         {step === 2 && store ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>4 / 6 · {storeDisplayName} · {storeChannel === 'online' ? '온라인 판매처' : '오프라인 매장'}</Text>
+            <Text style={styles.stepMeta}>2 / 4 · {storeDisplayName}</Text>
             <Text style={styles.title}>어떤 메뉴인가요?</Text>
             <View style={styles.fieldBlock}>
               <FieldLabel label="메뉴명" />
               <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery}
                 onChangeText={(value) => {
                   setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                  setItemId(null); setItemHadPhoto(false); setItemPending(false);
+                  setPickChangedElsewhere(false); requestIdRef.current = null;
                 }}
                 onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }}
                 returnKeyType="search" style={styles.input} placeholder="예: 미역국" placeholderTextColor={OnePick.textTertiary} />
@@ -566,7 +461,7 @@ export default function NewPickScreen() {
                   label={[option.groupName, option.name].filter(Boolean).join(' › ')}
                   selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
               </View>
-              <FlowButton variant="text" label="맞는 카테고리가 없어요" onPress={requestMenu} />
+              <Text style={styles.helper}>원픽을 바로 저장하려면 현재 등록 가능한 카테고리 중 하나를 골라주세요.</Text>
             </View> : null}
 
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried ? <View style={styles.loadingRow}>
@@ -581,28 +476,28 @@ export default function NewPickScreen() {
 
         {step === 4 && store ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>5 / 6 · {storeDisplayName} · {menu?.name ?? '사진'}</Text>
+            <Text style={styles.stepMeta}>3 / 4 · {storeDisplayName} · {menu?.name ?? '사진'}</Text>
             <Text style={styles.title}>대표 사진을 올려주세요</Text>
-            <Text style={styles.helper}>같은 원픽을 고른 사람들의 카드에도 함께 보여요. 사진이 없어도 괜찮아요.</Text>
-            {isNew ? <View style={styles.photoPanel}>
+            <Text style={styles.helper}>사진이 없는 원픽은 대표 사진이 필요해요. 저장 전까지는 선택한 사진만 유지됩니다.</Text>
+            {needsPhoto ? <View style={styles.photoPanel}>
               {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
               <FlowButton variant="secondary" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
               {photo ? <FlowButton variant="text" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}
-            </View> : itemId && user && !itemHasPhoto ? <PickPhotoStep userId={user.id} itemId={itemId} onAttached={() => { void itemDetail.refetch(); }} />
-              : itemHasPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
+            </View> : <StateCard compact title="사진이 등록됐어요" />}
           </View>
           <View style={styles.footer}>
-            <FlowButton label="다음" onPress={() => setStep(5)} />
-            {!photo && !itemHasPhoto ? <FlowButton variant="text" label="사진 없이 계속" onPress={() => setStep(5)} /> : null}
+            <FlowButton label="다음" disabled={needsPhoto && !photo} onPress={() => setStep(5)} />
           </View>
         </> : null}
 
         {(step === 5 || step === 6) && store && menu ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>6 / 6 · {storeDisplayName} · {menu.name}</Text>
+            <Text style={styles.stepMeta}>4 / 4 · {storeDisplayName} · {menu.name}</Text>
             <Text style={styles.title}>한줄평을 남겨주세요</Text>
-            {!itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
-              ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+            {pickChangedElsewhere
+              ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체합니다.</Text></View>
+              : !itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
+                ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 매장 원픽이 이걸로 바뀝니다.</Text></View> : null}
             <View style={styles.fieldBlock}>
               <FieldLabel label="한줄평" />
               <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && step !== 6} value={review}
@@ -611,11 +506,10 @@ export default function NewPickScreen() {
             </View>
             <Text style={styles.counter}>{review.length} / 100자</Text>
             {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
-            {isRequest ? <Text style={styles.helper}>등록 확인이 필요한 경우 확인이 끝나면 이 한줄평으로 내 원픽에 반영돼요.</Text> : null}
             {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label="원픽 등록하기" loading={saving} disabled={step === 6} onPress={() => void save()} />
+            <FlowButton label={pickChangedElsewhere ? '변경 확인 후 등록하기' : '원픽 등록하기'} loading={saving} disabled={step === 6} onPress={() => void save()} />
           </View>
         </> : null}
       </ScrollView>
@@ -623,14 +517,11 @@ export default function NewPickScreen() {
       <Modal transparent visible={step === 6 && Boolean(done)} animationType="fade" onRequestClose={() => {}}>
         <View style={styles.overlay}>
           {done && store && menu ? <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
-            <Text style={styles.dialogBody}>{done.type === 'pick'
-              ? `${storeDisplayName} ${menu.name}이 내 원픽이 됐어요.`
-              : `${storeDisplayName} ${menu.name} 등록 요청을 보냈어요.`}</Text>
+            <Text style={styles.dialogTitle}>원픽을 정했어요</Text>
+            <Text style={styles.dialogBody}>{`${storeDisplayName} ${menu.name}이 내 원픽이 됐어요.`}</Text>
             <View style={styles.dialogSpacer} />
             <FlowButton label="확인" onPress={() => {
-              if (done.type === 'pick') router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });
-              else router.replace('/(tabs)/profile');
+              router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });
             }} />
           </View> : null}
         </View>
