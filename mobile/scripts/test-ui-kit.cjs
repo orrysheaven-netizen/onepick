@@ -88,7 +88,9 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
 {
   let retried = 0;
   const empty = render(React.createElement(ui.StateCard, { title: '아직 고른 원픽이 없어요', text: '하나만 골라보세요.', action: { label: '원픽 고르기', onPress: () => retried++ } }));
-  assert.match(empty, /아직 고른 원픽이 없어요/); assert.match(empty, /하나만 골라보세요/); assert.match(empty, />원픽</, 'Empty state carries the 원픽 brand tag');
+  assert.match(empty, /아직 고른 원픽이 없어요/); assert.match(empty, /하나만 골라보세요/);
+  assert.match(empty, new RegExp(`backgroundColor&quot;:&quot;${OnePick.brand}`), 'Empty state carries the tangerine brand dot');
+  assert.doesNotMatch(empty, />원픽</, 'Standalone brand mark is not a text tag');
   pressable('원픽 고르기').onPress(); assert.equal(retried, 1);
 
   const loading = render(React.createElement(ui.StateCard, { title: '불러오는 중', loading: true }));
