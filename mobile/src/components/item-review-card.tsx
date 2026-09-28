@@ -48,9 +48,9 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
-      {isDeleted ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+      {isDeleted ? <Text style={styles.history}>삭제된 한줄평이에요. 기존 대화만 남아 있어요.</Text>
         : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
-      {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 댓글은 계속 볼 수 있어요.</Text> : null}
+      {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평이에요. 기존 댓글은 계속 볼 수 있어요.</Text> : null}
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}

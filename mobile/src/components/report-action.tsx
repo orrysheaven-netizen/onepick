@@ -16,12 +16,12 @@ const REASONS: Array<{ value: ReportReason; label: string }> = [
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'REPORT_DUPLICATE') return '이미 확인 중인 신고가 있습니다.';
+    if (error.code === 'REPORT_DUPLICATE') return '이미 확인 중인 신고가 있어요.';
     if (error.code === 'RATE_LIMITED') return '신고 요청이 많아요. 최대 1시간 후 다시 시도해주세요.';
-    if (error.code === 'REPORT_SELF') return '내 콘텐츠는 신고할 수 없습니다.';
-    if (error.code === 'REPORT_TARGET_NOT_FOUND') return '신고할 콘텐츠를 찾을 수 없습니다.';
+    if (error.code === 'REPORT_SELF') return '내 콘텐츠는 신고할 수 없어요.';
+    if (error.code === 'REPORT_TARGET_NOT_FOUND') return '신고할 콘텐츠를 찾을 수 없어요.';
   }
-  return '신고를 접수하지 못했습니다. 다시 시도해주세요.';
+  return '신고를 접수하지 못했어요. 다시 시도해주세요.';
 }
 
 export function ReportAction({

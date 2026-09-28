@@ -269,7 +269,7 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
                 )
               ) : compact ? null : (
                 <Text style={styles.historyCommentNotice}>
-                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다.' : '현재 댓글을 남길 수 없는 원픽입니다.'}
+                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없어요.' : '현재 댓글을 남길 수 없는 원픽이에요.'}
                 </Text>
               )}
             </View>

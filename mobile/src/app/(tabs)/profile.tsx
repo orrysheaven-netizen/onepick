@@ -134,7 +134,7 @@ export default function ProfileScreen() {
   }
   if (isProfileMissing) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="프로필을 완성해주세요" text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다."
+      <StateCard title="프로필을 완성해주세요" text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 돼요."
         action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: { action: 'profile' } }) }} />
       <SignOutButton />
     </View></SafeAreaView>;
@@ -253,7 +253,7 @@ export default function ProfileScreen() {
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인해요.</Text></View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
