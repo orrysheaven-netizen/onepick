@@ -108,6 +108,8 @@ function setup(file, extra = {}) {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useItemDetail': { useItemDetail: () => query },
+
+    '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
     '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => mutation },
