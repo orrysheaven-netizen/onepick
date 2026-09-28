@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -22,6 +22,7 @@ import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ saved?: string; categoryName?: string; itemName?: string }>();
   const { user, isLoading: sessionLoading } = useAuthSession();
   const profile = useMyProfile(user?.id);
   const categories = useRegistrationCategories();
@@ -93,7 +94,7 @@ export default function OnboardingScreen() {
   };
   const exit = async () => {
     if (!pause.isPending) await pause.mutateAsync().catch(() => {});
-    router.replace('/profile');
+    router.replace('/');
   };
   const finish = async () => {
     if (!complete.isPending) await complete.mutateAsync().catch(() => {});
@@ -123,23 +124,26 @@ export default function OnboardingScreen() {
       <Text style={styles.subtitle}>마음이 가는 카테고리만 고르세요. 관심 없으면 넘겨도 되고, 언제든 이어서 할 수 있어요.</Text>
 
       <View style={styles.progressCard}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>{Math.min(pickCount, 10)}/10</Text>
-          <Text style={styles.progressHint}>{pickCount < 10 ? '10개부터 AI 평가' : 'AI 평가 가능'}</Text>
-        </View>
+        <Text style={styles.progressLabel}>{canEvaluate ? 'AI 취향 평가를 볼 수 있어요' : `${Math.min(pickCount, 10)} / 10`}</Text>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, pickCount * 10)}%` }]} /></View>
-        <View style={styles.marker}><Text style={styles.markerText}>10</Text></View>
-        {canEvaluate ? <Button variant="soft" size="sm" fullWidth style={styles.aiButton} onPress={() => router.push('/profile')}
-          label="AI 평가 보기" /> : null}
+        <View style={styles.progressBottom}>
+          <Text style={styles.progressHint}>{canEvaluate ? `${pickCount} / 10 · 더 고를수록 평가가 정확해져요` : '10개부터 AI 취향 평가'}</Text>
+          {canEvaluate ? <Button variant="ghost" size="sm" label="AI 평가 보기 ›" onPress={() => router.push({ pathname: '/profile', params: { ai: '1' } })} /> : null}
+        </View>
       </View>
 
-      {current ? <View style={styles.categoryCard}>
+      {params.saved === '1' ? <View style={styles.categoryCard}>
+        <Text style={styles.savedTitle}>원픽을 정했어요</Text>
+        <Text style={styles.cardText}>{[params.categoryName, params.itemName].filter(Boolean).join(' · ')}이(가) 내 원픽이 됐어요.</Text>
+        <Button size="lg" fullWidth style={styles.primary} label="다음 카테고리" onPress={() => router.replace('/onboarding')} />
+        <Button variant="ghost" style={styles.skip} label="나중에 이어서 하기" onPress={() => void exit()} />
+      </View> : current ? <View style={styles.categoryCard}>
         <Text style={styles.cardKicker}>이번 카테고리</Text>
         {currentParentName ? <View style={styles.parentPill}><Text style={styles.parentPillText}>{currentParentName}</Text></View> : null}
         <Text style={styles.categoryName}>{currentCategoryName}</Text>
         <Text style={styles.cardText}>여기서 지금 가장 좋아하는 하나가 떠오르나요?</Text>
         <Button size="lg" fullWidth style={styles.primary} disabled={setCurrent.isPending} label="이 카테고리에서 원픽 고르기"
-          onPress={() => router.push({ pathname: '/pick/find', params: { categoryId: current.id, onboarding: '1' } })} />
+          onPress={() => router.push({ pathname: '/pick/new', params: { categoryId: current.id, onboarding: '1' } })} />
         <Button variant="ghost" style={styles.skip} disabled={setCurrent.isPending || recordAction.isPending} onPress={() => void skip()}
           label={setCurrent.isPending ? '준비 중…' : recordAction.isPending ? '넘기는 중…' : '넘기기'} />
       </View> : <View style={styles.categoryCard}>
@@ -155,26 +159,24 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
+  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 28 },
   center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', padding: 20 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
-  title: { flex: 1, color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
-  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
-  progressCard: { backgroundColor: OnePick.surface, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, padding: 18, marginTop: 24 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  progressLabel: { color: OnePick.text, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
-  progressHint: { color: OnePick.muted, fontSize: 12, lineHeight: 16, flex: 1, textAlign: 'right' },
-  track: { height: 9, backgroundColor: OnePick.sunken, borderRadius: 999, overflow: 'hidden', marginTop: 14 },
-  fill: { height: '100%', backgroundColor: OnePick.accent, borderRadius: 999 },
-  marker: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 5 },
-  markerText: { color: OnePick.hint, fontSize: 12, lineHeight: 16 },
-  aiButton: { marginTop: 14 },
-  categoryCard: { backgroundColor: OnePick.surface, borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, padding: 20, marginTop: 16 },
-  cardKicker: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '600' },
-  parentPill: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 10, paddingVertical: 5, marginTop: 12 },
-  parentPillText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '700' },
-  categoryName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.5, marginTop: 8 },
-  cardText: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  title: { flex: 1, color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '700' },
+  subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 16 },
+  progressCard: { backgroundColor: OnePick.accentSoft, borderRadius: 16, padding: 16, marginTop: 16, gap: 8 },
+  progressLabel: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  progressBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressHint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, flex: 1 },
+  track: { height: 6, backgroundColor: OnePick.surface, borderRadius: 999, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: OnePick.brand, borderRadius: 999 },
+  categoryCard: { backgroundColor: OnePick.surface, borderRadius: 16, borderWidth: 1, borderColor: OnePick.border, padding: 24, marginTop: 16 },
+  cardKicker: { color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '400' },
+  parentPill: { alignSelf: 'flex-start', borderRadius: 8, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
+  parentPillText: { color: OnePick.text, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  categoryName: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '700', marginTop: 8 },
+  savedTitle: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '700' },
+  cardText: { color: OnePick.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
   primary: { marginTop: 20 },
   skip: { alignSelf: 'center', marginTop: 6 },
   footer: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginTop: 18 },
