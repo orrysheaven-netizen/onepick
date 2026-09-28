@@ -76,7 +76,7 @@ export default function NewPickScreen() {
   const [sellerUrl, setSellerUrl] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
-  // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
+  // categoryId null: the user entered a menu that does not exist yet.
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   // Known from the selected item row itself, before the item detail loads.
@@ -379,7 +379,7 @@ export default function NewPickScreen() {
           </> : <View style={styles.card}>
             <Text style={styles.cardTitle}>새 {channel === 'online' ? '판매처' : '매장'} 정보</Text>
             <Text style={styles.helper}>이름을 입력하면 다음 단계에서 필요한 링크와 메뉴를 이어서 확인합니다.</Text>
-            <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
+            <TextInput accessibilityLabel={channel === 'online' ? '새 판매처 이름' : '새 매장 이름'} maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
               placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.hint} />
             <Button fullWidth label="다음" disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel })} style={styles.primary} />
             <Button variant="ghost" size="sm" label="다시 검색하기" onPress={() => setRequesting(false)} />
