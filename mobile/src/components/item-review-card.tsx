@@ -22,8 +22,9 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
   const isMine = user?.id === pick.userId;
-  const isCurrent = pick.status === 'active' || pick.status === 'needs_review';
-  const canManage = !isLoading && isMine && isCurrent;
+  const isCurrent = pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review');
+  const isDeleted = pick.isDeleted ?? false;
+  const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
 
   return (
@@ -47,12 +48,13 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
-      <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>
+      {isDeleted ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+        : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
       {!isCurrent ? <Text style={styles.history}>현재 선택이 종료된 한줄평입니다. 기존 댓글은 계속 볼 수 있어요.</Text> : null}
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      <PickReplies pickId={pick.id} compact canWrite={!isMine} />
+      <PickReplies pickId={pick.id} compact canWrite={pick.canComment ?? (!isMine && isCurrent)} />
     </View>
   );
 }
