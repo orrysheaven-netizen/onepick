@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam, type OnboardingParam } from '@/lib/onboarding/navigation';
+import { withOnboardingParam, type OnboardingParam } from '@/lib/categories/registrationRoute';
 
 /** Optional external lookup after local search; never blocks the primary item search. */
 export function MusicSearchLink({ query, categoryId, onboarding }: { query: string; categoryId?: string; onboarding?: OnboardingParam }) {
