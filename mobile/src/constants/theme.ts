@@ -1,7 +1,4 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+/** OnePick ships a single light visual theme for the MVP. */
 
 import '@/global.css';
 
@@ -17,16 +14,9 @@ export const Colors = {
     backgroundSelected: OnePick.accentSoft,
     textSecondary: OnePick.muted,
   },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type ThemeColor = keyof typeof Colors.light;
 
 export const Fonts = Platform.select({
   ios: {

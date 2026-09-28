@@ -79,17 +79,46 @@ export function roundedRect(ctx: any, x: number, y: number, width: number, heigh
   ctx.closePath();
 }
 
-// The brand lockup: an indigo 원픽 tag followed by "one pick". Both cards draw the same one.
-export function drawBrandLockup(ctx: any, x: number, baselineY: number) {
-  ctx.fillStyle = OnePick.accent;
-  roundedRect(ctx, x, baselineY - 42, 104, 56, 16);
-  ctx.fill();
-  ctx.fillStyle = OnePick.onAccent;
-  ctx.font = '900 30px system-ui, sans-serif';
-  ctx.fillText('원픽', x + 18, baselineY);
-  ctx.fillStyle = OnePick.text;
-  ctx.font = '800 34px system-ui, sans-serif';
-  ctx.fillText('one pick', x + 122, baselineY);
+const BRAND_LOGO_SRC = '/brand/onepick-logo-horizontal.svg';
+const BRAND_LOGO_WIDTH = 260;
+const BRAND_LOGO_HEIGHT = BRAND_LOGO_WIDTH * 931 / 4883.77;
+
+let brandLogoImage: any = null;
+let brandLogoReady = false;
+let brandLogoStarted = false;
+
+// Start loading before a visitor taps Share. The tap-to-share path never waits for
+// this asset: a cold or failed logo is skipped so Safari keeps transient activation.
+export function preloadBrandLockup(web: any = globalThis as any) {
+  if (brandLogoStarted || typeof web?.Image !== 'function') return;
+  brandLogoStarted = true;
+  const image = new web.Image();
+  brandLogoImage = image;
+  image.onload = () => {
+    brandLogoReady = true;
+  };
+  image.onerror = () => {
+    brandLogoReady = false;
+    brandLogoImage = null;
+    brandLogoStarted = false;
+  };
+  image.src = BRAND_LOGO_SRC;
+}
+
+if (typeof globalThis !== 'undefined') preloadBrandLockup(globalThis as any);
+
+// Use the approved outlined SVG only when it is already ready. Never delay or fail
+// the share itself for branding; the card content remains usable without the logo.
+export function drawBrandLockup(ctx: any, web: any, x: number, baselineY: number) {
+  if (typeof ctx.drawImage !== 'function') return false;
+  preloadBrandLockup(web);
+  if (!brandLogoReady || !brandLogoImage) return false;
+  try {
+    ctx.drawImage(brandLogoImage, x, baselineY - BRAND_LOGO_HEIGHT, BRAND_LOGO_WIDTH, BRAND_LOGO_HEIGHT);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function drawLines(ctx: any, lines: string[], x: number, startY: number, lineHeight: number) {
