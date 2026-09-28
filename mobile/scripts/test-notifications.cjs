@@ -60,7 +60,7 @@ const inbox = { data: { pages: [{ items: [
   { kind: 'item_review', id: 'req2', pick_id: null, username: null, body: null, item_name: '에어팟 프로', item_id: 'item-2', outcome: 'merged', created_at: rows[0].created_at, read_at: null },
 ] }] }, isError: false };
 let readCalls = [];
-const { default: Screen } = load('app/notifications.tsx', {
+const { default: Screen } = load('app/(tabs)/notifications.tsx', {
   ...imports,
   'react-native-safe-area-context': { SafeAreaView: part('section') },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
