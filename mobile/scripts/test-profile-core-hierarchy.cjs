@@ -30,7 +30,7 @@ assert.doesNotMatch(owner, /summaryDivider/);
 assert.doesNotMatch(owner, /refreshButton/);
 assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm" accessibilityLabel=\{OnePickFeatures\.profileItemRequests \? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'\}/, 'header retry is an errors-only kit text button');
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
-assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
+assert.match(owner, /OnePickFeatures\.profileAi \|\| ai === '1'/);
 assert.match(owner, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'owner collection count follows the selected taste tab');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: mainPicks\.length \}\)/, 'owner profile share uses the same food-only count as the public profile');
