@@ -14,17 +14,18 @@ type Props = {
   loading?: boolean;
   fullWidth?: boolean;
   accessibilityLabel?: string;
+  selected?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 // Primary = one per screen. Soft is the in-card action ("나도 이게 원픽"); ghost is a text link.
-export function Button({ label, onPress, variant = 'primary', size = 'md', disabled, loading, fullWidth, accessibilityLabel, style }: Props) {
+export function Button({ label, onPress, variant = 'primary', size = 'md', disabled, loading, fullWidth, accessibilityLabel, selected, style }: Props) {
   const inactive = Boolean(disabled || loading);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
+      accessibilityState={{ disabled: inactive, busy: Boolean(loading), ...(selected === undefined ? {} : { selected }) }}
       disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, style]}>
