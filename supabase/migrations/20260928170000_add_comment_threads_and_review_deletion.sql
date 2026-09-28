@@ -517,12 +517,12 @@ create policy comments_anon_read_visible_pick on public.comments
 for select to anon
 using (
   deleted_at is null
-  and not public.user_is_suspended(user_id)
+  and not private.user_is_suspended(user_id)
   and exists (
     select 1 from public.picks p
     where p.id = comments.pick_id
       and p.status = 'active'
-      and not public.user_is_suspended(p.user_id)
+      and not private.user_is_suspended(p.user_id)
   )
 );
 
