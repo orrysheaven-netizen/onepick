@@ -4,7 +4,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useGameCatalogSearch, useImportGameCatalogItem } from '@/hooks/useGameCatalog';
@@ -161,7 +160,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
       <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
-      {sessionError ? <Button label="다시 확인하기" onPress={retrySession} size="sm" variant="secondary" style={styles.secondaryButton} /> : <ActivityIndicator />}
+      {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
 
@@ -188,11 +187,11 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 게임과 IGDB를 함께 찾고 있어요</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 게임 검색을 불러오지 못했어요</Text>
-        <Button label="다시 검색" onPress={() => void local.refetch()} size="sm" variant="secondary" disabled={local.isFetching} style={styles.secondaryButton} /></View> : null}
+        <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>외부 게임 DB를 불러오지 못했어요</Text>
         <Text style={styles.stateText}>{gameErrorMessage(catalog.error)}</Text>
-        <Button label="IGDB 다시 검색" onPress={() => void catalog.refetch()} size="sm" variant="secondary" disabled={catalog.isFetching} style={styles.secondaryButton} />
+        <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>IGDB 다시 검색</Text></Pressable>
       </View> : null}
 
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 게임 정보를 준비하고 있어요</Text></View> : null}
@@ -201,15 +200,15 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {selection.phase === 'failed' ? gameErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 게임 정보가 준비됐어요.' : '이전 게임 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
-          ? <Button label="선택한 게임으로 계속" onPress={() => continueGame(selection.item, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />
+          ? <Pressable onPress={() => continueGame(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 게임으로 계속</Text></Pressable>
           : selection.phase === 'failed' && selection.error instanceof AppError && selection.error.code === 'AUTH_REQUIRED'
-            ? <Button label="다시 로그인하고 게임 선택 계속" onPress={() => loginForGame(selection.externalId)} size="sm" variant="secondary" style={styles.secondaryButton} />
-            : <Button label="선택한 게임 다시 불러오기" onPress={() => void loadGame(selection.externalId, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />}
+            ? <Pressable onPress={() => loginForGame(selection.externalId)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 로그인하고 게임 선택 계속</Text></Pressable>
+            : <Pressable onPress={() => void loadGame(selection.externalId, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 게임 다시 불러오기</Text></Pressable>}
       </View> : null}
 
       {validReturn && !user && !selection ? <View style={styles.stateCard}>
         <Text style={styles.stateText}>선택한 게임을 이어가려면 로그인이 필요해요.</Text>
-        <Button label="로그인하고 게임 선택 계속" onPress={() => loginForGame(externalId!)} size="sm" variant="secondary" style={styles.secondaryButton} />
+        <Pressable onPress={() => loginForGame(externalId!)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>로그인하고 게임 선택 계속</Text></Pressable>
       </View> : null}
 
       {cleanQuery && localItems.map((item) => <View key={item.id} style={styles.itemCard}>
@@ -270,7 +269,8 @@ const styles = StyleSheet.create({
   developer: { color: OnePick.muted, fontSize: 13, fontWeight: '700', marginTop: 4 },
   meta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
-  secondaryButton: { marginTop: 13 },
+  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
+  secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },

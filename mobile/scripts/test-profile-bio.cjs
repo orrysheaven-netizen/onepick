@@ -121,9 +121,7 @@ async function main() {
         return [state[i], (value) => { state[i] = typeof value === 'function' ? value(state[i]) : value; }]; },
       useRef: (initial) => { const i = refIndex++; if (!(i in refs)) refs[i] = { current: initial }; return refs[i]; },
     },
-    'react-native': native,
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
-    '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    'react-native': native, '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useUpdateProfileBio': { useUpdateProfileBio: () => mutation }, '@/lib/profileBio': bio,
   });
   const render = () => { index = 0; refIndex = 0; buttons = []; input = undefined; return renderToStaticMarkup(React.createElement(ProfileBioEditor, props)); };

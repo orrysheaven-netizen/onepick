@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 
 import { ReportAction } from '@/components/report-action';
-import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -92,15 +91,13 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
   if (isSessionLoading) return <ActivityIndicator accessibilityLabel="로그인 상태 확인 중" />;
   if (sessionError) return <View style={styles.commentsState}>
     <Text accessibilityRole="alert" style={styles.commentsStateText}>로그인 상태를 확인하지 못했어요.</Text>
-    <Button accessibilityLabel="로그인 상태 다시 확인" label="다시 확인하기" onPress={retrySession}
-      size="sm" style={styles.smallButton} variant="secondary" />
+    <Pressable accessibilityRole="button" accessibilityLabel="로그인 상태 다시 확인" onPress={retrySession} style={styles.smallButton}>
+      <Text style={styles.smallButtonText}>다시 확인하기</Text>
+    </Pressable>
   </View>;
   if (query.isPending) return <ActivityIndicator accessibilityLabel="댓글 불러오는 중" />;
   if (query.isError || !query.data) return (
-    <View>
-      <Text>한줄평을 불러오지 못했어요.</Text>
-      <Button label="다시 불러오기" onPress={() => void query.refetch()} size="sm" style={styles.smallButton} variant="secondary" />
-    </View>
+    <View><Text>한줄평을 불러오지 못했어요.</Text><Pressable onPress={() => void query.refetch()}><Text>다시 불러오기</Text></Pressable></View>
   );
 
   return (
@@ -120,8 +117,12 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
               {commentsQuery.isError && !commentsQuery.isFetchNextPageError ? (
                 <View style={styles.commentsState}>
                   <Text style={styles.commentsStateText}>댓글을 불러오지 못했어요.</Text>
-                  <Button label="다시 불러오기" onPress={() => void commentsQuery.refetch()}
-                    size="sm" style={styles.smallButton} variant="secondary" />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void commentsQuery.refetch()}
+                    style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}>
+                    <Text style={styles.smallButtonText}>다시 불러오기</Text>
+                  </Pressable>
                 </View>
               ) : null}
 
@@ -198,15 +199,13 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
               ) : null}
 
               {commentsQuery.hasNextPage ? (
-                <Button
+                <Pressable
+                  accessibilityRole="button"
                   disabled={commentsQuery.isFetching}
-                  label={commentsQuery.isFetchNextPageError ? '댓글 더 보기 다시 시도' : '댓글 더 보기'}
-                  loading={commentsQuery.isFetchingNextPage}
                   onPress={() => { if (!commentsQuery.isFetching) void commentsQuery.fetchNextPage({ cancelRefetch: false }); }}
-                  size="sm"
-                  style={styles.smallButton}
-                  variant="secondary"
-                />
+                  style={({ pressed }) => [styles.smallButton, commentsQuery.isFetching && { opacity: 0.5 }, pressed && styles.pressed]}>
+                  {commentsQuery.isFetchingNextPage ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.smallButtonText}>{commentsQuery.isFetchNextPageError ? '댓글 더 보기 다시 시도' : '댓글 더 보기'}</Text>}
+                </Pressable>
               ) : null}
 
               {canComment && !composing ? (
@@ -236,22 +235,28 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
                       <Text style={styles.commentError}>{getCommentErrorMessage(createComment.error)}</Text>
                     ) : null}
                     {createComment.error instanceof AppError && createComment.error.code === 'PROFILE_NOT_FOUND' ? (
-                      <Button
-                        label="사용자명 만들고 계속"
+                      <Pressable
+                        accessibilityRole="button"
                         onPress={() => router.push({ pathname: '/auth/username', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
-                        size="sm"
-                        style={styles.smallButton}
-                        variant="secondary"
-                      />
+                        style={styles.smallButton}>
+                        <Text style={styles.smallButtonText}>사용자명 만들고 계속</Text>
+                      </Pressable>
                     ) : null}
-                    <Button
-                      disabled={!canSubmitComment}
-                      fullWidth
-                      label="댓글 남기기"
-                      loading={createComment.isPending}
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!canSubmitComment || createComment.isPending}
                       onPress={() => void handleCommentSubmit()}
-                      style={styles.commentButton}
-                    />
+                      style={({ pressed }) => [
+                        styles.commentButton,
+                        (!canSubmitComment || createComment.isPending) && styles.commentButtonDisabled,
+                        pressed && canSubmitComment && !createComment.isPending && styles.pressed,
+                      ]}>
+                      {createComment.isPending ? (
+                        <ActivityIndicator color={OnePick.onAccent} />
+                      ) : (
+                        <Text style={styles.commentButtonText}>댓글 남기기</Text>
+                      )}
+                    </Pressable>
                   </View>
                 ) : (
                   <Pressable
@@ -282,7 +287,8 @@ const styles = StyleSheet.create({
   commentsCount: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   commentsState: { alignItems: 'center', paddingVertical: 20 },
   commentsStateText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 8 },
-  smallButton: { marginTop: 10 },
+  smallButton: { backgroundColor: OnePick.text, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
+  smallButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   emptyComments: { color: OnePick.muted, fontSize: 12, lineHeight: 18, paddingVertical: 17 },
   commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
   commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
@@ -304,8 +310,9 @@ const styles = StyleSheet.create({
   commentCounter: { color: OnePick.hint, fontSize: 12 },
   commentInput: { minHeight: 88, borderRadius: 15, backgroundColor: OnePick.background, paddingHorizontal: 13, paddingVertical: 12, color: OnePick.text, fontSize: 13, lineHeight: 19, textAlignVertical: 'top' },
   commentError: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 8 },
-  commentButton: { marginTop: 10 },
+  commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   commentButtonDisabled: { opacity: 0.4 },
+  commentButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   loginPrompt: { backgroundColor: OnePick.background, borderRadius: 15, padding: 14, marginTop: 16 },
   loginPromptTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   loginPromptText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },

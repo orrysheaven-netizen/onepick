@@ -98,12 +98,6 @@ async function main() {
   const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
   const { ItemSearch } = loadSource('components/item-search.tsx', {
     '@/components/pick-photo': { PickPhoto: (props) => { photoProps = props; return null; } },
-    '@/components/ui': {
-      Button: ({ label, onPress, disabled }) => {
-        presses.push(onPress);
-        return React.createElement('button', { disabled }, label);
-      },
-    },
     '@/components/drama-search-link': { DramaSearchLink: () => null },
     '@/components/music-search-link': { MusicSearchLink: () => null },
     '@/hooks/useItemSearch': { useItemSearch: () => state },

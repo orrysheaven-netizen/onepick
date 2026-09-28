@@ -1,10 +1,9 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui';
 import { useCompleteOAuth } from '@/hooks/useCompleteOAuth';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
@@ -49,11 +48,12 @@ export default function AuthCallbackScreen() {
           <>
             <Text style={styles.title}>로그인을 완료하지 못했어요</Text>
             <Text style={styles.subtitle}>다시 로그인하면 하려던 작업을 이어갈 수 있어요.</Text>
-            <Button
-              label="다시 로그인하기"
+            <Pressable
+              accessibilityRole="button"
               onPress={() => router.replace({ pathname: '/auth/login', params: { ...getAuthIntent(params) } })}
-              style={styles.retryButton}
-            />
+              style={styles.retryButton}>
+              <Text style={styles.retryText}>다시 로그인하기</Text>
+            </Pressable>
           </>
         ) : (
           <>
@@ -72,5 +72,6 @@ const styles = StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   title: { color: OnePick.text, fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 9 },
-  retryButton: { marginTop: 20 },
+  retryButton: { minHeight: 48, borderRadius: 15, backgroundColor: OnePick.text, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  retryText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
 });

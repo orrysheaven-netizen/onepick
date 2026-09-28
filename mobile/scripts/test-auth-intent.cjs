@@ -114,9 +114,6 @@ async function main() {
   const baseImports = {
     'expo-router': { useRouter: () => ({ replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
-    '@/components/ui': {
-      Button: ({ label, onPress, disabled }) => React.createElement(native.Pressable, { onPress, disabled }, React.createElement(native.Text, null, label)),
-    },
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
     '@/lib/auth/authIntent': intents,
     '@/services': { observabilityService: { captureProductEvent: async (event) => { analytics.push(event); } } },

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useManagePick } from '@/hooks/useManagePick';
 import type { Pick } from '@/types/domain/pick';
@@ -129,25 +128,35 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
             value={review}
           />
           <Text style={styles.counter}>{review.length}/100</Text>
-          <Button disabled={!canSave} fullWidth label="한줄평 저장" loading={isBusy}
-            onPress={() => void saveReview()} style={styles.button} />
+          <Pressable
+            accessibilityRole="button"
+            disabled={!canSave || isBusy}
+            onPress={() => void saveReview()}
+            style={[styles.button, (!canSave || isBusy) && styles.disabled]}>
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 저장</Text>}
+          </Pressable>
         </>
       ) : mode === 'remove' ? (
         <>
           <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남습니다.</Text>
-          <Button fullWidth label="선택 해제하기" loading={isBusy}
-            onPress={() => void confirmRemoval()} style={styles.button} variant="danger" />
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmRemoval()}
+            style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
+          </Pressable>
         </>
       ) : (
         <>
           <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제됩니다. 댓글이 있으면 대화는 익명 자리로 남습니다.</Text>
-          <Button fullWidth label="한줄평 삭제하기" loading={isBusy}
-            onPress={() => void confirmReviewDeletion()} style={styles.button} variant="danger" />
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmReviewDeletion()}
+            style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 삭제하기</Text>}
+          </Pressable>
         </>
       )}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{getErrorMessage(error)}</Text> : null}
-      <Button disabled={isBusy} fullWidth label="취소" onPress={() => setMode('idle')}
-        style={styles.secondaryButton} variant="ghost" />
+      <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setMode('idle')} style={[styles.secondaryButton, isBusy && styles.disabled]}>
+        <Text style={styles.secondaryText}>취소</Text>
+      </Pressable>
     </View>
   );
 }
@@ -162,8 +171,11 @@ const styles = StyleSheet.create({
   description: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   input: { minHeight: 96, borderRadius: 15, backgroundColor: OnePick.background, padding: 13, color: OnePick.text, fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },
   counter: { color: OnePick.muted, fontSize: 12, textAlign: 'right', marginTop: 6 },
-  button: { marginTop: 12 },
-  secondaryButton: { marginTop: 6 },
+  button: { minHeight: 46, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, marginTop: 12 },
+  buttonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  secondaryText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
+  removeButton: { backgroundColor: OnePick.danger },
   disabled: { opacity: 0.4 },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
 });

@@ -1,6 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useFollowActions, useFollowState } from '@/hooks/useFollow';
 import { OnePick } from '@/constants/onepick';
@@ -37,7 +36,6 @@ export function FollowButton({
 
   const following = state.data === true;
   const pending = follow.isPending || unfollow.isPending;
-  const loading = pending || Boolean(viewerUserId && state.isPending);
   const error = follow.error ?? unfollow.error;
 
   const handlePress = () => {
@@ -54,16 +52,19 @@ export function FollowButton({
 
   return (
     <View style={styles.container}>
-      <Button
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: following, busy: pending }}
         accessibilityLabel={following ? `@${username} 팔로우 취소` : `@${username} 팔로우`}
-        disabled={loading}
-        label={following ? '팔로잉' : '팔로우'}
-        loading={loading}
+        disabled={pending || (Boolean(viewerUserId) && state.isPending)}
         onPress={handlePress}
-        selected={following}
-        size="sm"
-        variant={following ? 'secondary' : 'primary'}
-      />
+        style={({ pressed }) => [styles.button, following && styles.buttonFollowing, pressed && styles.pressed]}>
+        {pending || (viewerUserId && state.isPending) ? (
+          <ActivityIndicator size="small" color={following ? OnePick.muted : OnePick.onAccent} />
+        ) : (
+          <Text style={[styles.text, following && styles.textFollowing]}>{following ? '팔로잉' : '팔로우'}</Text>
+        )}
+      </Pressable>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}
     </View>
   );
@@ -71,5 +72,10 @@ export function FollowButton({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'flex-start' },
+  button: { minHeight: 40, minWidth: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, paddingHorizontal: 16 },
+  buttonFollowing: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
+  text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  textFollowing: { color: OnePick.muted },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 6 },
+  pressed: { opacity: 0.7 },
 });

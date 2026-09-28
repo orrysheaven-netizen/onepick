@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Button } from '@/components/ui';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useUpdateProfileBio } from '@/hooks/useUpdateProfileBio';
 import { MAX_PROFILE_BIO_LENGTH, profileBioLength, ProfileBioValidationError } from '@/lib/profileBio';
@@ -67,8 +66,10 @@ function BioEditor({ profileUserId, bio }: Props) {
       {tooLong ? <Text accessibilityRole="alert" style={styles.error}>자기소개는 {MAX_PROFILE_BIO_LENGTH}자 이내로 입력해주세요.</Text> : null}
       <Text style={styles.hint}>내용을 비우고 저장하면 자기소개가 삭제돼요.</Text>
       <View style={styles.buttons}>
-        <Button accessibilityLabel="자기소개 저장" disabled={disabled} label="저장"
-          loading={mutation.isPending} onPress={() => void save()} size="sm" />
+        <Pressable accessibilityRole="button" accessibilityLabel="자기소개 저장" disabled={disabled}
+          onPress={() => void save()} style={[styles.save, disabled && styles.disabled]}>
+          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 편집 취소" disabled={mutation.isPending}
           onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>취소</Text></Pressable>
         {draft ? <Pressable accessibilityRole="button" accessibilityLabel="자기소개 내용 지우기" disabled={mutation.isPending}
@@ -95,6 +96,8 @@ const styles = StyleSheet.create({
   action: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center' },
   actionText: { color: OnePick.accent, fontSize: 13, fontWeight: '700' },
   clearText: { color: OnePick.muted, fontSize: 12 },
+  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: OnePick.accent, justifyContent: 'center' },
+  saveText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
   disabled: { opacity: 0.5 },
 });
