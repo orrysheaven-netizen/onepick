@@ -77,19 +77,19 @@ function test(name, fn) {
   try { fn(); passed++; console.log(`PASS ${name}`); }
   catch (error) { failures.push(name); console.error(`FAIL ${name}: ${error.message}`); }
 }
-test('primary uses approved tangerine + ink, not legacy accent', () => {
+test('primary uses approved ink action + white on-action text', () => {
   const button = Button({ label: '선택' });
-  assert.equal(styleOf(button).backgroundColor, OnePick.brand);
-  assert.equal(styleOf(first(button, 'Text')).color, OnePick.onBrand);
+  assert.equal(styleOf(button).backgroundColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(button, 'Text')).color, OnePick.onAction);
   readable(styleOf(first(button, 'Text')).color, styleOf(button).backgroundColor);
 });
 test('pressed primary retains readable text', () => {
   const button = Button({ label: '선택' });
   readable(styleOf(first(button, 'Text')).color, styleOf(button, true).backgroundColor, styleOf(button, true).opacity ?? 1);
 });
-test('loading primary has ink spinner and disabled/busy semantics', () => {
+test('loading primary has on-action spinner and disabled/busy semantics', () => {
   const button = Button({ label: '선택', loading: true });
-  assert.equal(first(button, 'Spinner').props.color, OnePick.onBrand);
+  assert.equal(first(button, 'Spinner').props.color, OnePick.onAction);
   assert.equal(button.props.disabled, true);
   assert.equal(button.props.accessibilityState.busy, true);
   assert.equal(button.props.accessibilityState.disabled, true);
@@ -148,31 +148,30 @@ test('unselected/dashed chip appearance and callback stay available', () => {
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
 });
-test('web active tab uses ink icon on tangerine and an ink label', () => {
+test('web active tab uses ink icon and label without a brand fill', () => {
   pathname = '/explore';
   const tree = expand(AppTabs());
   const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '탐색')[0];
   assert.equal(tab.props.accessibilityState.selected, true);
-  const background = styleOf(first(tab, 'View')).backgroundColor;
   const iconColor = first(tab, 'svg').props.stroke;
-  assert.equal(background, OnePick.brand);
-  assert.equal(iconColor, OnePick.onBrand);
-  readable(iconColor, background, styleOf(tab, true).opacity ?? 1);
+  assert.equal(iconColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(tab, 'Text')).color, OnePick.actionPrimary);
+  readable(iconColor, OnePick.surface, styleOf(tab, true).opacity ?? 1);
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
-test('web register control uses ink on tangerine and preserves route', () => {
+test('web register control uses white on ink and preserves route', () => {
   const tree = expand(AppTabs());
   const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
   const icon = first(button, 'View');
-  assert.equal(styleOf(icon).backgroundColor, OnePick.brand);
-  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onBrand);
+  assert.equal(styleOf(icon).backgroundColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onAction);
   readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
   button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
 test('web Link tabs pass one layout style object through Link asChild', () => {
   pathname = '/';
   const tree = expand(AppTabs());
-  for (const label of ['홈', '탐색', '댓글', '프로필']) {
+  for (const label of ['홈', '탐색', '알림', '프로필']) {
     const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
     assert.ok(tab, label);
     assert.ok(tab.props.style && typeof tab.props.style === 'object' && !Array.isArray(tab.props.style), 'Link tab style must be a plain object');
@@ -185,13 +184,13 @@ test('web Link tabs pass one layout style object through Link asChild', () => {
   }
 });
 test('web tab routes and nested selection remain unchanged', () => {
-  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/comments', '댓글'], ['/profile/edit', '프로필']]) {
+  for (const [url, selected] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile/edit', '프로필']]) {
     pathname = url;
     const tree = expand(AppTabs());
     const active = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityState?.selected);
     assert.equal(active.length, 1);
     assert.equal(active[0].props.accessibilityLabel, selected);
-    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/comments', '/profile']);
+    assert.deepEqual(all(tree, (n) => n.type === 'Link').map((n) => n.props.href), ['/', '/explore', '/notifications', '/profile']);
   }
 });
 test('brand home link passes one style object through Link asChild', () => {

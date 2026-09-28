@@ -7,9 +7,12 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={OnePick.surface}
-      tintColor={OnePick.accent}
-      indicatorColor={OnePick.accentSoft}
-      labelStyle={{ selected: { color: OnePick.accent } }}>
+      tintColor={OnePick.actionPrimary}
+      indicatorColor={OnePick.surface}
+      labelStyle={{
+        default: { color: OnePick.textTertiary, fontSize: 12, fontWeight: '500' },
+        selected: { color: OnePick.actionPrimary, fontSize: 12, fontWeight: '500' },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
@@ -31,11 +34,11 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="comments">
-        <NativeTabs.Trigger.Label>댓글</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="notifications">
+        <NativeTabs.Trigger.Label>알림</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }}
-          md="chat_bubble"
+          sf={{ default: 'bell', selected: 'bell.fill' }}
+          md="notifications"
         />
       </NativeTabs.Trigger>
 

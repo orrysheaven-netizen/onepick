@@ -96,7 +96,7 @@ function button(label) {
   return found;
 }
 function noSuccess(markup) {
-  assert.doesNotMatch(markup, /원픽이 선택됐어요|다른 사람의 원픽 계속 보기/);
+  assert.doesNotMatch(markup, /원픽을 정했어요|다른 사람의 원픽 계속 보기/);
   assert.equal(buttons.some((props) => props.accessibilityLabel === '내 원픽 보기'), false);
 }
 function submit(label) {
@@ -104,7 +104,7 @@ function submit(label) {
 }
 function checkSavedNavigation() {
   const page = render();
-  assert.match(page, /원픽이 선택됐어요/);
+  assert.match(page, /원픽을 정했어요/);
   assert.match(page, /서버에서 확인한 나의 한줄평/);
   assert.match(page, /내 원픽은 내 프로필에 모이고/);
   assert.doesNotMatch(page, /홈에서 확인하기/);
@@ -140,7 +140,7 @@ async function main() {
   pending.resolve(result); await flush();
   // Stale/failed metadata reads must not send the user to an older Pick or imply the save failed.
   query.data = undefined; query.isError = true;
-  let page = render(); assert.match(page, /원픽이 선택됐어요/); assert.match(page, /진라면/);
+  let page = render(); assert.match(page, /원픽을 정했어요/); assert.match(page, /진라면/);
   assert.doesNotMatch(page, /정보를 불러오지 못했어요/);
   checkSavedNavigation();
 
@@ -155,7 +155,7 @@ async function main() {
   auth.isLoading = true; noSuccess(render()); auth.isLoading = false;
   auth.error = new Error('session'); page = render(); noSuccess(page);
   assert.match(page, /로그인 상태를 확인하지 못했어요/); button('다시 확인하기').onPress(); assert.equal(retries, 1);
-  auth.error = null; assert.match(render(), /원픽이 선택됐어요/);
+  auth.error = null; assert.match(render(), /원픽을 정했어요/);
   const ownerKey = mountedKey;
   auth.user = null; noSuccess(render()); assert.notEqual(mountedKey, ownerKey);
   assert.doesNotMatch(render(), /서버에서 확인한 나의 한줄평/); button('로그인하고 계속').onPress();

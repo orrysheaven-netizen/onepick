@@ -27,22 +27,23 @@ export function Button({ label, onPress, variant = 'primary', size = 'md', disab
       accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, style]}>
+      style={({ pressed }) => [styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, inactive && variant === 'primary' && styles.primaryDisabled, style]}>
       {loading
-        ? <ActivityIndicator color={variant === 'primary' ? OnePick.onBrand : variant === 'danger' ? OnePick.danger : OnePick.text} />
+        ? <ActivityIndicator color={variant === 'primary' ? OnePick.onAction : variant === 'danger' ? OnePick.danger : OnePick.text} />
         : <Text numberOfLines={1} style={[styles.label, size === 'sm' && styles.labelSmall, labels[variant]]}>{label}</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', borderRadius: OnePickRadius.pill },
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', borderRadius: OnePickRadius.small },
   fullWidth: { alignSelf: 'stretch' },
   // Keep enabled pressed text readable; only unavailable controls are dimmed.
   pressed: { opacity: 0.9 },
   disabled: { opacity: 0.6 },
-  label: { ...OnePickType.body, fontWeight: '700' },
-  labelSmall: { ...OnePickType.label, fontWeight: '700' },
+  primaryDisabled: { backgroundColor: OnePick.actionDisabled, opacity: 1 },
+  label: { ...OnePickType.bodyMedium },
+  labelSmall: { ...OnePickType.captionMedium },
 });
 
 const sizes = StyleSheet.create({
@@ -52,7 +53,7 @@ const sizes = StyleSheet.create({
 });
 
 const variants = StyleSheet.create({
-  primary: { backgroundColor: OnePick.brand },
+  primary: { backgroundColor: OnePick.actionPrimary },
   secondary: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
   soft: { backgroundColor: OnePick.accentSoft },
   ghost: { backgroundColor: 'transparent', paddingHorizontal: 8 },
@@ -60,9 +61,9 @@ const variants = StyleSheet.create({
 });
 
 const labels = StyleSheet.create({
-  primary: { color: OnePick.onBrand },
-  secondary: { color: OnePick.text, fontWeight: '600' },
+  primary: { color: OnePick.onAction },
+  secondary: { color: OnePick.text },
   soft: { color: OnePick.accentDeep },
-  ghost: { color: OnePick.accent, fontWeight: '600' },
-  danger: { color: OnePick.danger, fontWeight: '600' },
+  ghost: { color: OnePick.accent },
+  danger: { color: OnePick.danger },
 });

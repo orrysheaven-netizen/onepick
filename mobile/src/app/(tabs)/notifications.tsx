@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications, useReadNotification } from '@/hooks/useNotifications';
 import type { AppNotification } from '@/services/notificationService';
@@ -66,11 +66,10 @@ export default function NotificationsScreen() {
     if (!item.read_at) void read.mutateAsync({ kind: item.kind, id: item.id }).catch(() => undefined);
   };
 
-  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+  return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="홈으로" style={styles.action} onPress={() => router.replace('/')}><Text style={styles.link}>‹ 홈</Text></Pressable>
-      <Text style={styles.title}>알림</Text>
-      {ready ? <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={refresh} style={styles.action}><Text style={styles.link}>새로고침</Text></Pressable> : <View style={styles.action} />}
+      <Text accessibilityRole="header" style={styles.title}>알림</Text>
+      {ready ? <Pressable accessibilityRole="button" disabled={query.isFetching} onPress={refresh} style={styles.action}><Text style={styles.link}>새로고침</Text></Pressable> : null}
     </View>
     <FlatList
       data={items}
@@ -109,11 +108,11 @@ export default function NotificationsScreen() {
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, minHeight: 68 },
-  title: { color: OnePick.text, fontSize: 22, fontWeight: '800' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 64 },
+  title: { ...OnePickType.pageTitle, color: OnePick.text },
   action: { minWidth: 64, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  link: { color: OnePick.accent, fontSize: 14, fontWeight: '600' },
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
+  link: { ...OnePickType.bodyMedium, color: OnePick.actionPrimary },
+  content: { paddingHorizontal: 16, paddingBottom: 32 },
   card: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: OnePick.border,
@@ -124,12 +123,12 @@ const styles = StyleSheet.create({
   unread: { backgroundColor: 'transparent' },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   unreadDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: OnePick.brand },
-  sender: { fontSize: 14, lineHeight: 20, color: OnePick.text, fontWeight: '700' },
-  newLabel: { fontSize: 11, lineHeight: 14, color: OnePick.text, fontWeight: '700', backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  message: { fontSize: 14, lineHeight: 21, color: OnePick.text, marginTop: 5 },
-  body: { fontSize: 13, lineHeight: 19, color: OnePick.muted, marginTop: 4 },
-  time: { fontSize: 12, lineHeight: 16, color: OnePick.hint, marginTop: 5 },
+  sender: { ...OnePickType.bodyMedium, color: OnePick.text },
+  newLabel: { ...OnePickType.captionMedium, color: OnePick.text, backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  message: { ...OnePickType.body, color: OnePick.text, marginTop: 5 },
+  body: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: 4 },
+  time: { ...OnePickType.caption, color: OnePick.textTertiary, marginTop: 5 },
   empty: { paddingVertical: 48, alignItems: 'center', gap: 10 },
-  error: { color: OnePick.danger, fontSize: 14, lineHeight: 22, marginBottom: 12 },
+  error: { ...OnePickType.body, color: OnePick.danger, marginBottom: 12 },
   more: { alignItems: 'center', minHeight: 48, justifyContent: 'center' },
 });

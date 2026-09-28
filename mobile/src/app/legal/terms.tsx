@@ -9,7 +9,7 @@ export default function TermsScreen() {
   const router = useRouter();
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()}><Text style={styles.back}>‹</Text></Pressable>
+      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')}><Text style={styles.back}>‹</Text></Pressable>
       <Text style={styles.kicker}>TERMS</Text>
       <Text style={styles.title}>OnePick YouTube API 이용조건</Text>
       <Text style={styles.note}>시행일 · 2026-09-19</Text>

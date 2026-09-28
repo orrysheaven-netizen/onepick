@@ -9,7 +9,7 @@ export default function PrivacyScreen() {
   const router = useRouter();
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()}><Text style={styles.back}>‹</Text></Pressable>
+      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')}><Text style={styles.back}>‹</Text></Pressable>
       <Text style={styles.kicker}>PRIVACY</Text>
       <Text style={styles.title}>개인정보 및 YouTube API 안내</Text>
       <Text style={styles.note}>시행일 · 2026-09-19</Text>
