@@ -107,7 +107,27 @@ export default function NewPickScreen() {
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
   const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
-  const suggestions = useMenuSuggestions(suggestionStore, storeKey, requestedMenu, Boolean(user) && step === 2);
+  const availableMenus = useMemo(
+    () => (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled),
+    [menus.data, storeChannel],
+  );
+  const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
+  const requestedMenuKey = compactMenuName(requestedMenu);
+  const exactMenuMatches = requestedMenuKey
+    ? availableMenus.filter((option) => compactMenuName(option.name) === requestedMenuKey).slice(0, 10)
+    : [];
+  const menuMatches = requestedMenuKey
+    ? availableMenus.filter((option) => {
+        const name = compactMenuName(option.name);
+        return name.includes(requestedMenuKey) || requestedMenuKey.includes(name);
+      }).slice(0, 30)
+    : [];
+  const suggestions = useMenuSuggestions(
+    suggestionStore,
+    storeKey,
+    requestedMenu,
+    Boolean(user) && step === 2 && menus.isSuccess && exactMenuMatches.length === 0,
+  );
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const suggestLink = useSuggestMapLink();
@@ -241,16 +261,7 @@ export default function NewPickScreen() {
     } finally { busy.current = false; }
   };
 
-  const menuMatches = useMemo(() => {
-    const options = (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled);
-    const q = menuQuery.trim().replace(/\s+/g, '').toLowerCase();
-    // "클래식 밀크티" should still find a "밀크티" menu, so match both ways.
-    return q ? options.filter((option) => {
-      const name = option.name.replace(/\s+/g, '').toLowerCase();
-      return name.includes(q) || q.includes(name);
-    }).slice(0, 30) : options.slice(0, 30);
-  }, [menus.data, menuQuery, storeChannel]);
-  const aiAllowed = new Set((menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled).map((option) => option.categoryId));
+  const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
   const aiSuggestions = (suggestions.data?.suggestions ?? []).filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId));
   // No menu fits: carry on as a request. The store and the typed menu go to an
   // administrator, who picks the category; approval then makes the pick.
@@ -271,7 +282,7 @@ export default function NewPickScreen() {
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
-    setMenu({ categoryId: option.categoryId, name: option.name });
+    setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
   };
 
   const header = <View style={styles.header}>
