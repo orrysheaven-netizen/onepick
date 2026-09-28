@@ -97,4 +97,7 @@ export class PickService {
   removePick(categoryId: string, channel?: PickChannel | null) {
     return this.pickRepository.removePick(categoryId, channel);
   }
+  deleteReview(pickId: string) {
+    return this.pickRepository.deleteReview(pickId);
+  }
 }
