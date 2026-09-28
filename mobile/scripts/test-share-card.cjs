@@ -93,6 +93,27 @@ async function main() {
   assert.match(sharedCase.drawn.join('|'), /얼큰한 너구리/);
   assert.match(sharedCase.drawn.join('|'), /friend/);
 
+  // A cold logo must never sit between the user's tap and navigator.share().
+  let coldShareCalled = false;
+  class ColdImageMock {
+    set src(value) { this._src = value; }
+    get src() { return this._src; }
+  }
+  const coldCase = loadWeb({
+    anchor,
+    Image: ColdImageMock,
+    File: FileMock,
+    atob: (value) => Buffer.from(value, 'base64').toString('binary'),
+    navigator: {
+      canShare: () => true,
+      share: async () => { coldShareCalled = true; },
+    },
+  });
+  const coldShare = coldCase.exports.sharePickCardImage(input);
+  assert.equal(coldShareCalled, true, 'cold logo load must not delay navigator.share');
+  assert.deepEqual(coldCase.brandImages, [], 'a cold logo is skipped instead of blocking the share');
+  assert.equal(await coldShare, 'shared');
+
   let seedShared;
   const seedCase = loadWeb({
     anchor,

@@ -83,19 +83,42 @@ const BRAND_LOGO_SRC = '/brand/onepick-logo-horizontal.svg';
 const BRAND_LOGO_WIDTH = 260;
 const BRAND_LOGO_HEIGHT = BRAND_LOGO_WIDTH * 931 / 4883.77;
 
-// Share cards use the approved outlined SVG itself. Do not recreate the wordmark
-// from system fonts: the outline asset is the source of truth for both languages.
-export async function drawBrandLockup(ctx: any, web: any, x: number, baselineY: number) {
-  if (typeof web.Image !== 'function' || typeof ctx.drawImage !== 'function') {
-    throw new Error('IMAGE_CARD_UNSUPPORTED');
-  }
+let brandLogoImage: any = null;
+let brandLogoReady = false;
+let brandLogoStarted = false;
+
+// Start loading before a visitor taps Share. The tap-to-share path never waits for
+// this asset: a cold or failed logo is skipped so Safari keeps transient activation.
+export function preloadBrandLockup(web: any = globalThis as any) {
+  if (brandLogoStarted || typeof web?.Image !== 'function') return;
+  brandLogoStarted = true;
   const image = new web.Image();
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error('IMAGE_CARD_UNSUPPORTED'));
-    image.src = BRAND_LOGO_SRC;
-  });
-  ctx.drawImage(image, x, baselineY - BRAND_LOGO_HEIGHT, BRAND_LOGO_WIDTH, BRAND_LOGO_HEIGHT);
+  brandLogoImage = image;
+  image.onload = () => {
+    brandLogoReady = true;
+  };
+  image.onerror = () => {
+    brandLogoReady = false;
+    brandLogoImage = null;
+    brandLogoStarted = false;
+  };
+  image.src = BRAND_LOGO_SRC;
+}
+
+if (typeof globalThis !== 'undefined') preloadBrandLockup(globalThis as any);
+
+// Use the approved outlined SVG only when it is already ready. Never delay or fail
+// the share itself for branding; the card content remains usable without the logo.
+export function drawBrandLockup(ctx: any, web: any, x: number, baselineY: number) {
+  if (typeof ctx.drawImage !== 'function') return false;
+  preloadBrandLockup(web);
+  if (!brandLogoReady || !brandLogoImage) return false;
+  try {
+    ctx.drawImage(brandLogoImage, x, baselineY - BRAND_LOGO_HEIGHT, BRAND_LOGO_WIDTH, BRAND_LOGO_HEIGHT);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function drawLines(ctx: any, lines: string[], x: number, startY: number, lineHeight: number) {

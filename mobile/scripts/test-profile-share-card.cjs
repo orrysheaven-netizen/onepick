@@ -130,6 +130,27 @@ async function main() {
   assert.ok(shared.text.includes('https://onepick.example/u/tester'), 'the link must survive a target that drops url');
   assert.ok(shared.text.includes('5개'), 'the text counts every current Pick, not only the printed four');
 
+  // A cold logo is optional branding, not a reason to lose iOS share activation.
+  let coldProfileShareCalled = false;
+  class ColdImageMock {
+    set src(value) { this._src = value; }
+    get src() { return this._src; }
+  }
+  const coldProfileCase = loadWeb({
+    anchor: { click() { throw new Error('download must not run while native share is available'); }, remove() {} },
+    Image: ColdImageMock,
+    File: FileMock,
+    atob: (value) => Buffer.from(value, 'base64').toString('binary'),
+    navigator: {
+      canShare: () => true,
+      share: async () => { coldProfileShareCalled = true; },
+    },
+  });
+  const coldProfileShare = coldProfileCase.exports.shareProfileCardImage({ username: 'tester', picks, aiComment: null });
+  assert.equal(coldProfileShareCalled, true, 'cold profile logo must not delay navigator.share');
+  assert.deepEqual(coldProfileCase.brandImages, [], 'a cold profile logo is skipped instead of blocking the share');
+  assert.equal(await coldProfileShare, 'shared');
+
   // Download fallback: the link must still end up in the visitor's hands.
   let downloaded = 0, copied = null;
   const copyCase = loadWeb({
