@@ -160,7 +160,7 @@ async function main() {
   press('을밀대 선택');
   page = render();
   assert.equal(step(page), '3');
-  assert.match(page, /매장 지도 링크를 알려주세요/);
+  assert.match(page, /매장 링크를 입력해 주세요/);
   press('다음');
   page = render();
   assert.match(page, /네이버 지도 링크\(naver\.me, map\.naver\.com\)를 입력해주세요/);
@@ -173,7 +173,7 @@ async function main() {
   page = render();
   assert.equal(step(page), '4');
   assert.equal(calls.filter(([name]) => name === 'link').length, 0, 'Link is only persisted after an item exists');
-  assert.match(page, /을밀대의 어떤 메뉴가 원픽인가요/);
+  assert.match(page, /메뉴명을 입력해 주세요/);
   press('AI 추천 면 › 평양냉면');
   render(); press('평양냉면(으)로 다음'); await flush();
   assert.deepEqual(calls.slice(-2).map(([name]) => name), ['select', 'link']);
@@ -242,7 +242,7 @@ async function main() {
   input('매장명 검색').onChangeText('새 냉면집'); render(); press('새 매장 등록');
   page = render();
   assert.equal(input('새 매장 이름').value, '새 냉면집');
-  press('다음'); page = render();
+  press('이 상호로 계속'); page = render();
   assert.equal(step(page), '3');
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore'); render(); press('다음');
   page = render(); assert.equal(step(page), '4');
@@ -266,8 +266,8 @@ async function main() {
   // A new online seller moves purchase URL to the dedicated link step and rejects delivery-app URLs.
   reset();
   render(); press('온라인 채널 선택'); render(); press('다음'); render(); press('새 판매처 등록'); render();
-  input('새 판매처 이름').onChangeText('새 곰탕몰'); render(); press('다음');
-  page = render(); assert.equal(step(page), '3'); assert.match(page, /구매 링크를 알려주세요/);
+  input('새 판매처 이름').onChangeText('새 곰탕몰'); render(); press('이 판매처로 계속');
+  page = render(); assert.equal(step(page), '3'); assert.match(page, /구매 링크를 입력해 주세요/);
   input('구매 링크').onChangeText('https://s.baemin.com/store/1'); render(); press('다음');
   page = render(); assert.match(page, /배달앱 주문은 매장으로 골라주세요/);
   input('구매 링크').onChangeText('https://shop.example.com/gomtang'); render(); press('다음');
