@@ -106,7 +106,8 @@ export default function NewPickScreen() {
     channel: storeChannel,
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
-  const suggestions = useMenuSuggestions(suggestionStore, storeKey, Boolean(user) && step === 2);
+  const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  const suggestions = useMenuSuggestions(suggestionStore, storeKey, requestedMenu, Boolean(user) && step === 2);
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const suggestLink = useSuggestMapLink();
@@ -251,11 +252,10 @@ export default function NewPickScreen() {
   }, [menus.data, menuQuery, storeChannel]);
   const aiAllowed = new Set((menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled).map((option) => option.categoryId));
   const aiSuggestions = (suggestions.data?.suggestions ?? []).filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId));
-  const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
   // No menu fits: carry on as a request. The store and the typed menu go to an
   // administrator, who picks the category; approval then makes the pick.
   const requestMenu = () => {
-    if (!store || !requestedMenu || requestedMenu.length > 60) return;
+    if (!store || !requestedMenu || requestedMenu.length > 40) return;
     if (store.kind !== 'new') {
       setStore({
         kind: 'new',
@@ -346,29 +346,35 @@ export default function NewPickScreen() {
         </> : null}
 
         {step === 2 && store ? <>
-          <Text style={styles.title}>{store.name}의 어떤 메뉴가 원픽인가요?</Text>
-          <Text style={styles.subtitle}>AI가 추천한 메뉴를 고르거나, 맞는 메뉴를 직접 찾아주세요.</Text>
-          <Text style={styles.section}>AI 추천</Text>
-          {suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴를 추천하고 있어요</Text></View>
-            : aiSuggestions.length ? <View style={styles.chips}>
+          <Text style={styles.title}>어떤 메뉴인가요?</Text>
+          <Text style={styles.subtitle}>{store.name}에서 고른 메뉴 이름을 입력해주세요. 같은 메뉴가 있으면 바로 보여드리고, 없으면 AI가 카테고리를 추천해요.</Text>
+          <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery} onChangeText={(value) => { setMenuQuery(value); setMenu(null); }} style={styles.input}
+            placeholder="예: 평양냉면, 도가니탕" placeholderTextColor={OnePick.hint} />
+          {requestedMenu && menuMatches.length > 0 ? <>
+            <Text style={styles.section}>같거나 비슷한 메뉴</Text>
+            <View style={styles.chips}>
+              {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+            </View>
+          </> : null}
+          {requestedMenu && menuMatches.length === 0 ? <Text style={styles.section}>AI 카테고리 추천</Text> : null}
+          {requestedMenu && menuMatches.length === 0 && suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴를 추천하고 있어요</Text></View>
+            : requestedMenu && menuMatches.length === 0 && aiSuggestions.length ? <View style={styles.chips}>
               {aiSuggestions.map((entry) => <Chip key={entry.categoryId} label={entry.label.split(' › ').pop() ?? entry.label}
                 accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
                 onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label.split(' › ').pop() ?? entry.label })} />)}
             </View>
-            : <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래에서 직접 골라주세요.' : '추천할 메뉴를 찾지 못했어요. 아래에서 직접 골라주세요.'}</Text>}
+            : requestedMenu && menuMatches.length === 0 ? <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래 수동 목록에서 골라주세요.' : '추천할 카테고리를 찾지 못했어요. 아래 수동 목록에서 골라주세요.'}</Text> : null}
           {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
             ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
-          <Text style={styles.section}>직접 찾기</Text>
-          <TextInput accessibilityLabel="메뉴 검색" maxLength={60} value={menuQuery} onChangeText={setMenuQuery} style={styles.input}
-            placeholder="메뉴 검색: 평양냉면, 도가니탕…" placeholderTextColor={OnePick.hint} />
+          <Text style={styles.section}>수동 목록</Text>
           {menus.isError ? <StateCard compact tone="danger" title="메뉴를 불러오지 못했어요" action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
-          <View style={styles.chips}>
-            {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-          </View>
-          {menus.data && requestedMenu && menuMatches.length === 0 ? <View style={styles.card}>
+          {requestedMenu && menuMatches.length === 0 ? <View style={styles.chips}>
+            {(menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled).slice(0, 30).map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+          </View> : null}
+          {menus.data && requestedMenu && menuMatches.length === 0 && !menu ? <View style={styles.card}>
             <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
             <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
-            {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 60자까지 적을 수 있어요.</Text> : null}
+            {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
             <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
           </View> : null}
           {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
