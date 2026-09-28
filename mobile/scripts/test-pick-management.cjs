@@ -107,6 +107,7 @@ async function main() {
   };
   const { PickManagement, PickManagementActions } = loadSource('components/pick-management.tsx', {
     'react-native': native,
+    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/errors/appError': { AppError },
     '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {}, deleteReview: {} }) },
   });
