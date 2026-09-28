@@ -112,8 +112,7 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 
   async signOut() {
-    // The button says "이 기기에서 로그아웃": end this device's session only.
-    const { error } = await this.client.auth.signOut({ scope: 'local' });
+    const { error } = await this.client.auth.signOut({ scope: 'global' });
 
     if (error) {
       throw new AppError('AUTH_FAILED', error.message, error);

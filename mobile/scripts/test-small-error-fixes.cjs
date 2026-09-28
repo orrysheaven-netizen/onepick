@@ -65,8 +65,10 @@ const oauth = read('src/hooks/useCompleteOAuth.ts');
 assert.match(oauth, /profileService\.getById\(user\.id\)\s*\.catch\(\(\) => profileService\.getById\(user\.id\)\)\s*\.catch\(\(\) => undefined\)/);
 assert.match(read('src/app/auth/callback.tsx'), /getPostAuthRoute\(intent, result\.profile === null\)/);
 
-// Sign-out matches the "이 기기에서 로그아웃" label.
-assert.match(read('src/repositories/supabase/supabaseAuthRepository.ts'), /async signOut\(\) \{[\s\S]*?signOut\(\{ scope: 'local' \}\)/);
+// Sign-out is intentionally global (see test-auth-session); the label now says so.
+assert.match(read('src/repositories/supabase/supabaseAuthRepository.ts'), /async signOut\(\) \{[\s\S]*?signOut\(\{ scope: 'global' \}\)/);
+assert.match(read('src/components/sign-out-button.tsx'), /모든 기기에서 로그아웃/);
+assert.doesNotMatch(read('src/components/sign-out-button.tsx'), /이 기기에서 로그아웃/);
 
 // Recipe: same-frame double taps are blocked; a sent request refreshes the profile request list.
 const recipe = read('src/app/pick/recipe.tsx');
