@@ -26,9 +26,15 @@ function loadCardCanvas() {
 function loadWeb(globals) {
   const exports = {};
   const drawn = [];
+  const brandImages = [];
+  class ImageMock {
+    set src(value) { this._src = value; this.onload?.(); }
+    get src() { return this._src; }
+  }
   const ctx = {
     beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {},
     fill() {}, fillRect() {}, stroke() {},
+    drawImage: (image) => brandImages.push(image.src),
     measureText: (value) => ({ width: Array.from(String(value)).length * 24 }),
     fillText: (value) => drawn.push(String(value)),
   };
@@ -36,6 +42,7 @@ function loadWeb(globals) {
   const context = {
     exports,
     Uint8Array,
+    Image: globals.Image ?? ImageMock,
     ...globals,
     document: {
       body: { appendChild() {} },
@@ -50,7 +57,7 @@ function loadWeb(globals) {
     },
   };
   vm.runInNewContext(transpile('lib/share/sharePickCard.web.ts'), context);
-  return { exports, drawn };
+  return { exports, drawn, brandImages };
 }
 
 const input = {
@@ -81,7 +88,8 @@ async function main() {
   assert.equal(shared.files[0].type, 'image/png');
   assert.equal(shared.url, 'https://onepick.example/pick/pick-1');
   assert.match(shared.files[0].name, /^onepick-/);
-  assert.match(sharedCase.drawn.join('|'), /원픽/);
+  assert.deepEqual(sharedCase.brandImages, ['/brand/onepick-logo-horizontal.svg']);
+  assert.ok(!sharedCase.drawn.includes('원픽') && !sharedCase.drawn.includes('one pick'), 'brand lockup is not rebuilt with live text');
   assert.match(sharedCase.drawn.join('|'), /얼큰한 너구리/);
   assert.match(sharedCase.drawn.join('|'), /friend/);
 
