@@ -387,15 +387,19 @@ export default function NewPickScreen() {
   </View>;
 
   if (auth.isLoading) {
-    return <SafeAreaView style={styles.safe}><View style={styles.content}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
+    return <SafeAreaView style={styles.safe}><View style={styles.stateArea}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
   }
   if (!user) {
-    return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}>
-      {header}
-      <Text style={styles.title}>원픽 등록</Text>
-      <StateCard title="로그인하고 원픽을 등록해보세요" text="좋아하는 매장을 찾고, 메뉴와 한줄평을 남기면 내 원픽이 돼요."
-        action={{ label: '로그인', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'store_pick' } }) }} />
-    </ScrollView></SafeAreaView>;
+    return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {header}
+        <View style={styles.body}>
+          <Text style={styles.title}>새 원픽 등록</Text>
+          <StateCard title="로그인하고 원픽을 등록해보세요" text="좋아하는 매장을 찾고, 메뉴와 한줄평을 남기면 내 원픽이 돼요."
+            action={{ label: '로그인', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'store_pick' } }) }} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>;
   }
 
   return (
@@ -404,150 +408,212 @@ export default function NewPickScreen() {
         {header}
 
         {step === 1 ? <>
-          <Text style={styles.title}>어느 {channel === 'online' ? '판매처' : '매장'}인가요?</Text>
-          <Text style={styles.subtitle}>{channel === 'online' ? '택배·온라인몰로 주문한 판매처 이름을 검색해주세요.' : '가게 이름을 검색하고 지점을 골라주세요.'}</Text>
-          <View style={styles.chips}>
-            <Chip label="매장" selected={channel === 'offline'} onPress={() => { setChannel('offline'); setRequesting(false); }} />
-            <Chip label="온라인" selected={channel === 'online'} onPress={() => { setChannel('online'); setRequesting(false); }} />
-          </View>
-          {!requesting ? <>
-            <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
-              onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={OnePick.hint}
-              placeholder={channel === 'online' ? '판매처 이름 검색: ○○몰, 스마트스토어…' : '매장명 검색: 을밀대, 우래옥…'} />
-            {channel === 'offline' ? <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE} 배달로 주문한 곳도 매장으로 골라주세요.</Text> : null}
-            {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.accent} /></View> : null}
-            {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요" action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
-            {(search.data ?? []).map((candidate) => <Pressable key={candidate.kind === 'place' ? candidate.catalogId : candidate.providerId}
-              accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)} style={styles.row}>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{candidate.name}{candidate.kind === 'place' && candidate.branchName ? ` ${candidate.branchName}` : ''}</Text>
-                <Text style={styles.rowMeta} numberOfLines={1}>{candidate.kind === 'place' ? [candidate.region, candidate.providerCategory].filter(Boolean).join(' · ') : candidate.host}</Text>
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>2 / 6 · {channel === 'online' ? '온라인 판매처' : '오프라인 매장'}</Text>
+            <Text style={styles.title}>상호명을 검색해 주세요</Text>
+            <View style={styles.channelRow}>
+              <FlowChip label="매장" selected={channel === 'offline'} onPress={() => { setChannel('offline'); setRequesting(false); setQuery(''); }} />
+              <FlowChip label="온라인" selected={channel === 'online'} onPress={() => { setChannel('online'); setRequesting(false); setQuery(''); }} />
+            </View>
+            {!requesting ? <>
+              <View style={styles.fieldBlock}>
+                <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
+                <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
+                  onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={V6.tertiary}
+                  placeholder={channel === 'online' ? '판매처명을 입력해 주세요' : '상호명을 입력해 주세요'} />
+                {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
+                  ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · {channel === 'online' ? '판매처를 확인해 주세요.' : '지점과 주소를 확인해 주세요.'}</Text>
+                  : channel === 'offline' ? <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text> : null}
               </View>
-              <Text style={styles.chevron}>›</Text>
-            </Pressable>)}
-            {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
-              ? <Text style={styles.helper}>검색한 이름의 {channel === 'online' ? '판매처' : '매장'}를 찾지 못했어요.</Text> : null}
-            <Pressable accessibilityRole="button" onPress={() => { setRequesting(true); setNewName(query); }} style={styles.requestLink}>
-              <Text style={styles.helper}>찾는 {channel === 'online' ? '판매처' : '매장'}가 없나요? <Text style={styles.link}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text></Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/pick/find')} style={styles.requestLink}>
-              <Text style={styles.helper}>레시피 원픽은 <Text style={styles.link}>메뉴부터 찾기</Text></Text>
-            </Pressable>
-          </> : <View style={styles.card}>
-            <Text style={styles.cardTitle}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text>
-            <Text style={styles.helper}>관리자가 확인한 뒤 등록돼요. 승인되면 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
-            <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
-              placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.hint} />
-            {channel === 'online' ? <>
-              <TextInput accessibilityLabel="판매처 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={sellerUrl}
-                onChangeText={setSellerUrl} style={styles.input} placeholder="https://…" placeholderTextColor={OnePick.hint} />
-              {sellerUrlError ? <Text accessibilityRole="alert" style={styles.error}>{sellerUrlError}</Text>
-                : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요.</Text>}
-            </> : null}
-            <Button fullWidth label="다음" disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel, sellerUrl: channel === 'online' ? validSellerUrl : null })} style={styles.primary} />
-            <Button variant="ghost" size="sm" label="다시 검색하기" onPress={() => setRequesting(false)} />
-          </View>}
-        </> : null}
-
-        {step === 2 && store ? <>
-          <Text style={styles.title}>어떤 메뉴인가요?</Text>
-          <Text style={styles.subtitle}>{store.name}에서 고른 메뉴 이름을 입력해주세요. 같은 메뉴가 있으면 바로 보여드리고, 없으면 AI가 카테고리를 추천해요.</Text>
-          <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery} onChangeText={(value) => { setMenuQuery(value); setMenu(null); setAiMenuName(''); }}
-            onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }} returnKeyType="search" style={styles.input}
-            placeholder="예: 평양냉면, 도가니탕" placeholderTextColor={OnePick.hint} />
-          {requestedMenu && exactMenuMatches.length > 0 ? <>
-            <Text style={styles.section}>같은 메뉴</Text>
-            <View style={styles.chips}>
-              {exactMenuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-            </View>
-          </> : null}
-          {requestedMenu && exactMenuMatches.length === 0 && menuMatches.length > 0 ? <>
-            <Text style={styles.section}>비슷한 기존 메뉴</Text>
-            <View style={styles.chips}>
-              {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-            </View>
-          </> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <>
-            <Text style={styles.section}>AI 카테고리 추천</Text>
-            {aiMenuName !== requestedMenu ? <Button variant="secondary" label="AI로 카테고리 추천받기" onPress={() => setAiMenuName(requestedMenu)} /> : null}
-          </> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴 카테고리를 추천하고 있어요</Text></View>
-            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && aiSuggestions.length ? <View style={styles.chips}>
-              {aiSuggestions.map((entry) => <Chip key={entry.categoryId} label={entry.label.split(' › ').pop() ?? entry.label}
-                accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
-                onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label.split(' › ').pop() ?? entry.label })} />)}
-            </View>
-            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending ? <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래 수동 목록에서 골라주세요.' : '추천할 카테고리를 찾지 못했어요. 아래 수동 목록에서 골라주세요.'}</Text> : null}
-          {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
-            ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
-          {requestedMenu && exactMenuMatches.length === 0 ? <Text style={styles.section}>수동 목록</Text> : null}
-          {menus.isError ? <StateCard compact tone="danger" title="메뉴를 불러오지 못했어요" action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <View style={styles.chips}>
-            {availableMenus.slice(0, 30).map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-          </View> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending && !menu ? <View style={styles.card}>
-            <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
-            <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
-            {requestedMenu.length > 40 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
-            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 40} onPress={requestMenu} style={styles.primary} />
-          </View> : null}
-          {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
-          <Button fullWidth size="lg" label={menu ? `${menu.name}(으)로 다음` : '메뉴를 골라주세요'} disabled={!menu}
-            loading={selectItem.isPending} onPress={() => void confirmMenu()} style={styles.primary} />
+              {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={V6.text} /></View> : null}
+              {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요" action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
+              <View style={styles.results}>
+                {(search.data ?? []).map((candidate) => <Pressable key={candidate.kind === 'place' ? candidate.catalogId : candidate.providerId}
+                  accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
+                  style={({ pressed }) => [styles.resultCard, pressed && styles.flowPressed]}>
+                  <Text style={styles.resultTitle}>{candidate.name}{candidate.kind === 'place' && candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
+                  <Text style={styles.resultMeta} numberOfLines={1}>
+                    {candidate.kind === 'place'
+                      ? [candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')
+                      : candidate.host}
+                  </Text>
+                </Pressable>)}
+              </View>
+              {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
+                ? <Text style={styles.helper}>검색한 이름의 {channel === 'online' ? '판매처' : '매장'}를 찾지 못했어요.</Text> : null}
+              <FlowButton variant="text" label="레시피는 메뉴부터 찾기" onPress={() => router.push('/pick/find')} />
+            </> : <View style={styles.requestPanel}>
+              <Text style={styles.panelTitle}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text>
+              <Text style={styles.helper}>찾는 곳이 없으면 이름을 직접 등록할 수 있어요.</Text>
+              <View style={styles.fieldBlock}>
+                <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
+                <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
+                  placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={V6.tertiary} />
+              </View>
+              {channel === 'online' ? <View style={styles.fieldBlock}>
+                <FieldLabel label="판매처 링크" />
+                <TextInput accessibilityLabel="판매처 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={sellerUrl}
+                  onChangeText={setSellerUrl} style={styles.input} placeholder="https://…" placeholderTextColor={V6.tertiary} />
+                {sellerUrlError ? <Text accessibilityRole="alert" style={styles.error}>{sellerUrlError}</Text>
+                  : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요.</Text>}
+              </View> : null}
+            </View>}
+          </View>
+          <View style={styles.footer}>
+            {!requesting
+              ? <FlowButton variant="secondary" label={`찾는 ${channel === 'online' ? '판매처' : '매장'}가 없어요`}
+                  onPress={() => { setRequesting(true); setNewName(query); }} />
+              : <>
+                <FlowButton label="다음" disabled={!canRequest}
+                  onPress={() => pickStore({ kind: 'new', name: newStoreName, channel, sellerUrl: channel === 'online' ? validSellerUrl : null })} />
+                <FlowButton variant="text" label="다시 검색하기" onPress={() => setRequesting(false)} />
+              </>}
+          </View>
         </> : null}
 
         {step === 3 && store ? <>
-          <Text style={styles.title}>네이버 지도 링크를 남겨주세요</Text>
-          <Text style={styles.subtitle}>다른 사람들이 {store.name}을(를) 바로 찾아갈 수 있어요. 관리자가 확인한 뒤 표시돼요.</Text>
-          <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={mapLink}
-            onChangeText={(value) => { setMapLink(value); setLinkError(null); }} style={styles.input} placeholder="https://naver.me/…" placeholderTextColor={OnePick.hint} />
-          {linkError ? <Text accessibilityRole="alert" style={styles.error}>{linkError}</Text>
-            : <Text style={styles.helper}>네이버 지도에서 가게를 열고 공유 → 링크 복사를 누르면 돼요.</Text>}
-          <Button fullWidth size="lg" label="다음" loading={suggestLink.isPending} onPress={() => void confirmLink(false)} style={styles.primary} />
-          <Button variant="ghost" label="건너뛰기" onPress={() => void confirmLink(true)} />
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>3 / 6 · {storeDisplayName} · 오프라인 매장</Text>
+            <Text style={styles.title}>매장 링크를 남겨주세요</Text>
+            <View style={styles.fieldBlock}>
+              <FieldLabel label="네이버 지도 링크" required={false} />
+              <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={mapLink}
+                onChangeText={(value) => { setMapLink(value); setLinkError(null); }} style={styles.input}
+                placeholder="https://naver.me/…" placeholderTextColor={V6.tertiary} />
+              {linkError ? <Text accessibilityRole="alert" style={styles.error}>{linkError}</Text>
+                : <Text style={styles.helper}>네이버 지도에서 가게를 열고 공유 → 링크 복사를 누르면 돼요.</Text>}
+            </View>
+          </View>
+          <View style={styles.footer}>
+            <FlowButton label="다음" loading={suggestLink.isPending} onPress={() => void confirmLink(false)} />
+            <FlowButton variant="text" label="건너뛰기" onPress={() => void confirmLink(true)} />
+          </View>
+        </> : null}
+
+        {step === 2 && store ? <>
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>4 / 6 · {storeDisplayName} · {storeChannel === 'online' ? '온라인 판매처' : '오프라인 매장'}</Text>
+            <Text style={styles.title}>어떤 메뉴인가요?</Text>
+            <View style={styles.fieldBlock}>
+              <FieldLabel label="메뉴명" />
+              <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery}
+                onChangeText={(value) => {
+                  setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                }}
+                onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }}
+                returnKeyType="search" style={styles.input} placeholder="예: 미역국" placeholderTextColor={V6.tertiary} />
+              <Text style={styles.helper}>매장에서 부르는 메뉴 이름 그대로 적어 주세요. 카테고리는 입력한 이름으로 추천해 드려요.</Text>
+            </View>
+
+            {menus.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
+              action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
+
+            {requestedMenu && exactMenuMatches.length > 0 ? <View style={styles.fieldBlock}>
+              <FieldLabel label="카테고리" required={false} />
+              <View style={styles.chips}>
+                {exactMenuMatches.map((option) => <FlowChip key={option.categoryId}
+                  label={[option.groupName, option.name].filter(Boolean).join(' › ')}
+                  selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+              </View>
+            </View> : null}
+
+            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && suggestions.isPending ? <View style={styles.fieldBlock}>
+              <FieldLabel label="카테고리" required={false} />
+              <View style={styles.loadingRow}><ActivityIndicator color={V6.text} /><Text style={styles.helperInline}>메뉴명으로 카테고리를 찾고 있어요</Text></View>
+            </View> : null}
+
+            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && !suggestions.isPending && aiSuggestions.length > 0 && !showManualCategory
+              ? <View style={styles.fieldBlock}>
+                <FieldLabel label="카테고리 · AI 추천" required={false} />
+                <View style={styles.chips}>
+                  {aiSuggestions.map((entry) => <FlowChip key={entry.categoryId} label={entry.label}
+                    accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
+                    onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label })} />)}
+                </View>
+                {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
+                  ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
+                <FlowButton variant="text" label="다른 카테고리 찾기" onPress={() => { setManualCategory(true); setMenu(null); }} />
+              </View> : null}
+
+            {showManualCategory ? <View style={styles.fieldBlock}>
+              <FieldLabel label="카테고리" />
+              <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라 주세요.</Text>
+              <TextInput accessibilityLabel="카테고리 검색" value={categoryQuery} onChangeText={setCategoryQuery}
+                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={V6.tertiary} />
+              <View style={styles.chips}>
+                {manualMatches.map((option) => <FlowChip key={option.categoryId}
+                  label={[option.groupName, option.name].filter(Boolean).join(' › ')}
+                  selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+              </View>
+              <FlowButton variant="text" label="맞는 카테고리가 없어요" onPress={requestMenu} />
+            </View> : null}
+
+            {requestedMenu && exactMenuMatches.length === 0 && !aiTried ? <View style={styles.loadingRow}>
+              <ActivityIndicator color={V6.text} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요</Text>
+            </View> : null}
+            {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
+          </View>
+          <View style={styles.footer}>
+            <FlowButton label="다음" disabled={!menu || suggestions.isPending} loading={selectItem.isPending} onPress={() => void confirmMenu()} />
+          </View>
         </> : null}
 
         {step === 4 && store ? <>
-          <Text style={styles.title}>대표 사진을 올려주세요</Text>
-          <Text style={styles.subtitle}>같은 원픽을 고른 사람들의 카드에도 함께 보여요. 사진이 없어도 괜찮아요.</Text>
-          {isNew ? <View style={styles.card}>
-            {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
-            <Button fullWidth variant="soft" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
-            {photo ? <Button variant="ghost" size="sm" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}
-          </View> : itemId && user && !itemHasPhoto ? <PickPhotoStep userId={user.id} itemId={itemId} onAttached={() => { void itemDetail.refetch(); }} />
-            : itemHasPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
-          <Button fullWidth size="lg" label="다음" onPress={() => setStep(5)} style={styles.primary} />
-          {!photo && !itemHasPhoto ? <Button variant="ghost" label="사진 없이 계속" onPress={() => setStep(5)} /> : null}
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>5 / 6 · {storeDisplayName} · {menu?.name ?? '사진'}</Text>
+            <Text style={styles.title}>대표 사진을 올려주세요</Text>
+            <Text style={styles.helper}>같은 원픽을 고른 사람들의 카드에도 함께 보여요. 사진이 없어도 괜찮아요.</Text>
+            {isNew ? <View style={styles.photoPanel}>
+              {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
+              <FlowButton variant="secondary" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
+              {photo ? <FlowButton variant="text" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}
+            </View> : itemId && user && !itemHasPhoto ? <PickPhotoStep userId={user.id} itemId={itemId} onAttached={() => { void itemDetail.refetch(); }} />
+              : itemHasPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
+          </View>
+          <View style={styles.footer}>
+            <FlowButton label="다음" onPress={() => setStep(5)} />
+            {!photo && !itemHasPhoto ? <FlowButton variant="text" label="사진 없이 계속" onPress={() => setStep(5)} /> : null}
+          </View>
         </> : null}
 
-        {step === 5 && store && menu ? <>
-          <Text style={styles.title}>왜 여기가 원픽인가요?</Text>
-          <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
-          {!itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
-            ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
-          <View style={styles.reviewHeader}><Text style={styles.section}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
-          <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving} value={review}
-            onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
-            placeholder="예: 육수가 깔끔해서 계속 생각나요" placeholderTextColor={OnePick.hint} />
-          {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
-          {isRequest ? <Text style={styles.helper}>관리자가 {store.name}을(를) 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록돼요.</Text> : null}
-          {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
-          <Button fullWidth size="lg" label={isRequest ? '등록 요청하고 원픽 남기기' : '원픽 등록'} loading={saving} onPress={() => void save()} style={styles.primary} />
+        {(step === 5 || step === 6) && store && menu ? <>
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>6 / 6 · {storeDisplayName} · {menu.name}</Text>
+            <Text style={styles.title}>한줄평을 남겨주세요</Text>
+            {!itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
+              ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.</Text></View> : null}
+            <View style={styles.fieldBlock}>
+              <FieldLabel label="한줄평" />
+              <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && step !== 6} value={review}
+                onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
+                placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={V6.tertiary} />
+            </View>
+            <Text style={styles.counter}>{review.length} / 100자</Text>
+            {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
+            {isRequest ? <Text style={styles.helper}>등록 확인이 필요한 경우 확인이 끝나면 이 한줄평으로 내 원픽에 반영돼요.</Text> : null}
+            {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
+          </View>
+          <View style={styles.footer}>
+            <FlowButton label="원픽 등록하기" loading={saving} disabled={step === 6} onPress={() => void save()} />
+          </View>
         </> : null}
-
-        {step === 6 && done && store && menu ? <View style={styles.doneCard}>
-          <Text style={styles.doneMark}>✓</Text>
-          <Text style={styles.title}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
-          <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
-          <Text style={styles.savedReview}>“{trimmedReview}”</Text>
-          {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}
-          {linkSaved || (done.type === 'pending' && done.linkSaved) ? <Text style={styles.helper}>남겨주신 네이버 지도 링크는 확인 후 표시돼요.</Text> : null}
-          {done.type === 'pick'
-            ? <Button fullWidth size="lg" label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } })} style={styles.primary} />
-            : <Button fullWidth size="lg" label="내 등록 요청 보기" onPress={() => router.replace('/(tabs)/profile')} style={styles.primary} />}
-          <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} />
-        </View> : null}
       </ScrollView>
+
+      <Modal transparent visible={step === 6 && Boolean(done)} animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.overlay}>
+          {done && store && menu ? <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
+            <Text style={styles.dialogBody}>{done.type === 'pick'
+              ? `${storeDisplayName} ${menu.name}이 내 원픽이 됐어요.`
+              : `${storeDisplayName} ${menu.name} 등록 요청을 보냈어요.`}</Text>
+            <View style={styles.dialogSpacer} />
+            <FlowButton label="확인" onPress={() => {
+              if (done.type === 'pick') router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });
+              else router.replace('/(tabs)/profile');
+            }} />
+          </View> : null}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
