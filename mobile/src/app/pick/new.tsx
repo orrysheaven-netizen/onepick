@@ -374,8 +374,8 @@ export default function NewPickScreen() {
           {menus.data && requestedMenu && menuMatches.length === 0 && !menu ? <View style={styles.card}>
             <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
             <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
-            {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
-            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
+            {requestedMenu.length > 40 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
+            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 40} onPress={requestMenu} style={styles.primary} />
           </View> : null}
           {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           <Button fullWidth size="lg" label={menu ? `${menu.name}(으)로 다음` : '메뉴를 골라주세요'} disabled={!menu}
