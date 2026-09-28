@@ -18,18 +18,18 @@ import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
-// 원픽 등록 7단계: 채널 → 상호 → 필요한 링크 → 메뉴 → 사진 → 한줄평 → 완료.
+// 원픽 등록 6단계: 채널 → 상호 → 필요한 링크 → 메뉴 → 사진 → 한줄평. 저장 성공은 모달로 확인한다.
 // Everything the user enters lives in this one screen's state, so moving back
 // and forth between steps never loses a typed review, link or chosen photo.
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type NewStore = { kind: 'new'; name: string; channel: PickChannel };
 type Store = StoreCandidate | NewStore;
 type Done =
   | { type: 'pick'; pickId: string; itemId: string }
   | { type: 'pending'; itemName: string; linkSaved: boolean };
 
-const STEP_LABELS = ['채널', '상호', '링크', '메뉴', '사진', '한줄평', '완료'];
+const STEP_LABELS = ['채널', '상호', '링크', '메뉴', '사진', '한줄평'];
 
 function httpsUrl(value: string) {
   const url = value.trim();
@@ -145,7 +145,7 @@ export default function NewPickScreen() {
   };
   const goBack = () => {
     if (saving || busy.current) return;
-    if (step === 1 || step === 7) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
   };
 
@@ -238,7 +238,6 @@ export default function NewPickScreen() {
         if (itemPending) {
           await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
           setDone({ type: 'pending', itemName: store.name, linkSaved });
-          setStep(7);
           return;
         }
         const pick = await choosePick.mutateAsync({
@@ -262,7 +261,6 @@ export default function NewPickScreen() {
           setDone({ type: 'pending', itemName: result.item.name, linkSaved: saved });
         }
       }
-      setStep(7);
     } catch (error) {
       if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
       setSaveError(error);
@@ -308,10 +306,10 @@ export default function NewPickScreen() {
 
   const header = <View style={styles.header}>
     <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-    <View style={styles.progress} accessibilityLabel={`${step} / 7 단계 · ${STEP_LABELS[step - 1]}`}>
+    <View style={styles.progress} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
       {STEP_LABELS.map((label, index) => <View key={label} style={[styles.progressBar, index < step && styles.progressOn]} />)}
     </View>
-    <Text style={styles.stepLabel}>{step} / 7 · {STEP_LABELS[step - 1]}</Text>
+    <Text style={styles.stepLabel}>{step} / 6 · {STEP_LABELS[step - 1]}</Text>
   </View>;
 
   if (auth.isLoading) {
@@ -439,35 +437,41 @@ export default function NewPickScreen() {
           <Button fullWidth size="lg" label={photoReady ? '다음' : '사진을 등록해주세요'} disabled={!photoReady} onPress={() => setStep(6)} style={styles.primary} />
         </> : null}
 
-        {step === 6 && store && menu ? <>
+        {step === 6 && store && menu && done?.type !== 'pending' ? <>
           <Text style={styles.title}>왜 여기가 원픽인가요?</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           {isReplacing
             ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 현재 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이 선택으로 바뀝니다.</Text></View> : null}
           <View style={styles.reviewHeader}><Text style={styles.section}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
-          <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving} value={review}
+          <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && done?.type !== 'pick'} value={review}
             onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
             placeholder="예: 육수가 깔끔해서 계속 생각나요" placeholderTextColor={OnePick.hint} />
           {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
-          {isRequest ? <Text style={styles.helper}>관리자가 {store.name}을(를) 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록돼요.</Text> : null}
+          {isRequest ? <Text style={styles.helper}>현재 서버 연결이 끝나기 전에는 새 원픽 저장을 완료할 수 없어요.</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
-          <Button fullWidth size="lg" label={isReplacing ? '원픽 변경' : isRequest ? '등록 요청하고 원픽 남기기' : '원픽 등록'} loading={saving}
-            onPress={() => { if (!reviewValid) { setShowReviewError(true); return; } if (isReplacing) setShowReplaceConfirm(true); else void save(); }} style={styles.primary} />
+          {done?.type !== 'pick' ? <Button fullWidth size="lg" label={isReplacing ? '원픽 변경' : isRequest ? '원픽 저장' : '원픽 등록하기'} loading={saving}
+            onPress={() => { if (!reviewValid) { setShowReviewError(true); return; } if (isReplacing) setShowReplaceConfirm(true); else void save(); }} style={styles.primary} /> : null}
         </> : null}
 
-        {step === 7 && done && store && menu ? <View style={styles.doneCard}>
-          <Text style={styles.doneMark}>✓</Text>
-          <Text style={styles.title}>{done.type === 'pick' ? '원픽이 등록됐어요' : '등록 요청을 보냈어요'}</Text>
+        {step === 6 && done?.type === 'pending' && store && menu ? <View style={styles.doneCard}>
+          <Text style={styles.title}>새 원픽 저장을 마무리하고 있어요</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
-          {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}
-          {linkSaved || (done.type === 'pending' && done.linkSaved) ? <Text style={styles.helper}>남겨주신 네이버 지도 링크는 확인 후 표시돼요.</Text> : null}
-          {done.type === 'pick'
-            ? <Button fullWidth size="lg" label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } })} style={styles.primary} />
-            : <Button fullWidth size="lg" label="내 등록 요청 보기" onPress={() => router.replace('/(tabs)/profile')} style={styles.primary} />}
-          <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} />
+          <Text style={styles.helper}>현재 등록 방식 전환이 끝나기 전에는 원픽 저장 완료로 표시하지 않습니다.</Text>
+          <Button fullWidth size="lg" label="프로필로 돌아가기" onPress={() => router.replace('/(tabs)/profile')} style={styles.primary} />
         </View> : null}
       </ScrollView>
+      <Modal visible={done?.type === 'pick'} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} accessibilityViewIsModal>
+            <Text style={[styles.modalTitle, styles.modalCentered]}>저장 완료</Text>
+            <Text style={[styles.modalText, styles.modalCentered]}>내 원픽으로 저장했어요.</Text>
+            <Button fullWidth label="확인" onPress={() => {
+              if (done?.type === 'pick') router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });
+            }} style={styles.primary} />
+          </View>
+        </View>
+      </Modal>
       <Modal visible={showReplaceConfirm} transparent animationType="fade" onRequestClose={() => setShowReplaceConfirm(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard} accessibilityViewIsModal>
@@ -530,4 +534,5 @@ const styles = StyleSheet.create({
   modalCard: { width: '100%', maxWidth: 420, borderRadius: 20, backgroundColor: OnePick.surface, padding: 20 },
   modalTitle: { color: OnePick.text, fontSize: 20, lineHeight: 28, fontWeight: '800' },
   modalText: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  modalCentered: { textAlign: 'center' },
 });
