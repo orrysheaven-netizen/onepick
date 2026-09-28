@@ -397,24 +397,36 @@ export class SupabaseReadRepository implements ReadRepository {
 
   async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
-    let query = this.client
-      .from('comments')
-      .select(`*, author:profiles!comments_user_id_fkey(*)`)
-      .eq('pick_id', pickId)
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true })
-      .limit(safeLimit);
-
-    if (cursor) query = query.or(cursorFilter('created_at', cursor, true));
-    const { data, error } = await query;
-    if (error) throw mapSupabaseError(error);
-    return (data as unknown as CommentReadRow[]).map((row) => {
-      const author = one(row.author);
-      return {
-        comment: mapCommentRow(row),
-        author: author ? mapProfileRow(author) : null,
-      };
+    if (cursor) cursorFilter('created_at', cursor, true);
+    const { data, error } = await (this.client as any).rpc('pick_comment_page', {
+      p_pick_id: pickId,
+      p_after_time: cursor?.timestamp ?? null,
+      p_after_id: cursor?.id ?? null,
+      p_limit: safeLimit,
     });
+    if (error) throw mapSupabaseError(error);
+    const mapThreadRow = (row: any): any => {
+      const author = row.author ? mapProfileRow(row.author as ProfileRow) : null;
+      return {
+        comment: {
+          id: row.id,
+          pickId: row.pick_id,
+          userId: row.user_id ?? '',
+          body: row.body ?? '',
+          createdAt: row.created_at,
+          updatedAt: row.updated_at ?? row.created_at,
+          parentCommentId: row.parent_comment_id ?? null,
+          isDeleted: Boolean(row.is_deleted),
+          authorCurrentPickMatchesItem: Boolean(row.author_current_pick_matches_item),
+          canEdit: Boolean(row.can_edit),
+          canDelete: Boolean(row.can_delete),
+        },
+        author,
+        replies: Array.isArray(row.replies) ? row.replies.map(mapThreadRow) : [],
+        replyCount: Number(row.reply_count) || 0,
+      };
+    };
+    return (Array.isArray(data) ? data : []).map(mapThreadRow);
   }
 
   /** The root category with this slug and every visible category beneath it. */
