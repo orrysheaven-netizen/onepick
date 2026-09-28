@@ -52,4 +52,5 @@ export interface PickRepository {
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
   removePick(categoryId: string, channel?: PickChannel | null): Promise<void>;
+  deleteReview(pickId: string): Promise<void>;
 }
