@@ -41,17 +41,18 @@ async function main() {
   // Real Supabase/PostgREST query builders, with an in-memory HTTP boundary.
   const client = createClient('https://onepick.test', 'public-test-key', {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { fetch: async (input) => {
+    global: { fetch: async (input, init) => {
       const url = new URL(String(input));
       calls.push(url);
       if (fail) return new Response(JSON.stringify({ code: 'PGRST301', message: 'Session expired' }), { status: 401 });
       const table = url.pathname.split('/').pop();
       const params = url.searchParams;
       if (table === 'pick_comment_page') {
-        const pickId = JSON.parse(params.get('p_pick_id'));
-        const afterTime = params.has('p_after_time') ? JSON.parse(params.get('p_after_time')) : null;
-        const afterId = params.has('p_after_id') ? JSON.parse(params.get('p_after_id')) : null;
-        const limit = Number(JSON.parse(params.get('p_limit')));
+        const rpcArgs = init?.body ? JSON.parse(String(init.body)) : {};
+        const pickId = rpcArgs.p_pick_id ?? null;
+        const afterTime = rpcArgs.p_after_time ?? null;
+        const afterId = rpcArgs.p_after_id ?? null;
+        const limit = Number(rpcArgs.p_limit);
         let rows = comments.filter((item) => item.pick_id === pickId);
         if (afterTime && afterId) rows = rows.filter((item) => compare(item, { created_at: afterTime, id: afterId }, 'created_at') > 0);
         rows = [...rows].sort((a, b) => compare(a, b, 'created_at'));
