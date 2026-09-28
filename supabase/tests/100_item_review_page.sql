@@ -54,8 +54,11 @@ begin
   assert not (row_json ?| array['status','ended_at','replaced_by_pick_id','updated_at','created_at','purchase_url','purchase_tip']),
     'Ended rows carry no lifecycle status, end/update/creation time or purchase fields: '||row_json::text;
   assert (row_json->>'is_current')::boolean = false, 'An ended Pick is only marked not current';
+  assert (row_json->>'is_deleted')::boolean = false and (row_json->>'comment_count')::int = 0
+    and (row_json->>'can_comment')::boolean = false and (row_json->>'can_manage')::boolean = false,
+    'Guests get the counts and flags: no comments, cannot write or manage';
   assert (select array_agg(k order by k) from jsonb_object_keys(row_json) k)
-    = array['category','category_id','channel','id','is_current','item','item_id','one_line_review','profile','started_at','user_id'],
+    = array['can_comment','can_manage','category','category_id','channel','comment_count','id','is_current','is_deleted','item','item_id','one_line_review','profile','started_at','user_id'],
     'Rows are an explicit allowlist: '||row_json::text;
   select r into last_row from public.item_review_page(item_x) r where r->>'id'=rem_pick::text;
   assert (last_row->>'is_current')::boolean = false and not (last_row ? 'status'), 'Replaced and removed Picks look the same';

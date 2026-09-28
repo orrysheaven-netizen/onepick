@@ -76,6 +76,10 @@ begin
     'The badge is true only for commenters whose active Pick is this item in this channel (other channel, ended and moved-away Picks are false): '||coalesce(badges::text,'null');
   assert (select r->'author'->>'username' from public.pick_comment_page(ended_pick) r where r->>'id'=c_cur::text) like 'pcp_%',
     'Rows carry the embedded author like the PostgREST select';
+  select r into c from public.pick_comment_page(ended_pick) r where r->>'id'=c_cur::text;
+  assert c.r->'replies' = '[]'::jsonb and (c.r->>'reply_count')::int = 0 and (c.r->>'is_deleted')::boolean = false
+    and (c.r->>'can_edit')::boolean = false and (c.r->>'can_delete')::boolean = false and c.r->>'parent_comment_id' is null,
+    'Top-level rows embed their replies and carry thread flags: '||c.r::text;
 
   -- Cursor: rows strictly after (created_at, id), oldest first.
   select (r->>'created_at')::timestamptz into cursor_time from public.pick_comment_page(ended_pick) r where r->>'id'=c_rem::text;
@@ -105,13 +109,16 @@ begin
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.pick_comment_page(ended_pick) with ordinality as t(r, ord);
   assert got=array[c_cur,c_rem,c_store,c_owner], 'Blocked commenters are left out for the viewer who blocked them: '||coalesce(got::text,'null');
-  -- New comments are still limited to active Picks (decision A).
+  -- Writing needs an active Pick of the same item in the same channel (or being
+  -- the review's author); a viewer without one is refused. Eligible writers and
+  -- replies are covered in 102_comment_threads.sql.
   begin
     insert into public.comments(pick_id,user_id,body) values(ended_pick, viewer, 'late comment');
-    raise exception 'Commenting on an ended Pick must be rejected';
+    raise exception 'A member without a matching Pick must not comment';
   exception when others then
-    assert sqlerrm like '%row-level security%', 'Ended threads are read-only: '||sqlerrm;
+    assert sqlerrm like '%row-level security%', 'Non-holders cannot write: '||sqlerrm;
   end;
+  assert not public.can_comment_on_pick(ended_pick), 'can_comment_on_pick agrees with the policy';
   reset role;
 
   -- The suspended commenter still reads their own comment; nobody else does.
@@ -125,6 +132,6 @@ begin
   assert has_function_privilege('anon','public.pick_comment_page(uuid,timestamptz,uuid,integer)','execute'), 'Guests may read comment threads';
 end;
 $flow$;
-$test$, 'pick_comment_page: ended threads readable per item, badge = active Pick on same item+channel, hidden/suspended/blocked excluded, cursor, RLS unchanged');
+$test$, 'pick_comment_page: ended threads readable per item, badge = active Pick on same item+channel, hidden/suspended/blocked excluded, cursor, non-holders cannot write, RLS unchanged');
 select * from finish();
 rollback;

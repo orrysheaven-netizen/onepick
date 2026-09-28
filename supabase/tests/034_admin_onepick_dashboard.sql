@@ -70,8 +70,8 @@ begin
     (v_seed_meta_pick,v_seed_meta,v_category,v_item2,'Metadata-marked seed pick','active'),
     (v_seed_fixed_pick,v_seed_fixed,v_category,v_item2,'Fixed-id seed pick','active');
   -- Comments must be written as their author: the community write-limit
-  -- trigger rejects rows whose user_id differs from auth.uid().
-  set local role authenticated;
+  -- trigger rejects rows whose user_id differs from auth.uid(). Claims only:
+  -- comment RLS would need each commenter to hold the same item.
   perform set_config('request.jwt.claims', jsonb_build_object('sub',v_real2,'role','authenticated')::text, true);
   insert into public.comments(pick_id,user_id,body) values (v_real_pick,v_real2,'real comment');
   perform set_config('request.jwt.claims', jsonb_build_object('sub',v_demo,'role','authenticated')::text, true);

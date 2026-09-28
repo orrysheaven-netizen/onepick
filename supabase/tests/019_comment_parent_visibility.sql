@@ -21,6 +21,8 @@ begin
     values(item_id,category_id,'Block item','block item','active');
   insert into public.picks(id,user_id,category_id,item_id,one_line_review,status)
     values(pick_id,owner_id,category_id,item_id,'원픽','active');
+  insert into public.picks(user_id,category_id,item_id,one_line_review,status)
+    values(author_id,category_id,item_id,'같은 제품','active');
   perform set_config('request.jwt.claim.sub',author_id::text,true);
   set local role authenticated;
   insert into public.comments(id,pick_id,user_id,body) values(comment_id,pick_id,author_id,'새 댓글');
