@@ -27,6 +27,33 @@ export interface AttachItemPhotoInput {
   photo: PickPhotoDraft;
 }
 
+export interface ImmediatePickRegistrationInput {
+  userId: string;
+  categoryId: string;
+  channel: PickChannel;
+  oneLineReview: string;
+  requestId: string;
+  itemId?: string | null;
+  catalogId?: string | null;
+  providerId?: string | null;
+  linkUrl?: string | null;
+  newPlace?: {
+    name: string;
+    roadAddress: string;
+    mapUrl: string;
+    branchName?: string | null;
+  };
+  photo?: PickPhotoDraft | null;
+}
+
+export interface ImmediatePickRegistrationResult {
+  itemId: string;
+  pickId: string;
+  published: boolean;
+  replacedPickId: string | null;
+  retried: boolean;
+}
+
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
   | { type: 'pending_item'; item: Item }
@@ -96,6 +123,65 @@ export class RegistrationService {
     } catch (error) {
       await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       throw error;
+    }
+  }
+
+  async registerImmediatePick(input: ImmediatePickRegistrationInput): Promise<ImmediatePickRegistrationResult> {
+    if (!input.userId) throw new AppError('AUTH_REQUIRED');
+    const review = input.oneLineReview.trim();
+    if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
+    if (!input.categoryId) throw new AppError('CATEGORY_NOT_PICKABLE');
+    if (!input.requestId) throw new AppError('INTERNAL_ERROR');
+
+    // A store missing from the provider catalog must retain place identity.
+    // stage_user_place_item creates the hidden place/catalog/provider-linked item;
+    // register_item_pick remains the operation that creates/replaces the Pick.
+    let itemId = input.itemId ?? null;
+    if (!itemId && !input.catalogId && !input.providerId) {
+      if (input.channel !== 'offline' || !input.newPlace) throw new AppError('ITEM_SELECTION_REQUIRED');
+      const staged = await this.itemRepository.stageUserPlaceItem({
+        categoryId: input.categoryId,
+        name: input.newPlace.name,
+        roadAddress: input.newPlace.roadAddress,
+        mapUrl: input.newPlace.mapUrl,
+        branchName: input.newPlace.branchName,
+      });
+      itemId = staged.id;
+    }
+
+    let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
+    if (input.photo) {
+      await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+      uploaded = await this.photoRepository.upload(input.userId, input.photo);
+    }
+
+    try {
+      // Read the slot immediately before the write. If another client changes it
+      // after this read, register_item_pick raises PICK_CHANGED_ELSEWHERE and the
+      // UI requires an explicit second submit against a freshly read value.
+      const current = (await this.pickRepository.getCurrentPicksInCategory(input.userId, input.categoryId))
+        .find((pick) => pick.channel === input.channel) ?? null;
+
+      return await this.pickRepository.registerItemPick({
+        categoryId: input.categoryId,
+        channel: input.channel,
+        oneLineReview: review,
+        itemId,
+        catalogId: input.catalogId,
+        providerId: input.providerId,
+        linkUrl: input.linkUrl,
+        imagePath: uploaded?.imagePath,
+        thumbnailPath: uploaded?.thumbnailPath,
+        imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        expectedPreviousPickId: current?.id ?? null,
+        requestId: input.requestId,
+      });
+    } finally {
+      // Storage RLS prevents deleting paths that register_item_pick attached.
+      // If the RPC failed before attaching, this removes the unused upload.
+      if (uploaded) {
+        await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      }
     }
   }
 
