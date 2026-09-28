@@ -207,9 +207,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
-        <Pressable disabled={consentSaving} onPress={() => void acceptConsent()} style={[styles.consentButton, consentSaving && styles.disabled]}>
-          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다</Text>}
-        </Pressable>
+        <Button label="동의하고 계속" loading={consentSaving} onPress={() => void acceptConsent()} style={styles.consentButton} />
       </View> : null}
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
@@ -298,8 +296,7 @@ const styles = StyleSheet.create({
   policyLink: { minHeight: 40, justifyContent: 'center', marginTop: 7 },
   policyLinkText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   externalLink: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 10 },
-  consentButton: { minHeight: 48, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingHorizontal: 14, marginTop: 18 },
-  consentButtonText: { color: OnePick.onAccent, fontSize: 12, lineHeight: 17, fontWeight: '800', textAlign: 'center' },
+  consentButton: { marginTop: 18 },
   label: { color: OnePick.text, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, paddingHorizontal: 15, color: OnePick.text, fontSize: 15 },
   hint: { color: OnePick.hint, fontSize: 11, lineHeight: 17, marginTop: 7 },
