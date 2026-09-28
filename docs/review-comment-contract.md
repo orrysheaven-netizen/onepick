@@ -81,8 +81,8 @@ anon/authenticated 실행 가능.
 | `outcome` | `tombstoned`(댓글이 있어 자리 유지) / `removed` |
 
 삭제 후 같은 제품을 다시 고르면 새 행이 생긴다. 삭제된 한줄평 아래에는 새 댓글을
-쓸 수 없다. 정지된 계정은 본인 댓글 삭제는 가능하지만, 원픽·한줄평 변경은 기존 AI 평가
-쿼터 가드(`reject_suspended_quota_owner`)가 막는다(`remove_pick`과 동일한 기존 동작).
+쓸 수 없다. 정지된 계정도 본인 한줄평·댓글 삭제와 원픽 해제는 가능하다(그때의 AI 평가
+무효화는 정지 계정의 쿼터 행을 쓰지 않는다).
 
 ### `comment_locate(p_comment_id)` → `jsonb | null`
 
