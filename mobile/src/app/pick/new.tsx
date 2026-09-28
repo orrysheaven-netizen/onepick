@@ -320,7 +320,7 @@ export default function NewPickScreen() {
   const header = <View style={styles.header}>
     <View style={styles.headerRow}>
       <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-      <Text style={styles.headerTitle}>원픽 등록</Text>
+      <Text style={styles.headerTitle}>{step >= 3 ? '새 원픽 등록' : '원픽 등록'}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={() => router.replace('/')} style={styles.cancel}><Text style={styles.cancelText}>취소</Text></Pressable>
     </View>
     <Text style={styles.stepLabel} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
@@ -366,7 +366,7 @@ export default function NewPickScreen() {
         </> : null}
 
         {step === 2 ? <>
-          <Text style={styles.title}>어느 {channel === 'online' ? '판매처' : '매장'}인가요?</Text>
+          <Text style={styles.title}>{channel === 'online' ? '판매처명을 검색해 주세요' : '상호명을 검색해 주세요'}</Text>
           <Text style={styles.subtitle}>{channel === 'online' ? '택배·온라인몰로 주문한 판매처 이름을 검색해주세요.' : '가게 이름을 검색하고 지점을 골라주세요.'}</Text>
           {!requesting ? <>
             <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
@@ -396,14 +396,14 @@ export default function NewPickScreen() {
             <Text style={styles.helper}>이름을 입력하면 다음 단계에서 필요한 링크와 메뉴를 이어서 확인합니다.</Text>
             <TextInput accessibilityLabel={channel === 'online' ? '새 판매처 이름' : '새 매장 이름'} maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
               placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.hint} />
-            <Button fullWidth label="다음" disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel })} style={styles.primary} />
+            <Button fullWidth label={channel === 'online' ? '이 판매처로 계속' : '이 상호로 계속'} disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel })} style={styles.primary} />
             <Button variant="ghost" size="sm" label="다시 검색하기" onPress={() => setRequesting(false)} />
           </View>}
         </> : null}
 
         {step === 4 && store ? <>
-          <Text style={styles.title}>{store.name}의 어떤 메뉴가 원픽인가요?</Text>
-          <Text style={styles.subtitle}>AI가 추천한 메뉴를 고르거나, 맞는 메뉴를 직접 찾아주세요.</Text>
+          <Text style={styles.title}>메뉴명을 입력해 주세요</Text>
+          <Text style={styles.subtitle}>{store.name}에서 고른 메뉴를 입력하거나 추천 목록에서 골라주세요.</Text>
           <Text style={styles.section}>AI 추천</Text>
           {suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴를 추천하고 있어요</Text></View>
             : aiSuggestions.length ? <View style={styles.chips}>
@@ -433,7 +433,7 @@ export default function NewPickScreen() {
         </> : null}
 
         {step === 3 && store ? <>
-          <Text style={styles.title}>{storeChannel === 'offline' ? '매장 지도 링크를 알려주세요' : '구매 링크를 알려주세요'}</Text>
+          <Text style={styles.title}>{storeChannel === 'offline' ? '매장 링크를 입력해 주세요' : '구매 링크를 입력해 주세요'}</Text>
           <Text style={styles.subtitle}>{storeChannel === 'offline'
             ? `${store.name}을(를) 정확히 찾을 수 있는 네이버 지도 링크가 필요해요.`
             : '실제로 주문할 수 있는 개별 구매 페이지 링크를 입력해주세요.'}</Text>
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   cancel: { minWidth: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
   cancelText: { color: OnePick.text, fontSize: 14, lineHeight: 21, fontWeight: '500' },
   stepLabel: { color: OnePick.text, fontSize: 13, marginTop: 10 },
-  title: { color: OnePick.text, fontSize: 24, lineHeight: 32, fontWeight: '800', letterSpacing: -0.5, marginTop: 14 },
+  title: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '800', letterSpacing: -0.4, marginTop: 14 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   channelList: { gap: 12, marginTop: 20 },
