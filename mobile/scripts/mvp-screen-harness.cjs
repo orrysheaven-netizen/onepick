@@ -23,7 +23,8 @@ const names = (values) => Object.fromEntries(values.split(' ').map((name) => [na
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
 function screen(relative, imports, platform = 'ios') {
   const states = [];
-  let cursor = 0, effects = [], nodes = [], texts = [];
+  const refs = [];
+  let cursor = 0, refCursor = 0, effects = [], nodes = [], texts = [];
   const react = {
     useState(initial) {
       const i = cursor++;
@@ -31,6 +32,11 @@ function screen(relative, imports, platform = 'ios') {
       return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
     },
     useMemo: (fn) => fn(),
+    useRef(initial) {
+      const i = refCursor++;
+      if (!(i in refs)) refs[i] = { current: initial };
+      return refs[i];
+    },
     useEffect: (fn) => { effects.push(fn); },
   };
   const Screen = load(relative, {
@@ -61,7 +67,7 @@ function screen(relative, imports, platform = 'ios') {
     }
   }
   return {
-    render() { cursor = 0; effects = []; nodes = []; texts = []; visit(Screen()); return texts.join('\n'); },
+    render() { cursor = 0; refCursor = 0; effects = []; nodes = []; texts = []; visit(Screen()); return texts.join('\n'); },
     flushEffects() { const pending = effects; effects = []; pending.forEach((fn) => fn()); },
     all(type) { return nodes.filter((node) => node.type === type).map((node) => node.props); },
     find(type, predicate = () => true) { return this.all(type).find(predicate); },
