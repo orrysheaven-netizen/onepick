@@ -140,8 +140,16 @@ async function main() {
   assert.equal(inputs.find((entry) => entry.accessibilityLabel === '매장명 검색'), undefined);
   press('매장 채널 선택');
   page = render();
+  assert.equal(step(page), '1', 'Selecting a channel does not advance until Next');
+  press('다음');
+  page = render();
   assert.equal(step(page), '2');
   assert.match(page, /매장명 검색: 을밀대, 우래옥/);
+
+  // Recipe is the third channel and hands off to the dedicated YouTube flow.
+  reset();
+  render(); press('레시피 채널 선택'); render(); press('다음');
+  assert.equal(destination, '/pick/recipe');
 
   // Offline: channel → store → required map link → menu → photo → review → success modal.
   input('매장명 검색').onChangeText('을밀대');
@@ -205,7 +213,7 @@ async function main() {
   reset();
   detail.item.imageUrl = 'https://img.example/w.jpg';
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: true, pending: false };
-  render(); press('매장 채널 선택'); render();
+  render(); press('매장 채널 선택'); render(); press('다음'); render();
   input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
   page = render();
   assert.equal(step(page), '4', 'A verified place map link skips the link screen');
@@ -216,7 +224,7 @@ async function main() {
   // Existing online provider uses its saved provider identity; channel remains online.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-gomtang', hasPhoto: true, pending: false };
-  render(); press('온라인 채널 선택'); page = render();
+  render(); press('온라인 채널 선택'); render(); press('다음'); page = render();
   assert.equal(step(page), '2');
   input('판매처 이름 검색').onChangeText('곰탕'); render(); press('곰탕몰 선택');
   page = render();
@@ -228,7 +236,7 @@ async function main() {
 
   // A new offline store requires both a map link and a representative photo.
   reset();
-  render(); press('매장 채널 선택'); render();
+  render(); press('매장 채널 선택'); render(); press('다음'); render();
   input('매장명 검색').onChangeText('새 냉면집'); render(); press('새 매장 등록');
   page = render();
   assert.equal(input('새 매장 이름').value, '새 냉면집');
@@ -255,7 +263,7 @@ async function main() {
 
   // A new online seller moves purchase URL to the dedicated link step and rejects delivery-app URLs.
   reset();
-  render(); press('온라인 채널 선택'); render(); press('새 판매처 등록'); render();
+  render(); press('온라인 채널 선택'); render(); press('다음'); render(); press('새 판매처 등록'); render();
   input('새 판매처 이름').onChangeText('새 곰탕몰'); render(); press('다음');
   page = render(); assert.equal(step(page), '3'); assert.match(page, /구매 링크를 알려주세요/);
   input('구매 링크').onChangeText('https://s.baemin.com/store/1'); render(); press('다음');
@@ -273,7 +281,7 @@ async function main() {
   detail.item.imageUrl = 'https://img.example/w.jpg';
   detail.myPickStatus = { type: 'selected_other', pickId: 'old-pick', itemId: 'old-item' };
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: true, pending: false };
-  render(); press('매장 채널 선택'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
+  render(); press('매장 채널 선택'); render(); press('다음'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
   render(); press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render(); assert.match(page, /현재 매장 원픽이 이 선택으로 바뀝니다/);
   input('원픽 한줄평').onChangeText('이번에는 이 집'); render(); press('원픽 변경');
@@ -288,7 +296,7 @@ async function main() {
   // Pending catalog items still follow the legacy server path until the atomic registration RPC replaces it.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: false, pending: true };
-  render(); press('매장 채널 선택'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
+  render(); press('매장 채널 선택'); render(); press('다음'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
   render(); press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render(); assert.equal(step(page), '6');
   input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('원픽 저장'); await flush();
