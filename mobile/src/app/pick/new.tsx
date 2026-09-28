@@ -324,7 +324,7 @@ export default function NewPickScreen() {
       <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={() => router.replace('/')} style={styles.cancel}><Text style={styles.cancelText}>취소</Text></Pressable>
     </View>
     <Text style={styles.stepLabel} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
-      {step} / 6{step > 1 ? ` · ${channelLabel}` : ''}
+      {step} / 6{step === 4 && store ? ` · ${store.name} · ${channelLabel}` : step > 1 ? ` · ${channelLabel}` : ''}
     </Text>
   </View>;
 
