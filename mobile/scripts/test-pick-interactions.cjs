@@ -168,7 +168,7 @@ async function main() {
   assert.equal(chosenInputs.length, 1);
   assert.equal(chosenInputs[0].oneLineReview, '삼양라면이 좋아요');
   assert.equal(chosenInputs[0].itemId, 'item');
-  assert.match(renderChoice(), /원픽이 선택됐어요/);
+  assert.match(renderChoice(), /원픽을 정했어요/);
 
   const { default: MissingItem } = loadSource('app/pick/choose.tsx', {
     ...base, '@/hooks/useChoosePick': { useChoosePick: () => ({}), useRequestPendingPick: () => ({ isPending: false, error: null }) },

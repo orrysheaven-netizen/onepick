@@ -82,11 +82,13 @@ export class StoreFirstService {
   }
 
   /** AI menu suggestions for a store. Throws on failure; callers fall back to manual choice. */
-  async suggestMenus(store: StoreForSuggestion): Promise<{ suggestions: MenuSuggestion[]; needsNewCategory: boolean }> {
+  async suggestMenus(store: StoreForSuggestion, menuName: string): Promise<{ suggestions: MenuSuggestion[]; needsNewCategory: boolean }> {
+    const cleanMenuName = cleanQuery(menuName);
+    if (!cleanMenuName || cleanMenuName.length > 40) return { suggestions: [], needsNewCategory: true };
     const { data, error } = await this.client.functions.invoke('suggest-item-categories', {
       body: { store: {
         name: store.name, branchName: store.branchName ?? null, providerCategory: store.providerCategory ?? null,
-        region: store.region ?? null, channel: store.channel,
+        region: store.region ?? null, channel: store.channel, menuName: cleanMenuName,
       } },
     });
     if (error) throw error;
