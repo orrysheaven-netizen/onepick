@@ -61,7 +61,7 @@ const hooks = {
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
       isWaiting: false, isFetching: false, isError: false, refetch() {} }),
     useMenuOptions: () => ({ data: menuOptions, isError: false, refetch() {} }),
-    useMenuSuggestions: (store, key, enabled) => ({ data: enabled ? aiResult : undefined, isPending: false, isError: false }),
+    useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => selectResult),
     useSuggestMapLink: () => mutation('link', () => undefined),
     useSetMenuHint: () => mutation('menuHint', () => undefined),
@@ -141,9 +141,12 @@ async function main() {
   press('을밀대 선택');
   page = render();
   assert.equal(step(page), '2');
-  assert.match(page, /을밀대의 어떤 메뉴가 원픽인가요/);
+  assert.match(page, /어떤 메뉴인가요/);
+  assert.match(page, /같은 메뉴가 있으면 바로 보여드리고/);
+  input('메뉴 이름').onChangeText('평양냉면');
+  page = render();
   assert.doesNotMatch(page, /곰탕/, 'Menus without store search are not offered for a 매장');
-  press('AI 추천 면 › 평양냉면');
+  press('평양냉면');
   page = render();
   assert.match(page, /평양냉면으로 유명한 곳이에요/, 'The AI reason is shown for the chosen suggestion');
   press('평양냉면(으)로 다음');
@@ -263,10 +266,10 @@ async function main() {
   reset();
   render(); input('매장명 검색').onChangeText('을밀대'); render();
   press('을밀대 선택'); render();
-  input('메뉴 검색').onChangeText('클래식 평양냉면'); page = render();
+  input('메뉴 이름').onChangeText('클래식 평양냉면'); page = render();
   assert.match(page, /평양냉면/, 'A longer typed name still finds the menu it contains');
   assert.doesNotMatch(page, /메뉴가 아직 없어요/);
-  input('메뉴 검색').onChangeText('클래식 밀크티'); page = render();
+  input('메뉴 이름').onChangeText('클래식 밀크티'); page = render();
   assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'An unknown menu is explained instead of leaving the step stuck');
   press("'클래식 밀크티' 메뉴로 등록 요청"); page = render();
   assert.equal(step(page), '3', 'The request continues with the link step for a 매장');
