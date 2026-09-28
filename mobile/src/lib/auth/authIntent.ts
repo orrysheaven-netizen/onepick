@@ -191,7 +191,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
-    case 'follow_profile': return { pathname: '/u/[username]', params: { username: intent.username, follow: '1' } };
+    case 'follow_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
     // A visitor who came to make their own Picks lands on the feed, not back on the profile they read.
     case 'join_from_profile': return '/';
     case 'profile': return '/profile';
