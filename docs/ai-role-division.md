@@ -2,7 +2,7 @@
 
 결정일: 2026-09-25.
 
-OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. 보안 소유권과 독립 검증 규칙은 비율보다 우선한다.
+OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. **ChatGPT/Codex가 기본 Product/Technical Owner이자 전체 작업 조정의 기본 주체**다. Claude는 Platform/Reliability, QA, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
@@ -20,12 +20,13 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 
 최근 14일 **완료된 작업 점수** 기준 목표는 Codex 60% : Claude 40%다. Codex 55~65%를 정상 범위로 보고, 65%를 넘으면 다음 M/L 작업 중 Claude 담당 가능 영역을 Claude에 우선 배정한다.
 
-비율을 맞추기 위해 보안 소유권을 바꾸거나 동일 기능을 중복 구현하지 않는다.
+비율을 맞추기 위해 기본 권한 구조를 바꾸거나 동일 기능을 중복 구현하지 않는다.
 
 ## 역할
 
-### ChatGPT / Codex — Product Builder (목표 60%)
+### ChatGPT / Codex — 기본 Product / Technical Owner (목표 60%)
 
+- 전체 작업 조정, 기본 구현 주체, 기술적 후속 조치 정리
 - 화면, UI/UX, 온보딩, 프로필, 홈, 탐색, 댓글 등 제품 기능
 - 카테고리 체계, 맛집 콘텐츠 구조와 일반 데이터 작업
 - AI 취향평가 UX, 프롬프트, 문구
@@ -34,7 +35,7 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 기능 단위 테스트와 기능 명세
 - Claude가 만든 보안/DB PR의 제한 독립 검토
 
-### Claude — Platform / Reliability (목표 40%)
+### Claude — Platform / Reliability·독립 검토 (목표 40%)
 
 - Supabase migration, RLS, Auth, Storage 정책
 - secret, 권한, 보안 민감 CI/workflow 변경
@@ -45,9 +46,9 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - Daily QA, Security QA, PR 리뷰, 테스트 자동화
 - Codex M/L PR의 독립 리뷰
 
-## 보호 영역
+## 고위험 영역
 
-다음 변경은 기본적으로 Claude가 소유한다.
+다음 변경은 **특정 AI의 영구 독점 영역이 아니다.** 현재 작업의 `owner:*`, `handoff:*`, 사용자 지시와 60:40 배분에 따라 구현 담당을 정하되, 반대 AI의 독립 검토를 필수로 한다.
 
 - `supabase/migrations/**`
 - RLS / GRANT / SECURITY DEFINER 정책과 함수
@@ -55,17 +56,17 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - Storage 정책
 - secret 또는 배포 권한을 읽거나 쓰는 코드
 - 보안 민감 `.github/workflows/**`
+- production 데이터 재작성·삭제 등 되돌리기 어려운 작업
 
-Codex가 보호 영역 수정 필요성을 발견하면 직접 넓혀 고치지 않고 작업 이슈에 `handoff:claude`를 붙여 넘긴다. 단, 사용자 요청으로 역할 체계 자체를 변경하거나 비밀값을 다루지 않는 운영 메타데이터 workflow를 수정하는 경우에는 Claude 독립 리뷰를 필수로 한다.
+기본 작업 조정 권한은 ChatGPT/Codex에 있다. Claude가 전문성·작업량 배분·GPT 사용량 제한 등의 이유로 위임받아 구현할 수 있으며, 그 위임은 해당 작업에만 적용된다. 반대로 Codex가 고위험 영역을 구현할 수도 있으며 이 경우 Claude 독립 검토를 거친다.
 
 ## 교차 검증
 
-- Codex S 작업: CI 통과 후 사용자 병합 가능.
-- Codex M/L 작업: Claude 리뷰 + 필수 CI 통과 후 사용자 병합.
-- Claude 일반 QA/테스트/문서 작업: 필수 CI 통과 후 사용자 병합.
-- Claude 비보안 `size:L` 리팩터링 PR: Codex가 **변경 diff, 회귀 위험, 관련 테스트 결과만** 제한 독립 리뷰한다. 저장소 전체 재분석은 하지 않는다.
-- Claude의 DB/Auth/RLS/Storage/보안 PR: Codex가 **PR diff, 권한 변화, migration/롤백, 관련 테스트 결과만** 제한 독립 리뷰한다. 저장소 전체 재분석은 하지 않는다.
-- 자기 PR을 스스로 승인하거나 병합하지 않는다. 최종 병합은 사용자가 한다.
+- 저위험 `size:S` 작업: 담당 AI의 구현 + 필수 CI 통과 후 사용자 병합 가능.
+- `size:M/L` 작업: 담당 AI와 **반대 AI의 독립 리뷰** + 필수 CI 통과 후 사용자 병합.
+- DB/Auth/RLS/Storage/보안/secret/production workflow 등 고위험 PR: 구현 담당과 관계없이 반대 AI가 **PR diff, 권한 변화, migration/rollback, 관련 테스트 결과**를 제한 독립 검토한다.
+- Production DB `mode=apply`, production Edge Function 배포, secret/권한 변경, 파괴적 데이터 작업, `main` 병합은 자동화하지 않고 사용자 승인 게이트를 유지한다.
+- 자기 PR을 스스로 승인하거나 병합하지 않는다.
 
 ## 작업 이슈와 인계
 
@@ -91,7 +92,7 @@ PR: #<번호>
 후속: <없음 또는 다음 담당>
 ```
 
-후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다.
+후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
 
 ## AI Ops 대시보드
 
