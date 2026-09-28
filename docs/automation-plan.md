@@ -2,7 +2,7 @@
 
 결정일: 2026-09-23. 2026-09-25부터 역할 분담 v2는 `docs/ai-role-division.md`, 일일 QA는 `docs/daily-qa.md`를 따른다.
 
-원칙: **사람이 따로 알리거나 시작 버튼을 누르지 않는다.** 각자 정해진 시각에 GitHub을 읽고 일한다. 진행 상황의 유일한 원본은 GitHub(이슈·PR·Actions)이다. 한 작업은 한 에이전트만 맡는다. 작업량은 `size:S/M/L` 점수로 최근 14일 Codex 60% : Claude 40%를 목표로 하며, 보안 소유권은 비율보다 우선한다.
+원칙: **사람이 따로 알리거나 시작 버튼을 누르지 않는다.** 각자 정해진 시각에 GitHub을 읽고 일한다. 진행 상황의 유일한 원본은 GitHub(이슈·PR·Actions)이다. 한 작업은 한 에이전트만 맡는다. ChatGPT/Codex가 기본 작업 조정 주체이며, 작업량은 `size:S/M/L` 점수로 최근 14일 Codex 60% : Claude 40%를 목표로 한다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 역할 분담
 
@@ -27,7 +27,7 @@
 | 매일 06:00 | Actions `Daily QA` | 라이브 측정, 실사용자 오류 집계 |
 | 매일 06:30 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Security QA]` 보안 점검 이슈 (`docs/daily-security.md`) |
 | 매일 07:00 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Daily QA]` 이슈 작성 |
-| 매일 07:30 | ChatGPT 예약 작업 | AI Ops 대시보드와 `handoff:codex`를 확인해 Codex의 제품·일반 버그·제한 리뷰 작업만 정리. 보안·DB 보호 영역 수정은 Claude 소유 |
+| 매일 07:30 | ChatGPT 예약 작업 | AI Ops 대시보드와 `handoff:codex`를 확인해 Codex의 작업을 정리. 고위험 보안·DB 변경은 현재 owner/handoff 또는 사용자 위임에 따라 담당하고, 반대 AI의 독립 검토를 필수로 함 |
 | 매일 09~23시, 2시간마다 | Claude 루틴 | 먼저 `handoff:claude` 한 건을 수락/진행한 뒤 열린 PR 리뷰와 QA 항목 수정 확인 (C) |
 | 매시 정각 (D 완료 후) | Actions | 실사용자 오류 급증 감지 |
 | 매주 월 08:00 | Claude 루틴 | 먼저 `handoff:claude` preflight 후 `[Weekly QA]` 주간 추세 (I) |
@@ -66,4 +66,4 @@
 - Claude의 모든 예약 루틴과 일반 세션은 `CLAUDE.md`의 공통 handoff preflight를 먼저 수행한다. 한 번에 한 이슈만 수락하고, 수락 즉시 `handoff:claude`를 제거해 중복 실행을 막는다.
 - 예약 루틴의 필수 산출물(Security QA, Daily QA, Weekly QA 등)은 handoff 수락 때문에 생략하지 않는다.
 - AI Ops workflow는 GitHub 이슈/라벨/PR 데이터만 사용하고 외부 AI API를 호출하지 않는다.
-- 기존 A~I 자동화 항목의 역사적 결정은 유지하되, 현재 담당이 v2 보호 영역과 충돌하면 `docs/ai-role-division.md`가 우선한다.
+- 기존 A~I 자동화 항목의 역사적 결정은 유지하되, 현재 담당·교차검토·사용자 승인 기준이 충돌하면 `docs/ai-role-division.md`의 최신 원칙이 우선한다.
