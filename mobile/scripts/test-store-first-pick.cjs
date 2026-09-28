@@ -231,7 +231,7 @@ async function main() {
   render(); press('매장 채널 선택'); render();
   input('매장명 검색').onChangeText('새 냉면집'); render(); press('새 매장 등록');
   page = render();
-  assert.equal(input('등록 요청 이름').value, '새 냉면집');
+  assert.equal(input('새 매장 이름').value, '새 냉면집');
   press('다음'); page = render();
   assert.equal(step(page), '3');
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore'); render(); press('다음');
@@ -256,7 +256,7 @@ async function main() {
   // A new online seller moves purchase URL to the dedicated link step and rejects delivery-app URLs.
   reset();
   render(); press('온라인 채널 선택'); render(); press('새 판매처 등록'); render();
-  input('등록 요청 이름').onChangeText('새 곰탕몰'); render(); press('다음');
+  input('새 판매처 이름').onChangeText('새 곰탕몰'); render(); press('다음');
   page = render(); assert.equal(step(page), '3'); assert.match(page, /구매 링크를 알려주세요/);
   input('구매 링크').onChangeText('https://s.baemin.com/store/1'); render(); press('다음');
   page = render(); assert.match(page, /배달앱 주문은 매장으로 골라주세요/);
