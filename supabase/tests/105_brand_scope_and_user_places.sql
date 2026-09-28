@@ -107,8 +107,14 @@ begin
   perform set_config('request.jwt.claim.sub',admin::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
   set local role authenticated;
+  raised := false;
+  begin
+    perform public.admin_merge_pending_item(b_item, g_item);
+  exception when others then raised := sqlerrm = 'SOURCE_PROVIDER_ITEM_NOT_MERGEABLE'; end;
+  assert raised, 'A brand-wide request is never merged into a branch';
   perform public.admin_review_pending_item(b_item,'active');
   reset role;
+  assert (select status='active' and name='브랜드을밀대' from public.items where id=b_item), 'Approval keeps the brand name although branches share it (no ITEM_DUPLICATE)';
   assert (select status='active' from public.picks where id=p_b), 'Approval publishes the brand-wide Pick (the brand gate accepts it)';
   assert (select count(*) from public.picks where user_id=carol and item_id in (g_item,m_item)) = 0, 'A brand-wide Pick is not a Pick on any branch';
 

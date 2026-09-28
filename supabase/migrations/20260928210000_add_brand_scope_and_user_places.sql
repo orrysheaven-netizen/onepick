@@ -685,4 +685,210 @@ grant execute on function public.brand_branch_page(uuid, bigint, uuid, integer) 
 comment on function public.brand_branch_page(uuid, bigint, uuid, integer) is
   'Branches and sellers of a brand that hold at least one current Pick (one or two people included), most picked first, keyset-paged by (pick_count, provider_id). Each row is its own product scope; map_url / official_url are the external links shown on the provider profile.';
 
+-- ---------------------------------------------------------------------------
+-- Review: identity-backed products are not name duplicates
+-- ---------------------------------------------------------------------------
+
+-- A brand-wide product carries its brand's name, and a seller × menu product
+-- (stage_online_provider_item) its seller's name, exactly as branches carry the
+-- store's name. Their identity is brand × menu / provider × menu / place × menu,
+-- so approval keeps the name and category and skips the duplicate-name check
+-- that name-only requests need. Same as 20260927213947 otherwise.
+create or replace function private.admin_review_pending_item_impl(
+  p_item_id uuid,
+  p_status text,
+  p_category_id uuid default null,
+  p_reject_reason text default null
+)
+returns public.items
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_item public.items%rowtype;
+  v_category public.categories%rowtype;
+  v_name text;
+  v_normalized text;
+  v_reason text;
+  v_identity_backed boolean;
+begin
+  if not private.is_admin_mfa() then
+    raise exception 'ADMIN_REQUIRED' using errcode='42501';
+  end if;
+
+  select * into v_item
+  from public.items
+  where id=p_item_id
+  for update;
+
+  if not found or v_item.status<>'pending' then
+    raise exception 'SOURCE_ITEM_NOT_PENDING' using errcode='P0001';
+  end if;
+
+  if p_status='rejected' then
+    v_reason := btrim(p_reject_reason);
+    if v_reason is null or char_length(v_reason) not between 1 and 500 then
+      raise exception 'REJECT_REASON_INVALID' using errcode='P0001';
+    end if;
+
+    update public.items
+    set status='rejected', merged_into_item_id=null
+    where id=v_item.id
+    returning * into v_item;
+
+    insert into private.item_review_log(item_id,status,rejection_reason,reviewed_by)
+    values (v_item.id,'rejected',v_reason,auth.uid());
+
+    if v_item.created_by is not null then
+      insert into public.item_review_notifications(item_id, recipient_id, outcome, target_item_id, reason)
+      values (v_item.id, v_item.created_by, 'rejected', v_item.id, v_reason)
+      on conflict (item_id, recipient_id) do update
+        set outcome = excluded.outcome,
+            target_item_id = excluded.target_item_id,
+            pick_id = null,
+            reason = excluded.reason,
+            created_at = now(),
+            read_at = null;
+    end if;
+    return v_item;
+  end if;
+
+  if p_status<>'active' then
+    raise exception 'ITEM_STATUS_INVALID' using errcode='P0001';
+  end if;
+
+  select * into v_category
+  from public.categories
+  where id=coalesce(p_category_id,v_item.category_id);
+
+  if not found
+     or v_category.slug='pending-product'
+     or not public.category_is_open_leaf(v_category.id) then
+    raise exception 'CATEGORY_NOT_PICKABLE' using errcode='P0001';
+  end if;
+
+  v_identity_backed :=
+    exists(select 1 from public.item_places where item_id=v_item.id)
+    or exists(select 1 from public.item_providers where item_id=v_item.id)
+    or exists(select 1 from public.item_brand_scopes where item_id=v_item.id);
+
+  if v_identity_backed then
+    -- The (place | provider | brand) + category pair is the identity; reject
+    -- it instead of moving it.
+    if v_category.id<>v_item.category_id then
+      raise exception 'PLACE_ITEM_CATEGORY_LOCKED' using errcode='P0001';
+    end if;
+    v_name := v_item.name;
+    v_normalized := v_item.normalized_name;
+  else
+    v_name := private.canonical_item_name(v_item.name,v_category.slug);
+    if v_name is null or char_length(v_name) not between 1 and 100 then
+      raise exception 'ITEM_NAME_INVALID' using errcode='P0001';
+    end if;
+    v_normalized := lower(regexp_replace(v_name,'[[:space:]]','','g'));
+
+    if exists (
+      select 1 from public.items i
+      where i.id<>v_item.id
+        and i.category_id=v_category.id
+        and i.normalized_name=v_normalized
+        and i.status in ('active','discontinued')
+    ) then
+      raise exception 'ITEM_DUPLICATE' using errcode='P0001';
+    end if;
+  end if;
+
+  update public.items
+  set category_id=v_category.id,
+      name=v_name,
+      normalized_name=v_normalized,
+      status='active',
+      merged_into_item_id=null
+  where id=v_item.id
+  returning * into v_item;
+
+  insert into private.item_review_log(item_id,status,reviewed_by)
+  values (v_item.id,'active',auth.uid());
+  return v_item;
+end;
+$$;
+
+-- A brand-wide request is identified by its brand, like a provider item: it
+-- is approved or rejected, never merged into another product.
+-- Same as 20260928190000 otherwise.
+create or replace function public.admin_merge_pending_item(
+  p_source_item_id uuid,
+  p_target_item_id uuid
+)
+returns public.items
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_source public.items%rowtype;
+  v_target public.items%rowtype;
+  v_source_category_slug text;
+  v_result public.items%rowtype;
+begin
+  if not private.is_admin_mfa() then
+    raise exception 'ADMIN_REQUIRED' using errcode='42501';
+  end if;
+
+  if p_source_item_id is null
+     or p_target_item_id is null
+     or p_source_item_id=p_target_item_id then
+    raise exception 'MERGE_TARGET_INVALID' using errcode='P0001';
+  end if;
+
+  select * into v_source
+  from public.items
+  where id=p_source_item_id
+  for update;
+
+  if not found or v_source.status<>'pending' then
+    raise exception 'SOURCE_ITEM_NOT_PENDING' using errcode='P0001';
+  end if;
+
+  if exists(select 1 from public.item_providers where item_id=v_source.id)
+     or exists(select 1 from public.item_brand_scopes where item_id=v_source.id) then
+    raise exception 'SOURCE_PROVIDER_ITEM_NOT_MERGEABLE' using errcode='P0001';
+  end if;
+
+  select * into v_target
+  from public.items
+  where id=p_target_item_id
+  for update;
+
+  if not found or v_target.status not in ('active','discontinued') then
+    raise exception 'TARGET_ITEM_INVALID' using errcode='P0001';
+  end if;
+
+  if v_source.category_id<>v_target.category_id then
+    select slug into v_source_category_slug
+    from public.categories
+    where id=v_source.category_id;
+
+    if v_source_category_slug is distinct from 'pending-product' then
+      raise exception 'MERGE_CATEGORY_MISMATCH' using errcode='P0001';
+    end if;
+  end if;
+
+  if exists(
+    select 1 from public.picks
+    where item_id=v_source.id and status<>'needs_review'
+  ) then
+    raise exception 'SOURCE_ITEM_IN_USE' using errcode='P0001';
+  end if;
+
+  update public.items
+  set status='merged',
+      merged_into_item_id=v_target.id
+  where id=v_source.id
+  returning * into v_result;
+
+  return v_result;
+end;
+$$;
+
 commit;
