@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
 import { PickPhoto } from '@/components/pick-photo';
+import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemSearch } from '@/hooks/useItemSearch';
@@ -188,7 +189,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
       <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
-      {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
+      {sessionError ? <Button label="다시 확인하기" onPress={retrySession} size="sm" variant="secondary" style={styles.secondaryButton} /> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
 
@@ -229,11 +230,11 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
         {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 채널과 YouTube를 함께 찾고 있어요</Text></View> : null}
         {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 채널 검색을 불러오지 못했어요</Text>
-          <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
+          <Button label="다시 검색" onPress={() => void local.refetch()} size="sm" variant="secondary" disabled={local.isFetching} style={styles.secondaryButton} /></View> : null}
         {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>외부 YouTube DB를 불러오지 못했어요</Text>
           <Text style={styles.stateText}>{youtubeErrorMessage(catalog.error)}</Text>
-          <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>YouTube 다시 검색</Text></Pressable>
+          <Button label="YouTube 다시 검색" onPress={() => void catalog.refetch()} size="sm" variant="secondary" disabled={catalog.isFetching} style={styles.secondaryButton} />
         </View> : null}
 
         {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 채널 정보를 확인하고 있어요</Text></View> : null}
@@ -242,15 +243,15 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
             {selection.phase === 'failed' ? youtubeErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 채널 정보가 준비됐어요.' : '이전 채널 선택을 다시 이어갈 수 있어요.'}
           </Text>
           {selection.phase === 'ready'
-            ? <Pressable onPress={() => continueChannel(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 채널로 계속</Text></Pressable>
+            ? <Button label="선택한 채널로 계속" onPress={() => continueChannel(selection.item, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />
             : selection.phase === 'failed' && selection.error instanceof AppError && selection.error.code === 'AUTH_REQUIRED'
-              ? <Pressable onPress={() => loginForYouTube(selection.externalId)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 로그인하고 채널 선택 계속</Text></Pressable>
-              : <Pressable onPress={() => void loadChannel(selection.externalId, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 채널 다시 불러오기</Text></Pressable>}
+              ? <Button label="다시 로그인하고 채널 선택 계속" onPress={() => loginForYouTube(selection.externalId)} size="sm" variant="secondary" style={styles.secondaryButton} />
+              : <Button label="선택한 채널 다시 불러오기" onPress={() => void loadChannel(selection.externalId, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />}
         </View> : null}
 
         {validReturn && !user && !selection ? <View style={styles.stateCard}>
           <Text style={styles.stateText}>선택한 채널을 이어가려면 로그인이 필요해요.</Text>
-          <Pressable onPress={() => loginForYouTube(externalId!)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>로그인하고 채널 선택 계속</Text></Pressable>
+          <Button label="로그인하고 채널 선택 계속" onPress={() => loginForYouTube(externalId!)} size="sm" variant="secondary" style={styles.secondaryButton} />
         </View> : null}
 
         {cleanQuery && localItems.map((item) => <View key={item.id} style={styles.itemCard}>
@@ -313,8 +314,7 @@ const styles = StyleSheet.create({
   itemCategory: { color: OnePick.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   itemName: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 5 },
   itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
-  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
-  secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
+  secondaryButton: { marginTop: 13 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
