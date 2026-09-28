@@ -148,7 +148,7 @@ async function main() {
   assert.doesNotMatch(page, /곰탕/, 'Menus without store search are not offered for a 매장');
   press('평양냉면');
   page = render();
-  assert.match(page, /평양냉면으로 유명한 곳이에요/, 'The AI reason is shown for the chosen suggestion');
+  assert.doesNotMatch(page, /평양냉면으로 유명한 곳이에요/, 'An exact catalog menu skips the AI suggestion call');
   press('평양냉면(으)로 다음');
   await flush();
   assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['select', { categoryId: 'cat-naengmyeon', store: results.offline[0] }]));
@@ -178,7 +178,7 @@ async function main() {
   assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['choose', { categoryId: 'cat-naengmyeon', itemId: 'item-1', oneLineReview: '육수가 깔끔해요', channel: 'offline' }]));
   page = render();
   assert.equal(step(page), '6');
-  assert.match(page, /원픽이 등록됐어요/);
+  assert.match(page, /원픽을 정했어요/);
   assert.match(page, /“육수가 깔끔해요”/);
   assert.match(page, /네이버 지도 링크는 확인 후 표시돼요/);
   press('내 원픽 보기');
@@ -191,6 +191,7 @@ async function main() {
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: true };
   render(); input('매장명 검색').onChangeText('우래옥'); render();
   press('우래옥 선택'); render();
+  input('메뉴 이름').onChangeText('수육'); render();
   press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render();
   assert.equal(step(page), '5', 'Link and photo steps are skipped when already present');
@@ -205,6 +206,7 @@ async function main() {
   assert.match(page, /판매처 이름 검색/);
   input('판매처 이름 검색').onChangeText('곰탕'); render();
   press('곰탕몰 선택'); page = render();
+  input('메뉴 이름').onChangeText('곰탕'); page = render();
   assert.match(page, /곰탕/, 'Online sellers may pick any food menu');
   press('곰탕'); render(); press('곰탕(으)로 다음'); await flush();
   page = render();
@@ -220,6 +222,7 @@ async function main() {
   press('매장 등록 요청'); page = render();
   assert.equal(input('등록 요청 이름').value, '새 냉면집', 'The searched name starts the request');
   press('다음'); render();
+  input('메뉴 이름').onChangeText('평양냉면'); render();
   press('평양냉면'); render(); press('평양냉면(으)로 다음'); await flush();
   assert.equal(calls.filter(([name]) => name === 'select').length, 0, 'A request does not create an item before the review');
   page = render();
@@ -253,6 +256,7 @@ async function main() {
   assert.match(page, /배달앱 주문은 매장으로 골라주세요/);
   input('판매처 링크').onChangeText('https://shop.example.com/gomtang'); render();
   press('다음'); render();
+  input('메뉴 이름').onChangeText('곰탕'); render();
   press('곰탕'); render(); press('곰탕(으)로 다음'); await flush();
   page = render();
   assert.equal(step(page), '4', 'Online requests skip the map link step');
@@ -268,7 +272,7 @@ async function main() {
   press('을밀대 선택'); render();
   input('메뉴 이름').onChangeText('클래식 평양냉면'); page = render();
   assert.match(page, /평양냉면/, 'A longer typed name still finds the menu it contains');
-  assert.doesNotMatch(page, /메뉴가 아직 없어요/);
+  assert.match(page, /비슷한 기존 메뉴/, 'A longer typed name still surfaces the matching catalog menu');
   input('메뉴 이름').onChangeText('클래식 밀크티'); page = render();
   assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'An unknown menu is explained instead of leaving the step stuck');
   press("'클래식 밀크티' 메뉴로 등록 요청"); page = render();
@@ -293,13 +297,15 @@ async function main() {
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: false, pending: true };
   render(); input('매장명 검색').onChangeText('우래옥'); render();
   press('우래옥 선택'); render();
+  input('메뉴 이름').onChangeText('수육'); render();
   press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render();
   assert.equal(step(page), '5', 'A pending store skips the photo step');
   assert.match(page, /관리자가 우래옥을\(를\) 확인해 승인하면/);
   input('원픽 한줄평').onChangeText('수육이 부드러워요'); render();
   press('등록 요청하고 원픽 남기기'); await flush();
-  assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]));
+  assert.equal(JSON.stringify(calls.find(([name]) => name === 'requestPick')), JSON.stringify(['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]));
+  assert.equal(JSON.stringify(calls.find(([name]) => name === 'menuHint')), JSON.stringify(['menuHint', { userId: 'owner', itemId: 'item-1', label: '수육' }]), 'Pending requests retain the typed menu label');
   assert.equal(calls.filter(([name]) => name === 'choose').length, 0, 'A pending store is not picked directly');
   page = render();
   assert.match(page, /등록 요청을 보냈어요/);
