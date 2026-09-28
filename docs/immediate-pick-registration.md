@@ -48,7 +48,8 @@
 - 새 제품의 원픽 상태는 `needs_review`다. `picks` RLS상 본인만 읽고, 홈·탐색 피드(`status='active'`)에는
   나오지 않는다. 프로필의 내 원픽 목록은 `statuses:['active','needs_review']`로 읽어야 본인에게 보인다.
   `item_review_page`는 제품이 공개된 뒤부터 보여준다.
-- 사진 검증은 `attach_item_photo`와 같다(첫 유효 사진이 채택).
+- 사진 검증은 `attach_item_photo`와 같다(첫 유효 사진이 채택). 업로드 경로 하나는 제품 하나에만 붙는다
+  (`items_image_path_unique`): 제품마다 새 업로드를 쓴다.
 
 ## `revise_item_request(p_item_id, p_link_url, p_image_path, p_thumbnail_path, p_image_source_url, p_remove_photo)` → `items`
 
