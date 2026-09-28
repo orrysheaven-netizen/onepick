@@ -109,9 +109,23 @@ async function main() {
       for (const platform of ['web', 'native']) {
         const family = platform === 'web' ? webFamilies : await moduleFrom('src/constants/font-family.ts');
         const tokens = await moduleFrom('src/constants/onepick.ts', (id) => { assert.equal(id, './font-family'); return family; });
-        for (const value of Object.values(tokens.OnePickType)) assert.equal(value.fontFamily, platform === 'web' ? webFamilies.BodyFont : undefined);
-        assert.equal(tokens.OnePickType.label.fontSize, 13);
-        assert.equal(tokens.OnePickType.label.fontWeight, '600');
+        const expected = {
+          pageTitle: [22, 30, '700'],
+          title: [20, 28, '700'],
+          headline: [16, 24, '700'],
+          bodyMedium: [14, 21, '500'],
+          body: [14, 21, '400'],
+          captionMedium: [12, 18, '500'],
+          caption: [12, 18, '400'],
+        };
+        assert.deepEqual(Object.keys(tokens.OnePickType), Object.keys(expected));
+        for (const [name, [fontSize, lineHeight, fontWeight]] of Object.entries(expected)) {
+          const value = tokens.OnePickType[name];
+          assert.equal(value.fontFamily, platform === 'web' ? webFamilies.BodyFont : undefined);
+          assert.equal(value.fontSize, fontSize);
+          assert.equal(value.lineHeight, lineHeight);
+          assert.equal(value.fontWeight, fontWeight);
+        }
       }
     });
     await test('ThemedText applies body/English families without overriding code or caller styles', async () => {

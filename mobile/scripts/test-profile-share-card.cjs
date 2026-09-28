@@ -25,9 +25,15 @@ function loadCardCanvas() {
 function loadWeb(globals) {
   const exports = {};
   const drawn = [];
+  const brandImages = [];
+  class ImageMock {
+    set src(value) { this._src = value; this.onload?.(); }
+    get src() { return this._src; }
+  }
   const ctx = {
     beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {},
     fill() {}, fillRect() {}, stroke() {},
+    drawImage: (image) => brandImages.push(image.src),
     measureText: (value) => ({ width: Array.from(String(value)).length * 24 }),
     fillText: (value) => drawn.push(String(value)),
   };
@@ -35,6 +41,7 @@ function loadWeb(globals) {
   const context = {
     exports,
     Uint8Array,
+    Image: globals.Image ?? ImageMock,
     ...globals,
     document: {
       body: { appendChild() {} },
@@ -48,7 +55,7 @@ function loadWeb(globals) {
     },
   };
   vm.runInNewContext(transpile('lib/share/shareProfileCard.web.ts'), context);
-  return { exports, drawn };
+  return { exports, drawn, brandImages };
 }
 
 const picks = [
@@ -77,7 +84,8 @@ async function main() {
   const withAi = loadWeb(silentNavigator());
   await withAi.exports.shareProfileCardImage({ username: 'tester', picks, aiComment: visibleAi });
   assert.ok(withAi.drawn.includes('@tester'), 'the username must be printed whole, not clipped');
-  assert.ok(withAi.drawn.includes('원픽') && withAi.drawn.includes('one pick'), 'the card must carry the brand lockup');
+  assert.deepEqual(withAi.brandImages, ['/brand/onepick-logo-horizontal.svg'], 'the card must carry the approved brand wordmark');
+  assert.ok(!withAi.drawn.includes('원픽') && !withAi.drawn.includes('one pick'), 'the wordmark must not be rebuilt with live text');
   assert.ok(withAi.drawn.includes('현재 원픽'), 'section labels stay Korean');
   assert.ok(!withAi.drawn.some((line) => /^[A-Z ]+$/.test(line)), 'no English kicker belongs on the card');
   assert.ok(withAi.drawn.includes('진라면 매운맛'));
@@ -121,6 +129,27 @@ async function main() {
   assert.equal(shared.url, 'https://onepick.example/u/tester');
   assert.ok(shared.text.includes('https://onepick.example/u/tester'), 'the link must survive a target that drops url');
   assert.ok(shared.text.includes('5개'), 'the text counts every current Pick, not only the printed four');
+
+  // A cold logo is optional branding, not a reason to lose iOS share activation.
+  let coldProfileShareCalled = false;
+  class ColdImageMock {
+    set src(value) { this._src = value; }
+    get src() { return this._src; }
+  }
+  const coldProfileCase = loadWeb({
+    anchor: { click() { throw new Error('download must not run while native share is available'); }, remove() {} },
+    Image: ColdImageMock,
+    File: FileMock,
+    atob: (value) => Buffer.from(value, 'base64').toString('binary'),
+    navigator: {
+      canShare: () => true,
+      share: async () => { coldProfileShareCalled = true; },
+    },
+  });
+  const coldProfileShare = coldProfileCase.exports.shareProfileCardImage({ username: 'tester', picks, aiComment: null });
+  assert.equal(coldProfileShareCalled, true, 'cold profile logo must not delay navigator.share');
+  assert.deepEqual(coldProfileCase.brandImages, [], 'a cold profile logo is skipped instead of blocking the share');
+  assert.equal(await coldProfileShare, 'shared');
 
   // Download fallback: the link must still end up in the visitor's hands.
   let downloaded = 0, copied = null;

@@ -95,6 +95,8 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const video = lookupData?.video;
   const suggestions = (lookupData?.suggestions ?? []).filter((suggestion) => dishById.has(suggestion.categoryId));
   const busy = importVideo.isPending || requestVideo.isPending;
+  // isPending only flips after a re-render; a synchronous flag stops a same-frame double tap.
+  const submitting = useRef(false);
 
   // The dish comes from the member's choice, else the menu they came from, else the
   // title's best match. Nothing is saved until they press the button that names it.
@@ -158,6 +160,8 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     if (!canAct() || busy || !user) return;
     if (entry.existingItemId && entry.existingCategoryId) { chooseItem(entry.existingItemId, entry.existingCategoryId); return; }
     if (!selectedDish) return;
+    if (submitting.current) return;
+    submitting.current = true;
     const owner = user.id;
     setActionError(null);
     try {
@@ -166,11 +170,15 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       chooseItem(item.itemId, item.categoryId);
     } catch (error) {
       if (focused.current && latest.current.userId === owner) setActionError(error);
+    } finally {
+      submitting.current = false;
     }
   };
 
   const request = async (entry: YouTubeVideoEntry) => {
     if (!canAct() || busy || !user) return;
+    if (submitting.current) return;
+    submitting.current = true;
     const owner = user.id;
     setActionError(null);
     try {
@@ -179,6 +187,8 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       setRequested(dishName.trim());
     } catch (error) {
       if (focused.current && latest.current.userId === owner) setActionError(error);
+    } finally {
+      submitting.current = false;
     }
   };
 

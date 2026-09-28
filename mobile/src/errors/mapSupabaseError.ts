@@ -69,6 +69,8 @@ const databaseCodeMap: Record<string, AppErrorCode> = {
   REPORT_SELF: 'REPORT_SELF',
 };
 
+const NETWORK_FAILURE = /Failed to fetch|Network request failed|NetworkError when attempting to fetch|Load failed|fetch failed/i;
+
 export function mapSupabaseError(error: SupabaseLikeError): AppError {
   const message = error.message?.trim();
 
@@ -89,8 +91,14 @@ export function mapSupabaseError(error: SupabaseLikeError): AppError {
     return new AppError('PICK_CONFLICT', 'PICK_CONFLICT', error);
   }
 
-  if (error.code === 'PGRST301' || error.code === 'PGRST302') {
+  if (error.code === 'PGRST301' || error.code === 'PGRST302' || error.code === 'PGRST303') {
     return new AppError('AUTH_REQUIRED', 'AUTH_REQUIRED', error);
+  }
+
+  // supabase-js reports a request that never reached the server (offline, DNS, CORS) with an
+  // empty code and the fetch error text; show "check your connection", not a generic failure.
+  if (!error.code && message && NETWORK_FAILURE.test(message)) {
+    return new AppError('NETWORK_ERROR', 'NETWORK_ERROR', error);
   }
 
   return new AppError('INTERNAL_ERROR', 'INTERNAL_ERROR', error);

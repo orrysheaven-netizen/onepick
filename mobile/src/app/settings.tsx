@@ -46,7 +46,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>설정</Text>
@@ -95,9 +95,10 @@ export default function SettingsScreen() {
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
                       blockedUserId: item.blockedUserId,
-                    })} />
+                    }).catch(() => undefined)} />
                 </View>
               ))}
+              {safety.unblockUser.isError ? <Text accessibilityRole="alert" style={styles.error}>차단을 해제하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text> : null}
               <Text style={styles.body}>차단하면 서로의 프로필, 원픽, 댓글이 로그인 상태에서 보이지 않습니다.</Text>
             </View>
 

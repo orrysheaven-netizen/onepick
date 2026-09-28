@@ -1,66 +1,44 @@
 # OnePick MVP visual direction
 
-Reference: the “대량 데이터 수집 전략” conversation and its ONE PICK · 나의 단 하나 mockup (Site `appgprj_6aa7fca80fec81919827a633894d2b2b`).
+OnePick MVP는 **light-only** 인터페이스를 사용합니다. 디자인의 기준은 Figma Foundations이며, 화면별 임의 스타일보다 공통 토큰과 컴포넌트를 우선합니다.
 
-Use a quiet, light interface with a clear primary action. The home page leads with “많은 것보다, 마음에 드는 하나.” and the user's collection, with an adjacent “원픽 등록” button.
+## Brand
 
-- Brand: an indigo rounded square with a white `1`, followed by `ONE PICK`.
-- Collection cards use category labels, existing representative images, item names and personal reasons. “MY PICK” is reserved for the signed-in user's own selections.
-- The dashed add card remains an actionable entry to the existing item finder.
-- Desktop collections use three columns, medium screens two, and small screens one. Forms stay narrow enough to read comfortably.
-- Use actual database content and administrator-controlled categories. Mockup examples and sample counts are not production data.
-- Keep existing authentication, request/approval, Pick, profile and administration routes intact. Future screens should follow this palette and avoid decorative sections without a clear purpose.
+- 승인된 워드마크는 `mobile/public/brand/onepick-logo-horizontal.svg`입니다. 공유 카드에서도 라이브 폰트로 로고를 다시 만들지 않습니다.
+- **주 버튼은 잉크(검정) 채움**입니다.
+- 탠저린은 로고 점, 필수 표시, 선택/테마 강조처럼 제한된 강조에 사용합니다.
+- 기존 **`원픽` 태그는 UI 강조 모티프이므로 유지**합니다. 탠저린 점으로 일괄 치환하지 않습니다.
+- MVP에서는 다크 모드를 제공하지 않습니다.
 
 ## Tokens
 
-All colors live in `mobile/src/constants/onepick.ts` as `OnePick.*`. Screens and
-components reference tokens by role; no screen file carries a hex literal. Native
-navigation and web branding use the same values, and `Colors.light` in
-`mobile/src/constants/theme.ts` is derived from them.
+색상은 `mobile/src/constants/onepick.ts`의 `OnePick.*` 역할 토큰을 사용합니다.
 
-| Role | Token | Value | Use |
+| 역할 | 토큰 | 값 | 용도 |
 | --- | --- | --- | --- |
-| Surface | `background` | `#F5F6F8` | screen canvas |
-| | `surface` | `#FFFFFF` | cards, sheets, inputs |
-| | `sunken` | `#EEF0F4` | image placeholders, disabled fills, quiet chips |
-| | `border` / `hairline` | `#E3E5EA` / `#F1F2F6` | card borders / in-card dividers |
-| Ink | `text` | `#1B1D22` | titles, body, dark fills |
-| | `muted` | `#5C6270` | descriptions and meta (5.9:1 on white) |
-| | `hint` | `#8A909C` | placeholders and timestamps only, never body copy |
-| Accent | `accent` | `#4945ED` | primary action, selection, brand mark |
-| | `accentDeep` | `#3733B8` | pressed state, text on `accentSoft` |
-| | `accentSoft` | `#EFEEFF` | selected fills, badges, “my pick” |
-| | `onAccent` | `#FFFFFF` | text and icons on accent fills |
-| Status | `danger` / `dangerSoft` | `#B4432A` / `#FBEFEB` | delete, failure notices |
-| | `success` / `successSoft` | `#1F7A4D` / `#E8F5EE` | saved, approved |
-| | `warning` / `warningSoft` | `#8A5A00` / `#FFF3CD` | pending review |
-| Kakao | `kakao` / `kakaoText` | `#FEE500` / `#191919` | Kakao login button only |
+| Surface | `background` | `#FAFAF7` | 화면 배경 |
+| | `surface` | `#FFFFFF` | 카드, 시트, 입력, 스플래시 |
+| | `sunken` | `#EEF0F4` | 조용한 보조 배경 |
+| Ink | `text` | `#141416` | 본문, 제목, 주 버튼 기반 |
+| | `muted` | `#5C5C63` | 설명, 메타 |
+| Brand | `brand` | `#FF8A00` | 제한된 탠저린 강조 |
+| | `accentSoft` | `#FFF0DC` | 조용한 선택 강조 |
+| Legacy ink alias | `accent`, `accentDeep` | `#141416` | 기존 링크/선택 호출부 |
+| Status | `danger`, `success`, `warning` | semantic | 상태 피드백 |
+| Third party | `kakao`, `apple` | provider brand | 로그인 버튼 |
 
-Soft status cards (notices, the AI taste comment, “my pick” highlights) use the
-soft fill without a separate border color.
-
-`OnePickType` (display 26/34, title 19/26, body 15/22, label 13/18, caption 12/16),
-`OnePickRadius` (12 / 20 / 999) and `OnePickSpace` (4 · 8 · 12 · 16 · 24 · 32) are
-the scales new components should use. Korean body copy does not go below `body`;
-`caption` is the only 12px style.
-
-Regression checks that load screen sources through a module map hand back the real
-tokens via `mobile/scripts/design-tokens.cjs`.
+파랑·인디고는 OnePick 브랜드 색으로 사용하지 않습니다. 제3자 브랜드 색과 의미 기반 상태 색은 예외입니다.
 
 ## UI kit
 
-`mobile/src/components/ui/` holds the shared pieces screens compose instead of
-restyling `View`/`Text`/`Pressable` per screen. Import from `@/components/ui`.
+`mobile/src/components/ui/`의 공용 컴포넌트를 우선 사용합니다.
 
-| Component | Role |
-| --- | --- |
-| `Button` | `primary` (one per screen) · `secondary` · `soft` (in-card action) · `ghost` (text link) · `danger`; sizes `lg` 52 / `md` 48 / `sm` 40; `loading` swaps the label for a spinner and blocks presses |
-| `Chip` | Category filters and slots; `selected` uses the accent pair and is exposed through `accessibilityState`; `dashed` marks an empty slot |
-| `SectionHeader` | Title + accent count + caption description, optional ghost action |
-| `StateCard` | Empty, `loading` and `tone="danger"` error states share one card; `compact` for inline list states |
-| `Avatar` | Initial on `accentSoft`; sizes 24/32/40/64; pressable only when given `onPress` |
-| `PickCard` | The feed card. Reads person → category → item → reason; the review is always quoted; `footer` takes the action row |
+- `Button`: Figma Foundations 확정 전까지 현재 구조를 유지합니다. **F1에서 탠저린 primary로 일괄 변경하지 않습니다.**
+- `BrandMark`: 기존 `원픽` 태그 모티프를 유지합니다.
+- `Chip`, `SectionHeader`, `StateCard`, `Avatar`, `PickCard`: 화면별 중복 스타일보다 공용 구현을 우선합니다.
 
-Home is the first screen on the kit. Regression checks that render a screen
-through a module map get the real kit from `mobile/scripts/ui-components.cjs`
-(`loadUi(imports)` shares the test's `react-native` and `PickPhoto` stubs).
+## F1 / F2 boundary
+
+F1은 light-only, 스플래시, 공유 카드 워드마크, 확정 문구와 브랜드 문서만 반영합니다.
+
+버튼 모양, 6개 타이포그래피 스타일, 색 변수, Button·Chip·Input·Tab bar 컴포넌트 통일은 **F2**입니다. F2는 Figma Foundations가 사용자 확인으로 확정된 뒤 코드에 반영합니다. 간격·모서리 전체 토큰 정리는 그 다음 G 단계입니다.

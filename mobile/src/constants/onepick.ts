@@ -18,6 +18,26 @@ export const OnePick = {
   // Brand: fills/decorations only; never use brand for small text on white.
   brand: '#FF8A00',
   onBrand: '#141416',
+
+  // Foundations semantic roles. New/updated screens migrate to these first;
+  // legacy aliases above stay in place until each screen is reviewed.
+  bgDefault: '#FFFFFF',
+  bgSubtle: '#F6F6F8',
+  bgMuted: '#EEF0F4',
+  bgPlaceholder: '#F0E3CC',
+  bgAccent: '#FF8A00',
+  bgAccentSubtle: '#FFF0DC',
+  actionPrimary: '#141416',
+  actionDisabled: '#ADB0BA',
+  onAction: '#FFFFFF',
+  textPrimary: '#141416',
+  textSecondary: '#6B6E78',
+  textTertiary: '#8A909C',
+  textAccent: '#B84F00',
+  textDanger: '#B4432A',
+  borderDefault: '#E8E8ED',
+  borderStrong: '#D5D7DE',
+
   // Legacy accent serves both links and fills. Keep its text/fill pair readable
   // until individual components opt into brand/onBrand together.
   accent: '#141416',
@@ -48,28 +68,40 @@ export const OnePickFont = {
   english: 'Outfit',
 } as const;
 
-// Type scale: five steps. Korean body copy never goes below `body`; `caption` is the only 12px.
+// Foundations type scale: exactly seven reusable IBM Plex Sans KR styles.
 export const OnePickType = {
-  display: { fontFamily: BodyFont, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
-  title: { fontFamily: BodyFont, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
-  body: { fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontFamily: BodyFont, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  pageTitle: { fontFamily: BodyFont, fontSize: 22, lineHeight: 30, fontWeight: '700' },
+  title: { fontFamily: BodyFont, fontSize: 20, lineHeight: 28, fontWeight: '700' },
+  headline: { fontFamily: BodyFont, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  bodyMedium: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  body: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '400' },
+  captionMedium: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '400' },
 } as const;
 
 export const OnePickRadius = {
-  small: 12, // inputs, chips, images
+  // Foundations canonical scale.
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 999,
+
+  // Legacy aliases. Migrate screen-by-screen instead of changing every radius at once.
+  small: 12,
   card: 20,
-  pill: 999, // buttons, avatars
+  pill: 999,
 } as const;
 
 export const OnePickSpace = {
   xs: 4,
   sm: 8,
-  md: 12, // gap between cards
-  lg: 16, // screen gutter, card padding
-  xl: 24,
-  xxl: 32,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  gutter: 16,
 } as const;
 
 
