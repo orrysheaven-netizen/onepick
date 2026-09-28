@@ -28,10 +28,10 @@ assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.ac
 assert.match(profile, /showRequests \? <>/);
 assert.match(profile, /showHistory \? <>/);
 assert.match(profile, /취향 선택을 이어가거나 공개 프로필을 확인해요\./);
-assert.match(profile, /managementSection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
-assert.match(profile, /activitySection: \{ marginTop: 30, paddingTop: 22, borderTopWidth: 1/);
-assert.match(profile, /activitySectionTitle: \{ color: OnePick\.text, fontSize: 15, fontWeight: '800' \}/);
-assert.match(profile, /signOutArea: \{ marginTop: 26, paddingTop: 18, borderTopWidth: 1/);
+assert.match(profile, /managementSection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
+assert.match(profile, /activitySection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
+assert.match(profile, /activitySectionTitle: \{ \.\.\.OnePickType\.headline, color: OnePick\.textPrimary \}/);
+assert.match(profile, /signOutArea: \{[\s\S]*?marginTop: OnePickSpace\.xxl,[\s\S]*?paddingTop: OnePickSpace\.lg,[\s\S]*?borderTopWidth: 1/);
 
 assert.doesNotMatch(profile, /onboardingButton/);
 assert.doesNotMatch(profile, /publicProfileButton/);
