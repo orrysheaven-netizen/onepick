@@ -29,8 +29,6 @@ type Done =
   | { type: 'pick'; pickId: string; itemId: string }
   | { type: 'pending'; itemName: string; linkSaved: boolean };
 
-const STEP_LABELS = ['매장', '메뉴', '링크', '사진', '한줄평', '완료'];
-
 
 const V6 = {
   background: '#FFFFFF',
@@ -160,6 +158,7 @@ export default function NewPickScreen() {
 
   const isNew = store?.kind === 'new';
   const storeName = store ? store.name : '';
+  const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
   const storeChannel: PickChannel = store ? (store.kind === 'seller' ? 'online' : store.kind === 'place' ? 'offline' : store.channel) : channel;
   const search = useStoreSearch(channel, query, Boolean(user) && step === 1 && !requesting);
   const menus = useMenuOptions(Boolean(user) && step === 2);
@@ -180,12 +179,6 @@ export default function NewPickScreen() {
   const requestedMenuKey = compactMenuName(requestedMenu);
   const exactMenuMatches = requestedMenuKey
     ? availableMenus.filter((option) => compactMenuName(option.name) === requestedMenuKey).slice(0, 10)
-    : [];
-  const menuMatches = requestedMenuKey
-    ? availableMenus.filter((option) => {
-        const name = compactMenuName(option.name);
-        return name.includes(requestedMenuKey) || requestedMenuKey.includes(name);
-      }).slice(0, 30)
     : [];
   const suggestions = useMenuSuggestions(
     suggestionStore,
@@ -345,6 +338,16 @@ export default function NewPickScreen() {
   const aiSuggestions = (suggestions.data?.suggestions ?? [])
     .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
     .filter((entry) => entry.confidence !== 'low');
+  const aiTried = Boolean(requestedMenu && aiMenuName === requestedMenu);
+  const showManualCategory = Boolean(requestedMenu && exactMenuMatches.length === 0
+    && (manualCategory || (aiTried && !suggestions.isPending && aiSuggestions.length === 0)));
+  const normalizedCategoryQuery = compactMenuName(categoryQuery);
+  const manualMatches = (normalizedCategoryQuery
+    ? availableMenus.filter((option) => {
+        const label = compactMenuName([option.groupName, option.name].filter(Boolean).join(' '));
+        return label.includes(normalizedCategoryQuery);
+      })
+    : availableMenus).slice(0, 20);
   // No menu fits: carry on as a request. The store and the typed menu go to an
   // administrator, who picks the category; approval then makes the pick.
   const requestMenu = () => {
@@ -360,19 +363,27 @@ export default function NewPickScreen() {
     }
     setItemId(null); setItemHadPhoto(false); setItemPending(false);
     setMenu({ categoryId: null, name: requestedMenu });
-    setStep(storeChannel === 'offline' ? 3 : 4);
+    // This fallback came from a store we already identified, so v6 does not ask for a new-store link again.
+    setStep(4);
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
     setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
   };
 
+  const cancel = () => {
+    if (saving || busy.current || done) return;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
   const header = <View style={styles.header}>
-    <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-    <View style={styles.progress} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
-      {STEP_LABELS.map((label, index) => <View key={label} style={[styles.progressBar, index < step && styles.progressOn]} />)}
-    </View>
-    <Text style={styles.stepLabel}>{step} / 6 · {STEP_LABELS[step - 1]}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.headerSide}>
+      <Text style={styles.backText}>‹</Text>
+    </Pressable>
+    <Text style={styles.headerTitle}>새 원픽 등록</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={cancel} style={[styles.headerSide, styles.headerRight]}>
+      <Text style={styles.headerAction}>취소</Text>
+    </Pressable>
   </View>;
 
   if (auth.isLoading) {
