@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhotoStep } from '@/components/pick-photo-step';
@@ -30,6 +30,68 @@ type Done =
   | { type: 'pending'; itemName: string; linkSaved: boolean };
 
 const STEP_LABELS = ['매장', '메뉴', '링크', '사진', '한줄평', '완료'];
+
+
+const V6 = {
+  background: '#FFFFFF',
+  subtle: '#F6F6F8',
+  muted: '#EEF0F4',
+  text: '#141416',
+  secondary: '#6B6E78',
+  tertiary: '#8A909C',
+  border: '#E8E8ED',
+  borderStrong: '#D5D7DE',
+  accent: '#B84F00',
+  disabled: '#ADB0BA',
+  onAction: '#FFFFFF',
+  overlay: 'rgba(0,0,0,0.35)',
+} as const;
+
+type FlowButtonProps = {
+  label: string;
+  onPress?: () => void;
+  variant?: 'primary' | 'secondary' | 'text';
+  disabled?: boolean;
+  loading?: boolean;
+  accessibilityLabel?: string;
+};
+
+function FlowButton({ label, onPress, variant = 'primary', disabled, loading, accessibilityLabel }: FlowButtonProps) {
+  const inactive = Boolean(disabled || loading);
+  return <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
+    disabled={inactive}
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.flowButton,
+      variant === 'secondary' && styles.flowButtonSecondary,
+      variant === 'text' && styles.flowButtonText,
+      inactive && variant !== 'text' && styles.flowButtonDisabled,
+      pressed && !inactive && styles.flowPressed,
+    ]}>
+    {loading ? <ActivityIndicator color={variant === 'primary' ? V6.onAction : V6.text} />
+      : <Text style={[styles.flowButtonLabel, variant !== 'primary' && styles.flowButtonLabelDark]}>{label}</Text>}
+  </Pressable>;
+}
+
+type FlowChipProps = { label: string; selected?: boolean; onPress?: () => void; accessibilityLabel?: string };
+
+function FlowChip({ label, selected = false, onPress, accessibilityLabel }: FlowChipProps) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityState={{ selected }} onPress={onPress}
+    style={({ pressed }) => [styles.flowChip, selected && styles.flowChipSelected, pressed && styles.flowPressed]}>
+    <Text style={[styles.flowChipLabel, selected && styles.flowChipLabelSelected]}>{label}</Text>
+  </Pressable>;
+}
+
+function FieldLabel({ label, required = true }: { label: string; required?: boolean }) {
+  return <View style={styles.fieldLabelRow}>
+    <Text style={styles.fieldLabel}>{label}</Text>
+    {required ? <Text style={styles.fieldRequired}>필수</Text> : null}
+  </View>;
+}
 
 function httpsUrl(value: string) {
   const url = value.trim();
