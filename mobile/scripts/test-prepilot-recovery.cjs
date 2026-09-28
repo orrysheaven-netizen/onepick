@@ -102,6 +102,8 @@ function choice() {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
+
+    '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
   });
   const draft = () => { view.render(); view.input().onChangeText('  나의 이유  '); view.render(); };
   return { view, auth, params, query, data, result, writes, pending, destinations, mutation, draft };
