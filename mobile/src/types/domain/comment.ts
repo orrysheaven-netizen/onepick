@@ -1,10 +1,10 @@
 export interface Comment {
   id: string;
   pickId: string;
-  userId: string | null;
-  body: string | null;
+  userId: string;
+  body: string;
   createdAt: string;
-  updatedAt: string | null;
+  updatedAt: string;
   parentCommentId?: string | null;
   isDeleted?: boolean;
   authorCurrentPickMatchesItem?: boolean;
