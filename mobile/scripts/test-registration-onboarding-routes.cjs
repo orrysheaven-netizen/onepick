@@ -5,11 +5,9 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const helper = read('src/lib/onboarding/navigation.ts');
-assert.match(helper, /withOnboardingParam/);
-assert.match(helper, /onboarding: '1'/);
-
 const route = read('src/lib/categories/registrationRoute.ts');
+assert.match(route, /withOnboardingParam/);
+assert.match(route, /onboarding: '1'/);
 assert.match(route, /registrationRoute\(category:[\s\S]*onboarding\?: OnboardingParam/);
 assert.match(route, /withOnboardingParam\(\{ categoryId: category\.id \}, onboarding\)/);
 
