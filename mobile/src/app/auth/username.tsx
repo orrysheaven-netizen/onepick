@@ -84,9 +84,17 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <View style={styles.brand}><OnePickBrand /></View>
-        <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
-        <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
+        {intent.action === 'follow_profile' ? <>
+          <View style={styles.intentHeader}>
+            <Text style={styles.intentHeaderTitle}>사용자명 만들기</Text>
+          </View>
+          <Text style={styles.intentCaption}>로그인 완료 · @{intent.username}님 팔로우를 이어서 해요</Text>
+          <Text style={styles.intentTitle}>사용자명을 정해 주세요</Text>
+        </> : <>
+          <View style={styles.brand}><OnePickBrand /></View>
+          <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
+          <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
+        </>}
 
         {isLoading ? <Text style={styles.statusText}>로그인 상태 확인 중...</Text> : null}
         {!isLoading && (sessionError || !user) ? (
@@ -122,14 +130,16 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
               style={styles.input}
               value={username}
             />
-            <Text style={styles.helper}>영문 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.</Text>
+            <Text style={styles.helper}>{intent.action === 'follow_profile'
+              ? '영문 소문자·숫자·밑줄 3–20자 · 프로필 주소가 돼요'
+              : '영문 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.'}</Text>
 
             {error ? <View style={styles.errorBox}><Text accessibilityRole="alert" style={styles.errorText}>{getMessage(error)}</Text></View> : null}
             {error instanceof AppError && error.code === 'AUTH_REQUIRED' ? <Button variant="secondary" size="sm" style={styles.recovery} label="다시 로그인하고 계속"
               onPress={() => router.replace({ pathname: '/auth/login', params: { ...intent } })} /> : null}
             <Button size="lg" fullWidth style={styles.primaryAction}
               disabled={!valid || createProfile.isPending || phase.current !== 'idle'}
-              label={createProfile.isPending || phase.current === 'saving' ? '사용자명 저장 중...' : '이 사용자명으로 시작'}
+              label={createProfile.isPending || phase.current === 'saving' ? '사용자명 저장 중...' : intent.action === 'follow_profile' ? '저장하고 계속' : '이 사용자명으로 시작'}
               onPress={() => void handleSave()} />
           </>
         ) : null}
@@ -142,6 +152,10 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 56 },
   brand: { marginBottom: 4 },
+  intentHeader: { height: 56, alignItems: 'center', justifyContent: 'center', marginHorizontal: -20, marginTop: -56, marginBottom: 12 },
+  intentHeaderTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  intentCaption: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 12 },
+  intentTitle: { color: OnePick.text, fontSize: 22, lineHeight: 30, fontWeight: '700', marginTop: 16 },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 10 },
   subtitle: { color: OnePick.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
   statusText: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 28 },
