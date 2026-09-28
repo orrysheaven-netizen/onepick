@@ -215,7 +215,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{isOwnRequest ? '관리자 확인 후 이 한줄평으로 내 원픽에 등록돼요.' : pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{isOwnRequest ? '관리자 확인 후 이 한줄평으로 내 원픽에 등록돼요.' : pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경해요.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정해요.' : '이걸 새 원픽으로 선택해요.'}</Text>
             </View>
           </View>
           {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
@@ -268,7 +268,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <BrandMark size="lg" soft />
           <Text style={[styles.title, styles.successTitle]}>등록 요청을 보냈어요</Text>
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{requestedReview}”</Text>
-          <Text style={styles.panelText}>관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.</Text>
+          <Text style={styles.panelText}>관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있어요.</Text>
           <View style={styles.successActions}>
             {params.onboarding === '1' ? <>
               <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />

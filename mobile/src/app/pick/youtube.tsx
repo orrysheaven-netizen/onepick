@@ -197,11 +197,11 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 유튜브 채널 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 YouTube 채널 하나를 골라보세요.</Text>
-      <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계합니다.</Text>
+      <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계되어 있어요.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
         <Text style={styles.stateTitle}>YouTube 검색 전 확인이 필요해요</Text>
-        <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용합니다. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
+        <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용해요. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
@@ -280,7 +280,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.stateText}>채널명을 다시 입력하거나, 해당 채널의 YouTube 영상/채널 링크를 붙여넣어보세요.</Text></View> : null}
       </> : null}
 
-      <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>
+      <Text style={styles.attribution}>YouTube Data API Services를 사용해요. YouTube는 OnePick을 후원하거나 승인하지 않아요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

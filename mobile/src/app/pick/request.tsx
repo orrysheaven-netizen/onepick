@@ -225,7 +225,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <StateCard title="사용자명을 먼저 정해주세요" text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
+          <StateCard title="사용자명을 먼저 정해주세요" text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요해요."
             action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: intent }) }} />
         </View>
       </SafeAreaView>
@@ -237,7 +237,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="등록 요청을 보냈어요" text={`${submittedItem.name}\n관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="등록 요청을 보냈어요" text={`${submittedItem.name}\n관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있어요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -276,7 +276,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>AI가 카테고리를 추천했어요</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
-          <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않습니다.</Text>
+          <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않아요.</Text>
 
           {categorySuggestions.isPending ? (
             <View style={styles.block}><StateCard loading title="이름과 기존 카테고리를 비교하고 있어요" /></View>
@@ -304,7 +304,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
               )}
 
               {categorySuggestions.data.needsNewCategory ? (
-                <Text style={styles.categoryGapNotice}>딱 맞는 기존 카테고리가 없을 수 있어요. 억지로 적용하지 않아도 됩니다.</Text>
+                <Text style={styles.categoryGapNotice}>딱 맞는 기존 카테고리가 없을 수 있어요. 억지로 적용하지 않아도 돼요.</Text>
               ) : null}
 
               {manualCategories.length > 0 ? (
@@ -333,7 +333,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
           <View style={styles.hintCard}>
             <Text style={styles.suggestionTitle}>맞는 카테고리가 없나요?</Text>
-            <Text style={styles.helper}>원하는 카테고리를 직접 적어주세요. 관리자가 힌트를 참고해 실제 카테고리를 정합니다.</Text>
+            <Text style={styles.helper}>원하는 카테고리를 직접 적어주세요. 관리자가 힌트를 참고해 실제 카테고리를 정해요.</Text>
             {hintMode ? <>
               <TextInput
                 accessibilityLabel="원하는 카테고리"
@@ -372,8 +372,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
         <Text style={styles.subtitle}>{isOnlineRequest
-          ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결합니다.'
-          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.'}</Text>
+          ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결해요.'
+          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있어요.'}</Text>
 
         <Text style={styles.label}>{isOnlineRequest ? '판매처·메뉴 이름' : '이름'}</Text>
         <TextInput
@@ -405,7 +405,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>지금은 이름만 등록하면 됩니다. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
+          <Text style={styles.noticeText}>지금은 이름만 등록하면 돼요. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>

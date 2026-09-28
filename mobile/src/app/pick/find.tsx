@@ -355,10 +355,10 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>{isOnlineChannel ? `택배·온라인몰로 주문한 ${selectedCategory?.name ?? '맛집'} 판매처를 검색해보세요.` : isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 검색합니다.' : '카테고리 선택 없이 이름만 검색하고 등록합니다.'}</Text>
+      <Text style={styles.subtitle}>{isOnlineChannel ? `택배·온라인몰로 주문한 ${selectedCategory?.name ?? '맛집'} 판매처를 검색해보세요.` : isPlaceCategory ? `좋아하는 ${selectedCategory?.name ?? '맛집'} 이름을 검색하고 지점을 골라보세요.` : isCatalogCategory ? `좋아하는 ${label} 제목을 검색하고, 나만의 하나를 골라보세요.` : selectedCategory ? '선택한 종류에서 원픽을 검색해보세요.' : requestedCategoryId ? '선택한 검색 범위를 확인한 뒤 검색해요.' : '카테고리 선택 없이 이름만 검색하고 등록해요.'}</Text>
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text></View>
-        : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 등록만 진행합니다.</Text> : null}
+        : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 등록만 진행해요.</Text> : null}
       {isPlaceCategory ? <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>어디서 주문했나요?</Text>
         <View style={styles.channelRow}>
@@ -376,7 +376,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </View> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요" text="전체 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
         action={{ label: '카테고리 다시 불러오기', disabled: categories.isFetching, onPress: () => { if (!categories.isFetching) void categories.refetch(); } }} /></View> : null}
-      {selectedCategory && placeCapability.isError ? <View style={styles.block}><StateCard compact tone="danger" title="검색 방식을 확인하지 못했어요" text="장소형 카테고리인지 확인될 때까지 일반 등록으로 우회하지 않습니다."
+      {selectedCategory && placeCapability.isError ? <View style={styles.block}><StateCard compact tone="danger" title="검색 방식을 확인하지 못했어요" text="장소형 카테고리인지 확인될 때까지 일반 등록으로 우회하지 않아요."
         action={{ label: '검색 방식 다시 확인', disabled: placeCapability.isFetching, onPress: () => { if (!placeCapability.isFetching) void placeCapability.refetch(); } }} /></View> : null}
       {hasReturn && !validReturn && !categories.isPending ? <Text accessibilityRole="alert" style={styles.errorText}>작품 선택 링크의 종류와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
       {hasPlaceReturn && categoryCapabilityReady && !validPlaceReturn ? <Text accessibilityRole="alert" style={styles.errorText}>장소 선택 링크와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
@@ -440,7 +440,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록합니다."
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
-      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다.`}
+      {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요" text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않아요.`}
         action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
       {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요" text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
