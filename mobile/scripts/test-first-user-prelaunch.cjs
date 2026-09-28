@@ -54,14 +54,14 @@ async function main() {
     'saving the first username from an onboarding intent must enter onboarding',
   );
 
-  // 2) Onboarding -> Pick finder -> choose screen.
+  // 2) Onboarding -> Figma 75 registration flow.
   const onboardingSource = read('src/app/onboarding.tsx');
   const findSource = read('src/app/pick/find.tsx');
   const chooseSource = read('src/app/pick/choose.tsx');
   assert.match(
     onboardingSource,
-    /pathname: '\/pick\/find'[\s\S]*?categoryId: current\.id, onboarding: '1'/,
-    'onboarding must hand its selected category to Pick finder',
+    /pathname: '\/pick\/new'[\s\S]*?categoryId: current\.id, onboarding: '1'/,
+    'onboarding must hand its selected category to Figma 75 registration',
   );
   assert.match(
     findSource,
