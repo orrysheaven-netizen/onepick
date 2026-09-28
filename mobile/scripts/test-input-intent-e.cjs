@@ -14,8 +14,10 @@ const username = read('src/app/auth/username.tsx');
 const draft = read('src/lib/pick/pickDraftSession.ts');
 
 assert.match(register, /useLocalSearchParams<NewPickParams>/, 'registration state is addressable from the URL');
-assert.match(register, /router\.push\(\{ pathname: '\/pick\/new', params: routeParams\(next, overrides\) \}\)/,
-  'moving between registration steps creates browser history');
+assert.match(register, /history\.pushState\(\{ onepickStep: next \}/,
+  'moving between registration steps creates browser history without remounting the form');
+assert.match(register, /addEventListener\?\.\('popstate', onPopState\)/,
+  'browser back restores the previous registration step');
 assert.match(register, /storeKind/);
 assert.match(register, /menuCategoryId/);
 assert.match(register, /readPickReviewDraft/);
