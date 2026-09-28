@@ -54,7 +54,9 @@ export class ItemService {
     // Shared links already fetched the focused Pick. Reuse that item/category when
     // available, and start independent list/category reads while the item resolves.
     const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
-    const picksPromise = this.readRepository.getItemReviews(itemId, 20);
+    const picksPromise = this.readRepository.getItemReviews
+      ? this.readRepository.getItemReviews(itemId, 20)
+      : this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 });
     const openCategoriesPromise = this.categoryRepository.getOpenCategories();
     const brandPromise = this.readRepository.getItemBrand?.(itemId).catch(() => null) ?? Promise.resolve(null);
     const item = await itemPromise;
