@@ -28,12 +28,12 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.match(html, /이 원픽으로 정하기/);
   const primary = pressable('이 원픽으로 정하기');
   assert.equal(primary.resolved.backgroundColor, OnePick.actionPrimary);
-  assert.equal(primary.resolved.minHeight, 48);
+  assert.equal(primary.resolved.minHeight, 52);
   assert.equal(primary.accessibilityRole, 'button');
   primary.onPress(); assert.equal(pressed, 1);
 
   render(React.createElement(ui.Button, { label: '공유', variant: 'secondary', size: 'sm' }));
-  assert.equal(pressable('공유').resolved.borderColor, OnePick.border);
+  assert.equal(pressable('공유').resolved.borderColor, OnePick.borderStrong);
   assert.equal(pressable('공유').resolved.minHeight, 40);
 
   render(React.createElement(ui.Button, { label: '나도 이게 원픽', variant: 'soft' }));
@@ -60,12 +60,12 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   render(React.createElement(ui.Chip, { label: '영화', selected: true, accessibilityLabel: '영화 카테고리 보기' }));
   const selected = pressable('영화 카테고리 보기');
   assert.equal(selected.accessibilityState.selected, true);
-  assert.equal(selected.resolved.backgroundColor, OnePick.accentSoft);
-  assert.equal(selected.resolved.borderColor, OnePick.accent);
+  assert.equal(selected.resolved.backgroundColor, OnePick.actionPrimary);
+  assert.equal(selected.resolved.borderColor, OnePick.actionPrimary);
 
   render(React.createElement(ui.Chip, { label: '드라마' }));
   assert.equal(pressable('드라마').accessibilityState.selected, false);
-  assert.equal(pressable('드라마').resolved.backgroundColor, OnePick.surface);
+  assert.equal(pressable('드라마').resolved.backgroundColor, OnePick.bgMuted);
 
   const dashed = render(React.createElement(ui.Chip, { label: '책', dashed: true, leading: React.createElement('b', null, '+') }));
   assert.match(dashed, /<b>\+<\/b>/);
@@ -101,7 +101,7 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
 
   render(React.createElement(ui.StateCard, { title: '나의 원픽을 모아보세요', action: { label: '로그인하기', onPress() {}, variant: 'primary' } }));
   assert.equal(pressable('로그인하기').resolved.backgroundColor, OnePick.actionPrimary, 'Full-screen states can promote the action to primary');
-  assert.equal(pressable('로그인하기').resolved.minHeight, 48);
+  assert.equal(pressable('로그인하기').resolved.minHeight, 52);
 
   const compact = render(React.createElement(ui.StateCard, { text: '다음 제품을 불러오지 못했어요.', compact: true }));
   assert.doesNotMatch(compact, />원픽</); assert.equal(spinners, 0);
