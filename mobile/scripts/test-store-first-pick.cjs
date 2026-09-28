@@ -186,6 +186,26 @@ async function main() {
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.pickId, 'pick-1');
 
+  // A new typed menu can use one high-confidence AI category and finish without admin intervention.
+  reset();
+  selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true };
+  render(); input('매장명 검색').onChangeText('우래옥'); render();
+  press('우래옥 선택'); render();
+  input('메뉴 이름').onChangeText('평양물냉'); page = render();
+  assert.match(page, /AI로 카테고리 추천받기/);
+  press('AI로 카테고리 추천받기'); page = render();
+  press('AI 추천 면 › 평양냉면'); page = render();
+  assert.match(page, /평양물냉\(으\)로 다음/, 'The typed menu label is kept after choosing an AI category');
+  press('평양물냉(으)로 다음'); await flush();
+  page = render();
+  assert.equal(step(page), '5', 'Known map link and selected item photo skip directly to the review');
+  input('원픽 한줄평').onChangeText('시원한 육수가 좋아요'); render();
+  press('원픽 등록'); await flush();
+  page = render();
+  assert.equal(step(page), '6');
+  assert.match(page, /원픽을 정했어요/);
+  assert.equal(calls.filter(([name]) => name === 'register').length, 0, 'A good AI category does not require an admin request');
+
   // A store with an approved link and an item with a photo skips steps 3 and 4.
   reset();
   detail.item.imageUrl = 'https://img.example/w.jpg';
@@ -274,12 +294,13 @@ async function main() {
   input('메뉴 이름').onChangeText('클래식 평양냉면'); page = render();
   assert.match(page, /평양냉면/, 'A longer typed name still finds the menu it contains');
   assert.match(page, /비슷한 기존 메뉴/, 'A longer typed name still surfaces the matching catalog menu');
-  aiResult = { suggestions: [], needsNewCategory: true };
+  aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
   input('메뉴 이름').onChangeText('클래식 밀크티'); page = render();
   assert.doesNotMatch(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'Admin fallback stays hidden until AI has been tried');
   assert.match(page, /AI로 카테고리 추천받기/, 'Unknown menus wait for explicit submit instead of calling AI on every keystroke');
   press('AI로 카테고리 추천받기'); page = render();
-  assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'After AI finds no category, the admin fallback becomes available');
+  assert.doesNotMatch(page, /저신뢰추천/, 'Low-confidence AI candidates fall back to manual selection');
+  assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'After no usable AI category, the admin fallback becomes available');
   press("'클래식 밀크티' 메뉴로 등록 요청"); page = render();
   assert.equal(step(page), '3', 'The request continues with the link step for a 매장');
   assert.equal(calls.filter(([name]) => name === 'select').length, 0, 'No store item is created for an unknown menu');
