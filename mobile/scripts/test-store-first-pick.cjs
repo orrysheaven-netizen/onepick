@@ -146,6 +146,7 @@ async function main() {
   input('메뉴 이름').onChangeText('평양냉면');
   page = render();
   assert.doesNotMatch(page, /곰탕/, 'Menus without store search are not offered for a 매장');
+  assert.doesNotMatch(page, /AI로 카테고리 추천받기/, 'An exact catalog menu must not offer an AI call');
   press('평양냉면');
   page = render();
   assert.doesNotMatch(page, /평양냉면으로 유명한 곳이에요/, 'An exact catalog menu skips the AI suggestion call');
@@ -273,8 +274,12 @@ async function main() {
   input('메뉴 이름').onChangeText('클래식 평양냉면'); page = render();
   assert.match(page, /평양냉면/, 'A longer typed name still finds the menu it contains');
   assert.match(page, /비슷한 기존 메뉴/, 'A longer typed name still surfaces the matching catalog menu');
+  aiResult = { suggestions: [], needsNewCategory: true };
   input('메뉴 이름').onChangeText('클래식 밀크티'); page = render();
-  assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'An unknown menu is explained instead of leaving the step stuck');
+  assert.doesNotMatch(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'Admin fallback stays hidden until AI has been tried');
+  assert.match(page, /AI로 카테고리 추천받기/, 'Unknown menus wait for explicit submit instead of calling AI on every keystroke');
+  press('AI로 카테고리 추천받기'); page = render();
+  assert.match(page, /클래식 밀크티(&#x27;|') 메뉴가 아직 없어요/, 'After AI finds no category, the admin fallback becomes available');
   press("'클래식 밀크티' 메뉴로 등록 요청"); page = render();
   assert.equal(step(page), '3', 'The request continues with the link step for a 매장');
   assert.equal(calls.filter(([name]) => name === 'select').length, 0, 'No store item is created for an unknown menu');
