@@ -43,6 +43,7 @@ assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로�
 assert.match(publicProfile, /님을 팔로우했어요/);
 assert.match(username, /로그인 완료 · @\{intent\.username\}님 팔로우를 이어서 해요/);
 assert.match(profile, /router\.push\('\/onboarding'\)/, 'empty own profile starts onboarding instead of bouncing to home');
+assert.match(profile, /OnePickFeatures\.profileAi \|\| ai === '1'/, 'AI evaluation CTA reveals its destination even before broad profile rollout');
 assert.match(profile, /scrollTo\(\{ y: Math\.max\(0, aiOffset - 16\)/, 'AI deep link scrolls to the profile AI panel');
 const choose = read('src/app/pick/choose.tsx');
 assert.match(choose, /AI 평가까지 \$\{aiRemaining\}개/, 'all saved-pick completion surfaces share the exact remaining benchmark');
