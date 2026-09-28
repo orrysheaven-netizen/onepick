@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.1
 
 const MODEL = 'gpt-5.6-terra';
 const PROMPT_VERSION = 'item-category-v2-taxonomy-search-terms';
-const STORE_PROMPT_VERSION = 'store-menu-v2';
+const STORE_PROMPT_VERSION = 'store-menu-v3-typed-menu';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
