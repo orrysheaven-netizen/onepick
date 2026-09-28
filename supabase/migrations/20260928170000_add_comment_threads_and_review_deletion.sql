@@ -181,7 +181,8 @@ revoke all on function private.comment_addressed_to(uuid, uuid) from public, ano
 -- Table reads for members. Own comments on any thread the member may see (so a
 -- comment just written under an ended review comes back from INSERT ... RETURNING
 -- and edits work); other members' live comments on the viewer's own Picks, on
--- active visible Picks, or addressed to the viewer (the inbox). Tombstones never.
+-- active visible Picks, or addressed to the viewer (the inbox) while that thread
+-- is still visible to them and neither side blocked the other. Tombstones never.
 create or replace function private.comment_readable(c public.comments, p_viewer uuid)
 returns boolean
 language sql
@@ -210,7 +211,10 @@ as $$
               )
             )
         )
-        or private.comment_addressed_to(c.id, p_viewer)
+        or (
+          private.comment_addressed_to(c.id, p_viewer)
+          and private.pick_thread_visible_by_id(c.pick_id, p_viewer)
+        )
       )
     )
   );
@@ -483,6 +487,8 @@ as $$
   where c.id = p_comment_id;
 $$;
 revoke all on function private.comment_notification_context(uuid) from public, anon, authenticated;
+-- Called from the security invoker notification_page as the caller.
+grant execute on function private.comment_notification_context(uuid) to authenticated;
 
 create or replace function public.notification_page(p_before_time timestamptz default null, p_before_id uuid default null)
 returns table(kind text, id uuid, pick_id uuid, username text, body text, item_name text, created_at timestamptz, read_at timestamptz, item_id uuid, outcome text)
@@ -676,7 +682,8 @@ comment on function public.delete_pick_review(uuid) is
 -- ---------------------------------------------------------------------------
 
 -- One comment as the app sees it. Tombstones carry no author, text or times of
--- change. Badge and edit/delete flags are false on tombstones.
+-- change. Badge and edit/delete flags are false on tombstones; a suspended author
+-- may still delete (can_delete) but not edit (can_edit).
 create or replace function private.comment_json(c public.comments, p_pick public.picks, p_viewer uuid)
 returns jsonb
 language sql
@@ -701,7 +708,8 @@ as $$
         and q.status = 'active'
         and q.channel is not distinct from p_pick.channel
     ),
-    'can_edit', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer,
+    'can_edit', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer
+      and not private.user_is_suspended(c.user_id),
     'can_delete', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer
   );
 $$;

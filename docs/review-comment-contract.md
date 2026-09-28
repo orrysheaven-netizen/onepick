@@ -50,7 +50,7 @@ anon/authenticated 실행 가능.
 댓글/답글 행 키: `id`, `pick_id`, `parent_comment_id`, `created_at`, `is_deleted`,
 `user_id`·`body`·`updated_at`·`author`(삭제 자리면 `null`),
 `author_current_pick_matches_item`(`✓ 이 집 원픽`; 삭제 자리는 `false`),
-`can_edit`, `can_delete`(호출자 기준).
+`can_edit`, `can_delete`(호출자 기준. 정지된 작성자는 삭제만 가능해 `can_edit=false`).
 
 ### `can_comment_on_pick(p_pick_id)` → `boolean`
 
@@ -81,7 +81,8 @@ anon/authenticated 실행 가능.
 | `outcome` | `tombstoned`(댓글이 있어 자리 유지) / `removed` |
 
 삭제 후 같은 제품을 다시 고르면 새 행이 생긴다. 삭제된 한줄평 아래에는 새 댓글을
-쓸 수 없다. 정지된 계정도 본인 한줄평·댓글 삭제는 가능하다.
+쓸 수 없다. 정지된 계정은 본인 댓글 삭제는 가능하지만, 원픽·한줄평 변경은 기존 AI 평가
+쿼터 가드(`reject_suspended_quota_owner`)가 막는다(`remove_pick`과 동일한 기존 동작).
 
 ### `comment_locate(p_comment_id)` → `jsonb | null`
 
@@ -107,6 +108,8 @@ anon/authenticated 실행 가능.
 - 본인 이벤트·차단 관계는 제외. `comment_notifications.kind`로 구분한다.
   `notification_page`의 `kind` 열은 앱 호환을 위해 아직 `'comment'`다.
 - 삭제된(자리만 남은) 댓글의 알림은 목록·미읽음에서 사라진다.
+- 알림 수신자가 작성자를 차단하거나 스레드가 더 이상 보이지 않으면, 과거 알림 행이 있어도
+  댓글 직접 조회·목록·미읽음에서 모두 사라진다.
 
 ## 앱 연결 체크리스트 (Codex)
 

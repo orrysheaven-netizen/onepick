@@ -108,9 +108,20 @@ begin
   select r.kind into outcome from public.comment_notifications r where r.comment_id = r_owner;
   assert outcome = 'reply', 'The inbox row is a reply';
   assert (select body from public.notification_page() limit 1) = 'reply to cur', 'The inbox resolves the reply on another member''s ended Pick';
-  -- The reply is readable by its addressee through the table too.
+  -- The reply is readable by its addressee through the table too, until they
+  -- block its author: a past inbox row never reopens a blocked thread.
   select count(*) into n from public.comments where id = r_owner;
   assert n = 1, 'A comment addressed to me is readable even on an ended Pick';
+  insert into public.user_blocks(blocker_user_id,blocked_user_id,blocked_username_snapshot)
+    select cur_u, owner_u, username from public.profiles where id=owner_u;
+  select count(*) into n from public.comments where id = r_owner;
+  assert n = 0, 'After blocking the author, the addressed reply is closed';
+  assert (select public.notification_count()) = 0, 'The blocked reply leaves the unread count';
+  select count(*) into n from public.notification_page();
+  assert n = 0, 'The blocked reply leaves the inbox';
+  delete from public.user_blocks where blocker_user_id = cur_u and blocked_user_id = owner_u;
+  select count(*) into n from public.comments where id = r_owner;
+  assert n = 1, 'Unblocking restores the addressed reply';
   reset role;
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   set local role authenticated;
@@ -216,6 +227,9 @@ begin
   insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'CTH fixture',now());
   perform set_config('request.jwt.claim.sub',susp_u::text,true);
   set local role authenticated;
+  select r into row_json from public.pick_comment_page(ended_pick) r where r->>'id' = c_susp::text;
+  assert (row_json->>'can_delete')::boolean and (row_json->>'can_edit')::boolean = false,
+    'A suspended author may delete but not edit their comment: '||row_json::text;
   delete from public.comments where id = c_susp;
   get diagnostics n = row_count;
   assert n = 0, 'A direct DELETE of a commented comment leaves the tombstone (0 rows deleted)';

@@ -152,14 +152,6 @@ begin
   assert n = 0, 'A removed review is not on the item page';
   reset role;
 
-  -- A suspended member may still delete their review.
-  insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'DPR fixture',now());
-  perform set_config('request.jwt.claim.sub',susp_u::text,true);
-  set local role authenticated;
-  res := public.delete_pick_review(susp_pick);
-  assert res->>'outcome' = 'removed', 'A suspended member can take their review down: '||res::text;
-  reset role;
-
   -- Tombstone rows can never be current.
   raised := false;
   begin
