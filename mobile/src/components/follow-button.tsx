@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -23,11 +24,15 @@ export function FollowButton({
   profileUserId,
   username,
   onRequireLogin,
+  autoFollow = false,
+  onFollowed,
 }: {
   viewerUserId?: string;
   profileUserId: string;
   username: string;
   onRequireLogin?: () => void;
+  autoFollow?: boolean;
+  onFollowed?: () => void;
 }) {
   const state = useFollowState(viewerUserId, profileUserId);
   const { follow, unfollow } = useFollowActions(viewerUserId, profileUserId);
@@ -37,6 +42,35 @@ export function FollowButton({
   const following = state.data === true;
   const pending = follow.isPending || unfollow.isPending;
   const error = follow.error ?? unfollow.error;
+  const autoAttempted = useRef(false);
+  const followedNotified = useRef(false);
+
+  useEffect(() => {
+    autoAttempted.current = false;
+    followedNotified.current = false;
+  }, [autoFollow, profileUserId, viewerUserId]);
+
+  useEffect(() => {
+    if (!autoFollow || !viewerUserId || viewerUserId === profileUserId || state.isPending || pending || autoAttempted.current) return;
+    if (state.data === true) {
+      autoAttempted.current = true;
+      if (!followedNotified.current) {
+        followedNotified.current = true;
+        onFollowed?.();
+      }
+      return;
+    }
+    if (state.data !== false) return;
+    autoAttempted.current = true;
+    follow.mutate(undefined, {
+      onSuccess: () => {
+        if (!followedNotified.current) {
+          followedNotified.current = true;
+          onFollowed?.();
+        }
+      },
+    });
+  }, [autoFollow, follow, onFollowed, pending, profileUserId, state.data, state.isPending, viewerUserId]);
 
   const handlePress = () => {
     if (!viewerUserId) {

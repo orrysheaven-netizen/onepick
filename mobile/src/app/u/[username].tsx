@@ -1,6 +1,7 @@
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
@@ -14,12 +15,16 @@ import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
+import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
 import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
+import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
 import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
+import type { SocialAuthProvider } from '@/types/domain/auth';
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -33,6 +38,10 @@ export default function PublicProfileScreen() {
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
+  const [loginSheetOpen, setLoginSheetOpen] = useState(false);
+  const [followToast, setFollowToast] = useState(false);
+  const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
+  const socialSignIn = useSocialSignIn();
   // 실험실 themes stay off the main profile and its share card while the lab is on.
   const { main: mainPicks, lab: labPicks } = useMemo(
     () => splitLabPicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab),
@@ -42,6 +51,34 @@ export default function PublicProfileScreen() {
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
+
+  useEffect(() => {
+    if (!followToast) return;
+    const timer = setTimeout(() => setFollowToast(false), 2600);
+    return () => clearTimeout(timer);
+  }, [followToast]);
+
+  const continueProfileLogin = async (provider: SocialAuthProvider) => {
+    if (!query.data || socialSignIn.isPending) return;
+    const targetUsername = query.data.profile.username;
+    const intent: AuthIntent = { action: 'follow_profile', username: targetUsername };
+    const redirectTo = Linking.createURL('auth/callback', { queryParams: { ...intent } });
+    armFollowProfileIntent(targetUsername);
+    try {
+      const result = await socialSignIn.mutateAsync({ provider, redirectTo });
+      // Web leaves the page for OAuth and consumes the session marker after the
+      // callback. Native cancellation stays on this screen, so discard it here.
+      if (!result) {
+        if (Platform.OS !== 'web') clearFollowProfileIntent();
+        return;
+      }
+      setLoginSheetOpen(false);
+      router.replace(getPostAuthRoute(intent, !result.profile));
+    } catch {
+      clearFollowProfileIntent();
+      // The login sheet renders the mutation error.
+    }
+  };
 
   const handleShare = async () => {
     if (!query.data || isSharing) return;
@@ -112,7 +149,9 @@ export default function PublicProfileScreen() {
               viewerUserId={user?.id}
               profileUserId={query.data.profile.id}
               username={query.data.profile.username}
-              onRequireLogin={() => router.push({ pathname: '/auth/login', params: { action: 'view_profile', username: query.data!.profile.username } })} />
+              autoFollow={autoFollow && Boolean(user)}
+              onFollowed={() => setFollowToast(true)}
+              onRequireLogin={() => setLoginSheetOpen(true)} />
             <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
           </View> : null}
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
@@ -170,6 +209,26 @@ export default function PublicProfileScreen() {
           {query.data.isMine ? <View style={styles.mineRow}><Button variant="ghost" size="sm" label="내 프로필 관리로 이동" onPress={() => router.replace('/profile')} /></View> : null}
         </> : null}
       </ScrollView>
+      {followToast && query.data ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요</Text></View> : null}
+      <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={() => setLoginSheetOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={() => setLoginSheetOpen(false)} style={StyleSheet.absoluteFill} />
+          <View style={styles.loginSheet}>
+            <Text style={styles.loginSheetTitle}>로그인하고 @{query.data?.profile.username ?? username}님을 팔로우하세요</Text>
+            <Text style={styles.loginSheetText}>로그인하면 바로 팔로우되고 이 프로필로 돌아와요.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="카카오로 계속하기" disabled={socialSignIn.isPending}
+              onPress={() => void continueProfileLogin('kakao')} style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed]}>
+              <Text style={styles.kakaoText}>카카오로 계속하기</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Apple로 계속하기" disabled={socialSignIn.isPending}
+              onPress={() => void continueProfileLogin('apple')} style={({ pressed }) => [styles.providerButton, styles.appleButton, pressed && styles.pressed]}>
+              <Text style={styles.appleText}>Apple로 계속하기</Text>
+            </Pressable>
+            {socialSignIn.isError ? <Text accessibilityRole="alert" style={styles.loginError}>로그인을 완료하지 못했어요. 다시 시도해주세요.</Text> : null}
+            <Button variant="ghost" size="sm" label="취소" onPress={() => setLoginSheetOpen(false)} />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -198,6 +257,18 @@ const styles = StyleSheet.create({
   profileScopeTabSelected: { backgroundColor: OnePick.text },
   profileScopeText: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   profileScopeTextSelected: { color: OnePick.onAccent },
+  toast: { position: 'absolute', alignSelf: 'center', bottom: 32, backgroundColor: OnePick.text, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 12 },
+  toastText: { color: OnePick.onAccent, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,22,0.42)' },
+  loginSheet: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', backgroundColor: OnePick.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24, gap: 12 },
+  loginSheetTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700', textAlign: 'center' },
+  loginSheetText: { color: OnePick.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 8 },
+  providerButton: { height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  kakaoButton: { backgroundColor: OnePick.kakao },
+  appleButton: { backgroundColor: OnePick.apple },
+  kakaoText: { color: OnePick.kakaoText, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  appleText: { color: OnePick.appleText, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  loginError: { color: OnePick.danger, fontSize: 12, lineHeight: 18, textAlign: 'center' },
   joinCard: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 18, marginTop: 22 },
   joinTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },
   joinText: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 18, marginTop: 7 },
