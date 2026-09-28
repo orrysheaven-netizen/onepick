@@ -1,8 +1,10 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import { OnePick, OnePickRadius } from '@/constants/onepick';
 
 const DURATION = 600;
 
@@ -31,7 +33,7 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <View style={{ height: 64, paddingHorizontal: 18, backgroundColor: '#4945ED', borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '900', letterSpacing: -1.2 }}>원픽</Text></View>;
+  const mark = <View accessible={false} style={styles.mark} />;
 
   return animate ? (
     <Animated.View
@@ -42,7 +44,7 @@ export function AnimatedSplashOverlay() {
         }
       })}
       style={styles.splashOverlay}>
-      {image}
+      {mark}
     </Animated.View>
   ) : (
     <View
@@ -52,7 +54,7 @@ export function AnimatedSplashOverlay() {
         });
       }}
       style={styles.splashOverlay}>
-      {image}
+      {mark}
     </View>
   );
 }
@@ -60,9 +62,15 @@ export function AnimatedSplashOverlay() {
 const styles = StyleSheet.create({
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#208AEF',
+    backgroundColor: OnePick.surface,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
+  },
+  mark: {
+    width: 42,
+    height: 42,
+    borderRadius: OnePickRadius.pill,
+    backgroundColor: OnePick.brand,
   },
 });
