@@ -54,8 +54,9 @@ export class ItemService {
     // Shared links already fetched the focused Pick. Reuse that item/category when
     // available, and start independent list/category reads while the item resolves.
     const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
-    const picksPromise = this.readRepository.getItemReviews
-      ? this.readRepository.getItemReviews(itemId, 20)
+    const usesItemReviewPage = typeof this.readRepository.getItemReviews === 'function';
+    const picksPromise = usesItemReviewPage
+      ? this.readRepository.getItemReviews!(itemId, 20)
       : this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 });
     const openCategoriesPromise = this.categoryRepository.getOpenCategories();
     const brandPromise = this.readRepository.getItemBrand?.(itemId).catch(() => null) ?? Promise.resolve(null);
@@ -98,11 +99,23 @@ export class ItemService {
 
     // item_review_page is the source of truth for both current and ended reviews.
     // It deliberately hides lifecycle details and supplies viewer-scoped permissions.
-    const ownReview = userId
+    let ownReview = userId && usesItemReviewPage
       ? picks.filter((entry) => entry.pick.userId === userId)
           .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: true }))
       : [];
-    const otherReviews = picks.filter((entry) => entry.pick.userId !== userId)
+    // Compatibility for older adapters/test doubles that do not implement
+    // item_review_page yet: keep the previous contract by fetching only the
+    // viewer's current Pick for this item. Ended reviews are supplied only by
+    // item_review_page, which is the production source of truth.
+    if (userId && !usesItemReviewPage && currentPick?.itemId === item.id) {
+      const legacyOwn = await this.readRepository.getPickById(currentPick.id);
+      ownReview = legacyOwn && legacyOwn.pick.itemId === item.id && legacyOwn.pick.status !== 'hidden'
+        ? [{ pick: legacyOwn.pick, profile: legacyOwn.profile, isMine: true }]
+        : [];
+    }
+    const ownIds = new Set(ownReview.map(({ pick }) => pick.id));
+    const otherReviews = picks
+      .filter((entry) => entry.pick.userId !== userId && !ownIds.has(entry.pick.id))
       .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
 
     const reviews = [...ownReview, ...otherReviews];
