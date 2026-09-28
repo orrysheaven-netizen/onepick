@@ -66,7 +66,9 @@ export default function LoginScreen() {
         <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
         <Text style={styles.subtitle}>
-          {intent.action === 'join_from_profile'
+          {intent.action === 'follow_profile'
+            ? `로그인하면 바로 @${intent.username}님을 팔로우하고 이 프로필로 돌아와요.`
+            : intent.action === 'join_from_profile'
             ? '로그인하면 카테고리마다 하나씩 고른 나의 원픽 프로필을 만들 수 있어요.'
             : intent.action === 'request_item'
             ? '검색한 이름과 카테고리를 기억해두고 로그인 뒤 원픽 등록 요청을 이어갑니다.'
