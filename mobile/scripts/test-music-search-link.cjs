@@ -11,6 +11,7 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../sr
   if(name==='expo-router')return{useRouter:()=>({push:(r)=>{route=r;}})};
   if(name==='react-native')return{Pressable:(p)=>React.createElement('button',{onClick:p.onPress},p.children),Text:({children})=>React.createElement('span',null,children),StyleSheet:{create:x=>x}};
   if(name==='@/hooks/useRegisterPick')return{useRegistrationCategories:()=>categories};
+  if(name==='@/lib/onboarding/navigation')return{withOnboardingParam:(params,onboarding)=>onboarding==='1'?{...params,onboarding:'1'}:params};
   throw new Error(name);
 }});
 const Link=moduleExports.MusicSearchLink;
@@ -18,6 +19,7 @@ let page=renderToStaticMarkup(React.createElement(Link,{query:' 밤편지 '})); 
 const button=React.createElement(Link,{query:'밤편지'}); // render once to capture handler through direct component
 const tree=Link({query:'밤편지'}); tree.props.onPress();
 assert.equal(route.pathname,'/pick/music'); assert.equal(route.params.categoryId,'music-id'); assert.equal(route.params.title,'밤편지');
+route=null; Link({query:'밤편지',onboarding:'1'}).props.onPress(); assert.equal(route.params.onboarding,'1');
 route=null; page=renderToStaticMarkup(React.createElement(Link,{query:'밤편지',categoryId:'other'})); assert.doesNotMatch(page,/음악 DB/);
 categories={data:[],isError:false,isPending:false}; page=renderToStaticMarkup(React.createElement(Link,{query:'밤편지'})); assert.doesNotMatch(page,/음악 DB/);
 console.log('Music search link passed: optional local-empty handoff, category scope and normalized title.');
