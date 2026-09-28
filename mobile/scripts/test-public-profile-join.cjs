@@ -32,7 +32,10 @@ assert.ok(joinIndex < shareIndex, 'the join call to action must come before the 
 // A follow is a resumable action: login/username creation returns to the same profile
 // and the app performs the follow without requiring a second tap.
 assert.match(profile, /action: 'follow_profile'/, 'the shared profile must preserve a dedicated follow intent');
-assert.match(profile, /autoFollow=\{follow === '1' && Boolean\(user\)\}/, 'the returned profile must automatically resume the follow');
+assert.match(profile, /armFollowProfileIntent\(targetUsername\)/, 'an explicit provider tap arms the one-time continuation');
+assert.match(profile, /consumeFollowProfileIntent\(username\)/, 'the returned profile consumes the continuation once');
+assert.match(profile, /autoFollow=\{autoFollow && Boolean\(user\)\}/, 'only the consumed continuation may automatically resume the follow');
+assert.doesNotMatch(profile, /follow === '1'/, 'a crafted/shareable URL must not trigger auto-follow');
 assert.match(profile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/, 'the login sheet must explain the preserved intent');
 assert.doesNotMatch(
   username,
