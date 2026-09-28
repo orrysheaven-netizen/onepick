@@ -67,6 +67,13 @@
 | Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필 |
 | Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
+| Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
+
+Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단 주요 버튼만 가로 채움입니다. Text 버튼은 좌우 여백이 없어 본문과 왼쪽 정렬됩니다.
+
+## 적용 화면
+
+- 75. 원픽 등록 v6 — 상호명 검색 → 메뉴명 입력 + AI 카테고리 추천(추천 중·결과·실패) → 한줄평 → 완료 팝업. D 구현 기준.
 
 ## 코드 반영 (F2)
 
