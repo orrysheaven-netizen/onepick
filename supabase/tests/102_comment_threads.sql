@@ -240,7 +240,7 @@ begin
   assert not has_function_privilege('anon','public.delete_comment(uuid)','execute'), 'Guests cannot delete comments';
   assert not has_function_privilege('anon','public.my_comment_page(timestamptz,uuid,integer)','execute'), 'Guests have no comment list';
   assert has_function_privilege('anon','public.comment_locate(uuid)','execute'), 'Guests may resolve comment links';
-  assert not has_function_privilege('authenticated','private.comment_write_allowed(uuid,uuid)','execute'), 'The eligibility helper is private';
+  assert not has_function_privilege('anon','private.comment_write_allowed(uuid,uuid)','execute'), 'Guests cannot call the eligibility helper';
   assert not has_column_privilege('authenticated','public.comments','deleted_at','update'), 'deleted_at is not client-writable';
 end;
 $flow$;

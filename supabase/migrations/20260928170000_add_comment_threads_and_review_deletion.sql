@@ -111,6 +111,8 @@ as $$
   );
 $$;
 revoke all on function private.pick_thread_visible_by_id(uuid, uuid) from public, anon, authenticated;
+-- Called from the comments update policy, so the policy's role must execute it.
+grant execute on function private.pick_thread_visible_by_id(uuid, uuid) to authenticated;
 
 -- A live comment is shown unless its author is suspended or blocked; tombstones
 -- carry nothing of their author and are always shown.
@@ -157,6 +159,8 @@ as $$
   );
 $$;
 revoke all on function private.comment_write_allowed(uuid, uuid) from public, anon, authenticated;
+-- Called from the comments insert policy.
+grant execute on function private.comment_write_allowed(uuid, uuid) to authenticated;
 
 -- Whether a comment was addressed to the viewer (their review or their comment).
 -- Definer so the comments policy can ask without recursing through RLS.
@@ -212,6 +216,8 @@ as $$
   );
 $$;
 revoke all on function private.comment_readable(public.comments, uuid) from public, anon, authenticated;
+-- Called from the comments select policy.
+grant execute on function private.comment_readable(public.comments, uuid) to authenticated;
 
 -- An inbox row is shown while the comment is live, from someone the viewer has
 -- not blocked and who is not suspended, on a thread the viewer may see.
@@ -235,6 +241,8 @@ as $$
   );
 $$;
 revoke all on function private.comment_notification_visible(uuid, uuid) from public, anon, authenticated;
+-- Called from the comment_notifications select policy.
+grant execute on function private.comment_notification_visible(uuid, uuid) to authenticated;
 
 create or replace function public.can_comment_on_pick(p_pick_id uuid)
 returns boolean
@@ -693,8 +701,8 @@ as $$
         and q.status = 'active'
         and q.channel is not distinct from p_pick.channel
     ),
-    'can_edit', c.deleted_at is null and c.user_id = p_viewer,
-    'can_delete', c.deleted_at is null and c.user_id = p_viewer
+    'can_edit', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer,
+    'can_delete', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer
   );
 $$;
 revoke all on function private.comment_json(public.comments, public.picks, uuid) from public, anon, authenticated;
