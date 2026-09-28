@@ -62,8 +62,8 @@ const variants = StyleSheet.create({
 
 const labels = StyleSheet.create({
   primary: { color: OnePick.onAction },
-  secondary: { color: OnePick.text, fontWeight: '600' },
+  secondary: { color: OnePick.text },
   soft: { color: OnePick.accentDeep },
-  ghost: { color: OnePick.accent, fontWeight: '600' },
-  danger: { color: OnePick.danger, fontWeight: '600' },
+  ghost: { color: OnePick.accent },
+  danger: { color: OnePick.danger },
 });
