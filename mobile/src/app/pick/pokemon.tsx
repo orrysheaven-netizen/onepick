@@ -11,7 +11,7 @@ import { useImportPokemonCatalogItem, usePokemonCatalogSearch } from '@/hooks/us
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedPokemonItem, PokemonCatalogEntry } from '@/types/domain/pokemonCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/onboarding/navigation';
+import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
