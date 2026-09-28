@@ -146,7 +146,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
         </>
       ) : (
         <>
-          <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제됩니다. 댓글이 있으면 대화는 익명 자리로 남습니다.</Text>
+          <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제돼요. 댓글이 있으면 대화는 익명 자리로 남아요.</Text>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmReviewDeletion()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 삭제하기</Text>}

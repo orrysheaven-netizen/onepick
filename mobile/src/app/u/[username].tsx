@@ -143,7 +143,7 @@ export default function PublicProfileScreen() {
               onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
             />
           ) : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
-            text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
+            text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시돼요.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
             <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
@@ -153,7 +153,7 @@ export default function PublicProfileScreen() {
           </View> : null}
           {!query.data.isMine && user && !isSeed ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
-            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
+            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있어요.</Text>
             <View style={styles.safetyActions}>
               <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
               <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.back()} />
