@@ -95,7 +95,6 @@ export default function NewPickScreen() {
   const busy = useRef(false);
 
   const isNew = store?.kind === 'new';
-  const storeName = store ? store.name : '';
   const storeChannel: PickChannel = store ? (store.kind === 'seller' ? 'online' : store.kind === 'place' ? 'offline' : store.channel) : channel;
   const search = useStoreSearch(channel, query, Boolean(user) && step === 2 && !requesting);
   const menus = useMenuOptions(Boolean(user) && step === 4);
@@ -172,8 +171,6 @@ export default function NewPickScreen() {
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validSellerUrl = httpsUrl(sellerUrl);
-  const sellerUrlError = channel === 'online' && sellerUrl.trim() && (!validSellerUrl || isDeliveryAppUrl(sellerUrl))
-    ? (isDeliveryAppUrl(sellerUrl) ? '배달앱 주문은 매장으로 골라주세요.' : 'https://로 시작하는 판매처 링크를 입력해주세요.') : null;
   const canRequest = newStoreName.length >= 1 && newStoreName.length <= 100;
 
   const confirmMenu = async () => {
@@ -262,7 +259,7 @@ export default function NewPickScreen() {
           setDone({ type: 'pending', itemName: result.item.name, linkSaved: saved });
         }
       }
-      setStep(6);
+      setStep(7);
     } catch (error) {
       if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
       setSaveError(error);
@@ -383,7 +380,7 @@ export default function NewPickScreen() {
           </View>}
         </> : null}
 
-        {step === 5 && store ? <>
+        {step === 4 && store ? <>
           <Text style={styles.title}>{store.name}의 어떤 메뉴가 원픽인가요?</Text>
           <Text style={styles.subtitle}>AI가 추천한 메뉴를 고르거나, 맞는 메뉴를 직접 찾아주세요.</Text>
           <Text style={styles.section}>AI 추천</Text>
@@ -428,7 +425,7 @@ export default function NewPickScreen() {
           <Button fullWidth size="lg" label="다음" onPress={confirmLink} style={styles.primary} />
         </> : null}
 
-        {step === 4 && store ? <>
+        {step === 5 && store ? <>
           <Text style={styles.title}>대표 사진을 올려주세요</Text>
           <Text style={styles.subtitle}>새 제품이나 아직 사진이 없는 제품은 대표 사진이 있어야 다음으로 갈 수 있어요.</Text>
           {isNew ? <View style={styles.card}>
