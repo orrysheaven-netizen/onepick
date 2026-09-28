@@ -60,7 +60,7 @@ const hooks = {
   store: {
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
       isWaiting: false, isFetching: false, isError: false, refetch() {} }),
-    useMenuOptions: () => ({ data: menuOptions, isError: false, refetch() {} }),
+    useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
     useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => selectResult),
     useSuggestMapLink: () => mutation('link', () => undefined),
