@@ -61,7 +61,7 @@ const hooks = {
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
       isWaiting: false, isFetching: false, isError: false, refetch() {} }),
     useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
-    useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: false, isError: false }),
+    useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => selectResult),
     useSuggestMapLink: () => mutation('link', () => undefined),
     useSetMenuHint: () => mutation('menuHint', () => undefined),
@@ -155,7 +155,11 @@ async function main() {
   page = render();
   assert.doesNotMatch(page, /AI 추천/, 'An exact catalog menu must not call AI');
   press('면 › 평양냉면');
-  render(); press('다음'); await flush();
+  page = render();
+  const exactNext = pressables.find((props) => props.accessibilityLabel === '다음');
+  assert.ok(exactNext, 'Exact menu shows the next button');
+  assert.equal(exactNext.disabled, false, 'Disabled AI query must not block next after an exact menu is selected');
+  press('다음'); await flush();
   assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['select', { categoryId: 'cat-naengmyeon', store: results.offline[0] }]));
 
   // Existing stores do not get a new-store link step in v6; no photo means step 5.
@@ -190,9 +194,10 @@ async function main() {
   page = render();
   assert.match(page, /카테고리 · AI 추천/);
   assert.match(page, /면 › 평양냉면/);
-  press('AI 추천 면 › 평양냉면');
-  page = render();
-  assert.match(page, /평양냉면으로 유명한 곳이에요/);
+  assert.match(page, /평양냉면으로 유명한 곳이에요/, 'The first usable AI suggestion is preselected');
+  const aiNext = pressables.find((props) => props.accessibilityLabel === '다음');
+  assert.ok(aiNext, 'AI recommendation shows the next button');
+  assert.equal(aiNext.disabled, false, 'A preselected AI recommendation can continue without another tap');
   press('다음'); await flush();
   page = render();
   assert.equal(step(page), '6', 'Known photo skips directly from menu to review');
@@ -274,6 +279,6 @@ async function main() {
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: Figma 75 copy/steps, exact menu, AI category, manual fallback, new-store link order, photo/review, online, and completion dialog.');
+  console.log('Store-first v6 checks passed: Figma 75 copy/steps, exact menu query state, AI category preselection, manual fallback, new-store link order, photo/review, online, and completion dialog.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

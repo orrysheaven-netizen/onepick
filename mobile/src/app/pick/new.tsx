@@ -273,11 +273,12 @@ export default function NewPickScreen() {
     && (channel === 'offline' || (Boolean(validSellerUrl) && !isDeliveryAppUrl(sellerUrl)));
 
   const confirmMenu = async () => {
-    if (!store || !menu || busy.current) return;
-    if (store.kind === 'new' || !menu.categoryId) { setStep(needsPhoto ? 4 : 5); return; }
+    if (!store || !effectiveMenu || busy.current) return;
+    if (!menu) setMenu(effectiveMenu);
+    if (store.kind === 'new' || !effectiveMenu.categoryId) { setStep(needsPhoto ? 4 : 5); return; }
     busy.current = true;
     try {
-      const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
+      const selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
       setItemPending(selected.pending);
@@ -360,8 +361,13 @@ export default function NewPickScreen() {
     .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
     .filter((entry) => entry.confidence !== 'low');
   const aiTried = Boolean(requestedMenu && aiMenuName === requestedMenu);
+  const autoSuggestedMenu = aiTried && !manualCategory && !suggestions.isFetching
+    && exactMenuMatches.length === 0 && aiSuggestions.length > 0
+    ? { categoryId: aiSuggestions[0].categoryId, name: requestedMenu || aiSuggestions[0].label }
+    : null;
+  const effectiveMenu = menu ?? autoSuggestedMenu;
   const showManualCategory = Boolean(requestedMenu && exactMenuMatches.length === 0
-    && (manualCategory || (aiTried && !suggestions.isPending && aiSuggestions.length === 0)));
+    && (manualCategory || (aiTried && !suggestions.isFetching && aiSuggestions.length === 0)));
   const normalizedCategoryQuery = compactMenuName(categoryQuery);
   const manualMatches = (normalizedCategoryQuery
     ? availableMenus.filter((option) => {
@@ -546,21 +552,21 @@ export default function NewPickScreen() {
               </View>
             </View> : null}
 
-            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && suggestions.isPending ? <View style={styles.fieldBlock}>
+            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && suggestions.isFetching ? <View style={styles.fieldBlock}>
               <FieldLabel label="카테고리" required={false} />
               <View style={styles.loadingRow}><ActivityIndicator color={V6.text} /><Text style={styles.helperInline}>메뉴명으로 카테고리를 찾고 있어요</Text></View>
             </View> : null}
 
-            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && !suggestions.isPending && aiSuggestions.length > 0 && !showManualCategory
+            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && !suggestions.isFetching && aiSuggestions.length > 0 && !showManualCategory
               ? <View style={styles.fieldBlock}>
                 <FieldLabel label="카테고리 · AI 추천" required={false} />
                 <View style={styles.chips}>
                   {aiSuggestions.map((entry) => <FlowChip key={entry.categoryId} label={entry.label}
-                    accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
+                    accessibilityLabel={`AI 추천 ${entry.label}`} selected={effectiveMenu?.categoryId === entry.categoryId}
                     onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label })} />)}
                 </View>
-                {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
-                  ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
+                {aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)
+                  ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)?.reason}</Text> : null}
                 <FlowButton variant="text" label="다른 카테고리 찾기" onPress={() => { setManualCategory(true); setMenu(null); }} />
               </View> : null}
 
@@ -583,7 +589,7 @@ export default function NewPickScreen() {
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label="다음" disabled={!menu || suggestions.isPending} loading={selectItem.isPending} onPress={() => void confirmMenu()} />
+            <FlowButton label="다음" disabled={!effectiveMenu || suggestions.isFetching} loading={selectItem.isPending} onPress={() => void confirmMenu()} />
           </View>
         </> : null}
 
