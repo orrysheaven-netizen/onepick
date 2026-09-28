@@ -10,7 +10,7 @@ import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
 import { Button, StateCard } from '@/components/ui';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
   if (error instanceof AppError && error.code === 'ACCOUNT_DELETE_FAILED') {
@@ -73,7 +73,7 @@ export default function SettingsScreen() {
                   value={preferences.data?.followeePickChange ?? true}
                   disabled={preferences.isPending || setFolloweePickChange.isPending}
                   onValueChange={(value) => setFolloweePickChange.mutate(value)}
-                  trackColor={{ true: OnePick.accent, false: OnePick.border }}
+                  trackColor={{ true: OnePick.actionPrimary, false: OnePick.borderDefault }}
                 />
               </View>
               {preferences.isError ? <Text style={styles.error}>알림 설정을 불러오지 못했어요. 기본값(켜짐)으로 동작합니다.</Text> : null}
@@ -149,32 +149,92 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
-  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 4, marginBottom: 16 },
-  sectionLabel: { color: OnePick.muted, fontSize: 13, lineHeight: 18, fontWeight: '600', marginTop: 12, marginBottom: 8, paddingLeft: 4 },
-  inlineLoading: { marginTop: 14 },
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 16, marginBottom: 8 },
-  cardTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
+  content: {
+    width: '100%',
+    maxWidth: OnePick.maxWidth,
+    alignSelf: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingBottom: OnePickSpace.xxxl + OnePickSpace.lg,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: OnePickSpace.xs,
+    marginLeft: -OnePickSpace.sm,
+  },
+  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  title: {
+    ...OnePickType.pageTitle,
+    color: OnePick.textPrimary,
+    marginTop: OnePickSpace.xs,
+    marginBottom: OnePickSpace.lg,
+  },
+  sectionLabel: {
+    ...OnePickType.captionMedium,
+    color: OnePick.textSecondary,
+    marginTop: OnePickSpace.md,
+    marginBottom: OnePickSpace.sm,
+    paddingLeft: OnePickSpace.xs,
+  },
+  inlineLoading: { marginTop: OnePickSpace.md },
+  card: {
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    backgroundColor: OnePick.bgDefault,
+    borderRadius: OnePickRadius.lg,
+    padding: OnePickSpace.lg,
+    marginBottom: OnePickSpace.sm,
+  },
+  cardTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md },
   switchCopy: { flex: 1, minWidth: 0 },
-  switchLabel: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  body: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 6 },
-  empty: { color: OnePick.muted, fontSize: 13, lineHeight: 18, paddingVertical: 8 },
-  blockRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
-  blockName: { flex: 1, color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 12, marginLeft: -8 },
-  inlineAction: { alignSelf: 'flex-start', marginLeft: -8 },
-  linkRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  linkRowDivider: { borderBottomWidth: 1, borderBottomColor: OnePick.hairline },
-  linkText: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24 },
-  signOut: { alignItems: 'center', marginTop: 20 },
-  deleteButton: { minHeight: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.danger, borderRadius: 999, paddingHorizontal: 14, marginLeft: 8 },
-  deleteButtonText: { color: OnePick.onAccent, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  confirmText: { color: OnePick.danger, fontSize: 13, lineHeight: 18, fontWeight: '600', marginTop: 10 },
-  error: { color: OnePick.danger, fontSize: 13, lineHeight: 18, marginTop: 10 },
+  switchLabel: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  body: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
+  empty: { ...OnePickType.body, color: OnePick.textSecondary, paddingVertical: OnePickSpace.sm },
+  blockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: OnePickSpace.md,
+    paddingVertical: OnePickSpace.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: OnePick.borderDefault,
+  },
+  blockName: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: OnePickSpace.sm,
+    marginTop: OnePickSpace.md,
+    marginLeft: -OnePickSpace.sm,
+  },
+  inlineAction: { alignSelf: 'flex-start', marginLeft: -OnePickSpace.sm },
+  linkRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: OnePickSpace.md,
+  },
+  linkRowDivider: { borderBottomWidth: 1, borderBottomColor: OnePick.borderDefault },
+  linkText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  chevron: { ...OnePickType.title, color: OnePick.textTertiary },
+  signOut: { alignItems: 'center', marginTop: OnePickSpace.xl },
+  deleteButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: OnePick.textDanger,
+    borderRadius: OnePickRadius.md,
+    paddingHorizontal: OnePickSpace.md,
+    marginLeft: OnePickSpace.sm,
+  },
+  deleteButtonText: { ...OnePickType.bodyMedium, color: OnePick.onAction },
+  confirmText: { ...OnePickType.bodyMedium, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
+  error: { ...OnePickType.body, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
   pressed: { opacity: 0.7 },
 });
