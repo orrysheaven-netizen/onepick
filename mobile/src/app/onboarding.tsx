@@ -80,7 +80,6 @@ export default function OnboardingScreen() {
   const loadFailed = !signedOut && ((profile.isError && !profileMissing) || categories.isError || progress.isError);
   const loading = !signedOut && !loadFailed
     && (sessionLoading || profile.isPending || categories.isPending || progress.isPending || !catalogReady);
-  const canEvaluate = pickCount >= 10;
   const retryLoad = () => {
     if (profile.isError && !profileMissing) void profile.refetch();
     if (categories.isError) void categories.refetch();
@@ -124,11 +123,10 @@ export default function OnboardingScreen() {
       <Text style={styles.subtitle}>마음이 가는 카테고리만 고르세요. 관심 없으면 넘겨도 되고, 언제든 이어서 할 수 있어요.</Text>
 
       <View style={styles.progressCard}>
-        <Text style={styles.progressLabel}>{canEvaluate ? 'AI 취향 평가를 볼 수 있어요' : `${Math.min(pickCount, 10)} / 10`}</Text>
+        <Text style={styles.progressLabel}>{Math.min(pickCount, 10)} / 10</Text>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, pickCount * 10)}%` }]} /></View>
         <View style={styles.progressBottom}>
-          <Text style={styles.progressHint}>{canEvaluate ? `${pickCount} / 10 · 더 고를수록 평가가 정확해져요` : '10개부터 AI 취향 평가'}</Text>
-          {canEvaluate ? <Button variant="ghost" size="sm" label="AI 평가 보기 ›" onPress={() => router.push({ pathname: '/profile', params: { ai: '1' } })} /> : null}
+          <Text style={styles.progressHint}>카테고리마다 하나씩 골라 보세요</Text>
         </View>
       </View>
 
@@ -152,7 +150,7 @@ export default function OnboardingScreen() {
         <Button size="lg" fullWidth style={styles.primary} label="프로필로 이동" onPress={() => void finish()} />
       </View>}
 
-      <Text style={styles.footer}>넘기기는 추천 순서를 다듬는 신호로만 사용하고, AI 평가의 성격 판단 근거로 사용하지 않아요.</Text>
+      <Text style={styles.footer}>넘기기는 추천 순서를 다듬는 신호로만 사용해요.</Text>
     </View>
   </SafeAreaView>;
 }

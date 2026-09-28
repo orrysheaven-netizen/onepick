@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -103,9 +103,6 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { ai } = useLocalSearchParams<{ ai?: string }>();
-  const scrollRef = useRef<ScrollView>(null);
-  const [aiOffset, setAiOffset] = useState<number | null>(null);
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
@@ -117,12 +114,6 @@ export default function ProfileScreen() {
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [isSharingProfile, setIsSharingProfile] = useState(false);
   const [profileShareError, setProfileShareError] = useState(false);
-
-  useEffect(() => {
-    if (ai !== '1' || aiOffset === null) return;
-    const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, aiOffset - 16), animated: true }), 0);
-    return () => clearTimeout(timer);
-  }, [ai, aiOffset]);
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -199,7 +190,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor={OnePick.accent} />}>
         <View style={styles.header}>
           <Avatar name={profile.username} size={64} />
@@ -214,9 +205,7 @@ export default function ProfileScreen() {
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
-        {OnePickFeatures.profileAi || ai === '1' ? <View onLayout={(event) => setAiOffset(event.nativeEvent.layout.y)}>
-          <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
-        </View> : null}
+        {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
         <View style={styles.profileShareRow}>
           <Button variant="secondary" fullWidth label={isSharingProfile ? '공유 중…' : '프로필 공유'}
             accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />

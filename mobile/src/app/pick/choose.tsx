@@ -10,7 +10,6 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useMyProfile } from '@/hooks/useMyProfile';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
 import { onboardingService } from '@/services/onboardingService';
@@ -49,7 +48,6 @@ export default function ChoosePickScreen() {
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const profileProgress = useMyProfile(user?.id);
   const requestedChannel = parseChannelParam(params.channel);
   const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
   const choosePick = useChoosePick();
@@ -153,12 +151,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null || requestedReview !== null;
-  const profilePickCount = profileProgress.data?.currentPicks.length ?? 0;
-  const savedPickAlreadyInProfile = Boolean(savedChoice
-    && profileProgress.data?.currentPicks.some(({ pick }) => pick.id === savedChoice.pick.id));
-  const saveAddsCategory = pickStatus?.type !== 'selected_this' && pickStatus?.type !== 'selected_other';
-  const completionPickCount = profilePickCount + (savedChoice && !savedPickAlreadyInProfile && saveAddsCategory ? 1 : 0);
-  const aiRemaining = Math.max(0, 10 - completionPickCount);
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   // No itemId: the card's own "사진 등록" shortcut leaves this screen and would drop
@@ -293,12 +285,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
           <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
-          <View style={styles.aiProgress}>
-            <Text style={styles.aiProgressTitle}>{aiRemaining > 0 ? `AI 평가까지 ${aiRemaining}개` : 'AI 취향 평가를 볼 수 있어요'}</Text>
-            <Text style={styles.aiProgressText}>{completionPickCount} / 10{completionPickCount >= 10 ? ' · 더 고를수록 평가가 정확해져요' : ' · 카테고리마다 하나씩 골라 보세요'}</Text>
-            {aiRemaining === 0 ? <Button variant="ghost" size="sm" label="AI 평가 보기 ›"
-              onPress={() => router.replace({ pathname: '/profile', params: { ai: '1' } })} /> : null}
-          </View>
           <View style={styles.successActions}>
             {params.onboarding === '1' ? <>
               <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
@@ -363,9 +349,6 @@ const styles = StyleSheet.create({
   successTitle: { textAlign: 'center', marginTop: 20 },
   successItem: { color: OnePick.text, fontSize: 17, lineHeight: 24, fontWeight: '700', marginTop: 20 },
   savedReview: { color: OnePick.text, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 8, paddingHorizontal: 18 },
-  aiProgress: { alignSelf: 'stretch', backgroundColor: OnePick.accentSoft, borderRadius: 16, padding: 16, marginTop: 16, gap: 6, alignItems: 'flex-start' },
-  aiProgressTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
-  aiProgressText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
   successPhoto: { marginTop: 16 },
   successActions: { alignSelf: 'stretch', width: '100%' },
   photoOffer: { alignSelf: 'stretch', alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 18, marginTop: 20 },

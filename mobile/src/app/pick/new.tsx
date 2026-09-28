@@ -10,7 +10,6 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useMyProfile } from '@/hooks/useMyProfile';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
@@ -189,7 +188,6 @@ export default function NewPickScreen() {
   const params = useLocalSearchParams<NewPickParams>();
   const auth = useAuthSession();
   const user = auth.user;
-  const profileProgress = useMyProfile(user?.id);
   const initialStep = parseStep(params.step);
   const [step, setStep] = useState<Step>(() => initialStep);
   const [channel, setChannel] = useState<PickChannel>(() => params.channel === 'online' ? 'online' : 'offline');
@@ -323,14 +321,6 @@ export default function NewPickScreen() {
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
-  const profilePickCount = profileProgress.data?.currentPicks.length ?? 0;
-  const savedPickAlreadyInProfile = Boolean(done?.type === 'pick'
-    && profileProgress.data?.currentPicks.some(({ pick }) => pick.id === done.pickId));
-  const saveAddsCategory = itemDetail.data?.myPickStatus?.type !== 'selected_this'
-    && itemDetail.data?.myPickStatus?.type !== 'selected_other';
-  const completionPickCount = profilePickCount + (done?.type === 'pick' && !savedPickAlreadyInProfile && saveAddsCategory ? 1 : 0);
-  const aiRemaining = Math.max(0, 10 - completionPickCount);
-
   const previousFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : 1;
     if (from === 3) return 1;
@@ -845,12 +835,6 @@ export default function NewPickScreen() {
             <Text style={styles.dialogBody}>{done.type === 'pick'
               ? `${storeDisplayName} ${menu.name}이 내 원픽이 됐어요.`
               : `${storeDisplayName} ${menu.name} 등록 요청을 보냈어요.`}</Text>
-            {done.type === 'pick' ? <View style={styles.aiProgress}>
-              <Text style={styles.aiProgressTitle}>{aiRemaining > 0 ? `AI 평가까지 ${aiRemaining}개` : 'AI 취향 평가를 볼 수 있어요'}</Text>
-              <Text style={styles.aiProgressText}>{completionPickCount} / 10{completionPickCount >= 10 ? ' · 더 고를수록 평가가 정확해져요' : ' · 카테고리마다 하나씩 골라 보세요'}</Text>
-              {aiRemaining === 0 ? <FlowButton variant="text" label="AI 평가 보기 ›"
-                onPress={() => router.replace({ pathname: '/profile', params: { ai: '1' } })} /> : null}
-            </View> : null}
             <View style={styles.dialogSpacer} />
             <FlowButton label={onboarding && done.type === 'pick' ? '다음 카테고리' : '확인'} onPress={() => {
               if (onboarding && done.type === 'pick') router.replace('/onboarding');
@@ -932,8 +916,5 @@ const styles = StyleSheet.create({
   dialog: { width: 300, alignItems: 'center', gap: 8, padding: 24, borderRadius: 16, backgroundColor: V6.background },
   dialogTitle: { color: V6.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
   dialogBody: { color: V6.secondary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  aiProgress: { alignSelf: 'stretch', backgroundColor: '#FFF0DC', borderRadius: 12, padding: 12, gap: 4, alignItems: 'flex-start' },
-  aiProgressTitle: { color: V6.text, fontSize: 14, lineHeight: 21, fontWeight: '700' },
-  aiProgressText: { color: V6.secondary, fontSize: 12, lineHeight: 18 },
   dialogSpacer: { height: 8 },
 });

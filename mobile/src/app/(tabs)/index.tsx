@@ -204,18 +204,12 @@ export default function HomeScreen() {
         {listHeader}
 
         {showProgressBanner ? <View style={styles.progressBanner}>
-          <Text style={styles.progressTitle}>{progressPickCount >= 10 ? 'AI 취향 평가를 볼 수 있어요' : `AI 취향 평가까지 ${10 - Math.min(progressPickCount, 10)}개 남았어요`}</Text>
+          <Text style={styles.progressTitle}>취향 고르기를 이어가세요</Text>
           <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, progressPickCount * 10)}%` }]} /></View>
           <View style={styles.progressBottom}>
-            <Text style={styles.progressCaption}>{progressPickCount >= 10
-              ? `${progressPickCount} / 10 · 더 고를수록 평가가 정확해져요`
-              : `${progressPickCount} / 10 · 카테고리마다 하나씩 골라 보세요`}</Text>
-            <Pressable accessibilityRole="button"
-              accessibilityLabel={progressPickCount >= 10 ? 'AI 평가 보기' : '취향 고르기 이어가기'}
-              onPress={() => progressPickCount >= 10
-                ? router.push({ pathname: '/profile', params: { ai: '1' } })
-                : router.push('/onboarding')}>
-              <Text style={styles.progressAction}>{progressPickCount >= 10 ? 'AI 평가 보기 ›' : '이어서 고르기 ›'}</Text>
+            <Text style={styles.progressCaption}>{progressPickCount}개를 골랐어요 · 카테고리마다 하나씩 골라 보세요</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="취향 고르기 이어가기" onPress={() => router.push('/onboarding')}>
+              <Text style={styles.progressAction}>이어서 고르기 ›</Text>
             </Pressable>
           </View>
         </View> : null}

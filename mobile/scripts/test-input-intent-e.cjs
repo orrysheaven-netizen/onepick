@@ -23,19 +23,19 @@ assert.match(register, /menuCategoryId/);
 assert.match(register, /readPickReviewDraft/);
 assert.match(register, /writePickReviewDraft/);
 assert.match(register, /clearPickReviewDraft/);
-assert.match(register, /AI 평가까지 \$\{aiRemaining\}개/, 'registration completion shows the exact remaining benchmark');
+assert.doesNotMatch(register, /AI 평가|AI 취향/, 'registration completion does not expose the deferred AI evaluation');
 assert.match(draft, /sessionStorage/, 'one-line review uses session storage instead of URL params');
 
 assert.match(onboarding, /pathname: '\/pick\/new', params: \{ categoryId: current\.id, onboarding: '1' \}/,
   'onboarding enters the Figma 75 registration flow');
 assert.match(onboarding, /원픽을 정했어요/);
 assert.match(onboarding, /다음 카테고리/);
-assert.match(onboarding, /AI 취향 평가를 볼 수 있어요/);
+assert.doesNotMatch(onboarding, /AI 평가 보기|AI 취향 평가/, 'onboarding keeps AI evaluation out of the initial MVP');
 
 assert.match(home, /styles\.progressBanner/);
+assert.match(home, /취향 고르기를 이어가세요/);
 assert.match(home, /이어서 고르기 ›/);
-assert.match(home, /AI 평가 보기 ›/);
-assert.match(home, /pathname: '\/profile', params: \{ ai: '1' \}/);
+assert.doesNotMatch(home, /AI 평가 보기|params: \{ ai: '1' \}/, 'home continuation does not reveal the deferred AI evaluation');
 
 assert.match(publicProfile, /action: 'follow_profile'/);
 assert.match(publicProfile, /autoFollow=\{follow === '1' && Boolean\(user\)\}/);
@@ -43,9 +43,8 @@ assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로�
 assert.match(publicProfile, /님을 팔로우했어요/);
 assert.match(username, /로그인 완료 · @\{intent\.username\}님 팔로우를 이어서 해요/);
 assert.match(profile, /router\.push\('\/onboarding'\)/, 'empty own profile starts onboarding instead of bouncing to home');
-assert.match(profile, /OnePickFeatures\.profileAi \|\| ai === '1'/, 'AI evaluation CTA reveals its destination even before broad profile rollout');
-assert.match(profile, /scrollTo\(\{ y: Math\.max\(0, aiOffset - 16\)/, 'AI deep link scrolls to the profile AI panel');
+assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/, 'profile AI remains behind its existing feature flag');
 const choose = read('src/app/pick/choose.tsx');
-assert.match(choose, /AI 평가까지 \$\{aiRemaining\}개/, 'all saved-pick completion surfaces share the exact remaining benchmark');
+assert.doesNotMatch(choose, /AI 평가|AI 취향/, 'saved-pick completion does not expose the deferred AI evaluation');
 
-console.log('E intent recovery checks passed: Figma 76/77/78 continuation state, browser history, session draft and follow intent are wired.');
+console.log('E intent recovery checks passed: existing-screen continuation, browser history, session draft and follow intent are wired without AI evaluation CTA.');
