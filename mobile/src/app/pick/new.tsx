@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhotoStep } from '@/components/pick-photo-step';
@@ -10,11 +10,14 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { useMyProfile } from '@/hooks/useMyProfile';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
 import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
+import { clearPickReviewDraft, readPickReviewDraft, writePickReviewDraft } from '@/lib/pick/pickDraftSession';
+import { onboardingService } from '@/services/onboardingService';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
@@ -29,6 +32,62 @@ type Done =
   | { type: 'pick'; pickId: string; itemId: string }
   | { type: 'pending'; itemName: string; linkSaved: boolean };
 
+type NewPickParams = {
+  step?: string;
+  onboarding?: string;
+  categoryId?: string;
+  channel?: string;
+  channelChosen?: string;
+  storeKind?: string;
+  storeId?: string;
+  storeName?: string;
+  branchName?: string;
+  region?: string;
+  address?: string;
+  providerCategory?: string;
+  mapUrl?: string;
+  officialUrl?: string;
+  sellerUrl?: string;
+  menuCategoryId?: string;
+  menuName?: string;
+  itemId?: string;
+  itemHadPhoto?: string;
+  itemPending?: string;
+  mapLink?: string;
+};
+
+function parseStep(value?: string): Step {
+  const step = Number(value);
+  return step >= 1 && step <= 6 ? step as Step : 1;
+}
+
+function storeFromParams(params: NewPickParams): Store | null {
+  if (!params.storeName) return null;
+  if (params.storeKind === 'place' && params.storeId) return {
+    kind: 'place',
+    catalogId: params.storeId,
+    name: params.storeName,
+    branchName: params.branchName || null,
+    region: params.region || null,
+    address: params.address || null,
+    providerCategory: params.providerCategory || null,
+    mapUrl: params.mapUrl || null,
+  };
+  if (params.storeKind === 'seller' && params.storeId && params.officialUrl) return {
+    kind: 'seller',
+    providerId: params.storeId,
+    name: params.storeName,
+    host: (() => { try { return new URL(params.officialUrl!).host; } catch { return ''; } })(),
+    officialUrl: params.officialUrl,
+  };
+  if (params.storeKind === 'new' && (params.channel === 'offline' || params.channel === 'online')) return {
+    kind: 'new',
+    name: params.storeName,
+    channel: params.channel,
+    sellerUrl: params.sellerUrl || null,
+  };
+  return null;
+}
 
 const V6 = {
   background: '#FFFFFF',
@@ -127,27 +186,30 @@ function errorMessage(error: unknown) {
 
 export default function NewPickScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<NewPickParams>();
   const auth = useAuthSession();
   const user = auth.user;
-  const [step, setStep] = useState<Step>(1);
-  const [channel, setChannel] = useState<PickChannel>('offline');
-  const [channelChosen, setChannelChosen] = useState(false);
+  const profileProgress = useMyProfile(user?.id);
+  const [step, setStep] = useState<Step>(() => parseStep(params.step));
+  const [channel, setChannel] = useState<PickChannel>(() => params.channel === 'online' ? 'online' : 'offline');
+  const [channelChosen, setChannelChosen] = useState(params.channelChosen === '1');
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [newName, setNewName] = useState('');
-  const [sellerUrl, setSellerUrl] = useState('');
-  const [store, setStore] = useState<Store | null>(null);
-  const [menuQuery, setMenuQuery] = useState('');
+  const [sellerUrl, setSellerUrl] = useState(() => params.sellerUrl ?? '');
+  const [store, setStore] = useState<Store | null>(() => storeFromParams(params));
+  const [menuQuery, setMenuQuery] = useState(() => params.menuName ?? '');
   const [aiMenuName, setAiMenuName] = useState('');
   const [manualCategory, setManualCategory] = useState(false);
   const [categoryQuery, setCategoryQuery] = useState('');
   // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
-  const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
-  const [itemId, setItemId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(() =>
+    params.menuName ? { categoryId: params.menuCategoryId ?? null, name: params.menuName } : null);
+  const [itemId, setItemId] = useState<string | null>(() => params.itemId ?? null);
   // Known from the selected item row itself, before the item detail loads.
-  const [itemHadPhoto, setItemHadPhoto] = useState(false);
-  const [itemPending, setItemPending] = useState(false);
-  const [mapLink, setMapLink] = useState('');
+  const [itemHadPhoto, setItemHadPhoto] = useState(params.itemHadPhoto === '1');
+  const [itemPending, setItemPending] = useState(params.itemPending === '1');
+  const [mapLink, setMapLink] = useState(() => params.mapLink ?? '');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSaved, setLinkSaved] = useState(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
@@ -156,6 +218,28 @@ export default function NewPickScreen() {
   const [done, setDone] = useState<Done | null>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
   const busy = useRef(false);
+  const draftLoadedFor = useRef<string | null>(null);
+  const skipNextDraftWrite = useRef(false);
+  const onboarding = params.onboarding === '1';
+
+  useEffect(() => {
+    if (!user || draftLoadedFor.current === user.id) return;
+    draftLoadedFor.current = user.id;
+    const saved = readPickReviewDraft(user.id);
+    if (saved) {
+      skipNextDraftWrite.current = true;
+      setReview(saved);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || draftLoadedFor.current !== user.id) return;
+    if (skipNextDraftWrite.current) {
+      skipNextDraftWrite.current = false;
+      return;
+    }
+    writePickReviewDraft(user.id, review);
+  }, [review, user]);
 
   const isNew = store?.kind === 'new';
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
