@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemSearch } from '@/hooks/useItemSearch';
@@ -160,7 +161,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
       <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
-      {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
+      {sessionError ? <Button label="다시 확인하기" onPress={retrySession} size="sm" variant="secondary" style={styles.secondaryButton} /> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
 
@@ -186,11 +187,11 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 포켓몬과 PokéAPI 색인을 함께 찾고 있어요</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 포켓몬 검색을 불러오지 못했어요</Text>
-        <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
+        <Button label="다시 검색" onPress={() => void local.refetch()} size="sm" variant="secondary" disabled={local.isFetching} style={styles.secondaryButton} /></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>PokéAPI를 불러오지 못했어요</Text>
         <Text style={styles.stateText}>{pokemonErrorMessage(catalog.error)}</Text>
-        <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>PokéAPI 다시 검색</Text></Pressable>
+        <Button label="PokéAPI 다시 검색" onPress={() => void catalog.refetch()} size="sm" variant="secondary" disabled={catalog.isFetching} style={styles.secondaryButton} />
       </View> : null}
 
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 포켓몬 정보를 확인하고 있어요</Text></View> : null}
@@ -199,15 +200,15 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보가 준비됐어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
-          ? <Pressable onPress={() => continuePokemon(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 포켓몬으로 계속</Text></Pressable>
+          ? <Button label="선택한 포켓몬으로 계속" onPress={() => continuePokemon(selection.item, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />
           : selection.phase === 'failed' && selection.error instanceof AppError && selection.error.code === 'AUTH_REQUIRED'
-            ? <Pressable onPress={() => loginForPokemon(selection.externalId)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 로그인하고 선택 계속</Text></Pressable>
-            : <Pressable onPress={() => void loadPokemon(selection.externalId, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 포켓몬 다시 불러오기</Text></Pressable>}
+            ? <Button label="다시 로그인하고 선택 계속" onPress={() => loginForPokemon(selection.externalId)} size="sm" variant="secondary" style={styles.secondaryButton} />
+            : <Button label="선택한 포켓몬 다시 불러오기" onPress={() => void loadPokemon(selection.externalId, selection.replace)} size="sm" variant="secondary" style={styles.secondaryButton} />}
       </View> : null}
 
       {validReturn && !user && !selection ? <View style={styles.stateCard}>
         <Text style={styles.stateText}>선택한 포켓몬을 이어가려면 로그인이 필요해요.</Text>
-        <Pressable onPress={() => loginForPokemon(externalId!)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>로그인하고 선택 계속</Text></Pressable>
+        <Button label="로그인하고 선택 계속" onPress={() => loginForPokemon(externalId!)} size="sm" variant="secondary" style={styles.secondaryButton} />
       </View> : null}
 
       {cleanQuery && localItems.map((item) => <View key={item.id} style={styles.itemCard}>
@@ -265,8 +266,7 @@ const styles = StyleSheet.create({
   itemName: { color: OnePick.text, fontSize: 16, fontWeight: '800', marginTop: 5 },
   meta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   itemAction: { color: OnePick.muted, fontSize: 12, marginTop: 7 },
-  secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
-  secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
+  secondaryButton: { marginTop: 13 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
