@@ -11,11 +11,13 @@ import { useImportPokemonCatalogItem, usePokemonCatalogSearch } from '@/hooks/us
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedPokemonItem, PokemonCatalogEntry } from '@/types/domain/pokemonCatalog';
 import { OnePick } from '@/constants/onepick';
+import { withOnboardingParam } from '@/lib/onboarding/navigation';
 
 type Params = {
   categoryId?: string | string[];
   externalPokemonId?: string | string[];
   query?: string | string[];
+  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -42,7 +44,7 @@ function pokemonErrorMessage(error: unknown) {
 export default function PokemonPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalPokemonId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalPokemonId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <PokemonPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -94,7 +96,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
+    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
     if (replace) router.replace(route); else router.push(route);
   };
 
@@ -236,7 +238,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 포켓몬을 찾지 못했어요</Text>
-        <Text style={styles.stateText}>한국어·영문 이름이나 도감 번호를 바꿔서 검색해보세요.</Text></View> : null}
+        <Text style={styles.stateText}>한국어·영문 이름이나 도감 번호를 바꿔서 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
       <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토합니다. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시합니다.</Text>
     </ScrollView>
