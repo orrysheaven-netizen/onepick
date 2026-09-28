@@ -131,6 +131,7 @@ export default function NewPickScreen() {
   const user = auth.user;
   const [step, setStep] = useState<Step>(1);
   const [channel, setChannel] = useState<PickChannel>('offline');
+  const [channelChosen, setChannelChosen] = useState(false);
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [newName, setNewName] = useState('');
@@ -159,7 +160,7 @@ export default function NewPickScreen() {
   const isNew = store?.kind === 'new';
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
   const storeChannel: PickChannel = store ? (store.kind === 'seller' ? 'online' : store.kind === 'place' ? 'offline' : store.channel) : channel;
-  const search = useStoreSearch(channel, query, Boolean(user) && step === 1 && !requesting);
+  const search = useStoreSearch(channel, query, Boolean(user) && step === 1 && channelChosen && !requesting);
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const suggestionStore = useMemo(() => store ? {
     name: store.name,
@@ -224,8 +225,34 @@ export default function NewPickScreen() {
   };
   const goBack = () => {
     if (saving || busy.current) return;
-    if (step === 1 || step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 1 && channelChosen) { setChannelChosen(false); setRequesting(false); return; }
+    if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
+  };
+  const chooseChannel = (next: PickChannel) => {
+    setChannel(next);
+    setChannelChosen(true);
+    setQuery('');
+    setRequesting(false);
+    setNewName('');
+    setSellerUrl('');
+    setStore(null);
+    setMenuQuery('');
+    setAiMenuName('');
+    setManualCategory(false);
+    setCategoryQuery('');
+    setMenu(null);
+    setItemId(null);
+    setItemHadPhoto(false);
+    setItemPending(false);
+    setMapLink('');
+    setLinkError(null);
+    setLinkSaved(false);
+    setPhoto(null);
+    setReview('');
+    setDone(null);
+    setSaveError(null);
   };
 
   const pickStore = (candidate: Store) => {
@@ -401,14 +428,23 @@ export default function NewPickScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {header}
 
-        {step === 1 ? <>
+        {step === 1 && !channelChosen ? <>
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>1 / 6</Text>
+            <Text style={styles.title}>어디에서 고른 원픽인가요?</Text>
+            <Text style={styles.helper}>매장과 온라인 판매처는 각각 따로 원픽을 정할 수 있어요.</Text>
+            <View style={styles.channelChoice}>
+              <FlowButton variant="secondary" label="매장" onPress={() => chooseChannel('offline')} />
+              <FlowButton variant="secondary" label="온라인" onPress={() => chooseChannel('online')} />
+              <FlowButton variant="text" label="레시피는 메뉴부터 찾기" onPress={() => router.push('/pick/find')} />
+            </View>
+          </View>
+        </> : null}
+
+        {step === 1 && channelChosen ? <>
           <View style={styles.body}>
             <Text style={styles.stepMeta}>2 / 6 · {channel === 'online' ? '온라인 판매처' : '오프라인 매장'}</Text>
             <Text style={styles.title}>상호명을 검색해 주세요</Text>
-            <View style={styles.channelRow}>
-              <FlowChip label="매장" selected={channel === 'offline'} onPress={() => { setChannel('offline'); setRequesting(false); setQuery(''); }} />
-              <FlowChip label="온라인" selected={channel === 'online'} onPress={() => { setChannel('online'); setRequesting(false); setQuery(''); }} />
-            </View>
             {!requesting ? <>
               <View style={styles.fieldBlock}>
                 <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
@@ -435,7 +471,6 @@ export default function NewPickScreen() {
               </View>
               {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
                 ? <Text style={styles.helper}>검색한 이름의 {channel === 'online' ? '판매처' : '매장'}를 찾지 못했어요.</Text> : null}
-              <FlowButton variant="text" label="레시피는 메뉴부터 찾기" onPress={() => router.push('/pick/find')} />
             </> : <View style={styles.requestPanel}>
               <Text style={styles.panelTitle}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text>
               <Text style={styles.helper}>찾는 곳이 없으면 이름을 직접 등록할 수 있어요.</Text>
@@ -629,7 +664,7 @@ const styles = StyleSheet.create({
   footer: { gap: 8, marginTop: 'auto', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 24 },
   stepMeta: { color: V6.secondary, fontSize: 12, lineHeight: 18, fontWeight: '400' },
   title: { color: V6.text, fontSize: 22, lineHeight: 30, fontWeight: '700' },
-  channelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  channelChoice: { gap: 8, marginTop: 4 },
   fieldBlock: { gap: 8 },
   fieldLabelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   fieldLabel: { color: V6.secondary, fontSize: 14, lineHeight: 21, fontWeight: '500' },
