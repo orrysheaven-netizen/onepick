@@ -1,8 +1,14 @@
 const PREFIX = 'onepick:pick-new-review:';
 
-function storage() {
+type SessionStorageLike = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+};
+
+function storage(): SessionStorageLike | null {
   if (typeof globalThis === 'undefined') return null;
-  const candidate = (globalThis as typeof globalThis & { sessionStorage?: Storage }).sessionStorage;
+  const candidate = (globalThis as typeof globalThis & { sessionStorage?: SessionStorageLike }).sessionStorage;
   return candidate ?? null;
 }
 
