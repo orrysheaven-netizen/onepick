@@ -78,6 +78,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useRequestPendingPick: () => mutation('requestPick', (input) => input.oneLineReview),
   },
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
+  '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
   '@/hooks/useLinkCategorySuggestions': { useAttachPendingItemLink: () => mutation('sellerLink', () => undefined) },
   '@/hooks/useRegisterPick': {
     useChoosePhoto: () => mutation('choosePhoto', () => ({ uri: 'data:image/jpeg;base64,eA==', base64: 'eA==' })),
