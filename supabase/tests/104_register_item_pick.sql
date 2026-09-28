@@ -241,8 +241,8 @@ begin
   select * into v_pick from public.picks where id=p3;
   assert v_pick.item_id=existing and v_pick.status='active' and v_pick.channel='offline' and v_pick.one_line_review='이름집이 더 좋아',
     'A merge moves the waiting Pick onto the target and publishes it: '||v_pick.status||' '||v_pick.item_id::text;
-  assert (select count(*) from public.picks where user_id=alice and category_id=menu and status in ('active','needs_review')) = 1,
-    'One current Pick per menu and channel after the merge';
+  assert (select count(*) from public.picks where user_id=alice and category_id=menu and channel='offline' and status in ('active','needs_review')) = 1,
+    'One current Pick per menu and channel after the merge (the online request is its own slot)';
 
   -- ------------------------------------------------------------ suspended
   insert into private.user_moderation(user_id,reason,suspended_at) values(bob,'RIP fixture',now());
