@@ -92,13 +92,15 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
   if (isSessionLoading) return <ActivityIndicator accessibilityLabel="로그인 상태 확인 중" />;
   if (sessionError) return <View style={styles.commentsState}>
     <Text accessibilityRole="alert" style={styles.commentsStateText}>로그인 상태를 확인하지 못했어요.</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="로그인 상태 다시 확인" onPress={retrySession} style={styles.smallButton}>
-      <Text style={styles.smallButtonText}>다시 확인하기</Text>
-    </Pressable>
+    <Button accessibilityLabel="로그인 상태 다시 확인" label="다시 확인하기" onPress={retrySession}
+      size="sm" style={styles.smallButton} variant="secondary" />
   </View>;
   if (query.isPending) return <ActivityIndicator accessibilityLabel="댓글 불러오는 중" />;
   if (query.isError || !query.data) return (
-    <View><Text>한줄평을 불러오지 못했어요.</Text><Pressable onPress={() => void query.refetch()}><Text>다시 불러오기</Text></Pressable></View>
+    <View>
+      <Text>한줄평을 불러오지 못했어요.</Text>
+      <Button label="다시 불러오기" onPress={() => void query.refetch()} size="sm" style={styles.smallButton} variant="secondary" />
+    </View>
   );
 
   return (
@@ -118,12 +120,8 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
               {commentsQuery.isError && !commentsQuery.isFetchNextPageError ? (
                 <View style={styles.commentsState}>
                   <Text style={styles.commentsStateText}>댓글을 불러오지 못했어요.</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => void commentsQuery.refetch()}
-                    style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}>
-                    <Text style={styles.smallButtonText}>다시 불러오기</Text>
-                  </Pressable>
+                  <Button label="다시 불러오기" onPress={() => void commentsQuery.refetch()}
+                    size="sm" style={styles.smallButton} variant="secondary" />
                 </View>
               ) : null}
 
