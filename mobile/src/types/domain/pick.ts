@@ -20,4 +20,10 @@ export interface Pick {
   replacedByPickId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Viewer/item-scoped flags returned by item_review_page. */
+  isCurrent?: boolean;
+  isDeleted?: boolean;
+  canComment?: boolean;
+  canManage?: boolean;
+  commentCount?: number;
 }
