@@ -227,7 +227,7 @@ export default function HomeScreen() {
         </View> : null}
 
         <View style={styles.sectionHeader}>
-          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 같으면 따라 고르고, 다르면 내 것을 찾아요" />
+          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 다른 사람의 취향을 참고하고 내 원픽을 발견해요" />
         </View>
 
         {ready ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
