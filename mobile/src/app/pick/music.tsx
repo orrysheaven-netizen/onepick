@@ -11,7 +11,7 @@ import { useImportMusicCatalogItem, useMusicCatalogSearch } from '@/hooks/useMus
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMusicItem, MusicCatalogEntry } from '@/types/domain/musicCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/onboarding/navigation';
+import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
