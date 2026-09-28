@@ -18,6 +18,14 @@ export const OnePick = {
   // Brand: fills/decorations only; never use brand for small text on white.
   brand: '#FF8A00',
   onBrand: '#141416',
+
+  // Foundations semantic roles used by shared actions and navigation.
+  actionPrimary: '#141416',
+  actionDisabled: '#ADB0BA',
+  onAction: '#FFFFFF',
+  textSecondary: '#6B6E78',
+  textTertiary: '#8A909C',
+
   // Legacy accent serves both links and fills. Keep its text/fill pair readable
   // until individual components opt into brand/onBrand together.
   accent: '#141416',
@@ -50,11 +58,13 @@ export const OnePickFont = {
 
 // Type scale: five steps. Korean body copy never goes below `body`; `caption` is the only 12px.
 export const OnePickType = {
-  display: { fontFamily: BodyFont, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
-  title: { fontFamily: BodyFont, fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4 },
-  body: { fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontFamily: BodyFont, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  pageTitle: { fontFamily: BodyFont, fontSize: 22, lineHeight: 30, fontWeight: '700' },
+  title: { fontFamily: BodyFont, fontSize: 20, lineHeight: 28, fontWeight: '700' },
+  headline: { fontFamily: BodyFont, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  bodyMedium: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  body: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '400' },
+  captionMedium: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '400' },
 } as const;
 
 export const OnePickRadius = {
