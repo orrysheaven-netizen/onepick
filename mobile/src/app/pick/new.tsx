@@ -256,7 +256,12 @@ export default function NewPickScreen() {
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
-  const completionPickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const profilePickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const savedPickAlreadyInProfile = Boolean(done?.type === 'pick'
+    && profileProgress.data?.currentPicks.some(({ pick }) => pick.id === done.pickId));
+  const saveAddsCategory = itemDetail.data?.myPickStatus?.type !== 'selected_this'
+    && itemDetail.data?.myPickStatus?.type !== 'selected_other';
+  const completionPickCount = profilePickCount + (done?.type === 'pick' && !savedPickAlreadyInProfile && saveAddsCategory ? 1 : 0);
   const aiRemaining = Math.max(0, 10 - completionPickCount);
 
   const nextFrom = (from: Step): Step => {
