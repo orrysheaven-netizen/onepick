@@ -136,7 +136,7 @@ async function main() {
   reset();
   page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /어디서 고른 원픽인가요/);
+  assert.match(page, /채널을 선택해 주세요/);
   assert.equal(inputs.find((entry) => entry.accessibilityLabel === '매장명 검색'), undefined);
   press('매장 채널 선택');
   page = render();
@@ -152,6 +152,8 @@ async function main() {
   assert.equal(destination, '/pick/recipe');
 
   // Offline: channel → store → required map link → menu → photo → review → success modal.
+  reset();
+  render(); press('매장 채널 선택'); render(); press('다음'); render();
   input('매장명 검색').onChangeText('을밀대');
   page = render();
   assert.match(page, /서울 마포구 · 국수\/칼국수/);
