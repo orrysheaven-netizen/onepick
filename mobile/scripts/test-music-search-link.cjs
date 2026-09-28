@@ -11,7 +11,7 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../sr
   if(name==='expo-router')return{useRouter:()=>({push:(r)=>{route=r;}})};
   if(name==='react-native')return{Pressable:(p)=>React.createElement('button',{onClick:p.onPress},p.children),Text:({children})=>React.createElement('span',null,children),StyleSheet:{create:x=>x}};
   if(name==='@/hooks/useRegisterPick')return{useRegistrationCategories:()=>categories};
-  if(name==='@/lib/onboarding/navigation')return{withOnboardingParam:(params,onboarding)=>onboarding==='1'?{...params,onboarding:'1'}:params};
+  if(name==='@/lib/categories/registrationRoute')return{withOnboardingParam:(params,onboarding)=>onboarding==='1'?{...params,onboarding:'1'}:params};
   throw new Error(name);
 }});
 const Link=moduleExports.MusicSearchLink;
