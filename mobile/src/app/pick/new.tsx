@@ -77,6 +77,7 @@ export default function NewPickScreen() {
   const [sellerUrl, setSellerUrl] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
+  const [aiMenuName, setAiMenuName] = useState('');
   // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -125,8 +126,8 @@ export default function NewPickScreen() {
   const suggestions = useMenuSuggestions(
     suggestionStore,
     storeKey,
-    requestedMenu,
-    Boolean(user) && step === 2 && menus.isSuccess && exactMenuMatches.length === 0,
+    aiMenuName,
+    Boolean(user) && step === 2 && menus.isSuccess && Boolean(aiMenuName) && aiMenuName === requestedMenu && exactMenuMatches.length === 0,
   );
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
@@ -170,6 +171,7 @@ export default function NewPickScreen() {
       setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
     }
     setStore(candidate);
+    setAiMenuName('');
     setStep(2);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
@@ -360,7 +362,8 @@ export default function NewPickScreen() {
         {step === 2 && store ? <>
           <Text style={styles.title}>어떤 메뉴인가요?</Text>
           <Text style={styles.subtitle}>{store.name}에서 고른 메뉴 이름을 입력해주세요. 같은 메뉴가 있으면 바로 보여드리고, 없으면 AI가 카테고리를 추천해요.</Text>
-          <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery} onChangeText={(value) => { setMenuQuery(value); setMenu(null); }} style={styles.input}
+          <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery} onChangeText={(value) => { setMenuQuery(value); setMenu(null); setAiMenuName(''); }}
+            onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }} returnKeyType="search" style={styles.input}
             placeholder="예: 평양냉면, 도가니탕" placeholderTextColor={OnePick.hint} />
           {requestedMenu && exactMenuMatches.length > 0 ? <>
             <Text style={styles.section}>같은 메뉴</Text>
@@ -374,14 +377,17 @@ export default function NewPickScreen() {
               {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
             </View>
           </> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <Text style={styles.section}>AI 카테고리 추천</Text> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴 카테고리를 추천하고 있어요</Text></View>
-            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiSuggestions.length ? <View style={styles.chips}>
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <>
+            <Text style={styles.section}>AI 카테고리 추천</Text>
+            {aiMenuName !== requestedMenu ? <Button variant="secondary" label="AI로 카테고리 추천받기" onPress={() => setAiMenuName(requestedMenu)} /> : null}
+          </> : null}
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴 카테고리를 추천하고 있어요</Text></View>
+            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && aiSuggestions.length ? <View style={styles.chips}>
               {aiSuggestions.map((entry) => <Chip key={entry.categoryId} label={entry.label.split(' › ').pop() ?? entry.label}
                 accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
                 onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label.split(' › ').pop() ?? entry.label })} />)}
             </View>
-            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && !suggestions.isPending ? <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래 수동 목록에서 골라주세요.' : '추천할 카테고리를 찾지 못했어요. 아래 수동 목록에서 골라주세요.'}</Text> : null}
+            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending ? <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래 수동 목록에서 골라주세요.' : '추천할 카테고리를 찾지 못했어요. 아래 수동 목록에서 골라주세요.'}</Text> : null}
           {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
             ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
           {requestedMenu && exactMenuMatches.length === 0 ? <Text style={styles.section}>수동 목록</Text> : null}
@@ -389,7 +395,7 @@ export default function NewPickScreen() {
           {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <View style={styles.chips}>
             {availableMenus.slice(0, 30).map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
           </View> : null}
-          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && !suggestions.isPending && !menu ? <View style={styles.card}>
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending && !menu ? <View style={styles.card}>
             <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
             <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
             {requestedMenu.length > 40 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
