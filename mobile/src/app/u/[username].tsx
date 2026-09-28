@@ -59,7 +59,7 @@ export default function PublicProfileScreen() {
   const continueProfileLogin = async (provider: SocialAuthProvider) => {
     if (!query.data || socialSignIn.isPending) return;
     const intent: AuthIntent = { action: 'follow_profile', username: query.data.profile.username };
-    const redirectTo = Linking.createURL('auth/callback', { queryParams: intent });
+    const redirectTo = Linking.createURL('auth/callback', { queryParams: { ...intent } });
     try {
       const result = await socialSignIn.mutateAsync({ provider, redirectTo });
       if (!result) return;
