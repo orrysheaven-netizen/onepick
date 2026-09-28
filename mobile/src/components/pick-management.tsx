@@ -18,10 +18,10 @@ function getErrorMessage(error: unknown) {
   return '변경하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.';
 }
 
-export type PickManagementMode = 'idle' | 'edit' | 'remove';
+export type PickManagementMode = 'idle' | 'edit' | 'remove' | 'delete';
 
 /** The two small corner actions on my review card that open the edit/remove panel. */
-export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'remove') => void }) {
+export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'remove' | 'delete') => void }) {
   return <View style={styles.actions}>
     <Pressable accessibilityRole="button" accessibilityLabel="한줄평 수정" onPress={() => onOpen('edit')} style={styles.actionLink}>
       <Text style={styles.actionText}>수정</Text>
@@ -29,6 +29,10 @@ export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'rem
     <Text style={styles.actionDot}>·</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="원픽 선택 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
       <Text style={styles.actionText}>원픽 해제</Text>
+    </Pressable>
+    <Text style={styles.actionDot}>·</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="한줄평 삭제" onPress={() => onOpen('delete')} style={styles.actionLink}>
+      <Text style={styles.actionText}>한줄평 삭제</Text>
     </Pressable>
   </View>;
 }
@@ -41,21 +45,22 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
   mode: PickManagementMode;
   onModeChange: (mode: PickManagementMode) => void;
 }) {
-  const { updateReview, removePick } = useManagePick();
+  const { updateReview, removePick, deleteReview } = useManagePick();
   const setMode = onModeChange;
   const [review, setReview] = useState(pick.oneLineReview);
   const [saved, setSaved] = useState(false);
   const submitting = useRef(false);
-  const isBusy = updateReview.isPending || removePick.isPending;
+  const isBusy = updateReview.isPending || removePick.isPending || deleteReview.isPending;
   const trimmedReview = review.trim();
   const canSave = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const error = mode === 'edit' ? updateReview.error : mode === 'remove' ? removePick.error : null;
+  const error = mode === 'edit' ? updateReview.error : mode === 'remove' ? removePick.error : mode === 'delete' ? deleteReview.error : null;
 
   // Each time the card opens a panel (mode change only), start from the saved review with no stale errors.
   useEffect(() => {
     if (mode === 'idle' || submitting.current) return;
     updateReview.reset();
     removePick.reset();
+    deleteReview.reset();
     setSaved(false);
     setReview(pick.oneLineReview);
   }, [mode]);
@@ -79,6 +84,19 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
     submitting.current = true;
     try {
       await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel });
+      onRemoved();
+    } catch {
+      // Mutation state displays the error without leaving the confirmation.
+    } finally {
+      submitting.current = false;
+    }
+  };
+
+  const confirmReviewDeletion = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    try {
+      await deleteReview.mutateAsync(pick.id);
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.
@@ -114,15 +132,20 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 저장</Text>}
           </Pressable>
         </>
-      ) : (
+      ) : mode === 'remove' ? (
         <>
-          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 이전 선택 기록은 남고, 이 카테고리에서 다시 원픽을 고를 수 있어요.</Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isBusy}
-            onPress={() => void confirmRemoval()}
+          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남습니다.</Text>
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제됩니다. 댓글이 있으면 대화는 익명 자리로 남습니다.</Text>
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmReviewDeletion()}
+            style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 삭제하기</Text>}
           </Pressable>
         </>
       )}
