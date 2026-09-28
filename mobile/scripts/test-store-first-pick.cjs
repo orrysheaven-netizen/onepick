@@ -222,7 +222,7 @@ async function main() {
   // A new offline store requires both a map link and a representative photo.
   reset();
   render(); press('매장 채널 선택'); render();
-  input('매장명 검색').onChangeText('새 냉면집'); render(); press('매장 등록 요청');
+  input('매장명 검색').onChangeText('새 냉면집'); render(); press('새 매장 등록');
   page = render();
   assert.equal(input('등록 요청 이름').value, '새 냉면집');
   press('다음'); page = render();
@@ -248,7 +248,7 @@ async function main() {
 
   // A new online seller moves purchase URL to the dedicated link step and rejects delivery-app URLs.
   reset();
-  render(); press('온라인 채널 선택'); render(); press('판매처 등록 요청'); render();
+  render(); press('온라인 채널 선택'); render(); press('새 판매처 등록'); render();
   input('등록 요청 이름').onChangeText('새 곰탕몰'); render(); press('다음');
   page = render(); assert.equal(step(page), '3'); assert.match(page, /구매 링크를 알려주세요/);
   input('구매 링크').onChangeText('https://s.baemin.com/store/1'); render(); press('다음');
