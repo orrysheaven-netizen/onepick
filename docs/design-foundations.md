@@ -68,12 +68,18 @@
 | Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
+| App Header | Theme | 메인 탭 상단: 로고 + 테마 선택(bg/accent) |
+| Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
+| Menu Tile | Name, Count | 홈 메뉴 2열 격자 한 칸, 사진 없으면 bg/placeholder |
+| Feed Card | Username, Item, Provider, Review, Meta | 피드 한 건, 채널 태그는 Tag/Soft |
+| Progress Banner | Title, Caption, Action | 온보딩 미완료 시 홈 상단, AI 평가까지 N/10 |
 
 Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단 주요 버튼만 가로 채움입니다. Text 버튼은 좌우 여백이 없어 본문과 왼쪽 정렬됩니다.
 
 ## 적용 화면
 
 - 75. 원픽 등록 v6 — 상호명 검색 → 메뉴명 입력 + AI 카테고리 추천(추천 중·결과·실패) → 한줄평 → 완료 팝업. D 구현 기준.
+- 76. 홈 v6 — 온보딩 진행 중(진행 배너), 로그아웃 첫 방문, 팔로잉 비었을 때, 불러오기 실패, 피드 스크롤. E(이어서 고르기 배너)·F2 기준.
 
 ## 코드 반영 (F2)
 
