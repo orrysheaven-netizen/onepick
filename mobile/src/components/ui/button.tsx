@@ -36,7 +36,7 @@ export function Button({ label, onPress, variant = 'primary', size = 'md', disab
 }
 
 const styles = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', borderRadius: OnePickRadius.small },
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', borderRadius: OnePickRadius.md },
   fullWidth: { alignSelf: 'stretch' },
   // Keep enabled pressed text readable; only unavailable controls are dimmed.
   pressed: { opacity: 0.9 },
@@ -48,16 +48,16 @@ const styles = StyleSheet.create({
 
 const sizes = StyleSheet.create({
   lg: { minHeight: 52, paddingHorizontal: 24 },
-  md: { minHeight: 48, paddingHorizontal: 20 },
+  md: { minHeight: 52, paddingHorizontal: 20 },
   sm: { minHeight: 40, paddingHorizontal: 14 },
 });
 
 const variants = StyleSheet.create({
   primary: { backgroundColor: OnePick.actionPrimary },
-  secondary: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
+  secondary: { backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderStrong },
   soft: { backgroundColor: OnePick.accentSoft },
-  ghost: { backgroundColor: 'transparent', paddingHorizontal: 8 },
-  danger: { backgroundColor: 'transparent', paddingHorizontal: 8 },
+  ghost: { backgroundColor: 'transparent', paddingHorizontal: 0 },
+  danger: { backgroundColor: 'transparent', paddingHorizontal: 0 },
 });
 
 const labels = StyleSheet.create({
