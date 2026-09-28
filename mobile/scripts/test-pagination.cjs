@@ -46,8 +46,18 @@ async function main() {
       calls.push(url);
       if (fail) return new Response(JSON.stringify({ code: 'PGRST301', message: 'Session expired' }), { status: 401 });
       const table = url.pathname.split('/').pop();
-      assert.ok(['picks', 'comments', 'items'].includes(table));
       const params = url.searchParams;
+      if (table === 'pick_comment_page') {
+        const pickId = JSON.parse(params.get('p_pick_id'));
+        const afterTime = params.has('p_after_time') ? JSON.parse(params.get('p_after_time')) : null;
+        const afterId = params.has('p_after_id') ? JSON.parse(params.get('p_after_id')) : null;
+        const limit = Number(JSON.parse(params.get('p_limit')));
+        let rows = comments.filter((item) => item.pick_id === pickId);
+        if (afterTime && afterId) rows = rows.filter((item) => compare(item, { created_at: afterTime, id: afterId }, 'created_at') > 0);
+        rows = [...rows].sort((a, b) => compare(a, b, 'created_at'));
+        return new Response(JSON.stringify(rows.slice(0, limit)), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      assert.ok(['picks', 'comments', 'items'].includes(table));
       assert.equal(params.has('offset'), false, 'Infinite reads must not use positional offsets');
       const [column, direction] = params.get('order').split(',')[0].split('.');
       assert.equal(params.get('order'), `${column}.${direction},id.${direction}`, 'Equal timestamps need deterministic UUID ordering');
