@@ -136,7 +136,7 @@ async function main() {
     assert.ok(ready, `Preview server did not start: ${output}`);
 
     const routes = [
-      '/', '/explore', '/comments', '/profile', '/admin',
+      '/', '/explore', '/comments', '/notifications', '/profile', '/admin',
       '/item/20000000-0000-0000-0000-000000000001',
       '/pick/661201d7-ad86-444f-b280-6c964b309c78',
       '/u/onepick_qa', '/u/new_user_created_after_build',
