@@ -39,12 +39,13 @@ export function useMenuOptions(enabled: boolean) {
   });
 }
 
-/** Step 2: AI menu suggestions for the chosen store. Failure falls back to manual choice. */
-export function useMenuSuggestions(store: StoreForSuggestion | null, storeKey: string, enabled: boolean) {
+/** Step 2: AI category suggestions for the menu name the user typed. */
+export function useMenuSuggestions(store: StoreForSuggestion | null, storeKey: string, menuName: string, enabled: boolean) {
+  const cleanMenuName = menuName.trim().replace(/\s+/g, ' ');
   return useQuery({
-    queryKey: ['store-first', 'menu-ai', storeKey],
-    queryFn: () => storeFirstService.suggestMenus(store!),
-    enabled: enabled && Boolean(store),
+    queryKey: ['store-first', 'menu-ai', storeKey, cleanMenuName],
+    queryFn: () => storeFirstService.suggestMenus(store!, cleanMenuName),
+    enabled: enabled && Boolean(store) && cleanMenuName.length >= 1 && cleanMenuName.length <= 40,
     staleTime: Infinity,
     retry: false,
   });
