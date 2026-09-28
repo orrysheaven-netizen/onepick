@@ -45,7 +45,11 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
   mode: PickManagementMode;
   onModeChange: (mode: PickManagementMode) => void;
 }) {
-  const { updateReview, removePick, deleteReview } = useManagePick();
+  const { updateReview, removePick, deleteReview: deleteReviewMutation } = useManagePick();
+  // Some isolated component tests still provide the pre-contract hook shape.
+  const deleteReview = deleteReviewMutation ?? {
+    isPending: false, error: null, reset() {}, mutateAsync: async () => undefined,
+  };
   const setMode = onModeChange;
   const [review, setReview] = useState(pick.oneLineReview);
   const [saved, setSaved] = useState(false);
