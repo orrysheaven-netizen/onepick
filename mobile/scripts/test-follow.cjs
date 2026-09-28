@@ -65,15 +65,27 @@ async function main() {
     ['counts', 'me'], ['feed', { timestamp: 't', id: 'i' }],
   ]);
 
-  // Auth intent: a guest pressing 팔로우 comes back and resumes the follow automatically.
+  // Auth intent: return to the same profile without putting a mutation trigger in the URL.
   const { getAuthIntent, getPostAuthRoute } = loadSource('lib/auth/authIntent.ts');
-  same(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: 'jimin_01' })), { pathname: '/u/[username]', params: { username: 'jimin_01', follow: '1' } });
+  same(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: 'jimin_01' })), { pathname: '/u/[username]', params: { username: 'jimin_01' } });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: '../admin' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: ['a', 'b'] })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile' })), '/');
   const onboarding = getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: 'jimin_01' }), true);
   assert.equal(onboarding.pathname, '/auth/username');
-  same(getPostAuthRoute(getAuthIntent(onboarding.params)), { pathname: '/u/[username]', params: { username: 'jimin_01', follow: '1' } });
+  same(getPostAuthRoute(getAuthIntent(onboarding.params)), { pathname: '/u/[username]', params: { username: 'jimin_01' } });
+
+  // Auto-follow is an explicit, one-time continuation. A URL alone cannot arm it.
+  const followIntent = loadSource('lib/auth/followProfileIntent.ts');
+  assert.equal(followIntent.consumeFollowProfileIntent('jimin_01', 1_000), false);
+  assert.equal(followIntent.armFollowProfileIntent('jimin_01', 1_000), true);
+  assert.equal(followIntent.consumeFollowProfileIntent('jimin_01', 1_001), true);
+  assert.equal(followIntent.consumeFollowProfileIntent('jimin_01', 1_002), false, 'the continuation is consumed once');
+  assert.equal(followIntent.armFollowProfileIntent('jimin_01', 2_000), true);
+  assert.equal(followIntent.consumeFollowProfileIntent('other_01', 2_001), false, 'a different profile cannot consume the intent');
+  assert.equal(followIntent.consumeFollowProfileIntent('jimin_01', 2_002), false, 'a mismatch also burns the marker');
+  assert.equal(followIntent.armFollowProfileIntent('jimin_01', 3_000), true);
+  assert.equal(followIntent.consumeFollowProfileIntent('jimin_01', 603_001), false, 'the continuation expires after ten minutes');
 
   // Follow button: guest → login handoff; member → optimistic toggle with rollback on failure.
   const presses = [];
@@ -146,6 +158,9 @@ async function main() {
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
   assert.match(publicProfile, /action: 'follow_profile'/);
+  assert.match(publicProfile, /consumeFollowProfileIntent\(username\)/);
+  assert.match(publicProfile, /autoFollow=\{autoFollow && Boolean\(user\)\}/);
+  assert.doesNotMatch(publicProfile, /follow === '1'/, 'a shareable query string cannot trigger a follow mutation');
   assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 
   console.log('Follow checks passed: service guards, login return intent, button states, all-first home scope and profile placement.');
