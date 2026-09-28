@@ -455,7 +455,7 @@ export default function NewPickScreen() {
           </View>
           <View style={styles.footer}>
             {!requesting
-              ? <FlowButton variant="secondary" label={`찾는 ${channel === 'online' ? '판매처' : '매장'}가 없어요`}
+              ? <FlowButton variant="secondary" label={channel === 'online' ? '찾는 판매처가 없어요' : '찾는 매장이 없어요'}
                   onPress={() => { setRequesting(true); setNewName(query); }} />
               : <>
                 <FlowButton label="다음" disabled={!canRequest}
