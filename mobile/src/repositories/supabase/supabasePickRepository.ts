@@ -9,6 +9,8 @@ import type {
   RecentPicksInput,
   UpdatePickReviewInput,
   RegisterPickRecordInput,
+  RegisterItemPickInput,
+  RegisterItemPickResult,
 } from '@/repositories/interfaces/pickRepository';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 
@@ -36,6 +38,40 @@ export class SupabasePickRepository implements PickRepository {
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');
     return mapPickRow(data);
+  }
+
+  async registerItemPick(input: RegisterItemPickInput): Promise<RegisterItemPickResult> {
+    const { data, error } = await this.client.rpc('register_item_pick', {
+      p_category_id: input.categoryId,
+      p_channel: input.channel,
+      p_one_line_review: input.oneLineReview,
+      p_item_id: input.itemId ?? undefined,
+      p_catalog_id: input.catalogId ?? undefined,
+      p_provider_id: input.providerId ?? undefined,
+      p_link_url: input.linkUrl ?? undefined,
+      p_image_path: input.imagePath ?? undefined,
+      p_thumbnail_path: input.thumbnailPath ?? undefined,
+      p_image_source_url: input.imageSourceUrl ?? undefined,
+      p_expected_previous_pick_id: input.expectedPreviousPickId,
+      p_request_id: input.requestId,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+
+    const row = data as Record<string, unknown>;
+    if (typeof row.item_id !== 'string' || typeof row.pick_id !== 'string'
+      || typeof row.published !== 'boolean' || typeof row.retried !== 'boolean'
+      || (row.replaced_pick_id !== null && row.replaced_pick_id !== undefined && typeof row.replaced_pick_id !== 'string')) {
+      throw new AppError('INTERNAL_ERROR');
+    }
+
+    return {
+      itemId: row.item_id,
+      pickId: row.pick_id,
+      published: row.published,
+      replacedPickId: typeof row.replaced_pick_id === 'string' ? row.replaced_pick_id : null,
+      retried: row.retried,
+    };
   }
 
   async getById(pickId: string) {
