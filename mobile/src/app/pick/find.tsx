@@ -291,8 +291,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const chooseMenu = (menu: { id: string; slug: string }) => {
     if (!focused.current || navigating.current) return;
     navigating.current = true;
-    const route = registrationRoute(menu);
-    router.push({ ...route, params: { ...route.params, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+    const route = registrationRoute(menu, params.onboarding);
+    router.push(route);
   };
   const requestMenu = () => {
     const itemName = menuQuery.trim();
@@ -310,8 +310,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
 
   // Recipe Picks are YouTube videos registered from a link, never a name search.
   if (selectedCategory?.slug === 'recipe') {
-    const route = registrationRoute(selectedCategory);
-    return <Redirect href={{ ...route, params: { ...route.params, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } }} />;
+    const route = registrationRoute(selectedCategory, params.onboarding);
+    return <Redirect href={route} />;
   }
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -446,11 +446,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>
-        <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
+        <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} onboarding={params.onboarding} />
       </View> : null}
       {noResults && isGameCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 게임에서 찾지 못했어요</Text><Text style={styles.stateText}>IGDB에서 게임 이름으로 더 찾아볼 수 있어요.</Text>
-        <GameSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
+        <GameSearchLink query={normalizedQuery} categoryId={selectedCategory.id} onboarding={params.onboarding} />
       </View> : null}
       {noResults && isYoutubeCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 채널에서 찾지 못했어요</Text><Text style={styles.stateText}>YouTube에서 채널명으로 더 찾아볼 수 있어요.</Text>
