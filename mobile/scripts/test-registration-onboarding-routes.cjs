@@ -1,0 +1,35 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+
+const helper = read('src/lib/onboarding/navigation.ts');
+assert.match(helper, /withOnboardingParam/);
+assert.match(helper, /onboarding: '1'/);
+
+const route = read('src/lib/categories/registrationRoute.ts');
+assert.match(route, /registrationRoute\(category:[\s\S]*onboarding\?: OnboardingParam/);
+assert.match(route, /withOnboardingParam\(\{ categoryId: category\.id \}, onboarding\)/);
+
+for (const file of ['music.tsx', 'game.tsx', 'book.tsx', 'pokemon.tsx']) {
+  const source = read('src/app/pick/' + file);
+  assert.match(source, /onboarding\?: string \| string\[\]/, file + ' accepts onboarding');
+  assert.match(source, /withOnboardingParam\(\{ itemId, categoryId \}, params\.onboarding\)/, file + ' preserves onboarding into choose');
+}
+
+const register = read('src/app/(tabs)/register.tsx');
+assert.match(register, /Redirect href="\/pick\/new"/, 'register tab must use store-first entry');
+
+const choose = read('src/app/pick/choose.tsx');
+const storeFirst = read('src/app/pick/new.tsx');
+assert.match(choose, />원픽을 정했어요<\/Text>/, 'choose completion copy is unified');
+assert.match(storeFirst, /done\.type === 'pick' \? '원픽을 정했어요'/, 'store-first completion copy is unified');
+
+const book = read('src/app/pick/book.tsx');
+const pokemon = read('src/app/pick/pokemon.tsx');
+assert.match(book, /그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요/);
+assert.match(pokemon, /그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요/);
+
+console.log('Registration/onboarding route checks passed: shared onboarding helper, catalog pickers, register entry, completion copy and empty-result guidance.');
