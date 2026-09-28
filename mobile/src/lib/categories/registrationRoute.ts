@@ -1,4 +1,15 @@
-import { withOnboardingParam, type OnboardingParam } from '@/lib/onboarding/navigation';
+export type OnboardingParam = string | string[] | undefined;
+
+export function isOnboardingRoute(value: OnboardingParam) {
+  return typeof value === 'string' && value === '1';
+}
+
+export function withOnboardingParam<T extends Record<string, string>>(
+  params: T,
+  onboarding: OnboardingParam,
+): T & { onboarding?: '1' } {
+  return isOnboardingRoute(onboarding) ? { ...params, onboarding: '1' } : params;
+}
 
 /** Where "pick something in this category" starts: catalog categories have their own finders. */
 export function registrationRoute(category: { id: string; slug: string }, onboarding?: OnboardingParam) {
