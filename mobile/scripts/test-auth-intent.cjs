@@ -40,6 +40,7 @@ async function main() {
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
   const requestWithSource = { ...request, sourceUrl: 'https://shop.example/items/ramen' };
   const linkSuggestion = { action: 'suggest_link_category', linkUrl: 'https://naver.me/example', linkName: '  대성집  ' };
+  const followProfile = { action: 'follow_profile', username: 'jimin_01' };
 
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
   same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', itemId: [ids[0]] }), { action: 'register_pick' });
@@ -81,6 +82,8 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ ...linkSuggestion, linkUrl: 'http://naver.me/example' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ['신라면'] })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'request_item', itemName: ' '.repeat(101) })), '/');
+  same(getPostAuthRoute(getAuthIntent(followProfile)), { pathname: '/u/[username]', params: { username: 'jimin_01', follow: '1' } });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: '../bad' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
   same(getAuthIntent({ action: 'my_comments' }), { action: 'my_comments' });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'my_comments' })), '/comments');
@@ -96,7 +99,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, followProfile, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
