@@ -48,10 +48,10 @@ begin
   -- A name-only request without a photo, by alice (the merge case below).
   insert into public.items(id,category_id,name,normalized_name,status,created_by) values
     (named,menu,'즉시등록 이름집','즉시등록이름집','pending',alice);
-  -- alice's uploads.
+  -- alice's uploads: one pair per product (a photo belongs to one product).
   insert into storage.objects(bucket_id,name,owner_id,metadata)
   select 'item-photos', alice::text||'/'||f.name, alice::text, jsonb_build_object('mimetype','image/jpeg','size',f.size)
-  from (values ('full.jpg',1024),('thumb.jpg',100)) f(name,size);
+  from (values ('full.jpg',1024),('thumb.jpg',100),('full2.jpg',1024),('thumb2.jpg',100),('full3.jpg',1024),('thumb3.jpg',100)) f(name,size);
 
   -- ------------------------------------------------------------ validation
   perform set_config('request.jwt.claim.sub',alice::text,true);
@@ -127,18 +127,18 @@ begin
   raised := false;
   begin
     perform public.register_item_pick(menu,'online','택배도 맛있어요', p_provider_id => v_provider,
-      p_image_path => alice::text||'/full.jpg', p_thumbnail_path => alice::text||'/thumb.jpg');
+      p_image_path => alice::text||'/full2.jpg', p_thumbnail_path => alice::text||'/thumb2.jpg');
   exception when others then raised := sqlerrm = 'ITEM_LINK_REQUIRED'; end;
   assert raised, 'A new online product needs its own purchase link';
   raised := false;
   begin
     perform public.register_item_pick(menu,'online','택배도 맛있어요', p_provider_id => v_provider, p_link_url => 'http://gomtang-rip.example.com/p/1',
-      p_image_path => alice::text||'/full.jpg', p_thumbnail_path => alice::text||'/thumb.jpg');
+      p_image_path => alice::text||'/full2.jpg', p_thumbnail_path => alice::text||'/thumb2.jpg');
   exception when others then raised := sqlerrm = 'LINK_INVALID'; end;
   assert raised, 'The purchase link must be https';
   res := public.register_item_pick(menu,'online','택배도 맛있어요', p_provider_id => v_provider,
     p_link_url => 'https://gomtang-rip.example.com/p/1',
-    p_image_path => alice::text||'/full.jpg', p_thumbnail_path => alice::text||'/thumb.jpg', p_request_id => r2);
+    p_image_path => alice::text||'/full2.jpg', p_thumbnail_path => alice::text||'/thumb2.jpg', p_request_id => r2);
   online_item := (res->>'item_id')::uuid; p2 := (res->>'pick_id')::uuid;
   assert (res->>'published')::boolean = false, 'The seller product is a pending request too';
   reset role;
@@ -228,7 +228,7 @@ begin
   perform set_config('request.jwt.claim.sub',alice::text,true);
   set local role authenticated;
   res := public.register_item_pick(menu,'offline','이름집이 더 좋아', p_item_id => named,
-    p_image_path => alice::text||'/full.jpg', p_thumbnail_path => alice::text||'/thumb.jpg',
+    p_image_path => alice::text||'/full3.jpg', p_thumbnail_path => alice::text||'/thumb3.jpg',
     p_expected_previous_pick_id => p1);
   p3 := (res->>'pick_id')::uuid;
   assert (res->>'published')::boolean = false and (res->>'replaced_pick_id')::uuid = p1, 'A request replaces the current Pick in the slot: '||res::text;
