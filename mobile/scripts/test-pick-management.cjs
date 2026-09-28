@@ -37,6 +37,7 @@ async function main() {
   const service = new PickService({
     updateReview: async (input) => { repositoryCalls.push(input); return input; },
     removePick: async (categoryId, channel) => { repositoryCalls.push(channel ? `${categoryId}:${channel}` : categoryId); },
+    deleteReview: async (pickId) => { repositoryCalls.push(`delete:${pickId}`); },
   });
   const result = await service.updateReview({ pickId: 'pick-1', oneLineReview: '  바꾼 이유  ' });
   assert.equal(result.oneLineReview, '바꾼 이유');
@@ -63,7 +64,7 @@ async function main() {
     '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);
-  const { updateReview, removePick } = useManagePick();
+  const { updateReview, removePick, deleteReview } = useManagePick();
   await updateReview.mutationFn({ pickId: 'pick-1', oneLineReview: '수정' });
   await updateReview.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
@@ -72,6 +73,11 @@ async function main() {
   await removePick.onSuccess();
   assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
   assert.equal(repositoryCalls.at(-1), 'category-2:online');
+  invalidated.length = 0;
+  await deleteReview.mutationFn('pick-1');
+  await deleteReview.onSuccess();
+  assert.equal(repositoryCalls.at(-1), 'delete:pick-1');
+  assert.equal(invalidated.sort().join(','), 'explore,home,items,picks,profile-ai,profile-taste,profiles');
 
   const { useChoosePick } = loadSource('hooks/useChoosePick.ts', hookImports);
   invalidated.length = 0;
@@ -102,7 +108,7 @@ async function main() {
   const { PickManagement, PickManagementActions } = loadSource('components/pick-management.tsx', {
     'react-native': native,
     '@/errors/appError': { AppError },
-    '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {} }) },
+    '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {}, deleteReview: {} }) },
   });
   let session = { user: { id: 'owner' }, isLoading: false };
   const data = {
