@@ -15,6 +15,8 @@ export interface PickReadItem {
 export interface CommentReadItem {
   comment: Comment;
   author: Profile | null;
+  replies?: CommentReadItem[];
+  replyCount?: number;
 }
 
 /** Keeps rows whose Pick sits under the top-level category `rootSlug` (inside) or under any other (outside). */
