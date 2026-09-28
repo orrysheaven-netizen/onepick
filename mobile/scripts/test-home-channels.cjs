@@ -84,6 +84,7 @@ async function main() {
   assert.equal(rpcCalls[3][1].p_channel, 'offline', 'MVP following feed sends the offline scope');
   assert.equal(rpcCalls[3][1].p_root_slug, 'food', 'MVP following feed sends the food root');
 
+  // Keep public, following and editorial entry points on the same server-side MVP scope.
   await repo.getHomePicks(null, 'offline', 'food');
   assert.equal(rpcCalls.at(-1)[0], 'home_pick_feed_page');
   assert.equal(rpcCalls.at(-1)[1].p_channel, 'offline', 'MVP public feed sends the offline scope');
