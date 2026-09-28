@@ -23,6 +23,7 @@ assert.match(register, /menuCategoryId/);
 assert.match(register, /readPickReviewDraft/);
 assert.match(register, /writePickReviewDraft/);
 assert.match(register, /clearPickReviewDraft/);
+assert.match(register, /AI 평가까지 \$\{aiRemaining\}개/, 'registration completion shows the exact remaining benchmark');
 assert.match(draft, /sessionStorage/, 'one-line review uses session storage instead of URL params');
 
 assert.match(onboarding, /pathname: '\/pick\/new', params: \{ categoryId: current\.id, onboarding: '1' \}/,
@@ -43,5 +44,7 @@ assert.match(publicProfile, /님을 팔로우했어요/);
 assert.match(username, /로그인 완료 · @\{intent\.username\}님 팔로우를 이어서 해요/);
 assert.match(profile, /router\.push\('\/onboarding'\)/, 'empty own profile starts onboarding instead of bouncing to home');
 assert.match(profile, /scrollTo\(\{ y: Math\.max\(0, aiOffset - 16\)/, 'AI deep link scrolls to the profile AI panel');
+const choose = read('src/app/pick/choose.tsx');
+assert.match(choose, /AI 평가까지 \$\{aiRemaining\}개/, 'all saved-pick completion surfaces share the exact remaining benchmark');
 
 console.log('E intent recovery checks passed: Figma 76/77/78 continuation state, browser history, session draft and follow intent are wired.');
