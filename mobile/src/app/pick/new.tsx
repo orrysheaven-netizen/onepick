@@ -229,6 +229,7 @@ export default function NewPickScreen() {
         if (!itemId || !menu.categoryId) return;
         if (itemPending) {
           await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
+          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId, label: requestedMenu });
           setDone({ type: 'pending', itemName: store.name, linkSaved });
           setStep(6);
           return;
@@ -245,7 +246,7 @@ export default function NewPickScreen() {
         if (result.type === 'pick') {
           setDone({ type: 'pick', pickId: result.pick.id, itemId: result.pick.itemId });
         } else {
-          if (!menu.categoryId) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: menu.name });
+          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: requestedMenu });
           if (store.sellerUrl) await attachSellerLink.mutateAsync({ itemId: result.item.id, url: store.sellerUrl });
           let saved = false;
           if (mapLink.trim() && isNaverMapUrl(mapLink)) {
