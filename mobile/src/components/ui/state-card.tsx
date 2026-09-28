@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
   },
   compact: { padding: 20 },
   mark: { marginBottom: 4 },
-  title: { ...OnePickType.body, fontWeight: '700', color: OnePick.text, textAlign: 'center' },
+  title: { ...OnePickType.headline, color: OnePick.text, textAlign: 'center' },
   titleDanger: { color: OnePick.danger },
-  text: { ...OnePickType.label, fontWeight: '400', color: OnePick.muted, textAlign: 'center' },
+  text: { ...OnePickType.body, color: OnePick.muted, textAlign: 'center' },
   action: { marginTop: 6 },
 });
