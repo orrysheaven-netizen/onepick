@@ -156,6 +156,12 @@ export default function NewPickScreen() {
       setMapLink(''); setLinkError(null); setLinkSaved(false); setPhoto(null); setReview(''); setShowReviewError(false);
     }
     setChannel(next);
+  };
+  const confirmChannel = () => {
+    if (channel === 'recipe') {
+      router.push('/pick/recipe');
+      return;
+    }
     setStep(2);
   };
 
@@ -310,12 +316,16 @@ export default function NewPickScreen() {
     setMenu({ categoryId: option.categoryId, name: option.name });
   };
 
+  const channelLabel = channel === 'online' ? '온라인 매장' : channel === 'recipe' ? '레시피' : '오프라인 매장';
   const header = <View style={styles.header}>
-    <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-    <View style={styles.progress} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
-      {STEP_LABELS.map((label, index) => <View key={label} style={[styles.progressBar, index < step && styles.progressOn]} />)}
+    <View style={styles.headerRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
+      <Text style={styles.headerTitle}>원픽 등록</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={() => router.replace('/')} style={styles.cancel}><Text style={styles.cancelText}>취소</Text></Pressable>
     </View>
-    <Text style={styles.stepLabel}>{step} / 6 · {STEP_LABELS[step - 1]}</Text>
+    <Text style={styles.stepLabel} accessibilityLabel={`${step} / 6 단계 · ${STEP_LABELS[step - 1]}`}>
+      {step} / 6{step > 1 ? ` · ${channelLabel}` : ''}
+    </Text>
   </View>;
 
   if (auth.isLoading) {
@@ -336,18 +346,23 @@ export default function NewPickScreen() {
         {header}
 
         {step === 1 ? <>
-          <Text style={styles.title}>어디서 고른 원픽인가요?</Text>
-          <Text style={styles.subtitle}>매장과 온라인은 같은 메뉴여도 각각 하나씩 고를 수 있어요.</Text>
+          <Text style={styles.title}>채널을 선택해 주세요</Text>
           <View style={styles.channelList}>
-            <Pressable accessibilityRole="radio" accessibilityState={{ selected: channel === 'offline' }} accessibilityLabel="매장 채널 선택"
-              onPress={() => chooseChannel('offline')} style={({ pressed }) => [styles.channelCard, pressed && styles.channelPressed]}>
-              <Text style={styles.channelTitle}>매장</Text><Text style={styles.channelText}>직접 방문하거나 배달앱으로 주문한 가게</Text>
-            </Pressable>
             <Pressable accessibilityRole="radio" accessibilityState={{ selected: channel === 'online' }} accessibilityLabel="온라인 채널 선택"
-              onPress={() => chooseChannel('online')} style={({ pressed }) => [styles.channelCard, pressed && styles.channelPressed]}>
-              <Text style={styles.channelTitle}>온라인</Text><Text style={styles.channelText}>택배·공식몰·스마트스토어 등 온라인 판매처</Text>
+              onPress={() => chooseChannel('online')} style={({ pressed }) => [styles.channelCard, channel === 'online' && styles.channelCardSelected, pressed && styles.channelPressed]}>
+              <Text style={styles.channelTitle}>{channel === 'online' ? '●' : '○'}  온라인 매장</Text>
+            </Pressable>
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: channel === 'offline' }} accessibilityLabel="매장 채널 선택"
+              onPress={() => chooseChannel('offline')} style={({ pressed }) => [styles.channelCard, channel === 'offline' && styles.channelCardSelected, pressed && styles.channelPressed]}>
+              <Text style={styles.channelTitle}>{channel === 'offline' ? '●' : '○'}  오프라인 매장</Text>
+            </Pressable>
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: channel === 'recipe' }} accessibilityLabel="레시피 채널 선택"
+              onPress={() => chooseChannel('recipe')} style={({ pressed }) => [styles.channelCard, channel === 'recipe' && styles.channelCardSelected, pressed && styles.channelPressed]}>
+              <Text style={styles.channelTitle}>{channel === 'recipe' ? '●' : '○'}  레시피</Text>
             </Pressable>
           </View>
+          <Text style={styles.helper}>한 가지를 선택해 주세요.</Text>
+          <Button fullWidth size="lg" label="다음" onPress={confirmChannel} style={styles.primary} />
         </> : null}
 
         {step === 2 ? <>
@@ -499,20 +514,21 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
   header: { marginTop: 4 },
+  headerRow: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   back: { width: 44, height: 44, justifyContent: 'center', marginLeft: -8, paddingLeft: 8 },
   backText: { color: OnePick.text, fontSize: 34, lineHeight: 38, fontWeight: '300' },
-  progress: { flexDirection: 'row', gap: 4, marginTop: 4 },
-  progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: OnePick.border },
-  progressOn: { backgroundColor: OnePick.accent },
-  stepLabel: { color: OnePick.muted, fontSize: 12, marginTop: 8 },
+  headerTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '800' },
+  cancel: { minWidth: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  cancelText: { color: OnePick.text, fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  stepLabel: { color: OnePick.text, fontSize: 13, marginTop: 10 },
   title: { color: OnePick.text, fontSize: 24, lineHeight: 32, fontWeight: '800', letterSpacing: -0.5, marginTop: 14 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   channelList: { gap: 12, marginTop: 20 },
-  channelCard: { minHeight: 86, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, padding: 16, justifyContent: 'center' },
+  channelCard: { minHeight: 64, borderWidth: 1, borderColor: 'transparent', backgroundColor: OnePick.surface, borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center' },
+  channelCardSelected: { borderColor: OnePick.text, borderWidth: 1.5 },
   channelPressed: { opacity: 0.7 },
-  channelTitle: { color: OnePick.text, fontSize: 18, lineHeight: 24, fontWeight: '800' },
-  channelText: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  channelTitle: { color: OnePick.text, fontSize: 14, lineHeight: 21, fontWeight: '400' },
   input: { minHeight: 50, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 15, marginTop: 14 },
   reviewInput: { minHeight: 110, paddingTop: 14, paddingBottom: 14, textAlignVertical: 'top', marginTop: 0 },
   helper: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 8 },
