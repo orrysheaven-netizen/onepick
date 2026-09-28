@@ -259,7 +259,7 @@ async function main() {
   render(); press('사진 선택'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('진한 국물'); render(); press('등록 요청하고 원픽 남기기'); await flush();
   assert.equal(calls.find(([name]) => name === 'register')[1].channel, 'online');
-  assert.deepEqual(calls.find(([name]) => name === 'sellerLink'), ['sellerLink', { itemId: 'pending-1', url: 'https://shop.example.com/gomtang' }]);
+  assert.equal(JSON.stringify(calls.find(([name]) => name === 'sellerLink')), JSON.stringify(['sellerLink', { itemId: 'pending-1', url: 'https://shop.example.com/gomtang' }]));
 
   // Replacement requires an explicit confirmation. Cancel does not write and keeps the draft.
   reset();
@@ -285,7 +285,7 @@ async function main() {
   render(); press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render(); assert.equal(step(page), '6');
   input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('등록 요청하고 원픽 남기기'); await flush();
-  assert.deepEqual(calls.at(-1), ['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]);
+  assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]));
 
   // Naver link validation stays aligned with the database check.
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
