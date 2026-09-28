@@ -33,6 +33,8 @@ function home(count = 20) {
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; } },
+    '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
+    '@/hooks/useOnboarding': { useOnboardingProgress: () => ({ data: { state: { completedAt: null } }, isSuccess: true }) },
     '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
