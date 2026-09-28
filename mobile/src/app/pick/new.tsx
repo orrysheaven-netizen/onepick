@@ -10,6 +10,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { useMyProfile } from '@/hooks/useMyProfile';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
@@ -128,6 +129,7 @@ export default function NewPickScreen() {
   const params = useLocalSearchParams<NewPickParams>();
   const auth = useAuthSession();
   const user = auth.user;
+  const profileProgress = useMyProfile(user?.id);
   const [step, setStep] = useState<Step>(() => parseStep(params.step));
   const [channel, setChannel] = useState<PickChannel>(() => params.channel === 'online' ? 'online' : 'offline');
   const [query, setQuery] = useState('');
@@ -210,9 +212,12 @@ export default function NewPickScreen() {
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
   const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  const onboardingCategoryId = params.onboarding === '1' && typeof params.categoryId === 'string' ? params.categoryId : null;
   const availableMenus = useMemo(
-    () => (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled),
-    [menus.data, storeChannel],
+    () => (menus.data ?? [])
+      .filter((option) => storeChannel === 'online' || option.placeEnabled)
+      .filter((option) => !onboardingCategoryId || option.categoryId === onboardingCategoryId),
+    [menus.data, onboardingCategoryId, storeChannel],
   );
   const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
   const requestedMenuKey = compactMenuName(requestedMenu);
@@ -251,6 +256,8 @@ export default function NewPickScreen() {
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
+  const completionPickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const aiRemaining = Math.max(0, 10 - completionPickCount);
 
   const nextFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : needsPhoto ? 4 : 5;
@@ -629,7 +636,12 @@ export default function NewPickScreen() {
           <Text style={styles.title}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
-          {done.type === 'pick' ? <Text style={styles.helper}>원픽을 더 고르면 AI 취향 평가가 더 정확해져요. 10개부터 평가를 볼 수 있어요.</Text> : null}
+          {done.type === 'pick' ? <View style={styles.aiProgress}>
+            <Text style={styles.aiProgressTitle}>{aiRemaining > 0 ? `AI 평가까지 ${aiRemaining}개` : 'AI 취향 평가를 볼 수 있어요'}</Text>
+            <Text style={styles.aiProgressText}>{completionPickCount} / 10{completionPickCount >= 10 ? ' · 더 고를수록 평가가 정확해져요' : ' · 카테고리마다 하나씩 골라 보세요'}</Text>
+            {aiRemaining === 0 ? <Button variant="ghost" size="sm" label="AI 평가 보기 ›"
+              onPress={() => router.replace({ pathname: '/profile', params: { ai: '1' } })} /> : null}
+          </View> : null}
           {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}
           {linkSaved || (done.type === 'pending' && done.linkSaved) ? <Text style={styles.helper}>남겨주신 네이버 지도 링크는 확인 후 표시돼요.</Text> : null}
           {done.type === 'pick'
@@ -681,4 +693,7 @@ const styles = StyleSheet.create({
   doneCard: { alignItems: 'center', paddingTop: 30 },
   doneMark: { color: OnePick.accent, fontSize: 36, fontWeight: '800' },
   savedReview: { color: OnePick.text, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 10 },
+  aiProgress: { width: '100%', backgroundColor: OnePick.accentSoft, borderRadius: 16, padding: 16, marginTop: 16, gap: 6, alignItems: 'flex-start' },
+  aiProgressTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  aiProgressText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
 });
