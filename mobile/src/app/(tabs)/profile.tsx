@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -103,6 +103,9 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { ai } = useLocalSearchParams<{ ai?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const [aiOffset, setAiOffset] = useState<number | null>(null);
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
   const profileQuery = useMyProfile(user?.id);
   const isProfileMissing = profileQuery.error instanceof AppError && profileQuery.error.code === 'PROFILE_NOT_FOUND';
@@ -114,6 +117,12 @@ export default function ProfileScreen() {
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [isSharingProfile, setIsSharingProfile] = useState(false);
   const [profileShareError, setProfileShareError] = useState(false);
+
+  useEffect(() => {
+    if (ai !== '1' || aiOffset === null || !OnePickFeatures.profileAi) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, aiOffset - 16), animated: true }), 0);
+    return () => clearTimeout(timer);
+  }, [ai, aiOffset]);
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -190,7 +199,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor={OnePick.accent} />}>
         <View style={styles.header}>
           <Avatar name={profile.username} size={64} />
@@ -205,7 +214,9 @@ export default function ProfileScreen() {
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
-        {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
+        {OnePickFeatures.profileAi ? <View onLayout={(event) => setAiOffset(event.nativeEvent.layout.y)}>
+          <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
+        </View> : null}
         <View style={styles.profileShareRow}>
           <Button variant="secondary" fullWidth label={isSharingProfile ? '공유 중…' : '프로필 공유'}
             accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />
@@ -235,7 +246,7 @@ export default function ProfileScreen() {
           <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
             text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
             action={profileScope === 'food'
-              ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
+              ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/onboarding') }
               : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
         )}
         {/* The 실험실 is the only place to pick 영화·책·게임 and other non-food themes. */}
