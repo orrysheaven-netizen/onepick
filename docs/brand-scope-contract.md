@@ -65,6 +65,13 @@
 map_url, official_url, pick_count, menu_count`. 지점을 누르면 기존 제공처 프로필(`/provider/[providerId]`)로
 간다. 외부 링크(`map_url`, `official_url`)는 거기서만 보여준다.
 
+## 승인·병합 규칙
+
+- 정체성이 있는 요청(지점 `item_places`, 판매처 `item_providers`, 브랜드 전체 `item_brand_scopes`)은
+  승인 시 이름·메뉴를 그대로 유지하고 이름 중복 검사를 하지 않는다(지점·브랜드가 같은 상호를 쓰므로).
+  이름만 있는 요청은 기존대로 중복 검사와 정규화를 거친다.
+- 브랜드 전체 요청과 판매처 요청은 다른 제품으로 병합할 수 없다(`SOURCE_PROVIDER_ITEM_NOT_MERGEABLE`).
+
 ## 이번 PR에 없는 것
 
 - 링크 미리보기(SSRF·크기·형식·재시도, 영상 썸네일 검증)는 Edge Function 영역이라 별도.
