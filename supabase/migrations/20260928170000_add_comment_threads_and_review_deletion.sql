@@ -406,12 +406,16 @@ begin
   if v_actor is not null
      and new.user_id = v_actor
      and private.is_user_suspended(v_actor) then
-    if tg_table_name = 'picks' and tg_op = 'UPDATE'
-       and (new.status = 'removed' or new.review_deleted_at is not null) then
-      return new;
-    end if;
-    if tg_table_name = 'comments' and tg_op = 'UPDATE' and new.deleted_at is not null then
-      return new;
+    -- Field checks live in per-table branches: a row of the other table has no
+    -- such field and the whole IF expression would fail to resolve.
+    if tg_table_name = 'picks' then
+      if tg_op = 'UPDATE' and (new.status = 'removed' or new.review_deleted_at is not null) then
+        return new;
+      end if;
+    elsif tg_table_name = 'comments' then
+      if tg_op = 'UPDATE' and new.deleted_at is not null then
+        return new;
+      end if;
     end if;
     raise exception 'USER_SUSPENDED' using errcode = '42501';
   end if;
