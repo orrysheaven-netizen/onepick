@@ -125,7 +125,7 @@ async function main() {
   const findSource = read('src/app/pick/find.tsx');
   const chooseSource = read('src/app/pick/choose.tsx');
 
-  assert.match(onboardingSource, /pathname: '\/pick\/find'[\s\S]*?categoryId: current\.id, onboarding: '1'/, 'onboarding must hand category + onboarding intent to Pick finder');
+  assert.match(onboardingSource, /pathname: '\/pick\/new'[\s\S]*?categoryId: current\.id, onboarding: '1'/, 'onboarding must hand category + onboarding intent to Figma 75 registration');
   assert.match(findSource, /pathname: '\/pick\/choose'[\s\S]*?onboarding: '1'/, 'Pick finder must preserve onboarding intent into choose screen');
   assert.match(chooseSource, /onboardingService\.recordAction\(item\.categoryId, 'picked'\)/, 'successful save must record onboarding picked');
   assert.match(chooseSource, /accessibilityLabel="다음 카테고리로 이동"[\s\S]*?router\.replace\('\/onboarding'\)/, 'saved onboarding Pick must offer the next category');
