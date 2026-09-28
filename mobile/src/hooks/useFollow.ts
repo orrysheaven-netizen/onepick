@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
-import type { ReadCursor } from '@/repositories/interfaces/readRepository';
+import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
 import { followService } from '@/services/followServiceInstance';
 
 export function useFollowState(userId: string | undefined, profileId: string | undefined) {
@@ -53,12 +53,17 @@ export function useFollowActions(userId: string | undefined, profileId: string) 
   return { follow, unfollow };
 }
 
-export function useFollowingFeed(userId: string | undefined, enabled = true) {
+export function useFollowingFeed(
+  userId: string | undefined,
+  enabled = true,
+  channel: PickChannel | null = null,
+  rootSlug: string | null = null,
+) {
   return useInfiniteQuery({
     enabled: enabled && Boolean(userId),
-    queryKey: userId ? queryKeys.follows.feed(userId) : ['follows', 'feed', 'missing'],
+    queryKey: userId ? queryKeys.follows.feed(userId, channel, rootSlug) : ['follows', 'feed', 'missing'],
     initialPageParam: null as ReadCursor | null,
-    queryFn: ({ pageParam }) => followService.getFollowingFeed(userId!, pageParam),
+    queryFn: ({ pageParam }) => followService.getFollowingFeed(userId!, pageParam, channel, rootSlug),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     select: (data) => ({
       items: data.pages.flatMap((page) => page.items),

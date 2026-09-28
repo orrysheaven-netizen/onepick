@@ -194,9 +194,9 @@ export interface ReadRepository {
    */
   getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
-  getFollowingPicks(cursor?: ReadCursor | null): Promise<HomePickPage>;
+  getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
-  getEditorialHomeItems(limit?: number): Promise<EditorialHomeItem[]>;
+  getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
   getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number): Promise<CategoryTopItem[]>;

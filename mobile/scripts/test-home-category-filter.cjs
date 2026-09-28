@@ -87,6 +87,6 @@ assert.match(home, /<Chip key=\{group\.id\} label=\{group\.name\} selected=\{sel
 assert.match(home, /전체 카테고리 보기/);
 assert.match(home, /다음 원픽 더 불러오기/);
 assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
-assert.match(home, /data=\{ready && !switchingChannel \? visiblePicks : \[\]\}/);
+assert.match(home, /data=\{ready \? visiblePicks : \[\]\}/, 'MVP Home has one fixed offline feed, so no channel-switch placeholder gate remains');
 
 console.log('Home category filter checks passed: top-level taxonomy, stable recency order, all/filter behavior, empty-filter recovery and hierarchical category labels.');

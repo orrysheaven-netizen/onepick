@@ -1,6 +1,6 @@
 import { AppError } from '@/errors/appError';
 import type { FollowRepository } from '@/repositories/interfaces/followRepository';
-import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { PickChannel, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export class FollowService {
   constructor(
@@ -33,8 +33,13 @@ export class FollowService {
     return this.followRepository.getCounts(userId);
   }
 
-  getFollowingFeed(userId: string, cursor: ReadCursor | null = null) {
+  getFollowingFeed(
+    userId: string,
+    cursor: ReadCursor | null = null,
+    channel: PickChannel | null = null,
+    rootSlug: string | null = null,
+  ) {
     if (!userId) throw new AppError('AUTH_REQUIRED');
-    return this.readRepository.getFollowingPicks(cursor);
+    return this.readRepository.getFollowingPicks(cursor, channel, rootSlug);
   }
 }

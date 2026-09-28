@@ -76,7 +76,28 @@ async function main() {
 
   await repo.getFollowingPicks();
   assert.equal(rpcCalls[2][0], 'home_following_feed_page');
-  assert.equal('p_channel' in rpcCalls[2][1], false, 'The following feed has no channel filter');
+  assert.equal('p_channel' in rpcCalls[2][1], false, 'Default following feed keeps every internal channel');
+  assert.equal('p_root_slug' in rpcCalls[2][1], false, 'Default following feed keeps every internal root');
+
+  await repo.getFollowingPicks(null, 'offline', 'food');
+  assert.equal(rpcCalls[3][0], 'home_following_feed_page');
+  assert.equal(rpcCalls[3][1].p_channel, 'offline', 'MVP following feed sends the offline scope');
+  assert.equal(rpcCalls[3][1].p_root_slug, 'food', 'MVP following feed sends the food root');
+
+  await repo.getHomePicks(null, 'offline', 'food');
+  assert.equal(rpcCalls.at(-1)[0], 'home_pick_feed_page');
+  assert.equal(rpcCalls.at(-1)[1].p_channel, 'offline', 'MVP public feed sends the offline scope');
+  assert.equal(rpcCalls.at(-1)[1].p_root_slug, 'food', 'MVP public feed sends the food root');
+
+  await repo.getEditorialHomeItems(6, 'offline', 'food');
+  assert.equal(rpcCalls.at(-1)[0], 'home_editorial_items');
+  assert.equal(rpcCalls.at(-1)[1].p_channel, 'offline', 'MVP editorial sends the offline scope');
+  assert.equal(rpcCalls.at(-1)[1].p_root_slug, 'food', 'MVP editorial sends the food root');
+
+  const followingMigration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260929071000_add_following_feed_mvp_scope.sql'), 'utf8');
+  assert.match(followingMigration, /p_channel text default null/);
+  assert.match(followingMigration, /p_root_slug text default null/);
+  assert.match(followingMigration, /grant execute on function public\.home_following_feed_page\(timestamptz, uuid, text, text\) to authenticated/);
 
   const migration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260926120000_add_home_feed_channel_filter.sql'), 'utf8');
   assert.match(migration, /p_channel text default null/);
@@ -86,7 +107,7 @@ async function main() {
   assert.match(dishMigration, /p_category_id is null or p\.category_id = p_category_id/);
   assert.match(dishMigration, /grant execute on function public\.home_pick_feed_page\(timestamptz, uuid, text, text, uuid\) to anon, authenticated/);
 
-  console.log('Home channel checks passed: tab order, card labels, delivery-as-store rule, p_channel/p_category_id request shape and row mapping.');
+  console.log('Home channel checks passed: future tab helpers remain, while Home/following RPCs support the food+offline MVP scope.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

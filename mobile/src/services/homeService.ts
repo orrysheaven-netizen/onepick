@@ -5,7 +5,7 @@ export class HomeService {
 
   // Home context changes much less often than feed pages. Keep it outside the
   // infinite query so pagination/refetching never repeats these broad reads.
-  async getHomeContext(userId?: string) {
+  async getHomeContext(userId?: string, channel: PickChannel | null = null, rootSlug: string | null = null) {
     const [currentPicks, editorialItems] = await Promise.all([
       userId
         ? this.readRepository.getPicks({
@@ -15,7 +15,7 @@ export class HomeService {
             limit: 100,
           })
         : Promise.resolve([]),
-      this.readRepository.getEditorialHomeItems(6),
+      this.readRepository.getEditorialHomeItems(6, channel, rootSlug),
     ]);
 
     return { currentPicks, editorialItems };

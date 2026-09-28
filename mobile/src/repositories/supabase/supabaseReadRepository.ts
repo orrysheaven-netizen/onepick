@@ -149,8 +149,8 @@ export class SupabaseReadRepository implements ReadRepository {
     return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug, categoryId);
   }
 
-  async getFollowingPicks(cursor: ReadCursor | null = null) {
-    return this.pickFeedPage('home_following_feed_page', cursor);
+  async getFollowingPicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+    return this.pickFeedPage('home_following_feed_page', cursor, channel, rootSlug);
   }
 
   private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
@@ -214,9 +214,13 @@ export class SupabaseReadRepository implements ReadRepository {
     };
   }
 
-  async getEditorialHomeItems(limit = 6) {
+  async getEditorialHomeItems(limit = 6, channel: PickChannel | null = null, rootSlug: string | null = null) {
     const safeLimit = Math.min(Math.max(limit, 1), 12);
-    const { data, error } = await this.countClient.rpc('home_editorial_items', { p_limit: safeLimit });
+    const { data, error } = await this.countClient.rpc('home_editorial_items', {
+      p_limit: safeLimit,
+      ...(channel ? { p_channel: channel } : {}),
+      ...(rootSlug ? { p_root_slug: rootSlug } : {}),
+    });
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
     const [channels, logos] = await Promise.all([

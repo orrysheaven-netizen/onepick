@@ -88,7 +88,8 @@ export const queryKeys = {
     all: ['follows'] as const,
     state: (userId: string, profileId: string) => ['follows', 'state', userId, profileId] as const,
     counts: (userId: string) => ['follows', 'counts', userId] as const,
-    feed: (userId: string) => ['follows', 'feed', userId, 'cursor'] as const,
+    feed: (userId: string, channel: string | null = null, rootSlug: string | null = null) =>
+      ['follows', 'feed', userId, channel ?? 'all-channels', rootSlug ?? 'all-roots', 'cursor'] as const,
   },
   safety: {
     all: ['safety'] as const,

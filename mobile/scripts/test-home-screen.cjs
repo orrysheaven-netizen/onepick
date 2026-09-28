@@ -19,10 +19,10 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps, homeDataArgs;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps, homeDataArgs, followingFeedArgs;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
-const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
+const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
 const other = { ...own, pick: { ...own.pick, id: 'other', userId: 'friend', itemId: 'jin', oneLineReview: '다른 사람의 이유' }, item: { name: '진라면' }, profile: { username: 'friend' } };
 const privatePick = { ...own, pick: { ...own.pick, id: 'private', status: 'needs_review', oneLineReview: '비공개 확인 대기 원픽' } };
 const query = { isPending: false, isError: false, isFetching: false, isRefetching: false,
@@ -71,7 +71,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   }),
-  '@/hooks/useFollow': { useFollowingFeed: () => followingQuery },
+  '@/hooks/useFollow': { useFollowingFeed: (...args) => { followingFeedArgs = args; return followingQuery; } },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
@@ -109,7 +109,10 @@ assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
 assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
+assert.equal(followingFeedArgs[2], 'offline', 'Following query is prepared with the same offline scope');
+assert.equal(followingFeedArgs[3], 'food', 'Following query is prepared with the same food root');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
@@ -125,7 +128,8 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the provider/menu content');
   assert.match(page, />매장</, 'Feed cards use the short 매장 channel badge');
-  assert.match(page, /매장 탭 원픽 보기|>매장</, 'Home offers the short 매장 tab');
+  assert.match(page, />매장</, 'Offline cards keep the short 매장 badge');
+  assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
   assert.match(page, /전체/);
@@ -226,7 +230,7 @@ assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|내 원픽/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports error refresh too');
 query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
-assert.match(render(), /아직 공개된 원픽이 없어요/);
+assert.match(render(), /아직 공개된 매장 원픽이 없어요/);
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);

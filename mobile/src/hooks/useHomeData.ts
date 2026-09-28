@@ -9,8 +9,8 @@ const HOME_MAX_PAGES = 3;
 export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,
-    queryKey: [...queryKeys.home.data(userId), 'context'],
-    queryFn: () => homeService.getHomeContext(userId),
+    queryKey: [...queryKeys.home.data(userId), 'context', channel ?? 'all', rootSlug ?? 'every-root'],
+    queryFn: () => homeService.getHomeContext(userId, channel, rootSlug),
     staleTime: HOME_CONTEXT_STALE_TIME,
   });
 

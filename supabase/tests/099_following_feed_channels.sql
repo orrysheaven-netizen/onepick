@@ -70,8 +70,8 @@ begin
   assert got=array[]::text[], 'Items without a channel expose an empty array, not null';
 
   reset role;
-  assert not has_function_privilege('anon','public.home_following_feed_page(timestamptz,uuid)','execute'), 'Guests still cannot call the following feed';
-  assert not (select prosecdef from pg_proc where oid='public.home_following_feed_page(timestamptz,uuid)'::regprocedure), 'Feed still runs under caller RLS';
+  assert not has_function_privilege('anon','public.home_following_feed_page(timestamptz,uuid,text,text)','execute'), 'Guests still cannot call the following feed';
+  assert not (select prosecdef from pg_proc where oid='public.home_following_feed_page(timestamptz,uuid,text,text)'::regprocedure), 'Feed still runs under caller RLS';
 end;
 $flow$;
 $test$, 'Following feed exposes the Pick channel with the same rule as the people feed');
