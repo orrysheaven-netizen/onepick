@@ -286,7 +286,7 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
           </Pressable> : null}
 
-          <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>원픽을 바꿔도, 지난 취향은 기록으로 남아요.</Text></View>
+          <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>
         </> : null}
       />}
     </SafeAreaView>

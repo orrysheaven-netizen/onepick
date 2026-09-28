@@ -55,6 +55,12 @@ where user_id = '33333333-3333-3333-3333-333333333333'
 grant select on comment_test_state to anon;
 
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
+-- Writing under a review needs an active Pick of the same item (channel-aware).
+select public.change_pick(
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  '같은 제품 원픽'
+);
 
 select lives_ok(
   $$

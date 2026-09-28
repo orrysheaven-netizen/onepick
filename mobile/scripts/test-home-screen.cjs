@@ -121,7 +121,7 @@ for (width of [390, 800, 1200]) {
   assert.match(page, /✓ 내 원픽/, 'A card for the exact item I already picked shows the current-Pick state');
   assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
   assert.match(page, /댓글/); assert.match(page, /공유/);
-  assert.match(page, /새로 고름 · 9\/21/, 'Home frames the row as a current Pick instead of a relative-time post');
+  assert.doesNotMatch(page, /새로 고름|9\/21|2시간/, 'Home keeps Pick ordering but never renders time/status text');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the provider/menu content');
   assert.match(page, />매장</, 'Feed cards use the short 매장 channel badge');

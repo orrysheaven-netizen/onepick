@@ -28,6 +28,7 @@ begin
   perform public.register_pick(c,item,'Quota item','Fixture review');
   select id into pick from public.picks where user_id=a and category_id=c and status='active';
   perform set_config('request.jwt.claim.sub',b::text,true);
+  perform public.register_pick(c,item,'Quota item','Same item review');
   for i in 1..10 loop
     insert into public.comments(pick_id,user_id,body) values(pick,b,'Comment '||i)
       returning id into comment_id;

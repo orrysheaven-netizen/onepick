@@ -65,6 +65,12 @@ select set_config(
   true
 );
 
+select public.change_pick(
+  'f9930000-0000-4000-8000-000000000001',
+  'f9940000-0000-4000-8000-000000000001',
+  '같은 제품 원픽'
+);
+
 insert into public.comments(id,pick_id,user_id,body)
 select
   'f9950000-0000-4000-8000-000000000001',
