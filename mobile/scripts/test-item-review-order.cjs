@@ -52,7 +52,8 @@ async function main() {
   assert.equal(result.picks.filter((p) => p.pick.id === 'other-0').length, 1);
   focused.pick.status = 'replaced';
   result = await service.getItemDetail('item', 'me', 'older');
-  assert.equal(result.picks[1].pick.status, 'replaced', 'Readable history retains its thread');
+  assert.equal(result.picks.at(-1).pick.status, 'replaced', 'Readable ended reviews stay behind every current review');
+  assert.ok(result.picks.slice(0, -1).every((entry) => entry.pick.status === 'active' || entry.pick.status === 'needs_review'));
   for (const invalid of [null, entry({ id: 'older', itemId: 'different', status: 'active' }), entry({ id: 'older', itemId: 'item', status: 'hidden' })]) {
     focused = invalid;
     result = await service.getItemDetail('item', 'me', 'older');
@@ -82,6 +83,6 @@ async function main() {
   await pending;
   assert.ok(started.includes('category'), 'Category detail starts after the item category is known');
 
-  console.log('Item reviews passed: own-first order, focused older review reuse, parallel reads, history, deduplication, product isolation and unavailable links.');
+  console.log('Item reviews passed: own-first current order, ended reviews last, focused review reuse, parallel reads, deduplication, product isolation and unavailable links.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

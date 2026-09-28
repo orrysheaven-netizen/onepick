@@ -89,11 +89,18 @@ assert.match(other, /thread:o1/, "Other people's comments are shown expanded");
 assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o1', compact: true, canWrite: true });
 assert.match(other, /share:o1/);
 assert.match(other, /@someone/);
-assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고/);
+assert.match(other, /✓ 이 집 원픽/, 'A current review gets only the positive current-Pick badge');
+assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고|원픽 아님/);
+
+const endedOther = card({ id: 'o-old', userId: 'someone', status: 'replaced', oneLineReview: '예전에도 좋았다' }, { username: 'someone' });
+assert.match(endedOther, /@someone/);
+assert.doesNotMatch(endedOther, /이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|원픽 아님/, 'Ended reviews stay neutral and do not reveal history state');
+assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o-old', compact: true, canWrite: true }, 'Ended review threads keep the same reply permission as other people\'s reviews');
 
 const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기' }, { username: 'me' });
 assert.match(mine, /내 한줄평/);
-assert.doesNotMatch(mine, /@me|내 원픽</, 'My own card shows 내 한줄평 instead of my id or the 내 원픽 badge');
+assert.match(mine, /✓ 이 집 원픽/);
+assert.doesNotMatch(mine, /@me|내 이전 한줄평|원픽 아님/, 'My own card uses the same neutral label and only a positive current badge');
 assert.match(mine, /수정 · 해제/);
 assert.match(mine, /share:m1/);
 assert.doesNotMatch(mine, /댓글 보기|댓글 숨기기/, 'My own review has no comment toggle');
@@ -107,6 +114,11 @@ assert.equal(replies.pop().canWrite, true, 'Signed-out/loading viewers see the t
 session = { user: { id: 'me' }, isLoading: false };
 assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
 assert.equal(replies.pop().canWrite, false, 'Ownership is read on every render, not stored from the first one');
+
+const endedMine = card({ id: 'm-old', userId: 'me', status: 'removed', oneLineReview: '예전 이유' }, { username: 'me' });
+assert.match(endedMine, /내 한줄평/);
+assert.doesNotMatch(endedMine, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|수정 · 해제/, 'My ended review does not expose history state or current-only management');
+assert.equal(replies.pop().canWrite, false, 'My ended review remains read-only to me');
 
 session = { user: { id: 'me' }, isLoading: true };
 assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);
