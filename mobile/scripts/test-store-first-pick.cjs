@@ -26,7 +26,7 @@ const part = (tag) => ({ children }) => React.createElement(tag, null, children)
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
 
-let states, index, pressables, inputs, photoSteps, destination;
+let states, index, pressables, inputs, destination;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
   Modal: ({ visible, children }) => visible ? React.createElement('dialog', null, children) : null,
@@ -71,7 +71,6 @@ const hooks = {
 const { default: Screen } = load('app/pick/new.tsx', {
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {}, canGoBack: () => true }) },
-  '@/components/pick-photo-step': { PickPhotoStep: (props) => { photoSteps.push(props); return React.createElement('aside', null, 'PHOTO-STEP'); } },
   '@/components/ui': ui, '@/errors/appError': { AppError },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useChoosePick': {
@@ -82,6 +81,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
   '@/hooks/useLinkCategorySuggestions': { useAttachPendingItemLink: () => mutation('sellerLink', () => undefined) },
   '@/hooks/useRegisterPick': {
     useChoosePhoto: () => mutation('choosePhoto', () => ({ uri: 'data:image/jpeg;base64,eA==', base64: 'eA==' })),
+    useAttachItemPhoto: () => mutation('attachPhoto', () => ({ id: 'item-1', imagePath: 'owner/item.jpg', imageUrl: 'https://img.example/item.jpg' })),
     useRegisterPick: () => mutation('register', () => registerResult),
   },
   '@/hooks/useStoreFirst': hooks.store,
@@ -111,7 +111,7 @@ function reset() {
   registerResult = { type: 'pending_item', item: { id: 'pending-1', name: '새 냉면집' } };
 }
 function render() {
-  index = 0; pressables = []; inputs = []; photoSteps = [];
+  index = 0; pressables = []; inputs = [];
   return renderToStaticMarkup(React.createElement(Screen));
 }
 function press(label) {
@@ -170,12 +170,18 @@ async function main() {
   assert.equal(calls.at(-1)[1].url, 'https://naver.me/eulmildae');
   page = render();
   assert.equal(step(page), '5');
-  assert.equal(photoSteps.length, 1, 'An existing item without a photo requires the in-place photo step');
   let required = pressables.find((props) => textOf(props.children) === '사진을 등록해주세요');
   assert.ok(required?.disabled, 'Photo step cannot be bypassed when a photo is required');
   assert.equal(pressables.some((props) => textOf(props.children) === '사진 없이 계속'), false);
-  photoSteps[0].onAttached();
+  press('사진 선택'); await flush();
   page = render();
+  assert.match(page, /선택한 대표 이미지 미리보기/);
+  assert.ok(pressables.some((props) => textOf(props.children) === '사진 삭제'), 'Selected photo remains editable before save');
+  assert.ok(pressables.some((props) => textOf(props.children) === '사진 수정'), 'Selected photo can be replaced before save');
+  press('사진 삭제'); page = render();
+  required = pressables.find((props) => textOf(props.children) === '사진을 등록해주세요');
+  assert.ok(required?.disabled, 'Deleting the draft makes the required photo incomplete again');
+  press('사진 선택'); await flush(); render();
   press('다음');
   page = render();
   assert.equal(step(page), '6');
@@ -185,7 +191,7 @@ async function main() {
   press('다음'); page = render();
   assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요', 'Back/forward keeps the review');
   press('원픽 등록하기'); await flush();
-  assert.equal(calls.at(-1)[0], 'choose');
+  assert.deepEqual(calls.slice(-2).map(([name]) => name), ['attachPhoto', 'choose']);
   assert.equal(calls.at(-1)[1].channel, 'offline');
   page = render();
   assert.equal(step(page), '6', 'Completion is a modal, not a seventh step');
