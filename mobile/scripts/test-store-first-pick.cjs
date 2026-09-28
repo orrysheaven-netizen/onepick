@@ -1,4 +1,4 @@
-// 원픽 등록 7단계 (채널 → 상호 → 링크 → 메뉴 → 사진 → 한줄평 → 완료): the real screen
+// 원픽 등록 6단계 (채널 → 상호 → 링크 → 메뉴 → 사진 → 한줄평) + 저장 성공 모달: the real screen
 // with stubbed data hooks. Checks step order, required inputs, replacement confirmation,
 // skipped steps, what each step sends, and that the draft survives moving between steps.
 const assert = require('node:assert/strict');
@@ -121,7 +121,7 @@ function press(label) {
   return found.onPress();
 }
 const input = (label) => { const found = inputs.find((props) => props.accessibilityLabel === label); assert.ok(found, `Expected input: ${label}`); return found; };
-const step = (page) => /(\d) \/ 7/.exec(page)?.[1];
+const step = (page) => /(\d) \/ 6/.exec(page)?.[1];
 
 async function main() {
   // Signed out: login keeps the registration intent.
@@ -143,7 +143,7 @@ async function main() {
   assert.equal(step(page), '2');
   assert.match(page, /매장명 검색: 을밀대, 우래옥/);
 
-  // Offline: channel → store → required map link → menu → photo → review → done.
+  // Offline: channel → store → required map link → menu → photo → review → success modal.
   input('매장명 검색').onChangeText('을밀대');
   page = render();
   assert.match(page, /서울 마포구 · 국수\/칼국수/);
@@ -184,13 +184,14 @@ async function main() {
   assert.equal(step(page), '5');
   press('다음'); page = render();
   assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요', 'Back/forward keeps the review');
-  press('원픽 등록'); await flush();
+  press('원픽 등록하기'); await flush();
   assert.equal(calls.at(-1)[0], 'choose');
   assert.equal(calls.at(-1)[1].channel, 'offline');
   page = render();
-  assert.equal(step(page), '7');
-  assert.match(page, /원픽이 등록됐어요/);
-  press('내 원픽 보기');
+  assert.equal(step(page), '6', 'Completion is a modal, not a seventh step');
+  assert.match(page, /저장 완료/);
+  assert.match(page, /내 원픽으로 저장했어요/);
+  press('확인');
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.pickId, 'pick-1');
 
@@ -216,7 +217,7 @@ async function main() {
   assert.equal(step(page), '4');
   press('곰탕'); render(); press('곰탕(으)로 다음'); await flush();
   page = render(); assert.equal(step(page), '6');
-  input('원픽 한줄평').onChangeText('택배로도 진해요'); render(); press('원픽 등록'); await flush();
+  input('원픽 한줄평').onChangeText('택배로도 진해요'); render(); press('원픽 등록하기'); await flush();
   assert.equal(calls.at(-1)[1].channel, 'online');
 
   // A new offline store requires both a map link and a representative photo.
@@ -237,7 +238,7 @@ async function main() {
   assert.match(page, /선택한 대표 이미지 미리보기/);
   press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render();
-  press('등록 요청하고 원픽 남기기'); await flush();
+  press('원픽 저장'); await flush();
   const registered = calls.find(([name]) => name === 'register')[1];
   assert.equal(registered.categoryId, 'cat-naengmyeon');
   assert.equal(registered.itemName, '새 냉면집');
@@ -257,7 +258,7 @@ async function main() {
   page = render(); assert.equal(step(page), '4');
   press('곰탕'); render(); press('곰탕(으)로 다음'); await flush();
   render(); press('사진 선택'); await flush(); render(); press('다음'); render();
-  input('원픽 한줄평').onChangeText('진한 국물'); render(); press('등록 요청하고 원픽 남기기'); await flush();
+  input('원픽 한줄평').onChangeText('진한 국물'); render(); press('원픽 저장'); await flush();
   assert.equal(calls.find(([name]) => name === 'register')[1].channel, 'online');
   assert.equal(JSON.stringify(calls.find(([name]) => name === 'sellerLink')), JSON.stringify(['sellerLink', { itemId: 'pending-1', url: 'https://shop.example.com/gomtang' }]));
 
@@ -284,13 +285,13 @@ async function main() {
   render(); press('매장 채널 선택'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택');
   render(); press('수육'); render(); press('수육(으)로 다음'); await flush();
   page = render(); assert.equal(step(page), '6');
-  input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('등록 요청하고 원픽 남기기'); await flush();
+  input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('원픽 저장'); await flush();
   assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['requestPick', { itemId: 'item-1', oneLineReview: '수육이 부드러워요' }]));
 
   // Naver link validation stays aligned with the database check.
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first pick checks passed: 7-step channel/store/link/menu/photo/review flow, required links/photos, reuse skips, replacement confirmation, draft preservation and legacy pending compatibility.');
+  console.log('Store-first pick checks passed: 6-step channel/store/link/menu/photo/review flow, success modal, required links/photos, reuse skips, replacement confirmation, draft preservation and legacy pending compatibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
