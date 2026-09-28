@@ -255,9 +255,12 @@ export default function NewPickScreen() {
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
   const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  const onboardingCategoryId = onboarding && typeof params.categoryId === 'string' ? params.categoryId : null;
   const availableMenus = useMemo(
-    () => (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled),
-    [menus.data, storeChannel],
+    () => (menus.data ?? [])
+      .filter((option) => storeChannel === 'online' || option.placeEnabled)
+      .filter((option) => !onboardingCategoryId || option.categoryId === onboardingCategoryId),
+    [menus.data, onboardingCategoryId, storeChannel],
   );
   const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
   const requestedMenuKey = compactMenuName(requestedMenu);
@@ -299,6 +302,111 @@ export default function NewPickScreen() {
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
+  const profilePickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const savedPickAlreadyInProfile = Boolean(done?.type === 'pick'
+    && profileProgress.data?.currentPicks.some(({ pick }) => pick.id === done.pickId));
+  const saveAddsCategory = itemDetail.data?.myPickStatus?.type !== 'selected_this'
+    && itemDetail.data?.myPickStatus?.type !== 'selected_other';
+  const completionPickCount = profilePickCount + (done?.type === 'pick' && !savedPickAlreadyInProfile && saveAddsCategory ? 1 : 0);
+  const aiRemaining = Math.max(0, 10 - completionPickCount);
+
+  type RouteOverrides = {
+    step?: Step;
+    channel?: PickChannel;
+    channelChosen?: boolean;
+    store?: Store | null;
+    menu?: { categoryId: string | null; name: string } | null;
+    itemId?: string | null;
+    itemHadPhoto?: boolean;
+    itemPending?: boolean;
+    mapLink?: string;
+  };
+
+  const routeParams = (next: Step, overrides: RouteOverrides = {}) => {
+    const routeChannel = overrides.channel ?? channel;
+    const routeChannelChosen = overrides.channelChosen ?? channelChosen;
+    const routeStore = overrides.store === undefined ? store : overrides.store;
+    const routeMenu = overrides.menu === undefined ? menu : overrides.menu;
+    const routeItemId = overrides.itemId === undefined ? itemId : overrides.itemId;
+    const routeHadPhoto = overrides.itemHadPhoto === undefined ? itemHadPhoto : overrides.itemHadPhoto;
+    const routePending = overrides.itemPending === undefined ? itemPending : overrides.itemPending;
+    const routeMapLink = overrides.mapLink === undefined ? mapLink : overrides.mapLink;
+    const nextParams: Record<string, string> = {
+      step: String(next),
+      channel: routeChannel,
+      channelChosen: routeChannelChosen ? '1' : '0',
+      onboarding: onboarding ? '1' : '0',
+      categoryId: typeof params.categoryId === 'string' ? params.categoryId : '',
+      storeKind: routeStore?.kind ?? '',
+      storeId: routeStore?.kind === 'place' ? routeStore.catalogId : routeStore?.kind === 'seller' ? routeStore.providerId : '',
+      storeName: routeStore?.name ?? '',
+      branchName: routeStore?.kind === 'place' ? routeStore.branchName ?? '' : '',
+      region: routeStore?.kind === 'place' ? routeStore.region ?? '' : '',
+      address: routeStore?.kind === 'place' ? routeStore.address ?? '' : '',
+      providerCategory: routeStore?.kind === 'place' ? routeStore.providerCategory ?? '' : '',
+      mapUrl: routeStore?.kind === 'place' ? routeStore.mapUrl ?? '' : '',
+      officialUrl: routeStore?.kind === 'seller' ? routeStore.officialUrl : '',
+      sellerUrl: routeStore?.kind === 'new' ? routeStore.sellerUrl ?? '' : '',
+      menuCategoryId: routeMenu?.categoryId ?? '',
+      menuName: routeMenu?.name ?? '',
+      itemId: routeItemId ?? '',
+      itemHadPhoto: routeHadPhoto ? '1' : '0',
+      itemPending: routePending ? '1' : '0',
+      mapLink: routeMapLink,
+    };
+    return nextParams;
+  };
+
+  const applyUrlState = (nextParams: NewPickParams) => {
+    setStep(parseStep(nextParams.step));
+    const restoredChannel: PickChannel = nextParams.channel === 'online' ? 'online' : 'offline';
+    setChannel(restoredChannel);
+    setChannelChosen(nextParams.channelChosen === '1');
+    setStore(storeFromParams(nextParams));
+    setMenuQuery(nextParams.menuName ?? '');
+    setMenu(nextParams.menuName ? { categoryId: nextParams.menuCategoryId || null, name: nextParams.menuName } : null);
+    setItemId(nextParams.itemId || null);
+    setItemHadPhoto(nextParams.itemHadPhoto === '1');
+    setItemPending(nextParams.itemPending === '1');
+    setMapLink(nextParams.mapLink ?? '');
+    setAiMenuName('');
+    setManualCategory(false);
+    setCategoryQuery('');
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof globalThis === 'undefined') return;
+    const browser = globalThis as typeof globalThis & {
+      location?: { search: string };
+      addEventListener?: (type: string, listener: () => void) => void;
+      removeEventListener?: (type: string, listener: () => void) => void;
+    };
+    const onPopState = () => {
+      const search = browser.location?.search ?? '';
+      const entries = new URLSearchParams(search);
+      const restored: NewPickParams = {};
+      entries.forEach((value, key) => { (restored as Record<string, string>)[key] = value; });
+      applyUrlState(restored);
+    };
+    browser.addEventListener?.('popstate', onPopState);
+    return () => browser.removeEventListener?.('popstate', onPopState);
+  }, []);
+
+  const commitUrlState = (next: Step, overrides: RouteOverrides = {}) => {
+    const nextParams = routeParams(next, overrides);
+    setStep(next);
+    if (Platform.OS === 'web' && typeof globalThis !== 'undefined') {
+      const browser = globalThis as typeof globalThis & {
+        location?: { pathname: string };
+        history?: { pushState: (data: unknown, unused: string, url?: string | URL | null) => void };
+      };
+      if (browser.location && browser.history) {
+        browser.history.pushState({ onepickStep: next }, '', `${browser.location.pathname}?${new URLSearchParams(nextParams).toString()}`);
+        return;
+      }
+    }
+    router.setParams(nextParams);
+  };
 
   const previousFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : 1;
@@ -309,10 +417,20 @@ export default function NewPickScreen() {
   };
   const goBack = () => {
     if (saving || busy.current) return;
+    if (Platform.OS === 'web' && typeof globalThis !== 'undefined' && (step > 1 || channelChosen)) {
+      const browser = globalThis as typeof globalThis & { history?: { back: () => void } };
+      if (browser.history) { browser.history.back(); return; }
+    }
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    if (step === 1 && channelChosen) { setChannelChosen(false); setRequesting(false); return; }
+    if (step === 1 && channelChosen) {
+      setChannelChosen(false); setRequesting(false);
+      router.setParams(routeParams(1, { channelChosen: false, store: null, menu: null, itemId: null, itemHadPhoto: false, itemPending: false, mapLink: '' }));
+      return;
+    }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    setStep(previousFrom(step));
+    const previous = previousFrom(step);
+    setStep(previous);
+    router.setParams(routeParams(previous));
   };
   const chooseChannel = (next: PickChannel) => {
     setChannel(next);
@@ -337,6 +455,10 @@ export default function NewPickScreen() {
     setReview('');
     setDone(null);
     setSaveError(null);
+    commitUrlState(1, {
+      channel: next, channelChosen: true, store: null, menu: null,
+      itemId: null, itemHadPhoto: false, itemPending: false, mapLink: '',
+    });
   };
 
   const pickStore = (candidate: Store) => {
@@ -347,7 +469,9 @@ export default function NewPickScreen() {
     setAiMenuName('');
     setManualCategory(false);
     setCategoryQuery('');
-    setStep(candidate.kind === 'new' && candidate.channel === 'offline' ? 3 : 2);
+    commitUrlState(candidate.kind === 'new' && candidate.channel === 'offline' ? 3 : 2, {
+      store: candidate, menu: null, itemId: null, itemHadPhoto: false, itemPending: false, mapLink: '',
+    });
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validSellerUrl = httpsUrl(sellerUrl);
