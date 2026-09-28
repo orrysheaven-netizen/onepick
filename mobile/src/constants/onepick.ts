@@ -27,6 +27,7 @@ export const OnePick = {
   bgPlaceholder: '#F0E3CC',
   bgAccent: '#FF8A00',
   bgAccentSubtle: '#FFF0DC',
+  bgOverlay: 'rgba(0,0,0,0.35)',
   actionPrimary: '#141416',
   actionDisabled: '#ADB0BA',
   onAction: '#FFFFFF',
