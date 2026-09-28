@@ -25,9 +25,15 @@ function loadCardCanvas() {
 function loadWeb(globals) {
   const exports = {};
   const drawn = [];
+  const brandImages = [];
+  class ImageMock {
+    set src(value) { this._src = value; this.onload?.(); }
+    get src() { return this._src; }
+  }
   const ctx = {
     beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {},
     fill() {}, fillRect() {}, stroke() {},
+    drawImage: (image) => brandImages.push(image.src),
     measureText: (value) => ({ width: Array.from(String(value)).length * 24 }),
     fillText: (value) => drawn.push(String(value)),
   };
@@ -35,6 +41,7 @@ function loadWeb(globals) {
   const context = {
     exports,
     Uint8Array,
+    Image: globals.Image ?? ImageMock,
     ...globals,
     document: {
       body: { appendChild() {} },
@@ -48,7 +55,7 @@ function loadWeb(globals) {
     },
   };
   vm.runInNewContext(transpile('lib/share/shareProfileCard.web.ts'), context);
-  return { exports, drawn };
+  return { exports, drawn, brandImages };
 }
 
 const picks = [
@@ -77,7 +84,8 @@ async function main() {
   const withAi = loadWeb(silentNavigator());
   await withAi.exports.shareProfileCardImage({ username: 'tester', picks, aiComment: visibleAi });
   assert.ok(withAi.drawn.includes('@tester'), 'the username must be printed whole, not clipped');
-  assert.ok(withAi.drawn.includes('원픽') && withAi.drawn.includes('one pick'), 'the card must carry the brand lockup');
+  assert.deepEqual(withAi.brandImages, ['/brand/onepick-logo-horizontal.svg'], 'the card must carry the approved brand wordmark');
+  assert.ok(!withAi.drawn.includes('원픽') && !withAi.drawn.includes('one pick'), 'the wordmark must not be rebuilt with live text');
   assert.ok(withAi.drawn.includes('현재 원픽'), 'section labels stay Korean');
   assert.ok(!withAi.drawn.some((line) => /^[A-Z ]+$/.test(line)), 'no English kicker belongs on the card');
   assert.ok(withAi.drawn.includes('진라면 매운맛'));
