@@ -56,7 +56,7 @@ export const OnePickFont = {
   english: 'Outfit',
 } as const;
 
-// Type scale: five steps. Korean body copy never goes below `body`; `caption` is the only 12px.
+// Foundations type scale: exactly seven reusable IBM Plex Sans KR styles.
 export const OnePickType = {
   pageTitle: { fontFamily: BodyFont, fontSize: 22, lineHeight: 30, fontWeight: '700' },
   title: { fontFamily: BodyFont, fontSize: 20, lineHeight: 28, fontWeight: '700' },
