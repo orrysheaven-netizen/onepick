@@ -11,11 +11,13 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { GameCatalogEntry, ImportedGameItem } from '@/types/domain/gameCatalog';
 import { OnePick } from '@/constants/onepick';
+import { withOnboardingParam } from '@/lib/onboarding/navigation';
 
 type Params = {
   categoryId?: string | string[];
   externalGameId?: string | string[];
   query?: string | string[];
+  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -42,7 +44,7 @@ function gameErrorMessage(error: unknown) {
 export default function GamePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalGameId ?? null, params.query ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalGameId ?? null, params.query ?? null, params.onboarding ?? null]);
   return <GamePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -94,7 +96,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
+    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
     if (replace) router.replace(route); else router.push(route);
   };
 
