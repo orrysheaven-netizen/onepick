@@ -85,6 +85,8 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false }) },
     '@/errors/appError': { AppError },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ data: detail }) },
+
+    '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null }),
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
