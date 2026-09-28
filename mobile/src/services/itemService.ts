@@ -54,7 +54,7 @@ export class ItemService {
     // Shared links already fetched the focused Pick. Reuse that item/category when
     // available, and start independent list/category reads while the item resolves.
     const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
-    const picksPromise = this.readRepository.getPicks({ itemId, excludeUserId: userId, statuses: ['active'], limit: 20 });
+    const picksPromise = this.readRepository.getItemReviews(itemId, 20);
     const openCategoriesPromise = this.categoryRepository.getOpenCategories();
     const brandPromise = this.readRepository.getItemBrand?.(itemId).catch(() => null) ?? Promise.resolve(null);
     const item = await itemPromise;
@@ -94,13 +94,11 @@ export class ItemService {
       };
     }
 
-    // Fetch my current choice separately so it stays first even outside the latest page.
-    const mine = userId && currentPick?.itemId === item.id
-      ? await this.readRepository.getPickById(currentPick.id)
-      : null;
-    const ownReview = mine && mine.pick.userId === userId && mine.pick.itemId === item.id
-      && mine.pick.id === currentPick?.id && ['active', 'needs_review'].includes(mine.pick.status)
-      ? [{ pick: mine.pick, profile: mine.profile, isMine: true }]
+    // item_review_page is the source of truth for both current and ended reviews.
+    // It deliberately hides lifecycle details and supplies viewer-scoped permissions.
+    const ownReview = userId
+      ? picks.filter((entry) => entry.pick.userId === userId)
+          .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: true }))
       : [];
     const otherReviews = picks.filter((entry) => entry.pick.userId !== userId)
       .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
