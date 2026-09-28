@@ -76,6 +76,10 @@
 | Category Card | Category, Question (+ Parent 태그) | 온보딩 카테고리 제안: 원픽 고르기(주 버튼) / 넘기기 |
 | Profile Header | Username, Bio, Stats | 프로필 상단: 아바타 64 + 사용자명 + 소개 + 원픽·팔로워·팔로잉 |
 | Toast | Message | 짧은 완료 알림, 하단 가운데, action/primary 바탕 |
+| Notification Row | Actor, Message, Quote, Time, Unread (+ Kind 태그) | 알림 한 건, 안 읽음은 탠저린 점 |
+| Settings Row | Label, Show Chevron | 설정 목록 한 줄, 위험 동작은 text/danger |
+| My Pick Row | Item, Provider, Review (+ Channel 태그) | 내 프로필 원픽 한 줄 + ⋯ 관리 메뉴 |
+| Confirm Dialog | Title, Body (+ Cancel/Confirm 버튼) | 되돌리기 어려운 동작 확인 |
 
 예외: 로그인 버튼(카카오 노랑 #FEE500, Apple 검정)은 각 사 가이드 색을 그대로 씁니다.
 
@@ -87,6 +91,9 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 - 76. 홈 v6 — 온보딩 진행 중(진행 배너), 로그아웃 첫 방문, 팔로잉 비었을 때, 불러오기 실패, 피드 스크롤. E(이어서 고르기 배너)·F2 기준.
 - 77. 온보딩 v6 — 카테고리 제안(3/10), 저장 후 다음 카테고리, 10개 달성(AI 평가 보기), 모두 봤을 때, 불러오기 실패. E(N/10 진행 표시, AI 패널로 바로 이동) 기준.
 - 78. 공유 프로필 첫 방문 v6 — 공유 링크 프로필, 팔로우 → 로그인 시트, 새 가입자 사용자명, 돌아와서 자동 팔로우 + 토스트, 없는 프로필. E(가입 의도 유지·자동 팔로우) 기준.
+- 79. 탐색 v6 — 메뉴별 원픽, 선택이 적은 메뉴(3명 미만·0명), 검색 결과 없음.
+- 80. 알림 v6 — 알림 목록(안 읽음 점·종류 태그), 알림 없음, 수정 필요 알림 → 수정 화면.
+- 81. 내 프로필 · 설정 v6 — 내 프로필, 원픽 관리 메뉴(한줄평 수정 · 원픽 해제), 해제 확인, 설정(모든 기기에서 로그아웃, 회원 탈퇴).
 
 ## 코드 반영 (F2)
 
