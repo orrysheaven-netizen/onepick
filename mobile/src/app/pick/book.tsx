@@ -173,7 +173,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 책 원픽 찾기</Text>
       <Text style={styles.subtitle}>책 제목을 입력하고, 필요하면 작가 이름을 함께 넣어 가장 정확한 판본을 찾아보세요.</Text>
-      <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있습니다.</Text>
+      <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있어요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요</Text>
@@ -253,7 +253,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요</Text>
         <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인합니다.</Text>
+      <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

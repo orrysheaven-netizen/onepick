@@ -94,7 +94,7 @@ export default function NotificationsScreen() {
         </Pressable>;
       }}
       ListHeaderComponent={ready && query.isError && items.length > 0
-        ? <Text accessibilityRole="alert" style={styles.error}>새 알림을 갱신하지 못했어요. 마지막으로 불러온 알림을 표시합니다.</Text>
+        ? <Text accessibilityRole="alert" style={styles.error}>새 알림을 갱신하지 못했어요. 마지막으로 불러온 알림을 표시해요.</Text>
         : null}
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>

@@ -241,7 +241,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 게임을 찾지 못했어요</Text>
         <Text style={styles.stateText}>게임 이름 철자를 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>게임 메타데이터·커버: IGDB.com · 상업 운영 전 IGDB 파트너십 및 사용자 표시 출처 조건을 다시 확인합니다.</Text>
+      <Text style={styles.attribution}>게임 메타데이터·커버: IGDB.com · 상업 운영 전 IGDB 파트너십 및 사용자 표시 출처 조건을 다시 확인해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

@@ -241,7 +241,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 노래를 찾지 못했어요</Text>
         <Text style={styles.stateText}>곡명 철자나 가수명을 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용합니다.</Text>
+      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
