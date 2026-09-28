@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhotoStep } from '@/components/pick-photo-step';
@@ -162,6 +162,22 @@ export default function NewPickScreen() {
   }, [params.step]);
 
   useEffect(() => {
+    if (Platform.OS !== 'web' || typeof globalThis === 'undefined') return;
+    const browser = globalThis as typeof globalThis & {
+      location?: { search: string };
+      addEventListener?: (type: string, listener: () => void) => void;
+      removeEventListener?: (type: string, listener: () => void) => void;
+    };
+    const onPopState = () => {
+      const search = browser.location?.search ?? '';
+      const value = new URLSearchParams(search).get('step') ?? undefined;
+      setStep(parseStep(value));
+    };
+    browser.addEventListener?.('popstate', onPopState);
+    return () => browser.removeEventListener?.('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
     if (!user || draftLoadedFor.current === user.id) return;
     draftLoadedFor.current = user.id;
     const saved = readPickReviewDraft(user.id);
@@ -290,16 +306,30 @@ export default function NewPickScreen() {
     return nextParams;
   };
   const goStep = (next: Step, overrides?: Parameters<typeof routeParams>[1]) => {
+    const nextParams = routeParams(next, overrides);
     setStep(next);
-    router.push({ pathname: '/pick/new', params: routeParams(next, overrides) });
+    if (Platform.OS === 'web' && typeof globalThis !== 'undefined') {
+      const browser = globalThis as typeof globalThis & {
+        location?: { pathname: string };
+        history?: { pushState: (data: unknown, unused: string, url?: string | URL | null) => void };
+      };
+      if (browser.location && browser.history) {
+        browser.history.pushState({ onepickStep: next }, '', `${browser.location.pathname}?${new URLSearchParams(nextParams).toString()}`);
+        return;
+      }
+    }
+    router.setParams(nextParams);
   };
   const goBack = () => {
     if (saving || busy.current) return;
-    if (router.canGoBack()) { router.back(); return; }
-    if (step === 1 || step === 6) { router.replace('/'); return; }
+    if (Platform.OS === 'web' && step > 1 && typeof globalThis !== 'undefined') {
+      const browser = globalThis as typeof globalThis & { history?: { back: () => void } };
+      if (browser.history) { browser.history.back(); return; }
+    }
+    if (step === 1 || step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     const previous = previousFrom(step);
     setStep(previous);
-    router.replace({ pathname: '/pick/new', params: routeParams(previous) });
+    router.setParams(routeParams(previous));
   };
 
   const pickStore = (candidate: Store) => {
