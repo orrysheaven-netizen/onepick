@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
   channelBadgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
   providerLink: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  providerName: { ...OnePickType.label, color: OnePick.text, fontWeight: '500', flexShrink: 1 },
+  providerName: { ...OnePickType.bodyMedium, color: OnePick.text, flexShrink: 1 },
   providerNameMenuContext: { ...OnePickType.headline, color: OnePick.text, flexShrink: 1 },
   providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },
   itemName: { ...OnePickType.headline, color: OnePick.text },
