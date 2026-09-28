@@ -173,7 +173,6 @@ begin
   assert v_item.status='pending' and v_item.external_source='onepick_place', 'A member-submitted store is a pending request';
   assert (public.stage_user_place_item(menu,'동네 국밥','서울 마포구 동네길 1','https://naver.me/other')).id = u_item,
     'The same name at the same address is the same store';
-  select ip.place_id into u_place from public.item_places ip where ip.item_id=u_item;
   -- The link can be fixed while it waits; the place follows.
   perform public.revise_item_request(u_item, p_link_url => 'https://naver.me/dongne2');
   res := public.register_item_pick(menu,'offline','동네가 최고', p_item_id => u_item,
@@ -181,6 +180,9 @@ begin
   p_u := (res->>'pick_id')::uuid;
   assert (res->>'published')::boolean = false, 'The Pick on a submitted store waits';
   reset role;
+  -- item_places RLS hides the pending link from everyone; read it as the owner role.
+  select ip.place_id into u_place from public.item_places ip where ip.item_id=u_item;
+  assert u_place is not null, 'The submitted store is linked to its place';
   assert (select map_url='https://naver.me/dongne2' and not is_visible and place_provider='user' from public.places where id=u_place),
     'The submitted place is hidden and carries the revised map link';
   select pc.id into u_catalog from public.place_catalog pc join public.places p on p.place_provider=pc.place_provider and p.provider_place_id=pc.provider_place_id where p.id=u_place;
