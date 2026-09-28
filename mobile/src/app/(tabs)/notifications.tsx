@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { OnePick, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications, useReadNotification } from '@/hooks/useNotifications';
 import type { AppNotification } from '@/services/notificationService';
@@ -107,28 +107,60 @@ export default function NotificationsScreen() {
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: OnePick.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 64 },
-  title: { ...OnePickType.pageTitle, color: OnePick.text },
-  action: { minWidth: 64, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  safe: { flex: 1, backgroundColor: OnePick.bgDefault },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: OnePickSpace.gutter,
+    minHeight: 56,
+  },
+  title: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  action: {
+    minWidth: 64,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: OnePickSpace.sm,
+  },
   link: { ...OnePickType.bodyMedium, color: OnePick.actionPrimary },
-  content: { paddingHorizontal: 16, paddingBottom: 32 },
+  content: { paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
   card: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: OnePick.border,
+    borderBottomColor: OnePick.borderDefault,
     backgroundColor: 'transparent',
-    paddingHorizontal: 2,
-    paddingVertical: 16,
+    paddingVertical: OnePickSpace.lg,
   },
   unread: { backgroundColor: 'transparent' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  unreadDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: OnePick.brand },
-  sender: { ...OnePickType.bodyMedium, color: OnePick.text },
-  newLabel: { ...OnePickType.captionMedium, color: OnePick.text, backgroundColor: OnePick.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  message: { ...OnePickType.body, color: OnePick.text, marginTop: 5 },
-  body: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: 4 },
-  time: { ...OnePickType.caption, color: OnePick.textTertiary, marginTop: 5 },
-  empty: { paddingVertical: 48, alignItems: 'center', gap: 10 },
-  error: { ...OnePickType.body, color: OnePick.danger, marginBottom: 12 },
-  more: { alignItems: 'center', minHeight: 48, justifyContent: 'center' },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: OnePickSpace.sm,
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: OnePickRadius.full,
+    backgroundColor: OnePick.bgAccent,
+  },
+  sender: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  newLabel: {
+    ...OnePickType.captionMedium,
+    color: OnePick.textPrimary,
+    backgroundColor: OnePick.bgAccentSubtle,
+    borderRadius: OnePickRadius.sm,
+    paddingHorizontal: OnePickSpace.sm,
+    paddingVertical: OnePickSpace.xs,
+  },
+  message: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
+  body: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  time: { ...OnePickType.caption, color: OnePick.textTertiary, marginTop: OnePickSpace.xs },
+  empty: {
+    paddingVertical: OnePickSpace.xxxl + OnePickSpace.lg,
+    alignItems: 'center',
+    gap: OnePickSpace.sm,
+  },
+  error: { ...OnePickType.body, color: OnePick.textDanger, marginBottom: OnePickSpace.md },
+  more: { alignItems: 'center', minHeight: 52, justifyContent: 'center' },
 });
