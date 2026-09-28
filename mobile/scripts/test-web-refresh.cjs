@@ -47,6 +47,7 @@ function fixture(kind, platform = 'web') {
       useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
+    '@/hooks/useOnboarding': { useOnboardingProgress: () => query({ state: { completedAt: null } }) },
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
