@@ -87,6 +87,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
+  '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
+  '@/hooks/useOnboarding': { useOnboardingProgress: () => ({ data: { state: { completedAt: null } }, isSuccess: true }) },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
