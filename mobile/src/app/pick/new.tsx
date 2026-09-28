@@ -140,6 +140,8 @@ export default function NewPickScreen() {
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
+  const [manualCategory, setManualCategory] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState('');
   // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -191,6 +193,15 @@ export default function NewPickScreen() {
     aiMenuName,
     Boolean(user) && step === 2 && menus.isSuccess && Boolean(aiMenuName) && aiMenuName === requestedMenu && exactMenuMatches.length === 0,
   );
+  useEffect(() => {
+    if (step !== 2 || !menus.isSuccess || !requestedMenu || exactMenuMatches.length > 0) {
+      if (!requestedMenu || exactMenuMatches.length > 0) setAiMenuName('');
+      return;
+    }
+    const timeout = setTimeout(() => setAiMenuName(requestedMenu), 450);
+    return () => clearTimeout(timeout);
+  }, [step, menus.isSuccess, requestedMenu, exactMenuMatches.length]);
+
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const suggestLink = useSuggestMapLink();
@@ -203,8 +214,8 @@ export default function NewPickScreen() {
 
   const item = itemDetail.data?.item;
   const itemHasPhoto = Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
-  // Online sellers already carry their shop link; a store with an approved map link needs none.
-  const needsLink = storeChannel === 'offline' && !(store?.kind === 'place' && store.mapUrl);
+  // v6 asks for a map link only when the user is adding a new offline store.
+  const needsLink = isNew && storeChannel === 'offline';
   // A pending request cannot take a photo yet (attach_item_photo needs a reviewed item).
   const isRequest = isNew || itemPending;
   const needsPhoto = isNew || (!itemPending && !(itemHadPhoto || itemHasPhoto));
@@ -213,13 +224,15 @@ export default function NewPickScreen() {
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
 
   const nextFrom = (from: Step): Step => {
-    if (from === 2) return needsLink ? 3 : needsPhoto ? 4 : 5;
-    if (from === 3) return needsPhoto ? 4 : 5;
+    if (from === 2) return needsPhoto ? 4 : 5;
+    if (from === 3) return 2;
     return (from + 1) as Step;
   };
   const previousFrom = (from: Step): Step => {
-    if (from === 5) return needsPhoto ? 4 : needsLink ? 3 : 2;
-    if (from === 4) return needsLink ? 3 : 2;
+    if (from === 2) return needsLink ? 3 : 1;
+    if (from === 3) return 1;
+    if (from === 5) return needsPhoto ? 4 : 2;
+    if (from === 4) return 2;
     return (from - 1) as Step;
   };
   const goBack = () => {
@@ -234,7 +247,9 @@ export default function NewPickScreen() {
     }
     setStore(candidate);
     setAiMenuName('');
-    setStep(2);
+    setManualCategory(false);
+    setCategoryQuery('');
+    setStep(candidate.kind === 'new' && candidate.channel === 'offline' ? 3 : 2);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validSellerUrl = httpsUrl(sellerUrl);
@@ -245,30 +260,30 @@ export default function NewPickScreen() {
 
   const confirmMenu = async () => {
     if (!store || !menu || busy.current) return;
-    if (store.kind === 'new' || !menu.categoryId) { setStep(nextFrom(2)); return; }
+    if (store.kind === 'new' || !menu.categoryId) { setStep(needsPhoto ? 4 : 5); return; }
     busy.current = true;
     try {
       const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
       setItemPending(selected.pending);
-      setStep(needsLink ? 3 : selected.hasPhoto || selected.pending ? 5 : 4);
+      setStep(selected.hasPhoto || selected.pending ? 5 : 4);
     } catch { /* The mutation error is shown under the menu list. */ }
     finally { busy.current = false; }
   };
 
   const confirmLink = async (skip: boolean) => {
     setLinkError(null);
-    if (skip || !mapLink.trim()) { setMapLink(skip ? '' : mapLink); setStep(nextFrom(3)); return; }
+    if (skip || !mapLink.trim()) { setMapLink(skip ? '' : mapLink); setStep(2); return; }
     if (!isNaverMapUrl(mapLink)) { setLinkError('네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.'); return; }
     // A new store has no item yet; its link is sent right after the request is saved.
-    if (isNew || !itemId) { setStep(nextFrom(3)); return; }
+    if (isNew || !itemId) { setStep(2); return; }
     if (busy.current) return;
     busy.current = true;
     try {
       await suggestLink.mutateAsync({ itemId, url: mapLink.trim() });
       setLinkSaved(true);
-      setStep(nextFrom(3));
+      setStep(2);
     } catch (error) { setLinkError(errorMessage(error)); }
     finally { busy.current = false; }
   };
