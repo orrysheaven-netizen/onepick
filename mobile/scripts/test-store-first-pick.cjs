@@ -182,7 +182,7 @@ async function main() {
   reset();
   selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true };
   render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
-  input('메뉴 이름').onChangeText('평양물냉');
+  input('메뉴 이름').onChangeText('평양물냉'); render();
   input('메뉴 이름').onSubmitEditing(); // deterministic stand-in for the 450ms production debounce.
   page = render();
   assert.match(page, /카테고리 · AI 추천/);
@@ -201,7 +201,7 @@ async function main() {
   reset();
   aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
   render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
-  input('메뉴 이름').onChangeText('할머니 비법 국수');
+  input('메뉴 이름').onChangeText('할머니 비법 국수'); render();
   input('메뉴 이름').onSubmitEditing();
   page = render();
   assert.match(page, /카테고리를 추천하지 못했어요. 가까운 것을 직접 골라 주세요/);
