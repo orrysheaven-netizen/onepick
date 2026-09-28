@@ -195,4 +195,8 @@ export class SupabasePickRepository implements PickRepository {
       throw mapSupabaseError(error);
     }
   }
+  async deleteReview(pickId: string) {
+    const { error } = await (this.client as any).rpc('delete_pick_review', { p_pick_id: pickId });
+    if (error) throw mapSupabaseError(error);
+  }
 }
