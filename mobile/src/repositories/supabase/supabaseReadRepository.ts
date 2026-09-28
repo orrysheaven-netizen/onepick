@@ -395,6 +395,50 @@ export class SupabaseReadRepository implements ReadRepository {
     return this.mapPickItems(data as unknown as PickReadRow[]);
   }
 
+  async getItemReviews(itemId: string, limit = 20) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const { data, error } = await (this.client as any).rpc('item_review_page', {
+      p_item_id: itemId,
+      p_after_is_current: null,
+      p_after_started_at: null,
+      p_after_id: null,
+      p_limit: safeLimit,
+    });
+    if (error) throw mapSupabaseError(error);
+    return (Array.isArray(data) ? data : []).map((row: any) => {
+      const profile = row.profile ? mapProfileRow(row.profile as ProfileRow) : null;
+      const category = row.category ? mapCategoryRow(row.category as CategoryRow) : null;
+      const item = row.item ? mapItemRow(row.item as ItemRow) : null;
+      const isCurrent = Boolean(row.is_current);
+      return {
+        pick: {
+          id: row.id,
+          userId: row.user_id ?? '',
+          categoryId: row.category_id,
+          itemId: row.item_id,
+          channel: row.channel ?? null,
+          oneLineReview: row.one_line_review ?? '',
+          purchaseUrl: null,
+          purchaseTip: null,
+          status: isCurrent ? 'active' : 'removed',
+          startedAt: row.started_at,
+          endedAt: null,
+          replacedByPickId: null,
+          createdAt: row.started_at,
+          updatedAt: row.started_at,
+          isCurrent,
+          isDeleted: Boolean(row.is_deleted),
+          canComment: Boolean(row.can_comment),
+          canManage: Boolean(row.can_manage),
+          commentCount: Number(row.comment_count) || 0,
+        },
+        profile,
+        category,
+        item,
+      };
+    });
+  }
+
   async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
     if (cursor) cursorFilter('created_at', cursor, true);
