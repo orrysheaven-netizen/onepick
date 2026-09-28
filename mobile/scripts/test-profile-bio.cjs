@@ -178,6 +178,7 @@ async function main() {
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/lib/auth/authIntent': { getPostAuthRoute: () => ({ pathname: '/u/[username]', params: { username: 'owner' } }) },
+    '@/lib/auth/followProfileIntent': { armFollowProfileIntent: () => true, clearFollowProfileIntent() {}, consumeFollowProfileIntent: () => false },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async () => 'shared' },
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
