@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
   dashed: { borderStyle: 'dashed' },
   selected: { borderColor: OnePick.text, backgroundColor: OnePick.accentSoft },
   pressed: { opacity: 0.9 },
-  label: { ...OnePickType.label, color: OnePick.text },
+  label: { ...OnePickType.captionMedium, color: OnePick.text },
   labelDashed: { color: OnePick.muted },
-  labelSelected: { color: OnePick.text, fontWeight: '700' },
+  labelSelected: { color: OnePick.text },
 });

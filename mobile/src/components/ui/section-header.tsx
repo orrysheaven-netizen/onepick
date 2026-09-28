@@ -29,7 +29,7 @@ export function SectionHeader({ title, count, description, action }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   copy: { flex: 1, minWidth: 0 },
-  title: { ...OnePickType.title, color: OnePick.text },
+  title: { ...OnePickType.headline, color: OnePick.text },
   count: { color: OnePick.accent },
   description: { ...OnePickType.caption, color: OnePick.muted, marginTop: 4 },
 });
