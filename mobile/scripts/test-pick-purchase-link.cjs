@@ -59,6 +59,8 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
+
+  '@/hooks/useMyProfile': { useMyProfile: () => ({ data: { currentPicks: [] }, isSuccess: true, isPending: false, isError: false }) },
   '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
 });
 
