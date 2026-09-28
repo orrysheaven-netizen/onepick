@@ -17,7 +17,8 @@ insert into public.categories(id,name,slug,status,is_visible,is_pickable,sort_or
 insert into public.items(id,category_id,name,normalized_name,status,created_by) values
 ('e5555555-5555-5555-5555-555555555555','d4444444-4444-4444-4444-444444444444','Safety Item','safetyitem','active','b2222222-2222-2222-2222-222222222222');
 insert into public.picks(id,user_id,category_id,item_id,one_line_review,status) values
-('f6666666-6666-6666-6666-666666666666','b2222222-2222-2222-2222-222222222222','d4444444-4444-4444-4444-444444444444','e5555555-5555-5555-5555-555555555555','B pick','active');
+('f6666666-6666-6666-6666-666666666666','b2222222-2222-2222-2222-222222222222','d4444444-4444-4444-4444-444444444444','e5555555-5555-5555-5555-555555555555','B pick','active'),
+('f6666666-6666-6666-6666-666666666667','a1111111-1111-1111-1111-111111111111','d4444444-4444-4444-4444-444444444444','e5555555-5555-5555-5555-555555555555','A pick','active');
 -- Seed the comment as its author so the community quota trigger sees the
 -- same authenticated identity and RLS checks as a real comment submission.
 set local role authenticated;
