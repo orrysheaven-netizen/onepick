@@ -395,26 +395,82 @@ export class SupabaseReadRepository implements ReadRepository {
     return this.mapPickItems(data as unknown as PickReadRow[]);
   }
 
-  async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
+  async getItemReviews(itemId: string, limit = 20) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
-    let query = this.client
-      .from('comments')
-      .select(`*, author:profiles!comments_user_id_fkey(*)`)
-      .eq('pick_id', pickId)
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true })
-      .limit(safeLimit);
-
-    if (cursor) query = query.or(cursorFilter('created_at', cursor, true));
-    const { data, error } = await query;
+    const { data, error } = await (this.client as any).rpc('item_review_page', {
+      p_item_id: itemId,
+      p_after_is_current: null,
+      p_after_started_at: null,
+      p_after_id: null,
+      p_limit: safeLimit,
+    });
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as CommentReadRow[]).map((row) => {
-      const author = one(row.author);
+    return (Array.isArray(data) ? data : []).map((row: any) => {
+      const profile = row.profile ? mapProfileRow(row.profile as ProfileRow) : null;
+      const category = row.category ? mapCategoryRow(row.category as CategoryRow) : null;
+      const item = row.item ? mapItemRow(row.item as ItemRow) : null;
+      const isCurrent = Boolean(row.is_current);
       return {
-        comment: mapCommentRow(row),
-        author: author ? mapProfileRow(author) : null,
+        pick: {
+          id: row.id,
+          userId: row.user_id ?? '',
+          categoryId: row.category_id,
+          itemId: row.item_id,
+          channel: row.channel ?? null,
+          oneLineReview: row.one_line_review ?? '',
+          purchaseUrl: null,
+          purchaseTip: null,
+          status: (isCurrent ? 'active' : 'removed') as 'active' | 'removed',
+          startedAt: row.started_at,
+          endedAt: null,
+          replacedByPickId: null,
+          createdAt: row.started_at,
+          updatedAt: row.started_at,
+          isCurrent,
+          isDeleted: Boolean(row.is_deleted),
+          canComment: Boolean(row.can_comment),
+          canManage: Boolean(row.can_manage),
+          commentCount: Number(row.comment_count) || 0,
+        },
+        profile,
+        category,
+        item,
       };
     });
+  }
+
+  async getCommentsByPickId(pickId: string, limit = 20, cursor?: ReadCursor | null) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    if (cursor) cursorFilter('created_at', cursor, true);
+    const { data, error } = await (this.client as any).rpc('pick_comment_page', {
+      p_pick_id: pickId,
+      p_after_time: cursor?.timestamp ?? null,
+      p_after_id: cursor?.id ?? null,
+      p_limit: safeLimit,
+    });
+    if (error) throw mapSupabaseError(error);
+    const mapThreadRow = (row: any): any => {
+      const author = row.author ? mapProfileRow(row.author as ProfileRow) : null;
+      return {
+        comment: {
+          id: row.id,
+          pickId: row.pick_id,
+          userId: row.user_id ?? '',
+          body: row.body ?? '',
+          createdAt: row.created_at,
+          updatedAt: row.updated_at ?? row.created_at,
+          parentCommentId: row.parent_comment_id ?? null,
+          isDeleted: Boolean(row.is_deleted),
+          authorCurrentPickMatchesItem: Boolean(row.author_current_pick_matches_item),
+          canEdit: Boolean(row.can_edit),
+          canDelete: Boolean(row.can_delete),
+        },
+        author,
+        replies: Array.isArray(row.replies) ? row.replies.map(mapThreadRow) : [],
+        replyCount: Number(row.reply_count) || 0,
+      };
+    };
+    return (Array.isArray(data) ? data : []).map(mapThreadRow);
   }
 
   /** The root category with this slug and every visible category beneath it. */
@@ -439,42 +495,63 @@ export class SupabaseReadRepository implements ReadRepository {
 
   async getCommentsByUser(userId: string, limit = 20, cursor?: ReadCursor | null, scope?: RootCategoryScope | null) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
+    if (cursor) cursorFilter('created_at', cursor, false);
     const rootIds = scope ? await this.categoryIdsUnderRoot(scope.rootSlug) : [];
     if (scope?.inside && rootIds.length === 0) return [];
-    // A scoped list filters on the Pick's category, so the Pick join must be inner. Comment
-    // RLS already hides comments whose Pick I can't see, so this drops nothing extra.
-    let query = this.client
-      .from('comments')
-      .select(`
-        *,
-        pick:picks!comments_pick_id_fkey${scope ? '!inner' : ''}(
-          *,
-          profile:profiles!picks_user_id_fkey(*),
-          item:items!picks_item_category_fk(*)
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(safeLimit);
 
-    if (scope && rootIds.length) {
-      query = scope.inside
-        ? query.in('pick.category_id', rootIds)
-        : query.not('pick.category_id', 'in', `(${rootIds.join(',')})`);
-    }
-    if (cursor) query = query.or(cursorFilter('created_at', cursor, false));
-    const { data, error } = await query;
+    // my_comment_page is viewer-bound; userId remains in the interface so callers
+    // keep their existing cache keys, but the server derives the account from auth.uid().
+    const { data, error } = await (this.client as any).rpc('my_comment_page', {
+      p_after_time: cursor?.timestamp ?? null,
+      p_after_id: cursor?.id ?? null,
+      p_limit: scope ? 100 : safeLimit,
+    });
     if (error) throw mapSupabaseError(error);
-    return (data as unknown as MyCommentReadRow[]).map((row) => {
-      const pick = one(row.pick);
-      const pickAuthor = pick ? one(pick.profile) : null;
-      const item = pick ? one(pick.item) : null;
+    const rows = (Array.isArray(data) ? data : []).filter((row: any) => {
+      if (!scope) return true;
+      const inside = rootIds.includes(row.pick?.category_id ?? row.category?.id);
+      return scope.inside ? inside : !inside;
+    }).slice(0, safeLimit);
+
+    return rows.map((row: any) => {
+      const c = row.comment ?? {};
+      const p = row.pick ?? null;
+      const profile = p?.profile ? mapProfileRow(p.profile as ProfileRow) : null;
+      const item = row.item ? mapItemRow(row.item as ItemRow) : null;
+      const pick = p ? {
+        id: p.id,
+        userId: p.user_id ?? '',
+        categoryId: p.category_id,
+        itemId: p.item_id,
+        channel: p.channel ?? null,
+        oneLineReview: p.one_line_review ?? '',
+        purchaseUrl: null,
+        purchaseTip: null,
+        status: (p.is_current ? 'active' : 'removed') as 'active' | 'removed',
+        startedAt: c.created_at,
+        endedAt: null,
+        replacedByPickId: null,
+        createdAt: c.created_at,
+        updatedAt: c.created_at,
+        isCurrent: Boolean(p.is_current),
+        isDeleted: Boolean(p.is_deleted),
+      } : null;
       return {
-        comment: mapCommentRow(row),
-        pick: pick ? mapPickRow(pick) : null,
-        pickAuthor: pickAuthor ? mapProfileRow(pickAuthor) : null,
-        item: item ? mapItemRow(item) : null,
+        comment: {
+          id: c.id,
+          pickId: c.pick_id,
+          userId: c.user_id ?? userId,
+          body: c.body ?? '',
+          createdAt: c.created_at,
+          updatedAt: c.updated_at ?? c.created_at,
+          parentCommentId: c.parent_comment_id ?? null,
+          isDeleted: Boolean(c.is_deleted),
+          canEdit: Boolean(c.can_edit),
+          canDelete: Boolean(c.can_delete),
+        },
+        pick,
+        pickAuthor: profile,
+        item,
       };
     });
   }

@@ -74,10 +74,11 @@ export class SupabaseCommentRepository implements CommentRepository {
   }
 
   async remove(commentId: string) {
-    const { error } = await this.client
-      .from('comments')
-      .delete()
-      .eq('id', commentId);
+    // Server decides whether this is a hard delete or a tombstone so replies
+    // never disappear when their parent is removed.
+    const { error } = await (this.client as any).rpc('delete_comment', {
+      p_comment_id: commentId,
+    });
 
     if (error) {
       throw mapSupabaseError(error);

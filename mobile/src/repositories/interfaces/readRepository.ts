@@ -15,6 +15,8 @@ export interface PickReadItem {
 export interface CommentReadItem {
   comment: Comment;
   author: Profile | null;
+  replies?: CommentReadItem[];
+  replyCount?: number;
 }
 
 /** Keeps rows whose Pick sits under the top-level category `rootSlug` (inside) or under any other (outside). */
@@ -208,6 +210,8 @@ export interface ReadRepository {
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
+  /** Item-scoped reviews include current and ended Picks without exposing lifecycle history. */
+  getItemReviews?(itemId: string, limit?: number): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
   getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;

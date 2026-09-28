@@ -17,6 +17,10 @@ export function useManagePick() {
     mutationFn: (input: { categoryId: string; channel?: PickChannel | null }) => pickService.removePick(input.categoryId, input.channel),
     onSuccess,
   });
+  const deleteReview = useMutation({
+    mutationFn: (pickId: string) => pickService.deleteReview(pickId),
+    onSuccess,
+  });
 
-  return { updateReview, removePick };
+  return { updateReview, removePick, deleteReview };
 }
