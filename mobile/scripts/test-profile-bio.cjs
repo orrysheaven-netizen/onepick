@@ -110,8 +110,8 @@ async function main() {
     return saved;
   } };
   const native = {
-    View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
-    StyleSheet: { create: (styles) => styles },
+    View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+    StyleSheet: { create: (styles) => styles, absoluteFill: {} },
     Pressable: (p) => { buttons.push(p); return React.createElement('button', null, p.children); },
     TextInput: (p) => { input = p; return React.createElement('textarea', { value: p.value, readOnly: true }); },
   };
@@ -163,6 +163,7 @@ async function main() {
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
   const { default: PublicProfile } = load('app/u/[username].tsx', {
     'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
+    'expo-linking': { createURL: () => 'onepick://auth/callback' },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/profile-pick-card': { ProfilePickCard: () => null },
@@ -175,6 +176,8 @@ async function main() {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/useProfileAi': { useProfileAiComment: () => ({ data: null }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
+    '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
+    '@/lib/auth/authIntent': { getPostAuthRoute: () => ({ pathname: '/u/[username]', params: { username: 'owner' } }) },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async () => 'shared' },
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
