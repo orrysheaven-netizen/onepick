@@ -132,6 +132,9 @@ async function main() {
   // Figma 75-1: store search is step 2/6 and uses the v6 copy/result-card flow.
   reset();
   page = render();
+  assert.equal(step(page), '1');
+  assert.match(page, /어디에서 고른 원픽인가요/);
+  press('매장'); page = render();
   assert.equal(step(page), '2');
   assert.match(page, /새 원픽 등록/);
   assert.match(page, /상호명을 검색해 주세요/);
@@ -181,7 +184,7 @@ async function main() {
   // Figma 75-3/4: submitting a new menu starts AI; its full category paths are selectable.
   reset();
   selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true };
-  render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
+  render(); press('매장'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
   input('메뉴 이름').onChangeText('평양물냉'); render();
   input('메뉴 이름').onSubmitEditing(); // deterministic stand-in for the 450ms production debounce.
   page = render();
@@ -200,7 +203,7 @@ async function main() {
   // Figma 75-5: low confidence or failed AI falls back to searchable manual categories, with admin as the last option.
   reset();
   aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  render(); press('매장'); render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
   input('메뉴 이름').onChangeText('할머니 비법 국수'); render();
   input('메뉴 이름').onSubmitEditing();
   page = render();
@@ -214,7 +217,7 @@ async function main() {
 
   // A truly new offline store asks for its map link before the menu, matching the v6 flow note.
   reset();
-  render(); input('매장명 검색').onChangeText('새 냉면집'); render();
+  render(); press('매장'); render(); input('매장명 검색').onChangeText('새 냉면집'); render();
   press('찾는 매장이 없어요'); page = render();
   assert.equal(input('등록 요청 이름').value, '새 냉면집');
   press('다음'); page = render();
@@ -255,7 +258,7 @@ async function main() {
   // Pending catalog item goes straight to review and preserves the typed menu hint.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-suyuk', hasPhoto: false, pending: true };
-  render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
+  render(); press('매장'); render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
   input('메뉴 이름').onChangeText('수육'); render(); press('고기 › 수육'); render(); press('다음'); await flush();
   page = render();
   assert.equal(step(page), '6');
