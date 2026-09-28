@@ -19,12 +19,24 @@ export const OnePick = {
   brand: '#FF8A00',
   onBrand: '#141416',
 
-  // Foundations semantic roles used by shared actions and navigation.
+  // Foundations semantic roles. New/updated screens migrate to these first;
+  // legacy aliases above stay in place until each screen is reviewed.
+  bgDefault: '#FFFFFF',
+  bgSubtle: '#F6F6F8',
+  bgMuted: '#EEF0F4',
+  bgPlaceholder: '#F0E3CC',
+  bgAccent: '#FF8A00',
+  bgAccentSubtle: '#FFF0DC',
   actionPrimary: '#141416',
   actionDisabled: '#ADB0BA',
   onAction: '#FFFFFF',
+  textPrimary: '#141416',
   textSecondary: '#6B6E78',
   textTertiary: '#8A909C',
+  textAccent: '#B84F00',
+  textDanger: '#B4432A',
+  borderDefault: '#E8E8ED',
+  borderStrong: '#D5D7DE',
 
   // Legacy accent serves both links and fills. Keep its text/fill pair readable
   // until individual components opt into brand/onBrand together.
@@ -68,18 +80,28 @@ export const OnePickType = {
 } as const;
 
 export const OnePickRadius = {
-  small: 12, // inputs, chips, images
+  // Foundations canonical scale.
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 999,
+
+  // Legacy aliases. Migrate screen-by-screen instead of changing every radius at once.
+  small: 12,
   card: 20,
-  pill: 999, // buttons, avatars
+  pill: 999,
 } as const;
 
 export const OnePickSpace = {
   xs: 4,
   sm: 8,
-  md: 12, // gap between cards
-  lg: 16, // screen gutter, card padding
-  xl: 24,
-  xxl: 32,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  gutter: 16,
 } as const;
 
 
