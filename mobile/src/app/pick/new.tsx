@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +15,8 @@ import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
 import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
+import { clearPickReviewDraft, readPickReviewDraft, writePickReviewDraft } from '@/lib/pick/pickDraftSession';
+import { onboardingService } from '@/services/onboardingService';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
@@ -28,6 +30,62 @@ type Store = StoreCandidate | NewStore;
 type Done =
   | { type: 'pick'; pickId: string; itemId: string }
   | { type: 'pending'; itemName: string; linkSaved: boolean };
+
+type NewPickParams = {
+  step?: string;
+  onboarding?: string;
+  categoryId?: string;
+  channel?: string;
+  storeKind?: string;
+  storeId?: string;
+  storeName?: string;
+  branchName?: string;
+  region?: string;
+  address?: string;
+  providerCategory?: string;
+  mapUrl?: string;
+  officialUrl?: string;
+  sellerUrl?: string;
+  menuCategoryId?: string;
+  menuName?: string;
+  itemId?: string;
+  itemHadPhoto?: string;
+  itemPending?: string;
+  mapLink?: string;
+};
+
+function parseStep(value?: string): Step {
+  const step = Number(value);
+  return step >= 1 && step <= 6 ? step as Step : 1;
+}
+
+function storeFromParams(params: NewPickParams): Store | null {
+  if (!params.storeName) return null;
+  if (params.storeKind === 'place' && params.storeId) return {
+    kind: 'place',
+    catalogId: params.storeId,
+    name: params.storeName,
+    branchName: params.branchName || null,
+    region: params.region || null,
+    address: params.address || null,
+    providerCategory: params.providerCategory || null,
+    mapUrl: params.mapUrl || null,
+  };
+  if (params.storeKind === 'seller' && params.storeId && params.officialUrl) return {
+    kind: 'seller',
+    providerId: params.storeId,
+    name: params.storeName,
+    host: (() => { try { return new URL(params.officialUrl!).host; } catch { return ''; } })(),
+    officialUrl: params.officialUrl,
+  };
+  if (params.storeKind === 'new' && (params.channel === 'offline' || params.channel === 'online')) return {
+    kind: 'new',
+    name: params.storeName,
+    channel: params.channel,
+    sellerUrl: params.sellerUrl || null,
+  };
+  return null;
+}
 
 const STEP_LABELS = ['매장', '메뉴', '링크', '사진', '한줄평', '완료'];
 
@@ -67,24 +125,26 @@ function errorMessage(error: unknown) {
 
 export default function NewPickScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<NewPickParams>();
   const auth = useAuthSession();
   const user = auth.user;
-  const [step, setStep] = useState<Step>(1);
-  const [channel, setChannel] = useState<PickChannel>('offline');
+  const [step, setStep] = useState<Step>(() => parseStep(params.step));
+  const [channel, setChannel] = useState<PickChannel>(() => params.channel === 'online' ? 'online' : 'offline');
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [newName, setNewName] = useState('');
-  const [sellerUrl, setSellerUrl] = useState('');
-  const [store, setStore] = useState<Store | null>(null);
-  const [menuQuery, setMenuQuery] = useState('');
+  const [sellerUrl, setSellerUrl] = useState(() => params.sellerUrl ?? '');
+  const [store, setStore] = useState<Store | null>(() => storeFromParams(params));
+  const [menuQuery, setMenuQuery] = useState(() => params.menuName ?? '');
   const [aiMenuName, setAiMenuName] = useState('');
   // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
-  const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
-  const [itemId, setItemId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(() =>
+    params.menuName ? { categoryId: params.menuCategoryId ?? null, name: params.menuName } : null);
+  const [itemId, setItemId] = useState<string | null>(() => params.itemId ?? null);
   // Known from the selected item row itself, before the item detail loads.
-  const [itemHadPhoto, setItemHadPhoto] = useState(false);
-  const [itemPending, setItemPending] = useState(false);
-  const [mapLink, setMapLink] = useState('');
+  const [itemHadPhoto, setItemHadPhoto] = useState(params.itemHadPhoto === '1');
+  const [itemPending, setItemPending] = useState(params.itemPending === '1');
+  const [mapLink, setMapLink] = useState(() => params.mapLink ?? '');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSaved, setLinkSaved] = useState(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
@@ -93,6 +153,24 @@ export default function NewPickScreen() {
   const [done, setDone] = useState<Done | null>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
   const busy = useRef(false);
+  const draftLoadedFor = useRef<string | null>(null);
+  const onboarding = params.onboarding === '1';
+
+  useEffect(() => {
+    setStep(parseStep(params.step));
+  }, [params.step]);
+
+  useEffect(() => {
+    if (!user || draftLoadedFor.current === user.id) return;
+    draftLoadedFor.current = user.id;
+    const saved = readPickReviewDraft(user.id);
+    if (saved) setReview(saved);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || draftLoadedFor.current !== user.id) return;
+    writePickReviewDraft(user.id, review);
+  }, [review, user]);
 
   const isNew = store?.kind === 'new';
   const storeName = store ? store.name : '';
@@ -160,10 +238,60 @@ export default function NewPickScreen() {
     if (from === 4) return needsLink ? 3 : 2;
     return (from - 1) as Step;
   };
+  const routeParams = (next: Step, overrides?: {
+    store?: Store | null;
+    menu?: { categoryId: string | null; name: string } | null;
+    itemId?: string | null;
+    itemHadPhoto?: boolean;
+    itemPending?: boolean;
+    mapLink?: string;
+  }) => {
+    const routeStore = overrides?.store === undefined ? store : overrides.store;
+    const routeMenu = overrides?.menu === undefined ? menu : overrides.menu;
+    const routeItemId = overrides?.itemId === undefined ? itemId : overrides.itemId;
+    const routeHadPhoto = overrides?.itemHadPhoto === undefined ? itemHadPhoto : overrides.itemHadPhoto;
+    const routePending = overrides?.itemPending === undefined ? itemPending : overrides.itemPending;
+    const routeMapLink = overrides?.mapLink === undefined ? mapLink : overrides.mapLink;
+    const nextParams: Record<string, string> = {
+      step: String(next),
+      channel,
+      ...(onboarding ? { onboarding: '1' } : {}),
+      ...(typeof params.categoryId === 'string' ? { categoryId: params.categoryId } : {}),
+      ...(routeMenu?.name ? { menuName: routeMenu.name } : {}),
+      ...(routeMenu?.categoryId ? { menuCategoryId: routeMenu.categoryId } : {}),
+      ...(routeItemId ? { itemId: routeItemId } : {}),
+      ...(routeHadPhoto ? { itemHadPhoto: '1' } : {}),
+      ...(routePending ? { itemPending: '1' } : {}),
+      ...(routeMapLink ? { mapLink: routeMapLink } : {}),
+    };
+    if (routeStore) {
+      nextParams.storeKind = routeStore.kind;
+      nextParams.storeName = routeStore.name;
+      if (routeStore.kind === 'place') {
+        nextParams.storeId = routeStore.catalogId;
+        if (routeStore.branchName) nextParams.branchName = routeStore.branchName;
+        if (routeStore.region) nextParams.region = routeStore.region;
+        if (routeStore.address) nextParams.address = routeStore.address;
+        if (routeStore.providerCategory) nextParams.providerCategory = routeStore.providerCategory;
+        if (routeStore.mapUrl) nextParams.mapUrl = routeStore.mapUrl;
+      } else if (routeStore.kind === 'seller') {
+        nextParams.storeId = routeStore.providerId;
+        nextParams.officialUrl = routeStore.officialUrl;
+      } else if (routeStore.sellerUrl) nextParams.sellerUrl = routeStore.sellerUrl;
+    }
+    return nextParams;
+  };
+  const goStep = (next: Step, overrides?: Parameters<typeof routeParams>[1]) => {
+    setStep(next);
+    router.push({ pathname: '/pick/new', params: routeParams(next, overrides) });
+  };
   const goBack = () => {
     if (saving || busy.current) return;
-    if (step === 1 || step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    setStep(previousFrom(step));
+    if (router.canGoBack()) { router.back(); return; }
+    if (step === 1 || step === 6) { router.replace('/'); return; }
+    const previous = previousFrom(step);
+    setStep(previous);
+    router.replace({ pathname: '/pick/new', params: routeParams(previous) });
   };
 
   const pickStore = (candidate: Store) => {
@@ -172,7 +300,7 @@ export default function NewPickScreen() {
     }
     setStore(candidate);
     setAiMenuName('');
-    setStep(2);
+    goStep(2, { store: candidate, menu: null, itemId: null, itemHadPhoto: false, itemPending: false, mapLink: '' });
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validSellerUrl = httpsUrl(sellerUrl);
@@ -183,30 +311,30 @@ export default function NewPickScreen() {
 
   const confirmMenu = async () => {
     if (!store || !menu || busy.current) return;
-    if (store.kind === 'new' || !menu.categoryId) { setStep(nextFrom(2)); return; }
+    if (store.kind === 'new' || !menu.categoryId) { goStep(nextFrom(2)); return; }
     busy.current = true;
     try {
       const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
       setItemPending(selected.pending);
-      setStep(needsLink ? 3 : selected.hasPhoto || selected.pending ? 5 : 4);
+      goStep(needsLink ? 3 : selected.hasPhoto || selected.pending ? 5 : 4, { itemId: selected.itemId, itemHadPhoto: selected.hasPhoto, itemPending: selected.pending });
     } catch { /* The mutation error is shown under the menu list. */ }
     finally { busy.current = false; }
   };
 
   const confirmLink = async (skip: boolean) => {
     setLinkError(null);
-    if (skip || !mapLink.trim()) { setMapLink(skip ? '' : mapLink); setStep(nextFrom(3)); return; }
+    if (skip || !mapLink.trim()) { const nextLink = skip ? '' : mapLink; setMapLink(nextLink); goStep(nextFrom(3), { mapLink: nextLink }); return; }
     if (!isNaverMapUrl(mapLink)) { setLinkError('네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.'); return; }
     // A new store has no item yet; its link is sent right after the request is saved.
-    if (isNew || !itemId) { setStep(nextFrom(3)); return; }
+    if (isNew || !itemId) { goStep(nextFrom(3)); return; }
     if (busy.current) return;
     busy.current = true;
     try {
       await suggestLink.mutateAsync({ itemId, url: mapLink.trim() });
       setLinkSaved(true);
-      setStep(nextFrom(3));
+      goStep(nextFrom(3));
     } catch (error) { setLinkError(errorMessage(error)); }
     finally { busy.current = false; }
   };
@@ -233,7 +361,8 @@ export default function NewPickScreen() {
           await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
           if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId, label: requestedMenu });
           setDone({ type: 'pending', itemName: store.name, linkSaved });
-          setStep(6);
+          clearPickReviewDraft(user.id);
+          goStep(6);
           return;
         }
         const pick = await choosePick.mutateAsync({
@@ -257,7 +386,13 @@ export default function NewPickScreen() {
           setDone({ type: 'pending', itemName: result.item.name, linkSaved: saved });
         }
       }
-      setStep(6);
+      clearPickReviewDraft(user.id);
+      if (onboarding && done === null) {
+        await onboardingService.recordAction(menu.categoryId ?? params.categoryId ?? '', 'picked').catch(() => {});
+        router.replace({ pathname: '/onboarding', params: { saved: '1', categoryName: menu.name, itemName: store.name } });
+        return;
+      }
+      goStep(6);
     } catch (error) {
       if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
       setSaveError(error);
@@ -283,7 +418,8 @@ export default function NewPickScreen() {
     }
     setItemId(null); setItemHadPhoto(false); setItemPending(false);
     setMenu({ categoryId: null, name: requestedMenu });
-    setStep(storeChannel === 'offline' ? 3 : 4);
+    const requested = { categoryId: null, name: requestedMenu };
+    goStep(storeChannel === 'offline' ? 3 : 4, { store: store.kind === 'new' ? store : { kind: 'new', name: store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name, channel: storeChannel, sellerUrl: store.kind === 'seller' ? store.officialUrl : null }, menu: requested, itemId: null, itemHadPhoto: false, itemPending: false });
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
@@ -428,8 +564,8 @@ export default function NewPickScreen() {
             {photo ? <Button variant="ghost" size="sm" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}
           </View> : itemId && user && !itemHasPhoto ? <PickPhotoStep userId={user.id} itemId={itemId} onAttached={() => { void itemDetail.refetch(); }} />
             : itemHasPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
-          <Button fullWidth size="lg" label="다음" onPress={() => setStep(5)} style={styles.primary} />
-          {!photo && !itemHasPhoto ? <Button variant="ghost" label="사진 없이 계속" onPress={() => setStep(5)} /> : null}
+          <Button fullWidth size="lg" label="다음" onPress={() => goStep(5)} style={styles.primary} />
+          {!photo && !itemHasPhoto ? <Button variant="ghost" label="사진 없이 계속" onPress={() => goStep(5)} /> : null}
         </> : null}
 
         {step === 5 && store && menu ? <>
@@ -452,6 +588,7 @@ export default function NewPickScreen() {
           <Text style={styles.title}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
+          {done.type === 'pick' ? <Text style={styles.helper}>원픽을 더 고르면 AI 취향 평가가 더 정확해져요. 10개부터 평가를 볼 수 있어요.</Text> : null}
           {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}
           {linkSaved || (done.type === 'pending' && done.linkSaved) ? <Text style={styles.helper}>남겨주신 네이버 지도 링크는 확인 후 표시돼요.</Text> : null}
           {done.type === 'pick'
