@@ -67,7 +67,7 @@ async function main() {
   const { default: Profile } = load('app/(tabs)/profile.tsx', {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
-    'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+    'expo-router': { useLocalSearchParams: () => ({}), useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-pick-card': {
