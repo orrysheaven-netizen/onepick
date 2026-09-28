@@ -40,7 +40,7 @@ assert.ok(tasteIndex > infoIndex, 'gated taste composition must follow profile i
 assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation must follow taste composition');
 assert.ok(picksIndex > aiIndex, 'category picks must follow gated AI taste evaluation');
 assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
-assert.match(profile, /OnePickFeatures\.profileAi \|\| ai === '1'/);
+assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
