@@ -281,7 +281,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         </View> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <BrandMark size="lg" soft />
-          <Text style={[styles.title, styles.successTitle]}>원픽이 선택됐어요</Text>
+          <Text style={[styles.title, styles.successTitle]}>원픽을 정했어요</Text>
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
           <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>

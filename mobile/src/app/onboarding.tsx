@@ -71,8 +71,20 @@ export default function OnboardingScreen() {
   const currentCategoryName = current?.name ?? fallbackParts.at(-1) ?? '';
 
   const pickCount = profile.data?.currentPicks.length ?? 0;
-  const loading = sessionLoading || profile.isPending || categories.isPending || progress.isPending || !catalogReady;
+  // Profile and progress queries only run with a signed-in user, so a signed-out visit must not
+  // wait on them; a failed load must not wait on the catalog, which only runs after categories load.
+  const signedOut = !sessionLoading && !user;
+  // No profile yet is expected for a new sign-in (사용자명 단계); only other failures are load errors.
+  const profileMissing = profile.isError && (profile.error as { code?: string } | null)?.code === 'PROFILE_NOT_FOUND';
+  const loadFailed = !signedOut && ((profile.isError && !profileMissing) || categories.isError || progress.isError);
+  const loading = !signedOut && !loadFailed
+    && (sessionLoading || profile.isPending || categories.isPending || progress.isPending || !catalogReady);
   const canEvaluate = pickCount >= 10;
+  const retryLoad = () => {
+    if (profile.isError && !profileMissing) void profile.refetch();
+    if (categories.isError) void categories.refetch();
+    if (progress.isError) void progress.refetch();
+  };
 
   const skip = async () => {
     if (!current || setCurrent.isPending || recordAction.isPending) return;
@@ -88,9 +100,18 @@ export default function OnboardingScreen() {
     router.replace('/profile');
   };
 
+  if (signedOut) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
+    <StateCard title="로그인하고 취향을 골라보세요" text="카테고리마다 가장 좋아하는 하나를 고르면 내 프로필에 모여요."
+      action={{ label: '로그인하기', variant: 'primary', onPress: () => router.replace('/auth/login') }} />
+  </View></SafeAreaView>;
+  if (loadFailed) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
+    <StateCard tone="danger" accessibilityRole="alert" title="취향 카테고리를 불러오지 못했어요" text="연결 상태를 확인하고 다시 시도해주세요."
+      action={{ label: '다시 불러오기', variant: 'primary', onPress: retryLoad }} />
+    <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} />
+  </View></SafeAreaView>;
   if (loading) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="취향 카테고리를 준비하고 있어요." /></View></SafeAreaView>;
-  if (!user || profile.isError || !profile.data) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
-    <StateCard title="프로필을 먼저 만들어주세요" action={{ label: '로그인하기', variant: 'primary', onPress: () => router.replace('/auth/login') }} />
+  if (profileMissing || !profile.data) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
+    <StateCard title="사용자명을 먼저 만들어주세요" action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.replace('/auth/username') }} />
   </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>

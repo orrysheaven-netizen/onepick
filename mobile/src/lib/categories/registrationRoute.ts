@@ -1,6 +1,19 @@
+export type OnboardingParam = string | string[] | undefined;
+
+export function isOnboardingRoute(value: OnboardingParam) {
+  return typeof value === 'string' && value === '1';
+}
+
+export function withOnboardingParam<T extends Record<string, string>>(
+  params: T,
+  onboarding: OnboardingParam,
+): T & { onboarding?: '1' } {
+  return isOnboardingRoute(onboarding) ? { ...params, onboarding: '1' } : params;
+}
+
 /** Where "pick something in this category" starts: catalog categories have their own finders. */
-export function registrationRoute(category: { id: string; slug: string }) {
-  const params = { categoryId: category.id };
+export function registrationRoute(category: { id: string; slug: string }, onboarding?: OnboardingParam) {
+  const params = withOnboardingParam({ categoryId: category.id }, onboarding);
   switch (category.slug) {
     case 'music': return { pathname: '/pick/music' as const, params };
     case 'game': return { pathname: '/pick/game' as const, params };

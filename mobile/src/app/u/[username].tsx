@@ -81,10 +81,11 @@ export default function PublicProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요" /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
-          <StateCard title="프로필을 찾을 수 없어요" text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요." />
+          <StateCard title="프로필을 찾을 수 없어요" text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
+            action={{ label: '홈으로', variant: 'primary', onPress: () => router.replace('/') }} />
         </View> : null}
         {!query.isPending && query.isError && !isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard
@@ -156,7 +157,7 @@ export default function PublicProfileScreen() {
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
             <View style={styles.safetyActions}>
               <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
-              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.back()} />
+              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.canGoBack() ? router.back() : router.replace('/')} />
             </View>
           </View> : null}
           <View style={styles.shareCard}>

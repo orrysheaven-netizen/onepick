@@ -11,12 +11,14 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCatalog';
 import { OnePick } from '@/constants/onepick';
+import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalBookId?: string | string[];
   query?: string | string[];
   author?: string | string[];
+  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -43,7 +45,7 @@ function bookErrorMessage(error: unknown) {
 export default function BookPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null, params.onboarding ?? null]);
   return <BookPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -98,7 +100,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
+    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
     if (replace) router.replace(route); else router.push(route);
   };
 
@@ -251,7 +253,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요</Text>
-        <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요.</Text></View> : null}
+        <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
       <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인합니다.</Text>
     </ScrollView>

@@ -77,6 +77,7 @@ export default function NewPickScreen() {
   const [sellerUrl, setSellerUrl] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
+  const [aiMenuName, setAiMenuName] = useState('');
   // categoryId null: the user asked for a menu that does not exist yet (등록 요청).
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -106,7 +107,28 @@ export default function NewPickScreen() {
     channel: storeChannel,
   } : null, [store, storeChannel]);
   const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
-  const suggestions = useMenuSuggestions(suggestionStore, storeKey, Boolean(user) && step === 2);
+  const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  const availableMenus = useMemo(
+    () => (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled),
+    [menus.data, storeChannel],
+  );
+  const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
+  const requestedMenuKey = compactMenuName(requestedMenu);
+  const exactMenuMatches = requestedMenuKey
+    ? availableMenus.filter((option) => compactMenuName(option.name) === requestedMenuKey).slice(0, 10)
+    : [];
+  const menuMatches = requestedMenuKey
+    ? availableMenus.filter((option) => {
+        const name = compactMenuName(option.name);
+        return name.includes(requestedMenuKey) || requestedMenuKey.includes(name);
+      }).slice(0, 30)
+    : [];
+  const suggestions = useMenuSuggestions(
+    suggestionStore,
+    storeKey,
+    aiMenuName,
+    Boolean(user) && step === 2 && menus.isSuccess && Boolean(aiMenuName) && aiMenuName === requestedMenu && exactMenuMatches.length === 0,
+  );
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const suggestLink = useSuggestMapLink();
@@ -149,6 +171,7 @@ export default function NewPickScreen() {
       setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
     }
     setStore(candidate);
+    setAiMenuName('');
     setStep(2);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
@@ -208,6 +231,7 @@ export default function NewPickScreen() {
         if (!itemId || !menu.categoryId) return;
         if (itemPending) {
           await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
+          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId, label: requestedMenu });
           setDone({ type: 'pending', itemName: store.name, linkSaved });
           setStep(6);
           return;
@@ -224,7 +248,7 @@ export default function NewPickScreen() {
         if (result.type === 'pick') {
           setDone({ type: 'pick', pickId: result.pick.id, itemId: result.pick.itemId });
         } else {
-          if (!menu.categoryId) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: menu.name });
+          if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: requestedMenu });
           if (store.sellerUrl) await attachSellerLink.mutateAsync({ itemId: result.item.id, url: store.sellerUrl });
           let saved = false;
           if (mapLink.trim() && isNaverMapUrl(mapLink)) {
@@ -240,22 +264,14 @@ export default function NewPickScreen() {
     } finally { busy.current = false; }
   };
 
-  const menuMatches = useMemo(() => {
-    const options = (menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled);
-    const q = menuQuery.trim().replace(/\s+/g, '').toLowerCase();
-    // "클래식 밀크티" should still find a "밀크티" menu, so match both ways.
-    return q ? options.filter((option) => {
-      const name = option.name.replace(/\s+/g, '').toLowerCase();
-      return name.includes(q) || q.includes(name);
-    }).slice(0, 30) : options.slice(0, 30);
-  }, [menus.data, menuQuery, storeChannel]);
-  const aiAllowed = new Set((menus.data ?? []).filter((option) => storeChannel === 'online' || option.placeEnabled).map((option) => option.categoryId));
-  const aiSuggestions = (suggestions.data?.suggestions ?? []).filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId));
-  const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
+  const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
+  const aiSuggestions = (suggestions.data?.suggestions ?? [])
+    .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
+    .filter((entry) => entry.confidence !== 'low');
   // No menu fits: carry on as a request. The store and the typed menu go to an
   // administrator, who picks the category; approval then makes the pick.
   const requestMenu = () => {
-    if (!store || !requestedMenu || requestedMenu.length > 60) return;
+    if (!store || !requestedMenu || requestedMenu.length > 40) return;
     if (store.kind !== 'new') {
       setStore({
         kind: 'new',
@@ -271,7 +287,7 @@ export default function NewPickScreen() {
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
-    setMenu({ categoryId: option.categoryId, name: option.name });
+    setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
   };
 
   const header = <View style={styles.header}>
@@ -346,30 +362,46 @@ export default function NewPickScreen() {
         </> : null}
 
         {step === 2 && store ? <>
-          <Text style={styles.title}>{store.name}의 어떤 메뉴가 원픽인가요?</Text>
-          <Text style={styles.subtitle}>AI가 추천한 메뉴를 고르거나, 맞는 메뉴를 직접 찾아주세요.</Text>
-          <Text style={styles.section}>AI 추천</Text>
-          {suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴를 추천하고 있어요</Text></View>
-            : aiSuggestions.length ? <View style={styles.chips}>
+          <Text style={styles.title}>어떤 메뉴인가요?</Text>
+          <Text style={styles.subtitle}>{store.name}에서 고른 메뉴 이름을 입력해주세요. 같은 메뉴가 있으면 바로 보여드리고, 없으면 AI가 카테고리를 추천해요.</Text>
+          <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery} onChangeText={(value) => { setMenuQuery(value); setMenu(null); setAiMenuName(''); }}
+            onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }} returnKeyType="search" style={styles.input}
+            placeholder="예: 평양냉면, 도가니탕" placeholderTextColor={OnePick.hint} />
+          {requestedMenu && exactMenuMatches.length > 0 ? <>
+            <Text style={styles.section}>같은 메뉴</Text>
+            <View style={styles.chips}>
+              {exactMenuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+            </View>
+          </> : null}
+          {requestedMenu && exactMenuMatches.length === 0 && menuMatches.length > 0 ? <>
+            <Text style={styles.section}>비슷한 기존 메뉴</Text>
+            <View style={styles.chips}>
+              {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+            </View>
+          </> : null}
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <>
+            <Text style={styles.section}>AI 카테고리 추천</Text>
+            {aiMenuName !== requestedMenu ? <Button variant="secondary" label="AI로 카테고리 추천받기" onPress={() => setAiMenuName(requestedMenu)} /> : null}
+          </> : null}
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && suggestions.isPending ? <View style={styles.loadingRow}><ActivityIndicator color={OnePick.accent} /><Text style={styles.helper}>메뉴 카테고리를 추천하고 있어요</Text></View>
+            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && aiSuggestions.length ? <View style={styles.chips}>
               {aiSuggestions.map((entry) => <Chip key={entry.categoryId} label={entry.label.split(' › ').pop() ?? entry.label}
                 accessibilityLabel={`AI 추천 ${entry.label}`} selected={menu?.categoryId === entry.categoryId}
                 onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label.split(' › ').pop() ?? entry.label })} />)}
             </View>
-            : <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래에서 직접 골라주세요.' : '추천할 메뉴를 찾지 못했어요. 아래에서 직접 골라주세요.'}</Text>}
+            : menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending ? <Text style={styles.helper}>{suggestions.isError ? 'AI 추천을 불러오지 못했어요. 아래 수동 목록에서 골라주세요.' : '추천할 카테고리를 찾지 못했어요. 아래 수동 목록에서 골라주세요.'}</Text> : null}
           {aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)
             ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === menu?.categoryId)?.reason}</Text> : null}
-          <Text style={styles.section}>직접 찾기</Text>
-          <TextInput accessibilityLabel="메뉴 검색" maxLength={60} value={menuQuery} onChangeText={setMenuQuery} style={styles.input}
-            placeholder="메뉴 검색: 평양냉면, 도가니탕…" placeholderTextColor={OnePick.hint} />
+          {requestedMenu && exactMenuMatches.length === 0 ? <Text style={styles.section}>수동 목록</Text> : null}
           {menus.isError ? <StateCard compact tone="danger" title="메뉴를 불러오지 못했어요" action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
-          <View style={styles.chips}>
-            {menuMatches.map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-          </View>
-          {menus.data && requestedMenu && menuMatches.length === 0 ? <View style={styles.card}>
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 ? <View style={styles.chips}>
+            {availableMenus.slice(0, 30).map((option) => <Chip key={option.categoryId} label={option.name} selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
+          </View> : null}
+          {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiMenuName === requestedMenu && !suggestions.isPending && !menu ? <View style={styles.card}>
             <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
             <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
-            {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 60자까지 적을 수 있어요.</Text> : null}
-            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
+            {requestedMenu.length > 40 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 40자까지 적을 수 있어요.</Text> : null}
+            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 40} onPress={requestMenu} style={styles.primary} />
           </View> : null}
           {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           <Button fullWidth size="lg" label={menu ? `${menu.name}(으)로 다음` : '메뉴를 골라주세요'} disabled={!menu}
@@ -417,7 +449,7 @@ export default function NewPickScreen() {
 
         {step === 6 && done && store && menu ? <View style={styles.doneCard}>
           <Text style={styles.doneMark}>✓</Text>
-          <Text style={styles.title}>{done.type === 'pick' ? '원픽이 등록됐어요' : '등록 요청을 보냈어요'}</Text>
+          <Text style={styles.title}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
           {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}

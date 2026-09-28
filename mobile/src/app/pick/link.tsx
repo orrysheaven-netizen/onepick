@@ -133,7 +133,7 @@ export default function LinkCategorySuggestionScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.back()} style={styles.backButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButton}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
