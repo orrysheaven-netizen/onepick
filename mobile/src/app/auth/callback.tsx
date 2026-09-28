@@ -34,7 +34,7 @@ export default function AuthCallbackScreen() {
           source: intent.action,
           path: '/auth/callback',
         });
-        router.replace(getPostAuthRoute(intent, !result.profile));
+        router.replace(getPostAuthRoute(intent, result.profile === null));
       })
       .catch(() => {
         // Mutation state below renders the callback failure.

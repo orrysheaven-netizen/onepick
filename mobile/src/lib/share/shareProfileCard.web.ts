@@ -34,7 +34,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
   roundedRect(ctx, 72, 72, 936, 1206, 42);
   ctx.fill();
 
-  drawBrandLockup(ctx, 130, 160);
+  drawBrandLockup(ctx, web, 130, 160);
 
   ctx.fillStyle = OnePick.text;
   ctx.font = '800 70px system-ui, sans-serif';

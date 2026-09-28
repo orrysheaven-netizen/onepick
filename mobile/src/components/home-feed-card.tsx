@@ -87,9 +87,9 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
 }
 
 const styles = StyleSheet.create({
-  mine: { ...OnePickType.caption, fontWeight: '600', color: OnePick.text },
+  mine: { ...OnePickType.captionMedium, color: OnePick.text },
   action: { minHeight: 32, justifyContent: 'center' },
-  actionText: { ...OnePickType.caption, fontWeight: '600', color: OnePick.muted },
+  actionText: { ...OnePickType.captionMedium, color: OnePick.muted },
   notice: { ...OnePickType.caption, color: OnePick.success },
   error: { ...OnePickType.caption, color: OnePick.danger },
   pressed: { opacity: 0.55 },
