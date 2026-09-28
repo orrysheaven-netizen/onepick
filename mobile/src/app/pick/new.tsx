@@ -423,7 +423,7 @@ export default function NewPickScreen() {
 
         {step === 6 && done && store && menu ? <View style={styles.doneCard}>
           <Text style={styles.doneMark}>✓</Text>
-          <Text style={styles.title}>{done.type === 'pick' ? '원픽이 등록됐어요' : '등록 요청을 보냈어요'}</Text>
+          <Text style={styles.title}>{done.type === 'pick' ? '원픽을 정했어요' : '등록 요청을 보냈어요'}</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
           {done.type === 'pending' ? <Text style={styles.helper}>관리자가 확인해 승인하면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요.</Text> : null}
