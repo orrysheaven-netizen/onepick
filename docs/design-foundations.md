@@ -72,7 +72,8 @@
 | Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
 | Menu Tile | Name, Count | 홈 메뉴 2열 격자 한 칸, 사진 없으면 bg/placeholder |
 | Feed Card | Username, Item, Provider, Review, Meta | 피드 한 건, 채널 태그는 Tag/Soft |
-| Progress Banner | Title, Caption, Action | 온보딩 미완료 시 홈 상단, AI 평가까지 N/10 |
+| Progress Banner | Title, Caption, Action, Show Action | 온보딩 미완료 시 홈 상단·온보딩 화면, AI 평가까지 N/10. 진행률은 Track 오른쪽 여백으로 조정 |
+| Category Card | Category, Question (+ Parent 태그) | 온보딩 카테고리 제안: 원픽 고르기(주 버튼) / 넘기기 |
 
 Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단 주요 버튼만 가로 채움입니다. Text 버튼은 좌우 여백이 없어 본문과 왼쪽 정렬됩니다.
 
@@ -80,6 +81,7 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 - 75. 원픽 등록 v6 — 상호명 검색 → 메뉴명 입력 + AI 카테고리 추천(추천 중·결과·실패) → 한줄평 → 완료 팝업. D 구현 기준.
 - 76. 홈 v6 — 온보딩 진행 중(진행 배너), 로그아웃 첫 방문, 팔로잉 비었을 때, 불러오기 실패, 피드 스크롤. E(이어서 고르기 배너)·F2 기준.
+- 77. 온보딩 v6 — 카테고리 제안(3/10), 저장 후 다음 카테고리, 10개 달성(AI 평가 보기), 모두 봤을 때, 불러오기 실패. E(N/10 진행 표시, AI 패널로 바로 이동) 기준.
 
 ## 코드 반영 (F2)
 
