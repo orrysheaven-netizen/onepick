@@ -74,6 +74,9 @@ function profile(isPublic = false) {
   const mount = (key) => () => { calls[key]++; return null; };
   const view = screen(isPublic ? 'app/u/[username].tsx' : 'app/(tabs)/profile.tsx', {
     'expo-router': { useRouter: () => ({ push() {}, back() {}, replace() {} }), useLocalSearchParams: () => ({ username: 'owner' }) },
+    'expo-linking': { createURL: () => 'onepick://auth/callback' },
+    '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
+    '@/lib/auth/authIntent': { getPostAuthRoute: () => ({ pathname: '/u/[username]', params: { username: 'owner' } }) },
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
