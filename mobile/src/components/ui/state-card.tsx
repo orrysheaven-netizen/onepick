@@ -36,7 +36,7 @@ export function StateCard({ title, text, loading, tone = 'default', action, comp
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center', gap: 6, padding: 28,
-    backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: OnePickRadius.card,
+    backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg,
   },
   compact: { padding: 20 },
   mark: { marginBottom: 4 },
