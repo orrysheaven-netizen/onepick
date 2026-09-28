@@ -53,7 +53,10 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
   const submittingComment = useRef(false);
-  const canComment = canWrite && !isSessionLoading && !sessionError && !query.isError && query.data?.pick.status === 'active';
+  // Embedded item reviews receive the authoritative viewer-scoped permission
+  // from item_review_page. Standalone Pick pages retain the legacy active check.
+  const canComment = canWrite && !isSessionLoading && !sessionError && !query.isError
+    && (compact || query.data?.pick.status === 'active');
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
