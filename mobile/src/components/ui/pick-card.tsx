@@ -89,7 +89,7 @@ export function PickCard({
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 10, padding: 14, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: OnePickRadius.card },
+  card: { gap: 12, padding: 16, backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   personCopy: { flex: 1, minWidth: 0, gap: 1 },
   profileLink: { alignSelf: 'flex-start', maxWidth: '100%' },
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   bodyWithoutPhoto: { minHeight: 0 },
   copy: { flex: 1, minWidth: 0, gap: 4 },
   contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
-  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
+  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
   channelBadgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
   providerLink: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { ...OnePickType.bodyMedium, color: OnePick.text, flexShrink: 1 },

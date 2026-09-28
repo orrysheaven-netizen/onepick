@@ -29,13 +29,13 @@ export function Chip({ label, onPress, selected = false, dashed = false, leading
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14,
-    borderRadius: OnePickRadius.pill, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface,
+    minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12,
+    borderRadius: OnePickRadius.full, borderWidth: 1, borderColor: 'transparent', backgroundColor: OnePick.bgMuted,
   },
-  dashed: { borderStyle: 'dashed' },
-  selected: { borderColor: OnePick.text, backgroundColor: OnePick.accentSoft },
+  dashed: { borderStyle: 'dashed', borderColor: OnePick.borderDefault, backgroundColor: OnePick.bgDefault },
+  selected: { borderColor: OnePick.actionPrimary, backgroundColor: OnePick.actionPrimary },
   pressed: { opacity: 0.9 },
   label: { ...OnePickType.captionMedium, color: OnePick.text },
   labelDashed: { color: OnePick.muted },
-  labelSelected: { color: OnePick.text },
+  labelSelected: { color: OnePick.onAction },
 });
