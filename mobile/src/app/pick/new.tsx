@@ -3,7 +3,6 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PickPhotoStep } from '@/components/pick-photo-step';
 import { Button, Chip, StateCard } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
@@ -11,7 +10,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useAttachPendingItemLink } from '@/hooks/useLinkCategorySuggestions';
-import { useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
+import { useAttachItemPhoto, useChoosePhoto, useRegisterPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useSetMenuHint, useStoreSearch, useSuggestMapLink } from '@/hooks/useStoreFirst';
 import { isDeliveryAppUrl, PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
@@ -112,6 +111,7 @@ export default function NewPickScreen() {
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const suggestLink = useSuggestMapLink();
   const choosePhoto = useChoosePhoto();
+  const attachItemPhoto = useAttachItemPhoto();
   const choosePick = useChoosePick();
   const requestPick = useRequestPendingPick();
   const registration = useRegisterPick();
@@ -131,7 +131,7 @@ export default function NewPickScreen() {
   const needsPhoto = isNew || (!itemPending && !(itemHadPhoto || itemHasPhoto));
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
+  const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachItemPhoto.isPending || attachSellerLink.isPending || menuHint.isPending;
   const isReplacing = !itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other';
   const photoReady = !needsPhoto || Boolean(photo) || itemHadPhoto || itemHasPhoto;
 
@@ -239,6 +239,12 @@ export default function NewPickScreen() {
           await requestPick.mutateAsync({ itemId, oneLineReview: trimmedReview });
           setDone({ type: 'pending', itemName: store.name, linkSaved });
           return;
+        }
+        if (needsPhoto) {
+          if (!photo) { setSaveError(new AppError('PHOTO_INVALID')); return; }
+          await attachItemPhoto.mutateAsync({ userId: user.id, itemId, photo });
+          setItemHadPhoto(true);
+          void itemDetail.refetch();
         }
         const pick = await choosePick.mutateAsync({
           categoryId: menu.categoryId, itemId, oneLineReview: trimmedReview, channel: storeChannel,
@@ -426,38 +432,41 @@ export default function NewPickScreen() {
         </> : null}
 
         {step === 5 && store ? <>
-          <Text style={styles.title}>대표 사진을 올려주세요</Text>
-          <Text style={styles.subtitle}>새로 등록하거나 아직 사진이 없으면 대표 사진이 있어야 다음으로 갈 수 있어요.</Text>
-          {isNew ? <View style={styles.card}>
-            {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
-            <Button fullWidth variant="soft" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
-            {photo ? <Button variant="ghost" size="sm" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}
-          </View> : itemId && user && !itemHasPhoto ? <PickPhotoStep userId={user.id} itemId={itemId} onAttached={() => { setItemHadPhoto(true); void itemDetail.refetch(); }} />
-            : itemHasPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
+          <Text style={styles.title}>{store.name}{menu ? ` ${menu.name}` : ''}</Text>
+          <Text style={styles.section}>사진 <Text style={styles.required}>필수</Text></Text>
+          <Text style={styles.subtitle}>대표 사진을 한 장 선택해주세요. 저장 전까지 수정하거나 삭제할 수 있어요.</Text>
+          {needsPhoto ? <View style={styles.card}>
+            {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="cover" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
+            {photo ? <View style={styles.photoDraftActions}>
+              <Button variant="ghost" size="sm" label="사진 삭제" onPress={() => setPhoto(null)} />
+              <Button variant="ghost" size="sm" label="사진 수정" loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
+            </View>
+              : <Button fullWidth variant="soft" label="사진 선택" loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />}
+          </View> : itemHasPhoto || itemHadPhoto ? <StateCard compact title="사진이 등록됐어요" /> : null}
           <Button fullWidth size="lg" label={photoReady ? '다음' : '사진을 등록해주세요'} disabled={!photoReady} onPress={() => setStep(6)} style={styles.primary} />
         </> : null}
 
         {step === 6 && store && menu && done?.type !== 'pending' ? <>
-          <Text style={styles.title}>왜 여기가 원픽인가요?</Text>
+          <Text style={styles.title}>한줄평을 남겨주세요</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           {isReplacing
             ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 현재 {storeChannel === 'online' ? '온라인' : '매장'} 원픽이 이 선택으로 바뀝니다.</Text></View> : null}
-          <View style={styles.reviewHeader}><Text style={styles.section}>한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
+          <View style={styles.reviewHeader}><Text style={styles.section}>한줄평 · <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100자</Text></View>
           <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && done?.type !== 'pick'} value={review}
             onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
             placeholder="예: 육수가 깔끔해서 계속 생각나요" placeholderTextColor={OnePick.hint} />
           {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
-          {isRequest ? <Text style={styles.helper}>현재 서버 연결이 끝나기 전에는 새 원픽 저장을 완료할 수 없어요.</Text> : null}
+          {isRequest ? <Text style={styles.helper}>새 원픽 저장은 현재 연결 준비 중이에요.</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
           {done?.type !== 'pick' ? <Button fullWidth size="lg" label={isReplacing ? '원픽 변경' : isRequest ? '원픽 저장' : '원픽 등록하기'} loading={saving}
             onPress={() => { if (!reviewValid) { setShowReviewError(true); return; } if (isReplacing) setShowReplaceConfirm(true); else void save(); }} style={styles.primary} /> : null}
         </> : null}
 
         {step === 6 && done?.type === 'pending' && store && menu ? <View style={styles.doneCard}>
-          <Text style={styles.title}>새 원픽 저장을 마무리하고 있어요</Text>
+          <Text style={styles.title}>새 원픽 저장을 확인하고 있어요</Text>
           <Text style={styles.subtitle}>{store.name} · {menu.name}</Text>
           <Text style={styles.savedReview}>“{trimmedReview}”</Text>
-          <Text style={styles.helper}>현재 등록 방식 전환이 끝나기 전에는 원픽 저장 완료로 표시하지 않습니다.</Text>
+          <Text style={styles.helper}>저장 완료가 확인되기 전에는 원픽으로 표시하지 않아요.</Text>
           <Button fullWidth size="lg" label="프로필로 돌아가기" onPress={() => router.replace('/(tabs)/profile')} style={styles.primary} />
         </View> : null}
       </ScrollView>
@@ -525,7 +534,8 @@ const styles = StyleSheet.create({
   reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
   notice: { backgroundColor: OnePick.accentSoft, borderRadius: 14, padding: 12, marginTop: 14 },
   noticeText: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 19 },
-  preview: { width: '100%', height: 220, borderRadius: 12, marginBottom: 12, backgroundColor: OnePick.background },
+  preview: { width: '100%', height: 180, borderRadius: 12, marginBottom: 12, backgroundColor: OnePick.background },
+  photoDraftActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   primary: { marginTop: 22 },
   doneCard: { alignItems: 'center', paddingTop: 30 },
   doneMark: { color: OnePick.accent, fontSize: 36, fontWeight: '800' },
