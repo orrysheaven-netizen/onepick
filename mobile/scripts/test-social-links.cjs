@@ -105,6 +105,11 @@ async function main() {
         Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
         StyleSheet: { create: (styles) => styles }, Linking: {}, Platform: { OS: 'web' },
       },
+      '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': {
+        View: part('div'), Text: part('span'), ActivityIndicator: () => null, TextInput: () => null,
+        Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
+        StyleSheet: { create: (styles) => styles },
+      }, '@/components/pick-photo': { PickPhoto: () => null } }),
       '@/hooks/useAuthSession': { useAuthSession: () => auth },
       '@/hooks/useSocialLinks': { useSocialLinks: () => query, useChangeSocialLink: () => ({ isPending: false }) },
       '@/lib/socialLinks': lib,
