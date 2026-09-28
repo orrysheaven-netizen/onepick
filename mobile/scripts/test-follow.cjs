@@ -86,8 +86,18 @@ async function main() {
   };
   let state = { data: false, isPending: false };
   const mutations = { follow: { isPending: false, error: null, mutate: () => {}, reset: () => {} }, unfollow: { isPending: false, error: null, mutate: () => {}, reset: () => {} } };
+  const UiButton = (props) => React.createElement(native.Pressable, {
+    ...props,
+    accessibilityState: {
+      disabled: Boolean(props.disabled || props.loading),
+      busy: Boolean(props.loading),
+      ...(props.selected === undefined ? {} : { selected: props.selected }),
+    },
+    disabled: Boolean(props.disabled || props.loading),
+  }, props.loading ? React.createElement(native.ActivityIndicator) : React.createElement(native.Text, null, props.label));
   const { FollowButton } = loadSource('components/follow-button.tsx', {
     'react-native': native,
+    '@/components/ui': { Button: UiButton },
     '@/errors/appError': { AppError },
     '@/hooks/useFollow': { useFollowState: () => state, useFollowActions: () => mutations },
   }, true);
