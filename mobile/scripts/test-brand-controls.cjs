@@ -112,7 +112,7 @@ test('danger loading spinner preserves semantic color', () => {
 });
 test('button dimensions, callback, overrides and labels are preserved', () => {
   let pressed = 0;
-  for (const [size, height] of [['sm', 40], ['md', 48], ['lg', 52]]) {
+  for (const [size, height] of [['sm', 40], ['md', 52], ['lg', 52]]) {
     const button = Button({ label: '공유', size, fullWidth: true, onPress: () => { pressed++; } });
     assert.equal(styleOf(button).minHeight, height);
     assert.equal(styleOf(button).alignSelf, 'stretch');
@@ -125,14 +125,13 @@ test('button dimensions, callback, overrides and labels are preserved', () => {
   assert.equal(override.props.accessibilityRole, 'button');
   assert.equal(override.props.disabled, true);
 });
-test('selected chip uses warm fill, ink label and readable outline', () => {
+test('selected chip uses Foundations ink fill and on-action label', () => {
   const chip = Chip({ label: '책', selected: true });
-  assert.equal(OnePick.accentSoft, '#FFF0DC');
-  assert.equal(styleOf(chip).backgroundColor, OnePick.accentSoft);
-  assert.equal(styleOf(first(chip, 'Text')).color, OnePick.text);
+  assert.equal(styleOf(chip).minHeight, 32);
+  assert.equal(styleOf(chip).backgroundColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(chip, 'Text')).color, OnePick.onAction);
   assert.equal(chip.props.accessibilityState.selected, true);
   readable(styleOf(first(chip, 'Text')).color, styleOf(chip).backgroundColor);
-  assert.ok(contrast(styleOf(chip).borderColor, OnePick.surface) >= 3);
 });
 test('pressed chip keeps readable selected and unselected text', () => {
   for (const selected of [true, false]) {
@@ -143,7 +142,8 @@ test('pressed chip keeps readable selected and unselected text', () => {
 test('unselected/dashed chip appearance and callback stay available', () => {
   let pressed = 0;
   const chip = Chip({ label: '책', dashed: true, onPress: () => { pressed++; } });
-  assert.equal(styleOf(chip).backgroundColor, OnePick.surface);
+  assert.equal(styleOf(chip).backgroundColor, OnePick.bgDefault);
+  assert.equal(styleOf(chip).borderColor, OnePick.borderDefault);
   assert.equal(styleOf(chip).borderStyle, 'dashed');
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
