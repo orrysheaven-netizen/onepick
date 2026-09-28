@@ -14,6 +14,8 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { useOnboardingProgress } from '@/hooks/useOnboarding';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
 import { HOME_CHANNEL_TABS, categoryWithChannels, objectParticle } from '@/lib/home/homeChannels';
@@ -60,6 +62,11 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
+  const onboardingProgress = useOnboardingProgress(user?.id);
+  const progressProfile = useMyProfile(user?.id);
+  const progressPickCount = progressProfile.data?.currentPicks.length ?? data?.currentPicks.length ?? 0;
+  const showProgressBanner = Boolean(user && onboardingProgress.isSuccess && progressProfile.data
+    && !onboardingProgress.data?.state?.completedAt);
   // Home search, category filters and Explore share one cached category-tree query.
   // Start it alongside Home context instead of waiting for Home to finish first.
   const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
@@ -196,6 +203,23 @@ export default function HomeScreen() {
         ListHeaderComponent={<>
         {listHeader}
 
+        {showProgressBanner ? <View style={styles.progressBanner}>
+          <Text style={styles.progressTitle}>{progressPickCount >= 10 ? 'AI 취향 평가를 볼 수 있어요' : `AI 취향 평가까지 ${10 - Math.min(progressPickCount, 10)}개 남았어요`}</Text>
+          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, progressPickCount * 10)}%` }]} /></View>
+          <View style={styles.progressBottom}>
+            <Text style={styles.progressCaption}>{progressPickCount >= 10
+              ? `${progressPickCount} / 10 · 더 고를수록 평가가 정확해져요`
+              : `${progressPickCount} / 10 · 카테고리마다 하나씩 골라 보세요`}</Text>
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={progressPickCount >= 10 ? 'AI 평가 보기' : '취향 고르기 이어가기'}
+              onPress={() => progressPickCount >= 10
+                ? router.push({ pathname: '/profile', params: { ai: '1' } })
+                : router.push('/onboarding')}>
+              <Text style={styles.progressAction}>{progressPickCount >= 10 ? 'AI 평가 보기 ›' : '이어서 고르기 ›'}</Text>
+            </Pressable>
+          </View>
+        </View> : null}
+
         {user ? null : <View style={styles.signinStrip}>
           <BrandMark soft />
           <View style={styles.signinCopy}>
@@ -213,7 +237,7 @@ export default function HomeScreen() {
           </View>
         </View> : null}
 
-        {ready && data && categories.length ? <View style={styles.categorySection}>
+        {categories.length ? <View style={styles.categorySection}>
           <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
           <View style={styles.categoryGrid}>
             {categories.map((category) => {
@@ -298,7 +322,14 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 28 },
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 72 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginTop: 8, marginBottom: 22, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, backgroundColor: OnePick.surface },
+  signinStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, marginTop: 8, marginBottom: 16, borderRadius: 16, backgroundColor: OnePick.sunken },
+  progressBanner: { backgroundColor: OnePick.accentSoft, borderRadius: 16, padding: 16, marginTop: 16, marginBottom: 16, gap: 8 },
+  progressTitle: { color: OnePick.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  progressTrack: { height: 6, backgroundColor: OnePick.surface, borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: OnePick.brand, borderRadius: 999 },
+  progressBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressCaption: { flex: 1, color: OnePick.muted, fontSize: 12, lineHeight: 18 },
+  progressAction: { color: OnePick.text, fontSize: 14, lineHeight: 21, fontWeight: '600' },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { color: OnePick.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
   signinText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
