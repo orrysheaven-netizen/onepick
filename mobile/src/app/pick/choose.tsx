@@ -153,7 +153,11 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null || requestedReview !== null;
-  const completionPickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const profilePickCount = profileProgress.data?.currentPicks.length ?? 0;
+  const savedPickAlreadyInProfile = Boolean(savedChoice
+    && profileProgress.data?.currentPicks.some(({ pick }) => pick.id === savedChoice.pick.id));
+  const saveAddsCategory = pickStatus?.type !== 'selected_this' && pickStatus?.type !== 'selected_other';
+  const completionPickCount = profilePickCount + (savedChoice && !savedPickAlreadyInProfile && saveAddsCategory ? 1 : 0);
   const aiRemaining = Math.max(0, 10 - completionPickCount);
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
