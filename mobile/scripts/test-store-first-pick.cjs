@@ -166,7 +166,7 @@ async function main() {
   assert.match(page, /한줄평을 남겨주세요/);
   input('원픽 한줄평').onChangeText('육수가 깔끔해요');
   page = render();
-  assert.match(page, /6 / 100자/);
+  assert.match(page, /6 \/ 100자/);
   press('원픽 등록하기'); await flush();
   assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(['choose', {
     categoryId: 'cat-naengmyeon', itemId: 'item-1', oneLineReview: '육수가 깔끔해요', channel: 'offline',
