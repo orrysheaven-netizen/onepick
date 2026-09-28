@@ -1,3 +1,7 @@
+# Shared priority rules
+
+Before any OnePick work, read `docs/shared-working-rules.md` first. It contains the user's latest common rules for both ChatGPT/Codex and Claude. If it conflicts with older discussions or repository guidance, follow the newer user-approved document or instruction.
+
 # Branching
 
 `main` is the single trunk. Base new branches on `main` and open PRs against `main`.
