@@ -154,6 +154,7 @@ export default function NewPickScreen() {
   const [saveError, setSaveError] = useState<unknown>(null);
   const busy = useRef(false);
   const draftLoadedFor = useRef<string | null>(null);
+  const skipNextDraftWrite = useRef(false);
   const onboarding = params.onboarding === '1';
 
   useEffect(() => {
@@ -164,11 +165,18 @@ export default function NewPickScreen() {
     if (!user || draftLoadedFor.current === user.id) return;
     draftLoadedFor.current = user.id;
     const saved = readPickReviewDraft(user.id);
-    if (saved) setReview(saved);
+    if (saved) {
+      skipNextDraftWrite.current = true;
+      setReview(saved);
+    }
   }, [user]);
 
   useEffect(() => {
     if (!user || draftLoadedFor.current !== user.id) return;
+    if (skipNextDraftWrite.current) {
+      skipNextDraftWrite.current = false;
+      return;
+    }
     writePickReviewDraft(user.id, review);
   }, [review, user]);
 
@@ -355,6 +363,7 @@ export default function NewPickScreen() {
     busy.current = true;
     setSaveError(null);
     try {
+      let completedPickCategoryId: string | null = null;
       if (store.kind !== 'new') {
         if (!itemId || !menu.categoryId) return;
         if (itemPending) {
@@ -369,6 +378,7 @@ export default function NewPickScreen() {
           categoryId: menu.categoryId, itemId, oneLineReview: trimmedReview, channel: storeChannel,
         });
         setDone({ type: 'pick', pickId: pick.id, itemId: pick.itemId });
+        completedPickCategoryId = menu.categoryId;
       } else {
         const result = await registration.mutateAsync({
           userId: user.id, categoryId: menu.categoryId ?? undefined, itemName: store.name, variant: '',
@@ -376,6 +386,7 @@ export default function NewPickScreen() {
         });
         if (result.type === 'pick') {
           setDone({ type: 'pick', pickId: result.pick.id, itemId: result.pick.itemId });
+          completedPickCategoryId = menu.categoryId ?? params.categoryId ?? null;
         } else {
           if (requestedMenu) await menuHint.mutateAsync({ userId: user.id, itemId: result.item.id, label: requestedMenu });
           if (store.sellerUrl) await attachSellerLink.mutateAsync({ itemId: result.item.id, url: store.sellerUrl });
@@ -387,8 +398,8 @@ export default function NewPickScreen() {
         }
       }
       clearPickReviewDraft(user.id);
-      if (onboarding && done === null) {
-        await onboardingService.recordAction(menu.categoryId ?? params.categoryId ?? '', 'picked').catch(() => {});
+      if (onboarding && completedPickCategoryId) {
+        await onboardingService.recordAction(completedPickCategoryId, 'picked').catch(() => {});
         router.replace({ pathname: '/onboarding', params: { saved: '1', categoryName: menu.name, itemName: store.name } });
         return;
       }
