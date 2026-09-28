@@ -60,13 +60,13 @@ export default function HomeScreen() {
   const switchingChannel = Boolean(homeQuery.isPlaceholderData);
   const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError);
   const followingItems = followingQuery.data?.items ?? [];
+  const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
+  const data = homeQuery.data;
   const onboardingProgress = useOnboardingProgress(user?.id);
   const progressProfile = useMyProfile(user?.id);
   const progressPickCount = progressProfile.data?.currentPicks.length ?? data?.currentPicks.length ?? 0;
   const showProgressBanner = Boolean(user && onboardingProgress.isSuccess && progressProfile.data
     && !onboardingProgress.data?.state?.completedAt);
-  const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
-  const data = homeQuery.data;
   // Home search, category filters and Explore share one cached category-tree query.
   // Start it alongside Home context instead of waiting for Home to finish first.
   const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
