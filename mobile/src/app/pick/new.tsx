@@ -83,6 +83,7 @@ export default function NewPickScreen() {
   // Known from the selected item row itself, before the item detail loads.
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
   const [itemPending, setItemPending] = useState(false);
+  const [photoStepVisited, setPhotoStepVisited] = useState(false);
   const [mapLink, setMapLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSaved, setLinkSaved] = useState(false);
@@ -139,7 +140,7 @@ export default function NewPickScreen() {
     if (from === 3) return 2;
     if (from === 4) return needsLink ? 3 : 2;
     if (from === 5) return 4;
-    if (from === 6) return needsPhoto ? 5 : 4;
+    if (from === 6) return photoStepVisited ? 5 : 4;
     return (from - 1) as Step;
   };
   const goBack = () => {
@@ -151,7 +152,7 @@ export default function NewPickScreen() {
   const chooseChannel = (next: PickChannel) => {
     if (channel !== next) {
       setQuery(''); setRequesting(false); setNewName(''); setSellerUrl(''); setStore(null);
-      setMenuQuery(''); setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false);
+      setMenuQuery(''); setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhotoStepVisited(false);
       setMapLink(''); setLinkError(null); setLinkSaved(false); setPhoto(null); setReview(''); setShowReviewError(false);
     }
     setChannel(next);
@@ -160,7 +161,7 @@ export default function NewPickScreen() {
 
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:${candidate.channel}:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setSellerUrl(''); setLinkError(null); setPhoto(null); setReview(''); setShowReviewError(false);
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhotoStepVisited(false); setLinkSaved(false); setMapLink(''); setSellerUrl(''); setLinkError(null); setPhoto(null); setReview(''); setShowReviewError(false);
     }
     setStore(candidate);
     const candidateChannel: PickChannel = candidate.kind === 'seller' ? 'online' : candidate.kind === 'place' ? 'offline' : candidate.channel;
@@ -175,13 +176,14 @@ export default function NewPickScreen() {
 
   const confirmMenu = async () => {
     if (!store || !menu || busy.current) return;
-    if (store.kind === 'new' || !menu.categoryId) { setStep(5); return; }
+    if (store.kind === 'new' || !menu.categoryId) { setPhotoStepVisited(true); setStep(5); return; }
     busy.current = true;
     try {
       const selected = await selectItem.mutateAsync({ categoryId: menu.categoryId, store });
       setItemId(selected.itemId);
       setItemHadPhoto(selected.hasPhoto);
       setItemPending(selected.pending);
+      setPhotoStepVisited(!selected.hasPhoto && !selected.pending);
       if (storeChannel === 'offline' && mapLink.trim() && isNaverMapUrl(mapLink)) {
         try {
           await suggestLink.mutateAsync({ itemId: selected.itemId, url: mapLink.trim() });
@@ -211,6 +213,7 @@ export default function NewPickScreen() {
         return;
       }
     }
+    if (menu) setPhotoStepVisited(true);
     setStep(menu ? 5 : 4);
   };
 
@@ -290,7 +293,7 @@ export default function NewPickScreen() {
       });
       if (store.kind === 'place' && store.mapUrl) setMapLink(store.mapUrl);
     }
-    setItemId(null); setItemHadPhoto(false); setItemPending(false);
+    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhotoStepVisited(true);
     setMenu({ categoryId: null, name: requestedMenu });
     const linkReady = storeChannel === 'offline'
       ? Boolean((mapLink.trim() && isNaverMapUrl(mapLink)) || (store.kind === 'place' && store.mapUrl))
@@ -299,7 +302,7 @@ export default function NewPickScreen() {
     setStep(linkReady ? 5 : 3);
   };
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
-    if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); }
+    if (menu?.categoryId !== option.categoryId) { setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhotoStepVisited(false); setLinkSaved(false); }
     setMenu({ categoryId: option.categoryId, name: option.name });
   };
 
@@ -414,7 +417,7 @@ export default function NewPickScreen() {
           <Text style={styles.title}>{storeChannel === 'offline' ? '매장 지도 링크를 알려주세요' : '구매 링크를 알려주세요'}</Text>
           <Text style={styles.subtitle}>{storeChannel === 'offline'
             ? `${store.name}을(를) 정확히 찾을 수 있는 네이버 지도 링크가 필요해요.`
-            : '이 제품을 실제로 주문할 수 있는 개별 상품·판매 페이지 링크를 입력해주세요.'}</Text>
+            : '실제로 주문할 수 있는 개별 구매 페이지 링크를 입력해주세요.'}</Text>
           {storeChannel === 'offline' ? <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={mapLink}
             onChangeText={(value) => { setMapLink(value); setLinkError(null); }} style={styles.input} placeholder="https://naver.me/…" placeholderTextColor={OnePick.hint} />
             : <TextInput accessibilityLabel="구매 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={sellerUrl}
@@ -426,7 +429,7 @@ export default function NewPickScreen() {
 
         {step === 5 && store ? <>
           <Text style={styles.title}>대표 사진을 올려주세요</Text>
-          <Text style={styles.subtitle}>새 제품이나 아직 사진이 없는 제품은 대표 사진이 있어야 다음으로 갈 수 있어요.</Text>
+          <Text style={styles.subtitle}>새로 등록하거나 아직 사진이 없으면 대표 사진이 있어야 다음으로 갈 수 있어요.</Text>
           {isNew ? <View style={styles.card}>
             {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
             <Button fullWidth variant="soft" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
