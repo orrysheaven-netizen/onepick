@@ -23,7 +23,7 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 // and forth between steps never loses a typed review, link or chosen photo.
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type NewStore = { kind: 'new'; name: string; channel: PickChannel; sellerUrl: string | null };
+type NewStore = { kind: 'new'; name: string; channel: PickChannel };
 type Store = StoreCandidate | NewStore;
 type Done =
   | { type: 'pick'; pickId: string; itemId: string }
@@ -50,7 +50,7 @@ function errorMessage(error: unknown) {
       case 'CATEGORY_NOT_PICKABLE': return '이 메뉴는 지금 고를 수 없어요. 다른 메뉴를 골라주세요.';
       case 'ITEM_NOT_ELIGIBLE':
       case 'ITEM_NOT_FOUND': return '지금은 이 매장을 원픽으로 고를 수 없어요.';
-      case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록 요청한 매장이에요. 관리자 승인 후 원픽으로 고를 수 있어요.';
+      case 'ITEM_ALREADY_PENDING': return '지금은 이 매장을 새 원픽으로 저장할 수 없어요. 잠시 후 다시 시도해주세요.';
       case 'PROVIDER_NOT_FOUND': return '이 판매처는 지금 고를 수 없어요.';
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
       case 'ITEM_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
@@ -160,7 +160,7 @@ export default function NewPickScreen() {
 
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:${candidate.channel}:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setPhoto(null);
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setLinkSaved(false); setMapLink(''); setSellerUrl(''); setLinkError(null); setPhoto(null); setReview(''); setShowReviewError(false);
     }
     setStore(candidate);
     const candidateChannel: PickChannel = candidate.kind === 'seller' ? 'online' : candidate.kind === 'place' ? 'offline' : candidate.channel;
@@ -287,7 +287,6 @@ export default function NewPickScreen() {
         kind: 'new',
         name: store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name,
         channel: storeChannel,
-        sellerUrl: null,
       });
       if (store.kind === 'place' && store.mapUrl) setMapLink(store.mapUrl);
     }
@@ -365,7 +364,7 @@ export default function NewPickScreen() {
             {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
               ? <Text style={styles.helper}>검색한 이름의 {channel === 'online' ? '판매처' : '매장'}를 찾지 못했어요.</Text> : null}
             <Pressable accessibilityRole="button" onPress={() => { setRequesting(true); setNewName(query); }} style={styles.requestLink}>
-              <Text style={styles.helper}>찾는 {channel === 'online' ? '판매처' : '매장'}가 없나요? <Text style={styles.link}>{channel === 'online' ? '판매처' : '매장'} 등록 요청</Text></Text>
+              <Text style={styles.helper}>찾는 {channel === 'online' ? '판매처' : '매장'}가 없나요? <Text style={styles.link}>새 {channel === 'online' ? '판매처' : '매장'} 등록</Text></Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push('/pick/find')} style={styles.requestLink}>
               <Text style={styles.helper}>레시피 원픽은 <Text style={styles.link}>메뉴부터 찾기</Text></Text>
@@ -375,7 +374,7 @@ export default function NewPickScreen() {
             <Text style={styles.helper}>이름을 입력하면 다음 단계에서 필요한 링크와 메뉴를 이어서 확인합니다.</Text>
             <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
               placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.hint} />
-            <Button fullWidth label="다음" disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel, sellerUrl: null })} style={styles.primary} />
+            <Button fullWidth label="다음" disabled={!canRequest} onPress={() => pickStore({ kind: 'new', name: newStoreName, channel })} style={styles.primary} />
             <Button variant="ghost" size="sm" label="다시 검색하기" onPress={() => setRequesting(false)} />
           </View>}
         </> : null}
@@ -402,9 +401,9 @@ export default function NewPickScreen() {
           </View>
           {menus.data && requestedMenu && menuMatches.length === 0 ? <View style={styles.card}>
             <Text style={styles.cardTitle}>'{requestedMenu}' 메뉴가 아직 없어요</Text>
-            <Text style={styles.helper}>이 메뉴로 등록 요청을 보내면 관리자가 메뉴를 추가해 승인하고, 이어서 남긴 한줄평으로 내 원픽이 자동 등록돼요.</Text>
+            <Text style={styles.helper}>아직 없는 메뉴예요. 이 이름으로 계속하면 사진과 한줄평을 이어서 입력할 수 있어요.</Text>
             {requestedMenu.length > 60 ? <Text accessibilityRole="alert" style={styles.error}>메뉴 이름은 60자까지 적을 수 있어요.</Text> : null}
-            <Button fullWidth label={`'${requestedMenu}' 메뉴로 등록 요청`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
+            <Button fullWidth label={`'${requestedMenu}' 메뉴로 계속`} disabled={requestedMenu.length > 60} onPress={requestMenu} style={styles.primary} />
           </View> : null}
           {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           <Button fullWidth size="lg" label={menu ? `${menu.name}(으)로 다음` : '메뉴를 골라주세요'} disabled={!menu}
