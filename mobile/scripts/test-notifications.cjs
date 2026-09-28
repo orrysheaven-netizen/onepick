@@ -47,7 +47,7 @@ const native = {
 const countQuery = { data: 4, isError: false };
 const imports = {
   'react-native': native, 'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: () => {} }) },
-  '@/constants/onepick': { OnePick: {} },
+  '@/constants/onepick': require('./design-tokens.cjs'),
   '@/hooks/useNotifications': { useNotificationCount: () => countQuery },
 };
 const { NotificationButton } = load('components/notification-button.tsx', imports);
