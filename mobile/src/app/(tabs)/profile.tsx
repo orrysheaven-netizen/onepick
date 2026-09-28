@@ -119,7 +119,7 @@ export default function ProfileScreen() {
   const [profileShareError, setProfileShareError] = useState(false);
 
   useEffect(() => {
-    if (ai !== '1' || aiOffset === null || !OnePickFeatures.profileAi) return;
+    if (ai !== '1' || aiOffset === null) return;
     const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, aiOffset - 16), animated: true }), 0);
     return () => clearTimeout(timer);
   }, [ai, aiOffset]);
@@ -214,7 +214,7 @@ export default function ProfileScreen() {
         {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
         {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
         {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
-        {OnePickFeatures.profileAi ? <View onLayout={(event) => setAiOffset(event.nativeEvent.layout.y)}>
+        {OnePickFeatures.profileAi || ai === '1' ? <View onLayout={(event) => setAiOffset(event.nativeEvent.layout.y)}>
           <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} />
         </View> : null}
         <View style={styles.profileShareRow}>
