@@ -9,7 +9,12 @@ export function useCompleteOAuth() {
 
       if (!user) return null;
 
-      const profile = await profileService.getById(user.id);
+      // The sign-in already succeeded; a failed profile lookup must not show "login failed"
+      // (the code is spent, so retrying the callback cannot recover). One retry, then report
+      // the profile as unknown (undefined) rather than missing (null).
+      const profile = await profileService.getById(user.id)
+        .catch(() => profileService.getById(user.id))
+        .catch(() => undefined);
       return { user, profile };
     },
   });

@@ -162,7 +162,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  if (!itemId || query.isError || !query.data) {
+  // A failed background refetch keeps the last data (react-query v5 sets isError with data);
+  // only a failure with nothing to show replaces the screen.
+  if (!itemId || !query.data) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
@@ -192,6 +194,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
+
+        {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요" text="마지막으로 불러온 내용을 표시하고 있어요."
+          action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => void retryItem() }} /> : null}
 
         <View style={styles.heroCard}>
           {/* No photo yet: a one-line upload row instead of an empty square. */}
