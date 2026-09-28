@@ -157,7 +157,6 @@ export default function NewPickScreen() {
   const busy = useRef(false);
 
   const isNew = store?.kind === 'new';
-  const storeName = store ? store.name : '';
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
   const storeChannel: PickChannel = store ? (store.kind === 'seller' ? 'online' : store.kind === 'place' ? 'offline' : store.channel) : channel;
   const search = useStoreSearch(channel, query, Boolean(user) && step === 1 && !requesting);
@@ -216,11 +215,6 @@ export default function NewPickScreen() {
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = choosePick.isPending || requestPick.isPending || registration.isPending || attachSellerLink.isPending || menuHint.isPending;
 
-  const nextFrom = (from: Step): Step => {
-    if (from === 2) return needsPhoto ? 4 : 5;
-    if (from === 3) return 2;
-    return (from + 1) as Step;
-  };
   const previousFrom = (from: Step): Step => {
     if (from === 2) return needsLink ? 3 : 1;
     if (from === 3) return 1;
