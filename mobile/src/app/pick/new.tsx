@@ -265,7 +265,9 @@ export default function NewPickScreen() {
   };
 
   const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
-  const aiSuggestions = (suggestions.data?.suggestions ?? []).filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId));
+  const aiSuggestions = (suggestions.data?.suggestions ?? [])
+    .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
+    .filter((entry) => entry.confidence !== 'low');
   // No menu fits: carry on as a request. The store and the typed menu go to an
   // administrator, who picks the category; approval then makes the pick.
   const requestMenu = () => {
