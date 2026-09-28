@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Button } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChangeSocialLink, useSocialLinks } from '@/hooks/useSocialLinks';
 import { normalizeSocialLink, SOCIAL_PLATFORMS, SocialLinkValidationError } from '@/lib/socialLinks';
@@ -108,11 +109,8 @@ function SocialLinksContent({ profileUserId, viewerId, editable }: Props & { vie
                   editable={!busy} style={styles.input} />
                 <Text style={styles.hint}>사용자명 또는 프로필 주소를 입력해주세요. 게시물 주소는 연결할 수 없어요.</Text>
                 <View style={styles.buttons}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${platform.label} 링크 저장`}
-                    disabled={busy || !input.trim()} onPress={() => void change()}
-                    style={[styles.save, (busy || !input.trim()) && styles.disabled]}>
-                    <Text style={styles.saveText}>{busy ? '처리 중…' : '저장'}</Text>
-                  </Pressable>
+                  <Button accessibilityLabel={`${platform.label} 링크 저장`} disabled={!input.trim()}
+                    label="저장" loading={busy} onPress={() => void change()} size="sm" />
                   <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setEditing(null); setError(''); }}
                     style={[styles.manage, busy && styles.disabled]}><Text style={styles.action}>취소</Text></Pressable>
                   {saved ? <Pressable accessibilityRole="button" accessibilityLabel={`${platform.label} 연결 해제`}
@@ -150,8 +148,6 @@ const styles = StyleSheet.create({
   form: { marginTop: 6 },
   input: { minHeight: 46, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 12, color: OnePick.text, backgroundColor: OnePick.sunken, fontSize: 14 },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 },
-  save: { minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: OnePick.accent, justifyContent: 'center' },
-  saveText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
   remove: { color: OnePick.danger, fontSize: 12 },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
   disabled: { opacity: 0.5 },
