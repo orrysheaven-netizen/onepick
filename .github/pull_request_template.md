@@ -7,7 +7,7 @@
 - Owner: <!-- codex | claude -->
 - Size: <!-- S | M | L -->
 - Area: <!-- app | data | security | infra | qa -->
-- Protected area touched: <!-- no | yes; if yes, explain ownership/review -->
+- High-risk area touched: <!-- no | yes; if yes, explain implementer, opposite-AI review, and user approval gate -->
 
 ## QA / issue reference
 
@@ -25,9 +25,10 @@ Item:
 
 ## Handoff / independent review
 
-- [ ] Codex M/L PR: Claude review requested or completed
-- [ ] Claude DB/Auth/RLS/Storage/security PR: narrow Codex review requested or completed
-- [ ] Not applicable is explained below
+- [ ] M/L PR: opposite-AI independent review requested or completed
+- [ ] High-risk DB/Auth/RLS/Storage/security/secret/production-workflow PR: opposite-AI narrow review requested or completed
+- [ ] User approval gate is noted for production apply, secret/permission changes, destructive data work, or main merge
+- [ ] Not applicable items are explained below
 
 ## Verification
 
