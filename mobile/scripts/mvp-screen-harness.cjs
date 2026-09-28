@@ -23,7 +23,8 @@ const names = (values) => Object.fromEntries(values.split(' ').map((name) => [na
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
 function screen(relative, imports, platform = 'ios') {
   const states = [];
-  let cursor = 0, effects = [], nodes = [], texts = [];
+  const refs = [];
+  let cursor = 0, refCursor = 0, effects = [], nodes = [], texts = [];
   const react = {
     useState(initial) {
       const i = cursor++;
@@ -31,12 +32,17 @@ function screen(relative, imports, platform = 'ios') {
       return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
     },
     useMemo: (fn) => fn(),
+    useRef(initial) {
+      const i = refCursor++;
+      if (!(i in refs)) refs[i] = { current: initial };
+      return refs[i];
+    },
     useEffect: (fn) => { effects.push(fn); },
   };
   const Screen = load(relative, {
     react,
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
-    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image'), Platform: { OS: platform }, StyleSheet: { create: (value) => value } },
+    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image Modal'), Platform: { OS: platform }, StyleSheet: { create: (value) => value, absoluteFill: {} } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/components/ui': names('Avatar BrandMark Button Chip SectionHeader StateCard'),
     ...imports,
@@ -61,7 +67,7 @@ function screen(relative, imports, platform = 'ios') {
     }
   }
   return {
-    render() { cursor = 0; effects = []; nodes = []; texts = []; visit(Screen()); return texts.join('\n'); },
+    render() { cursor = 0; refCursor = 0; effects = []; nodes = []; texts = []; visit(Screen()); return texts.join('\n'); },
     flushEffects() { const pending = effects; effects = []; pending.forEach((fn) => fn()); },
     all(type) { return nodes.filter((node) => node.type === type).map((node) => node.props); },
     find(type, predicate = () => true) { return this.all(type).find(predicate); },

@@ -65,15 +65,15 @@ async function main() {
     ['counts', 'me'], ['feed', { timestamp: 't', id: 'i' }],
   ]);
 
-  // Auth intent: a guest pressing 팔로우 comes back to that profile after login.
+  // Auth intent: a guest pressing 팔로우 comes back and resumes the follow automatically.
   const { getAuthIntent, getPostAuthRoute } = loadSource('lib/auth/authIntent.ts');
-  same(getPostAuthRoute(getAuthIntent({ action: 'view_profile', username: 'jimin_01' })), { pathname: '/u/[username]', params: { username: 'jimin_01' } });
-  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'view_profile', username: '../admin' })), '/');
-  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'view_profile', username: ['a', 'b'] })), '/');
-  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'view_profile' })), '/');
-  const onboarding = getPostAuthRoute(getAuthIntent({ action: 'view_profile', username: 'jimin_01' }), true);
+  same(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: 'jimin_01' })), { pathname: '/u/[username]', params: { username: 'jimin_01', follow: '1' } });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: '../admin' })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: ['a', 'b'] })), '/');
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'follow_profile' })), '/');
+  const onboarding = getPostAuthRoute(getAuthIntent({ action: 'follow_profile', username: 'jimin_01' }), true);
   assert.equal(onboarding.pathname, '/auth/username');
-  same(getPostAuthRoute(getAuthIntent(onboarding.params)), { pathname: '/u/[username]', params: { username: 'jimin_01' } });
+  same(getPostAuthRoute(getAuthIntent(onboarding.params)), { pathname: '/u/[username]', params: { username: 'jimin_01', follow: '1' } });
 
   // Follow button: guest → login handoff; member → optimistic toggle with rollback on failure.
   const presses = [];
@@ -145,7 +145,8 @@ async function main() {
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
-  assert.match(publicProfile, /action: 'view_profile'/);
+  assert.match(publicProfile, /action: 'follow_profile'/);
+  assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 
   console.log('Follow checks passed: service guards, login return intent, button states, all-first home scope and profile placement.');
 }

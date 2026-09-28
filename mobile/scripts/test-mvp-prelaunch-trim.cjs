@@ -72,8 +72,13 @@ function profile(isPublic = false) {
   const mount = (key) => () => { calls[key]++; return null; };
   const view = screen(isPublic ? 'app/u/[username].tsx' : 'app/(tabs)/profile.tsx', {
     'expo-router': { useRouter: () => ({ push() {}, back() {}, replace() {} }), useLocalSearchParams: () => ({ username: 'owner' }) },
+    'expo-linking': { createURL: () => 'onepick://auth/callback' },
+    '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
+    '@/lib/auth/authIntent': { getPostAuthRoute: () => ({ pathname: '/u/[username]', params: { username: 'owner' } }) },
+    'expo-linking': { createURL: () => 'onepick://auth/callback' },
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
+    '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
     '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
@@ -81,6 +86,7 @@ function profile(isPublic = false) {
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
+    '@/lib/auth/authIntent': { getPostAuthRoute: () => '/u/owner' },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
     '@/components/profile-taste-composition': { ProfileTasteComposition: mount('taste') },
