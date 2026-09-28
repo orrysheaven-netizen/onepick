@@ -1,3 +1,7 @@
+# Shared priority rules
+
+Before any OnePick work, read `docs/shared-working-rules.md` first. It contains the user's latest common rules for both ChatGPT/Codex and Claude. If it conflicts with older discussions or repository guidance, follow the newer user-approved document or instruction.
+
 # Agent rules for this repository
 
 Read `CLAUDE.md` first. It holds the branching rule (`main` is the single trunk, PRs only, required CI checks) and the working-tree rule. Both apply to every agent, not only Claude.
