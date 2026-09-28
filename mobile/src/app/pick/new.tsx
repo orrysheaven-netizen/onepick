@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhotoStep } from '@/components/pick-photo-step';
 import { StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
@@ -30,20 +30,6 @@ type Done =
   | { type: 'pending'; itemName: string; linkSaved: boolean };
 
 
-const V6 = {
-  background: '#FFFFFF',
-  subtle: '#F6F6F8',
-  muted: '#EEF0F4',
-  text: '#141416',
-  secondary: '#6B6E78',
-  tertiary: '#8A909C',
-  border: '#E8E8ED',
-  borderStrong: '#D5D7DE',
-  accent: '#B84F00',
-  disabled: '#ADB0BA',
-  onAction: '#FFFFFF',
-  overlay: 'rgba(0,0,0,0.35)',
-} as const;
 
 type FlowButtonProps = {
   label: string;
@@ -69,7 +55,7 @@ function FlowButton({ label, onPress, variant = 'primary', disabled, loading, ac
       inactive && variant !== 'text' && styles.flowButtonDisabled,
       pressed && !inactive && styles.flowPressed,
     ]}>
-    {loading ? <ActivityIndicator color={variant === 'primary' ? V6.onAction : V6.text} />
+    {loading ? <ActivityIndicator color={variant === 'primary' ? OnePick.onAction : OnePick.textPrimary} />
       : <Text style={[styles.flowButtonLabel, variant !== 'primary' && styles.flowButtonLabelDark]}>{label}</Text>}
   </Pressable>;
 }
@@ -455,13 +441,13 @@ export default function NewPickScreen() {
               <View style={styles.fieldBlock}>
                 <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
                 <TextInput accessibilityLabel={channel === 'online' ? '판매처 이름 검색' : '매장명 검색'} autoFocus autoCapitalize="none" maxLength={100}
-                  onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={V6.tertiary}
+                  onChangeText={setQuery} value={query} returnKeyType="search" style={styles.input} placeholderTextColor={OnePick.textTertiary}
                   placeholder={channel === 'online' ? '판매처명을 입력해 주세요' : '상호명을 입력해 주세요'} />
                 {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
                   ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · {channel === 'online' ? '판매처를 확인해 주세요.' : '지점과 주소를 확인해 주세요.'}</Text>
                   : channel === 'offline' ? <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text> : null}
               </View>
-              {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={V6.text} /></View> : null}
+              {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
               {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요" action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
               <View style={styles.results}>
                 {(search.data ?? []).map((candidate) => <Pressable key={candidate.kind === 'place' ? candidate.catalogId : candidate.providerId}
@@ -483,12 +469,12 @@ export default function NewPickScreen() {
               <View style={styles.fieldBlock}>
                 <FieldLabel label={channel === 'online' ? '판매처명' : '상호명'} />
                 <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
-                  placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={V6.tertiary} />
+                  placeholder={channel === 'online' ? '판매처 이름' : '매장 이름 (지점명 포함)'} placeholderTextColor={OnePick.textTertiary} />
               </View>
               {channel === 'online' ? <View style={styles.fieldBlock}>
                 <FieldLabel label="판매처 링크" />
                 <TextInput accessibilityLabel="판매처 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={sellerUrl}
-                  onChangeText={setSellerUrl} style={styles.input} placeholder="https://…" placeholderTextColor={V6.tertiary} />
+                  onChangeText={setSellerUrl} style={styles.input} placeholder="https://…" placeholderTextColor={OnePick.textTertiary} />
                 {sellerUrlError ? <Text accessibilityRole="alert" style={styles.error}>{sellerUrlError}</Text>
                   : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요.</Text>}
               </View> : null}
@@ -514,7 +500,7 @@ export default function NewPickScreen() {
               <FieldLabel label="네이버 지도 링크" required={false} />
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048} value={mapLink}
                 onChangeText={(value) => { setMapLink(value); setLinkError(null); }} style={styles.input}
-                placeholder="https://naver.me/…" placeholderTextColor={V6.tertiary} />
+                placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
               {linkError ? <Text accessibilityRole="alert" style={styles.error}>{linkError}</Text>
                 : <Text style={styles.helper}>네이버 지도에서 가게를 열고 공유 → 링크 복사를 누르면 돼요.</Text>}
             </View>
@@ -536,7 +522,7 @@ export default function NewPickScreen() {
                   setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
                 }}
                 onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }}
-                returnKeyType="search" style={styles.input} placeholder="예: 미역국" placeholderTextColor={V6.tertiary} />
+                returnKeyType="search" style={styles.input} placeholder="예: 미역국" placeholderTextColor={OnePick.textTertiary} />
               <Text style={styles.helper}>매장에서 부르는 메뉴 이름 그대로 적어 주세요. 카테고리는 입력한 이름으로 추천해 드려요.</Text>
             </View>
 
@@ -554,7 +540,7 @@ export default function NewPickScreen() {
 
             {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && suggestions.isFetching ? <View style={styles.fieldBlock}>
               <FieldLabel label="카테고리" required={false} />
-              <View style={styles.loadingRow}><ActivityIndicator color={V6.text} /><Text style={styles.helperInline}>메뉴명으로 카테고리를 찾고 있어요</Text></View>
+              <View style={styles.loadingRow}><ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>메뉴명으로 카테고리를 찾고 있어요</Text></View>
             </View> : null}
 
             {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && !suggestions.isFetching && aiSuggestions.length > 0 && !showManualCategory
@@ -574,7 +560,7 @@ export default function NewPickScreen() {
               <FieldLabel label="카테고리" />
               <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라 주세요.</Text>
               <TextInput accessibilityLabel="카테고리 검색" value={categoryQuery} onChangeText={setCategoryQuery}
-                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={V6.tertiary} />
+                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={OnePick.textTertiary} />
               <View style={styles.chips}>
                 {manualMatches.map((option) => <FlowChip key={option.categoryId}
                   label={[option.groupName, option.name].filter(Boolean).join(' › ')}
@@ -584,7 +570,7 @@ export default function NewPickScreen() {
             </View> : null}
 
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried ? <View style={styles.loadingRow}>
-              <ActivityIndicator color={V6.text} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요</Text>
+              <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요</Text>
             </View> : null}
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           </View>
@@ -621,7 +607,7 @@ export default function NewPickScreen() {
               <FieldLabel label="한줄평" />
               <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && step !== 6} value={review}
                 onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
-                placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={V6.tertiary} />
+                placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={OnePick.textTertiary} />
             </View>
             <Text style={styles.counter}>{review.length} / 100자</Text>
             {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
@@ -654,72 +640,117 @@ export default function NewPickScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: V6.background },
-  stateArea: { padding: 16 },
+  safe: { flex: 1, backgroundColor: OnePick.bgDefault },
+  stateArea: { padding: OnePickSpace.lg },
   content: { flexGrow: 1, width: '100%', maxWidth: 390, alignSelf: 'center' },
   header: {
-    height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
-    backgroundColor: V6.background,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    backgroundColor: OnePick.bgDefault,
   },
   headerSide: { width: 48, height: 56, justifyContent: 'center', alignItems: 'flex-start' },
   headerRight: { alignItems: 'flex-end' },
-  backText: { color: V6.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
-  headerTitle: { flex: 1, color: V6.text, fontSize: 16, lineHeight: 24, fontWeight: '700', textAlign: 'center' },
-  headerAction: { color: V6.text, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  body: { flexGrow: 1, gap: 12, paddingTop: 12, paddingHorizontal: 16 },
-  footer: { gap: 8, marginTop: 'auto', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 24 },
-  stepMeta: { color: V6.secondary, fontSize: 12, lineHeight: 18, fontWeight: '400' },
-  title: { color: V6.text, fontSize: 22, lineHeight: 30, fontWeight: '700' },
-  channelChoice: { gap: 8, marginTop: 4 },
-  fieldBlock: { gap: 8 },
-  fieldLabelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
-  fieldLabel: { color: V6.secondary, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  fieldRequired: { color: V6.accent, fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  backText: { ...OnePickType.headline, color: OnePick.textPrimary },
+  headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
+  headerAction: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  body: { flexGrow: 1, gap: OnePickSpace.md, paddingTop: OnePickSpace.md, paddingHorizontal: OnePickSpace.gutter },
+  footer: {
+    gap: OnePickSpace.sm,
+    marginTop: 'auto',
+    paddingTop: OnePickSpace.lg,
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingBottom: OnePickSpace.xxl,
+  },
+  stepMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
+  title: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  channelChoice: { gap: OnePickSpace.sm, marginTop: OnePickSpace.xs },
+  fieldBlock: { gap: OnePickSpace.sm },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: OnePickSpace.xs },
+  fieldLabel: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
+  fieldRequired: { ...OnePickType.bodyMedium, color: OnePick.textAccent },
   input: {
-    height: 52, borderWidth: 0, borderRadius: 12, backgroundColor: V6.subtle,
-    paddingHorizontal: 16, paddingVertical: 12, color: V6.text, fontSize: 14, lineHeight: 21, fontWeight: '400',
+    height: 52,
+    borderWidth: 0,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgSubtle,
+    paddingHorizontal: OnePickSpace.lg,
+    paddingVertical: OnePickSpace.md,
+    color: OnePick.textPrimary,
+    ...OnePickType.body,
   },
-  reviewInput: { height: 120, padding: 16, textAlignVertical: 'top' },
-  helper: { color: V6.secondary, fontSize: 12, lineHeight: 18, fontWeight: '400' },
-  helperInline: { color: V6.secondary, fontSize: 12, lineHeight: 18, fontWeight: '400' },
-  error: { color: OnePick.danger, fontSize: 12, lineHeight: 18 },
-  loading: { paddingVertical: 16, alignItems: 'center' },
-  loadingRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  results: { gap: 8 },
+  reviewInput: { height: 120, padding: OnePickSpace.lg, textAlignVertical: 'top' },
+  helper: { ...OnePickType.caption, color: OnePick.textSecondary },
+  helperInline: { ...OnePickType.caption, color: OnePick.textSecondary },
+  error: { ...OnePickType.caption, color: OnePick.textDanger },
+  loading: { paddingVertical: OnePickSpace.lg, alignItems: 'center' },
+  loadingRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
+  results: { gap: OnePickSpace.sm },
   resultCard: {
-    minHeight: 60, justifyContent: 'center', gap: 2, paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 12, backgroundColor: V6.subtle,
+    minHeight: 60,
+    justifyContent: 'center',
+    gap: OnePickSpace.xs,
+    paddingHorizontal: OnePickSpace.lg,
+    paddingVertical: OnePickSpace.sm,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgSubtle,
   },
-  resultTitle: { color: V6.text, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  resultMeta: { color: V6.secondary, fontSize: 12, lineHeight: 18, fontWeight: '400' },
-  requestPanel: { gap: 12 },
-  panelTitle: { color: V6.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  resultTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  resultMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
+  requestPanel: { gap: OnePickSpace.md },
+  panelTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },
   flowChip: {
-    minHeight: 32, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12,
-    borderRadius: 999, backgroundColor: V6.muted,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: OnePickSpace.md,
+    borderRadius: OnePickRadius.full,
+    backgroundColor: OnePick.bgMuted,
   },
-  flowChipSelected: { backgroundColor: V6.text },
-  flowChipLabel: { color: V6.text, fontSize: 12, lineHeight: 18, fontWeight: '500' },
-  flowChipLabelSelected: { color: V6.onAction },
+  flowChipSelected: { backgroundColor: OnePick.actionPrimary },
+  flowChipLabel: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
+  flowChipLabelSelected: { color: OnePick.onAction },
   flowButton: {
-    alignSelf: 'stretch', minHeight: 52, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 20, borderRadius: 12, backgroundColor: V6.text,
+    alignSelf: 'stretch',
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: OnePickSpace.xl,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.actionPrimary,
   },
-  flowButtonSecondary: { backgroundColor: V6.background, borderWidth: 1, borderColor: V6.borderStrong },
+  flowButtonSecondary: {
+    backgroundColor: OnePick.bgDefault,
+    borderWidth: 1,
+    borderColor: OnePick.borderStrong,
+  },
   flowButtonText: { minHeight: 40, paddingHorizontal: 0, backgroundColor: 'transparent' },
-  flowButtonDisabled: { backgroundColor: V6.disabled, borderWidth: 0 },
-  flowButtonLabel: { color: V6.onAction, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  flowButtonLabelDark: { color: V6.text },
+  flowButtonDisabled: { backgroundColor: OnePick.actionDisabled, borderWidth: 0 },
+  flowButtonLabel: { ...OnePickType.bodyMedium, color: OnePick.onAction },
+  flowButtonLabelDark: { color: OnePick.textPrimary },
   flowPressed: { opacity: 0.88 },
-  photoPanel: { gap: 12 },
-  preview: { width: '100%', height: 220, borderRadius: 12, backgroundColor: V6.subtle },
-  notice: { padding: 12, borderRadius: 12, backgroundColor: '#FFF0DC' },
-  noticeText: { color: V6.text, fontSize: 12, lineHeight: 18 },
-  counter: { alignSelf: 'stretch', color: V6.tertiary, fontSize: 12, lineHeight: 18, textAlign: 'right' },
-  overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: V6.overlay },
-  dialog: { width: 300, alignItems: 'center', gap: 8, padding: 24, borderRadius: 16, backgroundColor: V6.background },
-  dialogTitle: { color: V6.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
-  dialogBody: { color: V6.secondary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  dialogSpacer: { height: 8 },
+  photoPanel: { gap: OnePickSpace.md },
+  preview: {
+    width: '100%',
+    height: 220,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgSubtle,
+  },
+  notice: { padding: OnePickSpace.md, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgAccentSubtle },
+  noticeText: { ...OnePickType.caption, color: OnePick.textPrimary },
+  counter: { ...OnePickType.caption, alignSelf: 'stretch', color: OnePick.textTertiary, textAlign: 'right' },
+  overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgOverlay },
+  dialog: {
+    width: 300,
+    alignItems: 'center',
+    gap: OnePickSpace.sm,
+    padding: OnePickSpace.xxl,
+    borderRadius: OnePickRadius.lg,
+    backgroundColor: OnePick.bgDefault,
+  },
+  dialogTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  dialogBody: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center' },
+  dialogSpacer: { height: OnePickSpace.sm },
 });
