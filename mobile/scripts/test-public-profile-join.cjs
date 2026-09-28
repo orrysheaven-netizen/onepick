@@ -29,18 +29,18 @@ assert.ok(picksIndex >= 0 && shareIndex >= 0, 'the picks and share sections must
 assert.ok(joinIndex > picksIndex, 'the join call to action must follow the category picks');
 assert.ok(joinIndex < shareIndex, 'the join call to action must come before the share card');
 
-// The follow button keeps its own intent: an existing account returns to the profile it was reading.
-assert.match(
-  profile,
-  /params: \{ action: 'view_profile', username: query\.data!\.profile\.username \}/,
-  'following must keep returning an existing account to this profile',
-);
-
-// A brand-new account that signed up to follow owns nothing yet, so it onboards first.
-assert.match(
+// A follow is a resumable action: login/username creation returns to the same profile
+// and the app performs the follow without requiring a second tap.
+assert.match(profile, /action: 'follow_profile'/, 'the shared profile must preserve a dedicated follow intent');
+assert.match(profile, /armFollowProfileIntent\(targetUsername\)/, 'an explicit provider tap arms the one-time continuation');
+assert.match(profile, /consumeFollowProfileIntent\(username\)/, 'the returned profile consumes the continuation once');
+assert.match(profile, /autoFollow=\{autoFollow && Boolean\(user\)\}/, 'only the consumed continuation may automatically resume the follow');
+assert.doesNotMatch(profile, /follow === '1'/, 'a crafted/shareable URL must not trigger auto-follow');
+assert.match(profile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/, 'the login sheet must explain the preserved intent');
+assert.doesNotMatch(
   username,
-  /const ONBOARDING_INTENTS = new Set<AuthIntent\['action'\]>\(\[[^\]]*'view_profile'[^\]]*\]\)/,
-  'a new account created from a profile follow must enter onboarding',
+  /const ONBOARDING_INTENTS = new Set<AuthIntent\['action'\]>\(\[[^\]]*'follow_profile'/,
+  'a pending follow must not be diverted to onboarding after username creation',
 );
 
 // Intents with an action still in flight must keep resuming it instead of onboarding.
