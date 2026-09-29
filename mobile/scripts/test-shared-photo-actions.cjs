@@ -26,7 +26,7 @@ const uuid = 'a1111111-1111-4111-8111-111111111111';
 const poster = 'https://image.tmdb.org/t/p/w342/example.jpg';
 let buttons = [], destination, image;
 const native = {
-  View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
+  View: part('div'), Text: part('span'), TextInput: part('input'), ScrollView: part('main'), ActivityIndicator: () => null,
   Image: (props) => { image = props; return React.createElement('img', { src: props.source.uri, alt: props.accessibilityLabel }); },
   Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
   StyleSheet: { create: (styles) => styles },
@@ -106,7 +106,13 @@ async function main() {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
-    '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => attachment },
+    '@/hooks/useRegisterPick': {
+      useChoosePhoto: () => picker,
+      useAttachItemPhoto: () => attachment,
+      useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
+    },
+    '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },
+    '@/services/storeFirstService': { isNaverMapUrl: () => true },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null }, '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/pick-photo': { PickPhoto: ({ uri }) => React.createElement('span', null, uri || '사진 없음') }, '@/errors/appError': { AppError },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
