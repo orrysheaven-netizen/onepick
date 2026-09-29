@@ -272,6 +272,29 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getFoodMenuRecentRanking(groupCategoryId: string | null = null, limit = 4) {
+    // Public aggregate: one user counts once per menu across channels. The RPC
+    // itself applies the rolling 7-day window and current-Pick eligibility.
+    // It predates the generated client types in this checkout, so keep the cast
+    // local to this one RPC instead of weakening the repository type.
+    const { data, error } = await (this.countClient as any).rpc('food_menu_recent_ranking', {
+      p_group_category_id: groupCategoryId,
+      p_limit: Math.max(1, Math.min(limit, 20)),
+    });
+    if (error) throw mapSupabaseError(error);
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((row: any) => ({
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      groupCategoryId: row.group_category_id ?? null,
+      pickCount: Number(row.pick_count) || 0,
+      rank: Number(row.rank) || 0,
+      isTied: Boolean(row.is_tied),
+      coverItemId: row.cover_item_id ?? null,
+      thumbnailUrl: this.cardThumbnailUrl(row),
+    }));
+  }
+
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. Optional channel scope is server-side before limiting.
