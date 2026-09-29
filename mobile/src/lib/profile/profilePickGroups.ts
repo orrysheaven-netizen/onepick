@@ -1,4 +1,4 @@
-import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+import type { PickChannel, PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
 export interface ProfilePickGroup {
@@ -157,6 +157,23 @@ export function splitLabPicks(picks: PickReadItem[], categories: Category[], mai
     (isLabTheme(resolveCategoryTheme(item.pick.categoryId, categories), mainThemeCode) ? lab : main).push(item);
   }
   return { main, lab };
+}
+
+export function filterMainProfileByChannel(
+  picks: PickReadItem[],
+  categories: Category[],
+  mainThemeCode: string,
+  publicChannel: PickChannel,
+) {
+  if (mainThemeCode !== 'food') return picks;
+  return picks.filter((item) => {
+    // Explicit food channels are authoritative even before the category catalog
+    // finishes loading, so online/recipe Picks never flash on the public FOOD tab.
+    if (item.pick.channel && item.pick.channel !== publicChannel) return false;
+    const theme = resolveCategoryTheme(item.pick.categoryId, categories);
+    // Unmapped/legacy Picks stay visible; only FOOD is narrowed by the MVP channel.
+    return theme !== mainThemeCode || resolveFoodLane(item, categories) === publicChannel;
+  });
 }
 
 /** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */
