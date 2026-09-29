@@ -1,6 +1,6 @@
 # Shared priority rules
 
-Before any OnePick work, read `docs/shared-working-rules.md`, then `docs/pm/README.md`, then `docs/pm/current-priorities.md`. Next read the department document that matches the task. These are the shared user-approved rules and PM operating baseline for ChatGPT/Codex, Claude, QA, automation, and other OnePick work. The user's latest explicit instruction remains highest priority.
+Before any OnePick work, read `docs/shared-working-rules.md`, then `docs/pm/README.md`, then `docs/pm/current-priorities.md`. Next read the department document that matches the task. These are the shared user-approved rules and PM operating baseline for ChatGPT/Codex, Claude, QA, automation, and other OnePick work. The user's latest explicit instruction remains highest priority. Newer user-approved PM/shared rules supersede older repository instructions when they conflict.
 
 # Agent rules for this repository
 
