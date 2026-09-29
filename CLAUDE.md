@@ -10,6 +10,10 @@ Do not create or target a long-lived integration branch (e.g. a `feature/*` bran
 
 `main` is protected (PRs required; `typecheck`, `verify-web` and `database-tests` must pass; no admin bypass) and is the branch Cloudflare Pages builds the tester site from on merge. Merging does not deploy the database or Edge Functions: run the GitHub Actions workflows **Deploy Database Migrations** and then **Deploy Edge Functions** (both `workflow_dispatch`, dry-run then `mode=apply`), which always deploy from `main`.
 
+# Pull requests and CI cost
+
+GitHub Actions minutes are billed on this private repository. Open PRs as **draft**; the required checks (`typecheck`, `verify-web`, `database-tests`) skip their jobs on draft PRs. Run `gh pr ready <number>` only when the work is implemented and self-verified — that `ready_for_review` event runs the required CI, then opposite-AI review. Never mark a blocked task ready; use `gh pr ready --undo` if substantial rework is needed. Push once per logical unit of work, not after every small edit (exceptions: avoiding conflicts, or a push another agent needs for handoff). Ready PRs also skip heavy steps for unrelated paths via `.github/scripts/ci-path-gate.sh`. Do not rename required checks or loosen branch protection. See "PR·CI 실행 비용 규칙" in `docs/ai-role-division.md`.
+
 # Working tree
 
 Several agent sessions (Claude Code, ChatGPT/Codex) work on this repository at the same time. The primary checkout (the `onepick` folder itself) is shared, so treat it as read-only:

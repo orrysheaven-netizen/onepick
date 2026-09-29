@@ -74,6 +74,25 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - Production DB `mode=apply`, production Edge Function 배포, secret/권한 변경, 파괴적 데이터 작업, `main` 병합은 자동화하지 않고 사용자 승인 게이트를 유지한다.
 - 자기 PR을 스스로 승인하거나 병합하지 않는다.
 
+### 리뷰 결과 자동 인계
+
+PR 리뷰 본문이나 댓글의 **첫 줄**(앞에 빈 줄 없이)에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
+
+```text
+AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+```
+
+- `to=`는 다음에 행동할 쪽이다. 수정 요청은 구현 담당, 수정 완료는 수정을 요청했던 리뷰 담당이다. 두 AI가 같은 GitHub 계정을 쓰고 claim 시 `owner:*`가 바뀌므로 자동으로 추론하지 않는다.
+- 저장소 소유자 계정과 handoff App bot의 결과 줄만 인정한다. PR은 열린 same-repo `main` 대상이어야 하고, PR 본문의 `Refs #N` 중 `owner:*`가 붙은 열린 이슈가 정확히 하나여야 한다.
+- 결과는 PR의 **현재 head**에 대한 것이어야 한다. PR 리뷰는 리뷰한 커밋을 쓰고, 댓글은 `head=`가 필수다. 원래 이슈에 남길 때는 `pr=`도 필수다.
+- `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다.
+- `state:active`인 동안에는 누구의 결과든 즉시 인계하지 않는다. 소유자 계정 결과는 처리하지 않은 채 queue에 남겨 두고 `state:active`가 해제된 뒤의 drain에서 다시 판정한다. bot이 남긴 결과는 실행 중인 자동화의 finalizer가 처리하므로 기존대로 처리 생략으로 기록한다.
+- 같은 (PR, head, 결과)는 한 번만 인계한다. 수정 완료는 먼저 처리된 수정 요청이 있어야 하며 그 요청자에게만 돌아간다.
+- 수정 완료는 필수 CI가 모두 성공한 경우에만 즉시 인계한다. CI가 진행 중이면 CI gate 대기 marker를 남겨 완료 시 인계하고, 실패면 인계하지 않고 기록만 한다.
+- Draft/Ready CI 계약(PR #569, CI gate와 동일): PR이 Draft면 CI 실패로 기록하지 않고 CI gate 대기 marker를 남겨 Ready 전환 후 필수 CI 성공 시 인계한다. Draft였다가 Ready가 된 PR은 마지막 `ready_for_review` 이후 생성된 필수 CI run만 판정한다. #569 병합 전에는 Draft에서도 CI가 정상 실행되므로 동작 차이가 없다.
+- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 이벤트 이슈를 먼저, 이어서 열린 모든 AI 작업 이슈(`owner:codex`/`owner:claude`, 기간·개수 제한 없음)의 미처리 marker를 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다. 결과 줄로 시작하지 않는 댓글(안내·인용)은 enqueue도 drain도 실행하지 않는다.
+
 ## 작업 이슈와 인계
 
 별도 완료 리포트 이슈를 만들지 않는다. **원래 작업 이슈가 작업 기록과 인계의 단일 원본**이다.
@@ -98,7 +117,30 @@ PR: #<번호>
 후속: <없음 또는 다음 담당>
 ```
 
-후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
+후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다.
+
+자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
+
+## PR·CI 실행 비용 규칙
+
+GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필수 CI(`Database Tests`, `Mobile CI`, `Web build`)와 반대 AI 리뷰 구조는 그대로 두고, 작업 중 반복 실행만 줄인다.
+
+1. **PR은 Draft로 연다.** Draft 동안 필수 CI 3종은 job 단위로 skip되어 러너 시간을 쓰지 않는다(체크는 skipped=성공으로 보고되지만 Draft는 병합할 수 없다).
+2. **구현과 자체 검증이 끝나면 Ready for review로 전환한다**(`gh pr ready <번호>`). 이 전환(`ready_for_review`)에서 필수 CI가 실행되고, 이후 반대 AI 리뷰 → PM 검토로 이어진다.
+   - 자동 인계: Claude는 `AI_HANDOFF_RESULT: COMPLETE`일 때, Codex는 patch PR을 만든 직후 finalizer가 자동 전환한다.
+   - `state:blocked` 또는 `BLOCKED`/`CODEX_FOLLOWUP` 결과에서는 Ready로 전환하지 않는다.
+   - `AI Handoff - CI Gate`는 Draft PR의 skip된 CI를 통과로 보지 않는다. Ready 전환 이후 생성된 필수 CI 실행이 모두 성공해야 다음 담당으로 인계한다.
+   - Ready 이후 큰 재작업이 필요하면 `gh pr ready <번호> --undo`로 Draft로 되돌리고, 다시 완료되면 Ready로 전환한다.
+3. **push는 논리적 작업 단위로 묶는다.** 작은 수정마다 즉시 push하지 말고, 하나의 논리적 작업 단위가 완성된 시점에 변경을 묶어서 push한다. 단, 충돌 방지나 외부 handoff에 반드시 필요한 경우는 예외로 한다. CI 실행 횟수뿐 아니라 GitHub 이벤트 자체를 줄이기 위한 규칙이다.
+4. Ready PR에서도 변경 경로와 무관한 CI는 무거운 단계를 건너뛴다(`.github/scripts/ci-path-gate.sh`). 필수 체크 이름은 바꾸지 않는다.
+
+| 필수 체크 | 실제 실행되는 변경 경로 |
+|---|---|
+| `database-tests` (Database Tests) | `supabase/**`, `tools/*.py`, 자기 workflow 파일 |
+| `typecheck` (Mobile CI) | `mobile/**`, `supabase/**`, `mobile/scripts`가 경로로 읽는 파일(예: `docs/pokemon-catalog.md`), 자기 workflow 파일 |
+| `verify-web` (Web build) | `mobile/**`, `tools/qa/**`, 자기 workflow 파일 |
+
+`.github/scripts/ci-path-gate.sh`가 바뀌면 세 CI가 모두 실행된다. 이 스크립트와 `.github/scripts/test-ci-path-gate.sh`는 자동 인계 control-plane 파일이므로 무인 자동 실행기가 수정하지 않는다. 판정 job이 실패하면 무거운 단계는 항상 실행된다(fail-safe). `main` push와 수동 실행은 기존 동작 그대로다.
 
 ## AI Ops 대시보드
 
