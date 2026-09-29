@@ -66,6 +66,7 @@ async function main() {
 
   const tables = {
     providers: [{ id: providerId, kind: 'offline_branch', name: '서울집', branch_name: '성수점', place_id: placeId, online_store_id: null, status: 'active', brand_id: brandId }],
+    brands: [{ id: brandId, name: '서울집', logo_path: 'brand/store-logo.png', is_active: true }],
     places: [{ id: placeId, road_address: '서울 성동구 성수로 1', address: null, region_1: '서울', region_2: '성동구', map_url: 'https://map.example/seoul-house' }],
     online_stores: [],
     item_providers: [
@@ -81,8 +82,10 @@ async function main() {
       { id: riceCat, name: '국밥', status: 'open', is_visible: true },
     ],
     picks: [
-      { item_id: soup, status: 'active' }, { item_id: soup, status: 'active' },
-      { item_id: rice, status: 'active' }, { item_id: soup, status: 'replaced' },
+      { item_id: soup, status: 'active', one_line_review: '예전 한줄평', started_at: '2026-09-20T00:00:00Z' },
+      { item_id: soup, status: 'active', one_line_review: '국물이 진한데 부담스럽지 않음', started_at: '2026-09-28T00:00:00Z' },
+      { item_id: rice, status: 'active', one_line_review: '깔끔해서 자주 생각남', started_at: '2026-09-27T00:00:00Z' },
+      { item_id: soup, status: 'replaced', one_line_review: '교체된 리뷰', started_at: '2026-09-29T00:00:00Z' },
     ],
   };
   const db = client(tables);
@@ -95,7 +98,11 @@ async function main() {
   assert.deepEqual({ ...offline.link }, { label: '지도 보기', url: 'https://map.example/seoul-house', host: 'map.example' });
   assert.deepEqual(Array.from(offline.items, (item) => [item.menuName, item.pickCount]), [['미역국', 2], ['국밥', 1]], 'provider menus sort by current Pick count');
   assert.equal(offline.items[0].thumbnailUrl, 'https://storage.test/soup-thumb.jpg');
+  assert.equal(offline.items[0].latestReview, '국물이 진한데 부담스럽지 않음', 'provider menu shows the newest current Pick review');
+  assert.equal(offline.items[1].latestReview, '깔끔해서 자주 생각남');
   assert.equal(offline.brandId, brandId);
+  assert.equal(offline.brandName, '서울집');
+  assert.equal(offline.brandLogoUrl, 'https://storage.test/brand/store-logo.png');
 
   const onlineProvider = '77777777-7777-4777-8777-777777777777';
   const storeId = '88888888-8888-4888-8888-888888888888';
@@ -141,15 +148,32 @@ async function main() {
     (error) => error instanceof AppError && error.code === 'PROVIDER_NOT_FOUND',
   );
 
+  const serviceSource = fs.readFileSync(path.join(root, 'src/services/providerProfileService.ts'), 'utf8');
+  assert.match(serviceSource, /const \[location, brand, mappingResult\] = await Promise\.all\(\[/,
+    'provider location, brand and item mapping must start in the same parallel phase');
+  assert.match(serviceSource, /locationPromise,[\s\S]*brandPromise,[\s\S]*mappingPromise/,
+    'parallel phase includes all independent provider profile reads');
+
   const screen = fs.readFileSync(path.join(root, 'src/app/provider/[providerId].tsx'), 'utf8');
-  assert.match(screen, /query\.data\.link \? <View style=\{styles\.links\}>/, 'external action links are optional');
+  assert.match(screen, /<View style=\{styles\.storeHeader\}>/, 'store scope uses the Figma 17A Foundations header');
+  assert.match(screen, /storeHeader:[\s\S]*?height: 56/);
+  assert.match(screen, /storeHeaderSide: \{ width: 48, minHeight: 44, justifyContent: 'center' \}/);
+  assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\s\S]*?paddingHorizontal: OnePickSpace\.gutter[\s\S]*?paddingTop: OnePickSpace\.sm/);
+  assert.match(screen, /query\.data\.brandLogoUrl \?/, 'registered brand logo is used when available');
+  assert.match(screen, /accessibilityLabel="로고 미등록"/, 'missing logo keeps the Figma 64px placeholder');
+  assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
+  assert.match(screen, /query\.data\.link \? <View style=\{styles\.storeLinks\}>/, 'only registered external links render');
+  assert.match(screen, /지도 링크 ↗/, 'offline store exposes its registered map action');
+  assert.doesNotMatch(screen, />SNS</, 'SNS area stays hidden until an SNS data contract exists');
   assert.match(screen, /query\.data\.kind === 'offline_branch' \? '이곳의 원픽' : '이 판매처의 원픽'/);
+  assert.match(screen, /storeMenuRow:[\s\S]*?minHeight: 72/, 'Figma 17A menu rows use the 72px geometry');
   assert.match(screen, /원픽 \{item\.pickCount\.toLocaleString\(\)\}/, 'provider menus use OnePick count language');
-  assert.doesNotMatch(screen, /Instagram|YouTube|SNS/, 'provider SNS remains outside PR 4');
+  assert.match(screen, /item\.latestReview \? <Text numberOfLines=\{1\} style=\{styles\.storeReview\}>/, 'menu rows show the newest current Pick review when present');
+  assert.match(screen, /pathname: '\/item\/\[itemId\]'/, 'store menu rows remain item-detail entry points');
   assert.match(screen, /useBrandProfile/);
   assert.match(screen, /브랜드 전체/);
   assert.match(screen, /scope: 'provider'/, 'brand branches reopen the existing provider detail mode');
 
-  console.log('Provider profile checks passed: provider detail, brand-wide products, offline branch paging and provider drill-down.');
+  console.log('Provider profile checks passed: Figma 17A store detail, registered links, latest reviews, brand identity, brand-wide products and provider drill-down.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

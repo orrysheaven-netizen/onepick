@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickReplies } from '@/components/pick-replies';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -14,6 +15,8 @@ import { observabilityService } from '@/services';
 
 type Params = {
   pickId?: string;
+  itemId?: string;
+  focusCommentId?: string;
   notificationGroupId?: string;
   notificationSnapshot?: string;
   notificationKind?: string;
@@ -22,10 +25,13 @@ type Params = {
   commentAfterId?: string;
 };
 
+
 // Existing share/login-return route and the single review conversation detail.
 export default function PickDetailScreen() {
   const params = useLocalSearchParams<Params>();
   const pickId = typeof params.pickId === 'string' ? params.pickId : undefined;
+  const routeItemId = typeof params.itemId === 'string' ? params.itemId : undefined;
+  const routeFocusCommentId = typeof params.focusCommentId === 'string' ? params.focusCommentId : undefined;
   const notificationGroupId = typeof params.notificationGroupId === 'string' ? params.notificationGroupId : undefined;
   const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
   const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
@@ -36,9 +42,10 @@ export default function PickDetailScreen() {
 
   const { user } = useAuthSession();
   const router = useRouter();
-  const pickQuery = usePickDetail(pickId, user?.id);
-  const itemId = pickQuery.data?.pick.itemId;
-  const hiddenFutureChannel = Boolean(
+  const needsPickLookup = !routeItemId;
+  const pickQuery = usePickDetail(pickId, user?.id, needsPickLookup);
+  const itemId = routeItemId ?? pickQuery.data?.pick.itemId;
+  const hiddenFutureChannel = needsPickLookup && Boolean(
     pickQuery.data?.pick.channel
     && !OnePickFeatures.foodChannelPicker
     && pickQuery.data.pick.channel !== OnePickMvp.publicPickChannel
@@ -78,8 +85,9 @@ export default function PickDetailScreen() {
       });
   }, [focused?.pick.id, notificationGroupId, notificationSnapshot, notificationKind, replyTargetLoaded, user?.id]);
 
-  const loading = pickQuery.isPending || (!hiddenFutureChannel && Boolean(itemId) && itemQuery.isPending);
-  const failed = pickQuery.isError || (!hiddenFutureChannel && (itemQuery.isError || (!loading && (!pickQuery.data || !focused))));
+  const loading = (needsPickLookup && pickQuery.isPending) || (!hiddenFutureChannel && Boolean(itemId) && itemQuery.isPending);
+  const failed = (needsPickLookup && pickQuery.isError)
+    || (!hiddenFutureChannel && (itemQuery.isError || (!loading && (!itemId || !focused))));
   const title = itemQuery.data
     ? itemTitle(itemQuery.data.item.name, itemQuery.data.category?.name, itemQuery.data.isRestaurant)
     : pickQuery.data?.item?.name ?? '한줄평 대화';
@@ -111,7 +119,7 @@ export default function PickDetailScreen() {
         : failed || !focused ? <View style={styles.state}>
           <Text style={styles.stateTitle}>한줄평을 볼 수 없어요</Text>
           <Text style={styles.stateText}>삭제되었거나 공개되지 않은 한줄평일 수 있어요.</Text>
-          <Pressable accessibilityRole="button" onPress={() => { void pickQuery.refetch(); if (itemId) void itemQuery.refetch(); }} style={styles.retry}>
+          <Pressable accessibilityRole="button" onPress={() => { if (needsPickLookup) void pickQuery.refetch(); if (itemId) void itemQuery.refetch(); }} style={styles.retry}>
             <Text style={styles.retryText}>다시 불러오기</Text>
           </Pressable>
         </View>
@@ -121,7 +129,7 @@ export default function PickDetailScreen() {
               <Text style={styles.author}>
                 {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
               </Text>
-              {focused.pick.isCurrent ? <Text style={styles.currentBadge}>✓ 이 집 원픽</Text> : null}
+              {focused.pick.isCurrent ? <CurrentPickFlag /> : null}
             </View>
             {focused.pick.isDeleted
               ? <Text style={styles.reviewText}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
@@ -130,7 +138,7 @@ export default function PickDetailScreen() {
           <PickReplies
             pickId={focused.pick.id}
             canWrite={Boolean(focused.pick.canComment)}
-            focusCommentId={notificationKind === 'reply' ? rootCommentId : undefined}
+            focusCommentId={notificationKind === 'reply' ? rootCommentId : routeFocusCommentId}
             initialCursor={notificationKind === 'reply' ? commentInitialCursor : null}
             onFocusLoaded={notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}
           />
@@ -156,7 +164,6 @@ const styles = StyleSheet.create({
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   author: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
-  currentBadge: { ...OnePickType.captionMedium, color: OnePick.textAccent },
   reviewText: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.sm },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: OnePickSpace.sm, padding: OnePickSpace.xxl },
   stateTitle: { ...OnePickType.headline, color: OnePick.textPrimary },

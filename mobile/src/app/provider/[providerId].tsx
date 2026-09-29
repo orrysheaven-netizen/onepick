@@ -3,10 +3,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PickPhoto } from '@/components/pick-photo';
 import { StateCard } from '@/components/ui';
 import { useBrandBranches, useBrandProfile, useProviderProfile } from '@/hooks/useProviderProfile';
-import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 type Params = { providerId?: string | string[]; scope?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
@@ -111,12 +110,16 @@ export default function ProviderProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.storeHeader}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          style={({ pressed }) => [styles.storeHeaderSide, pressed && styles.pressed]}>
+          <Text style={styles.storeBackText}>‹</Text>
         </Pressable>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.storeHeaderTitle}>{query.data?.name ?? '매장'}</Text>
+        <View style={styles.storeHeaderSide} />
+      </View>
 
+      <ScrollView contentContainerStyle={styles.storeContent} showsVerticalScrollIndicator={false}>
         {query.isPending ? <ActivityIndicator accessibilityLabel="제공처 프로필 불러오는 중" style={styles.loading} color={OnePick.brand} /> : null}
         {query.isError ? <StateCard tone="danger" title="제공처 프로필을 불러오지 못했어요"
           text="존재하지 않거나 현재 공개되지 않는 제공처일 수 있어요."
@@ -124,46 +127,57 @@ export default function ProviderProfileScreen() {
             onPress: () => { if (!query.isFetching) void query.refetch(); } }} /> : null}
 
         {query.data ? <>
-          <View style={styles.identity}>
-            <View style={styles.titleRow}>
-              <View style={styles.channelBadge}><Text style={styles.channelText}>{query.data.channelLabel}</Text></View>
-              <Text accessibilityRole="header" style={styles.title}>{query.data.name}</Text>
+          <View style={styles.storeIdentity}>
+            {query.data.brandLogoUrl ? (
+              <View style={styles.storeLogo}>
+                <Image source={{ uri: query.data.brandLogoUrl }} style={styles.storeLogoImage} resizeMode="contain"
+                  accessibilityLabel={`${query.data.brandName ?? query.data.name} 로고`} />
+              </View>
+            ) : (
+              <View accessibilityLabel="로고 미등록" style={styles.storeLogoPlaceholder}>
+                <Text style={styles.storeLogoPlaceholderText}>로고{"\n"}미등록</Text>
+              </View>
+            )}
+            <View style={styles.storeNameRow}>
+              <View style={styles.storeChannelBadge}><Text style={styles.storeChannelText}>{query.data.channelLabel}</Text></View>
+              <Text numberOfLines={1} style={styles.storeName}>{query.data.name}</Text>
             </View>
-            {query.data.branchName ? <Text style={styles.branch}>{query.data.branchName}</Text> : null}
-            {query.data.subtitle ? <Text style={styles.subtitle}>{query.data.subtitle}</Text> : null}
+            {query.data.branchName || query.data.subtitle ? (
+              <Text style={styles.storeLocation}>
+                {[query.data.branchName, query.data.subtitle].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
           </View>
 
-          {query.data.link ? <View style={styles.links}>
-            <Text style={styles.sectionEyebrow}>연결</Text>
+          {query.data.link ? <View style={styles.storeLinks}>
+            <Text style={styles.storeLinkLabel}>연결</Text>
             <Pressable accessibilityRole="link"
-              accessibilityLabel={`${query.data.link.label}, ${query.data.link.host}, 새 창`}
+              accessibilityLabel={`${query.data.link.label}, 새 창`}
               onPress={() => void openLink()}
-              style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
-              <View style={styles.linkCopy}>
-                <Text style={styles.linkLabel}>{query.data.link.label}</Text>
-                <Text numberOfLines={1} style={styles.linkHost}>{query.data.link.host}</Text>
-              </View>
-              <Text style={styles.external}>↗</Text>
+              style={({ pressed }) => [styles.storeLinkButton, pressed && styles.pressed]}>
+              <Text style={styles.storeLinkButtonText}>
+                {query.data.link.label === '지도 보기' ? '지도 링크 ↗' : `${query.data.link.label} ↗`}
+              </Text>
             </Pressable>
             {linkError ? <Text accessibilityRole="alert" style={styles.error}>링크를 열지 못했어요. 다시 시도해주세요.</Text> : null}
           </View> : null}
 
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>{query.data.kind === 'offline_branch' ? '이곳의 원픽' : '이 판매처의 원픽'}</Text>
-            {query.data.items.length ? <View style={styles.menuList}>
-              {query.data.items.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
-                accessibilityLabel={`${item.menuName}, 원픽 ${item.pickCount}, 상세 보기`}
-                onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.itemId } })}
-                style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
-                {item.thumbnailUrl ? <PickPhoto square uri={item.thumbnailUrl} label={item.menuName} itemId={item.itemId} /> : null}
-                <View style={styles.menuCopy}>
-                  <Text style={styles.menuName}>{item.menuName}</Text>
-                  <Text style={styles.pickCount}>원픽 {item.pickCount.toLocaleString()}</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </Pressable>)}
-            </View> : <StateCard compact title="아직 공개된 원픽이 없어요" text="이 제공처에서 메뉴 원픽이 생기면 여기에 표시돼요." />}
-          </View>
+          <View style={styles.storeDivider} />
+          <Text style={styles.storeSectionTitle}>{query.data.kind === 'offline_branch' ? '이곳의 원픽' : '이 판매처의 원픽'}</Text>
+
+          {query.data.items.length ? <View style={styles.storeMenuList}>
+            {query.data.items.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
+              accessibilityLabel={`${item.menuName}, 원픽 ${item.pickCount}, 상세 보기`}
+              onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.itemId } })}
+              style={({ pressed }) => [styles.storeMenuRow, pressed && styles.pressed]}>
+              <View style={styles.storeMenuCopy}>
+                <Text numberOfLines={1} style={styles.storeMenuName}>{item.menuName}</Text>
+                <Text style={styles.storePickCount}>원픽 {item.pickCount.toLocaleString()}</Text>
+                {item.latestReview ? <Text numberOfLines={1} style={styles.storeReview}>“{item.latestReview}”</Text> : null}
+              </View>
+              <Text style={styles.storeChevron}>›</Text>
+            </Pressable>)}
+          </View> : <StateCard compact title="아직 공개된 원픽이 없어요" text="이 제공처에서 메뉴 원픽이 생기면 여기에 표시돼요." />}
         </> : null}
       </ScrollView>
     </SafeAreaView>
@@ -175,6 +189,87 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
+  storeHeader: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    backgroundColor: OnePick.bgDefault,
+  },
+  storeHeaderSide: { width: 48, minHeight: 44, justifyContent: 'center' },
+  storeBackText: { ...OnePickType.headline, color: OnePick.textPrimary },
+  storeHeaderTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, color: OnePick.textPrimary, textAlign: 'center' },
+  storeContent: {
+    width: '100%',
+    maxWidth: 390,
+    minHeight: 720,
+    alignSelf: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingTop: OnePickSpace.sm,
+    paddingBottom: OnePickSpace.xxxl,
+    gap: OnePickSpace.md,
+  },
+  storeIdentity: { width: '100%', alignItems: 'center', gap: 7 },
+  storeLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: OnePick.bgSubtle,
+  },
+  storeLogoImage: { width: '100%', height: '100%' },
+  storeLogoPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: OnePick.bgSubtle,
+  },
+  storeLogoPlaceholderText: { ...OnePickType.caption, width: 56, color: OnePick.textSecondary, textAlign: 'center' },
+  storeNameRow: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7 },
+  storeChannelBadge: {
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+    borderRadius: OnePickRadius.full,
+    backgroundColor: OnePick.bgPlaceholder,
+  },
+  storeChannelText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
+  storeName: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
+  storeLocation: { ...OnePickType.caption, color: OnePick.muted, textAlign: 'center' },
+  storeLinks: { alignItems: 'flex-start', gap: 9 },
+  storeLinkLabel: { ...OnePickType.captionMedium, color: OnePick.muted },
+  storeLinkButton: {
+    minHeight: 41,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: OnePickRadius.md,
+    borderWidth: 1,
+    borderColor: OnePick.border,
+    backgroundColor: OnePick.bgDefault,
+  },
+  storeLinkButtonText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  storeDivider: { width: '100%', height: 1, backgroundColor: OnePick.border },
+  storeSectionTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  storeMenuList: { width: '100%' },
+  storeMenuRow: {
+    width: '100%',
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: OnePick.border,
+  },
+  storeMenuCopy: { flex: 1, minWidth: 0, minHeight: 62, justifyContent: 'center', gap: 2 },
+  storeMenuName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  storePickCount: { ...OnePickType.caption, color: OnePick.muted },
+  storeReview: { ...OnePickType.caption, color: OnePick.textTertiary },
+  storeChevron: { ...OnePickType.title, color: OnePick.textTertiary, marginRight: 30 },
   loading: { marginVertical: 36 },
   identity: { alignItems: 'center', paddingVertical: 18 },
   brandLogo: { width: 72, height: 72, marginBottom: 12 },

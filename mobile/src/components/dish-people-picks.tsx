@@ -48,7 +48,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
     <HomeFeedCard pick={pick} mine={isMine} menuContext={menuContext}
       onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
       onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
-      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId! } }) : undefined}
+      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
       onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
 
@@ -58,7 +58,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
     itemPickCountLabel={`${itemCounts.get(pick.itemId) ?? 1}${countSuffix}`}
     onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
     onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
-    onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId! } }) : undefined}
+    onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
     onOpenComments={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
   />;
   const loadMore = () => {

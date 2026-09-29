@@ -80,10 +80,10 @@ export default function HomeScreen() {
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
   // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  // A menu card opens that menu's page (ranking + everyone's Picks) before any
-  // registration; the page has its own "원픽 고르기" button.
+  // A menu card opens the production menu-detail screen (Figma 16A). Rankings
+  // remain a separate explicit surface rather than replacing the menu detail.
   const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
-  const openMenu = (category: { slug: string }) => router.push({ pathname: '/ranking/[slug]', params: { slug: category.slug } });
+  const openMenu = (category: { slug: string }) => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } });
   const ready = !isLoading && !sessionError && Boolean(data);
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function HomeScreen() {
     <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
       onOpenItem={() => openItem(pick.itemId)}
       onOpenProfile={() => openProfile(pick.username)}
-      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId! } }) : undefined}
+      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
       onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
 

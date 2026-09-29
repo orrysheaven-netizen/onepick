@@ -40,20 +40,18 @@ export class CommentService {
     return this.readRepository.locateComment(commentId);
   }
 
-  async createComment(input: { pickId: string; userId: string; body: string }) {
+  async createComment(input: { pickId: string; userId: string; body: string; parentCommentId?: string | null }) {
     const body = normalizeBody(input.body);
-    const [pick, profile] = await Promise.all([
-      this.pickRepository.getById(input.pickId),
-      this.profileRepository.getById(input.userId),
-    ]);
-    if (!pick) throw new AppError('PICK_NOT_FOUND');
-    if (pick.status !== 'active') throw new AppError('FORBIDDEN');
+    const profile = await this.profileRepository.getById(input.userId);
     if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
+    // Do not preflight Pick status here. The server/RLS owns the current
+    // same-item+channel-or-review-author rule, including ended reviews.
     const comment = await this.commentRepository.create({
       pickId: input.pickId,
       userId: input.userId,
       body,
+      parentCommentId: input.parentCommentId ?? null,
     });
     return { comment, author: profile };
   }

@@ -4,6 +4,7 @@ export interface CreateCommentInput {
   pickId: string;
   userId: string;
   body: string;
+  parentCommentId?: string | null;
 }
 
 export interface UpdateCommentInput {

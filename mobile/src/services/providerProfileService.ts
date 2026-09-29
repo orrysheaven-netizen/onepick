@@ -17,6 +17,7 @@ export interface ProviderProfileItem {
   itemName: string;
   thumbnailUrl: string | null;
   pickCount: number;
+  latestReview: string | null;
 }
 
 export interface ProviderProfileLink {
@@ -101,7 +102,8 @@ type ProviderItemRow = {
   image_source_url: string | null;
 };
 type ProviderCategoryRow = { id: string; name: string; status: string; is_visible: boolean };
-type PickCountRow = { item_id: string };
+type ProviderBrandRow = { id: string; name: string; logo_path: string | null; is_active: boolean };
+type PickCountRow = { item_id: string; one_line_review?: string | null; started_at?: string | null };
 
 function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
   const path = row.thumbnail_path ?? row.image_path;
@@ -124,25 +126,34 @@ export class ProviderProfileService {
     return client as unknown as SupabaseClient;
   }
 
-  private async activePickCounts(itemIds: string[]) {
+  private async activePickStats(itemIds: string[]) {
     const counts = new Map<string, number>();
-    if (!itemIds.length) return counts;
+    const latestReviews = new Map<string, { review: string; startedAt: string }>();
+    if (!itemIds.length) return { counts, latestReviews };
 
     let from = 0;
     while (true) {
       const { data, error } = await this.db(this.countClient)
         .from('picks')
-        .select('item_id')
+        .select('item_id,one_line_review,started_at')
         .in('item_id', itemIds)
         .eq('status', 'active')
         .range(from, from + COUNT_PAGE_SIZE - 1);
       if (error) throw mapSupabaseError(error);
       const rows = (data ?? []) as PickCountRow[];
-      for (const row of rows) counts.set(row.item_id, (counts.get(row.item_id) ?? 0) + 1);
+      for (const row of rows) {
+        counts.set(row.item_id, (counts.get(row.item_id) ?? 0) + 1);
+        const review = row.one_line_review?.trim();
+        const startedAt = row.started_at ?? '';
+        const previous = latestReviews.get(row.item_id);
+        if (review && (!previous || startedAt > previous.startedAt)) {
+          latestReviews.set(row.item_id, { review, startedAt });
+        }
+      }
       if (rows.length < COUNT_PAGE_SIZE) break;
       from += COUNT_PAGE_SIZE;
     }
-    return counts;
+    return { counts, latestReviews };
   }
 
   async get(providerId: string): Promise<ProviderProfile> {
@@ -160,41 +171,72 @@ export class ProviderProfileService {
       throw new AppError('PROVIDER_NOT_FOUND');
     }
 
-    let subtitle: string | null = null;
-    let link: ProviderProfileLink | null = null;
-
-    if (provider.kind === 'offline_branch' && provider.place_id) {
-      const { data, error } = await this.db().from('places')
-        .select('id,road_address,address,region_1,region_2,map_url')
-        .eq('id', provider.place_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const place = data as PlaceRow | null;
-      if (place) {
-        subtitle = displayAddress(place);
+    // After the provider row is known, location, brand identity and item mapping
+    // are independent. Start them together so the profile does not pay three
+    // network round trips serially before it can load the menu list.
+    const locationPromise = (async (): Promise<{ subtitle: string | null; link: ProviderProfileLink | null }> => {
+      if (provider.kind === 'offline_branch' && provider.place_id) {
+        const { data, error } = await this.db().from('places')
+          .select('id,road_address,address,region_1,region_2,map_url')
+          .eq('id', provider.place_id)
+          .maybeSingle();
+        if (error) throw mapSupabaseError(error);
+        const place = data as PlaceRow | null;
+        if (!place) return { subtitle: null, link: null };
         const safe = safeChannelUrl(place.map_url);
-        if (safe) link = { label: '지도 보기', ...safe };
+        return {
+          subtitle: displayAddress(place),
+          link: safe ? { label: '지도 보기', ...safe } : null,
+        };
       }
-    } else if (provider.kind === 'online_store' && provider.online_store_id) {
-      const { data, error } = await this.db().from('online_stores')
-        .select('id,host,official_url')
-        .eq('id', provider.online_store_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const store = data as OnlineStoreRow | null;
-      if (store) {
-        subtitle = store.host;
+      if (provider.kind === 'online_store' && provider.online_store_id) {
+        const { data, error } = await this.db().from('online_stores')
+          .select('id,host,official_url')
+          .eq('id', provider.online_store_id)
+          .maybeSingle();
+        if (error) throw mapSupabaseError(error);
+        const store = data as OnlineStoreRow | null;
+        if (!store) return { subtitle: null, link: null };
         const safe = safeChannelUrl(store.official_url);
-        if (safe) link = { label: '공식몰 보기', ...safe };
+        return {
+          subtitle: store.host,
+          link: safe ? { label: '공식몰 보기', ...safe } : null,
+        };
       }
-    }
+      return { subtitle: null, link: null };
+    })();
 
-    const { data: mappingData, error: mappingError } = await this.db()
+    const brandPromise = (async (): Promise<{ brandName: string | null; brandLogoUrl: string | null }> => {
+      if (!provider.brand_id) return { brandName: null, brandLogoUrl: null };
+      const { data: brandData, error: brandError } = await this.db().from('brands')
+        .select('id,name,logo_path,is_active')
+        .eq('id', provider.brand_id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (brandError) throw mapSupabaseError(brandError);
+      const brand = brandData as ProviderBrandRow | null;
+      return {
+        brandName: brand?.name ?? null,
+        brandLogoUrl: brand?.logo_path
+          ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
+          : null,
+      };
+    })();
+
+    const mappingPromise = this.db()
       .from('item_providers')
       .select('item_id,category_id,provider_id')
       .eq('provider_id', providerId);
-    if (mappingError) throw mapSupabaseError(mappingError);
-    const mappings = (mappingData ?? []) as ItemProviderRow[];
+
+    const [location, brand, mappingResult] = await Promise.all([
+      locationPromise,
+      brandPromise,
+      mappingPromise,
+    ]);
+    if (mappingResult.error) throw mapSupabaseError(mappingResult.error);
+    const { subtitle, link } = location;
+    const { brandName, brandLogoUrl } = brand;
+    const mappings = (mappingResult.data ?? []) as ItemProviderRow[];
     const itemIds = mappings.map((row) => row.item_id);
     const categoryIds = [...new Set(mappings.map((row) => row.category_id))];
 
@@ -209,12 +251,12 @@ export class ProviderProfileService {
         link,
         items: [],
         brandId: provider.brand_id,
-        brandName: null,
-        brandLogoUrl: null,
+        brandName,
+        brandLogoUrl,
       };
     }
 
-    const [itemsResult, categoriesResult, counts] = await Promise.all([
+    const [itemsResult, categoriesResult, pickStats] = await Promise.all([
       this.db().from('items')
         .select('id,name,category_id,status,image_path,thumbnail_path,image_source_url')
         .in('id', itemIds)
@@ -224,7 +266,7 @@ export class ProviderProfileService {
         .in('id', categoryIds)
         .eq('status', 'open')
         .eq('is_visible', true),
-      this.activePickCounts(itemIds),
+      this.activePickStats(itemIds),
     ]);
     if (itemsResult.error) throw mapSupabaseError(itemsResult.error);
     if (categoriesResult.error) throw mapSupabaseError(categoriesResult.error);
@@ -242,7 +284,8 @@ export class ProviderProfileService {
           menuName: category.name,
           itemName: item.name,
           thumbnailUrl: publicUrl(this.client, item),
-          pickCount: counts.get(item.id) ?? 0,
+          pickCount: pickStats.counts.get(item.id) ?? 0,
+          latestReview: pickStats.latestReviews.get(item.id)?.review ?? null,
         }];
       })
       .sort((a, b) => b.pickCount - a.pickCount || a.menuName.localeCompare(b.menuName, 'ko'));
@@ -257,8 +300,8 @@ export class ProviderProfileService {
       link,
       items,
       brandId: provider.brand_id,
-      brandName: null,
-      brandLogoUrl: null,
+      brandName,
+      brandLogoUrl,
     };
   }
 

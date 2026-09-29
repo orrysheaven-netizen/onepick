@@ -12,7 +12,7 @@ assert.equal(constants.OnePickMvp.publicPickChannel, 'offline');
 assert.equal(constants.OnePickFeatures.foodChannelPicker, false);
 
 const pickRoute = read('src/app/pick/[pickId].tsx');
-assert.match(pickRoute, /hiddenFutureChannel = Boolean\(/);
+assert.match(pickRoute, /hiddenFutureChannel = needsPickLookup && Boolean\(/);
 assert.match(pickRoute, /!OnePickFeatures\.foodChannelPicker/);
 assert.match(pickRoute, /pickQuery\.data\.pick\.channel !== OnePickMvp\.publicPickChannel/);
 assert.match(pickRoute, /: hiddenFutureChannel \? <View style=\{styles\.state\}>/);

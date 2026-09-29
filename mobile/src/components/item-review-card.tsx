@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickManagement, PickManagementActions, type PickManagementMode } from '@/components/pick-management';
 import { PickShareActions } from '@/components/pick-share-actions';
 import { Avatar } from '@/components/ui';
@@ -9,12 +10,13 @@ import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
+
 /**
  * One review row on an item. The list stays compact: review body and comment
  * count open the dedicated conversation route instead of expanding replies here.
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
-  pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
+export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved }: {
+  pick: Pick; profile: Profile | null; categoryName: string; itemName: string; itemId: string;
   highlighted: boolean; onRemoved: () => void;
 }) {
   const router = useRouter();
@@ -25,7 +27,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
   const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const commentCount = pick.commentCount ?? 0;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } });
+  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -43,7 +45,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
             ) : <Text style={styles.username}>사용자</Text>}
           </View>
         </>}
-        {isCurrent ? <Text style={styles.currentBadge}>✓ 이 집 원픽</Text> : null}
+        {isCurrent ? <CurrentPickFlag /> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
@@ -80,7 +82,6 @@ const styles = StyleSheet.create({
   profileLink: { minHeight: 36, justifyContent: 'center' },
   review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 10 },
   myReview: { fontWeight: '600' },
-  currentBadge: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 15, fontWeight: '800' },
   history: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginVertical: 10 },
   commentLink: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center', paddingRight: 12 },
   commentLinkText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
