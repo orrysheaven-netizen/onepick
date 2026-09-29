@@ -9,6 +9,19 @@ export const ITEM_CHANNEL_LINK_LABELS: Record<LinkChannel, string> = {
   online: '온라인몰에서 보기',
 };
 
+/**
+ * Phone and tablet browsers leave the item page for the store link in the same tab.
+ * A new tab there is handed straight to an app (naver.me opens the Naver app, which
+ * then opens Naver Map), so the tab stays blank and is what people see when they
+ * switch back to the browser. Desktop browsers keep opening a new tab.
+ */
+export function opensLinkInSameTab(nav: { userAgent?: string; maxTouchPoints?: number } | null | undefined): boolean {
+  const ua = nav?.userAgent ?? '';
+  if (/iPhone|iPad|iPod|Android|Mobi/i.test(ua)) return true;
+  // iPadOS reports a Mac user agent; only touch tells them apart.
+  return /Macintosh/.test(ua) && (nav?.maxTouchPoints ?? 0) > 1;
+}
+
 /** Mirrors item_channels_target_url_shape; anything else is dropped rather than opened. */
 export function safeChannelUrl(value: unknown): { url: string; host: string } | null {
   if (typeof value !== 'string') return null;
