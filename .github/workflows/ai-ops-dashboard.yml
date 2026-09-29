@@ -142,12 +142,12 @@ jobs:
 
           if not all_points:
               status = "집계할 완료 작업이 아직 없습니다."
-          elif 55 <= codex_pct <= 65:
-              status = "목표 범위(55~65% Codex) 안입니다."
-          elif codex_pct > 65:
-              status = "Codex 비중이 높습니다. 다음 Claude 담당 가능 M/L 작업을 Claude에 우선 배정합니다."
+          elif 50 <= codex_pct <= 60:
+              status = "55:45 참고선의 일반 균형 범위(Codex 50~60%) 안입니다."
+          elif codex_pct > 60:
+              status = "Codex 비중이 참고선보다 높습니다. PM은 현재 가용 자원과 전문성을 보고 Claude 배정을 늘릴 수 있습니다."
           else:
-              status = "Claude 비중이 높습니다. 다음 제품 M/L 작업을 Codex에 우선 배정할 수 있습니다."
+              status = "Claude 비중이 참고선보다 높습니다. 비율만으로 재배정하지 않고 PM 우선순위와 가용 자원에 따라 유지·조정합니다."
 
           blocked_rows = ["| #{} | {} | {} | {}h |".format(
               x["number"], safe(x["title"]), label_with_prefix(x, "size:"), age_hours(x))
@@ -173,10 +173,10 @@ jobs:
               '| Codex | {cp} | {cpercent}% |',
               '| Claude | {ap} | {apercent}% |',
               '',
-              '목표: **Codex 60% : Claude 40%** · 정상 범위: Codex 55~65%  ',
+              '참고선: **Codex 55% : Claude 45%** · 일반 균형 범위: Codex 50~60% · 고정 quota 아님  ',
               '판정: {status}',
               '',
-              '> 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선합니다.',
+              '> 실제 배정은 PM 우선순위·전문성·가용 자원에 따라 동적으로 조정하며, 고위험 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선합니다.',
               '',
               '## Codex 작업',
               '',
@@ -204,7 +204,7 @@ jobs:
               '',
               '---',
               '',
-              '운영 규칙: docs/ai-role-division.md · 전환 기준: #295',
+              '운영 규칙: docs/ai-role-division.md · #295의 60:40은 역사적 기준이며 최신 55:45 동적 배정이 우선',
               '',
           ]).format(
               since=since, cp=codex_points, cpercent=codex_pct,

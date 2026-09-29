@@ -1,10 +1,10 @@
 # OnePick 공용 작업 원칙
 
-최종 갱신: 2026-09-28  
+최종 갱신: 2026-09-29  
 적용 대상: ChatGPT/Codex, Claude Code, OnePick 관련 모든 작업
 
-이 문서는 사용자가 대화에서 확정한 **공통 작업 원칙의 우선 참조 문서**다.  
-ChatGPT/Codex와 Claude Code는 작업 시작 전 이 문서를 먼저 확인한다.
+이 문서는 사용자가 대화에서 확정한 **공통 작업 원칙 문서**다. 권한 순서는 아래 §1을 따르며, 사용자의 최신 지시와 `docs/pm/`의 현재 PM 기준 다음에 적용된다.  
+ChatGPT/Codex와 Claude Code는 작업 시작 시 이 문서와 `docs/pm/`을 함께 확인한다.
 
 ## 1. 우선순위
 
@@ -13,12 +13,26 @@ ChatGPT/Codex와 Claude Code는 작업 시작 전 이 문서를 먼저 확인한
 충돌 시 기본 적용 순서는 다음과 같다.
 
 1. 사용자가 가장 최근에 확정한 지시
-2. 이 공용 작업 원칙 및 이후 갱신된 최신 공용 문서
-3. 해당 작업의 최신 명세·디자인·PRD 문서
-4. 기존 역할 분담·기술 문서
-5. 과거 대화·이전 협의 내용
+2. 총괄 PM 운영 기준(`docs/pm/README.md`, `docs/pm/current-priorities.md`, #553)
+3. 이 공용 작업 원칙 및 이후 갱신된 최신 공용 문서
+4. 해당 작업의 최신 명세·디자인·PRD 문서
+5. 기존 역할 분담·기술 문서
+6. 과거 대화·이전 협의 내용
 
 오래된 문서나 대화 기록을 근거로 최신 결정을 되돌리지 않는다.
+
+### 총괄 PM 및 조직
+
+2026-09-29부터 **ChatGPT가 OnePick 총괄 PM**을 맡는다. 공식 조직·우선순위·부서별 업무 기준은 `docs/pm/`에서 관리한다.
+
+- `docs/pm/README.md`: PM 운영 원칙과 조직 구조
+- `docs/pm/current-priorities.md`: 지금 무엇을 먼저 할지
+- `docs/pm/current-status.md`: 현재 프로젝트 단계
+- `docs/pm/departments/`: Product, UX, Engineering, Data/DB, QA/Security, Release/운영
+- GitHub #553: 웹 PM 대시보드
+- GitHub #296: 실제 owner/handoff 실행 상태
+
+PM도 사용자의 최신 지시와 Production 승인 게이트를 우회할 수 없다.
 
 ## 2. 극초기 MVP 원칙
 
@@ -125,7 +139,7 @@ Claude는 해당 영역의 기본 구현자가 아니라 독립 리뷰·QA 역�
 
 이 원칙은 Figma뿐 아니라 앱 구현, DB, 관리자 화면, QA, 문서화, 자동화, 작업 인계에도 공통으로 적용한다.
 
-세부 구현 규칙은 각 전문 문서(`docs/design-foundations.md`, `docs/ai-role-division.md` 등)를 따르되, **이 문서 또는 이후의 최신 사용자 지시와 충돌하면 최신 기준을 우선**한다.
+세부 구현 규칙은 각 전문 문서(`docs/pm/`, `docs/design-foundations.md`, `docs/ai-role-division.md` 등)를 따르되, **이 문서 또는 이후의 최신 사용자 지시와 충돌하면 최신 기준을 우선**한다.
 
 ## 10. 문서 유지
 
