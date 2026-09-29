@@ -256,6 +256,11 @@ export default function ProfileScreen() {
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 보기" onPress={() => router.push('/comments')}
+            style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>댓글</Text><Text style={styles.managementText}>내가 작성한 댓글과 답글을 확인합니다.</Text></View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
           {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
           </Pressable> : null}
