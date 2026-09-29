@@ -3,8 +3,8 @@
 최종 갱신: 2026-09-29  
 적용 대상: ChatGPT/Codex, Claude Code, OnePick 관련 모든 작업
 
-이 문서는 사용자가 대화에서 확정한 **공통 작업 원칙의 우선 참조 문서**다.  
-ChatGPT/Codex와 Claude Code는 작업 시작 전 이 문서를 먼저 확인한다.
+이 문서는 사용자가 대화에서 확정한 **공통 작업 원칙 문서**다. 권한 순서는 아래 §1을 따르며, 사용자의 최신 지시와 `docs/pm/`의 현재 PM 기준 다음에 적용된다.  
+ChatGPT/Codex와 Claude Code는 작업 시작 시 이 문서와 `docs/pm/`을 함께 확인한다.
 
 ## 1. 우선순위
 
