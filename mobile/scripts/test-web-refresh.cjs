@@ -87,7 +87,8 @@ async function main() {
     auth.isLoading = true; view.render(); assert.equal(button(view, homeLabel), undefined);
     auth.isLoading = false; auth.error = new Error('offline'); view.render(); assert.equal(button(view, homeLabel), undefined);
   });
-  await test('Web following refresh remains available when empty and only refreshes the visible scope', () => {
+  await test('Web following refresh remains available when the future follow flag is enabled', () => {
+    flags.follow = true;
     const { view, home, following, auth, calls } = fixture('home');
     view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[2], false); assert.equal(calls.following[1], true);
@@ -188,6 +189,7 @@ async function main() {
   await test('Native iOS and Android keep pull refresh instead of normal manual controls', async () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
     for (const platform of ['ios', 'android']) {
+      flags.follow = true;
       const h = fixture('home', platform); assert.equal(button(h.view, homeLabel), undefined);
       h.view.find('RefreshControl').onRefresh(); assert.equal(h.home.refetches, 1);
       h.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); h.view.render();
