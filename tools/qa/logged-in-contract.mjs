@@ -16,6 +16,12 @@ export async function assertOwnProfile(page, username, timeout = 15_000) {
   await page.getByText(username, { exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
 
+export async function assertPublicProfile(page, timeout = 15_000) {
+  // Ignore controls on a still-mounted, hidden own-profile screen.
+  await page.getByRole('button', { name: '음식 원픽 보기', exact: true })
+    .filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+}
+
 export async function checkMenuSelection(page, menuName, timeout = 15_000, allowAi = true) {
   await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout });
   await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(menuName, { timeout });

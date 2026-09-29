@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
-import { SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, checkMenuSelection, assertNotifications, openOwnComments, openNotificationsTab } from './logged-in-contract.mjs';
+import { SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications, openOwnComments, openNotificationsTab } from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
@@ -507,11 +507,7 @@ async function main() {
       await page.getByText('공개 프로필 보기').first().click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
-      // The public profile's summary card reads "음식 원픽 N개" since #445 (before: "현재 원픽").
-      // Only visible matches count: a still-mounted own-profile screen can hold the same label
-      // while hidden.
-      await page.getByText(/^(음식|현재) 원픽$/).filter({ visible: true }).first()
-        .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await assertPublicProfile(page, STEP_TIMEOUT_MS);
       await noErrorCopy(page);
     });
     // Own profile screens show the account's handle: no screenshots here.

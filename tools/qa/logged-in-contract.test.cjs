@@ -32,6 +32,17 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await set('<div>qa_user</div><button>로그인하기</button>');
       await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout));
     });
+    await t.test('public profile accepts the current food control and rejects legacy or hidden controls', async () => {
+      const food = '<button aria-label="음식 원픽 보기">음식</button>';
+      await set(`${food}<div>아직 공개된 음식 원픽이 없어요</div>`);
+      await api.assertPublicProfile(page, timeout);
+      await set(`<div hidden>${food}</div>${food}<div>공개 원픽 목록</div>`);
+      await api.assertPublicProfile(page, timeout);
+      for (const label of ['현재 원픽', '음식 원픽']) {
+        await set(`<div hidden>${food}</div><div>${label}</div>`);
+        await assert.rejects(api.assertPublicProfile(page, timeout));
+      }
+    });
     await t.test('profile comments and notification tab really navigate', async () => {
       await set('<button onclick="history.pushState({}, \'\', \'/comments\')">내 댓글 보기</button>');
       await api.openOwnComments(page, timeout);
