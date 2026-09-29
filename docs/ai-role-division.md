@@ -46,7 +46,7 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - Codex M/L 및 고위험 PR 독립 리뷰
 - PM 또는 handoff로 명시적으로 위임받은 구현
 - Figma 화면의 UX 일관성·접근성·Foundations 준수·앱 정합성 독립 검수
-- 일반 앱/UI S/M 버그와 확정 Product/Figma 계약 반영
+- **PM 또는 handoff로 배정된 경우에만** 일반 앱/UI S/M 버그와 확정 Product/Figma 계약 반영
 - 성능 개선 및 성능 관련 리팩터링
 - QA 자동화·테스트 도구 구현
 - Release/운영 검증 도구·배포 정합성 도구 구현
