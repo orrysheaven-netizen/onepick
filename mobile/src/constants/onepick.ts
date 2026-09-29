@@ -155,6 +155,7 @@ export const OnePickMvp = {
 // Client-side exposure thresholds, not API limits or service-wide totals.
 export const OnePickThresholds = {
   exploreRankingMinPicks: 3, // Number of people choosing the rank-1 item, not the sum.
+  homeRecentMenuCountMinPicks: 3, // 7-day Home menu stays visible below this; only its count is hidden.
   homeCategoryFilterMinPicks: 20, // Unfiltered Picks currently loaded in Home.
   rankingPageSize: 20, // Rows on /ranking/[slug]; the RPC caps at 50. Mirrored in functions/ranking/[slug].ts.
 } as const;
