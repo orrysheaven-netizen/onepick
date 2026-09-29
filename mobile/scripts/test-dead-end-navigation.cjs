@@ -30,7 +30,8 @@ for (const file of ['src/app/u/[username].tsx', 'src/app/settings.tsx', 'src/app
 
 const profile = read('src/app/u/[username].tsx');
 assert.match(profile, /프로필을 찾을 수 없어요[\s\S]{0,200}label: '홈으로'/, 'missing profile screen needs a way home');
-assert.match(profile, /onBlocked=\{\(\) => router\.canGoBack\(\) \? router\.back\(\) : router\.replace\('\/'\)\}/);
+assert.match(profile, /const goBack = \(\) => router\.canGoBack\(\) \? router\.back\(\) : router\.replace\('\/'\);/);
+assert.match(profile, /onBlocked=\{goBack\}/);
 
 // Onboarding: a signed-out visit or a failed load must not spin forever.
 const onboarding = read('src/app/onboarding.tsx');

@@ -43,14 +43,28 @@ assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRo
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: publicMainPicks\.length \}\)/, 'owner profile share uses the same public food-only count as the public profile');
 
-assert.match(publicProfile, /<Text style={styles\.summaryLabel}>음식 원픽<\/Text><Text style={styles\.summaryNumber}>{publicMainPicks\.length}개<\/Text>/, 'public summary makes its food-only count explicit');
-assert.match(publicProfile, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'public collection uses the same taste-tab section header as the owner profile');
+const publicHeaderIndex = publicProfile.indexOf('<View style={styles.publicHeader}>');
+const publicBodyIndex = publicProfile.indexOf('<View style={styles.publicBody}>');
+const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <PublicProfilePickRow');
+const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
+const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
+const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');
+
+assert.ok(publicHeaderIndex >= 0, 'public Figma 40 header is missing');
+assert.ok(publicBodyIndex > publicHeaderIndex, 'public Figma 40 body follows the header');
+assert.ok(publicPicksIndex > publicBodyIndex, 'public Figma 40 uses direct current-Pick rows');
+assert.ok(publicInfoIndex > publicPicksIndex, 'optional public profile tools stay below the Figma 40 primary view');
+assert.ok(publicTasteIndex > publicInfoIndex, 'public taste composition remains retained after the primary view');
+assert.ok(publicAiIndex > publicTasteIndex, 'public AI remains retained after taste composition');
+assert.match(publicProfile, /<Chip label="음식"/);
+assert.match(publicProfile, /<Chip label="다른 취향"/);
 assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
-assert.doesNotMatch(publicProfile, /sectionTitle:/);
+assert.doesNotMatch(publicProfile, /<SectionHeader/);
+assert.doesNotMatch(publicProfile, /summaryCard/);
 
 assert.match(aiComment, /<SectionHeader title=\{sectionTitle\} \/>/, 'AI section title uses the same kit header as the collection sections');
 assert.doesNotMatch(aiComment, /sectionTitle:/);
 assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 \}/, 'AI card is an accent-soft card on the shared radius');
 
-console.log('Profile core hierarchy checks passed: error-only header refresh, feature gates, single owner count, and consistent section hierarchy.');
+console.log('Profile core hierarchy checks passed: Figma 03 owner and Figma 40 public primary views lead, with optional tools retained below.');

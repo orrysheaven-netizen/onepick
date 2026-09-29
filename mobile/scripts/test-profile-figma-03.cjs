@@ -27,9 +27,9 @@ const bodyIndex = profile.indexOf('<View style={styles.profileBody}>');
 const managementIndex = profile.indexOf('<View style={styles.managementSection}>');
 assert.ok(bodyIndex >= 0 && managementIndex > bodyIndex, 'management utilities must remain below the Figma 03 primary profile body');
 
-assert.match(photo, /size\?: 64 \| 86/);
+assert.match(photo, /size\?: 62 \| 64 \| 86/);
 assert.match(photo, /thumb64: \{ width: 64, height: 64, borderRadius: 8 \}/);
-assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 72/);
+assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 68 \| 72/);
 assert.match(avatar, /tone\?: 'accent' \| 'subtle'/);
 assert.match(avatar, /subtle: \{ backgroundColor: OnePick\.bgSubtle \}/);
 
