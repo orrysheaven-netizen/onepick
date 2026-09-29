@@ -100,18 +100,24 @@ unknown-response reconciliation and idempotent writes. The local adapter allows 
 to three delivery attempts with at least 30 seconds between them, triggered by an
 event/operator, not LLM polling. A real asynchronous PM ack receiver is still absent.
 
-## Current PM ingress blocker
+## Current delivery boundary — 2026-09-30 update
 
-The in-agent `send_message_to_thread` tool is not an external-program API.
-[Official event tasks](https://learn.chatgpt.com/docs/automations#trigger-tasks-from-app-events)
-support eligible web/mobile chats, not desktop/CLI/IDE. [MCP Events](https://developers.openai.com/plugins/build/mcp-events)
-supports delivery to a subscribed chat via a ChatGPT-issued callback/signing secret;
-no such subscription for desktop PM-2 has been obtained. [App Server](https://learn.chatgpt.com/docs/app-server)
-documents client integration, but its experimental server/WebSocket is not supported
-for production. The installed CLI's default `app-server proxy` read-only probe failed
-before handshake with Windows socket error 10050. This is a current unavailable path,
-not proof all future connections are impossible. No private endpoints/tokens/app DB
-were used. Actual external→PM notification/acknowledgement remains unverified.
+Approved receiver: web chat `6abc3c85-8b7c-83e8-8107-fed0909d0b6b`
+(current title: GitHub 이벤트 설정 확인). PR #578 comment subscription:
+`6abc3d6e8ee88191b784c0b887be747b`. The [one-shot test](https://github.com/orrysheaven-netizen/onepick/pull/578#issuecomment-5900501553)
+used existing GitHub CLI User account `orrysheaven-netizen`, explicitly identifying
+Codex automatic authorship. Event `onepick-report-test-578-958bf5fb-001` was posted
+at 22:44:43 UTC on 2026-09-29. Receiver diagnostics report webhook at 22:44:51 and
+acknowledgement at 22:45:45, delivery `5d490840-bc57-11f1-96fa-0f889a3cd6fb`.
+Raw webhook execution is not exposed locally; these timestamps are attributed to
+the receiver diagnostic. Its last_run_time remained null, not proof of no delivery.
+
+Verified boundary: User-account automatic PR comment → receiver chat, one example.
+GitHub App bot comments are outside the receiver's reported support and untested.
+No credentials/permissions were changed, and the test did not use outbox transports.
+PM confirmed no official send-to-PM-2 tool in the receiver and no event destination
+retargeting. Automatic receiver → PM-2 forwarding is unsupported in this configuration;
+stop further cross-chat probes/tests. Receipt is not PM approval or full task handoff.
 
 ## #567 handoff package — prepared locally, not transmitted
 
@@ -237,24 +243,38 @@ result hash/receipt path, tests explicitly NOT RUN, and blockers. A repair resul
 uses task `repair-567`, source `pr-567-repair` and its actual new head. Do not label a
 static analysis report as repaired or reuse its event ID for changed content.
 
-Operator can stage a validated report using the outbox CLI above. Missing integrations:
-actual result-to-report assembly, GitHub publication/reconciliation ports, #567 queue
-connection, authenticated receiver and acknowledgement back into outbox. The selected
-web chat is `OnePick 자동 보고 수신` (`6abc3c85-8b7c-83e8-8107-fed0909d0b6b`);
-subscription activation and PM-2 forwarding are unverified. Only after subscription
-confirmation and PM posting instruction publish the existing #578 test once. Record
-actual comment URL, event ID and receipt timestamp; receipt is not PM acceptance.
-This package neither posts that test nor claims automatic delivery is implemented.
+Operator can stage reports locally; the test's verification report is now stored
+as `report-stored`, with zero delivery attempts. All outbox remote ports remain
+unimplemented. The one-shot GitHub CLI test is not the publisher implementation.
 
-Status separation: preparation COMPLETE locally; new instruction delivery NOT SENT;
-Claude analysis/repair NOT STARTED by this package; artifact verification LIMITED to
-packet schema/hash and existing offline adapter checks. Owner availability, approvals,
-worker deployment and real report transport remain unresolved.
+Minimum remaining steps from executor completion to report delivery:
+
+1. Convert the actual result/receipt, pinned head, test results and remaining issues
+   into the existing immutable report schema. Never convert failed work into success.
+2. Implement the real GitHub publication port within this outbox: fixed repository
+   and approved target PR, explicit automated authorship, stable event/report-hash
+   marker, full-page duplicate lookup, persist URL/author, reconcile lost responses
+   before repeating writes, bounded retries. Test duplicate/mismatched/unknown outcomes.
+3. Use only the existing approved operator authentication for operator-run publishing.
+   Unattended controller identity/isolation is not provisioned or approved. Do not
+   copy the user's token into the worker, add a PAT/App, expand permissions or disguise
+   automation. The GitHub App bot path is not a supported substitute for this test.
+4. Keep delivery at the receiver chat. No machine-readable receipt transport back to
+   outbox exists; do not fabricate pm_ack or acceptance. Subscription currently covers
+   #578 only. Other PRs need scoped subscription setup before claiming coverage.
+
+Existing delivery logic also requires #567 queue/review-label ports. When Claude's
+new head arrives, verify that contract before connecting them; direct comment success
+cannot bypass these steps. No new queue, execution labels or further test comment.
+
+Status: local packet prepared and NOT TRANSMITTED. User confirmed existing Claude
+#567 repair started in their session; no extra call or duplicate implementation here.
+Resulting PR/tests await verification. Worker and real outbox transport remain pending.
 
 ## Review and activation gates
 
 Draft only: opposite-AI security review, required CI and user merge approval remain.
 No proof of OS isolation, real CLI execution, billing enforcement by the provider,
-GitHub event integration, continuous service or PM ingress is claimed. #567 repair
-and review/merge, receiver-location decision and approved transport are prerequisites
+end-to-end worker/event integration, continuous service or PM-2 ingress is claimed.
+#567 repair and review/merge, approved controller identity and transport are prerequisites
 to activation. #486 remains blocked; no attempt counters are changed.
