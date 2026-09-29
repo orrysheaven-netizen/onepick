@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
+import { SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, checkMenuSelection, assertNotifications, openOwnComments, openNotificationsTab } from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
@@ -29,6 +30,8 @@ const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
 // store query is one of the screen's own placeholder examples.
 const STORE_QUERY = process.env.QA_STORE_QUERY || '을밀대';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
+// Opt-in registration safety only; not a guarantee that the entire live QA is offline.
+const BLOCK_MENU_AI = process.env.QA_BLOCK_MENU_AI === '1';
 // A non-Naver link keeps the check deterministic: the Edge Function does not fetch
 // it, so the suggestion comes only from the typed name matching the taxonomy.
 const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
@@ -131,12 +134,6 @@ async function actionable(locator) {
   await locator.first().click({ trial: true, timeout: STEP_TIMEOUT_MS });
 }
 
-// Escapes a value (e.g. an operator-supplied QA_* env var) for safe interpolation
-// into a RegExp source string.
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // Bottom tab bar items are `Pressable accessibilityRole="tab"` wrapped in
 // expo-router `Link asChild`, which injects `role="link"` on web; RN gives `role`
 // precedence, so the DOM exposes them as links. Accept either role.
@@ -218,6 +215,7 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
   const runtime = { pageErrors: [], consoleErrors: [], badResponses: [] };
+  let blockedMenuSuggestions = 0;
   let loginLabel = '실패';
   let supabase = null;
   let session = null;
@@ -233,7 +231,12 @@ async function main() {
     });
     if (!loggedIn) return;
 
-    const context = await browser.newContext({ ...device, locale: 'ko-KR' });
+    const context = await browser.newContext({ ...device, locale: 'ko-KR', ...(BLOCK_MENU_AI ? { serviceWorkers: 'block' } : {}) });
+    // Explicit safety mode only; do not change the scheduled QA's request policy.
+    if (BLOCK_MENU_AI) await context.route(SUGGESTION_ROUTE, async (route) => {
+      blockedMenuSuggestions += 1;
+      await route.abort('blockedbyclient');
+    });
     const page = await context.newPage();
     let flow = '로그인';
     page.on('pageerror', (e) => runtime.pageErrors.push({ flow, message: redact(String(e.message).slice(0, 200)) }));
@@ -246,12 +249,20 @@ async function main() {
     await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
 
     const appReady = await check('로그인', '앱이 로그인 상태로 인식', async () => {
+      // Read the app's own profile response, not arbitrary username-looking text.
+      // Keep only the username belonging to the authenticated QA user, never log the row.
+      const profileResponse = page.waitForResponse(async (response) => {
+        const url = new URL(response.url());
+        if (url.origin !== supabase.origin || url.pathname !== '/rest/v1/profiles' || !response.ok()) return false;
+        try { ownProfileUsername(await response.json(), session.user.id); return true; } catch { return false; }
+      }, { timeout: STEP_TIMEOUT_MS }).catch(() => null);
       await page.goto(`${BASE_URL}/profile`, { waitUntil: 'networkidle' });
-      const handle = page.locator('text=/^@[a-z0-9_.]+$/i').first();
-      await handle.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       if (await page.getByText('프로필을 완성해주세요').isVisible()) return { status: 'fail', detail: 'QA 계정에 사용자명이 없음' };
       if (await page.getByRole('button', { name: '로그인하기' }).isVisible()) throw new Error('프로필 화면이 비로그인 상태로 보임');
-      qaUsername = (await handle.innerText()).trim().replace(/^@/, '');
+      const response = await profileResponse;
+      if (!response) throw new Error('QA 계정의 프로필 응답을 확인하지 못함');
+      qaUsername = ownProfileUsername(await response.json(), session.user.id);
+      await assertOwnProfile(page, qaUsername);
       return '내 프로필 헤더 표시';
     });
     loginLabel = appReady ? '성공' : '세션 발급됨, 앱 인식 실패';
@@ -263,7 +274,7 @@ async function main() {
       await page.getByRole('textbox', { name: '항목명 검색' }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
-    for (const label of ['홈', '탐색', '프로필']) {
+    for (const label of ['홈', '탐색', '알림', '프로필']) {
       await check(flow, `하단 탭 "${label}"`, () => actionable(bottomTab(page, label)));
     }
     await check(flow, '하단 "원픽 등록" 버튼', () => actionable(page.getByRole('button', { name: '원픽 등록', exact: true })));
@@ -314,11 +325,12 @@ async function main() {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: '원픽 등록', exact: true }).click();
       // Store-first flow (#412): the button now opens /pick/new (a single-screen
-      // 6-step wizard), not the old /pick/find.
+      // 4-step wizard), not the old /pick/find.
       await page.waitForURL(/\/pick\/new/, { timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
     });
-    await check(flow, '매장 검색·선택 가능 (1/6 매장)', async () => {
+    await check(flow, '매장 검색·선택 가능 (1/4 매장)', async () => {
+      await page.getByText('1 / 4 · 오프라인 매장', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       // Step 1 searches stores/sellers by name (useStoreSearch → search_place_catalog
       // or a seller search), scoped to the default "매장" channel. Selecting a row
       // only sets local state (pickStore) and advances the step client-side — no
@@ -339,7 +351,7 @@ async function main() {
       try {
         await storeInput.fill(STORE_QUERY);
         const result = page.getByRole('button', { name: /선택$/ });
-        const noStore = page.getByText(/를 찾지 못했어요/);
+        const noStore = page.getByText('매장을 찾지 못했어요', { exact: true });
         const searchError = page.getByText('검색하지 못했어요');
         await result.first().or(noStore).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
           .catch(() => { throw new Error(`"${STORE_QUERY}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
@@ -354,21 +366,19 @@ async function main() {
         page.off('response', onRpcResponse);
       }
     });
-    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/6 메뉴)', async () => {
-      // Step 2 lists menus for the chosen store. Picking a chip only sets local
-      // state (chooseMenu, no network call); the "다음" button's press
+    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
+      // Step 2 selects a category for the menu; the "다음" button's press
       // (confirmMenu → selectItem.mutateAsync) is a write, so it is only
       // trial-clicked, never pressed.
-      const menuInput = page.getByRole('textbox', { name: '메뉴 검색', exact: true });
-      await menuInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new Error('매장 선택 후 메뉴 단계로 이동하지 않음'); });
-      await menuInput.fill(MENU_QUERY);
-      const chip = page.getByRole('button', { name: new RegExp(`^${escapeRegExp(MENU_QUERY)}$|^AI 추천 `) });
-      await chip.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new Error(`메뉴 검색 "${MENU_QUERY}"에 일치하는 메뉴·AI 추천 없음`); });
-      await chip.first().click();
-      const next = page.getByRole('button', { name: /\(으\)로 다음$/ });
-      await actionable(next);
+      const blockedBefore = blockedMenuSuggestions;
+      try {
+        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS, !BLOCK_MENU_AI);
+      } catch (error) {
+        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CHOICE_UNAVAILABLE') {
+          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/추천·다음 버튼 통과 판정 아님' };
+        }
+        throw error;
+      }
       await noErrorCopy(page);
       return '메뉴 선택 → "다음" 버튼 활성화 (제출하지 않음)';
     });
@@ -462,22 +472,21 @@ async function main() {
     }
 
     flow = '프로필';
-    // Bottom tabs read 프로필 / 댓글 since 1473bce (the "내" prefix was dropped).
+    // Comments are reached from the own profile, not a bottom tab.
     await check(flow, '프로필 탭 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await bottomTab(page, '프로필').first().click();
       await page.waitForURL(/\/profile/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByText(`@${qaUsername}`, { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await assertOwnProfile(page, qaUsername);
     });
     await check(flow, '핵심 요소 표시', async () => {
       // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
-      await page.getByText('음식 원픽').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await actionable(page.getByRole('button', { name: '프로필 새로고침' }));
+      await actionable(page.getByRole('button', { name: '음식 원픽 보기', exact: true }));
+      await actionable(page.getByRole('button', { name: '설정 열기', exact: true }));
       await noErrorCopy(page);
     });
-    await check(flow, '"댓글" 탭', async () => {
-      await bottomTab(page, '댓글').first().click();
-      await page.waitForURL(/\/comments/, { timeout: STEP_TIMEOUT_MS });
+    await check(flow, '프로필의 "내 댓글 보기"', async () => {
+      await openOwnComments(page);
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
       const empty = page.getByText('아직 남긴 댓글이 없어요');
       await rows.first().or(empty).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
@@ -534,20 +543,14 @@ async function main() {
     }
 
     flow = '알림';
-    await check(flow, '알림 진입 버튼', async () => {
-      for (const route of ['/', '/profile']) {
-        await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle' });
-        const button = page.getByRole('button', { name: /^알림 열기/ });
-        if (await button.count()) { await actionable(button); return `${route}에서 발견`; }
-      }
-      return { status: 'warn', detail: '홈·내 프로필에 알림 진입 버튼 없음 (/notifications 직접 이동만 가능)' };
+    await check(flow, '알림 탭 진입', async () => {
+      await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+      await openNotificationsTab(page);
     });
     await check(flow, '알림 화면', async () => {
       await page.goto(`${BASE_URL}/notifications`, { waitUntil: 'networkidle' });
-      await actionable(page.getByRole('button', { name: '홈으로' }));
-      if (await page.getByText('로그인하면 내 원픽에 달린 댓글').isVisible()) throw new Error('비로그인 안내가 표시됨');
+      const items = await assertNotifications(page);
       await noErrorCopy(page);
-      const items = await page.getByRole('button', { name: /알림, @/ }).count();
       return `알림 ${items}개`;
     });
     await shot(page, 'notifications');
@@ -628,6 +631,7 @@ async function main() {
   } catch (error) {
     record('실행', '스크립트', 'fail', String(error?.message ?? error).split('\n')[0].slice(0, 200));
   } finally {
+    if (blockedMenuSuggestions) record('원픽 등록', '안전 모드 검증 제한', 'warn', `추천 요청 ${blockedMenuSuggestions}건 차단 · 실제 AI 추천 미검증, 제품 회귀 판정 아님`);
     if (supabase && session) await revoke(supabase, session);
     await browser.close();
     const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
