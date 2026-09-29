@@ -100,6 +100,16 @@ const { default: Screen } = load('app/(tabs)/notifications.tsx', {
   '@/constants/onepick': require('./design-tokens.cjs'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useNotifications': { useNotifications: () => inbox },
+  '@/services': { commentService: { locateComment: async () => ({
+    rootCommentId: 'root-1',
+    pickId: 'pick-1',
+    itemId: 'item-1',
+    categoryId: 'cat',
+    channel: 'offline',
+    reviewIsCurrent: true,
+    reviewIsDeleted: false,
+    pageCursor: { timestamp: '2026-09-28T23:59:00Z', id: 'cursor-root' },
+  }) } },
 });
 
 async function main() {
@@ -147,16 +157,25 @@ async function main() {
 
   const commentButton = buttons.find((button) => button.accessibilityLabel?.includes('신라면 내 한줄평에 댓글'));
   assert.ok(commentButton);
-  commentButton.onPress();
+  await commentButton.onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'item-0');
   assert.equal(destination.params.pickId, 'pick-0');
   assert.equal(destination.params.notificationGroupId, 'comment:group-0');
   assert.equal(destination.params.notificationSnapshot, group(0).snapshot);
 
+  const replyButton = buttons.find((button) => button.accessibilityLabel?.includes('댓글에 답글'));
+  assert.ok(replyButton);
+  await replyButton.onPress();
+  assert.equal(destination.params.itemId, 'item-1');
+  assert.equal(destination.params.pickId, 'pick-1');
+  assert.equal(destination.params.rootCommentId, 'root-1');
+  assert.equal(destination.params.commentAfterTime, '2026-09-28T23:59:00Z');
+  assert.equal(destination.params.commentAfterId, 'cursor-root');
+
   const fixButton = buttons.find((button) => button.accessibilityLabel?.includes('수정해주세요'));
   assert.ok(fixButton);
-  fixButton.onPress();
+  await fixButton.onPress();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'item-4');
   assert.equal(destination.params.notificationKind, 'fix_needed');
@@ -168,7 +187,7 @@ async function main() {
   assert.doesNotMatch(notificationSource, /useReadNotificationGroup|markGroupRead/, 'inbox open must not mark read');
   const itemSource = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
   assert.match(itemSource, /useReadNotificationGroup/);
-  assert.match(itemSource, /if \(!user \|\| !query\.data \|\| !notificationGroupId \|\| !notificationSnapshot\) return/);
+  assert.match(itemSource, /notificationKind === 'reply' && !replyTargetLoaded/);
   assert.match(itemSource, /useRevisePendingItem/);
   assert.match(itemSource, /수정 내용 보내기/);
 
