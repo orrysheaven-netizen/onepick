@@ -14,7 +14,7 @@ assert.equal(constants.OnePickFeatures.foodChannelPicker, false);
 const pickRoute = read('src/app/pick/[pickId].tsx');
 assert.match(pickRoute, /hiddenFutureChannel = Boolean\(/);
 assert.match(pickRoute, /!OnePickFeatures\.foodChannelPicker/);
-assert.match(pickRoute, /query\.data\.pick\.channel !== OnePickMvp\.publicPickChannel/);
+assert.match(pickRoute, /pickQuery\.data\.pick\.channel !== OnePickMvp\.publicPickChannel/);
 assert.match(pickRoute, /query\.data && !hiddenFutureChannel/);
 assert.match(pickRoute, /지금은 매장에서 고른 음식 원픽만 공개하고 있어요/);
 
