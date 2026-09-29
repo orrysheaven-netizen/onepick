@@ -33,3 +33,7 @@
 ## 보고
 
 DB/API 계약 · migration · 권한 변화 · 테스트 · 독립 리뷰 · rollback · Production 적용 상태 · 앱 인계
+
+## 자체 점검 책임
+
+Data/DB 담당이 최신 main migration, Production migration history, RPC/RLS/권한 계약과 정합성을 직접 점검한다. Production 변경 없이 drift와 위험만 보고한다.
