@@ -116,10 +116,10 @@ async function main() {
 
   calls.length = 0;
   assert.equal(await service.markGroupRead('owner', 'comment:pick', '2026-09-29T00:00:00Z'), 2);
-  assert.deepEqual(calls[0], ['mark_notification_group_read', {
+  assert.equal(JSON.stringify(calls[0]), JSON.stringify(['mark_notification_group_read', {
     p_group_id: 'comment:pick',
     p_until: '2026-09-29T00:00:00Z',
-  }]);
+  }]));
 
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: false }));
   preferenceRow = null;
