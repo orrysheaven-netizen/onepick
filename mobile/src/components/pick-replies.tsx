@@ -16,13 +16,13 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
 import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
-import { usePickDetail } from '@/hooks/usePickDetail';
 import { OnePick } from '@/constants/onepick';
-import type { ReadCursor } from '@/repositories/interfaces/readRepository';
+import type { CommentReadItem, ReadCursor } from '@/repositories/interfaces/readRepository';
 
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'COMMENT_INVALID') return '댓글은 1~300자로 입력해주세요.';
+    if (error.code === 'COMMENT_PARENT_INVALID') return '답글을 달 댓글이 바뀌었어요. 새로고침 후 다시 시도해주세요.';
     if (error.code === 'RATE_LIMITED') return '댓글 요청이 많아요. 1분 후 다시 시도해주세요.';
     if (error.code === 'AUTH_REQUIRED') return '댓글을 남기려면 로그인이 필요해요.';
     if (error.code === 'FORBIDDEN') return '지금은 이 Pick에 댓글을 남길 수 없어요.';
@@ -35,7 +35,7 @@ function getCommentErrorMessage(error: unknown) {
 /**
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
- * `canWrite={false}` shows the thread with no way to add to it (my own review).
+ * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
  */
 export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
@@ -62,7 +62,6 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
 }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const query = usePickDetail(pickId, user?.id);
   const commentsQuery = usePickComments(!isSessionLoading && !sessionError ? pickId : undefined, user?.id, initialCursor);
   const createComment = useCreateComment(pickId ?? 'missing');
   const deleteComment = useDeleteComment(pickId ?? 'missing');
@@ -70,11 +69,11 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
-  // Embedded item reviews receive the authoritative viewer-scoped permission
-  // from item_review_page. Standalone Pick pages retain the legacy active check.
-  const canComment = canWrite && !isSessionLoading && !sessionError && !query.isError
-    && (compact || query.data?.pick.status === 'active');
+  // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
+  // Server RLS still enforces the same rule on every insert.
+  const canComment = canWrite && !isSessionLoading && !sessionError;
 
   const focusedCommentLoaded = Boolean(focusCommentId && commentsQuery.data?.some(({ comment }) => comment.id === focusCommentId));
   useEffect(() => {
@@ -91,8 +90,13 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
 
     submittingComment.current = true;
     try {
-      await createComment.mutateAsync({ userId: user.id, body: trimmedComment });
+      await createComment.mutateAsync({
+        userId: user.id,
+        body: trimmedComment,
+        parentCommentId: replyingTo?.id ?? null,
+      });
       setCommentBody('');
+      setReplyingTo(null);
       if (compact) setComposing(false);
     } catch {
       // Keep the draft; mutation state shows the failure and allows retry.
@@ -106,6 +110,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     try {
       await deleteComment.mutateAsync(commentId);
       setConfirmingDeleteId(null);
+      if (replyingTo?.id === commentId) setReplyingTo(null);
     } catch {
       // Keep the confirmation open; mutation state shows the failure and allows retry.
     }
@@ -118,11 +123,6 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       <Text style={styles.smallButtonText}>다시 확인하기</Text>
     </Pressable>
   </View>;
-  if (query.isPending) return <ActivityIndicator accessibilityLabel="댓글 불러오는 중" />;
-  if (query.isError || !query.data) return (
-    <View><Text>한줄평을 불러오지 못했어요.</Text><Pressable onPress={() => void query.refetch()}><Text>다시 불러오기</Text></Pressable></View>
-  );
-
   return (
             <View style={compact ? styles.commentsInline : styles.commentsCard}>
               {!compact || commentsQuery.data?.length ? <View style={styles.commentsHeader}>
