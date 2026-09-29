@@ -177,7 +177,7 @@ jobs:
             Implement or review the next safe action requested by the repository owner in the issue.
           claude_args: |
             --max-turns 20
-            --allowedTools "Read,Write,Edit,Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr diff:*),Bash(git status:*),Bash(git diff:*)"
+            --allowedTools "Read,Write,Edit,Bash(gh issue view *),Bash(gh issue comment *),Bash(gh pr view *),Bash(gh pr list *),Bash(gh pr diff *),Bash(git status *),Bash(git diff *)"
 
   finalize:
     needs: [claim, claude]
