@@ -25,6 +25,15 @@ type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type CategoryRow = Database['public']['Tables']['categories']['Row'];
 type ItemRow = Database['public']['Tables']['items']['Row'];
 type CommentRow = Database['public']['Tables']['comments']['Row'];
+type RpcErrorLike = { code?: string; message?: string } | null | undefined;
+
+function missingScopedHomeRpc(error: RpcErrorLike, rpc: 'home_following_feed_page' | 'home_editorial_items') {
+  if (!error) return false;
+  if (error.code === 'PGRST202' || error.code === '42883') return true;
+  const message = error.message ?? '';
+  return new RegExp(`(could not find the function|function .* does not exist).*${rpc}`, 'i').test(message);
+}
+
 type HomeShowcaseItemRow = {
   item_id: string;
   name: string;
@@ -163,6 +172,12 @@ export class SupabaseReadRepository implements ReadRepository {
       ...(rootSlug ? { p_root_slug: rootSlug } : {}),
       ...(categoryId ? { p_category_id: categoryId } : {}),
     });
+    // Compatibility for the short window where the app deploys before the
+    // optional-scope following-feed migration. Never fall back to the old
+    // unscoped feed because that would expose hidden online/recipe Picks.
+    if (error && rpc === 'home_following_feed_page' && (channel || rootSlug) && missingScopedHomeRpc(error, rpc)) {
+      return { items: [], nextCursor: null };
+    }
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     const last = data[19];
@@ -221,6 +236,10 @@ export class SupabaseReadRepository implements ReadRepository {
       ...(channel ? { p_channel: channel } : {}),
       ...(rootSlug ? { p_root_slug: rootSlug } : {}),
     });
+    // Do not call the old unscoped editorial signature during rollout: its
+    // pick_count includes hidden channels. An empty editorial section is safer
+    // until the scoped migration is applied.
+    if (error && (channel || rootSlug) && missingScopedHomeRpc(error, 'home_editorial_items')) return [];
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
     const [channels, logos] = await Promise.all([
