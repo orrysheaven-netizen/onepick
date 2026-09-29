@@ -1,4 +1,5 @@
 import { injectShareMeta, pickShareMeta, validShareUuid } from '../_lib/share-meta';
+import { isMvpPublicPick } from '../_lib/mvp-scope';
 
 type Env = {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -14,10 +15,10 @@ type Context = {
 };
 
 const SELECT = [
-  'id,one_line_review,status',
+  'id,one_line_review,status,channel',
   'profile:profiles!picks_user_id_fkey(username)',
-  'category:categories!picks_category_id_fkey(name)',
-  'item:items!picks_item_category_fk(name,image_path,thumbnail_path,image_source_url)',
+  'category:categories!picks_category_id_fkey(name,category_taste_dimensions(dimension_code,is_primary))',
+  'item:items!picks_item_category_fk(id,name,image_path,thumbnail_path,image_source_url,external_source,item_channels(channel))',
 ].join(',');
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -75,6 +76,7 @@ export async function onRequest(context: Context) {
     const category = first(row.category as Record<string, unknown> | Record<string, unknown>[] | null);
     const item = first(row.item as Record<string, unknown> | Record<string, unknown>[] | null);
     if (!profile || !category || !item) return fallback(context);
+    if (!isMvpPublicPick(row, category, item)) return fallback(context);
 
     const image = publicStorageUrl(supabaseUrl, item.thumbnail_path ?? item.image_path) ?? item.image_source_url;
     const origin = new URL(context.request.url).origin;

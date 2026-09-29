@@ -1,4 +1,5 @@
 import { injectShareMeta, profileShareMeta, validShareUsername } from '../_lib/share-meta';
+import { isMvpProfilePick } from '../_lib/mvp-scope';
 
 type Env = {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -54,16 +55,26 @@ export async function onRequest(context: Context) {
     if (!profile?.id || !profile.username) return fallback(context);
 
     const picksQuery = new URL(`${supabaseUrl}/rest/v1/picks`);
-    picksQuery.searchParams.set('select', 'id,item:items!picks_item_category_fk(name,image_path,thumbnail_path,image_source_url)');
+    picksQuery.searchParams.set('select', 'id,channel,category:categories!picks_category_id_fkey(category_taste_dimensions(dimension_code,is_primary)),item:items!picks_item_category_fk(name,image_path,thumbnail_path,image_source_url,external_source,item_channels(channel))');
     picksQuery.searchParams.set('user_id', `eq.${profile.id}`);
     picksQuery.searchParams.set('status', 'eq.active');
     picksQuery.searchParams.set('order', 'updated_at.desc');
     picksQuery.searchParams.set('limit', '100');
     const picksResponse = await fetch(picksQuery, { headers, signal: AbortSignal.timeout(2500) });
     if (!picksResponse.ok) return fallback(context);
-    const picks = await picksResponse.json() as Array<{ item?: Record<string, unknown> | Record<string, unknown>[] | null }>;
-    const itemOf = (pick: typeof picks[number]) => Array.isArray(pick.item) ? pick.item[0] : pick.item;
-    const items = picks.map(itemOf).filter((item): item is Record<string, unknown> => Boolean(item));
+    const picks = await picksResponse.json() as Array<{
+      channel?: unknown;
+      category?: Record<string, unknown> | Record<string, unknown>[] | null;
+      item?: Record<string, unknown> | Record<string, unknown>[] | null;
+    }>;
+    const first = (value: Record<string, unknown> | Record<string, unknown>[] | null | undefined) =>
+      Array.isArray(value) ? value[0] ?? null : value ?? null;
+    const publicPicks = picks.filter((pick) => {
+      const category = first(pick.category);
+      const item = first(pick.item);
+      return Boolean(item && isMvpProfilePick(pick as Record<string, unknown>, category, item));
+    });
+    const items = publicPicks.map((pick) => first(pick.item)).filter((item): item is Record<string, unknown> => Boolean(item));
     const firstImageItem = items.find((item) => item.thumbnail_path || item.image_path || item.image_source_url);
     const image = firstImageItem
       ? storageImage(supabaseUrl, firstImageItem.thumbnail_path ?? firstImageItem.image_path) ?? firstImageItem.image_source_url
@@ -71,7 +82,7 @@ export async function onRequest(context: Context) {
     const meta = profileShareMeta({
       origin: new URL(context.request.url).origin,
       username: profile.username,
-      pickCount: picks.length,
+      pickCount: publicPicks.length,
       representativeItems: items.map((item) => item.name),
       image,
     });

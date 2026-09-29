@@ -1,4 +1,5 @@
 import { injectShareMeta, itemShareMeta, validShareUuid } from '../_lib/share-meta';
+import { isMvpPublicItem } from '../_lib/mvp-scope';
 
 type Env = {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -41,7 +42,7 @@ export async function onRequest(context: Context) {
 
   try {
     const query = new URL(`${supabaseUrl}/rest/v1/items`);
-    query.searchParams.set('select', 'id,name,status,image_path,thumbnail_path,image_source_url,category:categories!items_category_id_fkey(name,status,is_visible)');
+    query.searchParams.set('select', 'id,name,status,image_path,thumbnail_path,image_source_url,external_source,item_channels(channel),category:categories!items_category_id_fkey(name,status,is_visible,category_taste_dimensions(dimension_code,is_primary))');
     query.searchParams.set('id', `eq.${itemId}`);
     query.searchParams.set('status', 'in.(active,discontinued)');
     query.searchParams.set('limit', '1');
@@ -56,6 +57,7 @@ export async function onRequest(context: Context) {
     const rawCategory = row.category as Record<string, unknown> | Record<string, unknown>[] | null;
     const category = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory;
     if (!category || category.status !== 'open' || category.is_visible !== true) return fallback(context);
+    if (!isMvpPublicItem(category, row)) return fallback(context);
 
     const image = storageImage(supabaseUrl, row.thumbnail_path ?? row.image_path) ?? row.image_source_url;
     const meta = itemShareMeta({
