@@ -260,6 +260,8 @@ export class ProviderProfileService {
       brandName: null,
       brandLogoUrl: null,
     };
+  }
+
   async brand(brandId: string): Promise<BrandProfile> {
     if (!UUID.test(brandId)) throw new AppError('BRAND_NOT_FOUND');
     const { data, error } = await this.countClient.rpc('brand_profile', { p_brand_id: brandId });
