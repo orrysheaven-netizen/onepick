@@ -72,6 +72,7 @@ PM이 각 영역의 세부 점검을 대신 수행하지 않는다.
 ## 5. GitHub 역할
 
 - `docs/pm/`: 조직 규칙·현재 우선순위·현재 상태
+- `docs/pm/routines.md`: 정기 루틴 업무대장·담당·자동 실행 범위
 - #553: PM의 웹 우선순위 대시보드
 - #296: 실제 owner/handoff 실행 상태
 - GitHub Issue: 실제 작업 단위
