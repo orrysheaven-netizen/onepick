@@ -75,6 +75,7 @@ async function main() {
   const registerCalls = [];
   const photoCalls = [];
   const placeStageCalls = [];
+  const brandStageCalls = [];
   let current = [{ id: 'previous-online', channel: 'online' }];
   const pickRepository = {
     getCurrentPicksInCategory: async () => current,
@@ -87,6 +88,10 @@ async function main() {
     stageUserPlaceItem: async (input) => {
       placeStageCalls.push(input);
       return { id: 'staged-item' };
+    },
+    stageBrandItem: async (input) => {
+      brandStageCalls.push(input);
+      return { id: 'brand-staged-item' };
     },
   };
   const photoRepository = {
@@ -147,6 +152,22 @@ async function main() {
   assert.equal(registerCalls[1].requestId, 'new-request');
   assert.ok(photoCalls.some(([name]) => name === 'cleanup'));
 
-  console.log('Immediate registration checks passed: public RPC wiring, response ids, request id, expected previous Pick, error mapping, user-place staging, and photo forwarding.');
+  // A brand-wide choice stages brand × menu, never the selected branch catalog.
+  await service.registerImmediatePick({
+    userId: 'owner',
+    categoryId: 'category',
+    channel: 'offline',
+    oneLineReview: '브랜드 전체 원픽',
+    requestId: 'brand-request',
+    brandId: 'brand-1',
+  });
+  assert.equal(brandStageCalls.length, 1);
+  assert.deepEqual({ ...brandStageCalls[0] }, { categoryId: 'category', brandId: 'brand-1' });
+  assert.equal(registerCalls[2].itemId, 'brand-staged-item');
+  assert.equal(registerCalls[2].catalogId, undefined);
+  assert.equal(registerCalls[2].providerId, undefined);
+  assert.equal(registerCalls[2].requestId, 'brand-request');
+
+  console.log('Immediate registration checks passed: public RPC wiring, response ids, request id, concurrency, user-place/brand staging, and photo forwarding.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
