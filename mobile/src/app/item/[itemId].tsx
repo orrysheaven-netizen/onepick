@@ -71,6 +71,7 @@ export default function ItemDetailScreen() {
   if ((params.notificationKind === 'comment' || params.notificationKind === 'reply') && typeof params.pickId === 'string') {
     return <Redirect href={{ pathname: '/pick/[pickId]', params: {
       pickId: params.pickId,
+      ...(typeof params.itemId === 'string' ? { itemId: params.itemId } : {}),
       ...(typeof params.notificationGroupId === 'string' ? { notificationGroupId: params.notificationGroupId } : {}),
       ...(typeof params.notificationSnapshot === 'string' ? { notificationSnapshot: params.notificationSnapshot } : {}),
       ...(typeof params.notificationKind === 'string' ? { notificationKind: params.notificationKind } : {}),
@@ -426,7 +427,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               }
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
-                itemName={item.name} highlighted={pick.id === highlightedId}
+                itemName={item.name} itemId={item.id} highlighted={pick.id === highlightedId}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
