@@ -174,7 +174,12 @@ PM review는 계획·우선순위·승인 판단이 필요한 완료 경계에�
 
 ### 요청·판정 줄
 
-원래 작업 이슈 댓글의 **첫 줄**(앞에 빈 줄 없이)에 쓴다. 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다. 둘째 줄 이후에 인용한 명령 줄은 workflow를 실행하지 않는다.
+원래 작업 이슈 댓글의 **첫 줄**(앞에 빈 줄 없이)에 쓴다.
+
+- `PM_REVIEW_REQUIRED`: 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다.
+- `PM_REVIEW_DONE`: **저장소 소유자 계정이 쓴 줄만** 인정한다. handoff App은 Codex/Claude 자동 담당 실행과 같은 identity라서, bot이 쓴 판정은 담당자가 스스로 내린 판정과 구분할 수 없으므로 거부한다. drain도 처리 직전에 원 댓글이 소유자 계정의 같은 판정 줄인지 다시 확인하므로, bot이 pending marker를 위조해도 기록되지 않는다.
+
+**남은 신뢰 경계**: 소유자 계정은 여러 수동 세션(ChatGPT PM, 사용자, 수동 Codex/Claude 세션)이 함께 쓸 수 있다. 이 검사는 PM 판정을 handoff App 자동 실행과 분리할 뿐, 소유자 계정으로 쓴 판정이 실제 PM의 판정임을 보증하지 않는다. 또한 bot이 결과 marker(`onepick-pm-review:done`)를 직접 쓰는 것은 막지 못하므로, 이후 단계에서 이 marker를 승인 근거로 소비하려면 별도 PM identity 도입이 선행되어야 한다. 둘째 줄 이후에 인용한 명령 줄은 workflow를 실행하지 않는다.
 
 ```text
 PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40자리 SHA|none>

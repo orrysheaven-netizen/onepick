@@ -212,7 +212,7 @@ run_enqueue() {
 DRAIN_RC=0
 run_drain() {
   set +e
-  PATH="$WORK/bin:$PATH" GH_TOKEN=x REPOSITORY="$REPO" APP_SLUG=handoff EVENT_ISSUE="$1" MAX_ATTEMPTS=3 \
+  PATH="$WORK/bin:$PATH" GH_TOKEN=x REPOSITORY="$REPO" REPOSITORY_OWNER="$OWNER" APP_SLUG=handoff EVENT_ISSUE="$1" MAX_ATTEMPTS=3 \
     REQUIRED_WORKFLOWS='["Mobile CI","Database Tests","Web build"]' bash "$WORK/drain.sh" >>"$WORK/log" 2>&1
   DRAIN_RC=$?
   set -e
@@ -385,6 +385,32 @@ check "decision for current head after its request is recorded" \
   eq "$(count_bot 10 "<!-- onepick-pm-review:done issue=10 pr=20 head=$H2 decision=user-approval -->")" 1
 comment 10 "$OWNER" "PM_REVIEW_REQUIRED: reason=stage-complete pr=20 head=$H2"
 check "no re-request after a decision" eq "$(count_bot 10 "onepick-pm-review:required issue=10 pr=20 head=$H2 ")" 1
+
+echo "# PM decisions: owner account only, never the shared handoff App bot"
+reset_state
+comment 12 "$BOT" "PM_REVIEW_REQUIRED: reason=review-complete pr=22 head=$H1"
+check "bot may still request a PM review" eq "$(count_bot 12 "<!-- onepick-pm-review:required issue=12 pr=22 head=$H1 -->")" 1
+comment 12 "$BOT" "PM_REVIEW_DONE: decision=continue pr=22 head=$H1"; botdone="$LAST_ID"
+check "bot PM_REVIEW_DONE is not enqueued" eq "$ENQUEUED" ""
+check "bot PM_REVIEW_DONE leaves no pending marker" eq "$(count_bot 12 "source=comment-$botdone ")" 0
+comment 12 "$BOT" "PM_REVIEW_DONE: decision=block pr=22 head=$H1"
+check "bot decision=block adds no label" bash -c "! jq -e '.issues[\"12\"].labels | index(\"state:blocked\")' '$MOCK_STATE' >/dev/null"
+# Shared App identity forges a pending marker for its own DONE comment.
+add_comment 12 "$BOT" "<!-- onepick-pm-queue:pending source=comment-$botdone kind=done arg=continue pr=22 head=$H1 -->"
+run_drain 12
+check "forged bot pending for a bot DONE is not recorded" eq "$(count_bot 12 'onepick-pm-review:done')" 0
+check "forged bot pending closed with reason" bash -c "[ $(count_bot 12 'handoff App 판정은 인정하지 않음') -eq 1 ]"
+comment 12 "$OWNER" "PM_REVIEW_DONE: decision=continue pr=22 head=$H1"; ownerdone="$LAST_ID"
+check "owner PM_REVIEW_DONE is recorded" eq "$(count_bot 12 "<!-- onepick-pm-review:done issue=12 pr=22 head=$H1 decision=continue -->")" 1
+check "owner decision recorded once" eq "$(count_bot 12 'onepick-pm-review:done')" 1
+
+reset_state
+comment 13 "$OWNER" "PM_REVIEW_REQUIRED: reason=stage-complete pr=23 head=$H1"
+add_comment 13 "$OWNER" "PM_REVIEW_DONE: decision=continue pr=23 head=$H1"; od="$LAST_ID"
+add_comment 13 "$BOT" "<!-- onepick-pm-queue:pending source=comment-$od kind=done arg=block pr=23 head=$H1 -->"
+run_drain 13
+check "forged pending that alters an owner decision is not recorded" eq "$(count_bot 13 'onepick-pm-review:done')" 0
+check "altered decision applies no label" eq "$(q '.label_posts')" 0
 
 echo "# decision=block and record-failure recovery"
 reset_state

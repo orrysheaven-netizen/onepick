@@ -6,9 +6,15 @@ name: AI PM Review Queue
 #   담당 완료 -> 완료 리포트 -> PM_REVIEW_REQUIRED -> PM 검토 대기
 #
 # Sources (comments on the ORIGINAL issue; the source line must be the comment's FIRST line):
-#   1. From the repository owner account or the handoff App bot:
+#   1. From the repository owner account or the handoff App bot (request only):
 #        PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40-hex|none>
+#      From the repository owner account ONLY (PM decision):
 #        PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=<40-hex|none>
+#      The handoff App identity is shared with the Codex/Claude handoff runners, so a bot
+#      PM_REVIEW_DONE could be issued by the assignee itself; it is never a PM decision.
+#      Trust boundary that remains: the owner account itself can be used by several manual
+#      sessions, so "owner" means the account, not a verified PM. A dedicated PM identity
+#      is a follow-up; until then this check separates PM decisions from the App only.
 #   2. The CI gate (ai-handoff-ci-gate.yml) done comment
 #        <!-- onepick-ci-handoff:done pr=<N> -->
 #      for a PR whose bot pending marker says next=user (right before the user merge
@@ -116,6 +122,8 @@ jobs:
           if [[ "$first_line" =~ ^PM_REVIEW_REQUIRED:\ reason=(stage-complete|review-complete|merge-ready|release-approval)\ ${ref_re} ]]; then
             kind="required"; arg="${BASH_REMATCH[1]}"; pr="${BASH_REMATCH[2]}"; head="${BASH_REMATCH[3]}"
           elif [[ "$first_line" =~ ^PM_REVIEW_DONE:\ decision=(continue|revise|block|user-approval)\ ${ref_re} ]]; then
+            # PM decisions come from the owner account only, never from the shared handoff App.
+            [ "$by" = "owner" ] || skip "PM_REVIEW_DONE from $SOURCE_AUTHOR is not accepted (owner account only)"
             kind="done"; arg="${BASH_REMATCH[1]}"; pr="${BASH_REMATCH[2]}"; head="${BASH_REMATCH[3]}"
           elif [ "$by" = "bot" ] && [[ "$first_line" =~ $gate_re ]]; then
             kind="gate"; arg="merge-ready"; pr="${BASH_REMATCH[1]}"
@@ -187,6 +195,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
           EVENT_ISSUE: ${{ github.event.issue.number }}
           MAX_ATTEMPTS: '3'
@@ -269,6 +278,18 @@ jobs:
 
             # PM decision: once per key, only for a request that existed when it was written.
             if [ "$kind" = "done" ]; then
+              # The pending marker is written by the shared App identity, so re-verify the
+              # source itself: an owner-authored comment whose first line is this decision.
+              local src_line
+              src_line="$(
+                jq -r --argjson id "$sid" --arg owner "$REPOSITORY_OWNER" '
+                  [ .[] | select(.id == $id and .user.login == $owner) | .body ] | first // ""
+                  | split("\n")[0] | rtrimstr("\r")
+                ' <<<"$comments"
+              )"
+              if [[ ! "$src_line" =~ ^PM_REVIEW_DONE:\ decision=${arg}\ pr=${pr}\ head=${head}[[:space:]]*$ ]]; then
+                skip_item "$issue" "$source" "판정 원문이 저장소 소유자 계정의 PM_REVIEW_DONE 댓글이 아님 (handoff App 판정은 인정하지 않음)"; return 0
+              fi
               if [ -z "$required_id" ]; then skip_item "$issue" "$source" "${key}에 대한 PM 검토 요청 없음"; return 0; fi
               if [ -n "$done_id" ]; then skip_item "$issue" "$source" "${key}의 PM 판정이 이미 기록됨"; return 0; fi
               if [ "$sid" -le "$required_id" ]; then
