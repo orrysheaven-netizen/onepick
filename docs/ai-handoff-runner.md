@@ -183,6 +183,6 @@ production 동작은 수행하지 마세요.
 - 한 시점에 한 AI만 Issue를 `state:active`로 소유한다.
 - GPT/Codex가 기본 Product/Technical Owner와 작업 조정 주체다.
 - Claude 구현은 현재 owner/handoff 또는 사용자 위임에 따른 작업 단위 위임이다.
-- 60:40 작업량 목표와 실제 인계 현황은 #296 AI Ops 대시보드에서 추적한다.
+- 55:45 작업량 참고선과 실제 인계 현황은 #296 AI Ops 대시보드에서 추적한다. 가용 자원에 따라 PM이 Claude 배정 비중을 일시적으로 높일 수 있다.
 - M/L 및 고위험 PR은 반대 AI 독립 리뷰를 거친다.
 - 최종 merge와 production 변경은 사용자가 결정한다.
