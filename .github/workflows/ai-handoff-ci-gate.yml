@@ -23,9 +23,13 @@ concurrency:
 
 jobs:
   gate:
+    # A workflow_run concluding `skipped` comes from a draft PR, where every job is
+    # skipped at job level. Filter it here so no runner is allocated for drafts.
+    # Ready PRs always run the `changes` job, so their runs conclude success/failure.
     if: >-
       vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
       github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion != 'skipped' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     permissions: {}
