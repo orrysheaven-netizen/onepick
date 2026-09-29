@@ -12,7 +12,7 @@ OnePick의 부서별 기준을 여러 대화창에 분산하지 않고 GitHub `d
 - ChatGPT: 총괄 PM
 - Product: ChatGPT
 - UX/Figma: ChatGPT, Claude 보조 검토
-- Engineering: ChatGPT/Codex, Claude 독립 검토
+- Engineering: ChatGPT/Codex 기본 구현, Claude는 PM/handoff로 위임된 일반 앱·성능·QA tooling 구현 + 독립 검토
 - Data/DB: ChatGPT/Codex, Claude 독립 검토
 - QA/Reliability/Security: Claude
 - Release/운영: Claude 측정·검증 + ChatGPT PM Go/Hold 판정
