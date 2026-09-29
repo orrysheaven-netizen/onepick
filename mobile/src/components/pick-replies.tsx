@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,6 +17,7 @@ import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { OnePick } from '@/constants/onepick';
+import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -35,17 +36,33 @@ function getCommentErrorMessage(error: unknown) {
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite={false}` shows the thread with no way to add to it (my own review).
  */
-export function PickReplies({ pickId, compact = false, canWrite = true }: { pickId: string; compact?: boolean; canWrite?: boolean }) {
+export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
+  pickId: string;
+  compact?: boolean;
+  canWrite?: boolean;
+  focusCommentId?: string;
+  initialCursor?: ReadCursor | null;
+  onFocusLoaded?: () => void;
+}) {
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
-  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}`} auth={auth} pickId={pickId} compact={compact} canWrite={canWrite} />;
+  return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
+    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<typeof useAuthSession>; pickId: string; compact: boolean; canWrite: boolean }) {
+function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded }: {
+  auth: ReturnType<typeof useAuthSession>;
+  pickId: string;
+  compact: boolean;
+  canWrite: boolean;
+  focusCommentId?: string;
+  initialCursor: ReadCursor | null;
+  onFocusLoaded?: () => void;
+}) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = usePickDetail(pickId, user?.id);
-  const commentsQuery = usePickComments(!isSessionLoading && !sessionError ? pickId : undefined, user?.id);
+  const commentsQuery = usePickComments(!isSessionLoading && !sessionError ? pickId : undefined, user?.id, initialCursor);
   const createComment = useCreateComment(pickId ?? 'missing');
   const deleteComment = useDeleteComment(pickId ?? 'missing');
   // One inline confirmation at a time; native Alert does not exist on web.
@@ -57,6 +74,11 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
   // from item_review_page. Standalone Pick pages retain the legacy active check.
   const canComment = canWrite && !isSessionLoading && !sessionError && !query.isError
     && (compact || query.data?.pick.status === 'active');
+
+  const focusedCommentLoaded = Boolean(focusCommentId && commentsQuery.data?.some(({ comment }) => comment.id === focusCommentId));
+  useEffect(() => {
+    if (focusedCommentLoaded) onFocusLoaded?.();
+  }, [focusedCommentLoaded, onFocusLoaded]);
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
@@ -131,7 +153,7 @@ function RepliesContent({ auth, pickId, compact, canWrite }: { auth: ReturnType<
               ) : null}
 
               {commentsQuery.data?.map(({ comment, author }) => (
-                <View key={comment.id} style={styles.commentRow}>
+                <View key={comment.id} style={[styles.commentRow, comment.id === focusCommentId && styles.commentHighlight]}>
                   <View style={styles.commentAvatar}>
                     <Text style={styles.commentAvatarText}>
                       {(author?.username ?? '?').slice(0, 1).toUpperCase()}
@@ -291,6 +313,7 @@ const styles = StyleSheet.create({
   smallButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   emptyComments: { color: OnePick.muted, fontSize: 12, lineHeight: 18, paddingVertical: 17 },
   commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
+  commentHighlight: { backgroundColor: OnePick.accentSoft, borderRadius: 12, paddingHorizontal: 8 },
   commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
   commentAvatarText: { color: OnePick.muted, fontSize: 13, fontWeight: '900' },
   commentCopy: { flex: 1, marginLeft: 11 },
