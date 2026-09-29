@@ -5,12 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StateCard } from '@/components/ui';
 import { useRankingCategories } from '@/hooks/useExploreData';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickMvp } from '@/constants/onepick';
 
 /** Public index of every category ranking page; also the crawl entry point for /ranking/<slug>. */
 export default function RankingIndexScreen() {
   const router = useRouter();
-  const categories = useRankingCategories();
+  const categories = useRankingCategories(true, OnePickMvp.browseGroupSlug);
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
 
   return (

@@ -55,9 +55,13 @@ export async function onRequest(context: Context) {
     categoriesQuery.searchParams.set('slug', `eq.${slug}`);
     categoriesQuery.searchParams.set('limit', '1');
     const [categoryResult, rankingResult] = await Promise.all([
-      fetch(categoriesQuery, { method: 'POST', headers, body: '{}', signal: AbortSignal.timeout(2500) }),
+      fetch(categoriesQuery, {
+        method: 'POST', headers, body: JSON.stringify({ p_root_slug: 'food' }), signal: AbortSignal.timeout(2500),
+      }),
       fetch(`${supabaseUrl}/rest/v1/rpc/category_ranking`, {
-        method: 'POST', headers, body: JSON.stringify({ p_slug: slug, p_limit: PAGE_SIZE }), signal: AbortSignal.timeout(2500),
+        method: 'POST', headers,
+        body: JSON.stringify({ p_slug: slug, p_limit: PAGE_SIZE, p_channel: 'offline', p_root_slug: 'food' }),
+        signal: AbortSignal.timeout(2500),
       }),
     ]);
     if (!categoryResult.ok || !rankingResult.ok) return fallback(context);

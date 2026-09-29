@@ -212,33 +212,6 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_category_id: string; p_provider_id: string };
         Returns: Database['public']['Tables']['items']['Row'];
       };
-      stage_user_place_item: {
-        Args: {
-          p_category_id: string;
-          p_name: string;
-          p_road_address: string;
-          p_map_url: string;
-          p_branch_name?: string;
-        };
-        Returns: Database['public']['Tables']['items']['Row'];
-      };
-      register_item_pick: {
-        Args: {
-          p_category_id: string;
-          p_channel: string;
-          p_one_line_review: string;
-          p_item_id?: string;
-          p_catalog_id?: string;
-          p_provider_id?: string;
-          p_link_url?: string;
-          p_image_path?: string;
-          p_thumbnail_path?: string;
-          p_image_source_url?: string;
-          p_expected_previous_pick_id?: string | null;
-          p_request_id?: string;
-        };
-        Returns: Json;
-      };
       store_menu_options: {
         Args: never;
         Returns: { category_id: string; name: string; group_name: string | null; place_enabled: boolean }[];
@@ -255,21 +228,22 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_suggestion_id: string; p_approve: boolean };
         Returns: ItemLinkSuggestionRow;
       };
-      category_top_items: Omit<CategoryTopItems, 'Returns'> & {
+      category_top_items: Omit<CategoryTopItems, 'Args' | 'Returns'> & {
+        Args: { p_category_id: string; p_channel?: 'offline' | 'online' | 'recipe' };
         Returns: (CategoryTopItems['Returns'][number] & {
           image_path: string | null;
           image_source_url: string | null;
         })[];
       };
       category_ranking: {
-        Args: { p_slug: string; p_limit?: number };
+        Args: { p_slug: string; p_limit?: number; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
         Returns: {
           item_id: string; name: string; thumbnail_path: string | null; image_path: string | null;
           image_source_url: string | null; pick_count: number; rank: number; is_tied: boolean;
         }[];
       };
       ranking_categories: {
-        Args: never;
+        Args: { p_root_slug?: string };
         Returns: { category_id: string; slug: string; name: string; category_path: string | null; sort_order: number }[];
       };
       dish_channel_overview: {
