@@ -106,8 +106,10 @@ async function main() {
   };
   const compatRepo = new SupabaseReadRepository(oldServer);
   const compatFollowing = await compatRepo.getFollowingPicks(null, 'offline', 'food');
-  assert.deepEqual(compatFollowing, { items: [], nextCursor: null }, 'Old DB hides following rows instead of falling back to an unscoped feed');
-  assert.deepEqual(await compatRepo.getEditorialHomeItems(6, 'offline', 'food'), [], 'Old DB hides editorial rows instead of exposing all-channel counts');
+  assert.equal(compatFollowing.items.length, 0, 'Old DB hides following rows instead of falling back to an unscoped feed');
+  assert.equal(compatFollowing.nextCursor, null);
+  assert.equal((await compatRepo.getEditorialHomeItems(6, 'offline', 'food')).length, 0,
+    'Old DB hides editorial rows instead of exposing all-channel counts');
 
   const followingMigration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260929071000_add_following_feed_mvp_scope.sql'), 'utf8');
   assert.match(followingMigration, /p_channel text default null/);
