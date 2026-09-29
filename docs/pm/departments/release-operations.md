@@ -36,3 +36,7 @@ Production 최종 승인: 사용자
 ## 보고
 
 main commit · CI · 앱 배포 · DB migration · Edge Function · QA/Security · 남은 위험 · 운영 단계 · Go/Hold
+
+## 운영 검증 책임
+
+Release/운영 담당이 코드 병합 여부와 실제 배포/Production 반영 여부를 직접 대조한다. PM은 이 근거를 받아 Go/Hold를 판정하며 배포 상태를 대신 추정하지 않는다.
