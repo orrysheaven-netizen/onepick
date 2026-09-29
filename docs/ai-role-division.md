@@ -1,8 +1,9 @@
 # AI 역할 분담 v2 — Product Builder / Platform Reliability
 
-결정일: 2026-09-25.
+결정일: 2026-09-25.  
+PM 조직 전환 반영: 2026-09-29.
 
-OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. **ChatGPT/Codex가 기본 Product/Technical Owner이자 전체 작업 조정의 기본 주체**다. Claude는 Platform/Reliability, QA, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
+OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
@@ -35,16 +36,15 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 기능 단위 테스트와 기능 명세
 - Claude가 만든 보안/DB PR의 제한 독립 검토
 
-### Claude — Platform / Reliability·독립 검토 (목표 40%)
+### Claude — QA / Reliability / Security·독립 검토 (목표 40%)
 
-- Supabase migration, RLS, Auth, Storage 정책
-- secret, 권한, 보안 민감 CI/workflow 변경
-- Critical/High 보안 수정
-- DB 구조·SQL·쿼리 성능
-- 여러 파일에 걸친 리팩터링과 회귀 테스트
-- 성능 분석, 보안 조사
-- Daily QA, Security QA, PR 리뷰, 테스트 자동화
-- Codex M/L PR의 독립 리뷰
+- Daily QA, Security QA, 로그인 E2E, 회귀 테스트
+- 성능 분석과 운영 상태 검증
+- Supabase advisor, DB/SQL 성능 검토
+- Critical/High 보안 조사와 수정 제안
+- 보안 민감 CI/workflow 독립 검토
+- Codex M/L 및 고위험 PR 독립 리뷰
+- PM 또는 handoff로 명시적으로 위임받은 구현
 
 ## 고위험 영역
 
@@ -58,7 +58,7 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 보안 민감 `.github/workflows/**`
 - production 데이터 재작성·삭제 등 되돌리기 어려운 작업
 
-기본 작업 조정 권한은 ChatGPT/Codex에 있다. Claude가 전문성·작업량 배분·GPT 사용량 제한 등의 이유로 위임받아 구현할 수 있으며, 그 위임은 해당 작업에만 적용된다. 반대로 Codex가 고위험 영역을 구현할 수도 있으며 이 경우 Claude 독립 검토를 거친다.
+기본 작업 조정 권한은 ChatGPT PM/ChatGPT-Codex에 있다. DB migration, RLS, GRANT/REVOKE 등 Data/DB 기본 구현은 최신 공용 규칙대로 ChatGPT/Codex가 담당하고 Claude가 독립 리뷰한다. Claude가 전문성·작업량 배분·GPT 사용량 제한 등의 이유로 위임받아 구현할 수 있으며, 그 위임은 해당 작업에만 적용된다. 반대로 Codex가 고위험 영역을 구현할 수도 있으며 이 경우 Claude 독립 검토를 거친다.
 
 ## 교차 검증
 
@@ -106,7 +106,7 @@ PR: #<번호>
 - blocked 작업
 - 48시간 이상 갱신되지 않은 열린 작업
 
-두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **AI Ops 대시보드 → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다.
+두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **공용 규칙 → `docs/pm/` → #553 PM 대시보드 → #296 AI Ops → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다.
 
 ## 보안
 
