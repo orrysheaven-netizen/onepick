@@ -95,6 +95,20 @@ async function main() {
   assert.equal(rpcCalls.at(-1)[1].p_channel, 'offline', 'MVP editorial sends the offline scope');
   assert.equal(rpcCalls.at(-1)[1].p_root_slug, 'food', 'MVP editorial sends the food root');
 
+  // Rollout compatibility: if the client reaches production before the widened
+  // RPC signatures, hidden channels must not leak through an old unscoped call.
+  const oldServer = {
+    rpc: async (name) => ({
+      data: null,
+      error: { code: 'PGRST202', message: `Could not find the function public.${name}` },
+    }),
+    storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: p } }) }) },
+  };
+  const compatRepo = new SupabaseReadRepository(oldServer);
+  const compatFollowing = await compatRepo.getFollowingPicks(null, 'offline', 'food');
+  assert.deepEqual(compatFollowing, { items: [], nextCursor: null }, 'Old DB hides following rows instead of falling back to an unscoped feed');
+  assert.deepEqual(await compatRepo.getEditorialHomeItems(6, 'offline', 'food'), [], 'Old DB hides editorial rows instead of exposing all-channel counts');
+
   const followingMigration = fs.readFileSync(path.join(__dirname, '../../supabase/migrations/20260929071000_add_following_feed_mvp_scope.sql'), 'utf8');
   assert.match(followingMigration, /p_channel text default null/);
   assert.match(followingMigration, /p_root_slug text default null/);
