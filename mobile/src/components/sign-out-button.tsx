@@ -6,7 +6,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useSignOut } from '@/hooks/useSignOut';
 import { OnePick } from '@/constants/onepick';
 
-export function SignOutButton() {
+export function SignOutButton({ showSettingsLink = true }: { showSettingsLink?: boolean } = {}) {
   const router = useRouter();
   const { user } = useAuthSession();
   const adminAccess = useAdminAccess(user?.id);
@@ -14,12 +14,12 @@ export function SignOutButton() {
 
   return (
     <View style={styles.container}>
-      <Pressable
+      {showSettingsLink ? <Pressable
         accessibilityRole="button"
         onPress={() => router.push('/settings')}
         style={({ pressed }) => [styles.settingsButton, pressed && styles.muted]}>
         <Text style={styles.settingsLabel}>계정 설정 · 차단 관리</Text>
-      </Pressable>
+      </Pressable> : null}
       {adminAccess.data === true ? (
         <>
           <Pressable

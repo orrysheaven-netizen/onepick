@@ -140,7 +140,7 @@ export default function SettingsScreen() {
                 ) : null}
               </View>
             </View>
-            <View style={styles.signOut}><SignOutButton /></View>
+            <View style={styles.signOut}><SignOutButton showSettingsLink={false} /></View>
           </>
         ) : null}
       </ScrollView>
