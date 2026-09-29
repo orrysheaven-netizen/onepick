@@ -7,7 +7,7 @@ export function useCreateComment(pickId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { userId: string; body: string }) =>
+    mutationFn: (input: { userId: string; body: string; parentCommentId?: string | null }) =>
       commentService.createComment({ pickId, ...input }),
     onSuccess: async () => {
       await Promise.all([

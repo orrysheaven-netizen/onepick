@@ -48,6 +48,7 @@ const knownCodes = new Set<AppErrorCode>([
   'PICK_CHANNEL_REQUIRED',
   'PICK_NOT_FOUND',
   'COMMENT_INVALID',
+  'COMMENT_PARENT_INVALID',
   'BLOCK_SELF',
   'FOLLOW_SELF',
   'FOLLOW_BLOCKED',

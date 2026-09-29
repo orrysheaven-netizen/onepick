@@ -200,7 +200,8 @@ async function main() {
     '@/hooks/useCreateComment': { useCreateComment: () => mutation },
     '@/hooks/useDeleteComment': { useDeleteComment: () => ({ isPending: false, isError: false, reset() {} }) },
   });
-  const Pick = () => React.createElement(PickReplies, { pickId: 'pick' });
+  let canWrite = true;
+  const Pick = () => React.createElement(PickReplies, { pickId: 'pick', canWrite });
   render(Pick);
   const submit = presses.find((p) => textOf(p.children) === '댓글 남기기').onPress;
   const unhandled = [];
@@ -220,9 +221,11 @@ async function main() {
     assert.equal(draft, '', 'Successful saves clear the draft');
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
-  assert.match(render(Pick), /확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다/);
+  canWrite = false;
+  assert.match(render(Pick), /현재 댓글을 남길 수 없는 한줄평입니다/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
+  canWrite = true;
   mutation = { isError: true, error: new AppError('PROFILE_NOT_FOUND') };
   assert.match(render(Pick), /사용자명 만들고 계속/);
   presses.find((p) => textOf(p.children) === '사용자명 만들고 계속').onPress();

@@ -6,6 +6,7 @@ import { OnePick } from '@/constants/onepick';
 import type { useMyComments } from '@/hooks/useMyProfileLists';
 import { formatRelativeTime } from '@/lib/format/relativeTime';
 import type { MyCommentReadItem } from '@/repositories/interfaces/readRepository';
+import { commentService } from '@/services';
 
 /**
  * The "댓글" tab's list: comments I wrote, newest first, each with the review
@@ -25,11 +26,30 @@ export function ProfileMyComments({ query, emptyText }: { query: ReturnType<type
     return <StateCard title="아직 남긴 댓글이 없어요" text={emptyText ?? '상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요.'} />;
   }
 
-  // Straight to the item screen: the /pick/[pickId] redirect would add a blank lookup screen first.
-  const openReview = (itemId: string, pickId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId, pickId } });
+  const openReview = async (entry: MyCommentReadItem) => {
+    if (!entry.pick || !entry.item) return;
+    try {
+      const location = await commentService.locateComment(entry.comment.id);
+      if (location) {
+        router.push({ pathname: '/pick/[pickId]', params: {
+          pickId: location.pickId,
+          itemId: location.itemId,
+          focusCommentId: entry.comment.id,
+          ...(location.pageCursor ? {
+            commentAfterTime: location.pageCursor.timestamp,
+            commentAfterId: location.pageCursor.id,
+          } : {}),
+        } });
+        return;
+      }
+    } catch {
+      // Fall through to the review conversation when exact comment location fails.
+    }
+    router.push({ pathname: '/pick/[pickId]', params: { pickId: entry.pick.id, itemId: entry.item.id } });
+  };
   return (
     <View>
-      {comments.map((entry) => <MyCommentRow key={entry.comment.id} entry={entry} onOpen={openReview} />)}
+      {comments.map((entry) => <MyCommentRow key={entry.comment.id} entry={entry} onOpen={() => { void openReview(entry); }} />)}
       {query.isFetchNextPageError ? <Text accessibilityRole="alert" style={styles.error}>다음 댓글을 불러오지 못했어요.</Text> : null}
       {query.hasNextPage ? (
         <Button variant="secondary" size="sm" style={styles.more} accessibilityLabel="댓글 더 보기"
@@ -40,7 +60,7 @@ export function ProfileMyComments({ query, emptyText }: { query: ReturnType<type
   );
 }
 
-function MyCommentRow({ entry, onOpen }: { entry: MyCommentReadItem; onOpen: (itemId: string, pickId: string) => void }) {
+function MyCommentRow({ entry, onOpen }: { entry: MyCommentReadItem; onOpen: () => void }) {
   const { comment, pick, pickAuthor, item } = entry;
   const context = pick
     ? `${item?.name ?? '원픽'} · ${pickAuthor ? `@${pickAuthor.username}` : '사용자'}의 한줄평`
@@ -53,7 +73,7 @@ function MyCommentRow({ entry, onOpen }: { entry: MyCommentReadItem; onOpen: (it
   </>;
   if (!pick) return <View style={styles.row}>{copy}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${context}에 남긴 댓글 보기`} onPress={() => onOpen(pick.itemId, pick.id)}
+    <Pressable accessibilityRole="button" accessibilityLabel={`${context}에 남긴 댓글 보기`} onPress={onOpen}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       {copy}
     </Pressable>
