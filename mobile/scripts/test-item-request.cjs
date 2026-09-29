@@ -21,6 +21,8 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
+const constants = require('./design-tokens.cjs');
+constants.OnePickFeatures.foodChannelPicker = true;
 const settle = () => new Promise(setImmediate);
 
 async function main() {

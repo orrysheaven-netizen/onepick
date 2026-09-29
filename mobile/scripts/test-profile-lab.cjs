@@ -25,6 +25,7 @@ assert.equal(constants.OnePickMvp.mainThemeCode, 'food');
 const categories = [
   { id: 'food', parentId: null, name: '먹을것', slug: 'food', sortOrder: 1, themeCode: 'food' },
   { id: 'naengmyeon', parentId: 'food', name: '냉면', slug: 'naengmyeon', sortOrder: 1 },
+  { id: 'recipe', parentId: 'food', name: '레시피', slug: 'recipe', sortOrder: 2 },
   { id: 'content', parentId: null, name: '콘텐츠', slug: 'content', sortOrder: 2, themeCode: 'culture' },
   { id: 'movie', parentId: 'content', name: '영화', slug: 'movie', sortOrder: 1, themeCode: 'culture' },
   { id: 'tech', parentId: null, name: '테크', slug: 'tech', sortOrder: 3, themeCode: 'tech' },
@@ -38,6 +39,23 @@ const split = grouping.splitLabPicks(picks, categories, 'food', true);
 assert.deepEqual(Array.from(split.main, (item) => item.pick.categoryId), ['naengmyeon', 'misc'], 'FOOD and unmapped Picks stay on the main profile');
 assert.deepEqual(Array.from(split.lab, (item) => item.pick.categoryId), ['movie', 'phone'], 'CULTURE & ART and TECH move to 실험실');
 assert.equal(split.main.length + split.lab.length, picks.length, 'the split never drops a Pick');
+
+const exposurePicks = [
+  { ...pick('naengmyeon'), pick: { ...pick('naengmyeon').pick, id: 'food-offline', channel: 'offline' } },
+  { ...pick('naengmyeon'), pick: { ...pick('naengmyeon').pick, id: 'food-online', channel: 'online' } },
+  { ...pick('recipe'), pick: { ...pick('recipe').pick, id: 'food-recipe', channel: 'recipe' } },
+  pick('misc'),
+];
+const exposedMain = grouping.filterMainProfileByChannel(exposurePicks, categories, 'food', 'offline');
+assert.deepEqual(Array.from(exposedMain, (item) => item.pick.id), ['food-offline', 'pick-misc'],
+  'MVP profile keeps offline FOOD plus unmapped legacy Picks, hiding online/recipe FOOD only');
+assert.equal(grouping.filterMainProfileByChannel(exposurePicks, categories, 'culture', 'offline').length, exposurePicks.length,
+  'Channel exposure is a FOOD-only rule and does not alter another main theme');
+assert.deepEqual(
+  Array.from(grouping.filterMainProfileByChannel(exposurePicks, [], 'food', 'offline'), (item) => item.pick.id),
+  ['food-offline', 'pick-misc'],
+  'Explicit online/recipe channels stay hidden even before the category catalog loads',
+);
 
 const off = grouping.splitLabPicks(picks, categories, 'food', false);
 assert.equal(off.main.length, picks.length, 'with the lab off every Pick stays main');
@@ -65,7 +83,7 @@ assert.match(lab, /usePublicProfile\(username, user\?\.id\)/);
 assert.doesNotMatch(lab, /onPressCategory/, '실험실 lists Picks only; the owner starts categories from the list below');
 assert.match(lab, /isLabCategory\(category\.id, categories, OnePickMvp\.mainThemeCode, true\)/, 'the owner can start any lab category');
 assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: profileQuery\.data\.profile\.username \}/, '/lab opens my own 실험실');
-assert.match(owner, /profileScope === 'food' \? mainPicks : labPicks/, 'owner toggles 음식 and 다른 취향 in place');
+assert.match(owner, /profileScope === 'food' \? publicMainPicks : labPicks/, 'owner shows only the public FOOD channel while keeping other tastes in place');
 assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
 // 실험실 is the only place to start a non-food Pick; with Explore's door gone the
@@ -74,10 +92,12 @@ assert.match(owner, /const openLab = \(\) => router\.push\('\/lab'\);/, 'the own
 assert.match(owner, /label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 다른 취향 tab offers the 실험실 entry');
 assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="다른 취향 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
   'a filled 다른 취향 tab keeps the 실험실 entry');
-assert.match(publicProfile, /profileScope === 'food' \? mainPicks : labPicks/, 'public profile toggles the same scopes in place');
+assert.match(publicProfile, /profileScope === 'food' \? publicMainPicks : labPicks/, 'public profile shows only the public FOOD channel while keeping other tastes in place');
 assert.match(publicProfile, /음식 원픽 보기/);
 assert.match(publicProfile, /다른 취향 원픽 보기/);
-assert.match(publicProfile, /const currentPicks = mainPicks;/, 'the share card carries only main-theme Picks');
+assert.match(owner, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
+assert.match(publicProfile, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
+assert.match(publicProfile, /const currentPicks = publicMainPicks;/, 'the share card carries only publicly exposed FOOD Picks');
 assert.doesNotMatch(explore, /router\.push\('\/lab'\)/, 'Explore no longer duplicates the 다른 취향 entry with a 실험실 door');
 assert.doesNotMatch(explore, /ProfileLabEntry/, 'Explore does not render the legacy lab entry component');
 assert.match(onboarding, /!isLabCategory\(category\.id, categoryCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'onboarding offers only main-theme categories');

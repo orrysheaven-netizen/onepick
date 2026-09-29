@@ -97,8 +97,10 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const placeCapability = usePlaceCatalogCapability(selectedCategory?.id, Boolean(authReady && categoryScopeReady && selectedCategory));
   const categoryCapabilityReady = !selectedCategory || placeCapability.isSuccess;
   const isPlaceCategory = placeCapability.data === true;
-  // Restaurant Picks are either 매장 (incl. delivery → place search) or 온라인 (registered online sellers).
-  const [channel, setChannel] = useState<PickChannel>(() => parsePickChannel(scalar(params.channel)));
+  // Restaurant Picks still support all three internal channels, but the initial
+  // public MVP pins food registration to the configured offline channel.
+  const [channel, setChannel] = useState<PickChannel>(() =>
+    OnePickFeatures.foodChannelPicker ? parsePickChannel(scalar(params.channel)) : OnePickMvp.publicPickChannel);
   const isOnlineChannel = isPlaceCategory && channel === 'online';
   const isPlaceSearch = isPlaceCategory && !isOnlineChannel;
   const hasSearchScope = authReady && categoryScopeReady && categoryCapabilityReady;
@@ -327,7 +329,9 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 원픽 찾기</Text>
-      <Text style={styles.subtitle}>어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.</Text>
+      <Text style={styles.subtitle}>{OnePickFeatures.foodChannelPicker
+        ? '어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.'
+        : '어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장에서 가장 좋아하는 곳을 찾을 수 있어요.'}</Text>
       <TextInput autoFocus accessibilityLabel="메뉴 검색" autoCapitalize="none" maxLength={100} onChangeText={setMenuQuery}
         placeholder="메뉴 검색: 도가니탕, 국밥…" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={menuQuery} />
       {menuTree.isPending ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>메뉴를 불러오고 있어요</Text></View> : null}
@@ -343,11 +347,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {menuTree.data && menuQuery.trim() && menuMatches.length === 0 ? <View style={styles.block}><StateCard title={`'${menuQuery.trim()}' 메뉴를 찾지 못했어요`}
         text="띄어쓰기를 바꿔 검색하거나, 이 이름으로 등록을 요청할 수 있어요. 확인 후 알맞은 메뉴로 연결해드려요."
         action={{ label: '이 이름으로 등록 요청', variant: 'secondary', onPress: requestMenu }} /></View> : null}
-      <View style={styles.channelSection}>
+      {OnePickFeatures.foodChannelPicker ? <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>레시피가 원픽인가요?</Text>
         <Text style={styles.stateText}>좋아하는 요리 영상의 YouTube 링크를 붙여넣고 어떤 요리의 레시피인지 고르면 돼요.</Text>
         <Button variant="soft" label="YouTube 링크로 레시피 등록" onPress={openRecipe} style={styles.recipeButton} />
-      </View>
+      </View> : null}
     </ScrollView>
   </SafeAreaView>;
 
@@ -359,7 +363,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {isDramaCategory ? <Text style={styles.stateText}>드라마·시트콤을 작품 단위로 선택해요. 시즌·회차는 나누지 않아요. 애니메이션·예능·다큐는 아직 포함하지 않아요.</Text> : null}
       {selectedCategory ? <View style={styles.categoryBadge}><Text style={styles.categoryBadgeText}>{selectedCategory.name} 안에서 찾는 중</Text></View>
         : !requestedCategoryId ? <Text style={styles.stateText}>카테고리는 비워두고 등록만 진행합니다.</Text> : null}
-      {isPlaceCategory ? <View style={styles.channelSection}>
+      {isPlaceCategory && OnePickFeatures.foodChannelPicker ? <View style={styles.channelSection}>
         <Text style={styles.channelTitle}>어디서 주문했나요?</Text>
         <View style={styles.channelRow}>
           {PICK_CHANNEL_OPTIONS.map((option) => <Chip key={option.channel} label={option.label} selected={channel === option.channel}

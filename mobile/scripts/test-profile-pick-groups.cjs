@@ -154,11 +154,10 @@ assert.doesNotMatch(component, /creatorName \?\? item\.item\?\.name/, 'recipe ti
 
 assert.equal(grouping.remainingProfileCategories, undefined, 'the remaining-category helper is gone');
 
-assert.match(owner, /<ProfilePickGroups/);
-assert.match(owner, /picks=\{visibleProfilePicks\}/, 'owner profile switches between 음식 and 다른 취향 in place');
+assert.doesNotMatch(owner, /<ProfilePickGroups/, 'Figma 03 owner profile intentionally renders direct compact rows');
+assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'owner profile switches between 음식 and 기타 without dropping Picks');
 assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
-assert.match(owner, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(owner, /pathname: '\/provider\/\[providerId\]'/, 'owner profile routes provider context to the provider profile');
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.match(publicProfile, /<ProfilePickGroups/);
@@ -173,4 +172,4 @@ assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
-console.log('Profile Pick groups checks passed: parent grouping, stable sort, 6/7 collapse boundary, fallback, controls, theme sections, FOOD lanes, and owner/public reuse.');
+console.log('Profile Pick groups checks passed: grouping remains for public profile and library use while Figma 03 owner profile uses direct compact rows.');

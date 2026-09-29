@@ -293,21 +293,22 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_suggestion_id: string; p_approve: boolean };
         Returns: ItemLinkSuggestionRow;
       };
-      category_top_items: Omit<CategoryTopItems, 'Returns'> & {
+      category_top_items: Omit<CategoryTopItems, 'Args' | 'Returns'> & {
+        Args: { p_category_id: string; p_channel?: 'offline' | 'online' | 'recipe' };
         Returns: (CategoryTopItems['Returns'][number] & {
           image_path: string | null;
           image_source_url: string | null;
         })[];
       };
       category_ranking: {
-        Args: { p_slug: string; p_limit?: number };
+        Args: { p_slug: string; p_limit?: number; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
         Returns: {
           item_id: string; name: string; thumbnail_path: string | null; image_path: string | null;
           image_source_url: string | null; pick_count: number; rank: number; is_tied: boolean;
         }[];
       };
       ranking_categories: {
-        Args: never;
+        Args: { p_root_slug?: string };
         Returns: { category_id: string; slug: string; name: string; category_path: string | null; sort_order: number }[];
       };
       dish_channel_overview: {

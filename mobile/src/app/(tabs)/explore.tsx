@@ -59,7 +59,7 @@ export default function ExploreScreen() {
   const bookCategory = inScope(categories.data?.find((category) => category.slug === 'book'));
   const youtubeCategory = inScope(categories.data?.find((category) => category.slug === 'youtube'));
   const pokemonCategory = inScope(categories.data?.find((category) => category.slug === 'pokemon'));
-  const topItems = useCategoryTopItems(selectedCategoryId);
+  const topItems = useCategoryTopItems(selectedCategoryId, OnePickMvp.publicPickChannel);
   // The restaurant-first MVP lands on menus. Keep the older recent-item browse only
   // for the future category-chip mode so we do not fetch an unused provider list.
   const recentItems = useRecentPickedItems(scope.leafIds, scope.showChips && !selectedCategoryId && Boolean(categories.data), false);

@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { homeMenuCategories, searchMenuCategories } from '@/lib/home/homeCategor
 import { acceptYouTubePolicyConsent, getYouTubePolicyConsent } from '@/lib/youtube/consent';
 import { YOUTUBE_VIDEO_ID_PATTERN, parseYouTubeVideoUrl, youtubeVideoUrl } from '@/lib/youtube/videoLink';
 import type { YouTubeVideoEntry } from '@/types/domain/youtubeCatalog';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 type Params = {
   categoryId?: string | string[];
@@ -47,6 +47,13 @@ function recipeErrorMessage(error: unknown) {
 export default function RecipePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
+  if (!OnePickFeatures.foodChannelPicker) {
+    const categoryId = scalar(params.categoryId);
+    return <Redirect href={{ pathname: '/pick/find', params: {
+      ...(categoryId ? { categoryId } : {}),
+      ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
+    } }} />;
+  }
   const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalVideoId ?? null, params.url ?? null, params.onboarding ?? null]);
   return <RecipePickContent key={key} auth={auth} params={params} />;
 }

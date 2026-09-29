@@ -54,7 +54,7 @@ begin
   select count(*) into n from public.home_showcase_page() h cross join lateral jsonb_array_elements(h.items) e where e->>'item_id'=source_item::text;
   assert n=0, 'Suspension privacy in home';
   reset role;
-  assert not (select prosecdef from pg_proc where oid='public.category_top_items(uuid)'::regprocedure), 'Ranking remains SECURITY INVOKER';
+  assert not (select prosecdef from pg_proc where oid='public.category_top_items(uuid,text)'::regprocedure), 'Ranking remains SECURITY INVOKER';
 end;
 $test$;
 $flow$, 'Catalog card image metadata, stable rankings, home profile/cursor and RLS');

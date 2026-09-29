@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const profile = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
 
-const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
+const picksIndex = profile.indexOf('visibleProfilePicks.map');
 const managementIndex = profile.indexOf('내 프로필 관리');
 const onboardingIndex = profile.indexOf('취향 고르기 이어가기');
 const publicIndex = profile.indexOf('공개 프로필 보기');

@@ -59,11 +59,13 @@ async function main() {
     isRefetching: false, isFetchNextPageError: false, hasNextPage: false,
     refetch: async () => {}, fetchNextPage: async () => {},
   });
-  const historyQuery = listQuery(), requestsQuery = listQuery();
+  const historyQuery = listQuery(), requestsQuery = listQuery(), profileCommentsQuery = listQuery();
   requestsQuery.data = [request('waiting', 'pending')];
   requestsQuery.refetch = async () => { requestRefreshes++; requestsQuery.data = [request('waiting', 'active')]; };
   historyQuery.refetch = async () => { historyRefreshes++; };
-  let historyUser, requestsUser, socialProps, bioProps;
+  let commentsRefreshes = 0;
+  profileCommentsQuery.refetch = async () => { commentsRefreshes++; };
+  let historyUser, requestsUser, profileCommentsUser, socialProps, bioProps;
   const { default: Profile } = load('app/(tabs)/profile.tsx', {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
@@ -90,11 +92,12 @@ async function main() {
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },
       useMyItemRequests: (userId) => { requestsUser = userId; return requestsQuery; },
+      useMyComments: (userId) => { profileCommentsUser = userId; return profileCommentsQuery; },
     },
   });
   const render = () => { presses = []; socialProps = undefined; bioProps = undefined; return renderToStaticMarkup(React.createElement(Profile)); };
@@ -160,7 +163,7 @@ async function main() {
   render(); // Back on the profile screen: its pull-to-refresh and press targets.
   assert.equal(bioProps.profileUserId, 'owner');
   assert.equal(socialProps.profileUserId, 'owner'); assert.equal(socialProps.editable, true);
-  assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner');
+  assert.equal(historyUser, 'owner'); assert.equal(requestsUser, 'owner'); assert.equal(profileCommentsUser, 'owner');
   assert.equal(button('waiting 제품'), undefined, 'Pending requests must not navigate to a selectable item');
   assert.equal(refreshButton(), undefined, 'Healthy profile has no manual refresh');
   await pullToRefresh.props.onRefresh();
@@ -172,7 +175,7 @@ async function main() {
   profileQuery.isRefetchError = true;
   render(); await refreshButton().onPress();
   assert.equal(refreshes, 2);
-  assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2, 'Pull refresh and error retry update all three queries');
+  assert.equal(requestRefreshes, 2); assert.equal(historyRefreshes, 2); assert.equal(commentsRefreshes, 2, 'Pull refresh and error retry update all profile queries');
 
   profileQuery.isFetching = true; profileQuery.isRefetching = true;
   assert.match(render(), /확인 중…/);
@@ -251,7 +254,7 @@ async function main() {
   const cached = profileQuery.data;
   profileQuery.data = undefined;
   assert.match(render(), /프로필을 불러오지 못했어요/);
-  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
+  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined); assert.equal(profileCommentsUser, undefined);
   profileQuery.data = cached;
   auth.user = null;
   const loggedOut = render();
@@ -259,10 +262,10 @@ async function main() {
   assert.equal(socialProps, undefined, 'Logging out hides the SNS editor');
   assert.match(loggedOut, /로그인하기/);
   assert.doesNotMatch(loggedOut, /내 원픽 등록 요청|merged 제품/, 'Logging out must hide cached private requests');
-  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
+  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined); assert.equal(profileCommentsUser, undefined);
   auth.user = { id: 'owner' }; auth.isLoading = true;
   assert.doesNotMatch(render(), /merged 제품|이전 제품/);
-  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined);
+  assert.equal(historyUser, undefined); assert.equal(requestsUser, undefined); assert.equal(profileCommentsUser, undefined);
   console.log('Request status checks passed: approval/merge routes, error-only refresh, confirmed-empty sections, independent pagination/loading/errors/retries, history routes and logout privacy.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

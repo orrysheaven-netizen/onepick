@@ -208,11 +208,11 @@ export interface ReadRepository {
   getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
-  getCategoryTopItems(categoryId: string): Promise<CategoryTopItem[]>;
+  getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
-  getCategoryRanking(slug: string, limit?: number): Promise<CategoryTopItem[]>;
+  getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */
-  getRankingCategories(): Promise<RankingCategory[]>;
+  getRankingCategories(rootSlug?: string | null): Promise<RankingCategory[]>;
   /**
    * Explore list: items in the given leaf categories (all open leaves when omitted), newest Pick first.
    * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.

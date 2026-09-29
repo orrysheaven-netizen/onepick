@@ -130,6 +130,9 @@ export const OnePickFeatures = {
   profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
+  // Initial food MVP exposes only the physical-store channel in registration.
+  // Online/recipe flows remain implemented behind this gate for later rollout.
+  foodChannelPicker: false,
   // Restaurant-first MVP: Home and Explore show only OnePickMvp.browseGroupSlug,
   // so category chips add nothing. Flip on when more top-level groups launch.
   categoryChips: false,
