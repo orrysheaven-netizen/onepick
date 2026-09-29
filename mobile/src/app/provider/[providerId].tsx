@@ -58,7 +58,7 @@ export default function ProviderProfileScreen() {
               {brandQuery.data.logoUrl ? <Image source={{ uri: brandQuery.data.logoUrl }} style={styles.brandLogo} resizeMode="contain"
                 accessibilityLabel={`${brandQuery.data.name} 로고`} /> : null}
               <Text accessibilityRole="header" style={styles.title}>{brandQuery.data.name}</Text>
-              <Text style={styles.subtitle}>원픽이 있는 지점 {brandQuery.data.branchCount.toLocaleString()}곳</Text>
+              <Text style={styles.subtitle}>원픽이 있는 지점을 모아볼 수 있어요.</Text>
             </View>
 
             {brandQuery.data.brandWide.length > 0 ? <View style={styles.menuSection}>
