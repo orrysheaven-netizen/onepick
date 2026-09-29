@@ -10,6 +10,8 @@ type Props = {
   large?: boolean;
   /** Compact row thumbnail used by Figma 03 Profile. */
   size?: 62 | 64 | 86;
+  /** Optional compact thumbnail radius override for Figma row variants. */
+  compactRadius?: 8 | 12;
   /** Only real catalog items can receive a shared photo. Draft previews omit this. */
   itemId?: string;
   itemStatus?: string;
@@ -43,7 +45,7 @@ function LogoBadge({ uri, large, onError }: { uri: string; large: boolean; onErr
 // Every frame is square and fits the whole photo inside it: restaurant photos
 // come in any shape and cropping cut off the dish or the storefront.
 // Image order: the menu photo, then the brand logo, then the name placeholder.
-export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
+export function PickPhoto({ uri, label, large = false, size = 86, compactRadius, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
@@ -71,7 +73,7 @@ export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemSt
   // Only the thumbnail has a fixed size. react-native-web drops `height: undefined`
   // when merging styles, so a shared 86px height would win over aspectRatio and
   // turn the full-width frames into 86px-tall strips.
-  return <View style={[styles.frame, large ? styles.large : square ? styles.square : size === 62 ? styles.thumb62 : size === 64 ? styles.thumb64 : styles.thumb]}>
+  return <View style={[styles.frame, large ? styles.large : square ? styles.square : size === 62 ? styles.thumb62 : size === 64 ? styles.thumb64 : styles.thumb, compact && compactRadius ? { borderRadius: compactRadius } : null]}>
     {showPhoto ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
       : logoImage && canAdd ? <>
         {logoImage}
