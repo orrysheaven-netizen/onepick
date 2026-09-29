@@ -90,6 +90,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
+  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
 
   useEffect(() => {
     const data = query.data;
@@ -154,7 +155,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const [revisionPhoto, setRevisionPhoto] = useState<PickPhotoDraft | null>(null);
   const [revisionLink, setRevisionLink] = useState('');
   const [revisionError, setRevisionError] = useState<string | null>(null);
-  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
