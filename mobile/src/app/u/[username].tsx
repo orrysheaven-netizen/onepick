@@ -397,6 +397,15 @@ const styles = StyleSheet.create({
   publicPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   publicPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   publicPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
+  safetyCard: {
+    backgroundColor: OnePick.bgMuted,
+    borderRadius: OnePickRadius.lg,
+    padding: OnePickSpace.lg,
+    marginBottom: OnePickSpace.xxxl,
+  },
+  safetyTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  safetyText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  safetyActions: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
   toast: {
     position: 'absolute',
     alignSelf: 'center',
