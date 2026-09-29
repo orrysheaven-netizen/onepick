@@ -33,6 +33,8 @@ export interface ImmediatePickRegistrationInput {
   channel: PickChannel;
   oneLineReview: string;
   requestId: string;
+  /** Current Pick ID the registration UI showed for this category/channel; null means the slot was empty. */
+  expectedPreviousPickId: string | null;
   itemId?: string | null;
   catalogId?: string | null;
   providerId?: string | null;
@@ -135,6 +137,13 @@ export class RegistrationService {
     }
   }
 
+  async getCurrentPickSlot(userId: string, categoryId: string, channel: PickChannel): Promise<Pick | null> {
+    if (!userId) throw new AppError('AUTH_REQUIRED');
+    if (!categoryId) throw new AppError('CATEGORY_NOT_PICKABLE');
+    return (await this.pickRepository.getCurrentPicksInCategory(userId, categoryId))
+      .find((pick) => pick.channel === channel) ?? null;
+  }
+
   async registerImmediatePick(input: ImmediatePickRegistrationInput): Promise<ImmediatePickRegistrationResult> {
     if (!input.userId) throw new AppError('AUTH_REQUIRED');
     const review = input.oneLineReview.trim();
@@ -172,12 +181,10 @@ export class RegistrationService {
     }
 
     try {
-      // Read the slot immediately before the write. If another client changes it
-      // after this read, register_item_pick raises PICK_CHANGED_ELSEWHERE and the
-      // UI requires an explicit second submit against a freshly read value.
-      const current = (await this.pickRepository.getCurrentPicksInCategory(input.userId, input.categoryId))
-        .find((pick) => pick.channel === input.channel) ?? null;
-
+      // The UI snapshots the visible current-Pick slot before the person confirms.
+      // Never replace that snapshot with a last-moment read here: doing so would
+      // silently absorb a change made on another device instead of raising
+      // PICK_CHANGED_ELSEWHERE. Only an explicit reconfirmation may refresh it.
       return await this.pickRepository.registerItemPick({
         categoryId: input.categoryId,
         channel: input.channel,
@@ -189,7 +196,7 @@ export class RegistrationService {
         imagePath: uploaded?.imagePath,
         thumbnailPath: uploaded?.thumbnailPath,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
-        expectedPreviousPickId: current?.id ?? null,
+        expectedPreviousPickId: input.expectedPreviousPickId,
         requestId: input.requestId,
       });
     } finally {
