@@ -5,9 +5,10 @@
 `20260928170000_add_comment_threads_and_review_deletion.sql`이 구현하고,
 pgTAP `100`~`103`이 검증한다. 앱 연결은 Codex 담당이며, 아래 표가 연결 기준이다.
 
-## 사용자 결정 (09-27 19:52 인계 + 09-28 답변)
+## 사용자 결정 (09-27 19:52 인계 + 09-28·09-29 답변)
 
-- 원픽 해제·교체 후에도 한줄평과 댓글은 남고 `✓ 이 집 원픽` 깃발만 사라진다.
+- 현재 원픽 표시는 텍스트 배지(`✓ 이 집 원픽`, `✓ 원픽`)를 쓰지 않고 Figma의 **주황 깃발 아이콘**만 사용한다. 화면에는 단어를 표시하지 않으며 접근성 라벨만 `현재 원픽`으로 둔다.
+- 원픽 해제·교체 후에도 한줄평과 댓글은 남고 주황 깃발 아이콘만 사라진다.
 - 한줄평 삭제는 별도 동작이다. 현재 한줄평을 삭제하면 원픽도 해제된다.
   댓글이 달린 한줄평은 작성자·본문·깃발을 지운 자리(`is_deleted`)로 남고 대화가
   유지된다. 댓글이 없으면 상품 상세에서 사라진다.
@@ -49,7 +50,7 @@ anon/authenticated 실행 가능.
 
 댓글/답글 행 키: `id`, `pick_id`, `parent_comment_id`, `created_at`, `is_deleted`,
 `user_id`·`body`·`updated_at`·`author`(삭제 자리면 `null`),
-`author_current_pick_matches_item`(`✓ 이 집 원픽`; 삭제 자리는 `false`),
+`author_current_pick_matches_item`(주황 깃발 아이콘 표시 여부; 삭제 자리는 `false`),
 `can_edit`, `can_delete`(호출자 기준. 정지된 작성자는 삭제만 가능해 `can_edit=false`).
 
 ### `can_comment_on_pick(p_pick_id)` → `boolean`
