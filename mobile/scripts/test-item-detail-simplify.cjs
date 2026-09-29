@@ -62,13 +62,17 @@ assert.match(detail, />사진 @\{credit\.username\}</);
 assert.doesNotMatch(detail, /사진 등록 · @|아래에서 함께 볼 수 있어요|내 원픽 한줄평 보기\/수정|title="원픽 한줄평"|각 한줄평에서 댓글로 대화해요/);
 assert.match(detail, /itemTitle\(item\.name, category\?\.name, isRestaurant\)/);
 
-// Review cards: other people's threads open, mine behind "댓글 보기"; a share icon on every card.
-const replies = [];
+// Review cards: the item list never expands comment threads inline.
+// Review body / comment count opens the existing /pick/[pickId] conversation route.
 const native = {
   Pressable: nativeComponent('button'), Text: nativeComponent('span'), View: nativeComponent('div'),
   StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
 };
 let session = { user: { id: 'me' }, isLoading: false };
+const cardSource = source('components/item-review-card.tsx');
+assert.doesNotMatch(cardSource, /PickReplies/, 'Item review cards do not render comment threads inline');
+assert.match(cardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review cards open the dedicated conversation route');
+
 const { ItemReviewCard } = load('components/item-review-card.tsx', {
   'expo-router': { useRouter: () => ({ push() {} }) },
   'react-native': native,
@@ -76,7 +80,6 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
     PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
     PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
   },
-  '@/components/pick-replies': { PickReplies: ({ pickId, compact, canWrite }) => { replies.push({ pickId, compact, canWrite }); return React.createElement('i', null, `thread:${pickId}`); } },
   '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
   '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
@@ -84,44 +87,44 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
 const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
   pick, profile, categoryName: '내장탕', itemName: '중앙해장', focused: false, highlighted: false, onRemoved() {},
 }));
-const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다' }, { username: 'someone' });
-assert.match(other, /thread:o1/, "Other people's comments are shown expanded");
-assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o1', compact: true, canWrite: true });
+
+const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다', commentCount: 3 }, { username: 'someone' });
 assert.match(other, /share:o1/);
 assert.match(other, /@someone/);
 assert.match(other, /✓ 이 집 원픽/, 'A current review gets only the positive current-Pick badge');
-assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고|원픽 아님/);
+assert.match(other, /댓글 3/, 'List cards expose the server comment count');
+assert.doesNotMatch(other, /thread:o1|댓글 접기|수정 · 해제|공유 · 신고|원픽 아님/);
 
-const endedOther = card({ id: 'o-old', userId: 'someone', status: 'replaced', oneLineReview: '예전에도 좋았다' }, { username: 'someone' });
+const endedOther = card({ id: 'o-old', userId: 'someone', status: 'replaced', oneLineReview: '예전에도 좋았다', commentCount: 2 }, { username: 'someone' });
 assert.match(endedOther, /@someone/);
+assert.match(endedOther, /댓글 2/);
 assert.doesNotMatch(endedOther, /이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|원픽 아님/, 'Ended reviews stay neutral and do not reveal history state');
-assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'o-old', compact: true, canWrite: true }, 'Ended review threads keep the same reply permission as other people\'s reviews');
 
-const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기' }, { username: 'me' });
+const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기', commentCount: 6 }, { username: 'me' });
 assert.match(mine, /내 한줄평/);
 assert.match(mine, /✓ 이 집 원픽/);
 assert.doesNotMatch(mine, /@me|내 이전 한줄평|원픽 아님/, 'My own card uses the same neutral label and only a positive current badge');
 assert.match(mine, /수정 · 해제/);
 assert.match(mine, /share:m1/);
-assert.doesNotMatch(mine, /댓글 보기|댓글 숨기기/, 'My own review has no comment toggle');
-assert.match(mine, /thread:m1/, 'Comments others left on my review stay visible');
-assert.deepEqual(JSON.parse(JSON.stringify(replies.pop())), { pickId: 'm1', compact: true, canWrite: false }, 'No 댓글 쓰기 on my own review');
+assert.match(mine, /댓글 6/);
 
-// The session resolves after the first render; once it says the card is mine, writing is withdrawn.
 session = { user: null, isLoading: true };
-assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
-assert.equal(replies.pop().canWrite, true, 'Signed-out/loading viewers see the thread like any other');
+assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x', commentCount: 1 }, { username: 'me' }), /수정 · 해제/);
 session = { user: { id: 'me' }, isLoading: false };
-assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /thread:m1/);
-assert.equal(replies.pop().canWrite, false, 'Ownership is read on every render, not stored from the first one');
 
-const endedMine = card({ id: 'm-old', userId: 'me', status: 'removed', oneLineReview: '예전 이유' }, { username: 'me' });
+const endedMine = card({ id: 'm-old', userId: 'me', status: 'removed', oneLineReview: '예전 이유', commentCount: 4 }, { username: 'me' });
 assert.match(endedMine, /내 한줄평/);
+assert.match(endedMine, /댓글 4/);
 assert.doesNotMatch(endedMine, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|수정 · 해제/, 'My ended review does not expose history state or current-only management');
-assert.equal(replies.pop().canWrite, false, 'My ended review remains read-only to me');
 
 session = { user: { id: 'me' }, isLoading: true };
-assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x' }, { username: 'me' }), /수정 · 해제/);
+assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x', commentCount: 0 }, { username: 'me' }), /수정 · 해제/);
+
+const conversationSource = source('app/pick/[pickId].tsx');
+assert.doesNotMatch(conversationSource, /<Redirect/, 'Pick links now render the conversation instead of redirecting back to item detail');
+assert.match(conversationSource, /useItemDetail\(/, 'Conversation resolves viewer-scoped review flags through item_review_page');
+assert.match(conversationSource, /PickReplies pickId=\{pick\.id\} canWrite=\{Boolean\(pick\.canComment\)\}/,
+  'Conversation write affordance follows the server can_comment flag');
 
 // Share actions: icon per card, 신고 only behind ⋯ and never on my own Pick.
 const shareSource = source('components/pick-share-actions.tsx');
@@ -136,4 +139,4 @@ assert.match(repliesSource, /useState\(!compact\)/);
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /!compact && !commentsQuery\.isPending/);
 
-console.log('Item detail simplify passed: restaurant titles, bold count, trimmed hero, per-card share, open threads for others and my own management actions.');
+console.log('Item detail simplify passed: restaurant titles, list-only review cards, dedicated conversations, comment counts, sharing and management actions.');
