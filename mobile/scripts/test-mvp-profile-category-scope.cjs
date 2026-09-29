@@ -80,10 +80,11 @@ async function main() {
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
     assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
     assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? mainPicks : labPicks/, `${name} profile keeps both scopes available`);
-    assert.match(screen, /picks=\{visibleProfilePicks\}/, `${name} profile switches the visible collection without dropping Picks`);
     assert.match(screen, /음식 원픽 보기/);
     assert.match(screen, /다른 취향 원픽 보기/);
   }
+  assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner Figma 03 rows render every Pick in the selected scope');
+  assert.match(publicScreen, /picks=\{visibleProfilePicks\}/, 'Public profile keeps the grouped collection until Figma 40 is applied');
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 
