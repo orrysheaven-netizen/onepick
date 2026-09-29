@@ -13,15 +13,19 @@ type Props = {
   onSelectItem: (itemId: string) => void;
   /** Starts registration for this dish in one channel; omitted, empty channels only say so. */
   onRegister?: (categoryId: string, channel: PickChannel) => void;
+  /** Public rollout may expose a subset while the internal three-channel model stays intact. */
+  visibleChannels?: readonly PickChannel[];
 };
 
-/** A searched dish shown three ways: 오프라인 맛집, 온라인 맛집 and 레시피, most picked first. */
-export function DishChannelOverview({ overview, onSelectItem, onRegister }: Props) {
+/** A searched dish grouped by the channels currently exposed to the user. */
+export function DishChannelOverview({ overview, onSelectItem, onRegister, visibleChannels }: Props) {
+  const channels = visibleChannels?.length ? visibleChannels : CHANNELS;
+  const singleOffline = channels.length === 1 && channels[0] === 'offline';
   return (
-    <View accessibilityLabel={`${overview.categoryName} 채널별 원픽`} style={styles.container}>
+    <View accessibilityLabel={singleOffline ? `${overview.categoryName} 매장 원픽` : `${overview.categoryName} 채널별 원픽`} style={styles.container}>
       <Text accessibilityRole="header" style={styles.title}>{overview.categoryName}</Text>
-      <Text style={styles.subtitle}>오프라인 맛집 · 온라인 맛집 · 레시피로 나눠 보여드려요.</Text>
-      {CHANNELS.map((channel) => {
+      <Text style={styles.subtitle}>{singleOffline ? '매장에서 먹은 메뉴 원픽을 보여드려요.' : '오프라인 맛집 · 온라인 맛집 · 레시피로 나눠 보여드려요.'}</Text>
+      {channels.map((channel) => {
         const items = overview.channels[channel];
         const label = channelLabel(channel);
         return (

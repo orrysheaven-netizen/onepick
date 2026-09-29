@@ -130,7 +130,7 @@ export default function ExploreScreen() {
               ? (query) => router.push({ pathname: '/pick/youtube', params: { categoryId: youtubeCategory.id, query } }) : undefined}
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
-            dishChannels={{ userId: user?.id, onRegister: registerDish }}
+            dishChannels={{ userId: user?.id, channel: OnePickMvp.publicPickChannel, onRegister: registerDish }}
             onSelect={openItem} />
         </View> : null}
         {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}

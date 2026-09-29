@@ -12,7 +12,8 @@ assert.match(explore, /backgroundColor: OnePick\.bgPlaceholder/);
 assert.match(explore, /borderColor: OnePick\.borderDefault/);
 assert.doesNotMatch(explore, /fontWeight: ['"](?:800|900)['"]/);
 assert.doesNotMatch(explore, /paddingHorizontal: 20/);
-assert.match(explore, /dishChannels=\{\{ userId: user\?\.id, onRegister: registerDish \}\}/, 'registration wiring stays intact');
+assert.match(explore, /dishChannels=\{\{ userId: user\?\.id, channel: OnePickMvp\.publicPickChannel, onRegister: registerDish \}\}/,
+  'registration wiring stays intact and is pinned to the MVP public channel');
 assert.match(explore, /showRankingDetail = OnePickFeatures\.exploreRankingDetail/, 'ranking exposure contract stays intact');
 
 console.log('Explore Foundations checks passed: visual tokens changed without search/registration/ranking contract drift.');

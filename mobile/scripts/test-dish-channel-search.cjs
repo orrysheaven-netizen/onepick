@@ -96,14 +96,41 @@ async function main() {
   pressed.find((p) => /^레시피 1위, 초간단 미역국/.test(p.accessibilityLabel)).onPress();
   assert.deepEqual(selected, ['v1']);
 
-  // Explore: only the unscoped search shows dishes, and empty channels open registration.
+  // MVP caller can expose only the offline section without deleting future-channel support.
+  pressed.length = 0; registered.length = 0; selected.length = 0;
+  const mvpHtml = renderToStaticMarkup(React.createElement(DishChannelOverview, {
+    overview: {
+      categoryId: 'dish', categoryName: '미역국',
+      channels: { offline: [{ itemId: 's1', name: '미역국 명가', thumbnailUrl: null, pickCount: 3 }], online: [], recipe: [{ itemId: 'v1', name: '초간단 미역국', thumbnailUrl: null, pickCount: 1 }] },
+    },
+    visibleChannels: ['offline'],
+    onSelectItem: (id) => selected.push(id),
+    onRegister: (categoryId, channel) => registered.push([categoryId, channel]),
+  }));
+  assert.match(mvpHtml, /매장에서 먹은 메뉴 원픽/);
+  assert.match(mvpHtml, /오프라인 맛집/);
+  assert.doesNotMatch(mvpHtml, /온라인 맛집|레시피</);
+  assert.equal(pressed.some((p) => /온라인|레시피/.test(p.accessibilityLabel ?? '')), false);
+
+  // Explore: unscoped dish search is pinned to the initial MVP public channel.
   const explore = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/explore.tsx'), 'utf8');
-  assert.match(explore, /dishChannels=\{\{ userId: user\?\.id, onRegister: registerDish \}\}/);
+  assert.match(explore, /dishChannels=\{\{ userId: user\?\.id, channel: OnePickMvp\.publicPickChannel, onRegister: registerDish \}\}/);
   assert.match(explore, /channel === 'recipe'\s+\? \{ pathname: '\/pick\/recipe', params: \{ categoryId \} \}\s+: \{ pathname: '\/pick\/find', params: \{ categoryId, channel \} \}/);
   const search = fs.readFileSync(path.join(__dirname, '../src/components/item-search.tsx'), 'utf8');
   assert.match(search, /useDishChannels\(searchText, dishChannels\?\.userId, Boolean\(dishChannels\) && !categoryId\)/, 'category-scoped searches skip the dish overview');
+  assert.match(search, /visibleChannels=\{dishChannels\?\.channel \? \[dishChannels\.channel\] : undefined\}/);
+  assert.match(search, /fixedChannel=\{dishChannels\?\.channel\}/);
 
-  console.log('Dish channel search passed: RPC mapping, short-query guard, three ordered channel sections with counts, empty-channel registration and explore wiring.');
+  const people = fs.readFileSync(path.join(__dirname, '../src/components/dish-people-picks.tsx'), 'utf8');
+  assert.match(people, /const activeChannel = fixedChannel \?\? channel/);
+  assert.match(people, /!fixedChannel \? <ScrollView/, 'fixed channel hides the future channel switcher');
+
+  const menuRoute = fs.readFileSync(path.join(__dirname, '../src/app/menu/[slug].tsx'), 'utf8');
+  assert.match(menuRoute, /fixedChannel=\{OnePickMvp\.publicPickChannel\}/, 'Dedicated menu view stays offline-only');
+  const rankingRoute = fs.readFileSync(path.join(__dirname, '../src/app/ranking/[slug].tsx'), 'utf8');
+  assert.match(rankingRoute, /fixedChannel=\{OnePickMvp\.publicPickChannel\}/, 'Ranking people feed stays offline-only');
+
+  console.log('Dish channel search passed: full internal three-channel model remains, while MVP discovery, menu and people feeds are pinned to offline.');
 }
 
 main().catch((error) => { console.error(error); process.exit(1); });

@@ -15,6 +15,8 @@ type Props = {
   userId?: string;
   /** The menu is already named by the surrounding view, so cards use D hierarchy. */
   menuContext?: boolean;
+  /** When set, query only this channel and hide the channel switcher. */
+  fixedChannel?: PickChannel;
 };
 
 /**
@@ -22,13 +24,14 @@ type Props = {
  * first, with the Home channel tabs. The feed leaves the viewer out, so their own
  * Pick for the dish is read separately and shown first as "내 원픽".
  */
-export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true }: Props) {
+export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true, fixedChannel }: Props) {
   const router = useRouter();
   const [channel, setChannel] = useState<PickChannel | null>(null);
-  const query = useDishPicks(categoryId, channel, userId);
+  const activeChannel = fixedChannel ?? channel;
+  const query = useDishPicks(categoryId, activeChannel, userId);
   const picks = query.data ?? [];
   const mine = (useMyDishPicks(categoryId, userId).data ?? [])
-    .filter((pick) => !channel || pick.channels.includes(channel));
+    .filter((pick) => !activeChannel || pick.channels.includes(activeChannel));
   const renderCard = (pick: HomeFeedPick, isMine: boolean) => <View key={pick.pickId} style={styles.cell}>
     <HomeFeedCard pick={pick} mine={isMine} menuContext={menuContext}
       onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
@@ -44,10 +47,10 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
     <View accessibilityLabel={`${categoryName} 사람들의 원픽`} style={styles.container}>
       <SectionHeader title={menuContext ? '사람들의 원픽' : `사람들의 ${categoryName} 원픽`}
         description="최근 고른 순 · 누가 어디를 왜 골랐는지 볼 수 있어요" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
+      {!fixedChannel ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
         {HOME_CHANNEL_TABS.map((tab) => <Chip key={tab.label} label={tab.label} selected={tab.channel === channel}
           accessibilityLabel={`${categoryName} ${tab.label} 원픽 보기`} onPress={() => setChannel(tab.channel)} />)}
-      </ScrollView>
+      </ScrollView> : null}
 
       {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요" /> : null}
       {query.isError && !picks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요"

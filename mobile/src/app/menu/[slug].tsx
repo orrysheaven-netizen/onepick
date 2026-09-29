@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickMvp } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
 
@@ -45,7 +45,7 @@ export default function MenuPeoplePicksScreen() {
         {categoryOpen && category.data && name ? <>
           <Text accessibilityRole="header" style={styles.title}>{name}</Text>
           <Text style={styles.subtitle}>이 메뉴를 지금 원픽으로 고른 사람들의 한줄평이에요.</Text>
-          <DishPeoplePicks categoryId={category.data.id} categoryName={name} userId={user?.id} menuContext />
+          <DishPeoplePicks categoryId={category.data.id} categoryName={name} userId={user?.id} menuContext fixedChannel={OnePickMvp.publicPickChannel} />
         </> : null}
       </ScrollView>
     </SafeAreaView>
