@@ -1,0 +1,210 @@
+name: AI Handoff - CI Gate
+
+# Connects "PR created by an AI handoff" to "next reviewer handoff" only after the
+# required PR CI has finished, driven purely by workflow completion events.
+#
+# The handoff finalizers (ai-handoff-codex.yml / ai-handoff-claude.yml) leave a
+# bot-authored marker on the ORIGINAL issue when they open a PR:
+#   <!-- onepick-ci-handoff:pending pr=<PR> next=<claude|codex|user> -->
+# This workflow acts only when such a marker exists for the PR, so PR bodies and
+# other external text are never trusted as instructions. It never checks out or
+# runs PR code, never merges, and never deploys.
+
+on:
+  workflow_run:
+    workflows: ["Mobile CI", "Database Tests", "Web build"]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: ai-handoff-ci-gate-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: >-
+      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create handoff App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
+          permission-actions: read
+          permission-issues: write
+          permission-pull-requests: read
+
+      - name: Evaluate required CI and hand off
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REQUIRED_WORKFLOWS: '["Mobile CI","Database Tests","Web build"]'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bot_login="${APP_SLUG}[bot]"
+
+          # 1. The open PR whose current head is exactly this SHA. Older SHAs are stale.
+          pr_json="$(
+            gh api -X GET "repos/$REPOSITORY/pulls" \
+              -f state=open -f base=main -f head="${REPOSITORY_OWNER}:${HEAD_BRANCH}" -f per_page=10 |
+              jq -c --arg sha "$HEAD_SHA" --arg repo "$REPOSITORY" \
+                '[.[] | select(.head.sha == $sha and .head.repo.full_name == $repo)] | first // empty'
+          )"
+          if [ -z "$pr_json" ]; then
+            echo "No open PR at head $HEAD_SHA; nothing to do."
+            exit 0
+          fi
+          pr_number="$(jq -r '.number' <<<"$pr_json")"
+
+          # 2. Candidate issue numbers from "Refs #N" (digits only; the PR body is data).
+          #    A candidate is used only if it carries a bot-authored pending marker for this PR.
+          candidates="$(jq -r '.body // "" | [scan("Refs #([0-9]{1,7})")[0]] | unique | .[:5][]' <<<"$pr_json")"
+
+          issue_number=""
+          comments="[]"
+          pending_json=""
+          for n in $candidates; do
+            c="$(gh api --paginate "repos/$REPOSITORY/issues/$n/comments?per_page=100" | jq -s 'add // []')"
+            p="$(
+              jq -c --arg bot "$bot_login" --arg pr "$pr_number" '
+                [ .[] | select(.user.login == $bot)
+                  | . as $c
+                  | (.body | capture("<!-- onepick-ci-handoff:pending pr=(?<pr>[0-9]+) next=(?<next>claude|codex|user) -->")?) as $m
+                  | select($m != null and $m.pr == $pr)
+                  | {created_at: $c.created_at, next: $m.next} ]
+                | sort_by(.created_at) | last // empty
+              ' <<<"$c"
+            )"
+            if [ -n "$p" ]; then
+              issue_number="$n"
+              comments="$c"
+              pending_json="$p"
+              break
+            fi
+          done
+          if [ -z "$issue_number" ]; then
+            echo "PR #$pr_number has no AI handoff pending marker; not an automated handoff PR."
+            exit 0
+          fi
+          pending_at="$(jq -r '.created_at' <<<"$pending_json")"
+          next_owner="$(jq -r '.next' <<<"$pending_json")"
+
+          # 3. One handoff per pending marker.
+          if jq -e --arg bot "$bot_login" --arg pr "$pr_number" --arg at "$pending_at" '
+              any(.[]; .user.login == $bot and .created_at >= $at and
+                  (.body | contains("<!-- onepick-ci-handoff:done pr=\($pr) -->")))
+            ' <<<"$comments" >/dev/null; then
+            echo "Pending handoff for PR #$pr_number on issue #$issue_number was already processed."
+            exit 0
+          fi
+
+          # 4. Never resume closed, blocked or already handed-off issues.
+          issue_json="$(gh api "repos/$REPOSITORY/issues/$issue_number")"
+          if [ "$(jq -r '.state' <<<"$issue_json")" != "open" ] || jq -e 'has("pull_request")' <<<"$issue_json" >/dev/null; then
+            echo "Issue #$issue_number is not an open issue; skipping."
+            exit 0
+          fi
+          labels_json="$(jq -c '[.labels[].name]' <<<"$issue_json")"
+          if jq -e 'index("state:blocked") != null or index("handoff:codex") != null or index("handoff:claude") != null' <<<"$labels_json" >/dev/null; then
+            echo "Issue #$issue_number is blocked or already queued for handoff; skipping."
+            exit 0
+          fi
+
+          # 5. Latest pull_request run of each required workflow for this exact SHA.
+          runs="$(
+            gh api -X GET "repos/$REPOSITORY/actions/runs" \
+              -f head_sha="$HEAD_SHA" -f event=pull_request -f per_page=100 |
+              jq -c --argjson req "$REQUIRED_WORKFLOWS" '
+                .workflow_runs as $all
+                | [ $req[] as $name
+                    | ([ $all[] | select(.name == $name) ] | sort_by(.created_at) | last) as $r
+                    | { name: $name,
+                        status: ($r.status // "missing"),
+                        conclusion: ($r.conclusion // ""),
+                        id: ($r.id // 0),
+                        attempt: ($r.run_attempt // 0),
+                        url: ($r.html_url // "") } ]
+              '
+          )"
+          if jq -e 'any(.[]; .status != "completed")' <<<"$runs" >/dev/null; then
+            echo "Required CI not finished yet for $HEAD_SHA:"
+            jq -r '.[] | "- \(.name): \(.status)"' <<<"$runs"
+            exit 0
+          fi
+
+          short_sha="${HEAD_SHA:0:7}"
+          ci_table="$(jq -r '.[] | "- \(.name): \(.conclusion) — \(.url)"' <<<"$runs")"
+
+          # 6a. Any failure/cancellation: record once per (PR, run attempts) and stop.
+          if jq -e 'any(.[]; .conclusion != "success")' <<<"$runs" >/dev/null; then
+            sig="$(jq -r '[.[] | "\(.name):\(.conclusion):\(.id):\(.attempt)"] | join("|")' <<<"$runs" | sha256sum | cut -c1-16)"
+            if jq -e --arg bot "$bot_login" --arg pr "$pr_number" --arg sig "$sig" '
+                any(.[]; .user.login == $bot and
+                    (.body | contains("<!-- onepick-ci-handoff:failed pr=\($pr) sig=\($sig) -->")))
+              ' <<<"$comments" >/dev/null; then
+              echo "Failure for PR #$pr_number already recorded (sig $sig)."
+              exit 0
+            fi
+            failed="$(jq -r '.[] | select(.conclusion != "success") | "\(.name)(\(.conclusion))"' <<<"$runs" | paste -sd ', ' -)"
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-ci-handoff:failed pr=${pr_number} sig=${sig} -->
+          ## 필수 CI 실패 — 다음 단계 인계 보류
+          PR: #${pr_number} (head \`${short_sha}\`)
+          실패/취소: ${failed}
+
+          ${ci_table}
+
+          다음 담당으로 넘기지 않았습니다. 현재 담당이 수정해 새 커밋을 올리거나 실패한 workflow를 재실행해 필수 CI가 모두 성공하면 자동으로 다시 판정합니다.
+          EOF
+          )"
+            exit 0
+          fi
+
+          # 6b. All required CI succeeded.
+          update_labels() {
+            local add_json="$1"
+            local remove_json="$2"
+            local current next
+            current="$(gh api "repos/$REPOSITORY/issues/$issue_number" --jq '[.labels[].name]')"
+            next="$(
+              jq -n --argjson current "$current" --argjson add "$add_json" --argjson remove "$remove_json" \
+                '$current | map(select(. as $x | ($remove | index($x)) == null)) + $add | unique'
+            )"
+            jq -n --argjson labels "$next" '{labels:$labels}' |
+              gh api --method PATCH "repos/$REPOSITORY/issues/$issue_number" --input - >/dev/null
+          }
+
+          case "$next_owner" in
+            claude) next_label="handoff:claude"; next_text="Claude 독립 리뷰로 자동 인계" ;;
+            codex)  next_label="handoff:codex";  next_text="Codex 독립 리뷰로 자동 인계" ;;
+            *)      next_label="";               next_text="사용자 병합 판단 대기 (자동 병합하지 않음)" ;;
+          esac
+
+          # The done marker is written before labeling so a retried run cannot hand off twice.
+          gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-ci-handoff:done pr=${pr_number} -->
+          ## 필수 CI 통과
+          PR: #${pr_number} (head \`${short_sha}\`)
+
+          ${ci_table}
+
+          후속: ${next_text}
+          EOF
+          )"
+
+          if [ -n "$next_label" ]; then
+            update_labels "[\"state:review\",\"state:handoff\",\"$next_label\"]" \
+              '["state:active","state:ready","handoff:codex","handoff:claude"]'
+          fi
