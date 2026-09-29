@@ -34,6 +34,16 @@ function missingScopedHomeRpc(error: RpcErrorLike, rpc: 'home_following_feed_pag
   return new RegExp(`(could not find the function|function .* does not exist).*${rpc}`, 'i').test(message);
 }
 
+function missingScopedRankingRpc(
+  error: RpcErrorLike,
+  rpc: 'category_top_items' | 'category_ranking' | 'ranking_categories',
+) {
+  if (!error) return false;
+  if (error.code === 'PGRST202' || error.code === '42883') return true;
+  const message = error.message ?? '';
+  return new RegExp(`(could not find the function|function .* does not exist).*${rpc}`, 'i').test(message);
+}
+
 type HomeShowcaseItemRow = {
   item_id: string;
   name: string;
@@ -261,10 +271,14 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
-  async getCategoryTopItems(categoryId: string) {
+  async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
-    // change the aggregate. The RPC counts all current picks before limiting.
-    const { data, error } = await this.countClient.rpc('category_top_items', { p_category_id: categoryId });
+    // change the aggregate. Optional channel scope is server-side before limiting.
+    const { data, error } = await this.countClient.rpc('category_top_items', {
+      p_category_id: categoryId,
+      ...(channel ? { p_channel: channel } : {}),
+    });
+    if (error && channel && missingScopedRankingRpc(error, 'category_top_items')) return [];
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
     const [channels, logos] = await Promise.all([
@@ -279,14 +293,20 @@ export class SupabaseReadRepository implements ReadRepository {
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
-      channels: channels.get(row.item_id) ?? [],
+      channels: channel ? [channel] : channels.get(row.item_id) ?? [],
     }));
   }
 
-  async getCategoryRanking(slug: string, limit = 20) {
+  async getCategoryRanking(slug: string, limit = 20, channel: PickChannel | null = null, rootSlug: string | null = null) {
     // Public aggregate, like getCategoryTopItems: the page is shared and crawled,
     // so every viewer must see the same numbers.
-    const { data, error } = await this.countClient.rpc('category_ranking', { p_slug: slug, p_limit: limit });
+    const { data, error } = await this.countClient.rpc('category_ranking', {
+      p_slug: slug,
+      p_limit: limit,
+      ...(channel ? { p_channel: channel } : {}),
+      ...(rootSlug ? { p_root_slug: rootSlug } : {}),
+    });
+    if (error && (channel || rootSlug) && missingScopedRankingRpc(error, 'category_ranking')) return [];
     if (error) throw mapSupabaseError(error);
     const rows = data ?? [];
     const [channels, logos] = await Promise.all([
@@ -301,12 +321,13 @@ export class SupabaseReadRepository implements ReadRepository {
       pickCount: row.pick_count,
       rank: row.rank,
       isTied: row.is_tied,
-      channels: channels.get(row.item_id) ?? [],
+      channels: channel ? [channel] : channels.get(row.item_id) ?? [],
     }));
   }
 
-  async getRankingCategories() {
-    const { data, error } = await this.countClient.rpc('ranking_categories');
+  async getRankingCategories(rootSlug: string | null = null) {
+    const { data, error } = await this.countClient.rpc('ranking_categories', rootSlug ? { p_root_slug: rootSlug } : {});
+    if (error && rootSlug && missingScopedRankingRpc(error, 'ranking_categories')) return [];
     if (error) throw mapSupabaseError(error);
     return (data ?? []).map((row) => ({
       categoryId: row.category_id,

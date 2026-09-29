@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
@@ -11,17 +12,17 @@ export class ExploreService {
 
   getCategories() { return this.categoryRepository.getBrowseCategories(); }
 
-  getCategoryTopItems(categoryId: string) {
-    return this.readRepository.getCategoryTopItems(categoryId);
+  getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
+    return this.readRepository.getCategoryTopItems(categoryId, channel);
   }
 
-  /** Public ranking page data. The category comes from the browse catalog so name/path stay consistent. */
-  getCategoryRanking(slug: string, limit?: number) {
-    return this.readRepository.getCategoryRanking(slug, limit);
+  /** Public ranking page data; optional filters keep the future full model intact. */
+  getCategoryRanking(slug: string, limit?: number, channel: PickChannel | null = null, rootSlug: string | null = null) {
+    return this.readRepository.getCategoryRanking(slug, limit, channel, rootSlug);
   }
 
-  getRankingCategories() {
-    return this.readRepository.getRankingCategories();
+  getRankingCategories(rootSlug: string | null = null) {
+    return this.readRepository.getRankingCategories(rootSlug);
   }
 
   getCategoryBySlug(slug: string) {

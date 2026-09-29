@@ -1,3 +1,4 @@
+import type { PickChannel } from '@/lib/items/pickChannel';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -15,32 +16,37 @@ export function useExploreCategories(enabled = true) {
   });
 }
 
-export function useCategoryTopItems(categoryId?: string) {
+export function useCategoryTopItems(categoryId?: string, channel: PickChannel | null = null) {
   return useQuery({
-    queryKey: queryKeys.explore.topItems(categoryId),
+    queryKey: queryKeys.explore.topItems(categoryId, channel),
     enabled: Boolean(categoryId),
-    queryFn: () => categoryId ? exploreService.getCategoryTopItems(categoryId) : Promise.resolve([]),
+    queryFn: () => categoryId ? exploreService.getCategoryTopItems(categoryId, channel) : Promise.resolve([]),
   });
 }
 
 const RANKING_STALE_TIME = 60_000;
 
 /** Public ranking page list for /ranking/[slug]. */
-export function useCategoryRanking(slug?: string, limit?: number) {
+export function useCategoryRanking(
+  slug?: string,
+  limit?: number,
+  channel: PickChannel | null = null,
+  rootSlug: string | null = null,
+) {
   return useQuery({
-    queryKey: queryKeys.explore.ranking(slug),
+    queryKey: queryKeys.explore.ranking(slug, channel, rootSlug),
     enabled: Boolean(slug),
     staleTime: RANKING_STALE_TIME,
-    queryFn: () => slug ? exploreService.getCategoryRanking(slug, limit) : Promise.resolve([]),
+    queryFn: () => slug ? exploreService.getCategoryRanking(slug, limit, channel, rootSlug) : Promise.resolve([]),
   });
 }
 
-export function useRankingCategories(enabled = true) {
+export function useRankingCategories(enabled = true, rootSlug: string | null = null) {
   return useQuery({
-    queryKey: queryKeys.explore.rankingCategories,
+    queryKey: queryKeys.explore.rankingCategories(rootSlug),
     enabled,
     staleTime: CATEGORY_BROWSE_STALE_TIME,
-    queryFn: () => exploreService.getRankingCategories(),
+    queryFn: () => exploreService.getRankingCategories(rootSlug),
   });
 }
 

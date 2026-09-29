@@ -18,7 +18,7 @@ export async function onRequest(context: Context) {
   if (supabaseUrl && key) {
     try {
       const result = await fetch(`${supabaseUrl}/rest/v1/rpc/ranking_categories`, {
-        method: 'POST', body: '{}', signal: AbortSignal.timeout(2500),
+        method: 'POST', body: JSON.stringify({ p_root_slug: 'food' }), signal: AbortSignal.timeout(2500),
         headers: { apikey: key, Accept: 'application/json', 'Content-Type': 'application/json' },
       });
       if (result.ok) {

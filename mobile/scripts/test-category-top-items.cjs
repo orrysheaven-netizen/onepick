@@ -39,20 +39,41 @@ async function main() {
   const result = await service.getCategoryTopItems('ramen');
   assert.equal(result[0].pickCount, 101);
   assert.equal(result[0].thumbnailUrl, 'https://onepick.test/public/thumb.jpg');
-  assert.equal(calls[0].name, 'category_top_items');
-  assert.equal(calls[0].args.p_category_id, 'ramen');
+  const topCalls = () => calls.filter((call) => call.name === 'category_top_items');
+  assert.equal(topCalls()[0].args.p_category_id, 'ramen');
+  assert.equal('p_channel' in topCalls()[0].args, false, 'Default aggregate keeps every internal channel');
+  const scoped = await service.getCategoryTopItems('ramen', 'offline');
+  assert.equal(topCalls()[1].args.p_channel, 'offline', 'MVP aggregate sends its public channel to the RPC');
+  assert.deepEqual(Array.from(scoped[0].channels), ['offline'], 'Scoped aggregate never labels a card with hidden future channels');
   assert.equal((await service.getCategoryTopItems('snack')).length, 0);
   failed = true;
   await assert.rejects(() => service.getCategoryTopItems('ramen'));
+
+  const oldCounts = { rpc: async (name, args = {}) => {
+    const scoped = 'p_channel' in args || 'p_root_slug' in args;
+    if (scoped) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name}` } };
+    return { data: [], error: null };
+  } };
+  const oldRepo = new SupabaseReadRepository(client, oldCounts);
+  assert.equal((await oldRepo.getCategoryTopItems('ramen', 'offline')).length, 0,
+    'Old DB hides scoped TOP 3 instead of falling back to all channels');
+  assert.equal((await oldRepo.getCategoryRanking('ramen', 20, 'offline', 'food')).length, 0,
+    'Old DB hides scoped ranking instead of exposing all-channel counts');
+  assert.equal((await oldRepo.getRankingCategories('food')).length, 0,
+    'Old DB hides the scoped ranking index until the root filter migration exists');
 
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const { invalidatePickData } = load('lib/query/invalidatePickData.ts', { './queryKeys': { queryKeys } });
   const cache = new QueryClient();
   cache.setQueryData(queryKeys.explore.topItems('ramen'), result);
+  cache.setQueryData(queryKeys.explore.topItems('ramen', 'offline'), scoped);
   cache.setQueryData(queryKeys.explore.topItems('snack'), []);
   assert.notDeepEqual(queryKeys.explore.topItems('ramen'), queryKeys.explore.topItems('snack'));
+  assert.notDeepEqual(queryKeys.explore.topItems('ramen'), queryKeys.explore.topItems('ramen', 'offline'),
+    'Channel-scoped ranking cache cannot reuse the all-channel aggregate');
   await invalidatePickData(cache);
   assert.equal(cache.getQueryState(queryKeys.explore.topItems('ramen')).isInvalidated, true);
+  assert.equal(cache.getQueryState(queryKeys.explore.topItems('ramen', 'offline')).isInvalidated, true);
   assert.equal(cache.getQueryState(queryKeys.explore.topItems('snack')).isInvalidated, true);
   cache.clear();
   console.log('Category top items: public aggregate client, photo mapping, category scope, errors and mutation invalidation passed.');
