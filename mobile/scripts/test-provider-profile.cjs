@@ -148,6 +148,12 @@ async function main() {
     (error) => error instanceof AppError && error.code === 'PROVIDER_NOT_FOUND',
   );
 
+  const serviceSource = fs.readFileSync(path.join(root, 'src/services/providerProfileService.ts'), 'utf8');
+  assert.match(serviceSource, /const \[location, brand, mappingResult\] = await Promise\.all\(\[/,
+    'provider location, brand and item mapping must start in the same parallel phase');
+  assert.match(serviceSource, /locationPromise,[\s\S]*brandPromise,[\s\S]*mappingPromise/,
+    'parallel phase includes all independent provider profile reads');
+
   const screen = fs.readFileSync(path.join(root, 'src/app/provider/[providerId].tsx'), 'utf8');
   assert.match(screen, /<View style=\{styles\.storeHeader\}>/, 'store scope uses the Figma 17A Foundations header');
   assert.match(screen, /storeHeader:[\s\S]*?height: 56/);
