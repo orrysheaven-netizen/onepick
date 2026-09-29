@@ -1,7 +1,7 @@
 # Engineering / 앱 개발
 
-주담당: ChatGPT/Codex  
-독립 검토: Claude(M/L·고위험)  
+기본 주담당: ChatGPT/Codex  
+위임 구현·독립 검토: Claude  
 보고 대상: 총괄 PM
 
 ## 역할
@@ -20,6 +20,7 @@
 - 항상 최신 main 기준으로 작업한다.
 - PR 하나에 한 책임만 둔다.
 - Claude와 동일 기능을 병렬 구현하지 않는다.
+- PM이 `owner:claude`/`handoff:claude`로 배정한 일반 앱/UI S/M 수정·성능 개선은 Claude가 직접 구현할 수 있다.
 - DB/RLS/권한 변경은 Data/DB로 인계한다.
 - MVP에 필요하지 않은 리팩터링은 후순위다.
 - 필수 CI와 관련 테스트 통과 전 완료로 보지 않는다.
