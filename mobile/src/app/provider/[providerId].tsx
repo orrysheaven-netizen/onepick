@@ -1,21 +1,27 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { StateCard } from '@/components/ui';
-import { useProviderProfile } from '@/hooks/useProviderProfile';
+import { useBrandBranches, useBrandProfile, useProviderProfile } from '@/hooks/useProviderProfile';
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
-type Params = { providerId?: string | string[] };
+type Params = { providerId?: string | string[]; scope?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 
 export default function ProviderProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
   const providerId = scalar(params.providerId);
+  const providerScope = scalar(params.scope) === 'provider';
   const query = useProviderProfile(providerId);
+  const brandId = !providerScope ? query.data?.brandId ?? undefined : undefined;
+  const brandQuery = useBrandProfile(brandId);
+  const branchesQuery = useBrandBranches(brandId);
+  const branchItems = branchesQuery.data?.pages.flatMap((page) => page.items)
+    .filter((item, index, all) => all.findIndex((other) => other.providerId === item.providerId) === index) ?? [];
   const [linkError, setLinkError] = useState(false);
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
@@ -32,6 +38,76 @@ export default function ProviderProfileScreen() {
       setLinkError(true);
     }
   };
+
+  if (brandId) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
+            style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
+
+          {brandQuery.isPending ? <ActivityIndicator accessibilityLabel="브랜드 프로필 불러오는 중" style={styles.loading} color={OnePick.brand} /> : null}
+          {brandQuery.isError ? <StateCard tone="danger" title="브랜드 프로필을 불러오지 못했어요"
+            action={{ label: brandQuery.isFetching ? '불러오는 중…' : '다시 불러오기', disabled: brandQuery.isFetching,
+              onPress: () => { if (!brandQuery.isFetching) void brandQuery.refetch(); } }} /> : null}
+
+          {brandQuery.data ? <>
+            <View style={styles.identity}>
+              {brandQuery.data.logoUrl ? <Image source={{ uri: brandQuery.data.logoUrl }} style={styles.brandLogo} resizeMode="contain"
+                accessibilityLabel={`${brandQuery.data.name} 로고`} /> : null}
+              <Text accessibilityRole="header" style={styles.title}>{brandQuery.data.name}</Text>
+              <Text style={styles.subtitle}>원픽이 있는 지점을 모아볼 수 있어요.</Text>
+            </View>
+
+            {brandQuery.data.brandWide.length > 0 ? <View style={styles.menuSection}>
+              <Text style={styles.sectionTitle}>브랜드 전체</Text>
+              <View style={styles.menuList}>
+                {brandQuery.data.brandWide.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
+                  accessibilityLabel={`${item.categoryName}, 브랜드 전체 원픽 ${item.pickCount}, 상세 보기`}
+                  onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: item.itemId } })}
+                  style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
+                  <View style={styles.menuCopy}>
+                    <Text style={styles.menuName}>{item.categoryName}</Text>
+                    <Text style={styles.pickCount}>원픽 {item.pickCount.toLocaleString()}</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>)}
+              </View>
+            </View> : null}
+
+            <View style={styles.menuSection}>
+              <Text style={styles.sectionTitle}>지점</Text>
+              {branchesQuery.isError && branchItems.length === 0
+                ? <StateCard compact tone="danger" title="지점 목록을 불러오지 못했어요"
+                    action={{ label: '다시 불러오기', onPress: () => void branchesQuery.refetch() }} />
+                : branchItems.length > 0 ? <View style={styles.menuList}>
+                    {branchItems.map((branch) => <Pressable key={branch.providerId} accessibilityRole="button"
+                      accessibilityLabel={`${branch.name}${branch.branchName ? ` ${branch.branchName}` : ''}, 원픽 ${branch.pickCount}, 제공처 상세 보기`}
+                      onPress={() => router.push({ pathname: '/provider/[providerId]', params: { providerId: branch.providerId, scope: 'provider' } })}
+                      style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
+                      <View style={styles.menuCopy}>
+                        <Text style={styles.menuName}>{branch.name}{branch.branchName ? ` · ${branch.branchName}` : ''}</Text>
+                        {branch.subtitle ? <Text style={styles.subtitle}>{branch.subtitle}</Text> : null}
+                        <Text style={styles.pickCount}>원픽 {branch.pickCount.toLocaleString()} · 메뉴 {branch.menuCount.toLocaleString()}</Text>
+                      </View>
+                      <Text style={styles.chevron}>›</Text>
+                    </Pressable>)}
+                  </View>
+                : branchesQuery.isPending ? <ActivityIndicator accessibilityLabel="지점 목록 불러오는 중" color={OnePick.brand} />
+                : <StateCard compact title="아직 원픽이 있는 지점이 없어요" />}
+              {branchesQuery.hasNextPage ? <Pressable accessibilityRole="button" accessibilityLabel="브랜드 지점 더 보기"
+                disabled={branchesQuery.isFetching} onPress={() => { if (!branchesQuery.isFetching) void branchesQuery.fetchNextPage(); }}
+                style={({ pressed }) => [styles.more, pressed && styles.pressed]}>
+                <Text style={styles.linkLabel}>{branchesQuery.isFetchingNextPage ? '불러오는 중…' : '지점 더 보기'}</Text>
+              </Pressable> : null}
+            </View>
+          </> : null}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -101,6 +177,8 @@ const styles = StyleSheet.create({
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   loading: { marginVertical: 36 },
   identity: { alignItems: 'center', paddingVertical: 18 },
+  brandLogo: { width: 72, height: 72, marginBottom: 12 },
+  more: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, maxWidth: '100%' },
   channelBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
   channelText: { ...OnePickType.captionMedium, color: OnePick.text },

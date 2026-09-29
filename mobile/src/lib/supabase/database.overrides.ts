@@ -239,6 +239,23 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_category_id: string; p_provider_id: string };
         Returns: Database['public']['Tables']['items']['Row'];
       };
+      stage_brand_item: {
+        Args: { p_category_id: string; p_brand_id: string };
+        Returns: Database['public']['Tables']['items']['Row'];
+      };
+      brand_profile: {
+        Args: { p_brand_id: string };
+        Returns: Json;
+      };
+      brand_branch_page: {
+        Args: {
+          p_brand_id: string;
+          p_after_pick_count?: number | null;
+          p_after_provider_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: Json[];
+      };
       stage_user_place_item: {
         Args: {
           p_category_id: string;

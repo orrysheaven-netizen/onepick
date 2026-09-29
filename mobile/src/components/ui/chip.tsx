@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
@@ -11,16 +11,17 @@ type Props = {
   dashed?: boolean;
   leading?: ReactNode;
   accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function Chip({ label, onPress, selected = false, dashed = false, leading, accessibilityLabel }: Props) {
+export function Chip({ label, onPress, selected = false, dashed = false, leading, accessibilityLabel, style }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.chip, dashed && styles.dashed, selected && styles.selected, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.chip, dashed && styles.dashed, selected && styles.selected, style, pressed && styles.pressed]}>
       {leading}
       <Text numberOfLines={1} style={[styles.label, dashed && styles.labelDashed, selected && styles.labelSelected]}>{label}</Text>
     </Pressable>
