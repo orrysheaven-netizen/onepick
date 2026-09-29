@@ -69,7 +69,9 @@ assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.name\}>/);
 assert.match(source, /<Text numberOfLines=\{2\} style=\{styles\.review\}>/);
 assert.match(source, /categoryPill/);
 assert.match(owner, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
-assert.match(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
+assert.doesNotMatch(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/, 'Figma 03 owner profile uses direct rows instead of grouped cards');
+assert.match(owner, /function ProfileCurrentPickRow/);
+assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
 assert.match(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
 assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 1, 'owner profile still uses the shared card for history picks');
 assert.match(groups, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
@@ -77,4 +79,4 @@ assert.match(groups, /<ProfilePickCard/, 'current owner/public groups render the
 assert.doesNotMatch(publicProfile, /원픽 상세 보기 ›/);
 assert.doesNotMatch(publicProfile, /상세 보기 ›/);
 
-console.log('Shared profile pick card checks passed: 2-line scan limits, distinct Pick/item actions, expanded product touch target, and owner/public reuse.');
+console.log('Shared profile pick card checks passed: history/public reuse remains while the Figma 03 owner current collection uses its dedicated compact rows.');

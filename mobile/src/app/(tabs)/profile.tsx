@@ -6,23 +6,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
-import { ProfilePickGroups } from '@/components/profile-pick-groups';
 import { ProfileAiPanel } from '@/components/profile-ai-panel';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
-import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
+import { useMyComments, useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
 import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 
 type MyProfileData = Awaited<ReturnType<typeof import('@/services').profileService.getMyProfile>>;
 type ItemRequestItem = Awaited<ReturnType<typeof import('@/services').profileService.getMyItemRequests>>['items'][number];
@@ -101,6 +101,90 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
   </View>;
 }
 
+const PROFILE_CHANNEL_LABELS: Record<string, string> = {
+  offline: '매장',
+  online: '온라인',
+  recipe: '레시피',
+};
+
+function ProfileCurrentPickRow({
+  item,
+  isFood,
+  onOpenPick,
+  onOpenItem,
+  onOpenProvider,
+}: {
+  item: PickReadItem;
+  isFood: boolean;
+  onOpenPick: (pickId: string) => void;
+  onOpenItem: (itemId: string) => void;
+  onOpenProvider: (providerId: string) => void;
+}) {
+  const channel = item.item?.channels?.[0];
+  const channelLabel = channel ? PROFILE_CHANNEL_LABELS[channel] : null;
+  const title = isFood
+    ? item.category?.name ?? item.item?.name ?? '원픽'
+    : item.item?.name ?? item.category?.name ?? '원픽';
+  const providerName = isFood
+    ? (channel === 'recipe' ? item.item?.creatorName ?? '레시피' : item.item?.name ?? '')
+    : item.category?.name ?? '';
+  const imageUri = item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl;
+  const badgeStyle = channel === 'offline'
+    ? styles.currentPickBadgeOffline
+    : channel === 'online'
+      ? styles.currentPickBadgeOnline
+      : styles.currentPickBadgeRecipe;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title} 원픽 상세 보기`}
+      onPress={() => onOpenPick(item.pick.id)}
+      style={({ pressed }) => [styles.currentPickRow, pressed && styles.pressed]}>
+      <PickPhoto
+        size={64}
+        uri={imageUri}
+        label={title}
+        itemId={item.item?.id}
+        itemStatus={item.item?.status}
+        hasPhoto={Boolean(item.item?.imagePath)}
+      />
+      <View style={styles.currentPickCopy}>
+        <View style={styles.currentPickTitleRow}>
+          {item.item ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${title} 상세 보기`}
+              onPress={(event) => {
+                event.stopPropagation();
+                onOpenItem(item.item!.id);
+              }}
+              style={({ pressed }) => [styles.currentPickTitleAction, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.currentPickTitle}>{title}</Text>
+            </Pressable>
+          ) : <Text numberOfLines={1} style={styles.currentPickTitle}>{title}</Text>}
+          {channelLabel ? <View style={[styles.currentPickBadge, badgeStyle]}>
+            <Text style={styles.currentPickBadgeText}>{channelLabel}</Text>
+          </View> : null}
+        </View>
+        {providerName ? item.item?.providerId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${providerName} 제공처 프로필 보기`}
+            onPress={(event) => {
+              event.stopPropagation();
+              onOpenProvider(item.item!.providerId!);
+            }}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <Text numberOfLines={1} style={styles.currentPickProvider}>{providerName}</Text>
+          </Pressable>
+        ) : <Text numberOfLines={1} style={styles.currentPickProvider}>{providerName}</Text> : null}
+        {item.pick.oneLineReview ? <Text numberOfLines={1} style={styles.currentPickReview}>“{item.pick.oneLineReview}”</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
@@ -109,6 +193,7 @@ export default function ProfileScreen() {
   const listUserId = !isSessionLoading && !sessionError && !isProfileMissing && profileQuery.data ? user?.id : undefined;
   const historyQuery = useMyPickHistory(OnePickFeatures.profilePickHistory ? listUserId : undefined);
   const requestsQuery = useMyItemRequests(OnePickFeatures.profileItemRequests ? listUserId : undefined);
+  const commentsQuery = useMyComments(listUserId);
   const adminAccess = useAdminAccess(user?.id);
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
@@ -152,6 +237,11 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
+  // The profile contract currently stores username rather than a separate display name.
+  // Use it in the Figma 03 identity slot until that field exists server-side.
+  const displayName = profile.username;
+  const loadedCommentCount = commentsQuery.data?.length ?? 0;
+  const commentCountLabel = commentsQuery.hasNextPage ? `${loadedCommentCount}+` : String(loadedCommentCount);
   const profileCategories = categoriesQuery.data ?? [];
   const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab);
   const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
@@ -162,8 +252,8 @@ export default function ProfileScreen() {
   // query active so a new request/history entry can make the block visible again.
   const showRequests = OnePickFeatures.profileItemRequests && (!requestsQuery.isSuccess || requestsQuery.isError || itemRequests.length > 0 || requestsQuery.hasNextPage);
   const showHistory = OnePickFeatures.profilePickHistory && (!historyQuery.isSuccess || historyQuery.isError || history.length > 0 || historyQuery.hasNextPage);
-  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
-  const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
+  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching || commentsQuery.isFetching;
+  const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching || commentsQuery.isRefetching;
   const refreshAll = async () => {
     if (isFetching) return;
     await Promise.all([
@@ -171,6 +261,7 @@ export default function ProfileScreen() {
       // refetch() ignores `enabled`, so skip hidden lists explicitly.
       OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
       OnePickFeatures.profileItemRequests ? requestsQuery.refetch({ cancelRefetch: false }) : null,
+      commentsQuery.refetch({ cancelRefetch: false }),
     ]);
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
@@ -194,61 +285,83 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor={OnePick.accent} />}>
-        <View style={styles.header}>
-          <Avatar name={profile.username} size={64} />
-          <View style={styles.headerCopy}>
-            <Text style={styles.username}>@{profile.username}</Text>
+        <View style={styles.profileHeader}>
+          <Text numberOfLines={1} style={styles.profileHeaderTitle}>{profile.username}</Text>
+          <View style={styles.profileHeaderActions}>
+            {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
+              accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
+              disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
+            <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
+              style={({ pressed }) => [styles.profileHeaderMenuButton, pressed && styles.pressed]}>
+              <Text style={styles.profileHeaderMenu}>⋯</Text>
+            </Pressable>
           </View>
-          {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm" accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
-            disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
         </View>
-        <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
-        {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
-        {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
-        {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
-        {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
-        {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
-        <View style={styles.profileShareRow}>
-          <Button variant="secondary" fullWidth label={isSharingProfile ? '공유 중…' : '프로필 공유'}
-            accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />
-          {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
+
+        <View style={styles.profileBody}>
+          <View style={styles.identity}>
+            <Avatar name={displayName} size={72} tone="subtle" />
+            <View style={styles.stats}>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{currentPicks.length}</Text>
+                <Text style={styles.statLabel}>원픽</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{commentCountLabel}</Text>
+                <Text style={styles.statLabel}>댓글</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.bioBlock}>
+            <Text numberOfLines={1} style={styles.bioName}>{displayName}</Text>
+            <Text numberOfLines={2} style={styles.bioText}>{profile.bio?.trim() || '자기소개를 추가해보세요.'}</Text>
+          </View>
+
+          {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
+
+          {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
+            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} />
+            <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} />
+          </View> : null}
+
+          {visibleProfilePicks.length > 0 ? <View style={styles.currentPickList}>
+            {visibleProfilePicks.map((item) => <ProfileCurrentPickRow
+              key={item.pick.id}
+              item={item}
+              isFood={profileScope === 'food'}
+              onOpenPick={openPick}
+              onOpenItem={openItem}
+              onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
+            />)}
+          </View> : (
+            <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
+              text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
+              action={profileScope === 'food'
+                ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
+                : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
+          )}
+
+          {profileScope === 'other' && visibleProfilePicks.length > 0 ? (
+            <Button variant="secondary" fullWidth label="다른 취향 원픽 고르기" accessibilityLabel="실험실에서 다른 취향 원픽 고르기"
+              onPress={openLab} style={styles.otherTasteEntry} />
+          ) : null}
         </View>
-        {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-          <Pressable accessibilityRole="tab" accessibilityLabel="음식 원픽 보기" accessibilityState={{ selected: profileScope === 'food' }}
-            onPress={() => setProfileScope('food')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'food' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
-            <Text style={[styles.profileScopeText, profileScope === 'food' && styles.profileScopeTextSelected]}>음식</Text>
-          </Pressable>
-          <Pressable accessibilityRole="tab" accessibilityLabel="다른 취향 원픽 보기" accessibilityState={{ selected: profileScope === 'other' }}
-            onPress={() => setProfileScope('other')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'other' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
-            <Text style={[styles.profileScopeText, profileScope === 'other' && styles.profileScopeTextSelected]}>다른 취향</Text>
-          </Pressable>
-        </View> : null}
-        <View style={styles.sectionHeader}><SectionHeader title={profileScope === 'food' ? '음식 원픽' : '다른 취향'} count={visibleProfilePicks.length}
-          description={profileScope === 'food' ? '지금 가장 좋아하는 메뉴별 하나' : '음식 밖에서 고른 지금의 원픽'} /></View>
-        {visibleProfilePicks.length > 0 ? (
-          <ProfilePickGroups
-            picks={visibleProfilePicks}
-            categories={categoriesQuery.data ?? []}
-            onPressPick={openPick}
-            onPressItem={openItem}
-            onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
-          />
-        ) : (
-          <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
-            text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
-            action={profileScope === 'food'
-              ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
-              : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
-        )}
-        {/* The 실험실 is the only place to pick 영화·책·게임 and other non-food themes. */}
-        {profileScope === 'other' && visibleProfilePicks.length > 0 ? (
-          <Button variant="secondary" fullWidth label="다른 취향 원픽 고르기" accessibilityLabel="실험실에서 다른 취향 원픽 고르기"
-            onPress={openLab} style={styles.otherTasteEntry} />
-        ) : null}
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
           <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필을 확인해요.</Text>
+
+          <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
+          {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
+          {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
+          {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}
+          {OnePickFeatures.profileAi ? <ProfileAiPanel profileId={profile.id} currentPickCount={currentPicks.length} /> : null}
+          <View style={styles.profileShareRow}>
+            <Button variant="secondary" fullWidth label={isSharingProfile ? '공유 중…' : '프로필 공유'}
+              accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />
+            {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
+          </View>
 
           <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.managementRow, styles.managementRowAccent, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>취향 고르기 이어가기</Text><Text style={styles.managementText}>아직 고르지 않은 카테고리의 원픽을 더 채워보세요.</Text></View>
@@ -308,44 +421,59 @@ const styles = StyleSheet.create({
     maxWidth: OnePick.maxWidth,
     alignSelf: 'center',
     paddingHorizontal: OnePickSpace.gutter,
-    paddingTop: OnePickSpace.xxl,
     paddingBottom: OnePickSpace.xxxl,
   },
-  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: OnePickSpace.lg },
-  headerCopy: { flex: 1, marginLeft: OnePickSpace.lg },
-  listControl: { marginTop: OnePickSpace.md },
-  refreshError: { ...OnePickType.body, color: OnePick.textDanger, marginBottom: OnePickSpace.sm },
-  username: { ...OnePickType.title, color: OnePick.textPrimary },
-  bio: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  summaryCard: {
+  profileHeader: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    backgroundColor: OnePick.bgDefault,
-    borderRadius: OnePickRadius.lg,
-    paddingHorizontal: OnePickSpace.lg,
-    paddingVertical: OnePickSpace.md,
-    marginBottom: OnePickSpace.sm,
   },
-  summaryNumber: { ...OnePickType.headline, color: OnePick.textPrimary },
-  summaryLabel: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
+  profileHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
+  profileHeaderActions: { flexDirection: 'row', alignItems: 'center' },
+  profileHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  profileHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  profileBody: { minHeight: 724, paddingTop: 10, gap: OnePickSpace.md },
+  identity: { height: 82, flexDirection: 'row', alignItems: 'center', gap: 18 },
+  stats: { flexDirection: 'row', alignItems: 'flex-start', gap: 22 },
+  stat: { alignItems: 'center' },
+  statNumber: { ...OnePickType.headline, color: OnePick.textPrimary },
+  statLabel: { ...OnePickType.caption, color: OnePick.textSecondary },
+  bioBlock: { gap: 2 },
+  bioName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  bioText: { ...OnePickType.body, color: OnePick.textSecondary },
+  listControl: { marginTop: OnePickSpace.md },
+  refreshError: { ...OnePickType.body, color: OnePick.textDanger, marginBottom: OnePickSpace.sm },
   actionCopy: { flex: 1 },
   profileShareRow: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md, marginBottom: OnePickSpace.md },
   shareError: { ...OnePickType.caption, color: OnePick.textDanger, textAlign: 'center' },
-  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm, marginBottom: OnePickSpace.lg },
+  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
   otherTasteEntry: { marginTop: OnePickSpace.md },
-  profileScopeTab: {
-    minHeight: 32,
-    justifyContent: 'center',
-    paddingHorizontal: OnePickSpace.md,
-    borderRadius: OnePickRadius.full,
-    backgroundColor: OnePick.bgMuted,
+  currentPickList: { borderTopWidth: 1, borderTopColor: OnePick.borderDefault },
+  currentPickRow: {
+    height: 96,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: OnePickSpace.md,
+    borderBottomWidth: 1,
+    borderBottomColor: OnePick.borderDefault,
   },
-  profileScopeTabSelected: { backgroundColor: OnePick.actionPrimary },
-  profileScopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
-  profileScopeTextSelected: { color: OnePick.onAction },
+  currentPickCopy: { flex: 1, minWidth: 0, gap: 2 },
+  currentPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  currentPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
+  currentPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  currentPickBadge: {
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: OnePickSpace.sm,
+    borderRadius: OnePickRadius.sm,
+  },
+  currentPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
+  currentPickBadgeOnline: { backgroundColor: OnePick.bgMuted },
+  currentPickBadgeRecipe: { backgroundColor: OnePick.bgAccentSubtle },
+  currentPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
+  currentPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  currentPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   managementSection: {
     marginTop: OnePickSpace.xxxl,
     paddingTop: OnePickSpace.xxl,

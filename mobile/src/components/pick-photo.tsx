@@ -8,6 +8,8 @@ type Props = {
   uri?: string | null;
   label: string;
   large?: boolean;
+  /** Compact row thumbnail used by Figma 03 Profile. */
+  size?: 64 | 86;
   /** Only real catalog items can receive a shared photo. Draft previews omit this. */
   itemId?: string;
   itemStatus?: string;
@@ -41,11 +43,12 @@ function LogoBadge({ uri, large, onError }: { uri: string; large: boolean; onErr
 // Every frame is square and fits the whole photo inside it: restaurant photos
 // come in any shape and cropping cut off the dish or the storefront.
 // Image order: the menu photo, then the brand logo, then the name placeholder.
-export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
+export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
-  const canAdd = Boolean(itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
+  const compact = size === 64 && !large && !feed && !square;
+  const canAdd = Boolean(!compact && itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
   const failed = Boolean(uri && failedUri === uri);
   const logo = logoUri && failedLogo !== logoUri ? logoUri : null;
   const showPhoto = Boolean(uri && !failed);
@@ -68,7 +71,7 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
   // Only the thumbnail has a fixed size. react-native-web drops `height: undefined`
   // when merging styles, so a shared 86px height would win over aspectRatio and
   // turn the full-width frames into 86px-tall strips.
-  return <View style={[styles.frame, large ? styles.large : square ? styles.square : styles.thumb]}>
+  return <View style={[styles.frame, large ? styles.large : square ? styles.square : size === 64 ? styles.thumb64 : styles.thumb]}>
     {showPhoto ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
       : logoImage && canAdd ? <>
         {logoImage}
@@ -79,6 +82,7 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
       : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
+      : compact ? <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.compactPlaceholder} />
       : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.placeholder}>
           <View style={styles.placeholderMark}><Text style={styles.placeholderInitial}>{initial}</Text></View>
           <Text numberOfLines={large ? 2 : 1} style={[styles.placeholderName, large && styles.placeholderNameLarge]}>{label}</Text>
@@ -90,6 +94,7 @@ export function PickPhoto({ uri, label, large = false, itemId, itemStatus = 'act
 const styles = StyleSheet.create({
   frame: { borderRadius: 16, overflow: 'hidden', backgroundColor: OnePick.sunken, justifyContent: 'center', alignItems: 'center' },
   thumb: { width: 86, height: 86 },
+  thumb64: { width: 64, height: 64, borderRadius: 8 },
   large: { width: '100%', aspectRatio: 1, marginBottom: 14 },
   feed: { width: 86, height: 86, borderRadius: 12 },
   square: { width: '100%', aspectRatio: 1, borderRadius: 12 },
@@ -101,6 +106,7 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', left: 6, bottom: 6, width: 24, height: 24, borderRadius: 12, padding: 2, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: OnePick.border },
   badgeLarge: { left: 10, bottom: 10, width: 40, height: 40, borderRadius: 20, padding: 4 },
   addOverLogo: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', backgroundColor: OnePick.surface, opacity: 0.94 },
+  compactPlaceholder: { width: '100%', height: '100%', backgroundColor: OnePick.bgPlaceholder },
   placeholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 7 },
   placeholderMark: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   placeholderInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },

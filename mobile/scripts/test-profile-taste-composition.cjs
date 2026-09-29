@@ -30,15 +30,17 @@ assert.match(queryKeys, /profileTaste:\s*\{/);
 assert.match(queryKeys, /composition: \(profileId: string, viewerId\?: string\)/);
 assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 
+const picksIndex = profile.indexOf('visibleProfilePicks.map');
+const managementIndex = profile.indexOf('<View style={styles.managementSection}>');
 const infoIndex = profile.indexOf('<ProfileBioEditor');
 const tasteIndex = profile.indexOf('<ProfileTasteComposition');
 const aiIndex = profile.indexOf('<ProfileAiPanel');
-const picksIndex = profile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 
-assert.ok(infoIndex >= 0, 'profile info section is missing');
-assert.ok(tasteIndex > infoIndex, 'gated taste composition must follow profile info');
-assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation must follow taste composition');
-assert.ok(picksIndex > aiIndex, 'category picks must follow gated AI taste evaluation');
+assert.ok(picksIndex >= 0, 'Figma 03 primary category Picks are missing');
+assert.ok(managementIndex > picksIndex, 'optional profile tools stay below the Figma 03 primary collection');
+assert.ok(infoIndex > managementIndex, 'profile editing remains available inside management');
+assert.ok(tasteIndex > infoIndex, 'gated taste composition remains retained after profile info editing');
+assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation remains retained after taste composition');
 assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
 assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
