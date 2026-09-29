@@ -28,6 +28,7 @@ function getErrorMessage(error: unknown) {
     case 'ITEM_CATEGORY_MISMATCH': return '카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
+    case 'PICK_COOLDOWN': return '해제한 원픽은 24시간이 지나야 다시 고를 수 있어요.';
     case 'ITEM_ALREADY_PICKED': return '이미 다른 방식의 원픽으로 고른 곳이에요. 그 원픽을 먼저 바꾸거나 지워주세요.';
     case 'PICK_CHANNEL_MISMATCH': return '이 방식으로는 이걸 원픽으로 고를 수 없어요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';

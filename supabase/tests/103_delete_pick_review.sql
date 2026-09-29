@@ -84,7 +84,17 @@ begin
   exception when others then raised := sqlerrm = 'PICK_NOT_FOUND';
   end;
   assert raised, 'A deleted review cannot be deleted again';
-  -- The same item can be picked again afterwards (a fresh row).
+  -- The same item cannot be picked again within 24 hours of the deletion...
+  raised := false;
+  begin
+    perform public.change_pick(menu, item_x, 'too soon', null, null, 'online');
+  exception when others then raised := sqlerrm = 'PICK_COOLDOWN';
+  end;
+  assert raised, 'Re-picking the same item right after deleting its review waits 24 hours';
+  reset role;
+  update public.picks set started_at = started_at - interval '25 hours', ended_at = ended_at - interval '25 hours' where id = x_pick;
+  set local role authenticated;
+  -- ...and afterwards it can (a fresh row).
   new_pick := public.change_pick(menu, item_x, 'back to X', null, null, 'online');
   assert new_pick.id <> x_pick and new_pick.status = 'active', 'Re-picking after deletion creates a new current Pick';
   res := public.delete_pick_review(new_pick.id);
