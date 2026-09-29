@@ -102,6 +102,7 @@ type ProviderItemRow = {
   image_source_url: string | null;
 };
 type ProviderCategoryRow = { id: string; name: string; status: string; is_visible: boolean };
+type ProviderBrandRow = { id: string; name: string; logo_path: string | null; is_active: boolean };
 type PickCountRow = { item_id: string; one_line_review?: string | null; started_at?: string | null };
 
 function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
@@ -199,6 +200,24 @@ export class ProviderProfileService {
       }
     }
 
+    let brandName: string | null = null;
+    let brandLogoUrl: string | null = null;
+    if (provider.brand_id) {
+      const { data: brandData, error: brandError } = await this.db().from('brands')
+        .select('id,name,logo_path,is_active')
+        .eq('id', provider.brand_id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (brandError) throw mapSupabaseError(brandError);
+      const brand = brandData as ProviderBrandRow | null;
+      if (brand) {
+        brandName = brand.name;
+        brandLogoUrl = brand.logo_path
+          ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
+          : null;
+      }
+    }
+
     const { data: mappingData, error: mappingError } = await this.db()
       .from('item_providers')
       .select('item_id,category_id,provider_id')
@@ -219,8 +238,8 @@ export class ProviderProfileService {
         link,
         items: [],
         brandId: provider.brand_id,
-        brandName: null,
-        brandLogoUrl: null,
+        brandName,
+        brandLogoUrl,
       };
     }
 
@@ -268,8 +287,8 @@ export class ProviderProfileService {
       link,
       items,
       brandId: provider.brand_id,
-      brandName: null,
-      brandLogoUrl: null,
+      brandName,
+      brandLogoUrl,
     };
   }
 
