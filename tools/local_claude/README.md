@@ -15,7 +15,7 @@ Base: `3cefe1ae241c6e5c02b9e12539a4aa33bcfca5b3`.
 | Journal | SQLite FULL transactions, unique task/approval, single occupied slot, no automatic model retry | Duplicate, concurrency, crash-reservation tests; single host only |
 | Stop / result | Timeout, cancellation, revocation, output cap; exit/JSON/model/turn validation; result hash | Fake child processes; unknown tree termination keeps slot occupied |
 | PM artifacts | `status` reads saved receipt; `export` copies checked result + receipt to an operator-selected local directory | No model call during recovery/export; model prose stays untrusted |
-| Report outbox | Immutable report first, stable event/task/head, bounded delivery attempts, state receipts | All remote ports are fake in tests; no real GitHub/queue/chat transport configured |
+| Report outbox | Immutable report first, stable event/task/head, bounded delivery attempts, state receipts | GitHub operator publisher implemented, mocked only; queue/chat transport absent |
 | Deployment verifier | Read-only Windows SID/ACL/CLI-hash checks, rejects endpoint-managed customizations | PowerShell syntax checked only; dedicated identities/ACL negatives not deployed or tested |
 
 `fake_cli.py`, `FakeCLI` and `FakePorts` are explicit test fixtures. They never call
@@ -244,8 +244,7 @@ uses task `repair-567`, source `pr-567-repair` and its actual new head. Do not l
 static analysis report as repaired or reuse its event ID for changed content.
 
 Operator can stage reports locally; the test's verification report is now stored
-as `report-stored`, with zero delivery attempts. All outbox remote ports remain
-unimplemented. The one-shot GitHub CLI test is not the publisher implementation.
+as `report-stored`, with zero delivery attempts. Queue/chat outbox ports remain unimplemented; the operator GitHub publisher below is implemented but not live-tested. The one-shot GitHub CLI test is not the publisher implementation.
 
 Minimum remaining steps from executor completion to report delivery:
 
@@ -270,6 +269,48 @@ cannot bypass these steps. No new queue, execution labels or further test commen
 Status: local packet prepared and NOT TRANSMITTED. User confirmed existing Claude
 #567 repair started in their session; no extra call or duplicate implementation here.
 Resulting PR/tests await verification. Worker and real outbox transport remain pending.
+
+## Operator GitHub publisher (implemented; no live invocation)
+
+`github_report.py` consumes the existing outbox record. Default invocation previews
+without network. Add `--publish` only for an explicitly approved report publication:
+
+```powershell
+python tools/local_claude/github_report.py --directory <outbox> --event <event-id>
+python tools/local_claude/github_report.py --directory <outbox> --event <event-id> --publish
+```
+
+Fixed target is PR #578, fixed expected existing User identity is
+`orrysheaven-netizen`; no alternative account/token provisioner exists. `--gh` is
+an operator-selected executable, never a report field. Use the existing official CLI.
+This command shares the outbox OS lock, checks report hash, open PR/current head and
+blocked/active labels, scans comments in complete pages (hard cap fails closed),
+then persists POST intent before invoking GitHub. Matching comments must have exact
+body/hash, expected User author and target URL. New comments are read back by ID.
+A durable intent never permits another POST, even if the original write failed or
+no comment is visible; operator investigation is required. At most three explicitly
+invoked reconciliation attempts, minimum 30 seconds apart; no polling/retry daemon.
+Only `report-published` is recorded; no queue, label, model, PM notification or ack.
+This narrowly publishes reports and does not invoke/bypass `Outbox.deliver`'s #567 gate.
+
+Residual limits: same-host ledger only; another independent spool/controller could
+race. GitHub does not provide an atomic head-bound comment POST; head is rechecked
+immediately before posting but can change remotely afterward. CLI credentials and
+trusted operator executable are not OS-isolated by this module. Use no unattended
+controller until its identity/access scope and exclusive ledger are approved.
+Actual result-to-report assembly and machine-readable receiver acknowledgement remain
+unimplemented. No live publisher call/test comment was made for this implementation.
+
+Validation: 38 offline tests (17 worker, 6 outbox, 15 publisher), mocked GitHub only.
+Includes response-loss/restart, duplicate and forged/tampered remote comments, >100
+comments, stale/closed/blocked target, head changing during scan, capped reconciliation,
+lock contention, and fixed-host stdin transport. No production network/model calls.
+
+#567 compatibility checked at `1fa736fe61f373e70cf5b37495e72875ed52894d`:
+its enqueue requires original ISSUE comments and first-line PM command prefixes.
+Our PR comment starts with a distinct report marker, so it does not enqueue or claim
+#567 completion. New workflow/test protection entries exist. No #567 files changed;
+this is boundary compatibility, not a full independent review of its 67-test claim.
 
 ## Review and activation gates
 
