@@ -1,4 +1,4 @@
-# 매일 아침 보안 점검 (Claude 소유)
+# 매일 아침 보안 점검 (Claude 주담당)
 
 결정일: 2026-09-23. 최신 역할 분담은 `docs/pm/`, `docs/ai-role-division.md`를 따른다. Claude는 Security QA 점검·재현·리포트와 독립 검증을 주담당한다. 구현은 PM이 owner/handoff로 배정하며, DB/RLS/GRANT 등 Data/DB 기본 구현은 ChatGPT/Codex가 맡고 Claude가 독립 리뷰한다. 첫 리포트는 #225.
 
@@ -72,4 +72,4 @@ Claude는 위 "수정 요청"의 재현·severity·근거·완료 기준을 정�
 
 ## 긴급 항목
 
-Critical이나 High를 발견하면 07:30까지 기다리지 않는다. 이슈 제목 앞에 `[긴급]`을 붙이고 `security-urgent` 라벨을 함께 단다. Claude가 즉시 PM/사용자에게 보고하고 재현 근거를 남긴다. 구현 owner는 PM이 영역·위험도에 따라 배정하며, 필요한 반대 AI 독립 리뷰를 붙인다.
+Critical이나 High를 발견하면 07:30까지 기다리지 않는다. 이슈 제목 앞에 `[긴급]`을 붙이고 `security-urgent` 라벨을 함께 단다. Claude가 즉시 PM/사용자에게 보고하고 재현 근거를 남긴다. 이미 `handoff:claude` 또는 `owner:claude`로 배정된 `security-urgent`는 PM 응답을 기다리지 않고 Claude가 즉시 수락·처리한다. 아직 owner가 없는 경우에만 PM이 영역·위험도에 따라 구현 owner를 배정하며, 필요한 반대 AI 독립 리뷰를 붙인다.
