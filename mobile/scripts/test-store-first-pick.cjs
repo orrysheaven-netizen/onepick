@@ -54,7 +54,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun;
+let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
@@ -76,6 +76,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useChoosePhoto: () => mutation('choosePhoto', () => ({
       uri: 'data:image/jpeg;base64,eA==', base64: 'eA==', thumbnailBase64: 'eA==', uploadId: 'photo-1',
     })),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => currentSlotRun()),
     useRegisterItemPick: () => mutation('register', (input) => registerRun(input)),
   },
   '@/hooks/useStoreFirst': hooks,
@@ -102,6 +103,7 @@ function reset() {
   aiResult = { suggestions: [{ categoryId: 'cat-naengmyeon', label: '면 › 평양냉면', reason: '평양냉면으로 유명한 곳이에요', confidence: 'high' }], needsNewCategory: false };
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
+  currentSlotRun = () => null;
   registerRun = (input) => ({ itemId: input.itemId ?? 'created-item', pickId: 'pick-1', published: Boolean(input.itemId), replacedPickId: null, retried: false });
 }
 function render() {
@@ -155,6 +157,7 @@ async function main() {
   assert.equal(existingSave.categoryId, 'cat-naengmyeon');
   assert.equal(existingSave.channel, 'offline');
   assert.equal(existingSave.requestId, 'request-1');
+  assert.equal(existingSave.expectedPreviousPickId, null, 'an empty visible slot is sent explicitly');
   assert.ok(existingSave.photo);
   page = render();
   assert.match(page, /원픽을 정했어요/);
@@ -262,6 +265,7 @@ async function main() {
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
   detail.myPickStatus = { type: 'selected_other' };
+  currentSlotRun = () => ({ id: 'visible-old-pick', channel: 'offline' });
   await chooseExistingOffline(); page = render();
   assert.match(page, /저장하면 이 메뉴의 매장 원픽이 이걸로 바뀝니다/);
   assert.doesNotMatch(page, /기록으로 남아요/);
@@ -270,10 +274,12 @@ async function main() {
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
   let attempts = 0;
+  let slotReads = 0;
+  currentSlotRun = () => ({ id: ++slotReads === 1 ? 'visible-before-save' : 'changed-elsewhere', channel: 'offline' });
   registerRun = () => {
     attempts += 1;
     if (attempts === 1) throw new AppError('PICK_CHANGED_ELSEWHERE');
-    return { itemId: 'item-1', pickId: 'pick-after-confirm', published: true, replacedPickId: 'other-pick', retried: false };
+    return { itemId: 'item-1', pickId: 'pick-after-confirm', published: true, replacedPickId: 'changed-elsewhere', retried: false };
   };
   await chooseExistingOffline(); render(); input('원픽 한줄평').onChangeText('다시 확인'); render();
   press('원픽 등록하기'); await flush();
@@ -282,6 +288,11 @@ async function main() {
   press('변경 확인 후 등록하기'); await flush();
   const registrationCalls = calls.filter(([name]) => name === 'register').map(([, value]) => value);
   assert.equal(registrationCalls.length, 2);
+  assert.equal(registrationCalls[0].expectedPreviousPickId, 'visible-before-save',
+    'first submit uses the Pick slot the person saw before confirmation');
+  assert.equal(registrationCalls[1].expectedPreviousPickId, 'changed-elsewhere',
+    'explicit reconfirmation refreshes the slot before retrying');
+  assert.equal(slotReads, 2, 'the slot is read once at menu confirmation and once after explicit reconfirmation');
   assert.equal(registrationCalls[0].requestId, registrationCalls[1].requestId);
   assert.equal(registrationCalls[0].requestId, 'request-1');
   assert.match(render(), /원픽을 정했어요/);
@@ -289,6 +300,6 @@ async function main() {
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, user-place identity, immediate Pick save, response-id navigation, and concurrency reconfirmation.');
+  console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
