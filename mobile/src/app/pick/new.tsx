@@ -90,6 +90,7 @@ function errorMessage(error: unknown) {
       case 'PLACE_ADDRESS_REQUIRED': return '도로명 주소를 입력해주세요.';
       case 'LINK_INVALID': return '네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.';
       case 'RATE_LIMITED': return '요청이 많아요. 잠시 후 다시 시도해주세요.';
+      case 'PICK_COOLDOWN': return '해제한 원픽은 24시간이 지나야 다시 고를 수 있어요.';
       case 'PICK_CHANGED_ELSEWHERE': return '다른 기기에서 원픽이 바뀌었어요. 최신 선택을 확인한 뒤 다시 등록해주세요.';
       case 'USER_SUSPENDED': return '현재 계정에서는 원픽을 등록할 수 없어요.';
       case 'PHOTO_REQUIRED': return '대표 사진을 올려주세요.';
