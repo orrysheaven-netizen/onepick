@@ -237,9 +237,9 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
-  const metadataDisplayName = [user.user_metadata?.full_name, user.user_metadata?.name, user.user_metadata?.nickname]
-    .find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim();
-  const displayName = metadataDisplayName ?? profile.username;
+  // The profile contract currently stores username rather than a separate display name.
+  // Use it in the Figma 03 identity slot until that field exists server-side.
+  const displayName = profile.username;
   const loadedCommentCount = commentsQuery.data?.length ?? 0;
   const commentCountLabel = commentsQuery.hasNextPage ? `${loadedCommentCount}+` : String(loadedCommentCount);
   const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
