@@ -140,7 +140,7 @@ GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필�
 | `typecheck` (Mobile CI) | `mobile/**`, `supabase/**`, `mobile/scripts`가 경로로 읽는 파일(예: `docs/pokemon-catalog.md`), 자기 workflow 파일 |
 | `verify-web` (Web build) | `mobile/**`, `tools/qa/**`, 자기 workflow 파일 |
 
-`.github/scripts/ci-path-gate.sh`가 바뀌면 세 CI가 모두 실행된다. 판정 job이 실패하면 무거운 단계는 항상 실행된다(fail-safe). `main` push와 수동 실행은 기존 동작 그대로다.
+`.github/scripts/ci-path-gate.sh`가 바뀌면 세 CI가 모두 실행된다. 이 스크립트와 `.github/scripts/test-ci-path-gate.sh`는 자동 인계 control-plane 파일이므로 무인 자동 실행기가 수정하지 않는다. 판정 job이 실패하면 무거운 단계는 항상 실행된다(fail-safe). `main` push와 수동 실행은 기존 동작 그대로다.
 
 ## AI Ops 대시보드
 
