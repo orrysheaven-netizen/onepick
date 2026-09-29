@@ -12,13 +12,13 @@ import { HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 
 type CommentTab = 'theme' | 'rest';
 
-// The MVP theme (먹을것) first, everything else in its own tab. With no single theme root there are no tabs.
+// The MVP food theme comes first, with all other themes grouped under 기타.
 const COMMENT_TABS: { key: CommentTab; label: string; empty: string }[] = [
-  { key: 'theme', label: '먹을것', empty: '먹을것 한줄평에 남긴 댓글이 여기에 모여요.' },
-  { key: 'rest', label: '그 외', empty: '먹을것 말고 다른 한줄평에 남긴 댓글이 여기에 모여요.' },
+  { key: 'theme', label: '음식', empty: '음식 한줄평에 남긴 댓글이 여기에 모여요.' },
+  { key: 'rest', label: '기타', empty: '음식 밖의 한줄평에 남긴 댓글이 여기에 모여요.' },
 ];
 
-// Bottom-tab home of the comments I wrote, split by the MVP theme; each row opens the review it answers.
+// Profile-entry list of comments I wrote, split by 음식 / 기타; each row opens the review it answers.
 export default function MyCommentsScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
