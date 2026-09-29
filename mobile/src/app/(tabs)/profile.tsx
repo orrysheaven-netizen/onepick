@@ -306,10 +306,11 @@ export default function ProfileScreen() {
                 <Text style={styles.statNumber}>{currentPicks.length}</Text>
                 <Text style={styles.statLabel}>원픽</Text>
               </View>
-              <View style={styles.stat}>
+              <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 보기"
+                onPress={() => router.push('/comments')} style={({ pressed }) => [styles.stat, pressed && styles.pressed]}>
                 <Text style={styles.statNumber}>{commentCountLabel}</Text>
                 <Text style={styles.statLabel}>댓글</Text>
-              </View>
+              </Pressable>
             </View>
           </View>
 
