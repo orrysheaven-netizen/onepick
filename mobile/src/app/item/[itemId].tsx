@@ -62,6 +62,8 @@ type Params = {
   notificationKind?: string;
   notificationReason?: string;
   rootCommentId?: string;
+  commentAfterTime?: string;
+  commentAfterId?: string;
 };
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
@@ -78,6 +80,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
   const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
   const notificationReason = typeof params.notificationReason === 'string' ? params.notificationReason : undefined;
+  const rootCommentId = typeof params.rootCommentId === 'string' ? params.rootCommentId : undefined;
+  const commentInitialCursor = typeof params.commentAfterTime === 'string' && typeof params.commentAfterId === 'string'
+    ? { timestamp: params.commentAfterTime, id: params.commentAfterId }
+    : null;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
@@ -103,6 +109,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   useEffect(() => {
     if (!user || !query.data || !notificationGroupId || !notificationSnapshot) return;
+    if (notificationKind === 'reply' && !replyTargetLoaded) return;
     const receipt = `${notificationGroupId}:${notificationSnapshot}`;
     if (acknowledgedNotification.current === receipt) return;
     acknowledgedNotification.current = receipt;
@@ -110,7 +117,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       .catch(() => {
         if (acknowledgedNotification.current === receipt) acknowledgedNotification.current = undefined;
       });
-  }, [notificationGroupId, notificationSnapshot, query.data?.item.id, user?.id]);
+  }, [notificationGroupId, notificationSnapshot, notificationKind, query.data?.item.id, replyTargetLoaded, user?.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -147,6 +154,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const [revisionPhoto, setRevisionPhoto] = useState<PickPhotoDraft | null>(null);
   const [revisionLink, setRevisionLink] = useState('');
   const [revisionError, setRevisionError] = useState<string | null>(null);
+  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
@@ -390,6 +398,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
                 itemName={item.name} highlighted={pick.id === highlightedId}
+                focusCommentId={pick.id === focusPickId && notificationKind === 'reply' ? rootCommentId : undefined}
+                commentInitialCursor={pick.id === focusPickId && notificationKind === 'reply' ? commentInitialCursor : null}
+                onCommentFocusLoaded={pick.id === focusPickId && notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
