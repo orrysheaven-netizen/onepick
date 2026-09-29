@@ -40,6 +40,7 @@ assert.equal(people.categoryId, 'soup');
 assert.equal(people.categoryName, '미역국');
 assert.equal(people.userId, 'viewer');
 assert.equal(people.menuContext, true, 'Dedicated menu view uses D hierarchy and does not repeat the menu title in each card');
+assert.equal(people.fixedChannel, 'offline', 'Initial MVP menu view exposes physical-store Picks only');
 
 view.find('Pressable', (p) => p.accessibilityLabel === '뒤로 가기').onPress();
 assert.equal(calls.route, 'back');

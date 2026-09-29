@@ -22,8 +22,8 @@ type ItemSearchProps = {
   onSearchYouTube?: (query: string) => void;
   onSearchPokemon?: (query: string) => void;
   showExternalActionsWithResults?: boolean;
-  /** Unscoped search only: a query naming a dish (미역국) also shows it by channel. */
-  dishChannels?: { userId?: string; onRegister?: (categoryId: string, channel: PickChannel) => void };
+  /** Unscoped search only: a query naming a dish also shows the currently exposed channel(s). */
+  dishChannels?: { userId?: string; channel?: PickChannel; onRegister?: (categoryId: string, channel: PickChannel) => void };
   onSelect: (itemId: string) => void;
 };
 
@@ -152,8 +152,10 @@ export function ItemSearch({
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>
       </View> : null}
       {query.hasSearchText && dish.data ? <>
-        <DishChannelOverview overview={dish.data} onSelectItem={onSelect} onRegister={dishChannels?.onRegister} />
-        <DishPeoplePicks categoryId={dish.data.categoryId} categoryName={dish.data.categoryName} userId={dishChannels?.userId} />
+        <DishChannelOverview overview={dish.data} onSelectItem={onSelect} onRegister={dishChannels?.onRegister}
+          visibleChannels={dishChannels?.channel ? [dishChannels.channel] : undefined} />
+        <DishPeoplePicks categoryId={dish.data.categoryId} categoryName={dish.data.categoryName} userId={dishChannels?.userId}
+          fixedChannel={dishChannels?.channel} />
       </> : null}
       {query.hasSearchText && !isLoading && !query.isError && query.data ? <>
         <Text accessibilityLiveRegion="polite" style={styles.resultCount}>
