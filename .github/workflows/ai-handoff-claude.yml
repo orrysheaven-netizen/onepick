@@ -159,6 +159,7 @@ jobs:
             - Do not modify these automatic-handoff control-plane files:
               .github/workflows/ai-handoff-codex.yml
               .github/workflows/ai-handoff-claude.yml
+              .github/workflows/ai-handoff-ci-gate.yml
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
@@ -282,6 +283,13 @@ jobs:
           EOF
               existing_pr="$(gh pr create --draft --repo "$REPOSITORY" --base main --head "$CLAUDE_BRANCH" --title "fix: ${issue_title}" --body-file /tmp/pr-body.md)"
             fi
+            pr_number="${existing_pr##*/}"
+            if ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+              update_labels '["state:blocked"]' '["state:active","state:handoff","state:ready","state:review","handoff:codex","handoff:claude"]'
+              gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
+                "PR 번호를 확인하지 못해 CI 완료 후 자동 인계를 연결하지 못했습니다. state:blocked로 전환했습니다. PR: ${existing_pr}"
+              exit 0
+            fi
 
             needs_codex=false
             if jq -e 'index("size:M") != null or index("size:L") != null' <<<"$issue_labels" >/dev/null; then
@@ -291,15 +299,18 @@ jobs:
               needs_codex=true
             fi
 
+            # The next owner is handed off by ai-handoff-ci-gate.yml only after required CI succeeds.
+            update_labels '["owner:claude","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
             if [ "$needs_codex" = "true" ]; then
-              update_labels '["owner:claude","state:review","state:handoff","handoff:codex"]' '["state:active","state:ready","state:blocked","handoff:claude"]'
-              next="Codex 독립 리뷰로 자동 인계"
+              ci_next="codex"
+              next="필수 CI 성공 후 Codex 독립 리뷰로 자동 인계"
             else
-              update_labels '["owner:claude","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
-              next="사용자 병합 판단 대기"
+              ci_next="user"
+              next="필수 CI 성공 후 사용자 병합 판단 대기"
             fi
 
             gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-ci-handoff:pending pr=${pr_number} next=${ci_next} -->
           ## 완료 리포트
           담당: Claude
           결과: 자동 인계 작업 완료
