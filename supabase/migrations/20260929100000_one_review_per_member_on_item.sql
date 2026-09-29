@@ -12,7 +12,8 @@
 -- needs_review only to its owner). Deleted and hidden rows still participate in
 -- winner selection so deletion/moderation never resurrects an older review.
 -- A winning deleted review is returned only while comments keep its tombstone
--- visible; tombstones carry no author.
+-- visible; if it has none, the member's newest commented tombstone is shown
+-- instead so no conversation is dropped. Tombstones carry no author.
 --
 -- Older reviews are not deleted and stay reachable by their own links
 -- (/pick/[pickId], inbox, comment_locate); only the item list drops them.
@@ -70,17 +71,47 @@ begin
            p.review_deleted_at is not null as is_deleted
     from public.picks p
     join (
-      select distinct on (candidate.user_id) candidate.id
-      from public.picks candidate
-      where candidate.item_id = p_item_id
-        and (
-          candidate.status in ('active', 'replaced', 'removed', 'hidden')
-          or (candidate.status = 'needs_review' and candidate.user_id = v_viewer)
-        )
-      order by candidate.user_id,
-               (candidate.status in ('active', 'needs_review')) desc,
-               candidate.started_at desc,
-               candidate.id desc
+      -- The winner is judged over every row that can decide it. When the winner
+      -- is a deleted review with no live comments it would show nothing; then the
+      -- member's newest tombstone that still has live comments stands in, so a
+      -- conversation is never dropped. Only tombstones fall back: an older live
+      -- review never resurfaces.
+      select coalesce(
+               case
+                 when w.review_deleted_at is not null
+                  and not exists (
+                    select 1 from public.comments wc
+                    where wc.pick_id = w.id and wc.deleted_at is null
+                  )
+                 then (
+                   select t.id from public.picks t
+                   where t.user_id = w.user_id
+                     and t.item_id = p_item_id
+                     and t.review_deleted_at is not null
+                     and exists (
+                       select 1 from public.comments tc
+                       where tc.pick_id = t.id and tc.deleted_at is null
+                     )
+                   order by t.started_at desc, t.id desc
+                   limit 1
+                 )
+               end,
+               w.id
+             ) as id
+      from (
+        select distinct on (candidate.user_id)
+               candidate.id, candidate.user_id, candidate.review_deleted_at
+        from public.picks candidate
+        where candidate.item_id = p_item_id
+          and (
+            candidate.status in ('active', 'replaced', 'removed', 'hidden')
+            or (candidate.status = 'needs_review' and candidate.user_id = v_viewer)
+          )
+        order by candidate.user_id,
+                 (candidate.status in ('active', 'needs_review')) desc,
+                 candidate.started_at desc,
+                 candidate.id desc
+      ) w
     ) winner on winner.id = p.id
     where private.pick_thread_visible(p, v_viewer)
   ) r

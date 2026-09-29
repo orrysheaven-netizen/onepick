@@ -7,19 +7,20 @@ do $flow$
 #variable_conflict use_variable
 declare
   viewer uuid := gen_random_uuid(); again_u uuid := gen_random_uuid(); twice_u uuid := gen_random_uuid();
-  del_u uuid := gen_random_uuid(); pend_u uuid := gen_random_uuid(); hidden_u uuid := gen_random_uuid();
+  del_u uuid := gen_random_uuid(); pend_u uuid := gen_random_uuid(); hidden_u uuid := gen_random_uuid(); back_u uuid := gen_random_uuid();
   food_group uuid := gen_random_uuid(); menu uuid := gen_random_uuid(); item_x uuid := gen_random_uuid();
   again_old uuid := gen_random_uuid(); again_now uuid := gen_random_uuid();
   twice_old uuid := gen_random_uuid(); twice_new uuid := gen_random_uuid();
   del_old uuid := gen_random_uuid(); del_new uuid := gen_random_uuid();
   pend_old uuid := gen_random_uuid(); pend_new uuid := gen_random_uuid();
+  back_tomb uuid := gen_random_uuid(); back_new uuid := gen_random_uuid();
   hidden_old uuid := gen_random_uuid(); hidden_new uuid := gen_random_uuid();
   got uuid[]; walked uuid[] := '{}'; page uuid[]; row_json jsonb; last_row jsonb; guard integer := 0;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
-    select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,again_u,twice_u,del_u,pend_u,hidden_u]) id;
+    select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,again_u,twice_u,del_u,pend_u,hidden_u,back_u]) id;
   insert into public.profiles(id,username,onboarding_completed)
-    select id,'orp_'||substr(replace(id::text,'-',''),1,12),true from unnest(array[viewer,again_u,twice_u,del_u,pend_u,hidden_u]) id;
+    select id,'orp_'||substr(replace(id::text,'-',''),1,12),true from unnest(array[viewer,again_u,twice_u,del_u,pend_u,hidden_u,back_u]) id;
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable,sort_order)
     select food_group, food.id, 'ORP 그룹', 'orp-group', 'open', true, false, 900
     from public.categories food where food.slug='food';
@@ -46,19 +47,24 @@ begin
     -- A hidden newest review suppresses the member's older ended review instead
     -- of leaking past state back onto the item page.
     (hidden_old, hidden_u, menu, item_x, 'offline', 'older visible', 'removed',  now() - interval '4 days', now() - interval '3 days', null),
-    (hidden_new, hidden_u, menu, item_x, 'offline', 'moderated',     'hidden',   now() - interval '1 day',  now() - interval '12 hours', null);
+    (hidden_new, hidden_u, menu, item_x, 'offline', 'moderated',     'hidden',   now() - interval '1 day',  now() - interval '12 hours', null),
+    -- A commented tombstone, then a newer review deleted without comments: the
+    -- conversation stays listed through the older tombstone.
+    (back_tomb, back_u, menu, item_x, 'offline', '', 'removed', now() - interval '10 days', now() - interval '9 days', now() - interval '9 days'),
+    (back_new,  back_u, menu, item_x, 'offline', '', 'removed', now() - interval '1 hour',  now() - interval '30 minutes', now() - interval '30 minutes');
   -- Comment writes are rate-limited per signed-in member; the fixture writes as
   -- viewer without RLS so it can also comment under the ended/deleted reviews.
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   insert into public.comments(pick_id,user_id,body) values
     (del_new, viewer, 'on the deleted review'),
-    (del_old, viewer, 'on the older review');
+    (del_old, viewer, 'on the older review'),
+    (back_tomb, viewer, 'kept conversation');
 
   perform set_config('request.jwt.claim.sub','',true);
   set local role anon;
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
-  assert got=array[again_now,del_new,twice_new,pend_old],
+  assert got=array[again_now,del_new,twice_new,pend_old,back_tomb],
     'Guests see at most one winner per member; multiple tombstones dedupe and hidden latest suppresses older: '||coalesce(got::text,'null');
   select r into row_json from public.item_review_page(item_x) r where r->>'id'=del_new::text;
   assert (row_json->>'is_deleted')::boolean and row_json->>'user_id' is null and row_json->'profile' = 'null'::jsonb,
@@ -68,7 +74,7 @@ begin
   last_row := null;
   loop
     guard := guard + 1;
-    assert guard < 10, 'Paging terminates';
+    assert guard < 12, 'Paging terminates';
     select array_agg((r->>'id')::uuid order by ord), (array_agg(r order by ord desc))[1] into page, row_json
       from public.item_review_page(item_x,
         (last_row->>'is_current')::boolean, (last_row->>'started_at')::timestamptz, (last_row->>'id')::uuid, 1)
@@ -77,7 +83,7 @@ begin
     walked := walked || page;
     last_row := row_json;
   end loop;
-  assert walked=array[again_now,del_new,twice_new,pend_old], 'One-row pages reach the same deduplicated winners: '||walked::text;
+  assert walked=array[again_now,del_new,twice_new,pend_old,back_tomb], 'One-row pages reach the same deduplicated winners: '||walked::text;
   reset role;
 
   -- The owner of the pending review sees it instead of their older one.
@@ -85,12 +91,12 @@ begin
   set local role authenticated;
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
-  assert got=array[pend_new,again_now,del_new,twice_new],
+  assert got=array[pend_new,again_now,del_new,twice_new,back_tomb],
     'The owner sees their pending review as their one review: '||coalesce(got::text,'null');
   reset role;
 
   -- Older reviews are not deleted: their rows and comments are still there.
-  assert (select count(*) from public.picks where item_id=item_x) = 10, 'No review rows were removed';
+  assert (select count(*) from public.picks where item_id=item_x) = 12, 'No review rows were removed';
   assert (select count(*) from public.comments where pick_id=del_old) = 1, 'Comments on an older review are kept';
 end;
 $flow$;
