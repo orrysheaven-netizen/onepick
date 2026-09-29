@@ -105,9 +105,9 @@ async function main() {
   const refreshButton = () => presses.find((props) => props.accessibilityLabel === '프로필과 원픽 등록 요청 상태 새로고침');
 
   assert.match(render(), /승인 대기/);
-  assert.doesNotMatch(render(), /내 댓글/, 'My comments moved to their own bottom tab');
+  assert.match(render(), /댓글/, 'Profile keeps a visible comment-count entry');
 
-  // The 댓글 bottom tab: signed-out visitors get a login that returns here; members see their list.
+  // The profile-entry 댓글 screen: signed-out visitors get a login that returns here; members see their list.
   let commentsUser, commentsScope, commentsProps, loginRoute;
   const commentsQuery = listQuery();
   const { default: MyComments } = load('app/(tabs)/comments.tsx', {
@@ -126,9 +126,9 @@ async function main() {
   assert.equal(commentsUser, 'owner'); assert.equal(commentsProps.query, commentsQuery);
   // Top tabs split the MVP theme from the rest, and the theme tab is the default.
   assert.deepEqual(presses.filter((props) => props.accessibilityRole === 'tab').map((props) => [props.accessibilityLabel, props.accessibilityState.selected]),
-    [['먹을것 댓글 보기', true], ['그 외 댓글 보기', false]]);
+    [['음식 댓글 보기', true], ['기타 댓글 보기', false]]);
   assert.deepEqual({ ...commentsScope }, { rootSlug: 'food', inside: true });
-  assert.match(commentsProps.emptyText, /먹을것 한줄평/);
+  assert.match(commentsProps.emptyText, /음식 한줄평/);
   auth.user = null;
   assert.match(renderMyComments(), /로그인하기/); assert.equal(commentsUser, undefined); assert.equal(commentsProps, undefined);
   button('로그인하기').onPress(); assert.equal(loginRoute.params.action, 'my_comments');
