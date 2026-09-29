@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { MenuDetailPickCard } from '@/components/menu-detail-pick-card';
 import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
-import { OnePick, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickType } from '@/constants/onepick';
 import { useDishPicks, useMyDishPicks } from '@/hooks/useDishPicks';
 import { HOME_CHANNEL_TABS } from '@/lib/home/homeChannels';
 import type { PickChannel } from '@/lib/items/pickChannel';
