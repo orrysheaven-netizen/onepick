@@ -82,7 +82,9 @@ export default function LoginScreen() {
                     ? '붙여넣은 레시피 영상을 기억해두고 로그인 뒤 원픽 등록을 이어갑니다.'
                   : intent.action === 'comment_pick'
                     ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'
-                    : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
+                    : intent.action === 'notifications'
+                      ? '로그인 뒤 알림 화면으로 돌아가 새 댓글과 원픽 소식을 확인할 수 있어요.'
+                      : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
         </Text>
 
         <View style={styles.card}>
