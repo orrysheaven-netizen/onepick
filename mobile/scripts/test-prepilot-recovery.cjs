@@ -53,6 +53,7 @@ function harness(file, exportName, imports) {
     react: hooks, 'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
+    '@/components/current-pick-flag': { CurrentPickFlag: 'CurrentPickFlag' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/report-action': { ReportAction: 'ReportAction' }, ...imports,
   })[exportName];
