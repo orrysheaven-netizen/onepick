@@ -8,6 +8,7 @@ function read(relative) {
 
 const owner = read('src/app/(tabs)/profile.tsx');
 const publicProfile = read('src/app/u/[username].tsx');
+const comments = read('src/app/(tabs)/comments.tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 
 const headerIndex = owner.indexOf('<View style={styles.header}>');
@@ -34,6 +35,10 @@ assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 assert.match(owner, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'owner collection count follows the selected taste tab');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
 assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: mainPicks\.length \}\)/, 'owner profile share uses the same food-only count as the public profile');
+assert.match(owner, /accessibilityLabel="내 댓글 보기"[\s\S]*router\.push\('\/comments'\)/, 'owner profile restores a direct entry to my comments');
+assert.match(comments, /label: '음식'/, 'my comments uses the MVP 음식 label');
+assert.match(comments, /label: '기타'/, 'my comments groups non-food themes under 기타');
+assert.doesNotMatch(comments, /Bottom-tab home/, 'comments are no longer described as a bottom-tab destination');
 
 assert.match(publicProfile, /<Text style={styles\.summaryLabel}>음식 원픽<\/Text><Text style={styles\.summaryNumber}>{mainPicks\.length}개<\/Text>/, 'public summary makes its food-only count explicit');
 assert.match(publicProfile, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'public collection uses the same taste-tab section header as the owner profile');
@@ -45,4 +50,4 @@ assert.match(aiComment, /<SectionHeader title=\{sectionTitle\} \/>/, 'AI section
 assert.doesNotMatch(aiComment, /sectionTitle:/);
 assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 \}/, 'AI card is an accent-soft card on the shared radius');
 
-console.log('Profile core hierarchy checks passed: error-only header refresh, feature gates, single owner count, and consistent section hierarchy.');
+console.log('Profile core hierarchy checks passed: error-only header refresh, feature gates, comments entry, and consistent section hierarchy.');
