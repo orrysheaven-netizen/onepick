@@ -1,6 +1,7 @@
 import type { Database, Json } from './database.types';
 
 type CategoryTopItems = Database['public']['Functions']['category_top_items'];
+type HomeEditorialItems = Database['public']['Functions']['home_editorial_items'];
 type ItemRow = Database['public']['Tables']['items']['Row'];
 
 export type HomePickFeedRow = {
@@ -198,7 +199,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       item_review_notifications: TableShape<ItemReviewNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
-    Functions: Omit<Database['public']['Functions'], 'category_top_items'> & {
+    Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'home_editorial_items'> & {
       search_store_catalog: {
         Args: { p_query: string; p_limit?: number };
         Returns: StoreCatalogRow[];
@@ -279,12 +280,15 @@ export type AppDatabase = Omit<Database, 'public'> & {
           image_path: string | null; image_source_url: string | null; pick_count: number; rank: number;
         }[];
       };
+      home_editorial_items: Omit<HomeEditorialItems, 'Args'> & {
+        Args: { p_limit?: number; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
+      };
       home_pick_feed_page: {
         Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string; p_category_id?: string };
         Returns: HomePickFeedRow[];
       };
       home_following_feed_page: {
-        Args: { p_before_time?: string; p_before_id?: string };
+        Args: { p_before_time?: string; p_before_id?: string; p_channel?: 'offline' | 'online' | 'recipe'; p_root_slug?: string };
         Returns: HomePickFeedRow[];
       };
       follow_counts: {

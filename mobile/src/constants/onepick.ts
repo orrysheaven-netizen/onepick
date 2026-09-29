@@ -142,6 +142,9 @@ export const OnePickFeatures = {
 // (see docs/restaurant-mvp-foundation.md "MVP 맛집 노출 제한"). Profiles split via `lab` instead.
 export const OnePickMvp = {
   browseGroupSlug: 'food',
+  // Initial MVP exposure: food Picks from physical stores only. Keep the full
+  // offline|online|recipe data model so later rollout does not require redesign.
+  publicPickChannel: 'offline' as const,
   // taste_dimensions.code shown on the main profile while OnePickFeatures.lab is on.
   mainThemeCode: 'food',
 } as const;

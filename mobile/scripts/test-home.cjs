@@ -31,7 +31,7 @@ const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
   getHomeShowcase: async () => assert.fail('Home no longer reads the aggregate product showcase'),
-  getEditorialHomeItems: async () => { calls.push(['editorial']); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
+  getEditorialHomeItems: async (...args) => { calls.push(['editorial', ...args]); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
 const service = new HomeService(readRepository);
 
@@ -42,7 +42,14 @@ async function main() {
   assert.equal(context.editorialItems[0].itemId, 'editorial');
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
   assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
+  assert.deepEqual(calls.find(([kind]) => kind === 'editorial'), ['editorial', 6, null, null],
+    'Default context keeps the full internal editorial contract');
   assert.equal(calls.some(([kind]) => kind === 'feed'), false, 'Context never fetches a feed page');
+
+  calls = [];
+  await service.getHomeContext('me', 'offline', 'food');
+  assert.deepEqual(calls.find(([kind]) => kind === 'editorial'), ['editorial', 6, 'offline', 'food'],
+    'MVP context scopes editorial items to food + offline');
 
   calls = [];
   const firstPage = await service.getHomePicks();

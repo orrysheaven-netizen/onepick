@@ -59,7 +59,7 @@ begin
 
   assert not (select prosecdef from pg_proc where oid='public.category_is_open_leaf(uuid)'::regprocedure),
     'Hierarchy helper remains SECURITY INVOKER';
-  assert not (select prosecdef from pg_proc where oid='public.home_editorial_items(integer)'::regprocedure),
+  assert not (select prosecdef from pg_proc where oid='public.home_editorial_items(integer,text,text)'::regprocedure),
     'Editorial home RPC remains SECURITY INVOKER';
   assert (select relrowsecurity from pg_class where oid='public.item_editorial_features'::regclass),
     'Editorial feature table has RLS enabled';

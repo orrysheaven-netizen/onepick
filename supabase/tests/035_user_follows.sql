@@ -34,9 +34,9 @@ begin
 
   -- Guests: no execute on the feed or counts, and the feed never bypasses RLS.
   perform set_config('request.jwt.claim.sub','',true);
-  assert not has_function_privilege('anon','public.home_following_feed_page(timestamptz,uuid)','execute'), 'Guests cannot call the following feed';
+  assert not has_function_privilege('anon','public.home_following_feed_page(timestamptz,uuid,text,text)','execute'), 'Guests cannot call the following feed';
   assert not has_function_privilege('anon','public.follow_counts()','execute'), 'Guests cannot read counts';
-  assert not (select prosecdef from pg_proc where oid='public.home_following_feed_page(timestamptz,uuid)'::regprocedure), 'Feed runs under caller RLS';
+  assert not (select prosecdef from pg_proc where oid='public.home_following_feed_page(timestamptz,uuid,text,text)'::regprocedure), 'Feed runs under caller RLS';
 
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   set local role authenticated;

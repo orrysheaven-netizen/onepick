@@ -39,7 +39,7 @@ async function main() {
     getCounts: async (...args) => { calls.push(['counts', ...args]); return { followingCount: 2, followerCount: 1 }; },
   };
   const readRepository = {
-    getFollowingPicks: async (cursor) => { calls.push(['feed', cursor]); return { items: [], nextCursor: null }; },
+    getFollowingPicks: async (...args) => { calls.push(['feed', ...args]); return { items: [], nextCursor: null }; },
   };
   const { FollowService } = loadSource('services/followService.ts', { '@/errors/appError': { AppError } });
   const service = new FollowService(followRepository, readRepository);
@@ -60,9 +60,11 @@ async function main() {
   await service.isFollowing('me', 'them');
   await service.getCounts('me');
   await service.getFollowingFeed('me', { timestamp: 't', id: 'i' });
+  await service.getFollowingFeed('me', null, 'offline', 'food');
   same(calls, [
     ['follow', 'me', 'them'], ['unfollow', 'me', 'them'], ['isFollowing', 'me', 'them'],
-    ['counts', 'me'], ['feed', { timestamp: 't', id: 'i' }],
+    ['counts', 'me'], ['feed', { timestamp: 't', id: 'i' }, null, null],
+    ['feed', null, 'offline', 'food'],
   ]);
 
   // Auth intent: return to the same profile without putting a mutation trigger in the URL.
@@ -138,7 +140,8 @@ async function main() {
 
   // Home: the 팔로잉 scope only exists for members and is a separate query from the public feed.
   const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
-  assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing/);
+  assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing[\s\S]*?mvpChannel, HOME_FEED_ROOT_SLUG\)/,
+    'Following Home is scoped to the same MVP channel and food root');
   assert.match(home, /const \[feedScope, setFeedScope\] = useState<'all' \| 'following'>\('all'\)/,
     'New members and guests start from the public feed; following remains an explicit choice');
   assert.match(home, /const showFollowing = OnePickFeatures\.follow && Boolean\(user\) && feedScope === 'following'/);
