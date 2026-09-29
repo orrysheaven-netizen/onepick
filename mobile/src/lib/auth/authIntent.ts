@@ -45,6 +45,7 @@ export type AuthIntent =
   | { action: 'join_from_profile' }
   | { action: 'profile' }
   | { action: 'my_comments' }
+  | { action: 'notifications' }
   | { action: 'home' };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -159,6 +160,7 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
   if (params.action === 'store_pick') return { action: 'store_pick' };
   if (params.action === 'my_comments') return { action: 'my_comments' };
+  if (params.action === 'notifications') return { action: 'notifications' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
 }
 
@@ -196,6 +198,7 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'join_from_profile': return '/';
     case 'profile': return '/profile';
     case 'my_comments': return '/comments';
+    case 'notifications': return '/notifications';
     default: return '/';
   }
 }

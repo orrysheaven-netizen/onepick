@@ -138,7 +138,7 @@ export default function NotificationsScreen() {
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
-          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽의 새 한줄평과 댓글, 팔로우한 사람의 새 원픽, 수정 필요 알림을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
+          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽의 새 한줄평과 댓글, 팔로우한 사람의 새 원픽, 수정 필요 알림을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push({ pathname: '/auth/login', params: { action: 'notifications' } })}><Text style={styles.link}>로그인</Text></Pressable></>
           : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
           : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 한줄평이나 댓글이 생기면 여기에 알려드려요.</Text></>}
       </View>}

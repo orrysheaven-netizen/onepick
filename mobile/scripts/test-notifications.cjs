@@ -70,6 +70,7 @@ const service = new NotificationService(client);
 let destination;
 let buttons = [];
 const part = (tag) => ({ children }) => React.createElement(tag, null, children);
+const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const native = {
   View: part('div'), Text: part('span'), ActivityIndicator: () => null, RefreshControl: () => null,
   Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
@@ -194,11 +195,17 @@ async function main() {
 
   auth.user = null;
   buttons = [];
+  destination = undefined;
   const loggedOut = renderToStaticMarkup(React.createElement(Screen));
   assert.match(loggedOut, /로그인/);
   assert.doesNotMatch(loggedOut, /신라면|지도 링크를 다시 확인해주세요/);
+  const loginButton = buttons.find((button) => textOf(button.children) === '로그인');
+  assert.ok(loginButton, 'signed-out inbox exposes a login action');
+  loginButton.onPress();
+  assert.equal(destination.pathname, '/auth/login');
+  assert.equal(destination.params.action, 'notifications', 'login must return to the notification inbox');
 
-  console.log('Notification checks passed: grouped RPCs, cursor/snapshot read contract, grouped UI, lifecycle exclusion, destination receipt and fix-needed revision entry.');
+  console.log('Notification checks passed: grouped RPCs, cursor/snapshot read contract, grouped UI, lifecycle exclusion, destination receipt, fix-needed revision entry and signed-out return intent.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

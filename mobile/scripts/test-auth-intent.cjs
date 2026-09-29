@@ -84,6 +84,8 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'profile' })), '/profile');
   same(getAuthIntent({ action: 'my_comments' }), { action: 'my_comments' });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'my_comments' })), '/comments');
+  same(getAuthIntent({ action: 'notifications' }), { action: 'notifications' });
+  assert.equal(getPostAuthRoute(getAuthIntent({ action: 'notifications' })), '/notifications');
   same(getAuthIntent({ action: 'join_from_profile' }), { action: 'join_from_profile' });
   assert.equal(getPostAuthRoute(getAuthIntent({ action: 'join_from_profile' })), '/');
   assert.equal(getPostAuthRoute(getAuthIntent({ action: ['join_from_profile'] })), '/');
@@ -96,7 +98,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'home' }, { action: 'join_from_profile' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'notifications' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
@@ -145,6 +147,9 @@ async function main() {
   assert.equal(mutationInput.provider, 'apple');
   assert.equal(destination, '/profile');
   assert.equal(presses.length, 3, 'Only back, Kakao and Apple are offered');
+  await login({ action: 'notifications' }, { profile: {} });
+  assert.equal(destination, '/notifications');
+  same(callbackParams, { action: 'notifications' });
   await login(comment, { profile: null }, 2);
   assert.equal(mutationInput.provider, 'apple');
   same(destination, getPostAuthRoute(comment, true));
@@ -176,6 +181,11 @@ async function main() {
   same(destination, getPostAuthRoute(getAuthIntent(request)));
   assert.equal(analytics.at(-1).eventName, 'auth_completed');
   assert.equal(analytics.at(-1).source, 'request_item');
+  params = { action: 'notifications' }; mutationResult = { profile: {} };
+  renderToStaticMarkup(React.createElement(Callback));
+  await flush();
+  assert.equal(destination, '/notifications');
+  params = request;
   mutationResult = { profile: null };
   renderToStaticMarkup(React.createElement(Callback));
   await flush();
@@ -185,6 +195,9 @@ async function main() {
   await flush();
   presses[0]();
   same(destination, { pathname: '/auth/login', params: getAuthIntent(request) });
-  console.log('Auth return checks passed: Kakao/Apple preserve choose/comment/profile/home/item-request/link intents, onboarding, cancellation and callback retry.');
+  const callbackSource = fs.readFileSync(path.join(__dirname, '../src/app/auth/callback.tsx'), 'utf8');
+  assert.match(callbackSource, /\[completeOAuth, params, router, url\]/,
+    'OAuth callback must react to the complete validated intent, not a partial parameter subset');
+  console.log('Auth return checks passed: Kakao/Apple preserve choose/comment/profile/notifications/home/item-request/link intents, onboarding, cancellation and callback retry.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
