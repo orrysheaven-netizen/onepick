@@ -15,16 +15,17 @@
 1. `docs/pm/` 조직 체계를 main에 반영
 2. #553 PM 대시보드를 새 조직 구조에 맞게 갱신
 3. #296의 owner/handoff 상태를 현재 실제 상태와 다시 맞춤
-4. GitHub main / Production DB / Figma / QA / 문서의 현 상태를 한 번 대조
+4. 각 담당 조직이 GitHub main / Production DB / Figma / QA / 문서의 현 상태를 자기 영역에서 점검하고 #557에 보고
 
 ## P1 — MVP 기준선 점검
 
-- Product: 현재 MVP 포함/보류/충돌 항목 정리
-- UX: 현행 Figma와 실제 앱 차이 확인
-- Engineering: 최신 main 핵심 흐름 확인
-- Data/DB: main migration과 production DB 정합성 확인
-- QA: 최신 main 기준 로그인/핵심 E2E 및 보안 상태 확인
-- Release: 최종 운영 상태 판정
+- Product 담당: 현재 MVP 포함/보류/충돌 항목 1차 점검
+- UX 담당: 현행 Figma와 실제 앱 차이 1차 점검
+- Engineering 담당: 최신 main 핵심 흐름 1차 점검
+- Data/DB 담당: main migration과 production DB 정합성 1차 점검
+- QA 담당: 최신 main 기준 로그인/핵심 E2E·보안 독립 재검증
+- Release 담당: 실제 CI·배포·DB 반영 상태 검증
+- PM: 각 보고를 취합해 충돌·누락·다음 우선순위만 판정
 
 ## P2 — 점검 후 보완
 
