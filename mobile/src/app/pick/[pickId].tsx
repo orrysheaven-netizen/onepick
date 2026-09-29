@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { observabilityService } from '@/services';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 // Preserve old shared links and login return paths without a second detail screen.
 export default function PickDetailScreen() {
@@ -35,7 +35,12 @@ export default function PickDetailScreen() {
     });
   }, [pickId]);
 
-  if (!query.isPending && !query.isError && query.data) {
+  const hiddenFutureChannel = Boolean(
+    query.data?.pick.channel
+    && !OnePickFeatures.foodChannelPicker
+    && query.data.pick.channel !== OnePickMvp.publicPickChannel
+  );
+  if (!query.isPending && !query.isError && query.data && !hiddenFutureChannel) {
     return <Redirect href={{ pathname: '/item/[itemId]', params: {
       itemId: query.data.pick.itemId,
       pickId: query.data.pick.id,
@@ -51,7 +56,13 @@ export default function PickDetailScreen() {
   return (
     <SafeAreaView style={styles.page}>
       <View style={styles.content}>
-        {query.isPending ? <><ActivityIndicator /><Text>원픽을 불러오고 있어요</Text></> : (
+        {query.isPending ? <><ActivityIndicator /><Text>원픽을 불러오고 있어요</Text></> : hiddenFutureChannel ? (
+          <>
+            <Text>현재 공개 중인 원픽이 아니에요</Text>
+            <Text>지금은 매장에서 고른 음식 원픽만 공개하고 있어요.</Text>
+            <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.button}><Text>홈으로</Text></Pressable>
+          </>
+        ) : (
           <>
             <Text>원픽을 볼 수 없어요</Text>
             <Text>삭제되었거나 볼 수 없는 기록일 수 있어요.</Text>
