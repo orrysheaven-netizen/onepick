@@ -75,6 +75,7 @@ async function main() {
     StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
   };
   const base = {
+    '@/components/current-pick-flag': { CurrentPickFlag: () => null },
     '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null },
     '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },

@@ -22,6 +22,7 @@ const imports = {
     StyleSheet: { create: (x) => x, hairlineWidth: 1 },
   },
   'react-native-safe-area-context': { SafeAreaView: component },
+  '@/components/current-pick-flag': { CurrentPickFlag: () => React.createElement('i', null, 'flag') },
   '@/components/pick-replies': { PickReplies: ({ pickId, canWrite }) => React.createElement('i', null, 'thread:' + pickId + ':' + canWrite) },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
   '@/hooks/usePickDetail': { usePickDetail: () => pickQuery },

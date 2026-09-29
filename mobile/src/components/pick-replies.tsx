@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -160,15 +161,18 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                     </Text>
                   </View>
                   <View style={styles.commentCopy}>
-                    {author ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`@${author.username} 공개 프로필 보기`}
-                        onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
-                        style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
-                        <Text style={styles.commentAuthor}>@{author.username} ›</Text>
-                      </Pressable>
-                    ) : <Text style={styles.commentAuthor}>사용자</Text>}
+                    <View style={styles.commentAuthorRow}>
+                      {author ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`@${author.username} 공개 프로필 보기`}
+                          onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
+                          style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
+                          <Text style={styles.commentAuthor}>@{author.username} ›</Text>
+                        </Pressable>
+                      ) : <Text style={styles.commentAuthor}>사용자</Text>}
+                      {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag /> : null}
+                    </View>
                     <Text style={styles.commentBody}>{comment.body}</Text>
                     {user && author && author.id !== user.id ? (
                       <View style={styles.commentSafety}>
@@ -301,6 +305,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
 
 const styles = StyleSheet.create({
   commentAuthorLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  commentAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   commentsCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
   commentsInline: { marginTop: 4 },
   commentsTitleCompact: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
