@@ -89,7 +89,7 @@ AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
 - `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다. 자동 실행이 진행 중(`state:active`)일 때 bot이 남긴 결과는 해당 finalizer가 처리하므로 무시한다.
 - 같은 (PR, head, 결과)는 한 번만 인계한다. 수정 완료는 먼저 처리된 수정 요청이 있어야 하며 그 요청자에게만 돌아간다.
 - 수정 완료는 필수 CI가 모두 성공한 경우에만 즉시 인계한다. CI가 진행 중이면 CI gate 대기 marker를 남겨 완료 시 인계하고, 실패면 인계하지 않고 기록만 한다.
-- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 최근 AI 작업 이슈의 미처리 marker를 모두 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다.
+- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 이벤트 이슈를 먼저, 이어서 열린 모든 AI 작업 이슈(`owner:codex`/`owner:claude`, 기간·개수 제한 없음)의 미처리 marker를 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다.
 
 ## 작업 이슈와 인계
 

@@ -205,8 +205,6 @@ jobs:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
           EVENT_QUEUE_ISSUE: ${{ needs.enqueue.outputs.issue }}
-          SWEEP_DAYS: "14"
-          SWEEP_LIMIT: "50"
           REQUIRED_WORKFLOWS: '["Mobile CI","Database Tests","Web build"]'
         shell: bash
         run: |
@@ -373,16 +371,16 @@ jobs:
           )"
           }
 
-          # Issues to drain: the event's issue plus recently updated open AI-queue issues,
-          # so markers left by a replaced/cancelled drain run are always collected.
-          since="$(date -u -d "${SWEEP_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+          # Issues to drain: the event's issue first, then EVERY open AI-queue issue
+          # (owner:codex / owner:claude, all pages, no time or count cap), so markers left by
+          # a replaced/cancelled or failed drain run are always collected. Issues without any
+          # comment cannot hold a marker and are skipped without fetching comments.
           sweep="$(
-            gh api -X GET "repos/$REPOSITORY/issues" -f state=open -f sort=updated -f direction=desc \
-              -f since="$since" -f per_page=100 |
-              jq -r --argjson lim "$SWEEP_LIMIT" '
-                [ .[] | select((has("pull_request") | not) and
-                              ([.labels[].name] | index("owner:codex") != null or index("owner:claude") != null))
-                  | .number ] | .[:$lim][]'
+            for owner_label in owner:codex owner:claude; do
+              gh api --paginate -X GET "repos/$REPOSITORY/issues" \
+                -f state=open -f labels="$owner_label" -f per_page=100 \
+                --jq '.[] | select((has("pull_request") | not) and .comments > 0) | .number'
+            done
           )"
           issues="$(printf '%s\n%s\n' "${EVENT_QUEUE_ISSUE:-}" "$sweep" | grep -E '^[0-9]+$' | awk '!seen[$0]++' || true)"
 
