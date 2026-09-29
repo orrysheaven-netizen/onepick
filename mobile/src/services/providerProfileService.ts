@@ -34,7 +34,38 @@ export interface ProviderProfile {
   subtitle: string | null;
   link: ProviderProfileLink | null;
   items: ProviderProfileItem[];
+  brandId: string | null;
+  brandName: string | null;
+  brandLogoUrl: string | null;
 }
+
+export interface BrandWideItem {
+  itemId: string;
+  categoryId: string;
+  categoryName: string;
+  pickCount: number;
+}
+
+export interface BrandProfile {
+  brandId: string;
+  name: string;
+  logoUrl: string | null;
+  branchCount: number;
+  brandWide: BrandWideItem[];
+}
+
+export interface BrandBranch {
+  providerId: string;
+  kind: ProviderProfileKind;
+  name: string;
+  branchName: string | null;
+  subtitle: string | null;
+  pickCount: number;
+  menuCount: number;
+}
+
+export type BrandBranchCursor = { pickCount: number; providerId: string };
+
 
 type ProviderRow = {
   id: string;
@@ -44,6 +75,7 @@ type ProviderRow = {
   place_id: string | null;
   online_store_id: string | null;
   status: string;
+  brand_id: string | null;
 };
 type PlaceRow = {
   id: string;
@@ -118,7 +150,7 @@ export class ProviderProfileService {
 
     const { data: providerData, error: providerError } = await this.db()
       .from('providers')
-      .select('id,kind,name,branch_name,place_id,online_store_id,status')
+      .select('id,kind,name,branch_name,place_id,online_store_id,status,brand_id')
       .eq('id', providerId)
       .maybeSingle();
     if (providerError) throw mapSupabaseError(providerError);
@@ -176,6 +208,9 @@ export class ProviderProfileService {
         subtitle,
         link,
         items: [],
+        brandId: provider.brand_id,
+        brandName: null,
+        brandLogoUrl: null,
       };
     }
 
@@ -221,6 +256,61 @@ export class ProviderProfileService {
       subtitle,
       link,
       items,
+      brandId: provider.brand_id,
+      brandName: null,
+      brandLogoUrl: null,
+    };
+  async brand(brandId: string): Promise<BrandProfile> {
+    if (!UUID.test(brandId)) throw new AppError('BRAND_NOT_FOUND');
+    const { data, error } = await this.countClient.rpc('brand_profile', { p_brand_id: brandId });
+    if (error) throw mapSupabaseError(error);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('BRAND_NOT_FOUND');
+    const value = data as Record<string, any>;
+    const brand = value.brand;
+    if (!brand?.id || !brand?.name) throw new AppError('BRAND_NOT_FOUND');
+    return {
+      brandId: brand.id,
+      name: brand.name,
+      logoUrl: brand.logo_path
+        ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
+        : null,
+      branchCount: Number(value.branch_count) || 0,
+      brandWide: (Array.isArray(value.brand_wide) ? value.brand_wide : []).flatMap((row: any) =>
+        row?.item_id && row?.category_id && row?.category_name
+          ? [{ itemId: row.item_id, categoryId: row.category_id, categoryName: row.category_name, pickCount: Number(row.pick_count) || 0 }]
+          : []),
+    };
+  }
+
+  async brandBranches(brandId: string, cursor: BrandBranchCursor | null = null) {
+    if (!UUID.test(brandId)) throw new AppError('BRAND_NOT_FOUND');
+    const { data, error } = await this.countClient.rpc('brand_branch_page', {
+      p_brand_id: brandId,
+      p_after_pick_count: cursor?.pickCount ?? null,
+      p_after_provider_id: cursor?.providerId ?? null,
+      p_limit: 21,
+    });
+    if (error) throw mapSupabaseError(error);
+    const raw = (Array.isArray(data) ? data : []) as any[];
+    const items: BrandBranch[] = raw.slice(0, 20).flatMap((row) => {
+      if (!row?.provider_id || (row.kind !== 'offline_branch' && row.kind !== 'online_store') || !row.name) return [];
+      const subtitle = row.kind === 'offline_branch'
+        ? row.road_address ?? [row.region_1, row.region_2].filter(Boolean).join(' ') || null
+        : null;
+      return [{
+        providerId: row.provider_id,
+        kind: row.kind,
+        name: row.name,
+        branchName: row.branch_name ?? null,
+        subtitle,
+        pickCount: Number(row.pick_count) || 0,
+        menuCount: Number(row.menu_count) || 0,
+      }];
+    });
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor: raw.length > 20 && last ? { pickCount: last.pickCount, providerId: last.providerId } : null,
     };
   }
 }
