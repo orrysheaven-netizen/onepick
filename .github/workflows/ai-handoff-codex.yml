@@ -193,6 +193,7 @@ jobs:
             - Do not modify these automation control-plane files in an automatic run:
               .github/workflows/ai-handoff-codex.yml
               .github/workflows/ai-handoff-claude.yml
+              .github/workflows/ai-handoff-ci-gate.yml
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
@@ -325,7 +326,7 @@ jobs:
               control_plane_change=false
               while IFS= read -r changed_path; do
                 case "$changed_path" in
-                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
                     control_plane_change=true
                     ;;
                 esac
@@ -361,6 +362,11 @@ jobs:
 
               printf '%s\n\n%s\n' "$body"                 '> 자동 인계가 만든 PR입니다. merge·production deploy는 자동 수행하지 않습니다.'                 > /tmp/pr-body.md
               pr_url="$(gh pr create --draft --repo "$REPOSITORY" --base main --head "$branch" --title "$title" --body-file /tmp/pr-body.md)"
+              pr_number="${pr_url##*/}"
+              if ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+                block_task "PR은 생성됐지만 번호를 확인하지 못해 CI 완료 후 자동 인계를 연결하지 못했습니다. PR: ${pr_url}"
+                exit 0
+              fi
 
               issue_labels="$(gh issue view "$ISSUE_NUMBER" --repo "$REPOSITORY" --json labels --jq '[.labels[].name]')"
               needs_claude=false
@@ -371,15 +377,18 @@ jobs:
                 needs_claude=true
               fi
 
+              # The next owner is handed off by ai-handoff-ci-gate.yml only after required CI succeeds.
+              update_labels '["owner:codex","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
               if [ "$needs_claude" = "true" ]; then
-                update_labels '["owner:codex","state:review","state:handoff","handoff:claude"]' '["state:active","state:ready","state:blocked","handoff:codex"]'
-                next="Claude 독립 리뷰로 자동 인계"
+                ci_next="claude"
+                next="필수 CI 성공 후 Claude 독립 리뷰로 자동 인계"
               else
-                update_labels '["owner:codex","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
-                next="사용자 병합 판단 대기"
+                ci_next="user"
+                next="필수 CI 성공 후 사용자 병합 판단 대기"
               fi
 
               gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
+              <!-- onepick-ci-handoff:pending pr=${pr_number} next=${ci_next} -->
               ## 완료 리포트
               담당: Codex
               결과: $summary
