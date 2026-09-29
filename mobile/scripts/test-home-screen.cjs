@@ -100,9 +100,10 @@ const press = (label) => {
   assert.ok(button, label); button.onPress();
 };
 
-// The real enabled follow flag must not force a new member into an empty feed.
+// The early MVP defers follow exposure; the retained query stays disabled.
 const allFirstPage = render();
-assert.match(allFirstPage, /팔로잉/, 'Following remains an available member scope');
+assert.doesNotMatch(allFirstPage, /팔로잉/, 'Following is hidden in the early offline-food MVP');
+assert.equal(followingFeedArgs[1], false, 'Deferred following feed stays disabled');
 assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
 assert.match(allFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
 assert.match(allFirstPage, /@friend/);
@@ -113,8 +114,8 @@ assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline P
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(followingFeedArgs[2], 'offline', 'Following query is prepared with the same offline scope');
 assert.equal(followingFeedArgs[3], 'food', 'Following query is prepared with the same food root');
-assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
-assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
+assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
+assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
 
 for (width of [390, 800, 1200]) {
