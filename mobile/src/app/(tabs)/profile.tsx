@@ -19,7 +19,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyComments, useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
-import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
@@ -242,8 +242,10 @@ export default function ProfileScreen() {
   const displayName = profile.username;
   const loadedCommentCount = commentsQuery.data?.length ?? 0;
   const commentCountLabel = commentsQuery.hasNextPage ? `${loadedCommentCount}+` : String(loadedCommentCount);
-  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab);
-  const visibleProfilePicks = profileScope === 'food' ? mainPicks : labPicks;
+  const profileCategories = categoriesQuery.data ?? [];
+  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab);
+  const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
+  const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
   const history = historyQuery.data ?? [];
   const itemRequests = requestsQuery.data ?? [];
   // Only a successfully fetched, exhausted empty list may disappear. Keep its
@@ -271,7 +273,7 @@ export default function ProfileScreen() {
     setIsSharingProfile(true);
     setProfileShareError(false);
     try {
-      await shareProfile({ username: profile.username, pickCount: mainPicks.length });
+      await shareProfile({ username: profile.username, pickCount: publicMainPicks.length });
     } catch {
       setProfileShareError(true);
     } finally {
