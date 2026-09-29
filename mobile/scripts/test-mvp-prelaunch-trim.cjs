@@ -95,6 +95,7 @@ function profile(isPublic = false) {
 }
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
+    assert.equal(flags.follow, false); assert.equal(flags.followCounts, false);
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
     assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(flags.foodChannelPicker, false, 'Initial MVP keeps online/recipe food registration entries hidden');
@@ -103,7 +104,8 @@ async function main() {
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
   const categoryChips = (view) => view.all('Chip').filter((p) => !isChannelChip(p));
-  await test('Home starts at all; scope switching preserves exclusive query gating', () => {
+  await test('Deferred following scope still works when the future flag is enabled', () => {
+    flags.follow = true;
     const { view, calls } = home(); assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
     view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[2], false); assert.equal(calls.following[1], true);
@@ -122,14 +124,15 @@ async function main() {
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
-  await test('MVP Home exposes food + offline only while future channels stay internal', () => {
+  await test('MVP Home exposes food + offline only while future channels and follow stay internal', () => {
     const { view, calls } = home(2);
     assert.equal(view.all('Chip').filter(isChannelChip).length, 0, 'No channel switcher is exposed in the initial MVP');
+    assert.equal(view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined, 'Follow scope is hidden by default');
     assert.equal(calls.home[3], 'offline', 'Public Home is server-filtered to physical-store Picks');
     assert.equal(calls.home[4], 'food', 'Public Home stays inside the food root');
-    view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
-    assert.equal(calls.following[2], 'offline', 'Following uses the same offline scope');
-    assert.equal(calls.following[3], 'food', 'Following uses the same food root');
+    assert.equal(calls.following[1], false, 'Retained following query is disabled while follow is deferred');
+    assert.equal(calls.following[2], 'offline', 'Retained following query keeps the future offline scope');
+    assert.equal(calls.following[3], 'food', 'Retained following query keeps the future food root');
   });
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
