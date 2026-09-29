@@ -59,7 +59,7 @@ Repository → Settings → Secrets and variables → Actions → Variables:
 
 | 이름 | 값 |
 | --- | --- |
-| `AI_HANDOFF_APP_ID` | 새 GitHub App의 App ID |
+| `AI_HANDOFF_APP_CLIENT_ID` | 새 GitHub App의 Client ID |
 | `ONEPICK_AI_HANDOFF_ENABLED` | master switch. 처음에는 `false` |
 | `ONEPICK_CLAUDE_ACTION_ENABLED` | Claude GitHub Action 사용 시 `true`; 처음에는 `false` |
 | `ONEPICK_CODEX_ACTION_ENABLED` | 유료 OpenAI API 기반 Codex Action 사용 시만 `true`; 기본 `false` |
