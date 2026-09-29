@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -68,6 +68,17 @@ type Params = {
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
+  if ((params.notificationKind === 'comment' || params.notificationKind === 'reply') && typeof params.pickId === 'string') {
+    return <Redirect href={{ pathname: '/pick/[pickId]', params: {
+      pickId: params.pickId,
+      ...(typeof params.notificationGroupId === 'string' ? { notificationGroupId: params.notificationGroupId } : {}),
+      ...(typeof params.notificationSnapshot === 'string' ? { notificationSnapshot: params.notificationSnapshot } : {}),
+      ...(typeof params.notificationKind === 'string' ? { notificationKind: params.notificationKind } : {}),
+      ...(typeof params.rootCommentId === 'string' ? { rootCommentId: params.rootCommentId } : {}),
+      ...(typeof params.commentAfterTime === 'string' ? { commentAfterTime: params.commentAfterTime } : {}),
+      ...(typeof params.commentAfterId === 'string' ? { commentAfterId: params.commentAfterId } : {}),
+    } }} />;
+  }
   // A file selected for one item/account must never be submitted for another.
   return <ItemDetailContent key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}`} auth={auth} params={params} />;
 }
@@ -80,10 +91,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
   const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
   const notificationReason = typeof params.notificationReason === 'string' ? params.notificationReason : undefined;
-  const rootCommentId = typeof params.rootCommentId === 'string' ? params.rootCommentId : undefined;
-  const commentInitialCursor = typeof params.commentAfterTime === 'string' && typeof params.commentAfterId === 'string'
-    ? { timestamp: params.commentAfterTime, id: params.commentAfterId }
-    : null;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
   const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError, publicFoodChannel);
@@ -91,7 +98,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
 
   useEffect(() => {
     const data = query.data;
@@ -111,7 +117,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   useEffect(() => {
     if (!user || !query.data || !notificationGroupId || !notificationSnapshot) return;
-    if (notificationKind === 'reply' && !replyTargetLoaded) return;
     const receipt = `${notificationGroupId}:${notificationSnapshot}`;
     if (acknowledgedNotification.current === receipt) return;
     acknowledgedNotification.current = receipt;
@@ -119,7 +124,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       .catch(() => {
         if (acknowledgedNotification.current === receipt) acknowledgedNotification.current = undefined;
       });
-  }, [notificationGroupId, notificationSnapshot, notificationKind, query.data?.item.id, replyTargetLoaded, user?.id]);
+  }, [notificationGroupId, notificationSnapshot, query.data?.item.id, user?.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -415,9 +420,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
                 itemName={item.name} highlighted={pick.id === highlightedId}
-                focusCommentId={pick.id === focusPickId && notificationKind === 'reply' ? rootCommentId : undefined}
-                commentInitialCursor={pick.id === focusPickId && notificationKind === 'reply' ? commentInitialCursor : null}
-                onCommentFocusLoaded={pick.id === focusPickId && notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
