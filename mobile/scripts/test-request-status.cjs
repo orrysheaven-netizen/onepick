@@ -26,6 +26,7 @@ function load(file, imports = {}) {
 Object.assign(require('./design-tokens.cjs').OnePickFeatures, { profilePickHistory: true, profileSocialLinks: true, profileItemRequests: true });
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
   let presses = [], destination, refreshes = 0, requestRefreshes = 0, historyRefreshes = 0, pullToRefresh;
@@ -143,6 +144,11 @@ async function main() {
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/format/relativeTime': { formatRelativeTime: () => '방금' },
+    '@/services': { commentService: { locateComment: async (commentId) => commentId === 'c1' ? {
+      rootCommentId: 'c1', pickId: 'p1', itemId: 'i1', categoryId: 'ramen', channel: 'offline',
+      reviewIsCurrent: false, reviewIsDeleted: false,
+      pageCursor: { timestamp: '2026-09-24T00:00:00Z', id: 'cursor-1' },
+    } : null } },
   });
   const myComments = listQuery();
   const renderComments = () => { presses = []; return renderToStaticMarkup(React.createElement(ProfileMyComments, { query: myComments })); };
@@ -155,8 +161,12 @@ async function main() {
   assert.match(list, /신라면 · @friend의 한줄평/); assert.match(list, /국물이 좋아요/); assert.match(list, /저도 이거 좋아요/);
   assert.match(list, /볼 수 없는 한줄평/); assert.match(list, /숨겨진 곳의 댓글/);
   assert.equal(presses.length, 1, 'Only rows with a visible review are pressable');
-  presses[0].onPress(); assert.equal(destination.pathname, '/item/[itemId]');
-  assert.deepEqual({ ...destination.params }, { itemId: 'i1', pickId: 'p1' }, 'Rows open the focused review without the /pick redirect');
+  presses[0].onPress(); await flush();
+  assert.equal(destination.pathname, '/pick/[pickId]');
+  assert.deepEqual({ ...destination.params }, {
+    pickId: 'p1', itemId: 'i1', focusCommentId: 'c1',
+    commentAfterTime: '2026-09-24T00:00:00Z', commentAfterId: 'cursor-1',
+  }, 'Rows locate and open the exact comment inside the review conversation');
   let nextPages = 0;
   Object.assign(myComments, { hasNextPage: true, fetchNextPage: async (options) => { assert.equal(options.cancelRefetch, false); nextPages++; } });
   renderComments(); presses.find((props) => props.accessibilityLabel === '댓글 더 보기').onPress(); assert.equal(nextPages, 1);
