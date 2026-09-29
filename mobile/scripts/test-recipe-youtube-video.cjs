@@ -462,6 +462,8 @@ async function main() {
   assert.equal(registrationRoute({ id: DISH, slug: 'recipe' }).pathname, '/pick/recipe');
 
   const screen = fs.readFileSync(path.join(root, 'mobile/src/app/pick/recipe.tsx'), 'utf8');
+  assert.match(screen, /!OnePickFeatures\.foodChannelPicker/);
+  assert.match(screen, /pathname: '\/pick\/find'/, 'initial MVP redirects a direct recipe route back to store registration');
   assert.match(screen, /getYouTubePolicyConsent/);
   assert.match(screen, /acceptYouTubePolicyConsent/);
   assert.match(screen, /YouTube 이용약관/);

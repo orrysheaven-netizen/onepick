@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { isDeliveryAppUrl, parsePickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { CATEGORY_HINT_MAX_LENGTH } from '@/services/registrationService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickFeatures } from '@/constants/onepick';
 
 function errorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -62,6 +62,12 @@ function parseSourceUrl(value: unknown) {
 export default function RequestItemScreen() {
   const params = useLocalSearchParams<Params>();
   const auth = useAuthSession();
+  if (!OnePickFeatures.foodChannelPicker && params.channel === 'online' && params.categoryId) {
+    return <Redirect href={{ pathname: '/pick/find', params: {
+      categoryId: params.categoryId,
+      ...(params.itemName ? { query: params.itemName } : {}),
+    } }} />;
+  }
   return <RequestItemForm key={JSON.stringify([auth.user?.id ?? 'anon', params.categoryId, params.itemName, params.sourceUrl, params.channel])} auth={auth} params={params} />;
 }
 

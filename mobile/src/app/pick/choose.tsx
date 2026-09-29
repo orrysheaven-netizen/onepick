@@ -15,7 +15,7 @@ import { parseChannelParam } from '@/lib/items/pickChannel';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
-import { OnePick, OnePickFeatures } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -48,7 +48,8 @@ export default function ChoosePickScreen() {
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const requestedChannel = parseChannelParam(params.channel);
+  const routeChannel = parseChannelParam(params.channel);
+  const requestedChannel = routeChannel && !OnePickFeatures.foodChannelPicker ? OnePickMvp.publicPickChannel : routeChannel;
   const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
   const choosePick = useChoosePick();
   const requestPick = useRequestPendingPick();
