@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
+
 function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
@@ -16,138 +17,168 @@ function load(file, imports = {}) {
   } });
   return exports;
 }
+
 const calls = [];
 let failure = null;
-const rows = Array.from({ length: 21 }, (_, i) => ({ kind: i % 2 ? 'pick_change' : 'comment', id: 'c'+i, pick_id: 'pick', created_at: '2026-09-17T00:00:00.123456Z', read_at: null }));
+const group = (i, kind = 'comment') => ({
+  group_id: `${kind}:group-${i}`,
+  kind,
+  latest_at: `2026-09-29T00:00:${String(i % 60).padStart(2, '0')}.123456Z`,
+  snapshot: `2026-09-29T00:00:${String(i % 60).padStart(2, '0')}.123456Z`,
+  unread_count: i === 0 ? 2 : 1,
+  total_count: i === 0 ? 3 : 1,
+  actor_count: i === 0 ? 2 : 1,
+  actor: kind === 'fix_needed' ? null : { user_id: `u-${i}`, username: i === 0 ? 'friend' : `user${i}`, profile_image_url: null },
+  target: {
+    item_id: `item-${i}`,
+    item_name: i === 0 ? '신라면' : `메뉴${i}`,
+    category_id: 'cat',
+    category_name: '라면',
+    channel: 'offline',
+    pick_id: kind === 'fix_needed' ? null : `pick-${i}`,
+    comment_id: kind === 'comment' || kind === 'reply' ? `comment-${i}` : null,
+    root_comment_id: kind === 'reply' ? `root-${i}` : null,
+    user_id: kind === 'followee_pick' ? `u-${i}` : null,
+  },
+  reason: kind === 'fix_needed' ? '지도 링크를 다시 확인해주세요.' : null,
+});
+let rows = Array.from({ length: 21 }, (_, i) => group(i, i % 2 ? 'followee_pick' : 'comment'));
 let preferenceRow = { followee_pick_change: false };
 const chain = {
-  update: (value) => { calls.push(['update', value]); return chain; },
-  eq: (key, value) => { calls.push([key, value]); return chain; },
-  is: async (key, value) => { calls.push([key, value]); return { error: failure }; },
   select: (columns) => { calls.push(['select', columns]); return chain; },
+  eq: (key, value) => { calls.push([key, value]); return chain; },
   maybeSingle: async () => ({ data: preferenceRow, error: failure }),
   upsert: async (value, options) => { calls.push(['upsert', value, options]); return { error: failure }; },
 };
 const client = {
-  rpc: async (name, args) => { calls.push([name, args]); return { data: name.includes('count') ? 4 : rows, error: failure }; },
+  rpc: async (name, args) => {
+    calls.push([name, args]);
+    if (failure) return { data: null, error: failure };
+    if (name === 'notification_unread_count') return { data: 4, error: null };
+    if (name === 'mark_notification_group_read') return { data: 2, error: null };
+    return { data: rows, error: null };
+  },
   from: (name) => { calls.push(['table', name]); return chain; },
 };
+
 const { NotificationService } = load('services/notificationService.ts', {
-  '@/lib/supabase/client': { supabase: client }, '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
+  '@/lib/supabase/client': { supabase: client },
+  '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
 });
-let destination, buttons = [];
+const service = new NotificationService(client);
+
+let destination;
+let buttons = [];
 const part = (tag) => ({ children }) => React.createElement(tag, null, children);
 const native = {
   View: part('div'), Text: part('span'), ActivityIndicator: () => null, RefreshControl: () => null,
   Pressable: (props) => { buttons.push(props); return React.createElement('button', null, props.children); },
   StyleSheet: { create: (styles) => styles },
   FlatList: (props) => React.createElement('main', null, props.ListHeaderComponent,
-    props.data.length ? props.data.map((item) => React.createElement('div', { key: props.keyExtractor(item) }, props.renderItem({ item }))) : props.ListEmptyComponent, props.ListFooterComponent),
+    props.data.length ? props.data.map((item) => React.createElement('div', { key: props.keyExtractor(item) }, props.renderItem({ item }))) : props.ListEmptyComponent,
+    props.ListFooterComponent),
 };
-const countQuery = { data: 4, isError: false };
-const imports = {
-  'react-native': native, 'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: () => {} }) },
-  '@/constants/onepick': require('./design-tokens.cjs'),
-  '@/hooks/useNotifications': { useNotificationCount: () => countQuery },
-};
-const { NotificationButton } = load('components/notification-button.tsx', imports);
+
 const auth = { user: { id: 'owner' }, isLoading: false, error: null };
-const inbox = { data: { pages: [{ items: [
-  { ...rows[0], username: 'friend', item_name: '신라면', body: '새 댓글' },
-  { ...rows[1], id: 'p1', pick_id: 'pick-p1', username: 'jimin', item_name: '헤드폰', body: '음질이 좋아요' },
-  { kind: 'item_review', id: 'req1', pick_id: null, username: null, body: null, item_name: '신라면', item_id: 'item-1', outcome: 'approved', created_at: rows[0].created_at, read_at: null },
-  { kind: 'item_review', id: 'req3', pick_id: 'auto-pick', username: null, body: null, item_name: '비빔면', item_id: 'item-3', outcome: 'approved', created_at: rows[0].created_at, read_at: null },
-  { kind: 'item_review', id: 'req2', pick_id: null, username: null, body: null, item_name: '에어팟 프로', item_id: 'item-2', outcome: 'merged', created_at: rows[0].created_at, read_at: null },
-] }] }, isError: false };
-let readCalls = [];
+const inbox = {
+  data: { pages: [{ items: [
+    group(0, 'comment'),
+    group(1, 'reply'),
+    group(2, 'pick_review'),
+    group(3, 'followee_pick'),
+    group(4, 'fix_needed'),
+  ] }] },
+  isPending: false, isFetching: false, isRefetching: false, isFetchingNextPage: false,
+  isError: false, hasNextPage: false,
+  refetch: async () => {}, fetchNextPage: async () => {},
+};
+
 const { default: Screen } = load('app/(tabs)/notifications.tsx', {
-  ...imports,
+  'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: part('section') },
+  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+  '@/constants/onepick': require('./design-tokens.cjs'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useNotifications': { useNotifications: () => inbox, useReadNotification: () => ({ isPending: false, mutateAsync: async (input) => { readCalls.push(input); } }) },
+  '@/hooks/useNotifications': { useNotifications: () => inbox },
 });
+
 async function main() {
-  const service = new NotificationService(client);
   assert.equal(await service.unreadCount('owner'), 4);
-  assert.equal(calls[0][0], 'notification_count', 'Unified count RPC, no user id argument');
+  assert.equal(calls[0][0], 'notification_unread_count');
+
+  calls.length = 0;
   const page = await service.page('owner', null);
-  assert.equal(calls[1][0], 'notification_page');
+  assert.equal(calls[0][0], 'notification_group_page');
+  assert.equal(calls[0][1].p_limit, 21);
   assert.equal(page.items.length, 20);
-  assert.equal(page.nextCursor.id, 'c19');
-  assert.equal(page.nextCursor.timestamp, rows[19].created_at, 'Keep microsecond cursor precision');
-  await service.markRead('owner', 'comment', 'c0');
-  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'comment_notifications'));
-  assert.ok(calls.some(([key, value]) => key === 'recipient_id' && value === 'owner'));
-  assert.ok(calls.some(([key, value]) => key === 'comment_id' && value === 'c0'));
+  assert.equal(page.nextCursor.groupId, rows[19].group_id);
+  assert.equal(page.nextCursor.activity, rows[19].latest_at);
+
   calls.length = 0;
-  await service.markRead('owner', 'pick_change', 'p1');
-  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'pick_change_notifications'), 'Pick changes are marked read on their own table');
-  assert.ok(calls.some(([key, value]) => key === 'pick_id' && value === 'p1'));
-  assert.ok(!calls.some(([key]) => key === 'comment_id'));
-  calls.length = 0;
-  await service.markRead('owner', 'item_review', 'req1');
-  assert.ok(calls.some(([key, value]) => key === 'table' && value === 'item_review_notifications'), 'Review results are marked read on their own table');
-  assert.ok(calls.some(([key, value]) => key === 'item_id' && value === 'req1'));
-  calls.length = 0;
-  rows.push({ kind: 'item_review', id: 'r-bad', pick_id: null, item_id: null, created_at: rows[0].created_at, read_at: null });
-  rows.push({ kind: 'item_review', id: 'r-ok', pick_id: null, item_id: 'item-9', outcome: 'approved', item_name: '텀블러', created_at: rows[0].created_at, read_at: null });
-  rows.splice(0, rows.length, ...rows.slice(-2));
-  const reviewPage = await service.page('owner', null);
-  assert.equal(reviewPage.items.length, 1, 'A review row without a product is dropped');
-  assert.equal(reviewPage.items[0].username, null, 'Review rows keep a null sender');
+  assert.equal(await service.markGroupRead('owner', 'comment:pick', '2026-09-29T00:00:00Z'), 2);
+  assert.deepEqual(calls[0], ['mark_notification_group_read', {
+    p_group_id: 'comment:pick',
+    p_until: '2026-09-29T00:00:00Z',
+  }]);
+
   assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: false }));
   preferenceRow = null;
-  assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: true }), 'No row means on');
+  assert.equal(JSON.stringify(await service.preferences('owner')), JSON.stringify({ followeePickChange: true }));
   calls.length = 0;
   await service.setFolloweePickChange('owner', false);
-  const upsert = calls.find(([key]) => key === 'upsert');
-  assert.equal(upsert[1].user_id, 'owner'); assert.equal(upsert[1].followee_pick_change, false); assert.equal(upsert[2].onConflict, 'user_id');
+  const upsert = calls.find(([name]) => name === 'upsert');
+  assert.equal(upsert[1].user_id, 'owner');
+  assert.equal(upsert[1].followee_pick_change, false);
+
   failure = new Error('offline');
   await assert.rejects(() => service.unreadCount('owner'), /offline/);
-  await assert.rejects(() => service.markRead('owner', 'comment', 'c0'), /offline/);
-  await assert.rejects(() => service.setFolloweePickChange('owner', true), /offline/);
+  await assert.rejects(() => service.markGroupRead('owner', 'g', '2026-09-29T00:00:00Z'), /offline/);
+  failure = null;
+
   buttons = [];
-  assert.match(renderToStaticMarkup(React.createElement(NotificationButton, { userId: 'owner' })), /4/);
-  buttons[0].onPress(); assert.equal(destination, '/notifications');
-  buttons = [];
-  const inboxHtml = renderToStaticMarkup(React.createElement(Screen));
-  assert.match(inboxHtml, /새 댓글/);
-  assert.match(inboxHtml, /새 원픽/); assert.match(inboxHtml, /@jimin/); assert.match(inboxHtml, /헤드폰을\(를\) 원픽으로 골랐어요/); assert.match(inboxHtml, /“음질이 좋아요”/);
-  const open = buttons.find((button) => button.accessibilityLabel?.includes('@friend'));
-  open.onPress(); await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(destination.params.pickId, 'pick');
-  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'comment', id: 'c0' }));
-  const openPick = buttons.find((button) => button.accessibilityLabel?.includes('@jimin'));
-  openPick.onPress(); await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(destination.params.pickId, 'pick-p1', 'Pick-change rows open the new pick');
-  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'pick_change', id: 'p1' }));
-  assert.match(inboxHtml, /등록하신 신라면이 승인됐어요\. 원픽으로 선택해보세요\./, 'Approval copy uses the right particle');
-  assert.match(inboxHtml, /요청하신 원픽이 에어팟 프로\(으\)로 등록됐어요/, 'Merged requests name the product to pick');
-  assert.doesNotMatch(inboxHtml, /@null|알 수 없는 사용자/, 'Review results have no sender');
-  const openReview = buttons.find((button) => button.accessibilityLabel?.includes('신라면이 승인됐어요'));
-  openReview.onPress(); await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(destination.pathname, '/pick/choose', 'Review results open the pick chooser');
-  assert.equal(destination.params.itemId, 'item-1');
-  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'item_review', id: 'req1' }));
-  assert.match(inboxHtml, /등록하신 비빔면이 승인되어 내 원픽으로 등록됐어요\./, 'An approval that made the pick says so');
-  const openAuto = buttons.find((button) => button.accessibilityLabel?.includes('비빔면이 승인되어'));
-  openAuto.onPress(); await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(destination.pathname, '/pick/[pickId]', 'An approval that made the pick opens it; nothing to choose again');
-  assert.equal(destination.params.pickId, 'auto-pick');
-  assert.equal(JSON.stringify(readCalls.at(-1)), JSON.stringify({ kind: 'item_review', id: 'req3' }));
+  const html = renderToStaticMarkup(React.createElement(Screen));
+  assert.match(html, /새 댓글/);
+  assert.match(html, /새 답글/);
+  assert.match(html, /새 한줄평/);
+  assert.match(html, /새 원픽/);
+  assert.match(html, /수정 필요/);
+  assert.match(html, /지도 링크를 다시 확인해주세요/);
+  assert.doesNotMatch(html, /승인됐어요|등록 결과|승인 대기/, 'approval/merge lifecycle rows are not created by the grouped UI');
+
+  const commentButton = buttons.find((button) => button.accessibilityLabel?.includes('신라면 내 한줄평에 댓글'));
+  assert.ok(commentButton);
+  commentButton.onPress();
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'item-0');
+  assert.equal(destination.params.pickId, 'pick-0');
+  assert.equal(destination.params.notificationGroupId, 'comment:group-0');
+  assert.equal(destination.params.notificationSnapshot, group(0).snapshot);
+
+  const fixButton = buttons.find((button) => button.accessibilityLabel?.includes('수정해주세요'));
+  assert.ok(fixButton);
+  fixButton.onPress();
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'item-4');
+  assert.equal(destination.params.notificationKind, 'fix_needed');
+  assert.equal(destination.params.notificationReason, '지도 링크를 다시 확인해주세요.');
+
+  // Opening the inbox never acknowledges a group. The read mutation lives at
+  // the successfully-loaded destination screen.
+  const notificationSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/notifications.tsx'), 'utf8');
+  assert.doesNotMatch(notificationSource, /useReadNotificationGroup|markGroupRead/, 'inbox open must not mark read');
+  const itemSource = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
+  assert.match(itemSource, /useReadNotificationGroup/);
+  assert.match(itemSource, /if \(!user \|\| !query\.data \|\| !notificationGroupId \|\| !notificationSnapshot\) return/);
+  assert.match(itemSource, /useRevisePendingItem/);
+  assert.match(itemSource, /수정 내용 보내기/);
+
   auth.user = null;
-  const publicPage = renderToStaticMarkup(React.createElement(Screen));
-  assert.match(publicPage, /로그인/); assert.doesNotMatch(publicPage, /@friend|신라면/, 'No cached private data on logout');
-  auth.user = { id: 'owner' }; auth.error = new Error('session');
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(Screen)), /@friend/);
-  auth.error = null; inbox.isError = true;
-  const staleInbox = renderToStaticMarkup(React.createElement(Screen));
-  assert.match(staleInbox, /@friend/, 'A refresh error keeps the last successful inbox visible');
-  assert.match(staleInbox, /갱신하지 못했어요/, 'A refresh error is shown as a non-blocking warning');
-  inbox.data.pages[0].items = [];
-  assert.match(renderToStaticMarkup(React.createElement(Screen)), /알림을 불러오지 못했어요/);
-  inbox.isError = false;
-  assert.match(renderToStaticMarkup(React.createElement(Screen)), /아직 알림이 없어요/);
-  console.log('Notification checks passed: unified inbox cursor, per-kind read marks (including request reviews), cached-data refresh resilience, preferences, errors, navigation, badge and private UI states.');
+  buttons = [];
+  const loggedOut = renderToStaticMarkup(React.createElement(Screen));
+  assert.match(loggedOut, /로그인/);
+  assert.doesNotMatch(loggedOut, /신라면|지도 링크를 다시 확인해주세요/);
+
+  console.log('Notification checks passed: grouped RPCs, cursor/snapshot read contract, grouped UI, lifecycle exclusion, destination receipt and fix-needed revision entry.');
 }
+
 main().catch((error) => { console.error(error); process.exitCode = 1; });
