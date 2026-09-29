@@ -192,7 +192,20 @@ jobs:
             *)      next_label="";               next_text="사용자 병합 판단 대기 (자동 병합하지 않음)" ;;
           esac
 
-          # The done marker is written before labeling so a retried run cannot hand off twice.
+          # Hand off first, then write the done marker. If the label write fails the job fails
+          # without a done marker, so a re-run (or the next CI completion event) retries it.
+          # If the label write succeeds but the comment fails, a re-run stops at step 4
+          # because handoff:* is already on the issue, so the handoff is not duplicated.
+          if [ -n "$next_label" ]; then
+            update_labels "[\"state:review\",\"state:handoff\",\"$next_label\"]" \
+              '["state:active","state:ready","handoff:codex","handoff:claude"]'
+            applied="$(gh api "repos/$REPOSITORY/issues/$issue_number" --jq '[.labels[].name]')"
+            if ! jq -e --arg l "$next_label" 'index($l) != null' <<<"$applied" >/dev/null; then
+              echo "::error::Handoff label $next_label was not applied to issue #$issue_number; not recording done marker."
+              exit 1
+            fi
+          fi
+
           gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
           <!-- onepick-ci-handoff:done pr=${pr_number} -->
           ## 필수 CI 통과
@@ -203,8 +216,3 @@ jobs:
           후속: ${next_text}
           EOF
           )"
-
-          if [ -n "$next_label" ]; then
-            update_labels "[\"state:review\",\"state:handoff\",\"$next_label\"]" \
-              '["state:active","state:ready","handoff:codex","handoff:claude"]'
-          fi
