@@ -29,7 +29,7 @@ assert.ok(bodyIndex >= 0 && managementIndex > bodyIndex, 'management utilities m
 
 assert.match(photo, /size\?: 62 \| 64 \| 86/);
 assert.match(photo, /thumb64: \{ width: 64, height: 64, borderRadius: 8 \}/);
-assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 72/);
+assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 68 \| 72/);
 assert.match(avatar, /tone\?: 'accent' \| 'subtle'/);
 assert.match(avatar, /subtle: \{ backgroundColor: OnePick\.bgSubtle \}/);
 
