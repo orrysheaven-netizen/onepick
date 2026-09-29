@@ -86,17 +86,18 @@ assert.doesNotMatch(other, /thread:o1/, "Item detail no longer expands comment t
 assert.match(other, /댓글 3/);
 assert.match(other, /share:o1/);
 assert.match(other, /@someone/);
-assert.match(other, /✓ 이 집 원픽/, 'A current review gets only the positive current-Pick badge');
+assert.match(other, /aria-label="현재 원픽"/, 'A current review gets the Figma flag indicator');
+assert.doesNotMatch(other, /✓ 이 집 원픽|✓ 원픽/, 'The current-Pick state is icon-only, not a text badge');
 assert.doesNotMatch(other, /댓글 접기|댓글 보기|수정 · 해제|공유 · 신고|원픽 아님/);
 
 const endedOther = card({ id: 'o-old', userId: 'someone', status: 'replaced', oneLineReview: '예전에도 좋았다' }, { username: 'someone' });
 assert.match(endedOther, /@someone/);
-assert.doesNotMatch(endedOther, /이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|원픽 아님/, 'Ended reviews stay neutral and do not reveal history state');
+assert.doesNotMatch(endedOther, /이전 원픽|현재 선택이 종료된|aria-label="현재 원픽"|✓ 이 집 원픽|원픽 아님/, 'Ended reviews stay neutral and do not reveal history state');
 assert.match(endedOther, /댓글 0/, 'Ended reviews keep a conversation entry without exposing lifecycle state');
 
 const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '내장탕은 무조건 여기' }, { username: 'me' });
 assert.match(mine, /내 한줄평/);
-assert.match(mine, /✓ 이 집 원픽/);
+assert.match(mine, /aria-label="현재 원픽"/);
 assert.doesNotMatch(mine, /@me|내 이전 한줄평|원픽 아님/, 'My own card uses the same neutral label and only a positive current badge');
 assert.match(mine, /수정 · 해제/);
 assert.match(mine, /share:m1/);
@@ -111,7 +112,7 @@ assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x'
 
 const endedMine = card({ id: 'm-old', userId: 'me', status: 'removed', oneLineReview: '예전 이유' }, { username: 'me' });
 assert.match(endedMine, /내 한줄평/);
-assert.doesNotMatch(endedMine, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|✓ 이 집 원픽|수정 · 해제/, 'My ended review does not expose history state or current-only management');
+assert.doesNotMatch(endedMine, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|aria-label="현재 원픽"|✓ 이 집 원픽|수정 · 해제/, 'My ended review does not expose history state or current-only management');
 assert.match(endedMine, /댓글 0/, 'My ended review keeps a conversation entry');
 
 session = { user: { id: 'me' }, isLoading: true };
@@ -128,12 +129,17 @@ const reviewCardSource = source('components/item-review-card.tsx');
 assert.doesNotMatch(reviewCardSource, /PickReplies/, 'Item review cards never mount comment threads inline');
 assert.match(reviewCardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review body and count use the dedicated conversation route');
 assert.match(reviewCardSource, /pick\.commentCount \?\? 0/, 'Review cards show the server-provided comment count');
+assert.match(reviewCardSource, /flagPole/);
+assert.match(reviewCardSource, /flagNotch/);
+assert.match(reviewCardSource, /OnePick\.brand/, 'Review flag uses the Figma brand orange');
 
 const conversationSource = source('app/pick/[pickId].tsx');
 assert.match(conversationSource, /useItemDetail\(itemId, user\?\.id, pickId/, 'Conversation detail resolves the review through item_review_page');
 assert.match(conversationSource, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : undefined\}/, 'Reply notification focus is forwarded into the thread');
 assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/, 'Reply read receipt waits for the located comment to load');
 assert.match(conversationSource, /canWrite=\{Boolean\(focused\.pick\.canComment\)\}/, 'Conversation writing follows item_review_page can_comment');
+assert.match(conversationSource, /accessibilityLabel="현재 원픽"/, 'Conversation detail uses the same icon-only current-Pick flag');
+assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conversation detail has no current-Pick text badge');
 
 // PickReplies keeps its existing CRUD/composer behavior.
 const repliesSource = source('components/pick-replies.tsx');

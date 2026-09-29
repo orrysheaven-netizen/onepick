@@ -9,6 +9,16 @@ import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
+
+function CurrentPickFlag() {
+  return <View accessible accessibilityLabel="현재 원픽" style={styles.currentFlag}>
+    <View style={styles.flagPole} />
+    <View style={styles.flagBody}>
+      <View style={styles.flagNotch} />
+    </View>
+  </View>;
+}
+
 /**
  * One review row on an item. The list stays compact: review body and comment
  * count open the dedicated conversation route instead of expanding replies here.
@@ -43,7 +53,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
             ) : <Text style={styles.username}>사용자</Text>}
           </View>
         </>}
-        {isCurrent ? <Text style={styles.currentBadge}>✓ 이 집 원픽</Text> : null}
+        {isCurrent ? <CurrentPickFlag /> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
@@ -80,7 +90,30 @@ const styles = StyleSheet.create({
   profileLink: { minHeight: 36, justifyContent: 'center' },
   review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 10 },
   myReview: { fontWeight: '600' },
-  currentBadge: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 15, fontWeight: '800' },
+  currentFlag: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: OnePick.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  flagPole: { position: 'absolute', left: 7, top: 5, width: 2, height: 14, backgroundColor: OnePick.brand },
+  flagBody: { position: 'absolute', left: 7, top: 5, width: 10, height: 8, backgroundColor: OnePick.brand },
+  flagNotch: {
+    position: 'absolute',
+    right: -1,
+    top: 3,
+    width: 0,
+    height: 0,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderRightWidth: 3,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: OnePick.surface,
+  },
   history: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginVertical: 10 },
   commentLink: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center', paddingRight: 12 },
   commentLinkText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
