@@ -1,5 +1,5 @@
 import { injectShareMeta, itemShareMeta, validShareUuid } from '../_lib/share-meta';
-import { isMvpPublicItem } from '../_lib/mvp-scope';
+import { isMvpPublicItem, MVP_PUBLIC_PICK_CHANNEL } from '../_lib/mvp-scope';
 
 type Env = {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -57,7 +57,28 @@ export async function onRequest(context: Context) {
     const rawCategory = row.category as Record<string, unknown> | Record<string, unknown>[] | null;
     const category = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory;
     if (!category || category.status !== 'open' || category.is_visible !== true) return fallback(context);
-    if (!isMvpPublicItem(category, row)) return fallback(context);
+
+    // Legacy food items can lack item_channels while still having a valid
+    // explicit offline Pick. Use the anon-visible active Pick as a second public
+    // signal so Home/Profile links remain reachable without widening online scope.
+    let hasPublicOfflinePick = false;
+    if (!isMvpPublicItem(category, row)) {
+      const picksQuery = new URL(`${supabaseUrl}/rest/v1/picks`);
+      picksQuery.searchParams.set('select', 'id');
+      picksQuery.searchParams.set('item_id', `eq.${itemId}`);
+      picksQuery.searchParams.set('status', 'eq.active');
+      picksQuery.searchParams.set('channel', `eq.${MVP_PUBLIC_PICK_CHANNEL}`);
+      picksQuery.searchParams.set('limit', '1');
+      const picksResult = await fetch(picksQuery, {
+        headers: { apikey: key, Accept: 'application/json' },
+        signal: AbortSignal.timeout(2500),
+      });
+      if (picksResult.ok) {
+        const publicPicks = await picksResult.json() as unknown[];
+        hasPublicOfflinePick = publicPicks.length > 0;
+      }
+    }
+    if (!isMvpPublicItem(category, row, hasPublicOfflinePick)) return fallback(context);
 
     const image = storageImage(supabaseUrl, row.thumbnail_path ?? row.image_path) ?? row.image_source_url;
     const meta = itemShareMeta({
