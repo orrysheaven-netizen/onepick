@@ -50,7 +50,13 @@ export function isMvpProfilePick(
   return true;
 }
 
-/** Item links remain available outside FOOD; FOOD needs an offline-capable item. */
-export function isMvpPublicItem(category: RecordValue | null | undefined, item: RecordValue) {
-  return primaryThemeCode(category) !== MVP_MAIN_THEME || foodItemHasPublicChannel(item);
+/** Item links remain available outside FOOD; FOOD needs an offline-capable item or a public offline Pick. */
+export function isMvpPublicItem(
+  category: RecordValue | null | undefined,
+  item: RecordValue,
+  hasPublicOfflinePick = false,
+) {
+  return primaryThemeCode(category) !== MVP_MAIN_THEME
+    || foodItemHasPublicChannel(item)
+    || hasPublicOfflinePick;
 }
