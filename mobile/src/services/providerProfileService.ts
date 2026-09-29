@@ -295,7 +295,7 @@ export class ProviderProfileService {
     const items: BrandBranch[] = raw.slice(0, 20).flatMap((row) => {
       if (!row?.provider_id || (row.kind !== 'offline_branch' && row.kind !== 'online_store') || !row.name) return [];
       const subtitle = row.kind === 'offline_branch'
-        ? row.road_address ?? [row.region_1, row.region_2].filter(Boolean).join(' ') || null
+        ? (row.road_address ?? ([row.region_1, row.region_2].filter(Boolean).join(' ') || null))
         : null;
       return [{
         providerId: row.provider_id,
