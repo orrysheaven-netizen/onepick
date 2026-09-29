@@ -31,3 +31,7 @@ PM triage: ChatGPT
 ## 보고
 
 점검 대상 · 재현 여부 · severity · 근거 · 사용자 영향 · 원인 · 권장 담당 · 완료 조건 · 재검증 결과
+
+## 독립 검증 책임
+
+QA/Reliability/Security는 다른 담당자의 자체 점검을 대신하는 조직이 아니라 독립 검증 계층이다. 최신 main에서 재현·측정해 Critical/High와 교차영역 위험, 완료 주장에 대한 근거를 확인한다.
