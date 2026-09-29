@@ -12,7 +12,7 @@ import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/com
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
-import { useFollowingFeed } from '@/hooks/useFollow';
+import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
@@ -43,17 +43,29 @@ function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
-  // Start with public Picks even before a new member follows anyone.
-  // The following scope stays available without downloading an invisible feed.
-  const [feedScope, setFeedScope] = useState<'all' | 'following'>('all');
-  const showFollowing = OnePickFeatures.follow && Boolean(user) && feedScope === 'following';
+  // Default scope follows the user's actual follow graph: existing followers see
+  // their following feed first; new members with no follows see the public feed.
+  // A manual tab choice wins until the signed-in account changes.
+  const followCountUserId = OnePickFeatures.follow && !isSessionLoading && !sessionError ? user?.id : undefined;
+  const followCountsQuery = useFollowCounts(followCountUserId);
+  const followDefaultPending = Boolean(followCountUserId) && followCountsQuery.isPending;
+  const defaultFeedScope: 'all' | 'following' = (followCountsQuery.data?.followingCount ?? 0) > 0 ? 'following' : 'all';
+  const [feedScopeChoice, setFeedScopeChoice] = useState<{ userId: string; scope: 'all' | 'following' } | null>(null);
+  const feedScope = feedScopeChoice?.userId === user?.id ? feedScopeChoice.scope : defaultFeedScope;
+  const showFollowing = Boolean(followCountUserId) && !followDefaultPending && feedScope === 'following';
   // Initial MVP exposes only food Picks from physical stores. Online/recipe
   // remain in the data model for later rollout but never enter these feed pages.
   const mvpChannel = OnePickMvp.publicPickChannel;
-  const homeQuery = useHomeData(user?.id, !isSessionLoading && !sessionError, !showFollowing, mvpChannel, HOME_FEED_ROOT_SLUG);
-  const followingQuery = useFollowingFeed(user?.id, showFollowing && !isSessionLoading && !sessionError, mvpChannel, HOME_FEED_ROOT_SLUG);
+  const homeQuery = useHomeData(
+    user?.id,
+    !isSessionLoading && !sessionError,
+    !followDefaultPending && !showFollowing,
+    mvpChannel,
+    HOME_FEED_ROOT_SLUG,
+  );
+  const followingQuery = useFollowingFeed(user?.id, showFollowing, mvpChannel, HOME_FEED_ROOT_SLUG);
   const followingItems = followingQuery.data?.items ?? [];
-  const isLoading = isSessionLoading || (!sessionError && homeQuery.isPending);
+  const isLoading = isSessionLoading || followDefaultPending || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
   const editorialItems = data?.editorialItems
     ?.filter((item) => item.channels.includes(mvpChannel))
@@ -125,12 +137,12 @@ export default function HomeScreen() {
       onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
       onSelect={openItem} />
 
-    {OnePickFeatures.follow && user ? <View style={styles.scopeRow}>
+    {OnePickFeatures.follow && user && !followDefaultPending ? <View style={styles.scopeRow}>
       {(['following', 'all'] as const).map((scope) => {
         const selected = feedScope === scope;
         return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}
           accessibilityLabel={scope === 'all' ? '전체 원픽 보기' : '팔로잉 원픽 보기'}
-          onPress={() => setFeedScope(scope)}
+          onPress={() => setFeedScopeChoice({ userId: user.id, scope })}
           style={({ pressed }) => [styles.scopeTab, selected && styles.scopeTabSelected, pressed && styles.pressed]}>
           <Text style={[styles.scopeText, selected && styles.scopeTextSelected]}>{scope === 'all' ? '전체' : '팔로잉'}</Text>
         </Pressable>;
@@ -166,7 +178,7 @@ export default function HomeScreen() {
             action={{ label: '다시 불러오기', disabled: followingQuery.isFetching, onPress: refresh }} /> : null}
           {followingQuery.data && !followingItems.length ? <View style={styles.followingEmpty}>
             <StateCard title="아직 팔로잉 원픽이 없어요" text="프로필에서 팔로우한 사람이 원픽을 고르면 여기에 이유와 함께 보여요. 친구에게 내 프로필을 공유해 원픽으로 초대해보세요."
-              action={{ label: '전체 원픽 보기', onPress: () => setFeedScope('all') }} />
+              action={{ label: '전체 원픽 보기', onPress: () => setFeedScopeChoice({ userId: user.id, scope: 'all' }) }} />
             <Button variant="ghost" size="sm" label="내 프로필 공유하기" accessibilityLabel="내 프로필 공유하러 가기" onPress={() => router.push('/profile')} />
           </View> : null}
         </>}
