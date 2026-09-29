@@ -1,0 +1,222 @@
+name: AI PM Review Queue
+
+# Returns work to the PM (ChatGPT) at completion boundaries that need a planning,
+# priority or approval decision. GitHub-internal only: no external webhook/API call.
+#
+#   담당 완료 -> 완료 리포트 -> PM_REVIEW_REQUIRED -> PM 검토 대기
+#
+# Canonical markers (valid ONLY when written by the handoff App bot, i.e. this workflow):
+#   <!-- onepick-pm-review:required issue=<N> pr=<N|none> head=<SHA|none> -->
+#   <!-- onepick-pm-review:done issue=<N> pr=<N|none> head=<SHA|none> decision=<continue|revise|block|user-approval> -->
+#
+# Sources that create a PM review request (comments on the ORIGINAL issue only):
+#   1. A request line from the repository owner account or the handoff App bot, first line:
+#        PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40-hex|none>
+#   2. The CI gate (ai-handoff-ci-gate.yml) reporting required CI success for a PR whose
+#      bot pending marker says next=user (i.e. right before the user merge decision).
+#      next=claude|codex is an ordinary AI handoff and never reaches the PM queue.
+# PM decision line (owner account or bot), first line:
+#        PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=<40-hex|none>
+#
+# This workflow only writes issue comments (and state:blocked for decision=block). It never
+# adds handoff labels, advances product work, merges, deploys, applies DB changes, or
+# touches secrets/permissions.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+# Every event this workflow acts on is a comment on the original issue, so per-issue
+# serialization covers all races for one (issue, pr, head) key.
+concurrency:
+  group: ai-pm-review-queue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  queue:
+    if: >-
+      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      github.event.issue.pull_request == null &&
+      (contains(github.event.comment.body, 'PM_REVIEW_REQUIRED:') ||
+       contains(github.event.comment.body, 'PM_REVIEW_DONE:') ||
+       contains(github.event.comment.body, '<!-- onepick-ci-handoff:done pr='))
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create handoff App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
+          permission-actions: read
+          permission-issues: write
+          permission-pull-requests: read
+
+      - name: Verify boundary and update PM review queue
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SOURCE_AUTHOR: ${{ github.event.comment.user.login }}
+          SOURCE_ID: ${{ github.event.comment.id }}
+          SOURCE_URL: ${{ github.event.comment.html_url }}
+          SOURCE_BODY: ${{ github.event.comment.body }}
+          REQUIRED_WORKFLOWS: '["Mobile CI","Database Tests","Web build"]'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bot_login="${APP_SLUG}[bot]"
+          skip() { echo "skip: $*"; exit 0; }
+
+          # 1. Trusted actor only.
+          if [ "$SOURCE_AUTHOR" != "$REPOSITORY_OWNER" ] && [ "$SOURCE_AUTHOR" != "$bot_login" ]; then
+            skip "author $SOURCE_AUTHOR is not trusted"
+          fi
+
+          # 2. Classify the source.
+          first_line="$(printf '%s\n' "$SOURCE_BODY" | tr -d '\r' | sed -n '/[^[:space:]]/{p;q;}')"
+          kind="" reason="" decision="" pr="" head=""
+          ref_re='pr=(none|[0-9]{1,7}) head=(none|[0-9a-f]{40})[[:space:]]*$'
+          gate_re='<!-- onepick-ci-handoff:done pr=([0-9]{1,7}) -->'
+          gate_head_re='\(head `([0-9a-f]{7})`\)'
+          if [[ "$first_line" =~ ^PM_REVIEW_REQUIRED:\ reason=(stage-complete|review-complete|merge-ready|release-approval)\ ${ref_re} ]]; then
+            kind="required"; reason="${BASH_REMATCH[1]}"; pr="${BASH_REMATCH[2]}"; head="${BASH_REMATCH[3]}"
+          elif [[ "$first_line" =~ ^PM_REVIEW_DONE:\ decision=(continue|revise|block|user-approval)\ ${ref_re} ]]; then
+            kind="done"; decision="${BASH_REMATCH[1]}"; pr="${BASH_REMATCH[2]}"; head="${BASH_REMATCH[3]}"
+          elif [ "$SOURCE_AUTHOR" = "$bot_login" ] &&
+               [[ "$SOURCE_BODY" =~ $gate_re ]]; then
+            kind="gate"; reason="merge-ready"; pr="${BASH_REMATCH[1]}"
+          else
+            skip "no PM review request or decision"
+          fi
+          if { [ "$pr" = "none" ] && [ "$head" != "none" ]; } || { [ "$pr" != "none" ] && [ "$head" = "none" ]; }; then
+            skip "pr and head must both be set or both be none"
+          fi
+
+          # 3. Original issue must be an open, unblocked issue.
+          issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
+          jq -e '.state == "open" and (has("pull_request") | not)' <<<"$issue_json" >/dev/null ||
+            skip "issue #$ISSUE_NUMBER is closed or not an issue"
+          labels_json="$(jq -c '[.labels[].name]' <<<"$issue_json")"
+          jq -e 'index("state:blocked") == null' <<<"$labels_json" >/dev/null || skip "issue #$ISSUE_NUMBER is blocked"
+
+          comments="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add // []')"
+
+          # 4. CI gate source: PM queue only when this PR's bot pending marker said next=user.
+          if [ "$kind" = "gate" ]; then
+            next_owner="$(
+              jq -r --arg bot "$bot_login" --arg pr "$pr" --arg me "$SOURCE_ID" '
+                [ .[] | select(.user.login == $bot and ((.id | tostring) != $me))
+                  | (.body | capture("<!-- onepick-ci-handoff:pending pr=\($pr) next=(?<next>claude|codex|user) -->")?)
+                  | .next ] | last // ""
+              ' <<<"$comments"
+            )"
+            [ "$next_owner" = "user" ] || skip "CI gate result for PR #$pr hands off to '${next_owner:-unknown}', not a PM boundary"
+          fi
+
+          # 5. PR checks: the PR must reference this issue, and head must be its current head.
+          pr_json=""
+          if [ "$pr" != "none" ]; then
+            pr_json="$(gh api "repos/$REPOSITORY/pulls/$pr")"
+            jq -e --arg repo "$REPOSITORY" '
+                .base.ref == "main" and .head.repo.full_name == $repo and
+                (.state == "open" or .merged == true)
+              ' <<<"$pr_json" >/dev/null || skip "PR #$pr is not an open/merged same-repo PR to main"
+            jq -e --arg n "$ISSUE_NUMBER" '(.body // "") | test("Refs #\($n)([^0-9]|$)")' <<<"$pr_json" >/dev/null ||
+              skip "PR #$pr does not reference issue #$ISSUE_NUMBER"
+            current_head="$(jq -r '.head.sha' <<<"$pr_json")"
+            if [ "$kind" = "gate" ]; then
+              [[ "$SOURCE_BODY" =~ $gate_head_re ]] || skip "gate comment has no head"
+              [ "${current_head:0:7}" = "${BASH_REMATCH[1]}" ] || skip "stale gate result; PR head is ${current_head:0:7}"
+              head="$current_head"
+            elif [ "$kind" = "required" ] && [ "$head" != "$current_head" ]; then
+              skip "stale head ${head:0:7}; PR head is ${current_head:0:7}"
+            fi
+          fi
+
+          key="issue=${ISSUE_NUMBER} pr=${pr} head=${head}"
+          has_marker() {
+            jq -e --arg bot "$bot_login" --arg m "<!-- onepick-pm-review:$1 ${key} " '
+                any(.[]; .user.login == $bot and (.body | contains($m)))
+              ' <<<"$comments" >/dev/null
+          }
+
+          # 6a. PM decision: record once, only for an open request with the same key.
+          if [ "$kind" = "done" ]; then
+            has_marker required || skip "no PM review request for ${key}"
+            if has_marker done; then skip "PM decision already recorded for ${key}"; fi
+            if [ "$decision" = "block" ]; then
+              current="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER" --jq '[.labels[].name]')"
+              jq -n --argjson c "$current" '{labels: ($c + ["state:blocked"] | unique)}' |
+                gh api --method PATCH "repos/$REPOSITORY/issues/$ISSUE_NUMBER" --input - >/dev/null
+            fi
+            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-pm-review:done ${key} decision=${decision} -->
+          ## PM 판정 기록
+          판정: \`${decision}\`
+          근거: ${SOURCE_URL}
+
+          다음 단계는 PM 판정 내용에 따라 담당자/사용자가 진행합니다. 자동으로 진행하지 않습니다.
+          EOF
+          )"
+            exit 0
+          fi
+
+          # 6b. PM review request: no duplicate pending request, no re-request after a decision,
+          #     and never while an AI handoff is still queued (that work is not at a boundary).
+          if has_marker done; then skip "PM decision already exists for ${key}"; fi
+          if has_marker required; then skip "PM review already pending for ${key}"; fi
+          if jq -e 'index("handoff:codex") != null or index("handoff:claude") != null' <<<"$labels_json" >/dev/null; then
+            skip "issue #$ISSUE_NUMBER still has a queued AI handoff"
+          fi
+
+          case "$reason" in
+            stage-complete)   reason_text="부서/단계 작업 완료";         approval="PM 판정 후 결정" ;;
+            review-complete)  reason_text="독립 리뷰 완료";              approval="PM 판정 후 결정" ;;
+            merge-ready)      reason_text="필수 CI 통과, 병합 판단 직전"; approval="main 병합 (PM 판정 후 사용자)" ;;
+            release-approval) reason_text="release/production 승인 직전"; approval="Production 반영 (PM 판정 후 사용자)" ;;
+          esac
+          owner="$(jq -r '[.[] | select(startswith("owner:")) | ltrimstr("owner:")] | join(", ") | if . == "" then "미지정" else . end' <<<"$labels_json")"
+
+          pr_line="없음" ci_line="해당 없음 (PR 없음)" review_line="해당 없음 (PR 없음)"
+          if [ "$pr" != "none" ]; then
+            pr_line="#${pr} (head \`${head:0:7}\`)"
+            ci_line="$(
+              gh api -X GET "repos/$REPOSITORY/actions/runs" -f head_sha="$head" -f event=pull_request -f per_page=100 |
+                jq -r --argjson req "$REQUIRED_WORKFLOWS" '
+                  .workflow_runs as $all
+                  | [ $req[] as $name
+                      | ([ $all[] | select(.name == $name) ] | sort_by(.created_at) | last) as $r
+                      | "\($name) \(if ($r.status // "missing") == "completed" then $r.conclusion else ($r.status // "missing") end)" ]
+                  | join(" / ")'
+            )"
+            review_line="$(
+              gh api "repos/$REPOSITORY/pulls/$pr/reviews?per_page=100" |
+                jq -r --arg h "$head" '
+                  [ .[] | select(.commit_id == $h) ] as $r
+                  | if ($r | length) == 0 then "현재 head 리뷰 기록 없음"
+                    else "현재 head 리뷰 \($r | length)건 (최근: \($r | last | .state))" end'
+            )"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-pm-review:required ${key} -->
+          ## PM 검토 대기
+          담당 완료: ${reason_text} — 담당 ${owner}
+          PR: ${pr_line}
+          CI: ${ci_line}
+          독립 리뷰: ${review_line}
+          남은 위험: 원래 이슈의 완료 리포트 참조 (요청 근거: ${SOURCE_URL})
+          관리자 승인 필요: ${approval}
+          관리자 직접 수행 필요: PM 판정에서 명시
+
+          PM 판정 전에는 다음 제품/기획 단계로 진행하지 않습니다.
+          판정 기록: \`PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=${pr} head=${head}\`
+          EOF
+          )"

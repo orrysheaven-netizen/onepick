@@ -143,3 +143,66 @@ PM 보고에서 사용자가 직접 해야 하는 작업과 승인만 필요한 
 - **관리자 직접 수행 필요**: 계정 소유자만 가능한 UI 조작·인증·비밀값 입력·결제·MFA 등으로 AI가 대신 수행할 수 없는 작업. 예: OAuth token 재발급, GitHub Secret 입력/교체, MFA 완료, 외부 서비스 결제 승인.
 
 상태 보고에는 해당 사항이 있으면 별도 섹션으로 명시한다. 없으면 **관리자 직접 수행 필요: 없음**으로 표시한다.
+
+## 11. PM review queue
+
+### 운영 원칙
+
+- PM은 지시·우선순위·다음 계획을 결정한다.
+- 각 담당자는 자신의 범위만 수행한다.
+- 담당 완료 후 계획 판단이 필요한 경우 PM review queue로 반환한다.
+- PM 판정 전에는 다음 제품 단계로 임의 진행하지 않는다.
+
+### 흐름
+
+담당 완료 → 원래 이슈에 `## 완료 리포트` → `PM_REVIEW_REQUIRED` → `## PM 검토 대기`
+
+구현: `.github/workflows/ai-pm-review-queue.yml`. GitHub 내부 queue만 사용하며 외부 webhook/API는 호출하지 않는다. 새 라벨 없이 bot marker만 사용한다.
+
+### 생성하는 경계
+
+PM review는 계획·우선순위·승인 판단이 필요한 완료 경계에서만 만든다.
+
+| 경계 | 생성 방식 |
+| --- | --- |
+| 부서/단계 작업 완료 | 담당자가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=stage-complete ...` |
+| 독립 리뷰 완료 | 리뷰어가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=review-complete ...` |
+| CI 성공 후 사용자 병합 판단 직전 | CI gate가 `next=user` PR의 필수 CI 통과를 기록하면 자동 생성. `PM_REVIEW_REQUIRED: reason=merge-ready ...`로도 요청 가능 |
+| release/production 승인 직전 | `PM_REVIEW_REQUIRED: reason=release-approval ...` |
+
+수정 담당이 명확한 Codex↔Claude 인계(`handoff:*`, CI gate `next=claude|codex`, 리뷰 결과 `CHANGES_REQUESTED`/`READY_FOR_REVIEW`)는 기존 handoff 체인만 사용하고 PM queue를 만들지 않는다.
+
+### 요청·판정 줄
+
+원래 작업 이슈 댓글의 **첫 줄**에 쓴다. 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다.
+
+```text
+PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40자리 SHA|none>
+PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=<40자리 SHA|none>
+```
+
+### Marker
+
+아래 marker는 handoff App bot이 쓴 경우에만 유효하다. 다른 작성자가 같은 문자열을 써도 무시한다.
+
+```text
+<!-- onepick-pm-review:required issue=<N> pr=<N|none> head=<SHA|none> -->
+<!-- onepick-pm-review:done issue=<N> pr=<N|none> head=<SHA|none> decision=<continue|revise|block|user-approval> -->
+```
+
+| decision | 의미 |
+| --- | --- |
+| `continue` | 계획대로 다음 단계 진행을 PM이 지시 |
+| `revise` | 담당자에게 수정 반환 |
+| `block` | `state:blocked` 전환, 사용자/외부 조치 대기 |
+| `user-approval` | 사용자 승인 게이트로 전달 (main merge, Production 등) |
+
+판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다.
+
+### 생성하지 않는 경우
+
+- 이슈가 닫혔거나 `state:blocked`
+- `head`가 PR의 현재 head가 아님 (stale), 또는 PR이 해당 이슈를 `Refs #N`으로 참조하지 않음
+- 같은 (issue, pr, head)에 PM review가 이미 대기 중이거나 판정이 이미 기록됨
+- `handoff:*` 인계가 아직 대기 중
+- 신뢰되지 않은 작성자의 요청·marker
