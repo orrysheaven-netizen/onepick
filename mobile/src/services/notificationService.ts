@@ -1,107 +1,84 @@
 import { supabase } from '@/lib/supabase/client';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
-import type { AppDatabase } from '@/lib/supabase/database.overrides';
+import type { NotificationGroupRow } from '@/lib/supabase/database.overrides';
 
-export type NotificationKind = 'comment' | 'pick_change' | 'item_review';
-export type AppNotification = AppDatabase['public']['Functions']['notification_page']['Returns'][number];
-export type NotificationCursor = { timestamp: string; id: string };
+export type NotificationGroupKind = NotificationGroupRow['kind'];
+export type AppNotificationGroup = NotificationGroupRow;
+export type NotificationCursor = { activity: string; groupId: string };
 export type NotificationPreferences = { followeePickChange: boolean };
 
-function missingUnifiedRpc(error: { code?: string; message?: string } | null | undefined) {
-  if (!error) return false;
-  if (error.code === 'PGRST202' || error.code === '42883') return true;
-  const message = error.message ?? '';
-  return /(could not find the function|function .* does not exist).*notification_(count|page)/i.test(message);
-}
-
-function normalizeNotification(row: unknown): AppNotification | null {
+function normalizeGroup(row: unknown): AppNotificationGroup | null {
   if (!row || typeof row !== 'object') return null;
-  const value = row as Partial<AppNotification>;
-  if ((value.kind !== 'comment' && value.kind !== 'pick_change' && value.kind !== 'item_review')
-    || typeof value.id !== 'string' || !value.id
-    || typeof value.created_at !== 'string' || !value.created_at) return null;
-  // Review results point at the product to pick; the other kinds open a pick.
-  if (value.kind === 'item_review') {
-    if (typeof value.item_id !== 'string' || !value.item_id) return null;
-  } else if (typeof value.pick_id !== 'string' || !value.pick_id) return null;
+  const value = row as Partial<AppNotificationGroup>;
+  const kinds: NotificationGroupKind[] = ['pick_review', 'comment', 'reply', 'fix_needed', 'followee_pick'];
+  if (!value.group_id || typeof value.group_id !== 'string'
+    || !value.kind || !kinds.includes(value.kind)
+    || typeof value.latest_at !== 'string' || !value.latest_at
+    || typeof value.snapshot !== 'string' || !value.snapshot
+    || typeof value.unread_count !== 'number'
+    || typeof value.total_count !== 'number'
+    || typeof value.actor_count !== 'number'
+    || !value.target || typeof value.target !== 'object') return null;
+
   return {
     ...value,
-    username: typeof value.username === 'string' && value.username ? value.username : value.kind === 'item_review' ? null : '알 수 없는 사용자',
-    item_name: typeof value.item_name === 'string' && value.item_name ? value.item_name : '원픽',
-    body: typeof value.body === 'string' ? value.body : null,
-    read_at: typeof value.read_at === 'string' ? value.read_at : null,
-  } as AppNotification;
+    actor: value.actor && typeof value.actor.user_id === 'string' && typeof value.actor.username === 'string'
+      ? {
+          user_id: value.actor.user_id,
+          username: value.actor.username,
+          profile_image_url: typeof value.actor.profile_image_url === 'string' ? value.actor.profile_image_url : null,
+        }
+      : null,
+    target: {
+      item_id: typeof value.target.item_id === 'string' ? value.target.item_id : null,
+      item_name: typeof value.target.item_name === 'string' ? value.target.item_name : null,
+      category_id: typeof value.target.category_id === 'string' ? value.target.category_id : null,
+      category_name: typeof value.target.category_name === 'string' ? value.target.category_name : null,
+      channel: typeof value.target.channel === 'string' ? value.target.channel : null,
+      pick_id: typeof value.target.pick_id === 'string' ? value.target.pick_id : null,
+      comment_id: typeof value.target.comment_id === 'string' ? value.target.comment_id : null,
+      root_comment_id: typeof value.target.root_comment_id === 'string' ? value.target.root_comment_id : null,
+      user_id: typeof value.target.user_id === 'string' ? value.target.user_id : null,
+    },
+    reason: typeof value.reason === 'string' ? value.reason : null,
+  } as AppNotificationGroup;
 }
 
 export class NotificationService {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  async unreadCount(userId: string) {
-    const unified = await this.client.rpc('notification_count');
-    if (!unified.error) return unified.data ?? 0;
-    if (!missingUnifiedRpc(unified.error)) throw mapSupabaseError(unified.error);
-
-    // Compatibility path for a client deployed ahead of the follow-notification
-    // migration. Existing comment notifications must keep working.
-    const legacy = await this.client.rpc('comment_notification_count', { p_recipient_id: userId });
-    if (legacy.error) throw mapSupabaseError(legacy.error);
-    return legacy.data ?? 0;
+  async unreadCount(_userId: string) {
+    const { data, error } = await this.client.rpc('notification_unread_count');
+    if (error) throw mapSupabaseError(error);
+    return data ?? 0;
   }
 
-  async page(userId: string, cursor: NotificationCursor | null) {
-    const unified = await this.client.rpc('notification_page', {
-      p_before_time: cursor?.timestamp,
-      p_before_id: cursor?.id,
+  async page(_userId: string, cursor: NotificationCursor | null) {
+    const { data, error } = await this.client.rpc('notification_group_page', {
+      p_before_activity: cursor?.activity,
+      p_before_group_id: cursor?.groupId,
+      p_limit: 21,
     });
+    if (error) throw mapSupabaseError(error);
 
-    if (!unified.error) {
-      const rawRows = (unified.data ?? []) as unknown[];
-      const rows = rawRows.slice(0, 20).map(normalizeNotification)
-        .filter((row): row is AppNotification => Boolean(row));
-      const last = rows.at(-1);
-      return {
-        items: rows,
-        nextCursor: rawRows.length > 20 && last ? { timestamp: last.created_at, id: last.id } : null,
-      };
-    }
-    if (!missingUnifiedRpc(unified.error)) throw mapSupabaseError(unified.error);
-
-    const legacy = await this.client.rpc('comment_notification_page', {
-      p_recipient_id: userId,
-      p_before_time: cursor?.timestamp,
-      p_before_id: cursor?.id,
-    });
-    if (legacy.error) throw mapSupabaseError(legacy.error);
-
-    const rows: AppNotification[] = (legacy.data ?? []).map((row) => ({
-      kind: 'comment',
-      id: row.comment_id,
-      pick_id: row.pick_id,
-      username: row.username,
-      body: row.body,
-      item_name: row.item_name,
-      created_at: row.created_at,
-      read_at: row.read_at ?? null,
-      item_id: null,
-      outcome: null,
-    }));
-    const last = rows[19];
+    const rawRows = (data ?? []) as unknown[];
+    const rows = rawRows.slice(0, 20).map(normalizeGroup)
+      .filter((row): row is AppNotificationGroup => Boolean(row));
+    const last = rows.at(-1);
     return {
-      items: rows.slice(0, 20),
-      nextCursor: rows.length > 20 && last ? { timestamp: last.created_at, id: last.id } : null,
+      items: rows,
+      nextCursor: rawRows.length > 20 && last ? { activity: last.latest_at, groupId: last.group_id } : null,
     };
   }
 
-  async markRead(userId: string, kind: NotificationKind, id: string) {
-    const readAt = new Date().toISOString();
-    const query = kind === 'comment'
-      ? this.client.from('comment_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('comment_id', id)
-      : kind === 'item_review'
-        ? this.client.from('item_review_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('item_id', id)
-        : this.client.from('pick_change_notifications').update({ read_at: readAt }).eq('recipient_id', userId).eq('pick_id', id);
-    const { error } = await query.is('read_at', null);
+  async markGroupRead(_userId: string, groupId: string, snapshot: string) {
+    const { data, error } = await this.client.rpc('mark_notification_group_read', {
+      p_group_id: groupId,
+      p_until: snapshot,
+    });
     if (error) throw mapSupabaseError(error);
+    return data ?? 0;
   }
 
   async preferences(userId: string): Promise<NotificationPreferences> {
