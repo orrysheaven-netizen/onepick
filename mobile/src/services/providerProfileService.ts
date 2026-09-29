@@ -171,38 +171,43 @@ export class ProviderProfileService {
       throw new AppError('PROVIDER_NOT_FOUND');
     }
 
-    let subtitle: string | null = null;
-    let link: ProviderProfileLink | null = null;
-
-    if (provider.kind === 'offline_branch' && provider.place_id) {
-      const { data, error } = await this.db().from('places')
-        .select('id,road_address,address,region_1,region_2,map_url')
-        .eq('id', provider.place_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const place = data as PlaceRow | null;
-      if (place) {
-        subtitle = displayAddress(place);
+    // After the provider row is known, location, brand identity and item mapping
+    // are independent. Start them together so the profile does not pay three
+    // network round trips serially before it can load the menu list.
+    const locationPromise = (async (): Promise<{ subtitle: string | null; link: ProviderProfileLink | null }> => {
+      if (provider.kind === 'offline_branch' && provider.place_id) {
+        const { data, error } = await this.db().from('places')
+          .select('id,road_address,address,region_1,region_2,map_url')
+          .eq('id', provider.place_id)
+          .maybeSingle();
+        if (error) throw mapSupabaseError(error);
+        const place = data as PlaceRow | null;
+        if (!place) return { subtitle: null, link: null };
         const safe = safeChannelUrl(place.map_url);
-        if (safe) link = { label: '지도 보기', ...safe };
+        return {
+          subtitle: displayAddress(place),
+          link: safe ? { label: '지도 보기', ...safe } : null,
+        };
       }
-    } else if (provider.kind === 'online_store' && provider.online_store_id) {
-      const { data, error } = await this.db().from('online_stores')
-        .select('id,host,official_url')
-        .eq('id', provider.online_store_id)
-        .maybeSingle();
-      if (error) throw mapSupabaseError(error);
-      const store = data as OnlineStoreRow | null;
-      if (store) {
-        subtitle = store.host;
+      if (provider.kind === 'online_store' && provider.online_store_id) {
+        const { data, error } = await this.db().from('online_stores')
+          .select('id,host,official_url')
+          .eq('id', provider.online_store_id)
+          .maybeSingle();
+        if (error) throw mapSupabaseError(error);
+        const store = data as OnlineStoreRow | null;
+        if (!store) return { subtitle: null, link: null };
         const safe = safeChannelUrl(store.official_url);
-        if (safe) link = { label: '공식몰 보기', ...safe };
+        return {
+          subtitle: store.host,
+          link: safe ? { label: '공식몰 보기', ...safe } : null,
+        };
       }
-    }
+      return { subtitle: null, link: null };
+    })();
 
-    let brandName: string | null = null;
-    let brandLogoUrl: string | null = null;
-    if (provider.brand_id) {
+    const brandPromise = (async (): Promise<{ brandName: string | null; brandLogoUrl: string | null }> => {
+      if (!provider.brand_id) return { brandName: null, brandLogoUrl: null };
       const { data: brandData, error: brandError } = await this.db().from('brands')
         .select('id,name,logo_path,is_active')
         .eq('id', provider.brand_id)
@@ -210,20 +215,28 @@ export class ProviderProfileService {
         .maybeSingle();
       if (brandError) throw mapSupabaseError(brandError);
       const brand = brandData as ProviderBrandRow | null;
-      if (brand) {
-        brandName = brand.name;
-        brandLogoUrl = brand.logo_path
+      return {
+        brandName: brand?.name ?? null,
+        brandLogoUrl: brand?.logo_path
           ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
-          : null;
-      }
-    }
+          : null,
+      };
+    })();
 
-    const { data: mappingData, error: mappingError } = await this.db()
+    const mappingPromise = this.db()
       .from('item_providers')
       .select('item_id,category_id,provider_id')
       .eq('provider_id', providerId);
-    if (mappingError) throw mapSupabaseError(mappingError);
-    const mappings = (mappingData ?? []) as ItemProviderRow[];
+
+    const [location, brand, mappingResult] = await Promise.all([
+      locationPromise,
+      brandPromise,
+      mappingPromise,
+    ]);
+    if (mappingResult.error) throw mapSupabaseError(mappingResult.error);
+    const { subtitle, link } = location;
+    const { brandName, brandLogoUrl } = brand;
+    const mappings = (mappingResult.data ?? []) as ItemProviderRow[];
     const itemIds = mappings.map((row) => row.item_id);
     const categoryIds = [...new Set(mappings.map((row) => row.category_id))];
 
