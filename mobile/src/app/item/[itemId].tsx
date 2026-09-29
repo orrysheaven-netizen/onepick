@@ -21,7 +21,7 @@ import { itemTitle } from '@/lib/items/itemTitle';
 import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -85,7 +85,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     ? { timestamp: params.commentAfterTime, id: params.commentAfterId }
     : null;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError);
+  const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
+  const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError, publicFoodChannel);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
@@ -271,8 +272,24 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, brand, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
+  const { category, brand, isRestaurant, myPickStatus, pickChannel, picks: allPicks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
+  const mvpFoodScope = isRestaurant && !OnePickFeatures.foodChannelPicker;
+  const itemSupportsPublicChannel = !mvpFoodScope
+    || item.channels?.includes(OnePickMvp.publicPickChannel)
+    || item.externalSource === 'onepick_place';
+  const picks = mvpFoodScope
+    ? allPicks.filter(({ pick }) => pick.channel === OnePickMvp.publicPickChannel
+      || (!pick.channel && itemSupportsPublicChannel))
+    : allPicks;
+  const focusAvailable = !focusPickId || picks.some(({ pick }) => pick.id === focusPickId);
+  const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
+  if (!itemSupportsPublicChannel) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
+      <StateCard title="현재 공개 중인 원픽이 아니에요" text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
+      <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
+    </View></SafeAreaView>;
+  }
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
@@ -354,7 +371,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           ) : null}
           {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
           {isRestaurant
-            ? homeChannelLabel(item.channels) ? <Text style={styles.category}>{homeChannelLabel(item.channels)}</Text> : null
+            ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
             : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
           {brand ? <View style={styles.brandRow}>
             {brand.logoUrl ? <View style={styles.brandLogo}>
@@ -364,8 +381,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           </View> : null}
           <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
           <YouTubeVideoLink item={item} />
-          <ItemPickCount itemId={item.id} />
-          <ItemChannelLinks itemId={item.id} />
+          {!mvpFoodScope ? <ItemPickCount itemId={item.id} /> : null}
+          {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 
           {/* One shape for the Pick state: filled brand color when it is my Pick, no color
               otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
@@ -386,7 +403,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.sectionGap} />
 
-        {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
+        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 현재 공개 범위에 없어요.</Text> : null}
         {picks.length > 0 ? (
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
