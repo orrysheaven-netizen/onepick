@@ -33,9 +33,9 @@ assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteCompositi
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 assert.match(owner, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'owner collection count follows the selected taste tab');
 assert.doesNotMatch(owner, /sectionTitle:/, 'owner profile no longer carries its own section title style');
-assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: mainPicks\.length \}\)/, 'owner profile share uses the same food-only count as the public profile');
+assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: publicMainPicks\.length \}\)/, 'owner profile share uses the same food-only count as the public profile');
 
-assert.match(publicProfile, /<Text style={styles\.summaryLabel}>음식 원픽<\/Text><Text style={styles\.summaryNumber}>{mainPicks\.length}개<\/Text>/, 'public summary makes its food-only count explicit');
+assert.match(publicProfile, /<Text style={styles\.summaryLabel}>음식 원픽<\/Text><Text style={styles\.summaryNumber}>{publicMainPicks\.length}개<\/Text>/, 'public summary makes its food-only count explicit');
 assert.match(publicProfile, /<SectionHeader title=\{profileScope === 'food' \? '음식 원픽' : '다른 취향'\} count=\{visibleProfilePicks\.length\}/, 'public collection uses the same taste-tab section header as the owner profile');
 assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
