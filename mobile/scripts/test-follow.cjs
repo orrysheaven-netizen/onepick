@@ -154,6 +154,7 @@ async function main() {
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
+  assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
   assert.match(featureSource, /follow: true/, 'Restaurant-first MVP keeps follow exposed');
   assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
