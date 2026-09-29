@@ -9,7 +9,7 @@ import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/o
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useChoosePhoto, useRegisterItemPick } from '@/hooks/useRegisterPick';
+import { useChoosePhoto, useReadCurrentPickSlot, useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
@@ -130,6 +130,9 @@ export default function NewPickScreen() {
   const [done, setDone] = useState<Done | null>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [pickChangedElsewhere, setPickChangedElsewhere] = useState(false);
+  // undefined = the current Pick slot has not been shown/read for this menu yet;
+  // null = the slot was empty when the person confirmed the menu.
+  const [expectedPreviousPickId, setExpectedPreviousPickId] = useState<string | null | undefined>(undefined);
   const busy = useRef(false);
   const requestIdRef = useRef<string | null>(null);
 
@@ -171,6 +174,7 @@ export default function NewPickScreen() {
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
   const choosePhoto = useChoosePhoto();
+  const currentPickSlot = useReadCurrentPickSlot();
   const registration = useRegisterItemPick();
 
   const item = itemDetail.data?.item;
@@ -179,6 +183,8 @@ export default function NewPickScreen() {
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const saving = registration.isPending;
+  const replacingVisiblePick = expectedPreviousPickId !== undefined && expectedPreviousPickId !== null
+    && itemDetail.data?.myPickStatus?.type !== 'selected_this';
 
   const previousFrom = (from: Step): Step => {
     if (from === 2) return 1;
@@ -196,7 +202,7 @@ export default function NewPickScreen() {
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`)) {
       setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null); setPhoto(null);
-      setPickChangedElsewhere(false); requestIdRef.current = null;
+      setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     }
     setStore(candidate);
     setAiMenuName('');
@@ -211,15 +217,27 @@ export default function NewPickScreen() {
     && newRoadAddress.length >= 1 && newRoadAddress.length <= 300
     && validMapLink;
 
+  const readCurrentSlotSnapshot = async (categoryId: string) => {
+    if (!user) throw new AppError('AUTH_REQUIRED');
+    const current = await currentPickSlot.mutateAsync({ userId: user.id, categoryId, channel: storeChannel });
+    const snapshot = current?.id ?? null;
+    setExpectedPreviousPickId(snapshot);
+    return snapshot;
+  };
+
   const confirmMenu = async () => {
-    if (!store || !effectiveMenu || busy.current) return;
+    if (!user || !store || !effectiveMenu || busy.current) return;
     if (!menu) setMenu(effectiveMenu);
-    if (store.kind === 'new' || !effectiveMenu.categoryId) {
-      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(4); return;
-    }
+    if (!effectiveMenu.categoryId) return;
 
     busy.current = true;
     try {
+      if (store.kind === 'new') {
+        await readCurrentSlotSnapshot(effectiveMenu.categoryId);
+        setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(4);
+        return;
+      }
+
       let selected = preflight?.categoryId === effectiveMenu.categoryId ? preflight : null;
       if (!selected) {
         selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
@@ -228,11 +246,12 @@ export default function NewPickScreen() {
       if (selected.brand && !pickScope) return;
 
       const target = pickScope === 'brand' && selected.brand ? selected.brand : selected;
+      await readCurrentSlotSnapshot(effectiveMenu.categoryId);
       setItemId(target.itemId);
       setItemHadPhoto(target.hasPhoto);
       setItemPending(target.pending);
       setStep(target.hasPhoto ? 5 : 4);
-    } catch { /* The mutation error is shown under the menu list. */ }
+    } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
   };
 
@@ -246,11 +265,13 @@ export default function NewPickScreen() {
     finally { busy.current = false; }
   };
 
-  const save = async () => {
+  const save = async (expectedOverride?: string | null) => {
     if (!user || !store || !menu || busy.current || saving) return;
     if (!reviewValid) { setShowReviewError(true); return; }
     if (!menu.categoryId) { setSaveError(new AppError('CATEGORY_NOT_PICKABLE')); return; }
     if (needsPhoto && !photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
+    const expected = expectedOverride !== undefined ? expectedOverride : expectedPreviousPickId;
+    if (expected === undefined) { setSaveError(new AppError('INTERNAL_ERROR')); return; }
 
     busy.current = true;
     setSaveError(null);
@@ -264,6 +285,7 @@ export default function NewPickScreen() {
         channel: storeChannel,
         oneLineReview: trimmedReview,
         requestId,
+        expectedPreviousPickId: expected,
         itemId: itemId ?? undefined,
         catalogId: pickScope !== 'brand' && store.kind === 'place' && !itemId ? store.catalogId : undefined,
         providerId: store.kind === 'seller' && !itemId ? store.providerId : undefined,
@@ -290,6 +312,29 @@ export default function NewPickScreen() {
     } finally { busy.current = false; }
   };
 
+  const confirmChangedPickAndSave = async () => {
+    if (!user || !store || !menu?.categoryId || busy.current || saving) return;
+    busy.current = true;
+    setSaveError(null);
+    let latestExpected: string | null;
+    try {
+      const current = await currentPickSlot.mutateAsync({
+        userId: user.id,
+        categoryId: menu.categoryId,
+        channel: storeChannel,
+      });
+      latestExpected = current?.id ?? null;
+      setExpectedPreviousPickId(latestExpected);
+    } catch (error) {
+      setSaveError(error);
+      return;
+    } finally {
+      busy.current = false;
+    }
+    setPickChangedElsewhere(false);
+    await save(latestExpected);
+  };
+
   const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
   const aiSuggestions = (suggestions.data?.suggestions ?? [])
     .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
@@ -312,7 +357,7 @@ export default function NewPickScreen() {
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) {
       setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
-      setPickChangedElsewhere(false); requestIdRef.current = null;
+      setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     }
     setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
   };
@@ -427,7 +472,7 @@ export default function NewPickScreen() {
                 onChangeText={(value) => {
                   setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
                   setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
-                  setPickChangedElsewhere(false); requestIdRef.current = null;
+                  setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                 }}
                 onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }}
                 returnKeyType="search" style={styles.input} placeholder="예: 미역국" placeholderTextColor={OnePick.textTertiary} />
@@ -486,15 +531,16 @@ export default function NewPickScreen() {
               <View style={styles.chips}>
                 <FlowChip label="이 지점" selected={pickScope === 'branch'} onPress={() => {
                   setPickScope('branch'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
-                  setPhoto(null); setPickChangedElsewhere(false); requestIdRef.current = null;
+                  setPhoto(null); setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                 }} />
                 <FlowChip label={`${preflight.brand.name} 전체`} selected={pickScope === 'brand'} onPress={() => {
                   setPickScope('brand'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
-                  setPhoto(null); setPickChangedElsewhere(false); requestIdRef.current = null;
+                  setPhoto(null); setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                 }} />
               </View>
             </View> : null}
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
+            {currentPickSlot.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(currentPickSlot.error)}</Text> : null}
           </View>
           <View style={styles.footer}>
             <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
@@ -525,7 +571,7 @@ export default function NewPickScreen() {
             <Text style={styles.title}>한줄평을 남겨주세요</Text>
             {pickChangedElsewhere
               ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체합니다.</Text></View>
-              : !itemPending && itemDetail.data?.myPickStatus?.type === 'selected_other'
+              : !itemPending && replacingVisiblePick
                 ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 매장 원픽이 이걸로 바뀝니다.</Text></View> : null}
             <View style={styles.fieldBlock}>
               <FieldLabel label="한줄평" />
@@ -538,7 +584,8 @@ export default function NewPickScreen() {
             {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label={pickChangedElsewhere ? '변경 확인 후 등록하기' : '원픽 등록하기'} loading={saving} disabled={step === 6} onPress={() => void save()} />
+            <FlowButton label={pickChangedElsewhere ? '변경 확인 후 등록하기' : '원픽 등록하기'} loading={saving || currentPickSlot.isPending} disabled={step === 6}
+              onPress={() => void (pickChangedElsewhere ? confirmChangedPickAndSave() : save())} />
           </View>
         </> : null}
       </ScrollView>

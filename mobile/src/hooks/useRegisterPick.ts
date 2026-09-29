@@ -33,6 +33,13 @@ export function useRevisePendingItem() {
   });
 }
 
+export function useReadCurrentPickSlot() {
+  return useMutation({
+    mutationFn: (input: { userId: string; categoryId: string; channel: import('@/lib/items/pickChannel').PickChannel }) =>
+      registrationService.getCurrentPickSlot(input.userId, input.categoryId, input.channel),
+  });
+}
+
 export function useRegisterItemPick() {
   const client = useQueryClient();
   return useMutation({
