@@ -3,13 +3,13 @@
 결정일: 2026-09-25.  
 PM 조직 전환 반영: 2026-09-29.
 
-OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
+OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 55% : Claude 45%를 참고선**으로 두되 고정 할당량으로 사용하지 않는다. 단순 작업 건수가 아니라 작업량 점수를 보조 지표로 사용하며, 실제 배정은 PM 우선순위·전문성·현재 가용 자원에 따라 동적으로 조정한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토를 주도하고, PM이 배정한 UX/Figma 정리, 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling 구현까지 적극적으로 담당할 수 있다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
 대화 내용보다 GitHub의 `main`, 이슈, PR, 커밋, migration, 테스트 결과를 우선한다. 두 에이전트의 설명이 다를 때도 저장소의 실제 상태를 기준으로 판단한다.
 
-## 작업량 60:40
+## 작업량 55:45 참고선과 동적 배정
 
 작업 크기는 이슈에 다음 라벨로 표시한다.
 
@@ -19,13 +19,13 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 | `size:M` | 2 | 화면 기능, API 연결, 중간 규모 수정 |
 | `size:L` | 3 | 여러 파일 구조 변경, DB, 인증, 성능, 대규모 리팩터링 |
 
-최근 14일 **완료된 작업 점수** 기준 목표는 Codex 60% : Claude 40%다. Codex 55~65%를 정상 범위로 보고, 65%를 넘으면 다음 M/L 작업 중 Claude 담당 가능 영역을 Claude에 우선 배정한다.
+최근 14일 **완료된 작업 점수**는 Codex 55% : Claude 45%를 참고선으로 본다. 일반적으로 Codex 50~60%, Claude 40~50% 범위면 균형 상태로 본다. 다만 한쪽의 가용 자원이 더 많거나 전문성이 더 맞는 경우 PM이 일시적으로 이 범위를 벗어나 배정할 수 있다.
 
-비율을 맞추기 위해 기본 권한 구조를 바꾸거나 동일 기능을 중복 구현하지 않는다.
+비율은 우선순위를 결정하는 규칙이 아니다. 비율을 맞추기 위해 불필요한 작업을 만들거나 기본 권한 구조를 바꾸거나 동일 기능을 중복 구현하지 않는다.
 
 ## 역할
 
-### ChatGPT / Codex — 기본 Product / Technical Owner (목표 60%)
+### ChatGPT / Codex — 기본 Product / Technical Owner (참고선 55%)
 
 - 전체 작업 조정, 기본 구현 주체, 기술적 후속 조치 정리
 - 화면, UI/UX, 온보딩, 프로필, 홈, 탐색, 댓글 등 제품 기능
@@ -36,7 +36,7 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - 기능 단위 테스트와 기능 명세
 - Claude가 만든 보안/DB PR의 제한 독립 검토
 
-### Claude — QA / Reliability / Security·독립 검토 (목표 40%)
+### Claude — QA / Reliability / Security + 위임 구현 (참고선 45%)
 
 - Daily QA, Security QA, 로그인 E2E, 회귀 테스트
 - 성능 분석과 운영 상태 검증
@@ -45,10 +45,15 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - 보안 민감 CI/workflow 독립 검토
 - Codex M/L 및 고위험 PR 독립 리뷰
 - PM 또는 handoff로 명시적으로 위임받은 구현
+- 기존 Figma 화면 정리·Foundations 적용 등 UX 유지보수
+- 일반 앱/UI S/M 버그와 확정 Product/Figma 계약 반영
+- 성능 개선 및 성능 관련 리팩터링
+- QA 자동화·테스트 도구 구현
+- Release/운영 검증 도구·배포 정합성 도구 구현
 
 ## 고위험 영역
 
-다음 변경은 **특정 AI의 영구 독점 영역이 아니다.** 현재 작업의 `owner:*`, `handoff:*`, 사용자 지시와 60:40 배분에 따라 구현 담당을 정하되, 반대 AI의 독립 검토를 필수로 한다.
+다음 변경은 **특정 AI의 영구 독점 영역이 아니다.** 현재 작업의 `owner:*`, `handoff:*`, 사용자 지시와 PM의 동적 배정에 따라 구현 담당을 정하되, 반대 AI의 독립 검토를 필수로 한다.
 
 - `supabase/migrations/**`
 - RLS / GRANT / SECURITY DEFINER 정책과 함수
