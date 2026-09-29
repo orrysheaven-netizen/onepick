@@ -288,7 +288,7 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <Text numberOfLines={1} style={styles.profileHeaderTitle}>{profile.username}</Text>
           <View style={styles.profileHeaderActions}>
-            {Platform.OS === 'web' || profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
+            {profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
               accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
               disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
             <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
@@ -321,8 +321,8 @@ export default function ProfileScreen() {
           {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
 
           {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} />
-            <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} />
+            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} style={styles.profileScopeChip} />
+            <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} style={styles.profileScopeChip} />
           </View> : null}
 
           {visibleProfilePicks.length > 0 ? <View style={styles.currentPickList}>
@@ -362,6 +362,9 @@ export default function ProfileScreen() {
               accessibilityLabel="내 프로필 공유" disabled={isSharingProfile} onPress={() => void shareMyProfile()} />
             {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
           </View>
+          {Platform.OS === 'web' && !profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
+            accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
+            disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} /> : null}
 
           <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.managementRow, styles.managementRowAccent, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>취향 고르기 이어가기</Text><Text style={styles.managementText}>아직 고르지 않은 카테고리의 원픽을 더 채워보세요.</Text></View>
@@ -448,6 +451,7 @@ const styles = StyleSheet.create({
   profileShareRow: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md, marginBottom: OnePickSpace.md },
   shareError: { ...OnePickType.caption, color: OnePick.textDanger, textAlign: 'center' },
   profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
+  profileScopeChip: { paddingHorizontal: 14 },
   otherTasteEntry: { marginTop: OnePickSpace.md },
   currentPickList: { borderTopWidth: 1, borderTopColor: OnePick.borderDefault },
   currentPickRow: {
@@ -458,14 +462,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: OnePick.borderDefault,
   },
-  currentPickCopy: { flex: 1, minWidth: 0, gap: 2 },
+  currentPickCopy: { flex: 1, minWidth: 0, height: 82, gap: 2 },
   currentPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
   currentPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
   currentPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
   currentPickBadge: {
     height: 28,
     justifyContent: 'center',
-    paddingHorizontal: OnePickSpace.sm,
+    paddingHorizontal: 9,
     borderRadius: OnePickRadius.sm,
   },
   currentPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
