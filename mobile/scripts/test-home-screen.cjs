@@ -51,6 +51,7 @@ const onepickConstants = load('constants/onepick.ts', {
   './font-family': load('constants/font-family.web.ts'),
 });
 const followCountsQuery = { data: { followingCount: 0, followerCount: 0 }, isPending: false, isError: false };
+const recentMenuQuery = { data: [], isPending: false, isError: false, isFetching: false, refetch: async () => {} };
 const followingQuery = {
   data: { items: [query.data.picks[0]], nextCursor: null },
   isPending: false, isError: false, isFetching: false, isRefetching: false,
@@ -90,7 +91,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
-  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
+  '@/hooks/useHomeData': {
+    useHomeData: (...args) => { homeDataArgs = args; return query; },
+    useHomeRecentMenuRanking: () => recentMenuQuery,
+  },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
@@ -120,6 +124,20 @@ assert.equal(followingFeedArgs[3], 'food', 'Following query is prepared with the
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
+
+// The 7-day aggregate orders the existing menu-detail cards. Counts below the
+// user-confirmed sample threshold stay private while the menu remains visible.
+recentMenuQuery.data = [
+  { categoryId: 'ramen', categoryName: '라면', groupCategoryId: 'noodles', pickCount: 4, rank: 1, isTied: false, coverItemId: 'ramen-cover', thumbnailUrl: 'https://img.test/ramen.jpg' },
+  { categoryId: 'snacks', categoryName: '과자', groupCategoryId: 'food', pickCount: 2, rank: 2, isTied: false, coverItemId: 'snacks-cover', thumbnailUrl: null },
+];
+const recentMenuPage = render();
+assert.match(recentMenuPage, /최근 7일 많이 고른 메뉴/);
+assert.match(recentMenuPage, /원픽 4/);
+assert.doesNotMatch(recentMenuPage, /원픽 2/, 'A 2-person recent menu stays visible without exposing its count');
+assert.ok(presses.find((p) => p.accessibilityLabel === '과자 사람들의 원픽 보기'), 'Below-threshold menu remains a usable card');
+recentMenuQuery.data = [];
+render();
 
 // An existing follow relationship flips only the default scope; no public feed is
 // downloaded first, and the user can still switch tabs afterward.
