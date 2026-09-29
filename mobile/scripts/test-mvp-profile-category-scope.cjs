@@ -86,7 +86,7 @@ async function main() {
     assert.match(screen, /다른 취향 원픽 보기/);
   }
   assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner Figma 03 rows render every Pick in the selected scope');
-  assert.match(publicScreen, /picks=\{visibleProfilePicks\}/, 'Public profile keeps the grouped collection until Figma 40 is applied');
+  assert.match(publicScreen, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/, 'Public Figma 40 rows render every Pick in the selected scope');
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 

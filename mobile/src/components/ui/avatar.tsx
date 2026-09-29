@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickRadius } from '@/constants/onepick';
 
-type Size = 24 | 32 | 40 | 64 | 72;
+type Size = 24 | 32 | 40 | 64 | 68 | 72;
 
 type Props = {
   /** Username or display name; the first character becomes the initial. */
@@ -13,7 +13,7 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-const fontSizes: Record<Size, number> = { 24: 11, 32: 13, 40: 15, 64: 24, 72: 26 };
+const fontSizes: Record<Size, number> = { 24: 11, 32: 13, 40: 15, 64: 24, 68: 25, 72: 26 };
 
 export function Avatar({ name, size = 32, tone = 'accent', onPress, accessibilityLabel }: Props) {
   const initial = name.trim().slice(0, 1).toUpperCase();

@@ -44,17 +44,19 @@ assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation remains retained afte
 assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
 assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
+const publicBodyIndex = publicProfile.indexOf('<View style={styles.publicBody}>');
+const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <PublicProfilePickRow');
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
 const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');
-const publicPicksIndex = publicProfile.indexOf("profileScope === 'food' ? '음식 원픽' : '다른 취향'");
 const publicSafetyIndex = publicProfile.indexOf('사용자 관리');
 
-assert.ok(publicInfoIndex >= 0, 'public profile info section is missing');
-assert.ok(publicTasteIndex > publicInfoIndex, 'public taste composition must follow profile info');
-assert.ok(publicAiIndex > publicTasteIndex, 'public AI taste evaluation must follow taste composition');
-assert.ok(publicPicksIndex > publicAiIndex, 'public category picks must follow AI taste evaluation');
-assert.ok(publicSafetyIndex > publicPicksIndex, 'public safety controls must not interrupt the core profile story');
+assert.ok(publicBodyIndex >= 0, 'public Figma 40 primary body is missing');
+assert.ok(publicPicksIndex > publicBodyIndex, 'public category Picks belong inside the Figma 40 primary body');
+assert.ok(publicInfoIndex > publicPicksIndex, 'optional public profile info follows the primary collection');
+assert.ok(publicTasteIndex > publicInfoIndex, 'public taste composition remains retained after public profile info');
+assert.ok(publicAiIndex > publicTasteIndex, 'public AI taste evaluation remains retained after taste composition');
+assert.ok(publicSafetyIndex > publicAiIndex, 'public safety controls stay below optional analysis tools');
 assert.match(publicProfile, /viewerId=\{user\?\.id\}/);
 assert.match(publicProfile, /variant="public"/);
 assert.match(publicProfile, /sectionTitle="AI 취향평가"/);

@@ -160,11 +160,10 @@ assert.match(owner, /음식 원픽 보기/);
 assert.match(owner, /다른 취향 원픽 보기/);
 assert.match(owner, /pathname: '\/provider\/\[providerId\]'/, 'owner profile routes provider context to the provider profile');
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
-assert.match(publicProfile, /<ProfilePickGroups/);
-assert.match(publicProfile, /picks=\{visibleProfilePicks\}/, 'public profile uses the same in-place taste tabs');
+assert.doesNotMatch(publicProfile, /<ProfilePickGroups/, 'Figma 40 public profile intentionally renders direct compact rows');
+assert.match(publicProfile, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/, 'public profile uses the same in-place taste tabs with direct rows');
 assert.match(publicProfile, /음식 원픽 보기/);
 assert.match(publicProfile, /다른 취향 원픽 보기/);
-assert.match(publicProfile, /categories=\{categoriesQuery\.data \?\? \[\]\}/);
 assert.match(publicProfile, /pathname: '\/provider\/\[providerId\]'/, 'public profile routes provider context to the provider profile');
 assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 
@@ -172,4 +171,4 @@ assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
-console.log('Profile Pick groups checks passed: grouping remains for public profile and library use while Figma 03 owner profile uses direct compact rows.');
+console.log('Profile Pick groups checks passed: grouping helpers remain for library use while Figma 03 owner and Figma 40 public profiles use direct compact rows.');
