@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { AppError } from '@/errors/appError';
 import { useFollowActions, useFollowState } from '@/hooks/useFollow';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickType } from '@/constants/onepick';
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
@@ -26,6 +26,7 @@ export function FollowButton({
   onRequireLogin,
   autoFollow = false,
   onFollowed,
+  fullWidth = false,
 }: {
   viewerUserId?: string;
   profileUserId: string;
@@ -33,6 +34,7 @@ export function FollowButton({
   onRequireLogin?: () => void;
   autoFollow?: boolean;
   onFollowed?: () => void;
+  fullWidth?: boolean;
 }) {
   const state = useFollowState(viewerUserId, profileUserId);
   const { follow, unfollow } = useFollowActions(viewerUserId, profileUserId);
@@ -85,18 +87,18 @@ export function FollowButton({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, fullWidth && styles.containerFullWidth]}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected: following, busy: pending }}
         accessibilityLabel={following ? `@${username} 팔로우 취소` : `@${username} 팔로우`}
         disabled={pending || (Boolean(viewerUserId) && state.isPending)}
         onPress={handlePress}
-        style={({ pressed }) => [styles.button, following && styles.buttonFollowing, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.button, fullWidth && styles.buttonFullWidth, following && styles.buttonFollowing, pressed && styles.pressed]}>
         {pending || (viewerUserId && state.isPending) ? (
           <ActivityIndicator size="small" color={following ? OnePick.muted : OnePick.onAccent} />
         ) : (
-          <Text style={[styles.text, following && styles.textFollowing]}>{following ? '팔로잉' : '팔로우'}</Text>
+          <Text style={[styles.text, fullWidth && styles.textFullWidth, following && styles.textFollowing]}>{following ? '팔로잉' : '팔로우'}</Text>
         )}
       </Pressable>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}
@@ -106,9 +108,12 @@ export function FollowButton({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'flex-start' },
+  containerFullWidth: { alignSelf: 'stretch', width: '100%' },
   button: { minHeight: 40, minWidth: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, paddingHorizontal: 16 },
+  buttonFullWidth: { width: '100%', height: 42, minHeight: 42, backgroundColor: OnePick.actionPrimary },
   buttonFollowing: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
-  text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '700' },
+  textFullWidth: { ...OnePickType.bodyMedium },
   textFollowing: { color: OnePick.muted },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 6 },
   pressed: { opacity: 0.7 },
