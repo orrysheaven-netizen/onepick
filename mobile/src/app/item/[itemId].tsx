@@ -280,9 +280,16 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const { category, brand, isRestaurant, myPickStatus, pickChannel, picks: allPicks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const mvpFoodScope = isRestaurant && !OnePickFeatures.foodChannelPicker;
+  // Legacy food items may have no item_channels row, while an explicit Pick
+  // channel is still valid by the DB contract. If a current public offline Pick
+  // reached Home/Profile, its item detail must stay reachable too.
+  const hasPublicCurrentPick = allPicks.some(({ pick }) =>
+    pick.channel === OnePickMvp.publicPickChannel
+    && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review')));
   const itemSupportsPublicChannel = !mvpFoodScope
     || item.channels?.includes(OnePickMvp.publicPickChannel)
-    || item.externalSource === 'onepick_place';
+    || item.externalSource === 'onepick_place'
+    || hasPublicCurrentPick;
   const picks = mvpFoodScope
     ? allPicks.filter(({ pick }) => pick.channel === OnePickMvp.publicPickChannel
       || (!pick.channel && itemSupportsPublicChannel))
