@@ -292,25 +292,27 @@ export class ProviderProfileService {
     });
     if (error) throw mapSupabaseError(error);
     const raw = (Array.isArray(data) ? data : []) as any[];
-    const items: BrandBranch[] = raw.slice(0, 20).flatMap((row) => {
-      if (!row?.provider_id || (row.kind !== 'offline_branch' && row.kind !== 'online_store') || !row.name) return [];
-      const subtitle = row.kind === 'offline_branch'
-        ? (row.road_address ?? ([row.region_1, row.region_2].filter(Boolean).join(' ') || null))
-        : null;
+    const page = raw.slice(0, 20);
+    const items: BrandBranch[] = page.flatMap((row) => {
+      // The current MVP exposes offline stores only. Keep online providers in
+      // the server cursor so later pages remain stable, but do not render them.
+      if (!row?.provider_id || row.kind !== 'offline_branch' || !row.name) return [];
       return [{
         providerId: row.provider_id,
-        kind: row.kind,
+        kind: 'offline_branch',
         name: row.name,
         branchName: row.branch_name ?? null,
-        subtitle,
+        subtitle: row.road_address ?? ([row.region_1, row.region_2].filter(Boolean).join(' ') || null),
         pickCount: Number(row.pick_count) || 0,
         menuCount: Number(row.menu_count) || 0,
       }];
     });
-    const last = items.at(-1);
+    const rawLast = page.at(-1);
     return {
       items,
-      nextCursor: raw.length > 20 && last ? { pickCount: last.pickCount, providerId: last.providerId } : null,
+      nextCursor: raw.length > 20 && rawLast?.provider_id
+        ? { pickCount: Number(rawLast.pick_count) || 0, providerId: rawLast.provider_id }
+        : null,
     };
   }
 }
