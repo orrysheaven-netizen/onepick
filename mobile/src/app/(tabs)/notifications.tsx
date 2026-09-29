@@ -1,47 +1,55 @@
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { commentService } from '@/services';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useNotifications, useReadNotification } from '@/hooks/useNotifications';
-import type { AppNotification } from '@/services/notificationService';
+import { useNotifications } from '@/hooks/useNotifications';
+import type { AppNotificationGroup } from '@/services/notificationService';
 
 function formatNotificationTime(value: string) {
   const time = Date.parse(value);
   return Number.isFinite(time) ? new Date(time).toLocaleString('ko-KR') : '시간 정보 없음';
 }
 
-// 받침이 있으면 '이', 없으면 '가'. 한글이 아니면 병기한다.
 function subjectParticle(word: string) {
   const code = word.charCodeAt(word.length - 1) - 0xac00;
   if (code < 0 || code > 11171) return '이(가)';
   return code % 28 ? '이' : '가';
 }
 
-function describe(item: AppNotification) {
-  if (item.kind === 'item_review') {
-    if (item.outcome === 'rejected') {
-      const message = `등록 요청하신 ${item.item_name}${subjectParticle(item.item_name)} 반려됐어요.`;
-      return { sender: '원픽 등록 결과', badge: '반려', message, label: item.body ? `${message} 사유: ${item.body}` : message };
+function actorLabel(item: AppNotificationGroup) {
+  if (!item.actor) return '원픽';
+  const base = `@${item.actor.username}`;
+  return item.actor_count > 1 ? `${base} 외 ${item.actor_count - 1}명` : base;
+}
+
+function describe(item: AppNotificationGroup) {
+  const name = item.target.item_name ?? '원픽';
+  const sender = actorLabel(item);
+  switch (item.kind) {
+    case 'pick_review': {
+      const message = `${name} 원픽에 새 한줄평이 생겼어요.`;
+      return { sender, badge: '새 한줄평', message, label: `${sender}, ${message}` };
     }
-    // With pick_id the approval already made the product the requester's pick.
-    // Without it (requests sent before reviews were collected) they still choose.
-    const message = item.pick_id
-      ? item.outcome === 'merged'
-        ? `요청하신 원픽이 ${item.item_name}(으)로 등록되어 내 원픽이 됐어요.`
-        : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인되어 내 원픽으로 등록됐어요.`
-      : item.outcome === 'merged'
-        ? `요청하신 원픽이 ${item.item_name}(으)로 등록됐어요. 원픽으로 선택해보세요.`
-        : `등록하신 ${item.item_name}${subjectParticle(item.item_name)} 승인됐어요. 원픽으로 선택해보세요.`;
-    return { sender: '원픽 등록 결과', badge: '승인', message, label: message };
+    case 'comment': {
+      const message = `${name} 내 한줄평에 댓글을 남겼어요.`;
+      return { sender, badge: '새 댓글', message, label: `${sender}, ${message}` };
+    }
+    case 'reply': {
+      const message = `${name} 댓글에 답글을 남겼어요.`;
+      return { sender, badge: '새 답글', message, label: `${sender}, ${message}` };
+    }
+    case 'followee_pick': {
+      const message = `${name}${subjectParticle(name)} 원픽이 됐어요.`;
+      return { sender, badge: '새 원픽', message, label: `${sender}, ${message}` };
+    }
+    case 'fix_needed': {
+      const message = `${name} 정보를 수정해주세요.`;
+      return { sender: '원픽 수정 필요', badge: '수정 필요', message, label: item.reason ? `${message} 사유: ${item.reason}` : message };
+    }
   }
-  const message = item.kind === 'comment' ? `${item.item_name} 원픽에 댓글을 남겼어요.` : `${item.item_name}을(를) 원픽으로 골랐어요.`;
-  return {
-    sender: `@${item.username}`,
-    badge: item.kind === 'comment' ? '새 댓글' : '새 원픽',
-    message,
-    label: `@${item.username}님이 ${message.slice(0, -1)}`,
-  };
 }
 
 export default function NotificationsScreen() {
@@ -49,21 +57,49 @@ export default function NotificationsScreen() {
   const session = useAuthSession();
   const ready = !session.isLoading && !session.error && Boolean(session.user);
   const query = useNotifications(session.user?.id, ready);
-  const read = useReadNotification(session.user?.id);
-  const keyOf = (item: AppNotification) => `${item.kind}:${item.id}`;
   const items = ready ? query.data?.pages.flatMap((page) => page.items)
-    .filter((item, index, all) => all.findIndex((other) => keyOf(other) === keyOf(item)) === index) ?? [] : [];
+    .filter((item, index, all) => all.findIndex((other) => other.group_id === item.group_id) === index) ?? [] : [];
   const loading = session.isLoading || (ready && query.isPending && items.length === 0);
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
-  const open = (item: AppNotification) => {
+
+  const open = async (item: AppNotificationGroup) => {
     if (!ready) return;
-    // A rejected request has nothing to pick; opening it only marks it read.
-    if (item.kind === 'item_review' && item.outcome !== 'rejected' && !item.pick_id) {
-      if (item.item_id) router.push({ pathname: '/pick/choose', params: { itemId: item.item_id } });
-    } else if (item.pick_id && item.outcome !== 'rejected') {
-      router.push({ pathname: '/pick/[pickId]', params: { pickId: item.pick_id } });
+    let itemId = item.target.item_id;
+    let pickId = item.target.pick_id;
+    let rootCommentId = item.target.root_comment_id;
+    let commentAfterTime: string | undefined;
+    let commentAfterId: string | undefined;
+
+    if (item.kind === 'reply' && rootCommentId) {
+      try {
+        const location = await commentService.locateComment(rootCommentId);
+        if (!location) return;
+        itemId = location.itemId;
+        pickId = location.pickId;
+        rootCommentId = location.rootCommentId;
+        commentAfterTime = location.pageCursor?.timestamp;
+        commentAfterId = location.pageCursor?.id;
+      } catch {
+        // Do not navigate or mark read when the exact reply destination cannot be resolved.
+        return;
+      }
     }
-    if (!item.read_at) void read.mutateAsync({ kind: item.kind, id: item.id }).catch(() => undefined);
+
+    const params = {
+      notificationGroupId: item.group_id,
+      notificationSnapshot: item.snapshot,
+      notificationKind: item.kind,
+      ...(item.reason ? { notificationReason: item.reason } : {}),
+      ...(pickId ? { pickId } : {}),
+      ...(rootCommentId ? { rootCommentId } : {}),
+      ...(commentAfterTime ? { commentAfterTime } : {}),
+      ...(commentAfterId ? { commentAfterId } : {}),
+    };
+    if (itemId) {
+      router.push({ pathname: '/item/[itemId]', params: { ...params, itemId } });
+    } else if (pickId) {
+      router.push({ pathname: '/pick/[pickId]', params });
+    }
   };
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
@@ -73,23 +109,25 @@ export default function NotificationsScreen() {
     </View>
     <FlatList
       data={items}
-      keyExtractor={keyOf}
+      keyExtractor={(item) => item.group_id}
       contentContainerStyle={styles.content}
       refreshControl={ready ? <RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} /> : undefined}
       renderItem={({ item }) => {
         const copy = describe(item);
+        const unread = item.unread_count > 0;
         return <Pressable accessibilityRole="button"
-          accessibilityLabel={`${item.read_at ? '읽은' : '새'} 알림, ${copy.label}`}
-          onPress={() => open(item)}
-          style={({ pressed }) => [styles.card, !item.read_at && styles.unread, pressed && { opacity: 0.65 }]}>
+          accessibilityLabel={`${unread ? '새' : '읽은'} 알림, ${copy.label}`}
+          onPress={() => { void open(item); }}
+          disabled={!item.target.item_id && !item.target.pick_id}
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.65 }]}>
           <View style={styles.row}>
-            {!item.read_at ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
+            {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
             <Text style={styles.sender}>{copy.sender}</Text>
-            {!item.read_at ? <Text style={styles.newLabel}>{copy.badge}</Text> : null}
+            {unread ? <Text style={styles.newLabel}>{copy.badge}{item.unread_count > 1 ? ` · ${item.unread_count}` : ''}</Text> : null}
           </View>
           <Text style={styles.message}>{copy.message}</Text>
-          {item.body ? <Text style={styles.body} numberOfLines={3}>{item.kind === 'comment' ? item.body : item.kind === 'item_review' ? `사유: ${item.body}` : `“${item.body}”`}</Text> : null}
-          <Text style={styles.time}>{formatNotificationTime(item.created_at)}</Text>
+          {item.kind === 'fix_needed' && item.reason ? <Text style={styles.body} numberOfLines={3}>사유: {item.reason}</Text> : null}
+          <Text style={styles.time}>{formatNotificationTime(item.latest_at)}</Text>
         </Pressable>;
       }}
       ListHeaderComponent={ready && query.isError && items.length > 0
@@ -98,14 +136,15 @@ export default function NotificationsScreen() {
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
-          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽에 달린 댓글, 팔로우한 사람의 새 원픽, 원픽 등록 결과를 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
+          : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽의 새 한줄평과 댓글, 팔로우한 사람의 새 원픽, 수정 필요 알림을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push('/auth/login')}><Text style={styles.link}>로그인</Text></Pressable></>
           : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
-          : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 댓글이 달리거나 팔로우한 사람이 원픽을 고르면 여기에 알려드려요.</Text></>}
+          : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 한줄평이나 댓글이 생기면 여기에 알려드려요.</Text></>}
       </View>}
       ListFooterComponent={ready && query.hasNextPage ? <Pressable accessibilityRole="button" disabled={query.isFetching} style={styles.more} onPress={() => { if (!query.isFetching) void query.fetchNextPage(); }}><Text style={styles.link}>{query.isFetchingNextPage ? '불러오는 중…' : '이전 알림 더 보기'}</Text></Pressable> : null}
     />
   </SafeAreaView>;
 }
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.bgDefault },
   header: {
@@ -131,7 +170,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingVertical: OnePickSpace.lg,
   },
-  unread: { backgroundColor: 'transparent' },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',

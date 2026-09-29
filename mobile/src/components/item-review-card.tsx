@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
+import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { OnePick } from '@/constants/onepick';
 
 /**
@@ -15,9 +16,12 @@ import { OnePick } from '@/constants/onepick';
  * one positive badge; ended Picks keep the same neutral review presentation so
  * the UI never exposes someone's past-Pick state.
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
+export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved, focusCommentId, commentInitialCursor, onCommentFocusLoaded }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
   highlighted: boolean; onRemoved: () => void;
+  focusCommentId?: string;
+  commentInitialCursor?: ReadCursor | null;
+  onCommentFocusLoaded?: () => void;
 }) {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
@@ -53,7 +57,8 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      <PickReplies pickId={pick.id} compact canWrite={!isMine} />
+      <PickReplies pickId={pick.id} compact canWrite={!isMine} focusCommentId={focusCommentId}
+        initialCursor={commentInitialCursor} onFocusLoaded={onCommentFocusLoaded} />
     </View>
   );
 }

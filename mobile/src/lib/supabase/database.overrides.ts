@@ -114,6 +114,33 @@ type ItemReviewNotificationRow = {
 // product and pick_id is the pick approval created (null if none was made).
 // Rejected rows point at the request itself (nothing to pick) and carry the
 // admin's reason in body.
+export type NotificationGroupRow = {
+  group_id: string;
+  kind: 'pick_review' | 'comment' | 'reply' | 'fix_needed' | 'followee_pick';
+  latest_at: string;
+  snapshot: string;
+  unread_count: number;
+  total_count: number;
+  actor_count: number;
+  actor: {
+    user_id: string;
+    username: string;
+    profile_image_url: string | null;
+  } | null;
+  target: {
+    item_id: string | null;
+    item_name: string | null;
+    category_id: string | null;
+    category_name: string | null;
+    channel: string | null;
+    pick_id: string | null;
+    comment_id: string | null;
+    root_comment_id: string | null;
+    user_id: string | null;
+  };
+  reason: string | null;
+};
+
 export type NotificationPageRow = {
   kind: 'comment' | 'pick_change' | 'item_review';
   id: string;
@@ -222,6 +249,17 @@ export type AppDatabase = Omit<Database, 'public'> & {
         };
         Returns: Database['public']['Tables']['items']['Row'];
       };
+      revise_item_request: {
+        Args: {
+          p_item_id: string;
+          p_link_url?: string | null;
+          p_image_path?: string | null;
+          p_thumbnail_path?: string | null;
+          p_image_source_url?: string | null;
+          p_remove_photo?: boolean;
+        };
+        Returns: Database['public']['Tables']['items']['Row'];
+      };
       register_item_pick: {
         Args: {
           p_category_id: string;
@@ -295,6 +333,18 @@ export type AppDatabase = Omit<Database, 'public'> & {
       follow_counts: {
         Args: never;
         Returns: { following_count: number; follower_count: number }[];
+      };
+      notification_unread_count: {
+        Args: never;
+        Returns: number;
+      };
+      notification_group_page: {
+        Args: { p_before_activity?: string; p_before_group_id?: string; p_limit?: number };
+        Returns: NotificationGroupRow[];
+      };
+      mark_notification_group_read: {
+        Args: { p_group_id: string; p_until: string };
+        Returns: number;
       };
       notification_count: {
         Args: never;

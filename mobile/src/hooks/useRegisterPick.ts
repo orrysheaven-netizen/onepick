@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import { observabilityService, registrationService } from '@/services';
-import type { ImmediatePickRegistrationInput, RegisterPickInput } from '@/services/registrationService';
+import type { ImmediatePickRegistrationInput, RegisterPickInput, RevisePendingItemInput } from '@/services/registrationService';
 import type { AttachItemPhotoInput } from '@/services/registrationService';
 
 export function useRegistrationCategories() {
@@ -21,6 +21,14 @@ export function useAttachItemPhoto() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: AttachItemPhotoInput) => registrationService.attachItemPhoto(input),
+    onSuccess: () => invalidatePickData(client),
+  });
+}
+
+export function useRevisePendingItem() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RevisePendingItemInput) => registrationService.revisePendingItem(input),
     onSuccess: () => invalidatePickData(client),
   });
 }

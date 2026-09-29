@@ -8,6 +8,7 @@ import type {
   ItemBrand,
   PickChannel,
   PickReadInput,
+  CommentLocation,
   ReadCursor,
   ReadRepository,
   RootCategoryScope,
@@ -515,6 +516,27 @@ export class SupabaseReadRepository implements ReadRepository {
       };
     };
     return (Array.isArray(data) ? data : []).map(mapThreadRow);
+  }
+
+  async locateComment(commentId: string): Promise<CommentLocation | null> {
+    const { data, error } = await (this.client as any).rpc('comment_locate', {
+      p_comment_id: commentId,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data || typeof data !== 'object') return null;
+    const row = data as any;
+    if (!row.root_comment_id || !row.pick_id || !row.item_id || !row.category_id) return null;
+    const hasCursor = typeof row.page_after_time === 'string' && typeof row.page_after_id === 'string';
+    return {
+      rootCommentId: row.root_comment_id,
+      pickId: row.pick_id,
+      itemId: row.item_id,
+      categoryId: row.category_id,
+      channel: row.channel ?? null,
+      reviewIsCurrent: Boolean(row.review_is_current),
+      reviewIsDeleted: Boolean(row.review_is_deleted),
+      pageCursor: hasCursor ? { timestamp: row.page_after_time, id: row.page_after_id } : null,
+    };
   }
 
   /** The root category with this slug and every visible category beneath it. */

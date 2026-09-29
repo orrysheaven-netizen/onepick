@@ -17,6 +17,8 @@ const mocks = {
   'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
   'react-native': native,
   '@/constants/onepick': tokens,
+  '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null, isLoading: false, error: null }) },
+  '@/hooks/useNotifications': { useNotificationCount: () => ({ data: 0, isError: false }) },
   'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
   'expo-image': { Image: 'Image' },

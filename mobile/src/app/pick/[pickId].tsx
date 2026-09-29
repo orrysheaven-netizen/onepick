@@ -9,7 +9,16 @@ import { OnePick } from '@/constants/onepick';
 
 // Preserve old shared links and login return paths without a second detail screen.
 export default function PickDetailScreen() {
-  const { pickId } = useLocalSearchParams<{ pickId?: string }>();
+  const { pickId, notificationGroupId, notificationSnapshot, notificationKind, notificationReason, rootCommentId, commentAfterTime, commentAfterId } = useLocalSearchParams<{
+    pickId?: string;
+    notificationGroupId?: string;
+    notificationSnapshot?: string;
+    notificationKind?: string;
+    notificationReason?: string;
+    rootCommentId?: string;
+    commentAfterTime?: string;
+    commentAfterId?: string;
+  }>();
   const { user } = useAuthSession();
   const router = useRouter();
   const query = usePickDetail(pickId, user?.id);
@@ -27,7 +36,17 @@ export default function PickDetailScreen() {
   }, [pickId]);
 
   if (!query.isPending && !query.isError && query.data) {
-    return <Redirect href={{ pathname: '/item/[itemId]', params: { itemId: query.data.pick.itemId, pickId: query.data.pick.id } }} />;
+    return <Redirect href={{ pathname: '/item/[itemId]', params: {
+      itemId: query.data.pick.itemId,
+      pickId: query.data.pick.id,
+      ...(notificationGroupId ? { notificationGroupId } : {}),
+      ...(notificationSnapshot ? { notificationSnapshot } : {}),
+      ...(notificationKind ? { notificationKind } : {}),
+      ...(notificationReason ? { notificationReason } : {}),
+      ...(rootCommentId ? { rootCommentId } : {}),
+      ...(commentAfterTime ? { commentAfterTime } : {}),
+      ...(commentAfterId ? { commentAfterId } : {}),
+    } }} />;
   }
   return (
     <SafeAreaView style={styles.page}>

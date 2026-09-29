@@ -46,6 +46,14 @@ export interface ImmediatePickRegistrationInput {
   photo?: PickPhotoDraft | null;
 }
 
+export interface RevisePendingItemInput {
+  userId: string;
+  itemId: string;
+  linkUrl?: string | null;
+  photo?: PickPhotoDraft | null;
+  removePhoto?: boolean;
+}
+
 export interface ImmediatePickRegistrationResult {
   itemId: string;
   pickId: string;
@@ -179,6 +187,33 @@ export class RegistrationService {
     } finally {
       // Storage RLS prevents deleting paths that register_item_pick attached.
       // If the RPC failed before attaching, this removes the unused upload.
+      if (uploaded) {
+        await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      }
+    }
+  }
+
+  async revisePendingItem(input: RevisePendingItemInput) {
+    if (!input.userId) throw new AppError('AUTH_REQUIRED');
+    if (!input.itemId) throw new AppError('ITEM_NOT_FOUND');
+
+    let uploaded: { imagePath: string; thumbnailPath: string } | undefined;
+    if (input.photo) {
+      await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+      uploaded = await this.photoRepository.upload(input.userId, input.photo);
+    }
+
+    try {
+      const item = await this.itemRepository.reviseItemRequest({
+        itemId: input.itemId,
+        linkUrl: input.linkUrl,
+        imagePath: uploaded?.imagePath,
+        thumbnailPath: uploaded?.thumbnailPath,
+        imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
+        removePhoto: input.removePhoto,
+      });
+      return item;
+    } finally {
       if (uploaded) {
         await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       }

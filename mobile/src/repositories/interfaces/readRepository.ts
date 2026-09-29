@@ -44,6 +44,17 @@ export interface ReadCursor {
   id: string;
 }
 
+export interface CommentLocation {
+  rootCommentId: string;
+  pickId: string;
+  itemId: string;
+  categoryId: string;
+  channel: PickChannel | null;
+  reviewIsCurrent: boolean;
+  reviewIsDeleted: boolean;
+  pageCursor: ReadCursor | null;
+}
+
 export type { PickChannel } from '@/lib/items/pickChannel';
 
 /** One person's current choice, not an aggregate product or a follower event. */
@@ -213,6 +224,7 @@ export interface ReadRepository {
   /** Item-scoped reviews include current and ended Picks without exposing lifecycle history. */
   getItemReviews?(itemId: string, limit?: number): Promise<PickReadItem[]>;
   getCommentsByPickId(pickId: string, limit?: number, cursor?: ReadCursor | null): Promise<CommentReadItem[]>;
+  locateComment(commentId: string): Promise<CommentLocation | null>;
   getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }

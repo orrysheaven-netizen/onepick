@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnePick, OnePickType } from '@/constants/onepick';
+import { useAuthSession } from '@/hooks/useAuthSession';
+import { useNotificationCount } from '@/hooks/useNotifications';
 
 type TabIcon = 'home' | 'explore' | 'notifications' | 'profile';
 
@@ -16,6 +18,9 @@ export default function AppTabs() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const auth = useAuthSession();
+  const notificationCount = useNotificationCount(auth.user?.id, !auth.isLoading && !auth.error && Boolean(auth.user));
+  const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
 
   return (
     <View style={styles.tabs}>
@@ -28,7 +33,7 @@ export default function AppTabs() {
           <View style={styles.registerIcon}><Text style={styles.plus}>＋</Text></View>
           <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
         </Pressable>
-        <TabLink href="/notifications" icon="notifications" label="알림" active={isActive(pathname, '/notifications')} />
+        <TabLink href="/notifications" icon="notifications" label="알림" active={isActive(pathname, '/notifications')} unread={hasUnreadNotifications} />
         <TabLink href="/profile" icon="profile" label="프로필" active={isActive(pathname, '/profile')} />
       </View>
     </View>
@@ -45,13 +50,13 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
   </svg>;
 }
 
-function TabLink({ href, icon, label, active }: { href: Href; icon: TabIcon; label: string; active: boolean }) {
+function TabLink({ href, icon, label, active, unread = false }: { href: Href; icon: TabIcon; label: string; active: boolean; unread?: boolean }) {
   const [pressed, setPressed] = useState(false);
   return <Link href={href} asChild>
     <Pressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}
       onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
       style={StyleSheet.flatten([styles.tab, pressed && styles.pressed])}>
-      <View style={[styles.icon, active && styles.active]}><Icon name={icon} active={active} /></View>
+      <View style={[styles.icon, active && styles.active]}><Icon name={icon} active={active} />{unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}</View>
       <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
     </Pressable>
   </Link>;
@@ -66,6 +71,15 @@ const styles = StyleSheet.create({
   registerIcon: { width: 56, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.actionPrimary },
   plus: { color: OnePick.onAction, fontSize: 20, lineHeight: 24, fontWeight: '400' },
   active: { backgroundColor: 'transparent' },
+  unreadDot: {
+    position: 'absolute',
+    top: 3,
+    right: 12,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: OnePick.bgAccent,
+  },
   label: { ...OnePickType.captionMedium, color: OnePick.textTertiary },
   activeLabel: { color: OnePick.actionPrimary },
   pressed: { opacity: 0.9 },

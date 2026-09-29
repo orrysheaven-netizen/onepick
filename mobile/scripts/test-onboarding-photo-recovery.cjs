@@ -110,7 +110,13 @@ function setup(file, extra = {}) {
     '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
-    '@/hooks/useRegisterPick': { useChoosePhoto: () => picker, useAttachItemPhoto: () => mutation },
+    '@/hooks/useRegisterPick': {
+      useChoosePhoto: () => picker,
+      useAttachItemPhoto: () => mutation,
+      useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
+    },
+    '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },
+    '@/services/storeFirstService': { isNaverMapUrl: () => true },
     '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' }, ...extra,
   });

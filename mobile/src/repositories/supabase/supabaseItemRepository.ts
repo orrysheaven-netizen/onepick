@@ -9,6 +9,7 @@ import type {
   SubmitItemInput,
   SubmitUnclassifiedItemInput,
   StageUserPlaceItemInput,
+  ReviseItemRequestInput,
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
@@ -81,6 +82,20 @@ export class SupabaseItemRepository implements ItemRepository {
       p_road_address: input.roadAddress,
       p_map_url: input.mapUrl,
       p_branch_name: input.branchName ?? undefined,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data) throw new AppError('INTERNAL_ERROR');
+    return this.mapRow(data);
+  }
+
+  async reviseItemRequest(input: ReviseItemRequestInput) {
+    const { data, error } = await this.client.rpc('revise_item_request', {
+      p_item_id: input.itemId,
+      p_link_url: input.linkUrl,
+      p_image_path: input.imagePath,
+      p_thumbnail_path: input.thumbnailPath,
+      p_image_source_url: input.imageSourceUrl,
+      p_remove_photo: input.removePhoto ?? false,
     });
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');

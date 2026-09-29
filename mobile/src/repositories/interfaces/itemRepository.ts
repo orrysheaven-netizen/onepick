@@ -14,6 +14,7 @@ export interface ItemRepository {
   submitItem(input: SubmitItemInput): Promise<Item>;
   submitUnclassifiedItem(input: SubmitUnclassifiedItemInput): Promise<Item>;
   stageUserPlaceItem(input: StageUserPlaceItemInput): Promise<Item>;
+  reviseItemRequest(input: ReviseItemRequestInput): Promise<Item>;
   /** Writes or clears the requester's free-text category hint on their own pending request. */
   setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
   /** Saves the one-line review that becomes the requester's pick when their pending request is approved. */
@@ -56,4 +57,13 @@ export interface StageUserPlaceItemInput {
   roadAddress: string;
   mapUrl: string;
   branchName?: string | null;
+}
+
+export interface ReviseItemRequestInput {
+  itemId: string;
+  linkUrl?: string | null;
+  imagePath?: string | null;
+  thumbnailPath?: string | null;
+  imageSourceUrl?: string | null;
+  removePhoto?: boolean;
 }

@@ -177,7 +177,13 @@ async function main() {
   const view = harness('app/item/[itemId].tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => routes.push(r), replace() {}, canGoBack: () => true, back() {} }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
-    '@/hooks/useRegisterPick': { useChoosePhoto: () => ({}), useAttachItemPhoto: () => ({}) },
+    '@/hooks/useRegisterPick': {
+      useChoosePhoto: () => ({ isPending: false }),
+      useAttachItemPhoto: () => ({ isPending: false }),
+      useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
+    },
+    '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },
+    '@/services/storeFirstService': { isNaverMapUrl: () => true },
   });
   assert.match(view.render(), /사진 @photo_owner/);
   assert.equal(itemDetailArgs[3], true, 'Item detail screen requests photo attribution');

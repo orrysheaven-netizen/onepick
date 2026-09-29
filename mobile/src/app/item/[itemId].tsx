@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useAttachItemPhoto, useChoosePhoto } from '@/hooks/useRegisterPick';
+import { useAttachItemPhoto, useChoosePhoto, useRevisePendingItem } from '@/hooks/useRegisterPick';
+import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { ItemChannelLinks } from '@/components/item-channel-links';
 import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
@@ -17,6 +18,7 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import { itemTitle } from '@/lib/items/itemTitle';
+import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -35,7 +37,34 @@ function photoErrorMessage(error: unknown) {
   return '대표 이미지를 추가하지 못했어요. 잠시 후 다시 시도해주세요.';
 }
 
-type Params = { itemId?: string; pickId?: string; photo?: string };
+function revisionErrorMessage(error: unknown) {
+  if (error instanceof AppError) {
+    if (error.code === 'ITEM_LINK_REQUIRED' || error.code === 'LINK_INVALID') {
+      return '네이버 지도 링크를 확인해주세요.';
+    }
+    if (error.code === 'ITEM_NOT_FOUND' || error.code === 'ITEM_NOT_ELIGIBLE') {
+      return '지금은 이 요청을 수정할 수 없어요.';
+    }
+    if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인해주세요.';
+    if (error.code === 'PHOTO_INVALID' || error.code === 'PHOTO_TOO_LARGE' || error.code === 'PHOTO_UPLOAD_FAILED') {
+      return photoErrorMessage(error);
+    }
+  }
+  return '수정 내용을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+}
+
+type Params = {
+  itemId?: string;
+  pickId?: string;
+  photo?: string;
+  notificationGroupId?: string;
+  notificationSnapshot?: string;
+  notificationKind?: string;
+  notificationReason?: string;
+  rootCommentId?: string;
+  commentAfterTime?: string;
+  commentAfterId?: string;
+};
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
@@ -47,9 +76,21 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const router = useRouter();
   const itemId = typeof params.itemId === 'string' ? params.itemId : undefined;
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
+  const notificationGroupId = typeof params.notificationGroupId === 'string' ? params.notificationGroupId : undefined;
+  const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
+  const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
+  const notificationReason = typeof params.notificationReason === 'string' ? params.notificationReason : undefined;
+  const rootCommentId = typeof params.rootCommentId === 'string' ? params.rootCommentId : undefined;
+  const commentInitialCursor = typeof params.commentAfterTime === 'string' && typeof params.commentAfterId === 'string'
+    ? { timestamp: params.commentAfterTime, id: params.commentAfterId }
+    : null;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError);
+  const readNotificationGroup = useReadNotificationGroup(user?.id);
+  const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
+  const acknowledgedNotification = useRef<string | undefined>(undefined);
+  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
 
   useEffect(() => {
     const data = query.data;
@@ -66,6 +107,18 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       path: '/item/[itemId]',
     });
   }, [focusPickId, query.data?.item.categoryId, query.data?.item.id]);
+
+  useEffect(() => {
+    if (!user || !query.data || !notificationGroupId || !notificationSnapshot) return;
+    if (notificationKind === 'reply' && !replyTargetLoaded) return;
+    const receipt = `${notificationGroupId}:${notificationSnapshot}`;
+    if (acknowledgedNotification.current === receipt) return;
+    acknowledgedNotification.current = receipt;
+    void readNotificationGroup.mutateAsync({ groupId: notificationGroupId, snapshot: notificationSnapshot })
+      .catch(() => {
+        if (acknowledgedNotification.current === receipt) acknowledgedNotification.current = undefined;
+      });
+  }, [notificationGroupId, notificationSnapshot, notificationKind, query.data?.item.id, replyTargetLoaded, user?.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -99,6 +152,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const photoAcknowledged = useRef(false);
   const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
+  const [revisionPhoto, setRevisionPhoto] = useState<PickPhotoDraft | null>(null);
+  const [revisionLink, setRevisionLink] = useState('');
+  const [revisionError, setRevisionError] = useState<string | null>(null);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
@@ -138,6 +194,42 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     }
     finally { busy.current = false; }
   };
+  const chooseRevisionPhoto = async () => {
+    if (!user || photoPicker.isPending || revisionMutation.isPending) return;
+    setRevisionError(null);
+    try {
+      const selected = await photoPicker.mutateAsync();
+      if (selected) setRevisionPhoto(selected);
+    } catch (error) {
+      setRevisionError(photoErrorMessage(error));
+    }
+  };
+
+  const saveRevision = async () => {
+    if (!user || !itemId || revisionMutation.isPending || photoPicker.isPending) return;
+    const link = revisionLink.trim();
+    if (link && !isNaverMapUrl(link)) {
+      setRevisionError('네이버 지도 링크를 확인해주세요.');
+      return;
+    }
+    if (!link && !revisionPhoto) {
+      setRevisionError('수정할 지도 링크나 사진을 입력해주세요.');
+      return;
+    }
+    setRevisionError(null);
+    try {
+      await revisionMutation.mutateAsync({
+        userId: user.id,
+        itemId,
+        linkUrl: link || undefined,
+        photo: revisionPhoto,
+      });
+      router.replace('/');
+    } catch (error) {
+      setRevisionError(revisionErrorMessage(error));
+    }
+  };
+
   const retryItem = async () => {
     if (!itemId || isSessionLoading || sessionError || query.isFetching || busy.current || refreshing.current) return;
     refreshing.current = true;
@@ -197,6 +289,29 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요" text="마지막으로 불러온 내용을 표시하고 있어요."
           action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => void retryItem() }} /> : null}
+
+        {notificationKind === 'fix_needed' ? <View style={styles.revisionPanel}>
+          <Text style={styles.revisionTitle}>수정이 필요해요</Text>
+          <Text style={styles.revisionText}>{notificationReason || '등록한 매장 정보를 확인하고 필요한 부분을 수정해주세요.'}</Text>
+          <TextInput
+            accessibilityLabel="수정할 네이버 지도 링크"
+            autoCapitalize="none"
+            keyboardType="url"
+            value={revisionLink}
+            onChangeText={(value) => { setRevisionLink(value); setRevisionError(null); }}
+            placeholder="새 네이버 지도 링크가 있으면 입력"
+            placeholderTextColor={OnePick.textTertiary}
+            style={styles.revisionInput}
+          />
+          {revisionPhoto ? <Image source={{ uri: revisionPhoto.uri }} style={styles.revisionPreview} resizeMode="contain" accessibilityLabel="수정할 대표 이미지 미리보기" /> : null}
+          <View style={styles.revisionActions}>
+            <Button variant="secondary" label={revisionPhoto ? '사진 다시 선택' : '사진 수정'} loading={photoPicker.isPending}
+              disabled={revisionMutation.isPending} onPress={() => void chooseRevisionPhoto()} style={styles.revisionAction} />
+            <Button label="수정 내용 보내기" loading={revisionMutation.isPending}
+              disabled={photoPicker.isPending} onPress={() => void saveRevision()} style={styles.revisionAction} />
+          </View>
+          {revisionError ? <Text accessibilityRole="alert" style={styles.photoError}>{revisionError}</Text> : null}
+        </View> : null}
 
         <View style={styles.heroCard}>
           {/* No photo yet: a one-line upload row instead of an empty square. */}
@@ -283,6 +398,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
                 itemName={item.name} highlighted={pick.id === highlightedId}
+                focusCommentId={pick.id === focusPickId && notificationKind === 'reply' ? rootCommentId : undefined}
+                commentInitialCursor={pick.id === focusPickId && notificationKind === 'reply' ? commentInitialCursor : null}
+                onCommentFocusLoaded={pick.id === focusPickId && notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
@@ -313,6 +431,36 @@ const styles = StyleSheet.create({
     marginLeft: -OnePickSpace.sm,
   },
   backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  revisionPanel: {
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    borderRadius: OnePickRadius.lg,
+    backgroundColor: OnePick.bgAccentSubtle,
+    padding: OnePickSpace.lg,
+    marginBottom: OnePickSpace.md,
+  },
+  revisionTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  revisionText: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  revisionInput: {
+    ...OnePickType.body,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgDefault,
+    color: OnePick.textPrimary,
+    paddingHorizontal: OnePickSpace.md,
+    marginTop: OnePickSpace.md,
+  },
+  revisionPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgSubtle,
+    marginTop: OnePickSpace.md,
+  },
+  revisionActions: { flexDirection: 'row', gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
+  revisionAction: { flex: 1 },
   heroCard: {
     alignItems: 'center',
     borderWidth: 1,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { notificationService, type NotificationCursor, type NotificationKind } from '@/services/notificationService';
+import { notificationService, type NotificationCursor } from '@/services/notificationService';
 
 export const notificationKeys = {
   user: (userId?: string) => ['notifications', userId ?? 'signed-out'] as const,
@@ -46,12 +46,12 @@ export function useNotifications(userId?: string, enabled = true) {
   });
 }
 
-export function useReadNotification(userId?: string) {
+export function useReadNotificationGroup(userId?: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ kind, id }: { kind: NotificationKind; id: string }) => {
+    mutationFn: async ({ groupId, snapshot }: { groupId: string; snapshot: string }) => {
       if (!userId) throw new Error('Sign in required');
-      await notificationService.markRead(userId, kind, id);
+      await notificationService.markGroupRead(userId, groupId, snapshot);
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: notificationKeys.user(userId) });
