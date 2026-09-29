@@ -166,7 +166,8 @@ async function main() {
 
   const replyButton = buttons.find((button) => button.accessibilityLabel?.includes('댓글에 답글'));
   assert.ok(replyButton);
-  await replyButton.onPress();
+  replyButton.onPress();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(destination.params.itemId, 'item-1');
   assert.equal(destination.params.pickId, 'pick-1');
   assert.equal(destination.params.rootCommentId, 'root-1');
