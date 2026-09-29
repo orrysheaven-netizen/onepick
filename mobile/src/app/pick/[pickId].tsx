@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickReplies } from '@/components/pick-replies';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -22,15 +23,6 @@ type Params = {
   commentAfterId?: string;
 };
 
-
-function CurrentPickFlag() {
-  return <View accessible accessibilityLabel="현재 원픽" style={styles.currentFlag}>
-    <View style={styles.flagPole} />
-    <View style={styles.flagBody}>
-      <View style={styles.flagNotch} />
-    </View>
-  </View>;
-}
 
 // Existing share/login-return route and the single review conversation detail.
 export default function PickDetailScreen() {
@@ -166,30 +158,6 @@ const styles = StyleSheet.create({
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   author: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
-  currentFlag: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: OnePick.bgDefault,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  flagPole: { position: 'absolute', left: 7, top: 5, width: 2, height: 14, backgroundColor: OnePick.bgAccent },
-  flagBody: { position: 'absolute', left: 7, top: 5, width: 10, height: 8, backgroundColor: OnePick.bgAccent },
-  flagNotch: {
-    position: 'absolute',
-    right: -1,
-    top: 3,
-    width: 0,
-    height: 0,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderRightWidth: 3,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderRightColor: OnePick.bgDefault,
-  },
   reviewText: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.sm },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: OnePickSpace.sm, padding: OnePickSpace.xxl },
   stateTitle: { ...OnePickType.headline, color: OnePick.textPrimary },

@@ -120,6 +120,7 @@ async function main() {
     'expo-router': { useRouter: () => ({}), useLocalSearchParams: () => ({ pickId: 'pick-1' }) },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('div') },
+    '@/components/current-pick-flag': { CurrentPickFlag: () => React.createElement('i', null, 'flag') },
     '@/components/pick-replies': { PickReplies: () => null },
     '@/components/pick-share-actions': { PickShareActions: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
