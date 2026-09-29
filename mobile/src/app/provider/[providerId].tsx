@@ -182,6 +182,7 @@ export default function ProviderProfileScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.background },
