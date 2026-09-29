@@ -391,6 +391,12 @@ receiver chat, using a synthetic fixture only. Requires explicit PM run instruct
    Output: `event_id`, `outbox` path and `preview_body` (exact comment text).
 2. Compare `preview_body` with the preview reported to PM. Any push to #578 after the
    build changes the head; rebuild in a new directory instead of editing records.
+   Never paste the preview's first line (`<!-- onepick-report:<event_id> ...`) verbatim
+   into a #578 comment: the publisher's duplicate scan would find that comment and stop
+   with a content/author mismatch. Quote the marker with a placeholder instead.
+   `event_id` depends only on repository/task/source/head, so a rebuild on another host
+   for the same head gives the same `event_id`; the report hash differs because the
+   receipt records its own start time.
 3. Only after the run instruction, one explicit publication with the existing operator
    login: `python tools/local_claude/github_report.py --directory <outbox> --event <event_id> --publish`
 4. Expected: one `report-published` receipt with the comment URL; comment author
