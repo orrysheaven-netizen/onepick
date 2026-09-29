@@ -30,6 +30,8 @@ Production 최종 승인: 사용자
 - 배포 후 실제 앱·DB·라우팅·핵심 흐름을 확인한다.
 - 외부 서비스 제한과 실제 앱 결함을 구분한다.
 - 비용 발생 변경은 필수가 아니면 우선 제안하지 않는다.
+- 브랜치·CI·배포 workflow의 구체 절차는 루트 `CLAUDE.md`의 Branching/배포 규칙과 해당 GitHub Actions workflow를 따른다.
+- dry-run 실행은 명시적으로 배정된 Release 작업 범위에서만 수행하고, Production apply/deploy는 항상 사용자 승인 후 진행한다.
 
 ## 보고
 
