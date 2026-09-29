@@ -194,6 +194,7 @@ jobs:
               .github/workflows/ai-handoff-codex.yml
               .github/workflows/ai-handoff-claude.yml
               .github/workflows/ai-handoff-ci-gate.yml
+              .github/workflows/ai-handoff-review-events.yml
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
@@ -326,7 +327,7 @@ jobs:
               control_plane_change=false
               while IFS= read -r changed_path; do
                 case "$changed_path" in
-                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|.github/workflows/ai-handoff-review-events.yml|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
                     control_plane_change=true
                     ;;
                 esac
