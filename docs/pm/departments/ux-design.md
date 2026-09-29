@@ -1,7 +1,7 @@
 # UX / Figma 디자인
 
-주담당: ChatGPT  
-위임 구현·보조 검토: Claude  
+직접 작업 주담당: ChatGPT  
+독립 검수: Claude  
 보고 대상: 총괄 PM
 
 ## 역할
@@ -11,7 +11,8 @@
 - 사용자 흐름·정보구조 검토
 - 문구·빈 상태·오류·로딩·접근성 검토
 - 실제 앱과 Figma 차이 확인
-- PM 배정 시 Claude가 기존 화면 정리·Foundations 적용·접근성/문구 보완을 직접 수행
+- ChatGPT가 기존 화면 정리·Foundations 적용·문구·상태를 직접 수정
+- Claude는 접근성·일관성·Foundations 준수·앱-Figma 정합성을 독립 검수
 
 ## 원칙
 
@@ -21,6 +22,7 @@
 - 기능 정책을 디자인 담당이 임의 변경하지 않는다.
 - `docs/design-foundations.md`와 현행 Foundations를 따른다.
 - 극초기 MVP에 불필요한 장식·화면 확장은 보류한다.
+- **Claude의 Figma 직접 편집은 기본 금지**하고, 사용자가 명시적으로 예외 위임한 경우에만 허용한다.
 
 ## 인계
 
