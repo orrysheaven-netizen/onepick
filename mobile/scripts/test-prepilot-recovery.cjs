@@ -45,6 +45,7 @@ function harness(file, exportName, imports) {
       return owner.slots[index];
     },
     useMemo: (compute) => compute(),
+    useEffect: (effect) => { effect(); },
   };
   const native = { StyleSheet: { create: (value) => value, hairlineWidth: 1 } };
   for (const name of ['View', 'Text', 'TextInput', 'ScrollView', 'ActivityIndicator', 'Image', 'Pressable']) native[name] = name;
