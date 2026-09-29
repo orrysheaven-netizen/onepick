@@ -23,17 +23,21 @@ function query(data) {
     fetchNextPage(options) { assert.equal(options.cancelRefetch, false); this.nextPages++; return Promise.resolve(); } };
 }
 const picks = (count) => Array.from({ length: count }, (_, i) => ({ pickId: String(i), itemId: `item-${i}`, categoryId: i ? 'ramen' : 'movie' }));
-function home(count = 20) {
+function home(count = 20, followingCount = 0) {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null };
   const q = query({ picks: picks(count), currentPicks: [], editorialItems: [] });
   const following = query({ items: [], nextCursor: null });
+  const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
   const view = screen('app/(tabs)/index.tsx', {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; } },
-    '@/hooks/useFollow': { useFollowingFeed: (...args) => { calls.following = args; return following; } },
+    '@/hooks/useFollow': {
+      useFollowCounts: () => followCounts,
+      useFollowingFeed: (...args) => { calls.following = args; return following; },
+    },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
@@ -41,7 +45,7 @@ function home(count = 20) {
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
   });
-  view.render(); return { view, q, following, auth, calls };
+  view.render(); return { view, q, following, followCounts, auth, calls };
 }
 const recentQuery = (items) => ({ ...query(items), isFetchingNextPage: false });
 function explore({ chips = true } = {}) {
@@ -103,12 +107,19 @@ async function main() {
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
   const categoryChips = (view) => view.all('Chip').filter((p) => !isChannelChip(p));
-  await test('Home starts at all; scope switching preserves exclusive query gating', () => {
-    const { view, calls } = home(); assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
-    view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
-    assert.equal(calls.home[2], false); assert.equal(calls.following[1], true);
-    view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기').onPress(); view.render();
-    assert.equal(calls.home[2], true); assert.equal(calls.following[1], false);
+  await test('Home defaults by following count; manual scope switching keeps exclusive query gating', () => {
+    const newcomer = home();
+    assert.equal(newcomer.calls.home[2], true); assert.equal(newcomer.calls.following[1], false);
+    assert.equal(newcomer.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
+
+    const existing = home(20, 2);
+    assert.equal(existing.calls.home[2], false, 'Existing follows do not prefetch All');
+    assert.equal(existing.calls.following[1], true, 'Existing follows default to Following');
+    assert.equal(existing.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, true);
+    existing.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기').onPress(); existing.view.render();
+    assert.equal(existing.calls.home[2], true); assert.equal(existing.calls.following[1], false);
+    existing.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); existing.view.render();
+    assert.equal(existing.calls.home[2], false); assert.equal(existing.calls.following[1], true);
   });
   await test('Home hides at 19 and shows at 20 unfiltered loaded Picks', () => {
     flags.categoryChips = true;
