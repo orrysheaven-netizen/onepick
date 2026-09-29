@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { commentService } from '@/services';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotificationGroup } from '@/services/notificationService';
@@ -61,19 +62,42 @@ export default function NotificationsScreen() {
   const loading = session.isLoading || (ready && query.isPending && items.length === 0);
   const refresh = () => { if (ready && !query.isFetching) void query.refetch(); };
 
-  const open = (item: AppNotificationGroup) => {
+  const open = async (item: AppNotificationGroup) => {
     if (!ready) return;
+    let itemId = item.target.item_id;
+    let pickId = item.target.pick_id;
+    let rootCommentId = item.target.root_comment_id;
+    let commentAfterTime: string | undefined;
+    let commentAfterId: string | undefined;
+
+    if (item.kind === 'reply' && rootCommentId) {
+      try {
+        const location = await commentService.locateComment(rootCommentId);
+        if (!location) return;
+        itemId = location.itemId;
+        pickId = location.pickId;
+        rootCommentId = location.rootCommentId;
+        commentAfterTime = location.pageCursor?.timestamp;
+        commentAfterId = location.pageCursor?.id;
+      } catch {
+        // Do not navigate or mark read when the exact reply destination cannot be resolved.
+        return;
+      }
+    }
+
     const params = {
       notificationGroupId: item.group_id,
       notificationSnapshot: item.snapshot,
       notificationKind: item.kind,
       ...(item.reason ? { notificationReason: item.reason } : {}),
-      ...(item.target.pick_id ? { pickId: item.target.pick_id } : {}),
-      ...(item.target.root_comment_id ? { rootCommentId: item.target.root_comment_id } : {}),
+      ...(pickId ? { pickId } : {}),
+      ...(rootCommentId ? { rootCommentId } : {}),
+      ...(commentAfterTime ? { commentAfterTime } : {}),
+      ...(commentAfterId ? { commentAfterId } : {}),
     };
-    if (item.target.item_id) {
-      router.push({ pathname: '/item/[itemId]', params: { ...params, itemId: item.target.item_id } });
-    } else if (item.target.pick_id) {
+    if (itemId) {
+      router.push({ pathname: '/item/[itemId]', params: { ...params, itemId } });
+    } else if (pickId) {
       router.push({ pathname: '/pick/[pickId]', params });
     }
   };
@@ -93,7 +117,7 @@ export default function NotificationsScreen() {
         const unread = item.unread_count > 0;
         return <Pressable accessibilityRole="button"
           accessibilityLabel={`${unread ? '새' : '읽은'} 알림, ${copy.label}`}
-          onPress={() => open(item)}
+          onPress={() => { void open(item); }}
           disabled={!item.target.item_id && !item.target.pick_id}
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.65 }]}>
           <View style={styles.row}>
