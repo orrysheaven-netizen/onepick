@@ -9,7 +9,7 @@ type Props = {
   label: string;
   large?: boolean;
   /** Compact row thumbnail used by Figma 03 Profile. */
-  size?: 64 | 86;
+  size?: 62 | 64 | 86;
   /** Only real catalog items can receive a shared photo. Draft previews omit this. */
   itemId?: string;
   itemStatus?: string;
@@ -47,7 +47,7 @@ export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemSt
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
-  const compact = size === 64 && !large && !feed && !square;
+  const compact = (size === 62 || size === 64) && !large && !feed && !square;
   const canAdd = Boolean(!compact && itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
   const failed = Boolean(uri && failedUri === uri);
   const logo = logoUri && failedLogo !== logoUri ? logoUri : null;
@@ -71,7 +71,7 @@ export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemSt
   // Only the thumbnail has a fixed size. react-native-web drops `height: undefined`
   // when merging styles, so a shared 86px height would win over aspectRatio and
   // turn the full-width frames into 86px-tall strips.
-  return <View style={[styles.frame, large ? styles.large : square ? styles.square : size === 64 ? styles.thumb64 : styles.thumb]}>
+  return <View style={[styles.frame, large ? styles.large : square ? styles.square : size === 62 ? styles.thumb62 : size === 64 ? styles.thumb64 : styles.thumb]}>
     {showPhoto ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
       : logoImage && canAdd ? <>
         {logoImage}
@@ -94,6 +94,7 @@ export function PickPhoto({ uri, label, large = false, size = 86, itemId, itemSt
 const styles = StyleSheet.create({
   frame: { borderRadius: 16, overflow: 'hidden', backgroundColor: OnePick.sunken, justifyContent: 'center', alignItems: 'center' },
   thumb: { width: 86, height: 86 },
+  thumb62: { width: 62, height: 62, borderRadius: 12 },
   thumb64: { width: 64, height: 64, borderRadius: 8 },
   large: { width: '100%', aspectRatio: 1, marginBottom: 14 },
   feed: { width: 86, height: 86, borderRadius: 12 },
