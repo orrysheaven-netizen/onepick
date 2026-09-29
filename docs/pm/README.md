@@ -174,7 +174,7 @@ PM review는 계획·우선순위·승인 판단이 필요한 완료 경계에�
 
 ### 요청·판정 줄
 
-원래 작업 이슈 댓글의 **첫 줄**에 쓴다. 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다.
+원래 작업 이슈 댓글의 **첫 줄**(앞에 빈 줄 없이)에 쓴다. 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다. 둘째 줄 이후에 인용한 명령 줄은 workflow를 실행하지 않는다.
 
 ```text
 PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40자리 SHA|none>
@@ -197,6 +197,8 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 | `block` | `state:blocked` 전환, 사용자/외부 조치 대기 |
 | `user-approval` | 사용자 승인 게이트로 전달 (main merge, Production 등) |
 
+`PM_REVIEW_DONE`은 해당 `## PM 검토 대기` 댓글 **이후**에 작성되고, PR의 현재 head를 가리킬 때만 기록한다. 요청 요약보다 먼저 쓴 판정이나 이전 head에 대한 판정은 기록하지 않고 생략 사유를 남긴다. 이 경우 새 요약을 확인한 뒤 판정 줄을 다시 쓴다.
+
 판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다.
 
 ### 생성하지 않는 경우
@@ -206,3 +208,17 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 - 같은 (issue, pr, head)에 PM review가 이미 대기 중이거나 판정이 이미 기록됨
 - `handoff:*` 인계가 아직 대기 중
 - 신뢰되지 않은 작성자의 요청·marker
+
+### 이벤트 보존 (durable queue)
+
+같은 이슈에 요청·판정·CI gate 결과가 짧은 간격으로 겹쳐도 유실되지 않도록 두 단계로 처리한다.
+
+1. **enqueue** (동시성 제한 없음): 신뢰된 요청·판정·gate 댓글마다 원래 이슈에 bot marker를 한 번만 남긴다.
+   `<!-- onepick-pm-queue:pending source=comment-<id> kind=<required|done|gate> arg=<reason|decision> pr=<N|none> head=<SHA|none> -->`
+2. **drain** (저장소 단위 직렬화, 취소 없음): 이벤트 이슈와 댓글이 있는 모든 열린 이슈에서 `onepick-pm-queue:processed source=<id>`가 없는 pending marker를 원 댓글 작성 순서대로 처리한다. 결과 댓글(`PM 검토 대기`/`PM 판정 기록`/생략 사유)에 processed marker를 함께 남기므로 결과와 처리 상태가 한 댓글로 기록된다.
+
+- 대기 중인 drain run이 새 run으로 대체되거나 취소되어도 marker가 남아 다음 drain이 회수한다.
+- 같은 SOURCE_ID는 한 번만 접수·처리한다.
+- 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
+- `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
+- 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).
