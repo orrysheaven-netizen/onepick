@@ -1,6 +1,6 @@
 # Shared priority rules
 
-Before any OnePick work, read `docs/shared-working-rules.md` first. It contains the user's latest common rules for both ChatGPT/Codex and Claude. If it conflicts with older discussions or repository guidance, follow the newer user-approved document or instruction.
+Before any OnePick work, read `docs/shared-working-rules.md` first, then `docs/project-pm.md`, then the current priority section of GitHub issue #553 `[PM] OnePick 총괄 PM 운영·우선순위 대시보드`. These contain the user's latest common rules and PM priority for ChatGPT/Codex, Claude, QA, automation, and other OnePick work. If they conflict with older discussions or repository guidance, follow the newer user-approved rule or instruction. The user's latest explicit instruction always remains highest.
 
 # Agent rules for this repository
 
@@ -14,7 +14,7 @@ The primary checkout is shared by several concurrent agent sessions. Never check
 
 ChatGPT/Codex is the **default Product / Technical Owner and work coordinator**. Claude Code specializes in **Platform / Reliability, QA, and independent review**, and may implement work explicitly delegated by the user or the handoff queue. Workload is tracked by `size:S/M/L` points with a 60:40 Codex:Claude target. Temporary delegation to Claude (including delegation caused by GPT usage limits or availability) does not change the default authority model. High-risk changes require cross-review and user approval gates regardless of who implements them. GitHub is the source of truth, and agents must not implement the same feature in parallel. See `docs/ai-role-division.md`.
 
-At session start, read the `[AI Ops] OnePick 작업·인계 대시보드` issue first, then your `handoff:*` issues, then only the referenced task/PR. Avoid broad repository rereads unless the task requires them.
+At session start, after the shared-rules/PM preflight above, read #553's current PM priority first, then `[AI Ops] OnePick 작업·인계 대시보드` (#296), then your `handoff:*` issues, then only the referenced task/PR. PM priority decides what should be done first; #296 and handoff labels decide who is executing it. Avoid broad repository rereads unless the task requires them.
 
 Supabase migrations, RLS/GRANT/SECURITY DEFINER, Auth core, Storage policies, secret/permission handling, security-sensitive workflows, and destructive production data work are **high-risk areas, not permanent Claude-only areas**. Respect the current `owner:*`, `handoff:*`, and explicit user instruction. If Codex implements a high-risk change, Claude performs the narrow independent review; if Claude implements it, Codex performs the narrow independent review. Production apply, secret/permission changes, destructive data operations, and `main` merge remain user approval gates.
 
