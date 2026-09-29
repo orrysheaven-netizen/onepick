@@ -35,6 +35,11 @@ export class CommentService {
     };
   }
 
+  locateComment(commentId: string) {
+    if (!commentId) return Promise.resolve(null);
+    return this.readRepository.locateComment(commentId);
+  }
+
   async createComment(input: { pickId: string; userId: string; body: string }) {
     const body = normalizeBody(input.body);
     const [pick, profile] = await Promise.all([
