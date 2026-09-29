@@ -122,3 +122,13 @@ P0가 있으면 원칙적으로 신규 P2/P3 구현을 시작하지 않는다.
 - secret/environment/permission 변경
 - 파괴적 production 데이터 작업
 - 비용이 발생하는 신규 서비스/API 도입
+
+
+## 10. 관리자 조치 표기
+
+PM 보고에서 사용자가 직접 해야 하는 작업과 승인만 필요한 작업을 구분한다.
+
+- **관리자 승인 필요**: ChatGPT/Claude가 실행 가능하지만, 사용자 승인 게이트 때문에 실행 전 승인이 필요한 작업. 예: main merge, Production DB mode=apply, production Edge Function deploy.
+- **관리자 직접 수행 필요**: 계정 소유자만 가능한 UI 조작·인증·비밀값 입력·결제·MFA 등으로 AI가 대신 수행할 수 없는 작업. 예: OAuth token 재발급, GitHub Secret 입력/교체, MFA 완료, 외부 서비스 결제 승인.
+
+상태 보고에는 해당 사항이 있으면 별도 섹션으로 명시한다. 없으면 **관리자 직접 수행 필요: 없음**으로 표시한다.
