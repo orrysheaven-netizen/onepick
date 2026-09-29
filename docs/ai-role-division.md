@@ -3,7 +3,7 @@
 결정일: 2026-09-25.  
 PM 조직 전환 반영: 2026-09-29.
 
-OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 55% : Claude 45%를 참고선**으로 두되 고정 할당량으로 사용하지 않는다. 단순 작업 건수가 아니라 작업량 점수를 보조 지표로 사용하며, 실제 배정은 PM 우선순위·전문성·현재 가용 자원에 따라 동적으로 조정한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토를 주도하고, PM이 배정한 UX/Figma 정리, 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling 구현까지 적극적으로 담당할 수 있다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
+OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 55% : Claude 45%를 참고선**으로 두되 고정 할당량으로 사용하지 않는다. 단순 작업 건수가 아니라 작업량 점수를 보조 지표로 사용하며, 실제 배정은 PM 우선순위·전문성·현재 가용 자원에 따라 동적으로 조정한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토를 주도하고, PM이 배정한 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling 구현까지 적극적으로 담당할 수 있다. **Figma 직접 작업은 ChatGPT가 기본 담당하며 Claude는 독립 검수한다.** GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
@@ -45,11 +45,12 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - 보안 민감 CI/workflow 독립 검토
 - Codex M/L 및 고위험 PR 독립 리뷰
 - PM 또는 handoff로 명시적으로 위임받은 구현
-- 기존 Figma 화면 정리·Foundations 적용 등 UX 유지보수
+- Figma 화면의 UX 일관성·접근성·Foundations 준수·앱 정합성 독립 검수
 - 일반 앱/UI S/M 버그와 확정 Product/Figma 계약 반영
 - 성능 개선 및 성능 관련 리팩터링
 - QA 자동화·테스트 도구 구현
 - Release/운영 검증 도구·배포 정합성 도구 구현
+- Claude의 Figma 직접 편집은 사용자의 명시적 예외 위임 시에만 수행
 
 ## 고위험 영역
 
