@@ -19,7 +19,7 @@ import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
-import { splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
@@ -43,11 +43,13 @@ export default function PublicProfileScreen() {
   const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
   const socialSignIn = useSocialSignIn();
   // 실험실 themes stay off the main profile and its share card while the lab is on.
+  const profileCategories = categoriesQuery.data ?? [];
   const { main: mainPicks, lab: labPicks } = useMemo(
-    () => splitLabPicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.mainThemeCode, OnePickFeatures.lab),
+    () => splitLabPicks(query.data?.currentPicks ?? [], profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab),
     [query.data?.currentPicks, categoriesQuery.data],
   );
-  const visibleProfilePicks = profileScope === 'food' ? mainPicks : labPicks;
+  const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
+  const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
@@ -83,7 +85,7 @@ export default function PublicProfileScreen() {
   const handleShare = async () => {
     if (!query.data || isSharing) return;
     const { profile } = query.data;
-    const currentPicks = mainPicks;
+    const currentPicks = publicMainPicks;
     setIsSharing(true);
     setShareError(false);
     setCardNotice(null);
@@ -155,7 +157,7 @@ export default function PublicProfileScreen() {
             <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
           </View> : null}
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>음식 원픽</Text><Text style={styles.summaryNumber}>{mainPicks.length}개</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>음식 원픽</Text><Text style={styles.summaryNumber}>{publicMainPicks.length}개</Text></View>
           {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
           {OnePickFeatures.profileAi ? <ProfileAiComment
             profileId={query.data.profile.id}
