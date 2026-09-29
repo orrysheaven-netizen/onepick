@@ -9,13 +9,15 @@ import { OnePick } from '@/constants/onepick';
 
 // Preserve old shared links and login return paths without a second detail screen.
 export default function PickDetailScreen() {
-  const { pickId, notificationGroupId, notificationSnapshot, notificationKind, notificationReason, rootCommentId } = useLocalSearchParams<{
+  const { pickId, notificationGroupId, notificationSnapshot, notificationKind, notificationReason, rootCommentId, commentAfterTime, commentAfterId } = useLocalSearchParams<{
     pickId?: string;
     notificationGroupId?: string;
     notificationSnapshot?: string;
     notificationKind?: string;
     notificationReason?: string;
     rootCommentId?: string;
+    commentAfterTime?: string;
+    commentAfterId?: string;
   }>();
   const { user } = useAuthSession();
   const router = useRouter();
@@ -42,6 +44,8 @@ export default function PickDetailScreen() {
       ...(notificationKind ? { notificationKind } : {}),
       ...(notificationReason ? { notificationReason } : {}),
       ...(rootCommentId ? { rootCommentId } : {}),
+      ...(commentAfterTime ? { commentAfterTime } : {}),
+      ...(commentAfterId ? { commentAfterId } : {}),
     } }} />;
   }
   return (
