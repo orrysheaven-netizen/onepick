@@ -51,7 +51,10 @@ export default function HomeScreen() {
   const followDefaultPending = Boolean(followCountUserId) && followCountsQuery.isPending;
   const defaultFeedScope: 'all' | 'following' = (followCountsQuery.data?.followingCount ?? 0) > 0 ? 'following' : 'all';
   const [feedScopeChoice, setFeedScopeChoice] = useState<{ userId: string; scope: 'all' | 'following' } | null>(null);
-  const feedScope = feedScopeChoice?.userId === user?.id ? feedScopeChoice.scope : defaultFeedScope;
+  const feedScope = feedScopeChoice && feedScopeChoice.userId === user?.id ? feedScopeChoice.scope : defaultFeedScope;
+  const chooseFeedScope = (scope: 'all' | 'following') => {
+    if (user) setFeedScopeChoice({ userId: user.id, scope });
+  };
   const showFollowing = Boolean(followCountUserId) && !followDefaultPending && feedScope === 'following';
   // Initial MVP exposes only food Picks from physical stores. Online/recipe
   // remain in the data model for later rollout but never enter these feed pages.
@@ -142,7 +145,7 @@ export default function HomeScreen() {
         const selected = feedScope === scope;
         return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}
           accessibilityLabel={scope === 'all' ? '전체 원픽 보기' : '팔로잉 원픽 보기'}
-          onPress={() => setFeedScopeChoice({ userId: user.id, scope })}
+          onPress={() => chooseFeedScope(scope)}
           style={({ pressed }) => [styles.scopeTab, selected && styles.scopeTabSelected, pressed && styles.pressed]}>
           <Text style={[styles.scopeText, selected && styles.scopeTextSelected]}>{scope === 'all' ? '전체' : '팔로잉'}</Text>
         </Pressable>;
@@ -178,7 +181,7 @@ export default function HomeScreen() {
             action={{ label: '다시 불러오기', disabled: followingQuery.isFetching, onPress: refresh }} /> : null}
           {followingQuery.data && !followingItems.length ? <View style={styles.followingEmpty}>
             <StateCard title="아직 팔로잉 원픽이 없어요" text="프로필에서 팔로우한 사람이 원픽을 고르면 여기에 이유와 함께 보여요. 친구에게 내 프로필을 공유해 원픽으로 초대해보세요."
-              action={{ label: '전체 원픽 보기', onPress: () => setFeedScopeChoice({ userId: user.id, scope: 'all' }) }} />
+              action={{ label: '전체 원픽 보기', onPress: () => chooseFeedScope('all') }} />
             <Button variant="ghost" size="sm" label="내 프로필 공유하기" accessibilityLabel="내 프로필 공유하러 가기" onPress={() => router.push('/profile')} />
           </View> : null}
         </>}
