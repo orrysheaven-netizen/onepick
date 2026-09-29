@@ -21,6 +21,8 @@ function load(file, imports = {}) {
 
 // --- Channel rules -----------------------------------------------------------
 const channels = load('lib/items/pickChannel.ts');
+const constants = require('./design-tokens.cjs');
+assert.equal(constants.OnePickFeatures.foodChannelPicker, false, 'Initial MVP hides future food channel choices');
 assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인', '레시피']);
 assert.equal(channels.parsePickChannel('recipe'), 'offline', 'Search state never becomes recipe; the recipe chip opens the link flow instead');
 const findScreen = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
@@ -30,6 +32,10 @@ assert.match(channels.PICK_CHANNEL_OPTIONS[0].description, /배달/, '매장 exp
 assert.equal(channels.parsePickChannel('online'), 'online');
 assert.equal(channels.parsePickChannel('delivery'), 'offline', 'Unknown route values fall back to 매장');
 assert.equal(channels.parsePickChannel(undefined), 'offline');
+const recipeScreen = fs.readFileSync(path.join(__dirname, '../src/app/pick/recipe.tsx'), 'utf8');
+assert.match(recipeScreen, /!OnePickFeatures\.foodChannelPicker/);
+const requestScreen = fs.readFileSync(path.join(__dirname, '../src/app/pick/request.tsx'), 'utf8');
+assert.match(requestScreen, /!OnePickFeatures\.foodChannelPicker && params\.channel === 'online'/);
 for (const url of ['https://s.baemin.com/store/1', 'https://baemin.com', 'https://web.coupangeats.com/shop/1', 'https://www.yogiyo.co.kr/x', 'https://ddangyo.com/y', 'https://S.BAEMIN.COM./z']) {
   assert.equal(channels.isDeliveryAppUrl(url), true, `${url} is a delivery app`);
 }
@@ -122,8 +128,25 @@ const press = (label) => { const button = presses.find((p) => p.accessibilityLab
 const storeChip = () => presses.find((p) => String(p.accessibilityLabel).startsWith('매장:'));
 const onlineChip = () => presses.find((p) => String(p.accessibilityLabel).startsWith('온라인:'));
 
-params = { categoryId: 'dogani', query: '곰탕' };
+// Initial public MVP: food is pinned to 매장 even if a crafted route asks for online.
+params = { categoryId: 'dogani', query: '곰탕', channel: 'online' };
 let page = render();
+assert.doesNotMatch(page, /어디서 주문했나요|온라인:/, 'Public MVP exposes no food channel picker');
+assert.equal(onlineChip(), undefined);
+assert.equal(placeSearchArgs[2], true, 'Crafted channel=online still uses the public 매장 search');
+assert.match(page, /○○곰탕 본점/);
+assert.doesNotMatch(page, /○○곰탕 온라인몰/);
+
+state = []; refs = []; destination = undefined; params = {};
+page = render();
+assert.doesNotMatch(page, /레시피가 원픽인가요|YouTube 링크로 레시피 등록|매장이나 온라인/,
+  'Menu-first public entry exposes only the store continuation');
+
+// Future rollout remains implemented behind the centralized feature gate.
+constants.OnePickFeatures.foodChannelPicker = true;
+state = []; refs = []; destination = undefined;
+params = { categoryId: 'dogani', query: '곰탕' };
+page = render();
 assert.match(page, /어디서 주문했나요/);
 assert.equal(storeChip().accessibilityState?.selected, true, 'Restaurant registration starts on 매장');
 assert.equal(placeSearchArgs[2], true, '매장 searches the place catalog');
@@ -218,4 +241,4 @@ linkPresses.find((p) => textOf(p.children) === '메뉴 고르고 매장 찾기')
 assert.equal(destination, '/pick/find', 'The guidance leads to the menu → 매장 flow');
 assert.equal(linkCalls, 0);
 
-console.log('Pick channel choice checks passed: delivery-as-store rule, DB host parity, 매장/온라인 search scopes, online selection, seller request handoff, menu-first registration and delivery-link guidance.');
+console.log('Pick channel choice checks passed: MVP store-only gate plus preserved future 매장/온라인/레시피 flows and delivery guidance.');
