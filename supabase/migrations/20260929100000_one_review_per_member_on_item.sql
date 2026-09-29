@@ -8,10 +8,11 @@
 -- item_review_page now returns, per member, only their newest review on the
 -- item: the current Pick if there is one, otherwise the most recently started
 -- ended one. "Newest" is judged against every row of that member on the item
--- that could be shown (active, replaced, removed, and needs_review only to its
--- owner), including deleted reviews, so deleting the newest review does not
--- bring an older one back. Tombstones (deleted reviews kept for their comments)
--- carry no author and are still returned so their conversations stay reachable.
+-- that can decide the viewer's winner (active, replaced, removed, hidden, and
+-- needs_review only to its owner). Deleted and hidden rows still participate in
+-- winner selection so deletion/moderation never resurrects an older review.
+-- A winning deleted review is returned only while comments keep its tombstone
+-- visible; tombstones carry no author.
 --
 -- Older reviews are not deleted and stay reachable by their own links
 -- (/pick/[pickId], inbox, comment_locate); only the item list drops them.
@@ -68,23 +69,20 @@ begin
            p.status in ('active', 'needs_review') as is_current,
            p.review_deleted_at is not null as is_deleted
     from public.picks p
-    where p.item_id = p_item_id
-      and private.pick_thread_visible(p, v_viewer)
-      and (
-        p.review_deleted_at is not null
-        or not exists (
-          select 1 from public.picks n
-          where n.user_id = p.user_id
-            and n.item_id = p.item_id
-            and n.id <> p.id
-            and (
-              n.status in ('active', 'replaced', 'removed')
-              or (n.status = 'needs_review' and n.user_id = v_viewer)
-            )
-            and (n.status in ('active', 'needs_review'), n.started_at, n.id)
-              > (p.status in ('active', 'needs_review'), p.started_at, p.id)
+    join (
+      select distinct on (candidate.user_id) candidate.id
+      from public.picks candidate
+      where candidate.item_id = p_item_id
+        and (
+          candidate.status in ('active', 'replaced', 'removed', 'hidden')
+          or (candidate.status = 'needs_review' and candidate.user_id = v_viewer)
         )
-      )
+      order by candidate.user_id,
+               (candidate.status in ('active', 'needs_review')) desc,
+               candidate.started_at desc,
+               candidate.id desc
+    ) winner on winner.id = p.id
+    where private.pick_thread_visible(p, v_viewer)
   ) r
   join public.profiles pr on pr.id = r.user_id
   join public.categories c on c.id = r.category_id
@@ -96,6 +94,6 @@ begin
 end;
 $$;
 comment on function public.item_review_page(uuid, boolean, timestamptz, uuid, integer) is
-  'Item detail reviews, one per member (their newest: current Pick, else latest ended), current first, keyset-paged by (is_current, started_at, id). Allowlisted fields only: status is reduced to is_current, deleted reviews are tombstones (is_deleted, no author or text) kept while comments exist. comment_count, can_comment and can_manage are for the caller. Hidden, others'' needs_review, suspended and blocked members excluded.';
+  'Item detail reviews, at most one per member: viewer-specific winner is current Pick first, else newest row; hidden/deleted winners suppress older reviews, and a deleted winner is returned only while comments keep its tombstone visible. Current first, keyset-paged by (is_current, started_at, id). Allowlisted fields only: status is reduced to is_current; comment_count, can_comment and can_manage are for the caller. Hidden, others'' needs_review, suspended and blocked members excluded from output.';
 
 commit;
