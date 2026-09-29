@@ -7,6 +7,8 @@ export const queryKeys = {
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
+    recentMenus: (groupCategoryId: string | null = null) =>
+      ['home', 'recent-menu-ranking', groupCategoryId ?? 'all-groups'] as const,
   },
   explore: {
     all: ['explore'] as const,
