@@ -21,6 +21,10 @@ export class HomeService {
     return { currentPicks, editorialItems };
   }
 
+  async getRecentMenuRanking(groupCategoryId: string | null = null, limit = 4) {
+    return this.readRepository.getFoodMenuRecentRanking(groupCategoryId, limit);
+  }
+
   // Home is people-first: each card is one person's current Pick with their
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
