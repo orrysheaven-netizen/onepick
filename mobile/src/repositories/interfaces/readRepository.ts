@@ -84,6 +84,18 @@ export interface HomePickPage {
   nextCursor: ReadCursor | null;
 }
 
+/** A food leaf ranked by distinct users who started their current Pick in the last 7 days. */
+export interface FoodMenuRecentRankingItem {
+  categoryId: string;
+  categoryName: string;
+  groupCategoryId: string | null;
+  pickCount: number;
+  rank: number;
+  isTied: boolean;
+  coverItemId: string | null;
+  thumbnailUrl: string | null;
+}
+
 export interface CategoryTopItem {
   itemId: string;
   name: string;
@@ -208,6 +220,8 @@ export interface ReadRepository {
   getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
+  /** Public 7-day food-menu ranking; count covers channels together by user. */
+  getFoodMenuRecentRanking(groupCategoryId?: string | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
