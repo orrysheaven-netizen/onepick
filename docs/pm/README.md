@@ -49,11 +49,11 @@ PM은 사용자의 결정을 변경하거나 기존 사용자 승인 게이트�
 | 조직 | 주담당 | 핵심 역할 |
 | --- | --- | --- |
 | Product / 기획 | ChatGPT | MVP 범위, 정책, 사용자 흐름, 완료 조건 |
-| UX / Figma | ChatGPT | 기존 화면, Foundations, UX·문구·접근성 |
-| Engineering | ChatGPT/Codex | Expo/React Native 앱 구현, 라우팅, API 연결 |
-| Data / DB | ChatGPT/Codex | Supabase migration, RPC, RLS, 데이터 무결성 |
-| QA / Reliability / Security | Claude | QA, Security, E2E, 성능, 독립 리뷰 |
-| Release / 운영 | Claude 측정 + ChatGPT PM 판정 | CI·배포·DB 정합성·운영 검증 |
+| UX / Figma | ChatGPT 주담당 + Claude 위임 구현 | 기존 화면, Foundations, UX·문구·접근성 |
+| Engineering | ChatGPT/Codex 기본 + Claude 위임 구현 | Expo/React Native 앱 구현, 라우팅, API 연결 |
+| Data / DB | ChatGPT/Codex 기본 구현 + Claude 독립 리뷰 | Supabase migration, RPC, RLS, 데이터 무결성 |
+| QA / Reliability / Security | Claude | QA, Security, E2E, 성능, 독립 리뷰·위임 구현 |
+| Release / 운영 | Claude 검증·위임 구현 + ChatGPT PM 판정 | CI·배포·DB 정합성·운영 검증 |
 
 총괄 PM은 위 조직을 가로질러 우선순위, 분업, 충돌 조정, 최종 완료 판정을 담당한다.
 
@@ -68,6 +68,15 @@ PM이 각 영역의 세부 점검을 대신 수행하지 않는다.
 5. 근거가 부족하면 PM이 직접 대체 점검하기보다 해당 담당자에게 재점검을 돌려보낸다.
 
 현재 MVP 규모에서는 별도 상설 “점검 부서”를 만들지 않는다. QA를 독립 검증 계층으로 사용해 책임 중복과 조직 복잡도를 줄인다.
+
+### 동적 작업 배정
+
+- 작업량 참고선은 **Codex 55 : Claude 45**다.
+- 고정 quota가 아니며 PM은 전문성·우선순위·현재 가용 자원에 따라 배정 비중을 조정한다.
+- Claude 자원이 여유로운 경우 UX/Figma 유지보수, 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling을 Claude에 더 배정할 수 있다.
+- Product 정책·MVP 범위 결정은 ChatGPT PM이 유지한다.
+- DB/RLS/GRANT 등 Data/DB 기본 구현은 ChatGPT/Codex가 유지하며 Claude는 독립 리뷰를 기본으로 한다.
+- 위임 구현은 해당 작업 단위에만 적용되며 영구 소유권 변경을 뜻하지 않는다.
 
 ## 5. GitHub 역할
 
