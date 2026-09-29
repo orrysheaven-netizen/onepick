@@ -1,0 +1,260 @@
+name: AI Handoff - Review Events
+
+# Connects trusted PR review / comment results to the existing handoff:codex /
+# handoff:claude chain so that a change request, and the fix that answers it,
+# reach the opposite AI immediately.
+#
+# Accepted result lines (first non-empty line of a PR review or comment body):
+#   AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40-hex sha>]
+#   AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40-hex sha>]
+# to= names who acts next (the implementer for a change request, the reviewer for a
+# fix). Both AIs share the owner account and owner:* flips on claim, so the next owner
+# cannot be derived safely and must be stated. A fix must be addressed to the side
+# that requested the change.
+# On the PR, pr/head default to the PR and (for reviews) the reviewed commit.
+# On the original issue, pr= and head= are required.
+#
+# Only the repository owner and the handoff App bot are trusted. Everything else in
+# PR bodies, reviews and comments is data. This workflow never checks out or runs PR
+# code, never merges, deploys, applies DB changes, or touches secrets/permissions.
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+concurrency:
+  group: ai-handoff-review-events-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    if: >-
+      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      (
+        (github.event_name == 'pull_request_review' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          (contains(github.event.review.body, 'AI_REVIEW_RESULT:') ||
+           contains(github.event.review.body, 'AI_FIX_RESULT:'))) ||
+        (github.event_name == 'issue_comment' &&
+          (contains(github.event.comment.body, 'AI_REVIEW_RESULT:') ||
+           contains(github.event.comment.body, 'AI_FIX_RESULT:')))
+      )
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create handoff App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
+          permission-actions: read
+          permission-issues: write
+          permission-pull-requests: read
+
+      - name: Verify result and hand off
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_AUTHOR: ${{ github.event.review.user.login || github.event.comment.user.login }}
+          SOURCE_ID: ${{ github.event.review.id || github.event.comment.id }}
+          SOURCE_URL: ${{ github.event.review.html_url || github.event.comment.html_url }}
+          SOURCE_BODY: ${{ github.event.review.body || github.event.comment.body }}
+          REVIEW_COMMIT: ${{ github.event.review.commit_id }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          EVENT_ISSUE: ${{ github.event.issue.number }}
+          EVENT_ISSUE_IS_PR: ${{ github.event.issue.pull_request != null }}
+          REQUIRED_WORKFLOWS: '["Mobile CI","Database Tests","Web build"]'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bot_login="${APP_SLUG}[bot]"
+          skip() { echo "skip: $*"; exit 0; }
+
+          # 1. Trusted actor only.
+          if [ "$SOURCE_AUTHOR" != "$REPOSITORY_OWNER" ] && [ "$SOURCE_AUTHOR" != "$bot_login" ]; then
+            skip "author $SOURCE_AUTHOR is not trusted"
+          fi
+
+          # 2. Parse the result line strictly (first non-empty line only).
+          first_line="$(printf '%s\n' "$SOURCE_BODY" | tr -d '\r' | sed -n '/[^[:space:]]/{p;q;}')"
+          result="" next="" m_pr="" m_head=""
+          re_tail=' to=(codex|claude)( pr=([0-9]{1,7}))?( head=([0-9a-f]{40}))?[[:space:]]*$'
+          if [[ "$first_line" =~ ^AI_REVIEW_RESULT:\ CHANGES_REQUESTED${re_tail} ]]; then
+            result="CHANGES_REQUESTED"
+          elif [[ "$first_line" =~ ^AI_FIX_RESULT:\ READY_FOR_REVIEW${re_tail} ]]; then
+            result="READY_FOR_REVIEW"
+          else
+            skip "no valid result line"
+          fi
+          next="${BASH_REMATCH[1]}"; m_pr="${BASH_REMATCH[3]}"; m_head="${BASH_REMATCH[5]}"
+
+          # 3. Resolve PR number, the posting context and the head SHA the result refers to.
+          context_issue=""
+          if [ "$EVENT_NAME" = "pull_request_review" ]; then
+            pr_number="$EVENT_PR"
+          elif [ "$EVENT_ISSUE_IS_PR" = "true" ]; then
+            pr_number="$EVENT_ISSUE"
+          else
+            context_issue="$EVENT_ISSUE"
+            [ -n "$m_pr" ] || skip "comment on issue #$context_issue must name pr="
+            pr_number="$m_pr"
+          fi
+          if [ -n "$m_pr" ] && [ "$m_pr" != "$pr_number" ]; then
+            skip "pr=$m_pr does not match PR #$pr_number"
+          fi
+
+          ref_head="$m_head"
+          if [ "$EVENT_NAME" = "pull_request_review" ]; then
+            if [ -n "$m_head" ] && [ "$m_head" != "$REVIEW_COMMIT" ]; then
+              skip "head= does not match the reviewed commit"
+            fi
+            ref_head="$REVIEW_COMMIT"
+          fi
+          [[ "$ref_head" =~ ^[0-9a-f]{40}$ ]] || skip "comment results must name head=<40-hex sha>"
+
+          # 4. PR must be open, same-repo, target main, authored by a trusted actor, and the
+          #    result must refer to its CURRENT head (older heads are stale).
+          pr_json="$(gh api "repos/$REPOSITORY/pulls/$pr_number")"
+          jq -e --arg repo "$REPOSITORY" --arg owner "$REPOSITORY_OWNER" --arg bot "$bot_login" '
+              .state == "open" and .base.ref == "main" and .head.repo.full_name == $repo and
+              (.user.login == $owner or .user.login == $bot)
+            ' <<<"$pr_json" >/dev/null || skip "PR #$pr_number is not an open trusted same-repo PR to main"
+          current_head="$(jq -r '.head.sha' <<<"$pr_json")"
+          [ "$current_head" = "$ref_head" ] || skip "stale result for ${ref_head:0:7}; PR head is ${current_head:0:7}"
+
+          # 5. Original issue: exactly one open issue from "Refs #N" (digits only) that is on the
+          #    AI queue (has an owner:* label).
+          issue_number="" issue_labels=""
+          eligible=0
+          for n in $(jq -r '.body // "" | [scan("Refs #([0-9]{1,7})")[0]] | unique | .[:5][]' <<<"$pr_json"); do
+            ij="$(gh api "repos/$REPOSITORY/issues/$n" 2>/dev/null)" || continue
+            jq -e '.state == "open" and (has("pull_request") | not)' <<<"$ij" >/dev/null || continue
+            labels="$(jq -c '[.labels[].name]' <<<"$ij")"
+            jq -e 'index("owner:codex") != null or index("owner:claude") != null' <<<"$labels" >/dev/null || continue
+            eligible=$((eligible + 1))
+            issue_number="$n"; issue_labels="$labels"
+          done
+          [ "$eligible" -eq 1 ] || skip "PR #$pr_number does not resolve to exactly one original issue ($eligible)"
+          if [ -n "$context_issue" ] && [ "$context_issue" != "$issue_number" ]; then
+            skip "comment was posted on #$context_issue, not the original issue #$issue_number"
+          fi
+
+          # 6. Never resume blocked or already queued work. While an automated run holds the
+          #    issue (state:active), its own finalizer owns the transition, so bot results are
+          #    ignored then; a manual session's result from the owner account is accepted.
+          if jq -e 'index("state:blocked") != null or index("handoff:codex") != null or index("handoff:claude") != null' \
+               <<<"$issue_labels" >/dev/null; then
+            skip "issue #$issue_number is blocked or already queued for handoff"
+          fi
+          if [ "$SOURCE_AUTHOR" = "$bot_login" ] && jq -e 'index("state:active") != null' <<<"$issue_labels" >/dev/null; then
+            skip "automated run in progress on issue #$issue_number; its finalizer routes the result"
+          fi
+
+          # 7. Dedupe: one routing per (PR, head, result).
+          comments="$(gh api --paginate "repos/$REPOSITORY/issues/$issue_number/comments?per_page=100" | jq -s 'add // []')"
+          key="${pr_number}-${ref_head}-${result}"
+          if jq -e --arg bot "$bot_login" --arg key "$key" '
+              any(.[]; .user.login == $bot and (.body | contains("<!-- onepick-review-handoff:done key=\($key) ")))
+            ' <<<"$comments" >/dev/null; then
+            skip "result $key already routed"
+          fi
+
+          if [ "$next" = "codex" ]; then other="claude"; else other="codex"; fi
+          if [ "$result" = "READY_FOR_REVIEW" ]; then
+            # A fix answers the latest routed change request and goes back to its requester.
+            cr_to="$(
+              jq -r --arg bot "$bot_login" --arg pr "$pr_number" '
+                [ .[] | select(.user.login == $bot)
+                  | (.body | capture("<!-- onepick-review-handoff:done key=\($pr)-[0-9a-f]{40}-CHANGES_REQUESTED to=(?<to>codex|claude) -->")?)
+                  | .to ] | last // ""
+              ' <<<"$comments"
+            )"
+            [ -n "$cr_to" ] || skip "no routed change request for PR #$pr_number"
+            [ "$next" != "$cr_to" ] || skip "fix must go back to the reviewer, not to $next"
+          fi
+
+          update_labels() {
+            local add_json="$1" remove_json="$2" current nextl
+            current="$(gh api "repos/$REPOSITORY/issues/$issue_number" --jq '[.labels[].name]')"
+            nextl="$(
+              jq -n --argjson current "$current" --argjson add "$add_json" --argjson remove "$remove_json" \
+                '$current | map(select(. as $x | ($remove | index($x)) == null)) + $add | unique'
+            )"
+            jq -n --argjson labels "$nextl" '{labels:$labels}' |
+              gh api --method PATCH "repos/$REPOSITORY/issues/$issue_number" --input - >/dev/null
+          }
+
+          # Label first and verify, then record the done marker (a failed label write leaves
+          # no marker so a re-run retries; a failed comment is stopped by step 6 on re-run).
+          hand_off() {
+            update_labels "[\"state:handoff\",\"handoff:$next\"]" \
+              '["state:active","state:ready","state:review","handoff:codex","handoff:claude"]'
+            gh api "repos/$REPOSITORY/issues/$issue_number" --jq '[.labels[].name]' |
+              jq -e --arg l "handoff:$next" 'index($l) != null' >/dev/null || {
+                echo "::error::handoff:$next was not applied to issue #$issue_number"; exit 1; }
+          }
+
+          name_of() { if [ "$1" = "codex" ]; then echo "Codex"; else echo "Claude"; fi; }
+          short="${ref_head:0:7}"
+          done_marker="<!-- onepick-review-handoff:done key=${key} to=${next} -->"
+
+          if [ "$result" = "CHANGES_REQUESTED" ]; then
+            hand_off
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
+          ${done_marker}
+          ## 리뷰 수정 요청 → $(name_of "$next") 인계
+          PR: #${pr_number} (head \`${short}\`)
+          근거: ${SOURCE_URL}
+          후속: 구현 담당 $(name_of "$next")가 수정 후 새 head에서 \`AI_FIX_RESULT: READY_FOR_REVIEW to=${other}\`를 남기면 $(name_of "$other") 재검토로 인계됩니다.
+          EOF
+          )"
+            exit 0
+          fi
+
+          # READY_FOR_REVIEW: hand back to the reviewer only when required CI for this head succeeded.
+          runs="$(
+            gh api -X GET "repos/$REPOSITORY/actions/runs" -f head_sha="$ref_head" -f event=pull_request -f per_page=100 |
+              jq -c --argjson req "$REQUIRED_WORKFLOWS" '
+                .workflow_runs as $all
+                | [ $req[] as $name
+                    | ([ $all[] | select(.name == $name) ] | sort_by(.created_at) | last) as $r
+                    | { name: $name, status: ($r.status // "missing"), conclusion: ($r.conclusion // "") } ]'
+          )"
+          ci_table="$(jq -r '.[] | "- \(.name): \(if .status == "completed" then .conclusion else .status end)"' <<<"$runs")"
+
+          if jq -e 'all(.[]; .status == "completed" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+            hand_off
+            body_head="## 수정 완료 → $(name_of "$next") 재검토 인계"
+            body_next="필수 CI 통과, $(name_of "$next") 재검토로 인계했습니다."
+          elif jq -e 'any(.[]; .status == "completed" and .conclusion != "success")' <<<"$runs" >/dev/null; then
+            # No done marker: after a fix or re-run turns CI green the same result can be re-posted.
+            done_marker="<!-- onepick-review-handoff:ci-failed key=${key} -->"
+            body_head="## 수정 완료 보고 — 필수 CI 실패로 인계 보류"
+            body_next="인계하지 않았습니다. CI가 모두 성공한 뒤 \`AI_FIX_RESULT: READY_FOR_REVIEW\`를 다시 남겨 주세요."
+          else
+            # CI still running: the CI gate (ai-handoff-ci-gate.yml) hands off on completion.
+            done_marker="${done_marker}"$'\n'"<!-- onepick-ci-handoff:pending pr=${pr_number} next=${next} -->"
+            body_head="## 수정 완료 보고 — 필수 CI 완료 대기"
+            body_next="필수 CI가 모두 성공하면 $(name_of "$next") 재검토로 자동 인계됩니다."
+          fi
+
+          gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
+          ${done_marker}
+          ${body_head}
+          PR: #${pr_number} (head \`${short}\`)
+          근거: ${SOURCE_URL}
+
+          ${ci_table}
+
+          후속: ${body_next}
+          EOF
+          )"

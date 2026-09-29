@@ -74,6 +74,22 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 - Production DB `mode=apply`, production Edge Function 배포, secret/권한 변경, 파괴적 데이터 작업, `main` 병합은 자동화하지 않고 사용자 승인 게이트를 유지한다.
 - 자기 PR을 스스로 승인하거나 병합하지 않는다.
 
+### 리뷰 결과 자동 인계
+
+PR 리뷰 본문이나 댓글의 **첫 줄**에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
+
+```text
+AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+```
+
+- `to=`는 다음에 행동할 쪽이다. 수정 요청은 구현 담당, 수정 완료는 수정을 요청했던 리뷰 담당이다. 두 AI가 같은 GitHub 계정을 쓰고 claim 시 `owner:*`가 바뀌므로 자동으로 추론하지 않는다.
+- 저장소 소유자 계정과 handoff App bot의 결과 줄만 인정한다. PR은 열린 same-repo `main` 대상이어야 하고, PR 본문의 `Refs #N` 중 `owner:*`가 붙은 열린 이슈가 정확히 하나여야 한다.
+- 결과는 PR의 **현재 head**에 대한 것이어야 한다. PR 리뷰는 리뷰한 커밋을 쓰고, 댓글은 `head=`가 필수다. 원래 이슈에 남길 때는 `pr=`도 필수다.
+- `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다. 자동 실행이 진행 중(`state:active`)일 때 bot이 남긴 결과는 해당 finalizer가 처리하므로 무시한다.
+- 같은 (PR, head, 결과)는 한 번만 인계한다. 수정 완료는 먼저 처리된 수정 요청이 있어야 하며 그 요청자에게만 돌아간다.
+- 수정 완료는 필수 CI가 모두 성공한 경우에만 즉시 인계한다. CI가 진행 중이면 CI gate 대기 marker를 남겨 완료 시 인계하고, 실패면 인계하지 않고 기록만 한다.
+
 ## 작업 이슈와 인계
 
 별도 완료 리포트 이슈를 만들지 않는다. **원래 작업 이슈가 작업 기록과 인계의 단일 원본**이다.
