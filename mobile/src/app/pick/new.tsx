@@ -265,7 +265,7 @@ export default function NewPickScreen() {
         oneLineReview: trimmedReview,
         requestId,
         itemId: itemId ?? undefined,
-        catalogId: store.kind === 'place' && !itemId ? store.catalogId : undefined,
+        catalogId: pickScope !== 'brand' && store.kind === 'place' && !itemId ? store.catalogId : undefined,
         providerId: store.kind === 'seller' && !itemId ? store.providerId : undefined,
         brandId: pickScope === 'brand' && !itemId ? preflight?.brand?.brandId : undefined,
         newPlace: store.kind === 'new' ? {
