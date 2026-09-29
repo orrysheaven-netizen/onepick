@@ -109,6 +109,58 @@ class AssemblyTest(unittest.TestCase):
         box.stage(report)
         with self.assertRaisesRegex(GateError, 'different-report'): box.stage(changed)
 
+    def test_artifact_links_are_kept_and_restricted(self):
+        self.collected()
+        pr = 'https://github.com/orrysheaven-netizen/onepick/pull/578'
+        comment = pr + '#issuecomment-5901230626'
+        report = assemble(self.root, self.request, self.request['base_sha'], 'synthetic', [pr, comment])
+        self.assertIn('link:' + pr, report['artifacts'])
+        self.assertIn('link:' + comment, report['artifacts'])
+        for bad in (['https://github.com/other/repo/pull/1'],
+                    ['http://github.com/orrysheaven-netizen/onepick/pull/1'],
+                    [pr + ')](https://evil.example'],
+                    [pr + '\n@everyone'],
+                    ['https://github.com/orrysheaven-netizen/onepick/pull/1/files'],
+                    [pr, pr],
+                    [pr + '#issuecomment-%d' % i for i in range(6)]):
+            with self.assertRaisesRegex(GateError, 'invalid-artifact-link'):
+                assemble(self.root, self.request, self.request['base_sha'], 'synthetic', bad)
+
+    def test_synthetic_headline_visible_and_real_record_unlabelled(self):
+        self.collected()
+        box = Outbox(self.root / 'reports')
+        synthetic = publish(box, box.stage(self.build()), None)['body'].split('\n')
+        self.assertTrue(synthetic[0].startswith('<!-- onepick-report:'))
+        self.assertEqual(synthetic[1], 'ONEPICK_REPORT: SYNTHETIC/TEST automated operator publication')
+        self.assertIn('[SYNTHETIC/TEST]', synthetic[2])
+        real = publish(box, box.stage(self.build('worker-record')), None)['body'].split('\n')
+        self.assertEqual(real[1], 'ONEPICK_REPORT: automated operator publication')
+        self.assertNotIn('SYNTHETIC/TEST', '\n'.join(real))
+
+
+class SyntheticPreviewTest(unittest.TestCase):
+    def test_offline_rehearsal_binds_head_and_never_posts(self):
+        from synthetic_preview import build
+        head = 'c' * 40
+        with tempfile.TemporaryDirectory() as temp:
+            out = build(Path(temp) / 'run', head,
+                        ['https://github.com/orrysheaven-netizen/onepick/pull/578'])
+            self.assertEqual((out['real_model_calls'], out['fake_process_calls']), (0, 1))
+            self.assertEqual(out['worker_state'], 'pm-review')
+            body = out['preview_body']
+            self.assertIn('SYNTHETIC/TEST', body.split('\n')[1])
+            self.assertIn('"head": "%s"' % head, body)
+            self.assertIn('Task tests/CI NOT RUN', body)
+            self.assertNotIn('Offline fixture review', body)  # model prose stays local
+            box = Outbox(out['outbox'])
+            receipt = box.get(out['event_id'])[1]
+            self.assertEqual((receipt['state'], receipt['report_url']), ('report-stored', None))
+            self.assertNotIn('github_publication', receipt)
+            with self.assertRaisesRegex(GateError, 'not-empty'):
+                build(Path(temp) / 'run', head)
+            with self.assertRaisesRegex(GateError, 'invalid-sha'):
+                build(Path(temp) / 'other', 'C' * 40)
+
 
 if __name__ == '__main__':
     unittest.main()

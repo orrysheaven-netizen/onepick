@@ -13,12 +13,20 @@ import sqlite3
 from adapter import LIMIT, MODEL, GateError, digest, encode, read_json, require, validate
 from report_outbox import Outbox, report_id
 
+# Deliverable links: this repository's PR/issue pages or one of their comments only.
+LINK = re.compile(r'https://github\.com/orrysheaven-netizen/onepick/(?:pull|issues)/[0-9]{1,7}'
+                  r'(?:#issuecomment-[0-9]{1,12})?')
+MAX_LINKS = 5
+
 STATES = {'pm-review', 'failed', 'cancelled', 'timed-out', 'auth-blocked',
           'limit-blocked', 'unknown-outcome'}
 
 
-def assemble(spool, request, expected_head, kind):
+def assemble(spool, request, expected_head, kind, links=()):
     require(kind in {'synthetic', 'worker-record'}, 'invalid-record-kind')
+    links = list(links)
+    require(len(links) <= MAX_LINKS and len(set(links)) == len(links) and
+            all(isinstance(link, str) and LINK.fullmatch(link) for link in links), 'invalid-artifact-link')
     request_hash = validate(request)
     require(request['base_sha'] == expected_head, 'unexpected-source-head')
     root = Path(spool).resolve(strict=True)
@@ -71,6 +79,8 @@ def assemble(spool, request, expected_head, kind):
         require(receipt.get('output') is None and 'output_sha256' not in receipt,
                 'unexpected-failure-output')
         checks.append(f'Worker stopped with state={state}; reason={reason}; no successful result inferred.')
+    # Links are operator-supplied references, not evidence that the linked work passed.
+    artifacts += [f'link:{link}' for link in links]
     label = 'SYNTHETIC' if kind == 'synthetic' else 'WORKER RECORD (local integrity checked)'
     report = dict(version=1, repository=request['repository'], task_id=task,
                   source_id=('synthetic-' if kind == 'synthetic' else 'worker-') + request_hash,
@@ -94,9 +104,12 @@ def main():
     parser.add_argument('--expected-head', required=True)
     parser.add_argument('--kind', choices=['synthetic', 'worker-record'], required=True)
     parser.add_argument('--outbox', required=True)
+    parser.add_argument('--artifact-link', action='append', default=[],
+                        help=f'PR/issue(/comment) URL in this repository; up to {MAX_LINKS}')
     args = parser.parse_args()
     try:
-        report = assemble(args.spool, read_json(args.request)[0], args.expected_head, args.kind)
+        report = assemble(args.spool, read_json(args.request)[0], args.expected_head, args.kind,
+                          args.artifact_link)
         outbox = Outbox(args.outbox)
         event = outbox.stage(report)
         print(json.dumps({'event_id': event, 'report': report, 'state': 'report-stored'}, ensure_ascii=False))

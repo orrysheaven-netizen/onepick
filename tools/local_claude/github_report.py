@@ -49,7 +49,13 @@ def render(event, report):
     for char in ('`', '<', '>', '@'):
         data = data.replace(char, '\\u%04x' % ord(char))
     marker = f'<!-- onepick-report:{event} sha256:{digest(encode(report))} -->'
-    body = (marker + '\nONEPICK_REPORT: automated operator publication\n\n'
+    # Label from the validated source_id namespace, never from free report text, so a
+    # synthetic fixture is visibly a test on the first line the receiver reads.
+    synthetic = report['source_id'].startswith('synthetic-')
+    headline = ('ONEPICK_REPORT: SYNTHETIC/TEST automated operator publication\n'
+                '[SYNTHETIC/TEST] 합성 시험 보고입니다. 실제 Claude 실행·작업 완료·승인이 아닙니다.\n\n'
+                if synthetic else 'ONEPICK_REPORT: automated operator publication\n\n')
+    body = (marker + '\n' + headline +
             'Authored automatically by the Engineering outbox using the existing '
             'operator account. Not a human-written approval or proof of task completion.\n'
             'Receiver boundary only; no PM-2 forwarding or execution request.\n\n'

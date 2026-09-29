@@ -30,7 +30,8 @@ python -m unittest discover -s tools/local_claude -p 'test_*.py' -v
 python tools/local_claude/offline_demo.py --directory C:/approved-local-demo
 ```
 
-The first command passed 23 tests. The second is an optional one-shot synthetic
+The first command originally passed 23 tests on Windows. Current suite status is in
+"Worker result assembly" below (Linux combined run; Windows not re-run). The second is an optional one-shot synthetic
 demo; use a fresh directory, and do not delete a ledger to reset a real budget.
 Tests cover successful collection, auth/limit/nonzero/malformed responses, scope
 and hash rejection, duplicate task/approval, claim contention, crash recovery
@@ -119,7 +120,16 @@ PM confirmed no official send-to-PM-2 tool in the receiver and no event destinat
 retargeting. Automatic receiver → PM-2 forwarding is unsupported in this configuration;
 stop further cross-chat probes/tests. Receipt is not PM approval or full task handoff.
 
-## #567 handoff package — prepared locally, not transmitted
+## #567 handoff package — SUPERSEDED, do not transmit
+
+> Status 2026-09-30: #567 was repaired on its own branch by the existing Claude
+> session, not through this packet. #567 head `9395324014cb13cc2d009a3ea91e5372fa4f84c4`
+> (main `893649e` merged) has the enqueue/drain durable queue, stale-DONE rejection,
+> block recovery, retry cap and an offline harness
+> `.github/scripts/test-pm-review-queue.sh` (77 checks). The packet below is pinned to
+> `490466f` and is obsolete: do not transmit it or reuse its task/event IDs. The text
+> is kept only as the record of what was prepared. #567 independent review and user
+> merge remain open there.
 
 Checked 2026-09-30: origin/main remains `3cefe1ae241c6e5c02b9e12539a4aa33bcfca5b3`.
 #567 is OPEN on existing Claude branch `claude/pm-review-queue`, head
@@ -305,11 +315,14 @@ Includes response-loss/restart, duplicate and forged/tampered remote comments, >
 comments, stale/closed/blocked target, head changing during scan, capped reconciliation,
 lock contention, and fixed-host stdin transport. No production network/model calls.
 
-#567 compatibility checked at `1fa736fe61f373e70cf5b37495e72875ed52894d`:
-its enqueue requires original ISSUE comments and first-line PM command prefixes.
-Our PR comment starts with a distinct report marker, so it does not enqueue or claim
-#567 completion. New workflow/test protection entries exist. No #567 files changed;
-this is boundary compatibility, not a full independent review of its 67-test claim.
+#567 compatibility re-checked at `9395324014cb13cc2d009a3ea91e5372fa4f84c4`:
+its enqueue runs only for comments on an ISSUE (not a PR) whose first line starts with
+`PM_REVIEW_REQUIRED: `, `PM_REVIEW_DONE: ` or the CI gate done marker. Reports here are
+PR #578 comments starting with `<!-- onepick-report:`, so they never enqueue, request
+PM review or record a PM decision. #567 now accepts `PM_REVIEW_DONE` from the owner
+account only (never the shared handoff App), and its `onepick-pm-review:done` marker is
+not user approval; nothing in this module reads or writes #567 markers. No #567 files
+changed; this is boundary compatibility, not an independent review of #567.
 
 ## Worker result assembly (local only)
 
@@ -337,6 +350,18 @@ independent review, publication approval and receiver receipt transport remain r
 Model findings stay in the verified local artifact for review; there is no automatic
 public excerpt, new approval source, #567 command, or PM acknowledgement.
 
+Deliverable links: `--artifact-link` (repeatable, at most 5) accepts only this
+repository's `https://github.com/orrysheaven-netizen/onepick/(pull|issues)/<N>` URLs,
+optionally with `#issuecomment-<N>`, and stores them as `link:` artifacts. A link is
+an operator reference, not evidence that the linked work passed. The event ID does not
+cover artifacts, so the same request with different links is rejected as
+`same-event-different-report` (reports stay immutable).
+
+Visible test label: when `source_id` is in the `synthetic-` namespace, the published
+comment's first visible line is `ONEPICK_REPORT: SYNTHETIC/TEST automated operator
+publication` plus a Korean test notice. The label comes from the validated namespace,
+never from free report text. Worker-record reports keep the original headline.
+
 New assembly regression suite: 10/10 passed. Previous worker/outbox/publisher suites:
 38/38 passed before this addition; not represented as a new combined run. Integration
 case invokes actual Worker.collect with synthetic response bytes (no model transport),
@@ -346,10 +371,42 @@ classification and refusal to convert model-claimed tests into validation. Initi
 Windows cleanup errors revealed an unclosed read-only SQLite connection; fixed with
 explicit closing and the related suite rerun successfully.
 
+Combined run 2026-09-30 (Claude handoff, Linux Python 3.11.15), after the additions
+above: `python3 -m unittest discover -s tools/local_claude -p 'test_*.py'` ran 51 tests,
+OK, 1 skipped (Windows-only taskkill race). Before the additions, the same command at
+`ca84fc1` ran 48, OK, 1 skipped. Windows was not re-run for either.
+
+## SYNTHETIC receiver test — prepared, NOT executed
+
+Purpose: one live check of assemble -> outbox -> publisher -> PR #578 comment ->
+receiver chat, using a synthetic fixture only. Requires explicit PM run instruction.
+
+1. Offline build (no model, no network), on the operator host, with the CURRENT
+   PR #578 head (the publisher refuses any other head):
+
+   ```powershell
+   python tools/local_claude/synthetic_preview.py --directory <new-empty-dir> --head <current-578-head> --artifact-link https://github.com/orrysheaven-netizen/onepick/pull/578
+   ```
+
+   Output: `event_id`, `outbox` path and `preview_body` (exact comment text).
+2. Compare `preview_body` with the preview reported to PM. Any push to #578 after the
+   build changes the head; rebuild in a new directory instead of editing records.
+3. Only after the run instruction, one explicit publication with the existing operator
+   login: `python tools/local_claude/github_report.py --directory <outbox> --event <event_id> --publish`
+4. Expected: one `report-published` receipt with the comment URL; comment author
+   `orrysheaven-netizen` (User); first line `<!-- onepick-report:<event_id> sha256:... -->`,
+   second line `ONEPICK_REPORT: SYNTHETIC/TEST ...`. Receiver chat `6abc3c85-8b7c-83e8-8107-fed0909d0b6b`
+   should record the event_id/URL as a TEST receipt. Receiver -> PM-2 stays unsupported.
+5. On any error or uncertain outcome, do not rerun `--publish` blindly: rerun the same
+   command only to reconcile (it never POSTs after a recorded intent) and report state.
+
+Not covered by this test: real Claude execution, GitHub App bot authorship, other PRs,
+machine-readable receiver acknowledgement back to the outbox, #567 queue integration.
+
 ## Review and activation gates
 
 Draft only: opposite-AI security review, required CI and user merge approval remain.
 No proof of OS isolation, real CLI execution, billing enforcement by the provider,
 end-to-end worker/event integration, continuous service or PM-2 ingress is claimed.
-#567 repair and review/merge, approved controller identity and transport are prerequisites
+#567 review/merge (repair done at `9395324`), approved controller identity and transport are prerequisites
 to activation. #486 remains blocked; no attempt counters are changed.
