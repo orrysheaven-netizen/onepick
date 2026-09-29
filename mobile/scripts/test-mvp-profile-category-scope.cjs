@@ -79,7 +79,9 @@ async function main() {
   // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
     assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
-    assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? mainPicks : labPicks/, `${name} profile keeps both scopes available`);
+    assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? publicMainPicks : labPicks/, `${name} profile narrows FOOD display without dropping other tastes`);
+    assert.match(screen, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/,
+      `${name} profile applies the shared offline FOOD exposure rule`);
     assert.match(screen, /음식 원픽 보기/);
     assert.match(screen, /다른 취향 원픽 보기/);
   }
@@ -88,7 +90,7 @@ async function main() {
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 
-  console.log('MVP profile scope checks passed: services keep every Pick; profiles show the main theme and move the rest to 실험실 instead of hiding it.');
+  console.log('MVP profile scope checks passed: services keep every Pick; FOOD display is offline-only while other tastes remain available.');
 }
 
 main().catch((error) => {
