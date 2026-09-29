@@ -50,6 +50,7 @@ const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/co
 const onepickConstants = load('constants/onepick.ts', {
   './font-family': load('constants/font-family.web.ts'),
 });
+const followCountsQuery = { data: { followingCount: 0, followerCount: 0 }, isPending: false, isError: false };
 const followingQuery = {
   data: { items: [query.data.picks[0]], nextCursor: null },
   isPending: false, isError: false, isFetching: false, isRefetching: false,
@@ -71,7 +72,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   }),
-  '@/hooks/useFollow': { useFollowingFeed: (...args) => { followingFeedArgs = args; return followingQuery; } },
+  '@/hooks/useFollow': {
+    useFollowCounts: () => followCountsQuery,
+    useFollowingFeed: (...args) => { followingFeedArgs = args; return followingQuery; },
+  },
   '@/components/item-pick-count': { ItemPickCount: () => null },
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
@@ -116,6 +120,19 @@ assert.equal(followingFeedArgs[3], 'food', 'Following query is prepared with the
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
+
+// An existing follow relationship flips only the default scope; no public feed is
+// downloaded first, and the user can still switch tabs afterward.
+followCountsQuery.data.followingCount = 2;
+const followingFirstPage = render();
+assert.match(followingFirstPage, /@friend/);
+assert.doesNotMatch(followingFirstPage, /@neighbor/, 'Following becomes the default when at least one follow exists');
+assert.equal(homeDataArgs[2], false, 'Following default does not prefetch the public feed');
+assert.equal(followingFeedArgs[1], true, 'Following default enables the viewer-bound feed');
+assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, false);
+assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, true);
+followCountsQuery.data.followingCount = 0;
+render();
 
 for (width of [390, 800, 1200]) {
   const page = render();
