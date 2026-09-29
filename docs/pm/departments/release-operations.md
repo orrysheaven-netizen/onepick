@@ -40,3 +40,8 @@ main commit · CI · 앱 배포 · DB migration · Edge Function · QA/Security 
 ## 운영 검증 책임
 
 Release/운영 담당이 코드 병합 여부와 실제 배포/Production 반영 여부를 직접 대조한다. PM은 이 근거를 받아 Go/Hold를 판정하며 배포 상태를 대신 추정하지 않는다.
+
+
+## 사용자 조치 구분
+
+Release 보고에서 **관리자 승인 필요**와 **관리자 직접 수행 필요**를 분리한다. 직접 수행이 필요한 경우 계정/UI/인증 조치만 정확히 적고, 비밀값 자체는 요청하거나 기록하지 않는다.
