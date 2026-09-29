@@ -32,6 +32,10 @@ const readRepository = {
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
   getHomeShowcase: async () => assert.fail('Home no longer reads the aggregate product showcase'),
   getEditorialHomeItems: async (...args) => { calls.push(['editorial', ...args]); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
+  getFoodMenuRecentRanking: async (...args) => {
+    calls.push(['recent-menu', ...args]);
+    return [{ categoryId: 'new', categoryName: '라면', groupCategoryId: 'noodles', pickCount: 4, rank: 1, isTied: false, coverItemId: 'ramen', thumbnailUrl: null }];
+  },
 };
 const service = new HomeService(readRepository);
 
@@ -50,6 +54,11 @@ async function main() {
   await service.getHomeContext('me', 'offline', 'food');
   assert.deepEqual(calls.find(([kind]) => kind === 'editorial'), ['editorial', 6, 'offline', 'food'],
     'MVP context scopes editorial items to food + offline');
+
+  calls = [];
+  const recentMenus = await service.getRecentMenuRanking(null, 4);
+  assert.equal(recentMenus[0].categoryName, '라면');
+  assert.deepEqual(calls, [['recent-menu', null, 4]], 'Recent Home menu ranking is one explicit repository read');
 
   calls = [];
   const firstPage = await service.getHomePicks();
