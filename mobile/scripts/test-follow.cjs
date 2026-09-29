@@ -155,7 +155,7 @@ async function main() {
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /follow: true/, 'Restaurant-first MVP keeps follow exposed');
+  assert.match(featureSource, /follow: false/, 'Early offline-food MVP defers follow exposure while retaining the implementation');
   assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
