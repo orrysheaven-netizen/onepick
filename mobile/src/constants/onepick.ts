@@ -109,16 +109,16 @@ export const OnePickSpace = {
 // Feature exposure gates. Database support can be ready while an MVP feature
 // remains intentionally hidden until an explicit product rollout decision.
 //
-// follow: schema and code paths are ready, and the restaurant-first MVP
-// explicitly exposes follow, the following feed, and follow notifications.
+// follow: schema and code paths stay ready, but the early offline-food MVP
+// intentionally defers follow, the following feed, and follow notifications.
 //
-// followCounts: the relationship data remains available, but the early MVP hides
+// followCounts: the relationship data remains available, and the early MVP also hides
 // follower/following numbers so the product does not optimize around popularity.
 //
 // purchaseLinks: schema is ready too, but the feed/profile surfaces that make
 // purchase links useful are not fully rolled out yet.
 export const OnePickFeatures = {
-  follow: true,
+  follow: false,
   followCounts: false,
   purchaseLinks: false,
   // Keep both profile features implemented, but unmounted during the early MVP.
