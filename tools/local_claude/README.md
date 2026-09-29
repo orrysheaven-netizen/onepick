@@ -248,8 +248,8 @@ as `report-stored`, with zero delivery attempts. Queue/chat outbox ports remain 
 
 Minimum remaining steps from executor completion to report delivery:
 
-1. Convert the actual result/receipt, pinned head, test results and remaining issues
-   into the existing immutable report schema. Never convert failed work into success.
+1. Implemented below: validate the static worker receipt/result and pinned source head
+   into the immutable report. Tests/CI are explicitly NOT RUN, never inferred from prose.
 2. Implement the real GitHub publication port within this outbox: fixed repository
    and approved target PR, explicit automated authorship, stable event/report-hash
    marker, full-page duplicate lookup, persist URL/author, reconcile lost responses
@@ -298,8 +298,7 @@ race. GitHub does not provide an atomic head-bound comment POST; head is recheck
 immediately before posting but can change remotely afterward. CLI credentials and
 trusted operator executable are not OS-isolated by this module. Use no unattended
 controller until its identity/access scope and exclusive ledger are approved.
-Actual result-to-report assembly and machine-readable receiver acknowledgement remain
-unimplemented. No live publisher call/test comment was made for this implementation.
+Result-to-report assembly is implemented below; machine-readable receiver acknowledgement remains unimplemented. No live publisher call/test comment was made for this implementation.
 
 Validation: 38 offline tests (17 worker, 6 outbox, 15 publisher), mocked GitHub only.
 Includes response-loss/restart, duplicate and forged/tampered remote comments, >100
@@ -311,6 +310,41 @@ its enqueue requires original ISSUE comments and first-line PM command prefixes.
 Our PR comment starts with a distinct report marker, so it does not enqueue or claim
 #567 completion. New workflow/test protection entries exist. No #567 files changed;
 this is boundary compatibility, not a full independent review of its 67-test claim.
+
+## Worker result assembly (local only)
+
+`assemble_report.py` reads the existing worker SQLite journal in read-only mode,
+validates request/material hashes and task/repository/head/owner/executor bindings,
+and checks receipt state/approval ID against the journal. For `pm-review`, it requires
+successful collection metadata and validates result bytes/hash within the spool.
+No result text is copied to the report: only content-hash artifact references appear.
+Failure/auth/limit/cancel/timeout/unknown outcomes remain visibly unsuccessful;
+claimed/running entries cannot generate a finished report. No external test evidence
+is synthesized: this tool-less worker did not run task tests or CI.
+
+```powershell
+python tools/local_claude/assemble_report.py --spool <existing-worker-spool> --request <request.json> --expected-head <pinned-source-sha> --kind synthetic --outbox <outbox>
+python tools/local_claude/github_report.py --directory <outbox> --event <returned-event-id>
+```
+
+Use `--kind worker-record` only for an actual trusted worker record. Kind is an explicit
+operator provenance assertion, not cryptographic attestation. Synthetic output has
+SYNTHETIC in its summary and a separate source ID namespace. Source head is the actual
+pinned reviewed source (`base_sha`), never a fabricated new implementation head or
+unverified current remote head. Publisher still requires its fixed target's head match.
+Local hashes check consistency, not authorship/approval: production ACL deployment,
+independent review, publication approval and receiver receipt transport remain required.
+Model findings stay in the verified local artifact for review; there is no automatic
+public excerpt, new approval source, #567 command, or PM acknowledgement.
+
+New assembly regression suite: 10/10 passed. Previous worker/outbox/publisher suites:
+38/38 passed before this addition; not represented as a new combined run. Integration
+case invokes actual Worker.collect with synthetic response bytes (no model transport),
+stages an immutable report and previews the existing publisher. Covers malformed scope,
+head/request mismatch, tampered/misplaced result, missing ledger, running state, failure
+classification and refusal to convert model-claimed tests into validation. Initial
+Windows cleanup errors revealed an unclosed read-only SQLite connection; fixed with
+explicit closing and the related suite rerun successfully.
 
 ## Review and activation gates
 
