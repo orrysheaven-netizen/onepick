@@ -27,7 +27,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: ai-handoff-review-events-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: ai-handoff-review-events-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
