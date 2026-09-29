@@ -6,12 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
-import { ProfilePickGroups } from '@/components/profile-pick-groups';
+import { PickPhoto } from '@/components/pick-photo';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Avatar, Button, SectionHeader, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -25,6 +25,91 @@ import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileI
 import { isSeedProfileId } from '@/lib/seedProfiles';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
+import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+
+const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
+  offline: '매장',
+  online: '온라인',
+  recipe: '레시피',
+};
+
+function PublicProfilePickRow({
+  item,
+  isFood,
+  onOpenPick,
+  onOpenItem,
+  onOpenProvider,
+}: {
+  item: PickReadItem;
+  isFood: boolean;
+  onOpenPick: (pickId: string) => void;
+  onOpenItem: (itemId: string) => void;
+  onOpenProvider: (providerId: string) => void;
+}) {
+  const channel = item.pick.channel ?? item.item?.channels?.[0];
+  const channelLabel = channel ? PUBLIC_CHANNEL_LABELS[channel] : null;
+  const title = isFood
+    ? item.category?.name ?? item.item?.name ?? '원픽'
+    : item.item?.name ?? item.category?.name ?? '원픽';
+  const providerName = isFood
+    ? (channel === 'recipe' ? item.item?.creatorName ?? null : item.item?.name ?? null)
+    : item.category?.name ?? null;
+  const imageUri = item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl;
+  const badgeStyle = channel === 'offline'
+    ? styles.publicPickBadgeOffline
+    : channel === 'online'
+      ? styles.publicPickBadgeOnline
+      : styles.publicPickBadgeRecipe;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title} 원픽 상세 보기`}
+      onPress={() => onOpenPick(item.pick.id)}
+      style={({ pressed }) => [styles.publicPickRow, pressed && styles.pressed]}>
+      <PickPhoto
+        size={62}
+        uri={imageUri}
+        label={title}
+        itemId={item.item?.id}
+        itemStatus={item.item?.status}
+        hasPhoto={Boolean(item.item?.imagePath)}
+      />
+      <View style={styles.publicPickCopy}>
+        <View style={styles.publicPickTitleRow}>
+          {item.item ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${title} 상세 보기`}
+              onPress={(event) => {
+                event.stopPropagation();
+                onOpenItem(item.item!.id);
+              }}
+              style={({ pressed }) => [styles.publicPickTitleAction, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>
+            </Pressable>
+          ) : <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>}
+          {channelLabel ? <View style={[styles.publicPickBadge, badgeStyle]}>
+            <Text style={styles.publicPickBadgeText}>{channelLabel}</Text>
+          </View> : null}
+        </View>
+        {providerName ? item.item?.providerId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${providerName} 제공처 프로필 보기`}
+            onPress={(event) => {
+              event.stopPropagation();
+              onOpenProvider(item.item!.providerId!);
+            }}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <Text numberOfLines={1} style={styles.publicPickProvider}>{providerName}</Text>
+          </Pressable>
+        ) : <Text numberOfLines={1} style={styles.publicPickProvider}>{providerName}</Text> : null}
+        {item.pick.oneLineReview ? <Text numberOfLines={1} style={styles.publicPickReview}>“{item.pick.oneLineReview}”</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
 
 export default function PublicProfileScreen() {
   const router = useRouter();
@@ -53,6 +138,7 @@ export default function PublicProfileScreen() {
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
+  const goBack = () => router.canGoBack() ? router.back() : router.replace('/');
 
   useEffect(() => {
     if (!followToast) return;
@@ -120,7 +206,7 @@ export default function PublicProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+        {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable> : null}
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요" /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard title="프로필을 찾을 수 없어요" text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
@@ -139,25 +225,59 @@ export default function PublicProfileScreen() {
           />
         </View> : null}
         {query.data ? <>
-          <View style={styles.header}>
-            <Avatar name={query.data.profile.username} size={64} />
-            <View style={styles.headerCopy}>
-              <Text style={styles.username}>@{query.data.profile.username}</Text>
-              {query.data.profile.bio ? <Text style={styles.bio}>{query.data.profile.bio}</Text> : null}
-            </View>
+          <View style={styles.publicHeader}>
+            <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
+              style={({ pressed }) => [styles.publicHeaderBack, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.publicHeaderTitle}>{query.data.profile.username}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="프로필 공유" disabled={isSharing}
+              onPress={() => void handleShare()} style={({ pressed }) => [styles.publicHeaderMenuButton, pressed && styles.pressed]}>
+              <Text style={styles.publicHeaderMenu}>⋯</Text>
+            </Pressable>
           </View>
-          {OnePickFeatures.follow && !query.data.isMine ? <View style={styles.followRow}>
-            <FollowButton
-              viewerUserId={user?.id}
-              profileUserId={query.data.profile.id}
-              username={query.data.profile.username}
-              autoFollow={autoFollow && Boolean(user)}
-              onFollowed={() => setFollowToast(true)}
-              onRequireLogin={() => setLoginSheetOpen(true)} />
-            <Text style={styles.followHint}>팔로우하면 홈의 팔로잉 탭에서 이 사람의 원픽과 이유를 먼저 볼 수 있어요.</Text>
-          </View> : null}
+
+          <View style={styles.publicBody}>
+            <View style={styles.publicIdentity}>
+              <Avatar name={query.data.profile.username} size={68} tone="subtle" />
+              <View style={styles.publicIdentityCopy}>
+                <Text numberOfLines={1} style={styles.publicDisplayName}>{query.data.profile.username}</Text>
+                <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>
+                {query.data.profile.bio ? <Text numberOfLines={2} style={styles.publicBio}>{query.data.profile.bio}</Text> : null}
+              </View>
+            </View>
+
+            {OnePickFeatures.follow && !query.data.isMine ? <View style={styles.followRow}>
+              <FollowButton
+                viewerUserId={user?.id}
+                profileUserId={query.data.profile.id}
+                username={query.data.profile.username}
+                autoFollow={autoFollow && Boolean(user)}
+                onFollowed={() => setFollowToast(true)}
+                onRequireLogin={() => setLoginSheetOpen(true)}
+                fullWidth />
+            </View> : null}
+
+            {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
+              <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'}
+                onPress={() => setProfileScope('food')} style={styles.profileScopeChip} />
+              <Chip label="다른 취향" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'}
+                onPress={() => setProfileScope('other')} style={styles.profileScopeChip} />
+            </View> : null}
+
+            {visibleProfilePicks.length > 0 ? <View style={styles.publicPickList}>
+              {visibleProfilePicks.map((item) => <PublicProfilePickRow
+                key={item.pick.id}
+                item={item}
+                isFood={profileScope === 'food'}
+                onOpenPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
+                onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
+                onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
+              />)}
+            </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
+              text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
+          </View>
+
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
-          <View style={styles.summaryCard}><Text style={styles.summaryLabel}>음식 원픽</Text><Text style={styles.summaryNumber}>{publicMainPicks.length}개</Text></View>
           {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={query.data.profile.id} viewerId={user?.id} variant="public" /> : null}
           {OnePickFeatures.profileAi ? <ProfileAiComment
             profileId={query.data.profile.id}
@@ -165,27 +285,7 @@ export default function PublicProfileScreen() {
             sectionTitle="AI 취향평가"
             sectionDescription="AI는 공개된 원픽과 한줄평을 직접 읽어 공통점과 대비를 해석한 결과예요."
           /> : null}
-          {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-            <Pressable accessibilityRole="tab" accessibilityLabel="음식 원픽 보기" accessibilityState={{ selected: profileScope === 'food' }}
-              onPress={() => setProfileScope('food')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'food' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
-              <Text style={[styles.profileScopeText, profileScope === 'food' && styles.profileScopeTextSelected]}>음식</Text>
-            </Pressable>
-            <Pressable accessibilityRole="tab" accessibilityLabel="다른 취향 원픽 보기" accessibilityState={{ selected: profileScope === 'other' }}
-              onPress={() => setProfileScope('other')} style={({ pressed }) => [styles.profileScopeTab, profileScope === 'other' && styles.profileScopeTabSelected, pressed && styles.pressed]}>
-              <Text style={[styles.profileScopeText, profileScope === 'other' && styles.profileScopeTextSelected]}>다른 취향</Text>
-            </Pressable>
-          </View> : null}
-          <View style={styles.sectionHeader}><SectionHeader title={profileScope === 'food' ? '음식 원픽' : '다른 취향'} count={visibleProfilePicks.length} /></View>
-          {visibleProfilePicks.length > 0 ? (
-            <ProfilePickGroups
-              picks={visibleProfilePicks}
-              categories={categoriesQuery.data ?? []}
-              onPressPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
-              onPressItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
-              onPressProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
-            />
-          ) : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
-            text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
+
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
             <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
@@ -198,7 +298,7 @@ export default function PublicProfileScreen() {
             <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
             <View style={styles.safetyActions}>
               <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
-              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={() => router.canGoBack() ? router.back() : router.replace('/')} />
+              <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={goBack} />
             </View>
           </View> : null}
           <View style={styles.shareCard}>
@@ -253,57 +353,50 @@ const styles = StyleSheet.create({
     marginLeft: -OnePickSpace.sm,
   },
   backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: OnePickSpace.md,
-    marginBottom: OnePickSpace.xl,
-  },
-  headerCopy: { flex: 1, marginLeft: OnePickSpace.lg },
-  username: { ...OnePickType.title, color: OnePick.textPrimary },
-  bio: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  followRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, marginBottom: OnePickSpace.lg },
-  followHint: { ...OnePickType.caption, flex: 1, color: OnePick.textSecondary },
-  summaryCard: {
+  publicHeader: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    backgroundColor: OnePick.bgDefault,
-    borderRadius: OnePickRadius.lg,
-    paddingHorizontal: OnePickSpace.lg,
-    paddingVertical: OnePickSpace.md,
-    marginBottom: OnePickSpace.sm,
   },
-  summaryNumber: { ...OnePickType.headline, color: OnePick.textPrimary },
-  summaryLabel: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
-  safetyCard: {
-    backgroundColor: OnePick.bgMuted,
-    borderRadius: OnePickRadius.lg,
-    padding: OnePickSpace.lg,
-    marginBottom: OnePickSpace.xxxl,
-  },
-  safetyTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  safetyText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  safetyActions: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
-  sectionHeader: { marginBottom: OnePickSpace.sm },
-  profileScopeTabs: {
+  publicHeaderBack: { flexShrink: 1, minWidth: 0, minHeight: 44, justifyContent: 'center' },
+  publicHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary },
+  publicHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  publicHeaderMenu: { ...OnePickType.title, color: OnePick.textPrimary },
+  publicBody: { minHeight: 675, paddingTop: 10, gap: OnePickSpace.md },
+  publicIdentity: { height: 78, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.lg },
+  publicIdentityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  publicDisplayName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  publicHandle: { ...OnePickType.caption, color: OnePick.textSecondary },
+  publicBio: { ...OnePickType.body, color: OnePick.textSecondary },
+  followRow: { width: '100%' },
+  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
+  profileScopeChip: { paddingHorizontal: 13 },
+  publicPickList: { borderTopWidth: 1, borderTopColor: OnePick.borderDefault },
+  publicPickRow: {
+    height: 94,
     flexDirection: 'row',
-    gap: OnePickSpace.sm,
-    marginTop: OnePickSpace.md,
-    marginBottom: OnePickSpace.lg,
+    alignItems: 'center',
+    gap: OnePickSpace.md,
+    borderBottomWidth: 1,
+    borderBottomColor: OnePick.borderDefault,
   },
-  profileScopeTab: {
-    minHeight: 32,
+  publicPickCopy: { flex: 1, minWidth: 0, height: 82, gap: 3 },
+  publicPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  publicPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
+  publicPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  publicPickBadge: {
+    height: 28,
     justifyContent: 'center',
-    paddingHorizontal: OnePickSpace.md,
+    paddingHorizontal: 9,
     borderRadius: OnePickRadius.full,
-    backgroundColor: OnePick.bgMuted,
   },
-  profileScopeTabSelected: { backgroundColor: OnePick.actionPrimary },
-  profileScopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
-  profileScopeTextSelected: { color: OnePick.onAction },
+  publicPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
+  publicPickBadgeOnline: { backgroundColor: OnePick.bgMuted },
+  publicPickBadgeRecipe: { backgroundColor: OnePick.bgAccentSubtle },
+  publicPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
+  publicPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  publicPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   toast: {
     position: 'absolute',
     alignSelf: 'center',
