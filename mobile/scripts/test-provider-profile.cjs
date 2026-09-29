@@ -35,9 +35,13 @@ class Query {
   then(resolve, reject) { return Promise.resolve({ data: this.result(), error: null }).then(resolve, reject); }
 }
 
-function client(tables) {
+function client(tables, rpcData = {}) {
   return {
     from: (name) => new Query(tables[name] ?? []),
+    rpc: async (name, args) => ({
+      data: typeof rpcData[name] === 'function' ? rpcData[name](args) : (rpcData[name] ?? null),
+      error: null,
+    }),
     storage: { from: () => ({ getPublicUrl: (value) => ({ data: { publicUrl: 'https://storage.test/' + value } }) }) },
   };
 }
@@ -58,9 +62,10 @@ async function main() {
   const rice = '44444444-4444-4444-8444-444444444444';
   const soupCat = '55555555-5555-4555-8555-555555555555';
   const riceCat = '66666666-6666-4666-8666-666666666666';
+  const brandId = '99999999-9999-4999-8999-999999999999';
 
   const tables = {
-    providers: [{ id: providerId, kind: 'offline_branch', name: '서울집', branch_name: '성수점', place_id: placeId, online_store_id: null, status: 'active' }],
+    providers: [{ id: providerId, kind: 'offline_branch', name: '서울집', branch_name: '성수점', place_id: placeId, online_store_id: null, status: 'active', brand_id: brandId }],
     places: [{ id: placeId, road_address: '서울 성동구 성수로 1', address: null, region_1: '서울', region_2: '성동구', map_url: 'https://map.example/seoul-house' }],
     online_stores: [],
     item_providers: [
@@ -90,10 +95,11 @@ async function main() {
   assert.deepEqual({ ...offline.link }, { label: '지도 보기', url: 'https://map.example/seoul-house', host: 'map.example' });
   assert.deepEqual(Array.from(offline.items, (item) => [item.menuName, item.pickCount]), [['미역국', 2], ['국밥', 1]], 'provider menus sort by current Pick count');
   assert.equal(offline.items[0].thumbnailUrl, 'https://storage.test/soup-thumb.jpg');
+  assert.equal(offline.brandId, brandId);
 
   const onlineProvider = '77777777-7777-4777-8777-777777777777';
   const storeId = '88888888-8888-4888-8888-888888888888';
-  tables.providers.splice(0, 1, { id: onlineProvider, kind: 'online_store', name: '99밀크티', branch_name: null, place_id: null, online_store_id: storeId, status: 'active' });
+  tables.providers.splice(0, 1, { id: onlineProvider, kind: 'online_store', name: '99밀크티', branch_name: null, place_id: null, online_store_id: storeId, status: 'active', brand_id: null });
   tables.online_stores.push({ id: storeId, host: '99tea.example', official_url: 'https://99tea.example/store' });
   tables.item_providers.splice(0, tables.item_providers.length,
     { item_id: soup, category_id: soupCat, provider_id: onlineProvider });
@@ -101,6 +107,29 @@ async function main() {
   assert.equal(online.channelLabel, '온라인');
   assert.equal(online.subtitle, '99tea.example');
   assert.deepEqual({ ...online.link }, { label: '공식몰 보기', url: 'https://99tea.example/store', host: '99tea.example' });
+
+  const brandDb = client(tables, {
+    brand_profile: {
+      brand: { id: brandId, name: '서울집', logo_path: 'brand/logo.png' },
+      brand_wide: [{ item_id: soup, category_id: soupCat, category_name: '미역국', pick_count: 3 }],
+      branch_count: 2,
+    },
+    brand_branch_page: [
+      { provider_id: providerId, kind: 'offline_branch', name: '서울집', branch_name: '성수점',
+        road_address: '서울 성동구 성수로 1', region_1: '서울', region_2: '성동구', pick_count: 4, menu_count: 2 },
+      { provider_id: onlineProvider, kind: 'online_store', name: '서울집몰', branch_name: null,
+        official_url: 'https://shop.example', pick_count: 9, menu_count: 1 },
+    ],
+  });
+  const brandService = new ProviderProfileService(brandDb, brandDb);
+  const brand = await brandService.brand(brandId);
+  assert.equal(brand.name, '서울집');
+  assert.equal(brand.logoUrl, 'https://storage.test/brand/logo.png');
+  assert.deepEqual(Array.from(brand.brandWide, (item) => [item.categoryName, item.pickCount]), [['미역국', 3]]);
+  const branches = await brandService.brandBranches(brandId);
+  assert.equal(branches.items.length, 1, 'MVP brand profile hides online providers');
+  assert.equal(branches.items[0].providerId, providerId);
+  assert.equal(branches.items[0].subtitle, '서울 성동구 성수로 1');
 
   tables.providers[0].status = 'hidden';
   await assert.rejects(
@@ -117,7 +146,10 @@ async function main() {
   assert.match(screen, /query\.data\.kind === 'offline_branch' \? '이곳의 원픽' : '이 판매처의 원픽'/);
   assert.match(screen, /원픽 \{item\.pickCount\.toLocaleString\(\)\}/, 'provider menus use OnePick count language');
   assert.doesNotMatch(screen, /Instagram|YouTube|SNS/, 'provider SNS remains outside PR 4');
+  assert.match(screen, /useBrandProfile/);
+  assert.match(screen, /브랜드 전체/);
+  assert.match(screen, /scope: 'provider'/, 'brand branches reopen the existing provider detail mode');
 
-  console.log('Provider profile checks passed: offline/online identity, optional safe link, menu rows, public Pick counts and hidden/not-found states.');
+  console.log('Provider profile checks passed: provider detail, brand-wide products, offline branch paging and provider drill-down.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
