@@ -17,6 +17,7 @@ export interface ProviderProfileItem {
   itemName: string;
   thumbnailUrl: string | null;
   pickCount: number;
+  latestReview: string | null;
 }
 
 export interface ProviderProfileLink {
@@ -101,7 +102,7 @@ type ProviderItemRow = {
   image_source_url: string | null;
 };
 type ProviderCategoryRow = { id: string; name: string; status: string; is_visible: boolean };
-type PickCountRow = { item_id: string };
+type PickCountRow = { item_id: string; one_line_review?: string | null; started_at?: string | null };
 
 function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
   const path = row.thumbnail_path ?? row.image_path;
@@ -124,25 +125,34 @@ export class ProviderProfileService {
     return client as unknown as SupabaseClient;
   }
 
-  private async activePickCounts(itemIds: string[]) {
+  private async activePickStats(itemIds: string[]) {
     const counts = new Map<string, number>();
-    if (!itemIds.length) return counts;
+    const latestReviews = new Map<string, { review: string; startedAt: string }>();
+    if (!itemIds.length) return { counts, latestReviews };
 
     let from = 0;
     while (true) {
       const { data, error } = await this.db(this.countClient)
         .from('picks')
-        .select('item_id')
+        .select('item_id,one_line_review,started_at')
         .in('item_id', itemIds)
         .eq('status', 'active')
         .range(from, from + COUNT_PAGE_SIZE - 1);
       if (error) throw mapSupabaseError(error);
       const rows = (data ?? []) as PickCountRow[];
-      for (const row of rows) counts.set(row.item_id, (counts.get(row.item_id) ?? 0) + 1);
+      for (const row of rows) {
+        counts.set(row.item_id, (counts.get(row.item_id) ?? 0) + 1);
+        const review = row.one_line_review?.trim();
+        const startedAt = row.started_at ?? '';
+        const previous = latestReviews.get(row.item_id);
+        if (review && (!previous || startedAt > previous.startedAt)) {
+          latestReviews.set(row.item_id, { review, startedAt });
+        }
+      }
       if (rows.length < COUNT_PAGE_SIZE) break;
       from += COUNT_PAGE_SIZE;
     }
-    return counts;
+    return { counts, latestReviews };
   }
 
   async get(providerId: string): Promise<ProviderProfile> {
@@ -214,7 +224,7 @@ export class ProviderProfileService {
       };
     }
 
-    const [itemsResult, categoriesResult, counts] = await Promise.all([
+    const [itemsResult, categoriesResult, pickStats] = await Promise.all([
       this.db().from('items')
         .select('id,name,category_id,status,image_path,thumbnail_path,image_source_url')
         .in('id', itemIds)
@@ -224,7 +234,7 @@ export class ProviderProfileService {
         .in('id', categoryIds)
         .eq('status', 'open')
         .eq('is_visible', true),
-      this.activePickCounts(itemIds),
+      this.activePickStats(itemIds),
     ]);
     if (itemsResult.error) throw mapSupabaseError(itemsResult.error);
     if (categoriesResult.error) throw mapSupabaseError(categoriesResult.error);
@@ -242,7 +252,8 @@ export class ProviderProfileService {
           menuName: category.name,
           itemName: item.name,
           thumbnailUrl: publicUrl(this.client, item),
-          pickCount: counts.get(item.id) ?? 0,
+          pickCount: pickStats.counts.get(item.id) ?? 0,
+          latestReview: pickStats.latestReviews.get(item.id)?.review ?? null,
         }];
       })
       .sort((a, b) => b.pickCount - a.pickCount || a.menuName.localeCompare(b.menuName, 'ko'));
