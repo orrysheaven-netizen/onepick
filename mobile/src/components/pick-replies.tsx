@@ -244,7 +244,11 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
               ) : null}
 
               {canComment && !composing ? (
-                <Pressable accessibilityRole="button" accessibilityLabel="댓글 쓰기" onPress={() => setComposing(true)}
+                <Pressable accessibilityRole="button" accessibilityLabel="댓글 쓰기" onPress={() => {
+                  setReplyingTo(null);
+                  setComposing(true);
+                  createComment.reset();
+                }}
                   style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
                   <Text style={styles.textActionLabel}>댓글 쓰기</Text>
                 </Pressable>
@@ -252,16 +256,20 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                 user ? (
                   <View style={styles.commentComposer}>
                     <View style={styles.commentInputHeader}>
-                      <Text style={styles.commentInputLabel}>댓글 남기기</Text>
+                      <Text style={styles.commentInputLabel}>{replyingTo ? `@${replyingTo.username}에게 답글` : '댓글 남기기'}</Text>
                       <Text style={styles.commentCounter}>{commentBody.length}/300</Text>
                     </View>
+                    {replyingTo ? <Pressable accessibilityRole="button" accessibilityLabel="답글 취소"
+                      onPress={() => setReplyingTo(null)} style={styles.replyCancel}>
+                      <Text style={styles.textActionLabel}>답글 취소</Text>
+                    </Pressable> : null}
                     <TextInput
-                      accessibilityLabel="댓글 입력"
+                      accessibilityLabel={replyingTo ? '답글 입력' : '댓글 입력'}
                       editable={!createComment.isPending}
                       maxLength={300}
                       multiline
                       onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
-                      placeholder="이 원픽에 대해 이야기해보세요"
+                      placeholder={replyingTo ? '답글을 남겨보세요' : '이 원픽에 대해 이야기해보세요'}
                       placeholderTextColor={OnePick.hint}
                       style={styles.commentInput}
                       value={commentBody}
@@ -272,7 +280,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                     {createComment.error instanceof AppError && createComment.error.code === 'PROFILE_NOT_FOUND' ? (
                       <Pressable
                         accessibilityRole="button"
-                        onPress={() => router.push({ pathname: '/auth/username', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
+                        onPress={() => router.push({ pathname: '/auth/username', params: { action: 'comment_pick', pickId } })}
                         style={styles.smallButton}>
                         <Text style={styles.smallButtonText}>사용자명 만들고 계속</Text>
                       </Pressable>
@@ -289,23 +297,21 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       {createComment.isPending ? (
                         <ActivityIndicator color={OnePick.onAccent} />
                       ) : (
-                        <Text style={styles.commentButtonText}>댓글 남기기</Text>
+                        <Text style={styles.commentButtonText}>{replyingTo ? '답글 남기기' : '댓글 남기기'}</Text>
                       )}
                     </Pressable>
                   </View>
                 ) : (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId: query.data.pick.id } })}
+                    onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId } })}
                     style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
                     <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
                     <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
                   </Pressable>
                 )
               ) : compact ? null : (
-                <Text style={styles.historyCommentNotice}>
-                  {query.data.pick.status === 'needs_review' ? '확인이 필요한 원픽에는 새 댓글을 남길 수 없습니다.' : '현재 댓글을 남길 수 없는 원픽입니다.'}
-                </Text>
+                <Text style={styles.historyCommentNotice}>현재 댓글을 남길 수 없는 한줄평입니다.</Text>
               )}
             </View>
 
@@ -327,15 +333,19 @@ const styles = StyleSheet.create({
   smallButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   emptyComments: { color: OnePick.muted, fontSize: 12, lineHeight: 18, paddingVertical: 17 },
   commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
+  replyRow: { marginLeft: 34, paddingLeft: 10, backgroundColor: OnePick.background, borderRadius: 12, borderBottomWidth: 0, marginTop: 4 },
   commentHighlight: { backgroundColor: OnePick.accentSoft, borderRadius: 12, paddingHorizontal: 8 },
   commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
+  replyAvatar: { width: 28, height: 28, borderRadius: 10 },
   commentAvatarText: { color: OnePick.muted, fontSize: 13, fontWeight: '900' },
   commentCopy: { flex: 1, marginLeft: 11 },
   commentAuthor: { color: OnePick.text, fontSize: 12, fontWeight: '800' },
   commentBody: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  deletedBody: { fontStyle: 'italic', color: OnePick.hint },
   commentSafety: { marginTop: 8 },
   textAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingRight: 12 },
   textActionLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
+  replyCancel: { minHeight: 32, alignSelf: 'flex-start', justifyContent: 'center', marginBottom: 4 },
   deleteConfirm: { marginTop: 8, padding: 12, borderRadius: 12, backgroundColor: OnePick.background },
   deleteConfirmText: { color: OnePick.text, fontSize: 12, lineHeight: 17 },
   deleteActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
