@@ -15,8 +15,8 @@ import { OnePick } from '@/constants/onepick';
  * One review row on an item. The list stays compact: review body and comment
  * count open the dedicated conversation route instead of expanding replies here.
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
-  pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
+export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved }: {
+  pick: Pick; profile: Profile | null; categoryName: string; itemName: string; itemId: string;
   highlighted: boolean; onRemoved: () => void;
 }) {
   const router = useRouter();
@@ -27,7 +27,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
   const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const commentCount = pick.commentCount ?? 0;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } });
+  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
