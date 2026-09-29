@@ -210,6 +210,7 @@ async function main() {
     let sharePayload;
     const { shareProfile } = load('src/lib/share/shareProfile.ts', {
       'react-native': {
+        Platform: { OS: 'ios' },
         Share: {
           share: async (payload) => {
             sharePayload = payload;
