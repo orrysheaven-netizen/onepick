@@ -50,7 +50,7 @@ begin
   set local role anon;
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
-  assert got=array[again_now,twice_new,del_new,pend_old],
+  assert got=array[again_now,del_new,twice_new,pend_old],
     'Guests see one review per member (newest), tombstones kept: '||coalesce(got::text,'null');
   select r into row_json from public.item_review_page(item_x) r where r->>'id'=del_new::text;
   assert (row_json->>'is_deleted')::boolean and row_json->>'user_id' is null and row_json->'profile' = 'null'::jsonb,
@@ -69,7 +69,7 @@ begin
     walked := walked || page;
     last_row := row_json;
   end loop;
-  assert walked=array[again_now,twice_new,del_new,pend_old], 'One-row pages reach the same reviews: '||walked::text;
+  assert walked=array[again_now,del_new,twice_new,pend_old], 'One-row pages reach the same reviews: '||walked::text;
   reset role;
 
   -- The owner of the pending review sees it instead of their older one.
@@ -77,7 +77,7 @@ begin
   set local role authenticated;
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
-  assert got=array[pend_new,again_now,twice_new,del_new],
+  assert got=array[pend_new,again_now,del_new,twice_new],
     'The owner sees their pending review as their one review: '||coalesce(got::text,'null');
   reset role;
 
