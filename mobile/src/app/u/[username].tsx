@@ -271,7 +271,7 @@ export default function PublicProfileScreen() {
                 isFood={profileScope === 'food'}
                 onOpenPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
                 onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
-                onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId } })}
+                onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
               />)}
             </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
               text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
