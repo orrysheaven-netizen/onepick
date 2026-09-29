@@ -72,7 +72,8 @@ assert.match(owner, /import \{ ProfilePickCard \} from '@\/components\/profile-p
 assert.doesNotMatch(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/, 'Figma 03 owner profile uses direct rows instead of grouped cards');
 assert.match(owner, /function ProfileCurrentPickRow/);
 assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
-assert.match(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/);
+assert.doesNotMatch(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/, 'Figma 40 public current Picks use direct rows');
+assert.match(publicProfile, /function PublicProfilePickRow/);
 assert.ok((owner.match(/<ProfilePickCard/g) || []).length >= 1, 'owner profile still uses the shared card for history picks');
 assert.match(groups, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
 assert.match(groups, /<ProfilePickCard/, 'current owner/public groups render the same shared card');
