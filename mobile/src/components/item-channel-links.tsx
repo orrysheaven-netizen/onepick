@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick } from '@/constants/onepick';
-import { ITEM_CHANNEL_LINK_LABELS, safeChannelUrl, type ItemChannelLink } from '@/lib/items/itemChannelLinks';
+import { ITEM_CHANNEL_LINK_LABELS, opensLinkInSameTab, safeChannelUrl, type ItemChannelLink } from '@/lib/items/itemChannelLinks';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { itemChannelLinkService } from '@/services/itemChannelLinkService';
 
@@ -17,21 +17,25 @@ export function ItemChannelLinks({ itemId }: { itemId: string }) {
   const [openError, setOpenError] = useState(false);
   const links = query.data ?? [];
   if (!links.length) return null;
+  const sameTab = Platform.OS === 'web'
+    && opensLinkInSameTab((globalThis as { navigator?: { userAgent?: string; maxTouchPoints?: number } }).navigator);
 
   const open = async (link: ItemChannelLink) => {
     setOpenError(false);
     const safe = safeChannelUrl(link.url);
     if (!safe) { setOpenError(true); return; }
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(safe.url, '_blank', 'noopener,noreferrer');
-      else await Linking.openURL(safe.url);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        if (sameTab) window.location.assign(safe.url);
+        else window.open(safe.url, '_blank', 'noopener,noreferrer');
+      } else await Linking.openURL(safe.url);
     } catch { setOpenError(true); }
   };
 
   return (
     <View style={styles.list}>
       {links.map((link) => (
-        <Pressable key={link.channel} accessibilityRole="link" accessibilityLabel={`${ITEM_CHANNEL_LINK_LABELS[link.channel]} (${link.host}, 새 창)`}
+        <Pressable key={link.channel} accessibilityRole="link" accessibilityLabel={`${ITEM_CHANNEL_LINK_LABELS[link.channel]} (${link.host}${sameTab ? '' : ', 새 창'})`}
           onPress={() => void open(link)} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
           <View style={styles.copy}>
             <Text style={styles.label}>{ITEM_CHANNEL_LINK_LABELS[link.channel]}</Text>
