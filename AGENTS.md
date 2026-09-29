@@ -6,6 +6,10 @@ Before any OnePick work, read `docs/shared-working-rules.md`, then `docs/pm/READ
 
 Read `CLAUDE.md` first. It holds the branching rule (`main` is the single trunk, PRs only, required CI checks) and the working-tree rule. Both apply to every agent, not only Claude.
 
+## Pull requests and CI cost
+
+Open PRs as draft, push once per logical unit of work, and run `gh pr ready <number>` only after implementation and self-verification (never for blocked work). Required CI runs on `ready_for_review`; draft pushes skip it. See "Pull requests and CI cost" in `CLAUDE.md`.
+
 ## Working tree
 
 The primary checkout is shared by several concurrent agent sessions. Never checkout, switch, commit, reset or stash there. Create your own worktree from `origin/main`, work and push from it, open the PR with `--head <branch>`, and remove the worktree after the merge. Uncommitted changes you find in the primary checkout belong to another session; leave them out of your commits.

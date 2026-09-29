@@ -68,6 +68,18 @@ jobs:
           fi
           pr_number="$(jq -r '.number' <<<"$pr_json")"
 
+          # Draft PRs skip the required CI jobs (reported as success without running), so a
+          # draft run must never count as "CI passed". Wait for the ready_for_review CI.
+          if [ "$(jq -r '.draft' <<<"$pr_json")" = "true" ]; then
+            echo "PR #$pr_number is a draft; required CI runs after Ready for review."
+            exit 0
+          fi
+          # Runs created before the latest draft -> ready transition were draft runs.
+          ready_at="$(
+            gh api --paginate "repos/$REPOSITORY/issues/$pr_number/timeline?per_page=100" |
+              jq -rs 'add // [] | [.[] | select(.event == "ready_for_review") | .created_at] | sort | last // ""'
+          )"
+
           # 2. Candidate issue numbers from "Refs #N" (digits only; the PR body is data).
           #    A candidate is used only if it carries a bot-authored pending marker for this PR.
           candidates="$(jq -r '.body // "" | [scan("Refs #([0-9]{1,7})")[0]] | unique | .[:5][]' <<<"$pr_json")"
@@ -122,12 +134,13 @@ jobs:
             exit 0
           fi
 
-          # 5. Latest pull_request run of each required workflow for this exact SHA.
+          # 5. Latest pull_request run of each required workflow for this exact SHA, ignoring
+          #    runs created while the PR was still a draft.
           runs="$(
             gh api -X GET "repos/$REPOSITORY/actions/runs" \
               -f head_sha="$HEAD_SHA" -f event=pull_request -f per_page=100 |
-              jq -c --argjson req "$REQUIRED_WORKFLOWS" '
-                .workflow_runs as $all
+              jq -c --argjson req "$REQUIRED_WORKFLOWS" --arg ready_at "$ready_at" '
+                [ .workflow_runs[] | select(.created_at >= $ready_at) ] as $all
                 | [ $req[] as $name
                     | ([ $all[] | select(.name == $name) ] | sort_by(.created_at) | last) as $r
                     | { name: $name,

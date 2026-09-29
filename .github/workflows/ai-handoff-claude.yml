@@ -167,12 +167,15 @@ jobs:
             - If code changes are needed, create a focused branch and commit the changes.
             - Do not set handoff labels yourself; the workflow finalizer manages queue state.
             - Prefer the smallest complete change and leave verification to required CI where local tools are unavailable.
+            - Commit one logical unit of work at a time; do not create many tiny commits or pushes.
             - At the end, post exactly one machine-readable result line to the original issue:
               AI_HANDOFF_RESULT: COMPLETE
               AI_HANDOFF_RESULT: CODEX_FOLLOWUP
               AI_HANDOFF_RESULT: BLOCKED
               Use CODEX_FOLLOWUP when reviewing a Codex PR and Codex must change something.
-              Use COMPLETE when review passes or the delegated work is complete.
+              Use COMPLETE when review passes or the delegated work is implemented and self-verified;
+              the workflow then marks the draft PR Ready for review, which starts required CI.
+              If more changes are still needed, do not use COMPLETE; the PR stays draft.
               Use BLOCKED only when user/external action is required.
               Put human-readable findings in the same issue comment after the result line.
 
@@ -292,6 +295,18 @@ jobs:
               exit 0
             fi
 
+            # Draft -> Ready only when Claude declared the work complete (implemented and
+            # self-verified). BLOCKED and CODEX_FOLLOWUP exit above and keep the PR draft.
+            # ready_for_review starts the required CI; draft pushes skip heavy CI jobs. The
+            # actual transition happens after the pending marker below is posted, so the CI
+            # Gate finds the marker when the ready_for_review CI completes.
+            mark_ready=false
+            ready_note="Draft 유지 — COMPLETE 선언이 없어 Ready 전환하지 않음. 수동 Ready 전환 시 필수 CI와 다음 인계가 진행됨"
+            if [ "$control_result" = "AI_HANDOFF_RESULT: COMPLETE" ]; then
+              mark_ready=true
+              ready_note="Ready for review 자동 전환 후 필수 CI 실행 — 성공 시 CI Gate가 다음 단계로 인계"
+            fi
+
             needs_codex=false
             if jq -e 'index("size:M") != null or index("size:L") != null' <<<"$issue_labels" >/dev/null; then
               needs_codex=true
@@ -316,11 +331,15 @@ jobs:
           담당: Claude
           결과: 자동 인계 작업 완료
           PR: $existing_pr
-          검증: PR 필수 CI 실행/확인 필요
+          검증: $ready_note
           남은 위험: 반대 AI 검토 규칙 적용
           후속: $next
           EOF
           )"
+            if [ "$mark_ready" = "true" ] && ! gh pr ready "$existing_pr" --repo "$REPOSITORY"; then
+              gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
+                "PR ${existing_pr}을 Ready for review로 자동 전환하지 못했습니다. Draft 동안 필수 CI는 skip되므로 수동으로 Ready 전환해야 CI와 다음 인계가 진행됩니다."
+            fi
           else
             update_labels '["owner:claude","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
             gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
