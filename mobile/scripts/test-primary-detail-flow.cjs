@@ -38,7 +38,7 @@ assert.match(dish, /renderMenuDetailCard[\s\S]*?pathname: '\/pick\/\[pickId\]'/,
 // Figma 03 owner profile can inspect Figma 40 and both profiles use Figma 17A for store names.
 assert.match(owner, /const openPublicProfile = \(\) => router\.push\(\{ pathname: '\/u\/\[username\]'/,
   'Owner profile must open its public Figma 40 representation');
-assert.match(owner, /공개 프로필 보기[\s\S]*?onPress=\{openPublicProfile\}/,
+assert.match(owner, /onPress=\{openPublicProfile\}[\s\S]*?공개 프로필 보기/,
   'The public-profile management entry must remain wired');
 assert.match(owner, /pathname: '\/provider\/\[providerId\]'[\s\S]{0,180}scope: 'provider'/,
   'Owner profile provider names must open Figma 17A store scope');
