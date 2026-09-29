@@ -8,7 +8,7 @@ import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { PickPhoto } from '@/components/pick-photo';
 import { Button, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useCategoryBySlug, useCategoryRanking } from '@/hooks/useExploreData';
+import { useCategoryRanking, useRankingCategories } from '@/hooks/useExploreData';
 import { homeChannelLabel } from '@/lib/home/homeChannels';
 import { createRankingShareUrl } from '@/lib/share/shareLinks';
 import { OnePick, OnePickMvp, OnePickThresholds } from '@/constants/onepick';
@@ -30,29 +30,30 @@ export default function CategoryRankingScreen() {
   const params = useLocalSearchParams<Params>();
   const rawSlug = (scalar(params.slug) ?? '').trim().toLowerCase();
   const slug = SLUG.test(rawSlug) ? rawSlug : undefined;
-  const category = useCategoryBySlug(slug);
-  const ranking = useCategoryRanking(slug, RANKING_PAGE_SIZE);
+  const categories = useRankingCategories(Boolean(slug), OnePickMvp.browseGroupSlug);
+  const category = categories.data?.find((entry) => entry.slug === slug);
+  const ranking = useCategoryRanking(slug, RANKING_PAGE_SIZE, OnePickMvp.publicPickChannel, OnePickMvp.browseGroupSlug);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
-  const categoryName = category.data?.name;
-  const categoryOpen = category.data?.status === 'open' && category.data.isVisible && category.data.isPickable;
+  const categoryName = category?.name;
+  const categoryOpen = Boolean(category);
   const rows = ranking.data ?? [];
   const topPickCount = rows.find((item) => item.rank === 1)?.pickCount ?? 0;
   // Same gate as Explore: no rank numbers until the leader has a minimum sample.
   const showRankingDetail = topPickCount >= OnePickThresholds.exploreRankingMinPicks;
   const title = categoryName ? `${categoryName} 원픽 랭킹` : '원픽 랭킹';
-  const notFound = !slug || (category.isSuccess && (!category.data || !categoryOpen));
-  const loading = Boolean(slug) && (category.isPending || (categoryOpen && ranking.isPending));
+  const notFound = !slug || (categories.isSuccess && !category);
+  const loading = Boolean(slug) && (categories.isPending || (categoryOpen && ranking.isPending));
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const choose = () => {
-    if (!category.data) return;
+    if (!category) return;
     if (!user) {
-      router.push({ pathname: '/auth/login', params: { action: 'register_pick', categoryId: category.data.id } });
+      router.push({ pathname: '/auth/login', params: { action: 'register_pick', categoryId: category.categoryId } });
       return;
     }
-    router.push({ pathname: '/pick/find', params: { categoryId: category.data.id } });
+    router.push({ pathname: '/pick/find', params: { categoryId: category.categoryId } });
   };
   const share = async () => {
     if (!slug || !categoryName) return;
@@ -88,11 +89,11 @@ export default function CategoryRankingScreen() {
         {notFound && !loading ? <StateCard title="이 카테고리의 랭킹은 아직 없어요" text="카테고리가 열리면 이곳에서 원픽 랭킹을 볼 수 있어요."
           action={{ label: '카테고리 탐색으로', onPress: () => router.replace('/explore') }} /> : null}
 
-        {category.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
-          action={{ label: '다시 불러오기', onPress: () => void category.refetch() }} /> : null}
+        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
+          action={{ label: '다시 불러오기', onPress: () => void categories.refetch() }} /> : null}
 
         {categoryOpen && categoryName ? <>
-          <Text style={styles.eyebrow}>{category.data?.label ?? '원픽 랭킹'}</Text>
+          <Text style={styles.eyebrow}>{category?.path ?? '원픽 랭킹'}</Text>
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
             {showRankingDetail
@@ -129,7 +130,7 @@ export default function CategoryRankingScreen() {
           {ranking.isSuccess && rows.length === 0 ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {showRankingDetail && rows.length > 0 ? <Text style={styles.footnote}>같은 선택 수는 공동 순위 · 최대 {RANKING_PAGE_SIZE}개</Text> : null}
 
-          {category.data ? <DishPeoplePicks categoryId={category.data.id} categoryName={categoryName} userId={user?.id} fixedChannel={OnePickMvp.publicPickChannel} /> : null}
+          {category ? <DishPeoplePicks categoryId={category.categoryId} categoryName={categoryName} userId={user?.id} fixedChannel={OnePickMvp.publicPickChannel} /> : null}
 
           <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>{categoryName}, 당신의 원픽은 무엇인가요?</Text>
