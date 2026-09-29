@@ -160,6 +160,7 @@ jobs:
               .github/workflows/ai-handoff-codex.yml
               .github/workflows/ai-handoff-claude.yml
               .github/workflows/ai-handoff-ci-gate.yml
+              .github/workflows/ai-handoff-review-events.yml
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
