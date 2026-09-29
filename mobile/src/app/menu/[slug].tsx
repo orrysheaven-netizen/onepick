@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 390,
     alignSelf: 'center',
+    minHeight: 720,
     paddingHorizontal: OnePickSpace.gutter,
     paddingTop: OnePickSpace.sm,
     paddingBottom: OnePickSpace.xxxl,
