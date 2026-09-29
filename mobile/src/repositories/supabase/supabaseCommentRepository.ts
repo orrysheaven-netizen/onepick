@@ -9,8 +9,7 @@ import type {
 } from '@/repositories/interfaces/commentRepository';
 import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 
-type CommentInsert = Database['public']['Tables']['comments']['Insert'];
-
+type CommentRow = Database['public']['Tables']['comments']['Row'];
 type CommentUpdate = Database['public']['Tables']['comments']['Update'];
 
 export class SupabaseCommentRepository implements CommentRepository {
@@ -31,13 +30,16 @@ export class SupabaseCommentRepository implements CommentRepository {
   }
 
   async create(input: CreateCommentInput) {
-    const values: CommentInsert = {
+    // The generated base type predates parent_comment_id. Keep the app write
+    // contract narrow while the server/RLS validates root-parent eligibility.
+    const values = {
       pick_id: input.pickId,
       user_id: input.userId,
       body: input.body,
+      parent_comment_id: input.parentCommentId ?? null,
     };
 
-    const { data, error } = await this.client
+    const { data, error } = await (this.client as any)
       .from('comments')
       .insert(values)
       .select('*')
@@ -47,7 +49,7 @@ export class SupabaseCommentRepository implements CommentRepository {
       throw mapSupabaseError(error);
     }
 
-    return mapCommentRow(data);
+    return mapCommentRow(data as CommentRow);
   }
 
   async update(input: UpdateCommentInput) {
