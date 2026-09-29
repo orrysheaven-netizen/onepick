@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PickManagement, PickManagementActions, type PickManagementMode } from '@/components/pick-management';
-import { PickReplies } from '@/components/pick-replies';
 import { PickShareActions } from '@/components/pick-share-actions';
 import { Avatar } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -11,9 +10,8 @@ import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
 /**
- * One review on an item, with its comment thread always open. Current Picks get
- * one positive badge; ended Picks keep the same neutral review presentation so
- * the UI never exposes someone's past-Pick state.
+ * One review in the item list. The list never expands comment threads inline:
+ * review body / comment count opens the dedicated conversation route.
  */
 export function ItemReviewCard({ pick, profile, categoryName, itemName, highlighted, onRemoved }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string;
@@ -26,6 +24,8 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
   const isDeleted = pick.isDeleted ?? false;
   const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
+  const commentCount = pick.commentCount ?? 0;
+  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id } });
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -48,12 +48,22 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, highligh
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
-      {isDeleted ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
-        : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
+
+      <Pressable accessibilityRole="button" accessibilityLabel={`${itemName} 한줄평 대화 보기`}
+        onPress={openConversation} style={({ pressed }) => pressed && styles.pressed}>
+        {isDeleted
+          ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+          : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
+      </Pressable>
+
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      <PickReplies pickId={pick.id} compact canWrite={!isMine} />
+
+      <Pressable accessibilityRole="button" accessibilityLabel={`${itemName} 댓글 ${commentCount}개 보기`}
+        onPress={openConversation} style={({ pressed }) => [styles.commentLink, pressed && styles.pressed]}>
+        <Text style={styles.commentLinkText}>댓글 {commentCount}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -75,5 +85,8 @@ const styles = StyleSheet.create({
   review: { color: OnePick.text, fontSize: 15, lineHeight: 22, marginVertical: 10 },
   myReview: { fontWeight: '600' },
   currentBadge: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 15, fontWeight: '800' },
-  history: { color: OnePick.muted, fontSize: 12, lineHeight: 16 },
+  history: { color: OnePick.muted, fontSize: 12, lineHeight: 16, marginVertical: 10 },
+  commentLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingRight: 12 },
+  commentLinkText: { color: OnePick.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  pressed: { opacity: 0.65 },
 });
