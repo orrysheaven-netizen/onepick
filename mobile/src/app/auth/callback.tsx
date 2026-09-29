@@ -39,7 +39,7 @@ export default function AuthCallbackScreen() {
       .catch(() => {
         // Mutation state below renders the callback failure.
       });
-  }, [completeOAuth, params.action, params.categoryId, params.externalId, params.itemId, params.pickId, router, url]);
+  }, [completeOAuth, params, router, url]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
