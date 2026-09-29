@@ -15,6 +15,7 @@ PM triage: ChatGPT
 - CI 상태 확인
 - PR 독립 리뷰
 - 운영 오류 원인 분석
+- PM 배정 시 성능 수정, QA 자동화, 테스트 도구, 보안 수정 등 직접 구현
 
 ## 원칙
 
@@ -22,7 +23,7 @@ PM triage: ChatGPT
 - 과거 QA 항목을 그대로 구현하지 않는다.
 - 이미 해결된 항목은 중복 수정하지 않는다.
 - 같은 PR head에 실질 변경이 없으면 리뷰를 반복하지 않는다.
-- Claude 직접 구현은 owner/handoff 또는 명시적 위임이 있을 때만 한다.
+- Claude 직접 구현은 owner/handoff 또는 명시적 위임이 있을 때 수행한다. 가용 자원이 많은 기간에는 PM이 UX/Engineering/Release의 S/M 작업도 Claude에 적극 배정할 수 있다.
 - 관찰과 확정 문제를 구분한다.
 - Critical/High는 즉시 PM과 사용자에게 보고한다.
 - 제품 정책을 QA가 임의 변경하지 않는다.
