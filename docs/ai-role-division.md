@@ -76,7 +76,7 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 
 ### 리뷰 결과 자동 인계
 
-PR 리뷰 본문이나 댓글의 **첫 줄**에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
+PR 리뷰 본문이나 댓글의 **첫 줄**(앞에 빈 줄 없이)에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
 
 ```text
 AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
@@ -86,10 +86,12 @@ AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
 - `to=`는 다음에 행동할 쪽이다. 수정 요청은 구현 담당, 수정 완료는 수정을 요청했던 리뷰 담당이다. 두 AI가 같은 GitHub 계정을 쓰고 claim 시 `owner:*`가 바뀌므로 자동으로 추론하지 않는다.
 - 저장소 소유자 계정과 handoff App bot의 결과 줄만 인정한다. PR은 열린 same-repo `main` 대상이어야 하고, PR 본문의 `Refs #N` 중 `owner:*`가 붙은 열린 이슈가 정확히 하나여야 한다.
 - 결과는 PR의 **현재 head**에 대한 것이어야 한다. PR 리뷰는 리뷰한 커밋을 쓰고, 댓글은 `head=`가 필수다. 원래 이슈에 남길 때는 `pr=`도 필수다.
-- `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다. 자동 실행이 진행 중(`state:active`)일 때 bot이 남긴 결과는 해당 finalizer가 처리하므로 무시한다.
+- `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다.
+- `state:active`인 동안에는 누구의 결과든 즉시 인계하지 않는다. 소유자 계정 결과는 처리하지 않은 채 queue에 남겨 두고 `state:active`가 해제된 뒤의 drain에서 다시 판정한다. bot이 남긴 결과는 실행 중인 자동화의 finalizer가 처리하므로 기존대로 처리 생략으로 기록한다.
 - 같은 (PR, head, 결과)는 한 번만 인계한다. 수정 완료는 먼저 처리된 수정 요청이 있어야 하며 그 요청자에게만 돌아간다.
 - 수정 완료는 필수 CI가 모두 성공한 경우에만 즉시 인계한다. CI가 진행 중이면 CI gate 대기 marker를 남겨 완료 시 인계하고, 실패면 인계하지 않고 기록만 한다.
-- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 이벤트 이슈를 먼저, 이어서 열린 모든 AI 작업 이슈(`owner:codex`/`owner:claude`, 기간·개수 제한 없음)의 미처리 marker를 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다.
+- Draft/Ready CI 계약(PR #569, CI gate와 동일): PR이 Draft면 CI 실패로 기록하지 않고 CI gate 대기 marker를 남겨 Ready 전환 후 필수 CI 성공 시 인계한다. Draft였다가 Ready가 된 PR은 마지막 `ready_for_review` 이후 생성된 필수 CI run만 판정한다. #569 병합 전에는 Draft에서도 CI가 정상 실행되므로 동작 차이가 없다.
+- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 이벤트 이슈를 먼저, 이어서 열린 모든 AI 작업 이슈(`owner:codex`/`owner:claude`, 기간·개수 제한 없음)의 미처리 marker를 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다. 결과 줄로 시작하지 않는 댓글(안내·인용)은 enqueue도 drain도 실행하지 않는다.
 
 ## 작업 이슈와 인계
 

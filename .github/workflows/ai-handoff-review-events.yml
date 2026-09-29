@@ -4,7 +4,8 @@ name: AI Handoff - Review Events
 # handoff:claude chain so that a change request, and the fix that answers it,
 # reach the opposite AI immediately.
 #
-# Accepted result lines (first non-empty line of a PR review or comment body):
+# Accepted result lines (the FIRST line of a PR review or comment body; text that only
+# quotes a result line elsewhere never starts a run):
 #   AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40-hex sha>]
 #   AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40-hex sha>]
 # to= names who acts next (the implementer for a change request, the reviewer for a
@@ -22,9 +23,17 @@ name: AI Handoff - Review Events
 #   2. drain (repository-wide concurrency, cancel-in-progress: false): processes ALL
 #      pending markers without a matching
 #        <!-- onepick-review-queue:processed source=<id> -->
-#      on the event's issue and on recently updated AI-queue issues, oldest first.
+#      on the event's issue first, then on EVERY open owner:codex/owner:claude issue
+#      (all pages, no time or count cap), oldest first.
 #   A drain run replaced or cancelled while pending leaves its markers in place; the
-#   newest queued drain (which is never replaced) collects them.
+#   newest queued drain (which is never replaced) collects them. drain runs only when
+#   enqueue reports enqueued=true, so non-result comments cost no sweep.
+#   While the original issue is state:active, an owner result is deferred (left pending,
+#   not processed) and re-evaluated by a later drain; a bot result stays with the
+#   running automation's finalizer, as before.
+#   READY_FOR_REVIEW follows the draft/ready CI contract of ai-handoff-ci-gate.yml
+#   (PR #569): a draft PR is never judged as CI failure, and for a PR that became
+#   ready only runs created at/after the latest ready_for_review event count.
 #
 # Only the repository owner and the handoff App bot are trusted, and only bot-authored
 # markers count. Everything else in PR bodies, reviews and comments is data. This
@@ -46,16 +55,17 @@ jobs:
       (
         (github.event_name == 'pull_request_review' &&
           github.event.pull_request.head.repo.full_name == github.repository &&
-          (contains(github.event.review.body, 'AI_REVIEW_RESULT:') ||
-           contains(github.event.review.body, 'AI_FIX_RESULT:'))) ||
+          (startsWith(github.event.review.body, 'AI_REVIEW_RESULT: CHANGES_REQUESTED ') ||
+           startsWith(github.event.review.body, 'AI_FIX_RESULT: READY_FOR_REVIEW '))) ||
         (github.event_name == 'issue_comment' &&
-          (contains(github.event.comment.body, 'AI_REVIEW_RESULT:') ||
-           contains(github.event.comment.body, 'AI_FIX_RESULT:')))
+          (startsWith(github.event.comment.body, 'AI_REVIEW_RESULT: CHANGES_REQUESTED ') ||
+           startsWith(github.event.comment.body, 'AI_FIX_RESULT: READY_FOR_REVIEW ')))
       )
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
       issue: ${{ steps.enqueue.outputs.issue }}
+      enqueued: ${{ steps.enqueue.outputs.enqueued }}
     steps:
       - name: Create handoff App token
         id: app-token
@@ -168,6 +178,8 @@ jobs:
           if gh api --paginate "repos/$REPOSITORY/issues/$issue_number/comments?per_page=100" | jq -s 'add // []' |
                jq -e --arg bot "$bot_login" --arg m "<!-- onepick-review-queue:pending source=${source} " '
                  any(.[]; .user.login == $bot and (.body | contains($m)))' >/dev/null; then
+            # Marker already there (e.g. workflow re-run): let the drain pick it up.
+            echo "enqueued=true" >> "$GITHUB_OUTPUT"
             skip "source $source already queued"
           fi
           gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$(cat <<EOF
@@ -175,11 +187,13 @@ jobs:
           리뷰 결과 접수 (\`${result}\` → ${next}, PR #${pr_number} head \`${ref_head:0:7}\`) — 처리 대기. 근거: ${SOURCE_URL}
           EOF
           )"
+          echo "enqueued=true" >> "$GITHUB_OUTPUT"
 
   drain:
     needs: enqueue
-    # Runs for every relevant event (even if enqueue skipped or failed) so leftovers drain.
-    if: ${{ !cancelled() && needs.enqueue.result != 'skipped' }}
+    # Runs only when a queue marker exists for this event, so comments that merely quote
+    # a result line never start a full sweep. Leftovers are collected by the next drain.
+    if: ${{ !cancelled() && needs.enqueue.outputs.enqueued == 'true' }}
     runs-on: ubuntu-latest
     permissions: {}
     # Only the drain is serialized. enqueue has no concurrency, so a drain run replaced
@@ -285,8 +299,14 @@ jobs:
                  <<<"$labels" >/dev/null; then
               skip_item "$issue" "$source" "이슈가 blocked이거나 이미 인계 대기 중"; return 0
             fi
-            if [ "$by" = "bot" ] && jq -e 'index("state:active") != null' <<<"$labels" >/dev/null; then
-              skip_item "$issue" "$source" "자동 실행 진행 중 (해당 finalizer가 처리)"; return 0
+            if jq -e 'index("state:active") != null' <<<"$labels" >/dev/null; then
+              if [ "$by" = "bot" ]; then
+                # A bot result during an automated run belongs to that run's finalizer.
+                skip_item "$issue" "$source" "자동 실행 진행 중 (해당 finalizer가 처리)"; return 0
+              fi
+              # Never race a running automation over labels: leave the item pending (no
+              # processed marker) so a drain after state:active is cleared re-evaluates it.
+              echo "defer $source on #$issue: state:active"; return 0
             fi
 
             local key="${pr}-${head}-${result}"
@@ -330,11 +350,32 @@ jobs:
             fi
 
             # READY_FOR_REVIEW: hand back only when required CI for this head succeeded.
-            local runs ci_table body_head body_next markers
+            # Draft/ready contract (PR #569): a draft PR skips required CI, so it is never a
+            # CI failure; hand the wait to the CI gate. For a ready PR, only runs created
+            # at/after the latest ready_for_review event count (earlier ones were draft runs).
+            local runs ci_table body_head body_next markers ready_at
+            if [ "$(jq -r '.draft' <<<"$pr_json")" = "true" ]; then
+              gh issue comment "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF
+          ${done_marker}
+          <!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->
+          ${pm}
+          ## 수정 완료 보고 — Draft PR, Ready 전환 대기
+          PR: #${pr} (head \`${short}\`, Draft)
+          큐 항목: \`${source}\`
+
+          후속: Draft 상태에서는 필수 CI를 판정하지 않습니다(실패로 기록하지 않음). Ready 전환 후 필수 CI가 모두 성공하면 CI gate가 $(name_of "$next") 재검토로 자동 인계합니다. 이후 head가 바뀌면 새 head에서 결과 줄을 다시 남겨 주세요.
+          EOF
+          )"
+              return 0
+            fi
+            ready_at="$(
+              gh api --paginate "repos/$REPOSITORY/issues/$pr/timeline?per_page=100" |
+                jq -rs 'add // [] | [.[] | select(.event == "ready_for_review") | .created_at] | sort | last // ""'
+            )"
             runs="$(
               gh api -X GET "repos/$REPOSITORY/actions/runs" -f head_sha="$head" -f event=pull_request -f per_page=100 |
-                jq -c --argjson req "$REQUIRED_WORKFLOWS" '
-                  .workflow_runs as $all
+                jq -c --argjson req "$REQUIRED_WORKFLOWS" --arg ready_at "$ready_at" '
+                  [ .workflow_runs[] | select(.created_at >= $ready_at) ] as $all
                   | [ $req[] as $name
                       | ([ $all[] | select(.name == $name) ] | sort_by(.created_at) | last) as $r
                       | { name: $name, status: ($r.status // "missing"), conclusion: ($r.conclusion // "") } ]'
