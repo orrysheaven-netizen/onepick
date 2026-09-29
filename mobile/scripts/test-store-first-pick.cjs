@@ -164,6 +164,42 @@ async function main() {
   assert.equal(destination.params.itemId, 'item-1');
   assert.equal(destination.params.pickId, 'pick-1');
 
+  // A branded store pauses inside the menu step until the person chooses
+  // this branch or the separate brand-wide product scope.
+  reset();
+  selectResult = {
+    itemId: 'branch-item',
+    categoryId: 'cat-naengmyeon',
+    hasPhoto: true,
+    pending: false,
+    brand: {
+      providerId: 'provider-1',
+      brandId: 'brand-1',
+      name: '을밀대',
+      logoUrl: null,
+      itemId: null,
+      hasPhoto: false,
+      pending: false,
+    },
+  };
+  registerRun = () => ({ itemId: 'brand-pending', pickId: 'brand-pick', published: false, replacedPickId: null, retried: false });
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
+  page = render();
+  assert.equal(step(page), '2');
+  assert.match(page, /원픽 범위/);
+  assert.match(page, /이 지점/);
+  assert.match(page, /을밀대 전체/);
+  press('을밀대 전체'); render(); press('다음'); await flush();
+  page = render(); assert.equal(step(page), '3', 'A new brand-wide product still needs its photo');
+  press('사진 선택'); await flush(); render(); press('다음'); render();
+  input('원픽 한줄평').onChangeText('어느 지점이든 좋아요'); render(); press('원픽 등록하기'); await flush();
+  const brandSave = calls.find(([name]) => name === 'register')[1];
+  assert.equal(brandSave.brandId, 'brand-1');
+  assert.equal(brandSave.itemId, undefined);
+  assert.equal(brandSave.catalogId, undefined, 'Brand-wide registration must not also select the branch catalog');
+  assert.match(render(), /을밀대 전체 평양냉면이 내 원픽이 됐어요/);
+
   // AI recommendation remains inside the menu step.
   reset();
   selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
@@ -253,6 +289,6 @@ async function main() {
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: offline four-step flow, user-place identity, immediate Pick save, response-id navigation, and concurrency reconfirmation.');
+  console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, user-place identity, immediate Pick save, response-id navigation, and concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

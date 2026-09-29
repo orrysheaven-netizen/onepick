@@ -60,6 +60,7 @@ const knownCodes = new Set<AppErrorCode>([
   'USER_SUSPENDED',
   'LINK_INVALID',
   'PROVIDER_NOT_FOUND',
+  'BRAND_NOT_FOUND',
   'NETWORK_ERROR',
   'INTERNAL_ERROR',
 ]);

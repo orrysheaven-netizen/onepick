@@ -13,7 +13,7 @@ import { useChoosePhoto, useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
-import { isNaverMapUrl, type MenuOption, type StoreCandidate } from '@/services/storeFirstService';
+import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
 // 원픽 등록 4단계: 매장 → 메뉴 → 사진 → 한줄평. 지도 링크는 매장 단계 안에서 받는다.
@@ -83,6 +83,7 @@ function errorMessage(error: unknown) {
       case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록한 항목이에요. 잠시 후 다시 확인해주세요.';
       case 'ITEM_LINK_REQUIRED': return '이 원픽을 바로 확인할 수 있는 링크를 입력해주세요.';
       case 'PROVIDER_NOT_FOUND': return '이 판매처는 지금 고를 수 없어요.';
+      case 'BRAND_NOT_FOUND': return '이 브랜드는 지금 고를 수 없어요.';
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
       case 'ITEM_NAME_INVALID':
       case 'PLACE_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
@@ -120,6 +121,8 @@ export default function NewPickScreen() {
   // Known from the selected item row itself, before the item detail loads.
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
   const [itemPending, setItemPending] = useState(false);
+  const [preflight, setPreflight] = useState<StoreSelection | null>(null);
+  const [pickScope, setPickScope] = useState<'branch' | 'brand' | null>(null);
   const [mapLink, setMapLink] = useState('');
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [review, setReview] = useState('');
@@ -131,6 +134,7 @@ export default function NewPickScreen() {
   const requestIdRef = useRef<string | null>(null);
 
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
+  const pickDisplayName = pickScope === 'brand' && preflight?.brand ? `${preflight.brand.name} 전체` : storeDisplayName;
   const storeChannel: PickChannel = store?.kind === 'seller' ? 'online' : 'offline';
   const search = useStoreSearch('offline', query, Boolean(user) && step === 1 && !requesting);
   const menus = useMenuOptions(Boolean(user) && step === 2);
@@ -191,7 +195,7 @@ export default function NewPickScreen() {
   };
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPhoto(null);
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null); setPhoto(null);
       setPickChangedElsewhere(false); requestIdRef.current = null;
     }
     setStore(candidate);
@@ -211,15 +215,23 @@ export default function NewPickScreen() {
     if (!store || !effectiveMenu || busy.current) return;
     if (!menu) setMenu(effectiveMenu);
     if (store.kind === 'new' || !effectiveMenu.categoryId) {
-      setItemId(null); setItemHadPhoto(false); setItemPending(false); setStep(4); return;
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(4); return;
     }
+
     busy.current = true;
     try {
-      const selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
-      setItemId(selected.itemId);
-      setItemHadPhoto(selected.hasPhoto);
-      setItemPending(selected.pending);
-      setStep(selected.hasPhoto ? 5 : 4);
+      let selected = preflight?.categoryId === effectiveMenu.categoryId ? preflight : null;
+      if (!selected) {
+        selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
+        setPreflight(selected);
+      }
+      if (selected.brand && !pickScope) return;
+
+      const target = pickScope === 'brand' && selected.brand ? selected.brand : selected;
+      setItemId(target.itemId);
+      setItemHadPhoto(target.hasPhoto);
+      setItemPending(target.pending);
+      setStep(target.hasPhoto ? 5 : 4);
     } catch { /* The mutation error is shown under the menu list. */ }
     finally { busy.current = false; }
   };
@@ -253,8 +265,9 @@ export default function NewPickScreen() {
         oneLineReview: trimmedReview,
         requestId,
         itemId: itemId ?? undefined,
-        catalogId: store.kind === 'place' && !itemId ? store.catalogId : undefined,
+        catalogId: pickScope !== 'brand' && store.kind === 'place' && !itemId ? store.catalogId : undefined,
         providerId: store.kind === 'seller' && !itemId ? store.providerId : undefined,
+        brandId: pickScope === 'brand' && !itemId ? preflight?.brand?.brandId : undefined,
         newPlace: store.kind === 'new' ? {
           name: store.name,
           roadAddress: store.roadAddress,
@@ -298,7 +311,7 @@ export default function NewPickScreen() {
     : availableMenus).slice(0, 20);
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) {
-      setItemId(null); setItemHadPhoto(false); setItemPending(false);
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
       setPickChangedElsewhere(false); requestIdRef.current = null;
     }
     setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
@@ -413,7 +426,7 @@ export default function NewPickScreen() {
               <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery}
                 onChangeText={(value) => {
                   setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
-                  setItemId(null); setItemHadPhoto(false); setItemPending(false);
+                  setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
                   setPickChangedElsewhere(false); requestIdRef.current = null;
                 }}
                 onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0) setAiMenuName(requestedMenu); }}
@@ -467,16 +480,32 @@ export default function NewPickScreen() {
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried ? <View style={styles.loadingRow}>
               <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요</Text>
             </View> : null}
+            {preflight?.brand ? <View style={styles.fieldBlock}>
+              <FieldLabel label="원픽 범위" />
+              <Text style={styles.helper}>지점을 고르면 이 매장만, 브랜드 전체를 고르면 모든 지점과 별개의 원픽이 됩니다.</Text>
+              <View style={styles.chips}>
+                <FlowChip label="이 지점" selected={pickScope === 'branch'} onPress={() => {
+                  setPickScope('branch'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
+                  setPhoto(null); setPickChangedElsewhere(false); requestIdRef.current = null;
+                }} />
+                <FlowChip label={`${preflight.brand.name} 전체`} selected={pickScope === 'brand'} onPress={() => {
+                  setPickScope('brand'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
+                  setPhoto(null); setPickChangedElsewhere(false); requestIdRef.current = null;
+                }} />
+              </View>
+            </View> : null}
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label="다음" disabled={!effectiveMenu || suggestions.isFetching} loading={selectItem.isPending} onPress={() => void confirmMenu()} />
+            <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
+              disabled={!effectiveMenu || suggestions.isFetching || Boolean(preflight?.brand && !pickScope)}
+              loading={selectItem.isPending} onPress={() => void confirmMenu()} />
           </View>
         </> : null}
 
         {step === 4 && store ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>3 / 4 · {storeDisplayName} · {menu?.name ?? '사진'}</Text>
+            <Text style={styles.stepMeta}>3 / 4 · {pickDisplayName} · {menu?.name ?? '사진'}</Text>
             <Text style={styles.title}>대표 사진을 올려주세요</Text>
             <Text style={styles.helper}>사진이 없는 원픽은 대표 사진이 필요해요. 저장 전까지는 선택한 사진만 유지됩니다.</Text>
             {needsPhoto ? <View style={styles.photoPanel}>
@@ -492,7 +521,7 @@ export default function NewPickScreen() {
 
         {(step === 5 || step === 6) && store && menu ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>4 / 4 · {storeDisplayName} · {menu.name}</Text>
+            <Text style={styles.stepMeta}>4 / 4 · {pickDisplayName} · {menu.name}</Text>
             <Text style={styles.title}>한줄평을 남겨주세요</Text>
             {pickChangedElsewhere
               ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체합니다.</Text></View>
@@ -518,7 +547,7 @@ export default function NewPickScreen() {
         <View style={styles.overlay}>
           {done && store && menu ? <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>원픽을 정했어요</Text>
-            <Text style={styles.dialogBody}>{`${storeDisplayName} ${menu.name}이 내 원픽이 됐어요.`}</Text>
+            <Text style={styles.dialogBody}>{`${pickDisplayName} ${menu.name}이 내 원픽이 됐어요.`}</Text>
             <View style={styles.dialogSpacer} />
             <FlowButton label="확인" onPress={() => {
               router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });

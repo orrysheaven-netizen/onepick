@@ -36,6 +36,7 @@ export interface ImmediatePickRegistrationInput {
   itemId?: string | null;
   catalogId?: string | null;
   providerId?: string | null;
+  brandId?: string | null;
   linkUrl?: string | null;
   newPlace?: {
     name: string;
@@ -145,7 +146,14 @@ export class RegistrationService {
     // stage_user_place_item creates the hidden place/catalog/provider-linked item;
     // register_item_pick remains the operation that creates/replaces the Pick.
     let itemId = input.itemId ?? null;
-    if (!itemId && !input.catalogId && !input.providerId) {
+    if (!itemId && input.brandId) {
+      if (input.channel !== 'offline') throw new AppError('PICK_CHANNEL_MISMATCH');
+      const staged = await this.itemRepository.stageBrandItem({
+        categoryId: input.categoryId,
+        brandId: input.brandId,
+      });
+      itemId = staged.id;
+    } else if (!itemId && !input.catalogId && !input.providerId) {
       if (input.channel !== 'offline' || !input.newPlace) throw new AppError('ITEM_SELECTION_REQUIRED');
       const staged = await this.itemRepository.stageUserPlaceItem({
         categoryId: input.categoryId,

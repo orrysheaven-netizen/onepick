@@ -14,6 +14,7 @@ export interface ItemRepository {
   submitItem(input: SubmitItemInput): Promise<Item>;
   submitUnclassifiedItem(input: SubmitUnclassifiedItemInput): Promise<Item>;
   stageUserPlaceItem(input: StageUserPlaceItemInput): Promise<Item>;
+  stageBrandItem(input: StageBrandItemInput): Promise<Item>;
   reviseItemRequest(input: ReviseItemRequestInput): Promise<Item>;
   /** Writes or clears the requester's free-text category hint on their own pending request. */
   setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
@@ -66,4 +67,9 @@ export interface ReviseItemRequestInput {
   thumbnailPath?: string | null;
   imageSourceUrl?: string | null;
   removePhoto?: boolean;
+}
+
+export interface StageBrandItemInput {
+  categoryId: string;
+  brandId: string;
 }
