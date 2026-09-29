@@ -3,6 +3,7 @@ import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import { supabase } from '@/lib/supabase/client';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { PickChannel } from '@/lib/items/pickChannel';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** A store found on step 1: a catalog place (매장) or an online seller (온라인). */
 export type StoreCandidate =
@@ -13,6 +14,24 @@ export type StoreCandidate =
 export type MenuOption = { categoryId: string; name: string; groupName: string | null; placeEnabled: boolean };
 
 export type MenuSuggestion = { categoryId: string; label: string; reason: string; confidence: 'high' | 'medium' | 'low' };
+
+export type StoreBrandScope = {
+  providerId: string;
+  brandId: string;
+  name: string;
+  logoUrl: string | null;
+  itemId: string | null;
+  hasPhoto: boolean;
+  pending: boolean;
+};
+
+export type StoreSelection = {
+  itemId: string | null;
+  categoryId: string;
+  hasPhoto: boolean;
+  pending: boolean;
+  brand: StoreBrandScope | null;
+};
 
 export type StoreForSuggestion = {
   name: string;
@@ -41,6 +60,75 @@ function object(value: unknown): Record<string, unknown> {
 
 export class StoreFirstService {
   constructor(private readonly client: AppSupabaseClient) {}
+
+  private db() {
+    return this.client as unknown as SupabaseClient;
+  }
+
+  private async itemState(itemId: string | null, categoryId: string) {
+    if (!itemId) return { itemId: null, hasPhoto: false, pending: false };
+    const { data: item, error } = await this.client.from('items')
+      .select('id,category_id,status,image_path,thumbnail_path,image_source_url')
+      .eq('id', itemId).maybeSingle();
+    if (error) throw mapSupabaseError(error);
+    if (!item || item.category_id !== categoryId) return { itemId: null, hasPhoto: false, pending: false };
+    return {
+      itemId: item.id,
+      hasPhoto: [item.image_path, item.thumbnail_path, item.image_source_url]
+        .some((value) => typeof value === 'string' && value.length > 0),
+      pending: item.status === 'pending',
+    };
+  }
+
+  private async placeBrandScope(
+    categoryId: string,
+    placeRef: { place_provider: string; provider_place_id: string },
+  ): Promise<StoreBrandScope | null> {
+    const { data: placeData, error: placeError } = await this.db().from('places')
+      .select('id')
+      .eq('place_provider', placeRef.place_provider)
+      .eq('provider_place_id', placeRef.provider_place_id)
+      .maybeSingle();
+    if (placeError) throw mapSupabaseError(placeError);
+    const place = placeData as { id?: string } | null;
+    if (!place?.id) return null;
+
+    const { data: providerData, error: providerError } = await this.db().from('providers')
+      .select('id,brand_id')
+      .eq('place_id', place.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (providerError) throw mapSupabaseError(providerError);
+    const provider = providerData as { id?: string; brand_id?: string | null } | null;
+    if (!provider?.id || !provider.brand_id) return null;
+
+    const { data: brandData, error: brandError } = await this.db().from('brands')
+      .select('id,name,logo_path,is_active')
+      .eq('id', provider.brand_id)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (brandError) throw mapSupabaseError(brandError);
+    const brand = brandData as { id?: string; name?: string; logo_path?: string | null } | null;
+    if (!brand?.id || !brand.name) return null;
+
+    const { data: scopeData, error: scopeError } = await this.db().from('item_brand_scopes')
+      .select('item_id')
+      .eq('brand_id', brand.id)
+      .eq('category_id', categoryId)
+      .maybeSingle();
+    if (scopeError) throw mapSupabaseError(scopeError);
+    const scope = scopeData as { item_id?: string } | null;
+    const state = await this.itemState(scope?.item_id ?? null, categoryId);
+    return {
+      providerId: provider.id,
+      brandId: brand.id,
+      name: brand.name,
+      logoUrl: brand.logo_path
+        ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
+        : null,
+      ...state,
+    };
+  }
 
   async searchStores(query: string, signal?: AbortSignal): Promise<StoreCandidate[]> {
     const q = cleanQuery(query);
@@ -107,10 +195,12 @@ export class StoreFirstService {
    * Product creation is deferred to register_item_pick so a new product stays private
    * and immediately becomes the caller's needs_review Pick.
    */
-  async selectItem(categoryId: string, store: StoreCandidate): Promise<{ itemId: string | null; categoryId: string; hasPhoto: boolean; pending: boolean }> {
+  async selectItem(categoryId: string, store: StoreCandidate): Promise<StoreSelection> {
     if (!UUID.test(categoryId)) throw new AppError('CATEGORY_NOT_FOUND');
 
     let itemId: string | null = null;
+    let brand: StoreBrandScope | null = null;
+
     if (store.kind === 'place') {
       const { data, error } = await this.client.rpc('search_place_catalog', {
         p_category_id: categoryId,
@@ -118,36 +208,28 @@ export class StoreFirstService {
         p_limit: 20,
       });
       if (error) throw mapSupabaseError(error);
-      itemId = (data ?? []).find((row) => row.catalog_id === store.catalogId)?.existing_item_id ?? null;
+      const row = (data ?? []).find((entry) => entry.catalog_id === store.catalogId);
+      itemId = row?.existing_item_id ?? null;
+      if (row) {
+        brand = await this.placeBrandScope(categoryId, {
+          place_provider: row.place_provider,
+          provider_place_id: row.provider_place_id,
+        });
+      }
     } else {
-      // Provider tables are newer than the generated base types; this is read-only.
-      const db = this.client as unknown as {
-        from(name: 'item_providers'): {
-          select(columns: string): {
-            eq(column: string, value: string): {
-              eq(column: string, value: string): {
-                maybeSingle(): Promise<{ data: { item_id?: string } | null; error: { code?: string | null; message?: string | null; details?: string | null; hint?: string | null } | null }>;
-              };
-            };
-          };
-        };
-      };
-      const { data, error } = await db.from('item_providers').select('item_id')
-        .eq('provider_id', store.providerId).eq('category_id', categoryId).maybeSingle();
+      const { data, error } = await this.db().from('item_providers')
+        .select('item_id')
+        .eq('provider_id', store.providerId)
+        .eq('category_id', categoryId)
+        .maybeSingle();
       if (error) throw mapSupabaseError(error);
-      itemId = typeof data?.item_id === 'string' ? data.item_id : null;
+      itemId = typeof (data as { item_id?: string } | null)?.item_id === 'string'
+        ? (data as { item_id: string }).item_id
+        : null;
     }
 
-    if (!itemId) return { itemId: null, categoryId, hasPhoto: false, pending: false };
-
-    const { data: item, error: itemError } = await this.client.from('items')
-      .select('id,category_id,status,image_path,thumbnail_path,image_source_url')
-      .eq('id', itemId).maybeSingle();
-    if (itemError) throw mapSupabaseError(itemError);
-    if (!item || item.category_id !== categoryId) return { itemId: null, categoryId, hasPhoto: false, pending: false };
-    const hasPhoto = [item.image_path, item.thumbnail_path, item.image_source_url]
-      .some((value) => typeof value === 'string' && value.length > 0);
-    return { itemId: item.id, categoryId, hasPhoto, pending: item.status === 'pending' };
+    const state = await this.itemState(itemId, categoryId);
+    return { ...state, categoryId, brand };
   }
 
   async suggestMapLink(itemId: string, url: string) {
