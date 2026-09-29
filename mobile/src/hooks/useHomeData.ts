@@ -60,3 +60,13 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
     refetch,
   };
 }
+
+
+export function useHomeRecentMenuRanking(groupCategoryId: string | null = null, enabled = true, limit = 4) {
+  return useQuery({
+    enabled,
+    queryKey: [...queryKeys.home.recentMenus(groupCategoryId), limit],
+    queryFn: () => homeService.getRecentMenuRanking(groupCategoryId, limit),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
