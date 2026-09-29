@@ -158,8 +158,7 @@ async function main() {
   const commentButton = buttons.find((button) => button.accessibilityLabel?.includes('신라면 내 한줄평에 댓글'));
   assert.ok(commentButton);
   await commentButton.onPress();
-  assert.equal(destination.pathname, '/item/[itemId]');
-  assert.equal(destination.params.itemId, 'item-0');
+  assert.equal(destination.pathname, '/pick/[pickId]');
   assert.equal(destination.params.pickId, 'pick-0');
   assert.equal(destination.params.notificationGroupId, 'comment:group-0');
   assert.equal(destination.params.notificationSnapshot, group(0).snapshot);
@@ -168,7 +167,7 @@ async function main() {
   assert.ok(replyButton);
   replyButton.onPress();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(destination.params.itemId, 'item-1');
+  assert.equal(destination.pathname, '/pick/[pickId]');
   assert.equal(destination.params.pickId, 'pick-1');
   assert.equal(destination.params.rootCommentId, 'root-1');
   assert.equal(destination.params.commentAfterTime, '2026-09-28T23:59:00Z');
@@ -187,8 +186,9 @@ async function main() {
   const notificationSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/notifications.tsx'), 'utf8');
   assert.doesNotMatch(notificationSource, /useReadNotificationGroup|markGroupRead/, 'inbox open must not mark read');
   const itemSource = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
-  assert.match(itemSource, /useReadNotificationGroup/);
-  assert.match(itemSource, /notificationKind === 'reply' && !replyTargetLoaded/);
+  const conversationSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
+  assert.match(conversationSource, /useReadNotificationGroup/);
+  assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/);
   assert.match(itemSource, /useRevisePendingItem/);
   assert.match(itemSource, /수정 내용 보내기/);
 

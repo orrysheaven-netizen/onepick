@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +21,7 @@ import { itemTitle } from '@/lib/items/itemTitle';
 import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function photoErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -68,6 +68,17 @@ type Params = {
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
+  if ((params.notificationKind === 'comment' || params.notificationKind === 'reply') && typeof params.pickId === 'string') {
+    return <Redirect href={{ pathname: '/pick/[pickId]', params: {
+      pickId: params.pickId,
+      ...(typeof params.notificationGroupId === 'string' ? { notificationGroupId: params.notificationGroupId } : {}),
+      ...(typeof params.notificationSnapshot === 'string' ? { notificationSnapshot: params.notificationSnapshot } : {}),
+      ...(typeof params.notificationKind === 'string' ? { notificationKind: params.notificationKind } : {}),
+      ...(typeof params.rootCommentId === 'string' ? { rootCommentId: params.rootCommentId } : {}),
+      ...(typeof params.commentAfterTime === 'string' ? { commentAfterTime: params.commentAfterTime } : {}),
+      ...(typeof params.commentAfterId === 'string' ? { commentAfterId: params.commentAfterId } : {}),
+    } }} />;
+  }
   // A file selected for one item/account must never be submitted for another.
   return <ItemDetailContent key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}`} auth={auth} params={params} />;
 }
@@ -80,17 +91,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
   const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
   const notificationReason = typeof params.notificationReason === 'string' ? params.notificationReason : undefined;
-  const rootCommentId = typeof params.rootCommentId === 'string' ? params.rootCommentId : undefined;
-  const commentInitialCursor = typeof params.commentAfterTime === 'string' && typeof params.commentAfterId === 'string'
-    ? { timestamp: params.commentAfterTime, id: params.commentAfterId }
-    : null;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
-  const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError);
+  const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
+  const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError, publicFoodChannel);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
 
   useEffect(() => {
     const data = query.data;
@@ -110,7 +117,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   useEffect(() => {
     if (!user || !query.data || !notificationGroupId || !notificationSnapshot) return;
-    if (notificationKind === 'reply' && !replyTargetLoaded) return;
     const receipt = `${notificationGroupId}:${notificationSnapshot}`;
     if (acknowledgedNotification.current === receipt) return;
     acknowledgedNotification.current = receipt;
@@ -118,7 +124,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       .catch(() => {
         if (acknowledgedNotification.current === receipt) acknowledgedNotification.current = undefined;
       });
-  }, [notificationGroupId, notificationSnapshot, notificationKind, query.data?.item.id, replyTargetLoaded, user?.id]);
+  }, [notificationGroupId, notificationSnapshot, query.data?.item.id, user?.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -271,8 +277,24 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     );
   }
 
-  const { category, brand, isRestaurant, myPickStatus, pickChannel, picks, canChoose } = query.data;
+  const { category, brand, isRestaurant, myPickStatus, pickChannel, picks: allPicks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
+  const mvpFoodScope = isRestaurant && !OnePickFeatures.foodChannelPicker;
+  const itemSupportsPublicChannel = !mvpFoodScope
+    || item.channels?.includes(OnePickMvp.publicPickChannel)
+    || item.externalSource === 'onepick_place';
+  const picks = mvpFoodScope
+    ? allPicks.filter(({ pick }) => pick.channel === OnePickMvp.publicPickChannel
+      || (!pick.channel && itemSupportsPublicChannel))
+    : allPicks;
+  const focusAvailable = !focusPickId || picks.some(({ pick }) => pick.id === focusPickId);
+  const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
+  if (!itemSupportsPublicChannel) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
+      <StateCard title="현재 공개 중인 원픽이 아니에요" text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
+      <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
+    </View></SafeAreaView>;
+  }
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
@@ -354,7 +376,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           ) : null}
           {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
           {isRestaurant
-            ? homeChannelLabel(item.channels) ? <Text style={styles.category}>{homeChannelLabel(item.channels)}</Text> : null
+            ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
             : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
           {brand ? <View style={styles.brandRow}>
             {brand.logoUrl ? <View style={styles.brandLogo}>
@@ -364,8 +386,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           </View> : null}
           <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
           <YouTubeVideoLink item={item} />
-          <ItemPickCount itemId={item.id} />
-          <ItemChannelLinks itemId={item.id} />
+          {!mvpFoodScope ? <ItemPickCount itemId={item.id} /> : null}
+          {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 
           {/* One shape for the Pick state: filled brand color when it is my Pick, no color
               otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
@@ -386,7 +408,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.sectionGap} />
 
-        {focusPickId && query.data.focusAvailable === false ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 공개되지 않았어요.</Text> : null}
+        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 현재 공개 범위에 없어요.</Text> : null}
         {picks.length > 0 ? (
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
@@ -398,9 +420,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
                 itemName={item.name} highlighted={pick.id === highlightedId}
-                focusCommentId={pick.id === focusPickId && notificationKind === 'reply' ? rootCommentId : undefined}
-                commentInitialCursor={pick.id === focusPickId && notificationKind === 'reply' ? commentInitialCursor : null}
-                onCommentFocusLoaded={pick.id === focusPickId && notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
