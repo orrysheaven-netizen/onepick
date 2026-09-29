@@ -116,6 +116,77 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     }
   };
 
+  const threadCount = (commentsQuery.data ?? []).reduce((sum, entry) => {
+    const replies = entry.replies ?? [];
+    return sum + (entry.comment.isDeleted ? 0 : 1)
+      + replies.filter((reply) => !reply.comment.isDeleted).length;
+  }, 0);
+
+  const renderComment = (entry: CommentReadItem, isReply: boolean) => {
+    const { comment, author } = entry;
+    const deleted = Boolean(comment.isDeleted);
+    const canDelete = Boolean(comment.canDelete ?? (user && comment.userId === user.id));
+    const username = author?.username ?? '사용자';
+
+    return <View key={comment.id} style={[
+      styles.commentRow,
+      isReply && styles.replyRow,
+      comment.id === focusCommentId && styles.commentHighlight,
+    ]}>
+      <View style={[styles.commentAvatar, isReply && styles.replyAvatar]}>
+        <Text style={styles.commentAvatarText}>{deleted ? '·' : username.slice(0, 1).toUpperCase()}</Text>
+      </View>
+      <View style={styles.commentCopy}>
+        {deleted ? <Text style={styles.commentAuthor}>삭제된 댓글</Text> : author ? <View style={styles.commentAuthorRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`@${author.username} 공개 프로필 보기`}
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
+            style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
+            <Text style={styles.commentAuthor}>@{author.username} ›</Text>
+          </Pressable>
+          {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag /> : null}
+        </View> : <Text style={styles.commentAuthor}>사용자</Text>}
+
+        <Text style={[styles.commentBody, deleted && styles.deletedBody]}>{deleted ? '삭제된 댓글입니다.' : comment.body}</Text>
+
+        {!deleted && user && author && author.id !== user.id ? <View style={styles.commentSafety}>
+          <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
+        </View> : null}
+
+        {!isReply && canComment && !deleted ? <Pressable accessibilityRole="button"
+          accessibilityLabel={`@${username}에게 답글 달기`}
+          onPress={() => {
+            setReplyingTo({ id: comment.id, username });
+            setComposing(true);
+            createComment.reset();
+          }}
+          style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+          <Text style={styles.textActionLabel}>답글</Text>
+        </Pressable> : null}
+
+        {canDelete ? (confirmingDeleteId === comment.id ? <View style={styles.deleteConfirm}>
+          <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 답글이 있으면 대화 자리는 남습니다.</Text>
+          {deleteComment.isError ? <Text accessibilityRole="alert" style={styles.commentError}>댓글을 삭제하지 못했어요. 다시 시도해주세요.</Text> : null}
+          <View style={styles.deleteActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인" disabled={deleteComment.isPending}
+              onPress={() => void handleCommentDelete(comment.id)}
+              style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
+              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 취소" disabled={deleteComment.isPending}
+              onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
+              style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+              <Text style={styles.textActionLabel}>취소</Text>
+            </Pressable>
+          </View>
+        </View> : <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 삭제" disabled={deleteComment.isPending}
+          onPress={() => { deleteComment.reset(); setConfirmingDeleteId(comment.id); }}
+          style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+          <Text style={styles.textActionLabel}>삭제</Text>
+        </Pressable>) : null}
+      </View>
+    </View>;
+  };
+
   if (isSessionLoading) return <ActivityIndicator accessibilityLabel="로그인 상태 확인 중" />;
   if (sessionError) return <View style={styles.commentsState}>
     <Text accessibilityRole="alert" style={styles.commentsStateText}>로그인 상태를 확인하지 못했어요.</Text>
@@ -127,7 +198,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
             <View style={compact ? styles.commentsInline : styles.commentsCard}>
               {!compact || commentsQuery.data?.length ? <View style={styles.commentsHeader}>
                 <Text style={compact ? styles.commentsTitleCompact : styles.commentsTitle}>댓글</Text>
-                <Text style={styles.commentsCount}>{commentsQuery.data?.length ?? 0}개{commentsQuery.hasNextPage ? '+' : ''}</Text>
+                <Text style={styles.commentsCount}>{threadCount}개{commentsQuery.hasNextPage ? '+' : ''}</Text>
               </View> : null}
 
               {commentsQuery.isPending ? (
@@ -153,72 +224,10 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                 <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
-              {commentsQuery.data?.map(({ comment, author }) => (
-                <View key={comment.id} style={[styles.commentRow, comment.id === focusCommentId && styles.commentHighlight]}>
-                  <View style={styles.commentAvatar}>
-                    <Text style={styles.commentAvatarText}>
-                      {(author?.username ?? '?').slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.commentCopy}>
-                    <View style={styles.commentAuthorRow}>
-                      {author ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`@${author.username} 공개 프로필 보기`}
-                          onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
-                          style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
-                          <Text style={styles.commentAuthor}>@{author.username} ›</Text>
-                        </Pressable>
-                      ) : <Text style={styles.commentAuthor}>사용자</Text>}
-                      {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag /> : null}
-                    </View>
-                    <Text style={styles.commentBody}>{comment.body}</Text>
-                    {user && author && author.id !== user.id ? (
-                      <View style={styles.commentSafety}>
-                        <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
-                      </View>
-                    ) : null}
-                    {user && comment.userId === user.id ? (
-                      confirmingDeleteId === comment.id ? (
-                        <View style={styles.deleteConfirm}>
-                          <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 되돌릴 수 없어요.</Text>
-                          {deleteComment.isError ? (
-                            <Text accessibilityRole="alert" style={styles.commentError}>댓글을 삭제하지 못했어요. 다시 시도해주세요.</Text>
-                          ) : null}
-                          <View style={styles.deleteActions}>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel="댓글 삭제 확인"
-                              disabled={deleteComment.isPending}
-                              onPress={() => void handleCommentDelete(comment.id)}
-                              style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
-                              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel="댓글 삭제 취소"
-                              disabled={deleteComment.isPending}
-                              onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
-                              style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
-                              <Text style={styles.textActionLabel}>취소</Text>
-                            </Pressable>
-                          </View>
-                        </View>
-                      ) : (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel="내 댓글 삭제"
-                          disabled={deleteComment.isPending}
-                          onPress={() => { deleteComment.reset(); setConfirmingDeleteId(comment.id); }}
-                          style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
-                          <Text style={styles.textActionLabel}>삭제</Text>
-                        </Pressable>
-                      )
-                    ) : null}
-                  </View>
-                </View>
-              ))}
+              {commentsQuery.data?.map((entry) => <View key={entry.comment.id}>
+                {renderComment(entry, false)}
+                {(entry.replies ?? []).map((reply) => renderComment(reply, true))}
+              </View>)}
 
               {commentsQuery.isFetchNextPageError ? (
                 <Text accessibilityRole="alert" style={styles.commentsStateText}>다음 댓글을 불러오지 못했어요. 다시 시도해주세요.</Text>
