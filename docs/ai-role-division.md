@@ -121,6 +121,27 @@ PR: #<번호>
 
 자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
 
+## PR·CI 실행 비용 규칙
+
+GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필수 CI(`Database Tests`, `Mobile CI`, `Web build`)와 반대 AI 리뷰 구조는 그대로 두고, 작업 중 반복 실행만 줄인다.
+
+1. **PR은 Draft로 연다.** Draft 동안 필수 CI 3종은 job 단위로 skip되어 러너 시간을 쓰지 않는다(체크는 skipped=성공으로 보고되지만 Draft는 병합할 수 없다).
+2. **구현과 자체 검증이 끝나면 Ready for review로 전환한다**(`gh pr ready <번호>`). 이 전환(`ready_for_review`)에서 필수 CI가 실행되고, 이후 반대 AI 리뷰 → PM 검토로 이어진다.
+   - 자동 인계: Claude는 `AI_HANDOFF_RESULT: COMPLETE`일 때, Codex는 patch PR을 만든 직후 finalizer가 자동 전환한다.
+   - `state:blocked` 또는 `BLOCKED`/`CODEX_FOLLOWUP` 결과에서는 Ready로 전환하지 않는다.
+   - `AI Handoff - CI Gate`는 Draft PR의 skip된 CI를 통과로 보지 않는다. Ready 전환 이후 생성된 필수 CI 실행이 모두 성공해야 다음 담당으로 인계한다.
+   - Ready 이후 큰 재작업이 필요하면 `gh pr ready <번호> --undo`로 Draft로 되돌리고, 다시 완료되면 Ready로 전환한다.
+3. **push는 논리적 작업 단위로 묶는다.** 작은 수정마다 즉시 push하지 말고, 하나의 논리적 작업 단위가 완성된 시점에 변경을 묶어서 push한다. 단, 충돌 방지나 외부 handoff에 반드시 필요한 경우는 예외로 한다. CI 실행 횟수뿐 아니라 GitHub 이벤트 자체를 줄이기 위한 규칙이다.
+4. Ready PR에서도 변경 경로와 무관한 CI는 무거운 단계를 건너뛴다(`.github/scripts/ci-path-gate.sh`). 필수 체크 이름은 바꾸지 않는다.
+
+| 필수 체크 | 실제 실행되는 변경 경로 |
+|---|---|
+| `database-tests` (Database Tests) | `supabase/**`, `tools/*.py`, 자기 workflow 파일 |
+| `typecheck` (Mobile CI) | `mobile/**`, `supabase/**`, `mobile/scripts`가 경로로 읽는 파일(예: `docs/pokemon-catalog.md`), 자기 workflow 파일 |
+| `verify-web` (Web build) | `mobile/**`, `tools/qa/**`, 자기 workflow 파일 |
+
+`.github/scripts/ci-path-gate.sh`가 바뀌면 세 CI가 모두 실행된다. 이 스크립트와 `.github/scripts/test-ci-path-gate.sh`는 자동 인계 control-plane 파일이므로 무인 자동 실행기가 수정하지 않는다. 판정 job이 실패하면 무거운 단계는 항상 실행된다(fail-safe). `main` push와 수동 실행은 기존 동작 그대로다.
+
 ## AI Ops 대시보드
 
 비공개 GitHub 이슈 `[AI Ops] OnePick 작업·인계 대시보드`를 공용 웹 대시보드로 사용한다. 자동화는 GitHub 이슈/라벨/PR 데이터만 사용하며 외부 AI API를 호출하지 않는다.
