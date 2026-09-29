@@ -13,7 +13,7 @@ import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OneP
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
-import { useHomeData } from '@/hooks/useHomeData';
+import { useHomeData, useHomeRecentMenuRanking } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
@@ -77,6 +77,11 @@ export default function HomeScreen() {
   // Start it alongside Home context instead of waiting for Home to finish first.
   const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
   const categoryCatalog = categoriesQuery.data ?? [];
+  const recentMenuRankingQuery = useHomeRecentMenuRanking(
+    null,
+    !isSessionLoading && !sessionError && !followDefaultPending && !showFollowing,
+    4,
+  );
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
   const showCategoryFilters = Boolean(OnePickFeatures.categoryChips) && categoryFilters.length > 1 &&
@@ -95,9 +100,24 @@ export default function HomeScreen() {
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
   // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  // A menu card opens the production menu-detail screen (Figma 16A). Rankings
-  // remain a separate explicit surface rather than replacing the menu detail.
-  const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
+  // The public 7-day aggregate determines ordering when it has data. If the
+  // period is empty or unavailable, keep the existing starter menu discovery.
+  const starterCategories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
+  const menuCards = useMemo(() => {
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    const ranked = (recentMenuRankingQuery.data ?? []).flatMap((row) => {
+      const category = byId.get(row.categoryId);
+      return category?.slug ? [{
+        category,
+        pickCount: row.pickCount as number | null,
+        thumbnailUrl: row.thumbnailUrl,
+      }] : [];
+    });
+    return ranked.length
+      ? ranked
+      : starterCategories.map((category) => ({ category, pickCount: null as number | null, thumbnailUrl: null as string | null }));
+  }, [categoryCatalog, recentMenuRankingQuery.data, starterCategories]);
+  const hasRecentMenuRanking = menuCards.some((card) => card.pickCount !== null);
   const openMenu = (category: { slug: string }) => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } });
   const ready = !isLoading && !sessionError && Boolean(data);
 
@@ -227,14 +247,22 @@ export default function HomeScreen() {
           </View>
         </View> : null}
 
-        {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
+        {ready && data && menuCards.length ? <View style={styles.categorySection}>
+          <View style={styles.nextSection}><SectionHeader
+            title={hasRecentMenuRanking ? '최근 7일 많이 고른 메뉴' : '메뉴별 원픽 보기'}
+            description={hasRecentMenuRanking ? '최근 7일 동안 새로 고른 현재 원픽 기준' : '메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요'} /></View>
           <View style={styles.categoryGrid}>
-            {categories.map((category) => {
+            {menuCards.map(({ category, pickCount, thumbnailUrl }) => {
               const label = category.name;
+              const showCount = pickCount !== null && pickCount >= OnePickThresholds.homeRecentMenuCountMinPicks;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 사람들의 원픽 보기'}
-                onPress={() => openMenu(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>사람들의 원픽 보기  ›</Text>
+                onPress={() => openMenu(category)}
+                style={({ pressed }) => [styles.categoryCard, hasRecentMenuRanking && styles.recentCategoryCard, pressed && styles.pressed]}>
+                {hasRecentMenuRanking ? <PickPhoto uri={thumbnailUrl} label={label} square /> : null}
+                <View style={hasRecentMenuRanking ? styles.recentCategoryCopy : undefined}>
+                  <Text numberOfLines={2} style={styles.categoryName}>{label}</Text>
+                  <Text style={styles.categoryAction}>{showCount ? `원픽 ${pickCount!.toLocaleString()}  ›` : '사람들의 원픽 보기  ›'}</Text>
+                </View>
               </Pressable>;
             })}
           </View>
@@ -335,6 +363,8 @@ const styles = StyleSheet.create({
   nextSection: { marginBottom: OnePickSpace.md },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.md },
   categoryCard: { width: '46%', flexGrow: 1, minHeight: 88, justifyContent: 'space-between', padding: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
+  recentCategoryCard: { minHeight: 0, justifyContent: 'flex-start', padding: 0, borderWidth: 0, backgroundColor: 'transparent' },
+  recentCategoryCopy: { paddingTop: OnePickSpace.xs },
   categoryName: { ...OnePickType.headline, color: OnePick.textPrimary },
   categoryAction: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
   refreshRow: { alignItems: 'flex-end', marginBottom: OnePickSpace.md },
