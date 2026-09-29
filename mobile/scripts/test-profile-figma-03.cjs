@@ -8,14 +8,19 @@ const avatar = fs.readFileSync(path.join(__dirname, '../src/components/ui/avatar
 
 assert.match(profile, /03|profileHeader/);
 assert.match(profile, /<Avatar name=\{displayName\} size=\{72\} tone="subtle" \/>/);
-assert.match(profile, /<Chip label="음식"/);
-assert.match(profile, /<Chip label="기타"/);
+assert.match(profile, /<Chip label="음식"[\s\S]*?style=\{styles\.profileScopeChip\}/);
+assert.match(profile, /<Chip label="기타"[\s\S]*?style=\{styles\.profileScopeChip\}/);
 assert.match(profile, /useMyComments\(listUserId\)/);
 assert.match(profile, /<Text style=\{styles\.statLabel\}>원픽<\/Text>/);
 assert.match(profile, /<Text style=\{styles\.statLabel\}>댓글<\/Text>/);
 assert.match(profile, /<PickPhoto[\s\S]*?size=\{64\}/);
 assert.match(profile, /profileBody: \{ minHeight: 724, paddingTop: 10, gap: OnePickSpace\.md \}/);
 assert.match(profile, /currentPickRow:[\s\S]*?height: 96/);
+assert.match(profile, /currentPickCopy: \{ flex: 1, minWidth: 0, height: 82, gap: 2 \}/);
+assert.match(profile, /profileScopeChip: \{ paddingHorizontal: 14 \}/);
+assert.match(profile, /currentPickBadge:[\s\S]*?paddingHorizontal: 9/);
+assert.doesNotMatch(profile, /Platform\.OS === 'web' \|\| profileQuery\.isRefetchError/, 'healthy web refresh must not occupy the Figma 03 header');
+assert.match(profile, /Platform\.OS === 'web' && !profileQuery\.isRefetchError \? <Button variant="ghost" size="sm"/, 'healthy web refresh is preserved below the primary viewport');
 assert.doesNotMatch(profile, /<ProfilePickGroups/);
 
 const bodyIndex = profile.indexOf('<View style={styles.profileBody}>');
