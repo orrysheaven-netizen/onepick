@@ -95,7 +95,9 @@ export default function NotificationsScreen() {
       ...(commentAfterTime ? { commentAfterTime } : {}),
       ...(commentAfterId ? { commentAfterId } : {}),
     };
-    if (itemId) {
+    if ((item.kind === 'comment' || item.kind === 'reply') && pickId) {
+      router.push({ pathname: '/pick/[pickId]', params });
+    } else if (itemId) {
       router.push({ pathname: '/item/[itemId]', params: { ...params, itemId } });
     } else if (pickId) {
       router.push({ pathname: '/pick/[pickId]', params });
