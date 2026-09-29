@@ -1,5 +1,15 @@
 # Engineering 자동 인계 착수 점검 — 2026-09-29
 
+## 최신 판정 — 기존 실행 체크리스트는 종료됨
+
+#573은 `3cefe1ae241c6e5c02b9e12539a4aa33bcfca5b3`로 main에 병합됐다. #486 마지막 [run 36576712512](https://github.com/orrysheaven-netizen/onepick/actions/runs/36576712512)는 Claude 실행 실패, finalize 성공으로 blocked 복귀했다. cycle **4/4 소진**이며 추가 retry/guard 초기화/새 smoke 티켓은 금지한다. #571도 blocked 유지. [Engineering 최종 보고](https://github.com/orrysheaven-netizen/onepick/issues/486#issuecomment-5891505031)가 현재 실행 상태의 근거다.
+
+후속 산출물은 [로컬 Claude 실행기 대안 설계](engineering-local-runner-design-2026-09-29.md)다. 기존 #574 안에서 설계·문서·정적 검증만 수행하며 설치/서비스/인증 변경/추가 모델 호출/main 병합을 승인받은 상태가 아니다. 최신 main을 독립 worktree에 통합했고 공유 primary 파일은 수정하지 않았다.
+
+**아래 1–6절은 병합 전 감사 시점의 역사 기록이다.** `open`, `3/4`, `마지막 1회`, `승인 대기`, `미실행` 등은 당시 값이며 현재 실행 지시로 사용하면 안 된다. 과거 체크리스트를 다시 수행하지 않는다. 현재 다음 단계·승인 항목·검증 기준은 위 대안 설계에 있다.
+
+## 병합 전 감사 기록
+
 원래 작업: [#571](https://github.com/orrysheaven-netizen/onepick/issues/571). 책임: Engineering 팀장. PM 조정: PM-2 / #553. 상태: **blocked — 준비 자료 작성, 구현·실제 인계 미완료**.
 
 기준 main: `eada433f0c63a547928c0387cb0cd4843d622d4b`. 최신 origin/main을 fetch한 뒤 독립 worktree에서 점검했다. 공유 primary checkout의 작업 파일은 수정하지 않았다. 이 문서는 실행 명령이나 새로운 담당 배정이 아니라 시점별 감사 기록이다. 후속 착수 시 최신 이슈·PR·head를 다시 확인한다.
