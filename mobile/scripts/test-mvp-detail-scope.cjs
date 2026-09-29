@@ -24,6 +24,8 @@ assert.match(itemRoute, /useItemDetail\(itemId, user\?\.id, focusPickId, true, !
 assert.match(itemRoute, /mvpFoodScope = isRestaurant && !OnePickFeatures\.foodChannelPicker/);
 assert.match(itemRoute, /item\.channels\?\.includes\(OnePickMvp\.publicPickChannel\)/);
 assert.match(itemRoute, /item\.externalSource === 'onepick_place'/);
+assert.match(itemRoute, /hasPublicCurrentPick = allPicks\.some/);
+assert.match(itemRoute, /\|\| hasPublicCurrentPick/);
 assert.match(itemRoute, /allPicks\.filter\(\(\{ pick \}\) => pick\.channel === OnePickMvp\.publicPickChannel/);
 assert.match(itemRoute, /!pick\.channel && itemSupportsPublicChannel/);
 assert.match(itemRoute, /focusAvailable = !focusPickId \|\| picks\.some/);
@@ -52,14 +54,18 @@ assert.equal(scopeExports.isMvpProfilePick({ channel: null }, culture, {}), fals
 assert.equal(scopeExports.isMvpProfilePick({ channel: null }, unmapped, {}), true, 'unmapped legacy Picks stay on the main profile');
 assert.equal(scopeExports.isMvpPublicItem(food, legacyPlace), true, 'legacy place item is treated as offline');
 assert.equal(scopeExports.isMvpPublicItem(food, onlineItem), false);
+assert.equal(scopeExports.isMvpPublicItem(food, {}, true), true, 'a public offline Pick keeps a legacy no-channel food item reachable');
+assert.equal(scopeExports.isMvpPublicItem(food, {}, false), false, 'a no-channel food item without a public offline Pick stays hidden');
 assert.equal(scopeExports.isMvpPublicItem(culture, onlineItem), true, 'non-food item detail is unaffected');
 
 const pickOg = read('functions/pick/[pickId].ts');
 assert.match(pickOg, /isMvpPublicPick\(row, category, item\)/);
 assert.match(pickOg, /status,channel/);
 const itemOg = read('functions/item/[itemId].ts');
-assert.match(itemOg, /isMvpPublicItem\(category, row\)/);
+assert.match(itemOg, /isMvpPublicItem\(category, row, hasPublicOfflinePick\)/);
 assert.match(itemOg, /item_channels\(channel\)/);
+assert.ok(itemOg.includes("picksQuery.searchParams.set('status', 'eq.active')"));
+assert.ok(itemOg.includes("picksQuery.searchParams.set('channel', `eq.\${MVP_PUBLIC_PICK_CHANNEL}`)"));
 const profileOg = read('functions/u/[username].ts');
 assert.match(profileOg, /isMvpProfilePick/);
 assert.match(profileOg, /pickCount: publicPicks\.length/);
