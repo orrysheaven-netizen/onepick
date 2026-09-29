@@ -42,6 +42,9 @@ begin
     -- seeing the older one.
     (pend_old,  pend_u,  menu, item_x, 'offline', 'visible',     'removed',      now() - interval '6 days', now() - interval '5 days', null),
     (pend_new,  pend_u,  menu, item_x, 'offline', 'pending',     'needs_review', now() - interval '2 hours', null, null);
+  -- Comment writes are rate-limited per signed-in member; the fixture writes as
+  -- viewer without RLS so it can also comment under the ended/deleted reviews.
+  perform set_config('request.jwt.claim.sub',viewer::text,true);
   insert into public.comments(pick_id,user_id,body) values
     (del_new, viewer, 'on the deleted review'),
     (del_old, viewer, 'on the older review');
