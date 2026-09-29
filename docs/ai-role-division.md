@@ -2,7 +2,7 @@
 
 결정일: 2026-09-25.
 
-OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. **ChatGPT/Codex가 기본 Product/Technical Owner이자 전체 작업 조정의 기본 주체**다. Claude는 Platform/Reliability, QA, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
+OnePick의 **총괄 PM은 ChatGPT**다. PM은 사용자 결정에 따라 프로젝트 우선순위·범위·완료 판정과 Claude/Codex 분업을 관리하며, 세부 운영은 `docs/project-pm.md`와 GitHub #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 Platform/Reliability, QA, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
@@ -106,7 +106,7 @@ PR: #<번호>
 - blocked 작업
 - 48시간 이상 갱신되지 않은 열린 작업
 
-두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **AI Ops 대시보드 → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다.
+두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **공용 규칙 → PM 문서/#553 우선순위 → AI Ops 대시보드 #296 → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다. #553은 무엇을 먼저 할지 정하고, #296은 누가 무엇을 실행 중인지 보여준다.
 
 ## 보안
 
