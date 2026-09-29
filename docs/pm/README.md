@@ -49,7 +49,7 @@ PM은 사용자의 결정을 변경하거나 기존 사용자 승인 게이트�
 | 조직 | 주담당 | 핵심 역할 |
 | --- | --- | --- |
 | Product / 기획 | ChatGPT | MVP 범위, 정책, 사용자 흐름, 완료 조건 |
-| UX / Figma | ChatGPT 주담당 + Claude 위임 구현 | 기존 화면, Foundations, UX·문구·접근성 |
+| UX / Figma | **ChatGPT 직접 작업** + Claude 독립 검수 | 기존 화면, Foundations, UX·문구·접근성 |
 | Engineering | ChatGPT/Codex 기본 + Claude 위임 구현 | Expo/React Native 앱 구현, 라우팅, API 연결 |
 | Data / DB | ChatGPT/Codex 기본 구현 + Claude 독립 리뷰 | Supabase migration, RPC, RLS, 데이터 무결성 |
 | QA / Reliability / Security | Claude | QA, Security, E2E, 성능, 독립 리뷰·위임 구현 |
@@ -73,10 +73,11 @@ PM이 각 영역의 세부 점검을 대신 수행하지 않는다.
 
 - 작업량 참고선은 **Codex 55 : Claude 45**다.
 - 고정 quota가 아니며 PM은 전문성·우선순위·현재 가용 자원에 따라 배정 비중을 조정한다.
-- Claude 자원이 여유로운 경우 UX/Figma 유지보수, 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling을 Claude에 더 배정할 수 있다.
+- Claude 자원이 여유로운 경우 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling을 Claude에 더 배정할 수 있다. **Figma 직접 편집은 기본적으로 ChatGPT가 담당하고 Claude는 검수한다.**
 - Product 정책·MVP 범위 결정은 ChatGPT PM이 유지한다.
 - DB/RLS/GRANT 등 Data/DB 기본 구현은 ChatGPT/Codex가 유지하며 Claude는 독립 리뷰를 기본으로 한다.
 - 위임 구현은 해당 작업 단위에만 적용되며 영구 소유권 변경을 뜻하지 않는다.
+- **Figma 직접 작업 원칙**: Figma 화면 생성·수정·정리는 기본적으로 ChatGPT가 수행한다. Claude는 UX 일관성, 접근성, Foundations 준수, 앱-Figma 정합성을 독립 검수한다. Claude의 Figma 직접 편집은 사용자가 명시적으로 예외 위임한 경우에만 허용한다.
 
 ## 5. GitHub 역할
 
