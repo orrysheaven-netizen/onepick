@@ -117,7 +117,7 @@ PR: #<번호>
 후속: <없음 또는 다음 담당>
 ```
 
-후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다.
+새 PM 배정에서는 담당자가 후속 팀을 임의로 정하지 않는다. `## 완료 리포트`를 게시하면 dispatcher가 필요한 독립 검토를 자동 배정하고, 검토가 끝나면 `state:review` + PM review queue로 반환한다. 기존 `handoff:*`는 이미 진행 중인 리뷰/수정 체인과 과거 자동화의 호환 경로로만 유지한다.
 
 자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
 
@@ -169,7 +169,7 @@ GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필�
 - blocked 작업
 - 48시간 이상 갱신되지 않은 열린 작업
 
-두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **공용 규칙 → `docs/pm/` → #553 PM 대시보드 → #296 AI Ops → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다.
+두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **공용 규칙 → `docs/pm/` → #553 PM 대시보드 → #296 AI Ops → 자기 `owner:* + state:ready` → legacy handoff → 해당 작업 이슈/PR** 순서로 읽는다.
 
 ## 보안
 
