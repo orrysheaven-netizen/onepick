@@ -1,0 +1,61 @@
+name: PM Control Plane Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/ai-pm-dispatch.yml'
+      - '.github/workflows/ai-pm-review-queue.yml'
+      - '.github/workflows/pm-control-plane-tests.yml'
+      - '.github/scripts/test-pm-dispatch.sh'
+      - '.github/scripts/test-pm-review-queue.sh'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'docs/ai-role-division.md'
+      - 'docs/pm/README.md'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Ensure PyYAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' || python3 -m pip install --disable-pip-version-check 'PyYAML==6.0.3'
+          import yaml
+          print(yaml.__version__)
+          PY
+
+      - name: Parse workflow YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, yaml
+          for path in [
+              ".github/workflows/ai-pm-dispatch.yml",
+              ".github/workflows/ai-pm-review-queue.yml",
+              ".github/workflows/pm-control-plane-tests.yml",
+          ]:
+              data = yaml.safe_load(pathlib.Path(path).read_text())
+              if not isinstance(data, dict) or "jobs" not in data:
+                  raise SystemExit(f"invalid workflow structure: {path}")
+              print(f"parsed: {path}")
+          PY
+
+      - name: PM dispatcher contract tests
+        run: bash .github/scripts/test-pm-dispatch.sh
+
+      - name: PM review queue regression tests
+        run: bash .github/scripts/test-pm-review-queue.sh
