@@ -80,7 +80,7 @@ expect_not_contains "$WORKFLOW" "OPENAI_API_KEY" "no OpenAI API key"
 expect_not_contains "$WORKFLOW" "CLAUDE_CODE_OAUTH_TOKEN" "no Claude OAuth execution"
 expect_not_contains "$WORKFLOW" "runs-on: self-hosted" "no self-hosted/local runner"
 expect_not_contains "$WORKFLOW" "ONEPICK_AI_HANDOFF_ENABLED" "assignment is independent from AI execution switch"
-expect_not_contains "$PM_QUEUE" "ONEPICK_AI_HANDOFF_ENABLED" "PM review queue independent from AI execution switch"
+expect_not_contains "$PM_QUEUE" "vars.ONEPICK_AI_HANDOFF_ENABLED == 'true'" "PM review queue condition independent from AI execution switch"
 
 sha="0123456789abcdef0123456789abcdef01234567"
 expect_parse_ok "PM_DIRECTIVE: team=product assignee=lead action=execute pr=none head=none"
