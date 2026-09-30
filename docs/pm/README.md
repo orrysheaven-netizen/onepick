@@ -257,10 +257,10 @@ PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claud
 | ux | `owner:codex` | `area:app` |
 | engineering | `owner:codex` | `area:app` |
 | data | `owner:codex` | `area:data` |
-| qa | `owner:claude` | `area:qa` |
-| release | `owner:claude` | `area:infra` |
+| qa | `owner:codex` | `area:qa` |
+| release | `owner:codex` | `area:infra` |
 
-`assignee=claude`이면 팀과 무관하게 `owner:claude`를 사용하되 area는 해당 팀 값을 유지한다. Product 정책, Figma 직접 편집, Data/DB 기본 구현 등 기존 역할·승인 규칙은 자동배정으로 바뀌지 않는다.
+`assignee=lead`는 모든 부서에서 해당 ChatGPT 팀장 실행 lane인 `owner:codex`를 사용하며, 실제 부서는 `team=` marker와 area로 구분한다. `assignee=claude`이면 팀과 무관하게 `owner:claude`를 사용하되 area는 해당 팀 값을 유지한다. 따라서 QA·Release 팀장 업무와 Claude 업무도 구분된다. Product 정책, Figma 직접 편집, Data/DB 기본 구현 등 기존 역할·승인 규칙은 자동배정으로 바뀌지 않는다.
 
 ### 상태
 
