@@ -100,6 +100,7 @@ function profile(isPublic = false) {
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
+    assert.equal(flags.follow, false, 'Initial MVP defers follow exposure while retaining the implementation');
     assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(flags.foodChannelPicker, false, 'Initial MVP keeps online/recipe food registration entries hidden');
     assert.equal(constants.OnePickMvp.publicPickChannel, 'offline'); assert.equal(constants.OnePickMvp.browseGroupSlug, 'food');
@@ -107,19 +108,20 @@ async function main() {
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
   const categoryChips = (view) => view.all('Chip').filter((p) => !isChannelChip(p));
-  await test('Home defaults by following count; manual scope switching keeps exclusive query gating', () => {
-    const newcomer = home();
-    assert.equal(newcomer.calls.home[2], true); assert.equal(newcomer.calls.following[1], false);
-    assert.equal(newcomer.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
+  await test('MVP follow-off keeps Home public while the preserved rollout gate can restore Following', () => {
+    const hidden = home(20, 2);
+    assert.equal(hidden.calls.home[2], true, 'Existing follow rows do not change the visible MVP feed');
+    assert.equal(hidden.calls.following[1], false);
+    assert.equal(hidden.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
+    assert.equal(hidden.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 
+    flags.follow = true;
     const existing = home(20, 2);
-    assert.equal(existing.calls.home[2], false, 'Existing follows do not prefetch All');
-    assert.equal(existing.calls.following[1], true, 'Existing follows default to Following');
+    assert.equal(existing.calls.home[2], false, 'A future follow rollout still supports Following-first behavior');
+    assert.equal(existing.calls.following[1], true);
     assert.equal(existing.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, true);
     existing.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기').onPress(); existing.view.render();
     assert.equal(existing.calls.home[2], true); assert.equal(existing.calls.following[1], false);
-    existing.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); existing.view.render();
-    assert.equal(existing.calls.home[2], false); assert.equal(existing.calls.following[1], true);
   });
   await test('Home hides at 19 and shows at 20 unfiltered loaded Picks', () => {
     flags.categoryChips = true;
@@ -138,9 +140,9 @@ async function main() {
     assert.equal(view.all('Chip').filter(isChannelChip).length, 0, 'No channel switcher is exposed in the initial MVP');
     assert.equal(calls.home[3], 'offline', 'Public Home is server-filtered to physical-store Picks');
     assert.equal(calls.home[4], 'food', 'Public Home stays inside the food root');
-    view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
-    assert.equal(calls.following[2], 'offline', 'Following uses the same offline scope');
-    assert.equal(calls.following[3], 'food', 'Following uses the same food root');
+    assert.equal(calls.following[1], false, 'Follow-off MVP keeps the preserved following query disabled');
+    assert.equal(calls.following[2], 'offline', 'Preserved following query keeps the same offline scope');
+    assert.equal(calls.following[3], 'food', 'Preserved following query keeps the same food root');
   });
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
@@ -248,9 +250,11 @@ async function main() {
       if (isPublic) assert.equal(calls.aiIds[0], ai ? 'owner' : undefined);
     }
   });
-  await test('Public profile suppresses cached AI in share/join and preserves safety/follow/share', async () => {
+  await test('Public profile suppresses cached AI, keeps safety/share, and hides follow until rollout', async () => {
     const { view, calls, auth } = profile(true); assert.equal(calls.aiIds[0], undefined); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('FollowButton').length, 1); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
+    assert.equal(view.all('FollowButton').length, 0); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
+    flags.follow = true; view.render(); assert.equal(view.all('FollowButton').length, 1, 'Follow UI remains restorable behind the rollout gate');
+    flags.follow = false; view.render();
     view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
     auth.user = null; view.render(); assert.doesNotMatch(view.text(), /AI 취향평가도/); assert.match(view.text(), /내 원픽 만들기/);
     flags.profileAi = true; view.render(); assert.match(view.text(), /AI 취향평가도/);

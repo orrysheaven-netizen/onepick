@@ -104,34 +104,36 @@ const press = (label) => {
   assert.ok(button, label); button.onPress();
 };
 
-// The real enabled follow flag must not force a new member into an empty feed.
+// Initial public MVP keeps follow hidden even when relationship data exists.
 const allFirstPage = render();
-assert.match(allFirstPage, /팔로잉/, 'Following remains an available member scope');
+assert.doesNotMatch(allFirstPage, /팔로잉/, 'Initial MVP hides the Following scope');
 assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
 assert.match(allFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
 assert.match(allFirstPage, /@friend/);
-assert.match(allFirstPage, /@neighbor/, 'Member Home renders the public feed first');
-assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer belongs to the default scope');
-assert.equal(homeDataArgs[2], true, 'All Home enables the visible public feed');
+assert.match(allFirstPage, /@neighbor/, 'Member Home stays on the public feed while follow is hidden');
+assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer remains visible');
+assert.equal(homeDataArgs[2], true, 'Hidden follow mode enables the public feed');
 assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
-assert.equal(followingFeedArgs[2], 'offline', 'Following query is prepared with the same offline scope');
-assert.equal(followingFeedArgs[3], 'food', 'Following query is prepared with the same food root');
-assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, true);
-assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, false);
+assert.equal(followingFeedArgs[1], false, 'Hidden follow mode never enables the following query');
+assert.equal(followingFeedArgs[2], 'offline', 'Preserved following query keeps the same offline scope');
+assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the same food root');
+assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
+assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
 
-// An existing follow relationship flips only the default scope; no public feed is
-// downloaded first, and the user can still switch tabs afterward.
+// The implementation remains available behind the rollout gate.
+onepickConstants.OnePickFeatures.follow = true;
 followCountsQuery.data.followingCount = 2;
 const followingFirstPage = render();
 assert.match(followingFirstPage, /@friend/);
-assert.doesNotMatch(followingFirstPage, /@neighbor/, 'Following becomes the default when at least one follow exists');
-assert.equal(homeDataArgs[2], false, 'Following default does not prefetch the public feed');
-assert.equal(followingFeedArgs[1], true, 'Following default enables the viewer-bound feed');
+assert.doesNotMatch(followingFirstPage, /@neighbor/, 'Following can still become the default after a future rollout');
+assert.equal(homeDataArgs[2], false, 'Following rollout does not prefetch the public feed');
+assert.equal(followingFeedArgs[1], true, 'Following rollout enables the viewer-bound feed');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, false);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기').accessibilityState.selected, true);
 followCountsQuery.data.followingCount = 0;
+onepickConstants.OnePickFeatures.follow = false;
 render();
 
 for (width of [390, 800, 1200]) {
@@ -149,7 +151,8 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
-  assert.match(page, /전체/);
+  assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined, 'Follow-off MVP has no feed scope switcher');
+  assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
   assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
   assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
   for (const shortcut of ['onSearchMovie', 'onSearchDrama', 'onSearchMusic', 'onSearchGame', 'onSearchBook', 'onSearchYouTube', 'onSearchPokemon']) {

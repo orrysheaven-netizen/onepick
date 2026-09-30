@@ -1,6 +1,14 @@
 # 아는 사람의 원픽을 먼저 보는 팔로우
 
-상태: 구현됨 — 팔로우 관계(`user_follows`), 프로필 팔로우 버튼, 홈 `팔로잉 / 전체` 탭(로그인 사용자는 팔로잉 기본), 원픽 변경 알림(`pick_change_notifications`)과 설정 스위치(`notification_preferences`), 댓글 알림과 합쳐진 인박스 RPC `notification_page` / `notification_count`. 팔로잉/팔로워 수 집계는 백엔드에 유지하되 초기 MVP UI에서는 노출하지 않는다. `people-first-home.md`의 비목표 줄은 이에 맞춰 갱신했다.
+상태: **백엔드·앱 경로는 구현 보존 / 초기 공개 MVP 비노출** — `user_follows`, 팔로잉 피드, follow 알림 데이터와 설정 계약은 후속 롤아웃을 위해 유지한다. 2026-09-30 기준 `OnePickFeatures.follow=false`이며 홈 팔로잉 범위, 공개 프로필 Follow CTA, Settings follow 알림 설정은 표시하지 않는다. grouped inbox도 MVP에서는 `followee_pick`을 제외한다. 팔로잉/팔로워 수 역시 노출하지 않는다.
+
+## 현재 MVP 노출 정책
+
+- 공개 홈은 전체 음식·오프라인 원픽 피드만 사용한다. 기존 follow 관계가 있어도 팔로잉 피드로 자동 전환하지 않는다.
+- 공개 프로필에서 Follow 버튼과 로그인→자동 팔로우 진입을 노출하지 않는다.
+- Settings에서 “팔로우한 사람의 원픽 변경” 설정을 노출하지 않고 관련 preference query도 시작하지 않는다.
+- follow 관계·피드 RPC·알림 원천·서비스/컴포넌트 코드는 삭제하지 않는다. 후속 Product 결정 시 동일 gate를 켜서 재검증한다.
+- 아래 UX/기술 계약은 **후속 롤아웃용 보존 설계**다.
 
 ## 왜 필요한가
 - 홈은 모르는 사람의 최신 원픽을 시간순으로 보여준다. 사용자가 늘수록 낯선 사람의 이유를 읽을 동기가 약해진다. 아는 사람의 이유는 읽는다.
