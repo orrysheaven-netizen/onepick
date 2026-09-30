@@ -1,55 +1,80 @@
-const TEAM_LABELS = {
-  product: ['team:product', 'Product / service planning'],
-  ux: ['team:ux', 'UX / Figma'],
-  engineering: ['team:engineering', 'Engineering / app development'],
-  data: ['team:data', 'Data / Supabase DB'],
-  'qa-security': ['team:qa-security', 'QA / Reliability / Security'],
-  release: ['team:release', 'Release / operations'],
+const TEAM_CONFIG = {
+  product: { label: 'team:product', area: 'area:app', description: 'Product / service planning' },
+  ux: { label: 'team:ux', area: 'area:app', description: 'UX / Figma' },
+  engineering: { label: 'team:engineering', area: 'area:app', description: 'Engineering / app development' },
+  data: { label: 'team:data', area: 'area:data', description: 'Data / Supabase DB' },
+  qa: { label: 'team:qa', area: 'area:qa', description: 'QA / Reliability / Security' },
+  release: { label: 'team:release', area: 'area:infra', description: 'Release / operations' },
 };
 
+const TEAM_LABELS = Object.values(TEAM_CONFIG).map((x) => x.label);
 const ROUTING_LABELS = [
   'owner:codex', 'owner:claude',
   'state:ready', 'state:active', 'state:review', 'state:handoff',
   'handoff:codex', 'handoff:claude',
-  ...Object.values(TEAM_LABELS).map(([name]) => name),
+  ...TEAM_LABELS,
 ];
 
-const DIRECTIVE = /^PM_DIRECTIVE: team=(product|ux|engineering|data|qa-security|release) to=(auto|claude|codex) action=execute pr=(none|[0-9]+) head=(none|[0-9a-f]{40})$/;
+const DIRECTIVE = /^PM_DIRECTIVE: team=(product|ux|engineering|data|qa|release) assignee=(auto|lead|claude) action=(execute|review) pr=(none|[0-9]+) head=(none|[0-9a-f]{40})$/;
+const OLD_TEAM_DIRECTIVE = /^PM_DIRECTIVE: team=(product|ux|engineering|data|qa-security|release) to=(auto|claude|codex) action=execute pr=(none|[0-9]+) head=(none|[0-9a-f]{40})$/;
 const LEGACY_DIRECTIVE = /^PM_DIRECTIVE: to=(auto|claude|codex) action=execute pr=(none|[0-9]+) head=(none|[0-9a-f]{40})$/;
-const PENDING = /^<!-- onepick-pm-dispatch:pending source=comment-([0-9]+) kind=(directive|report) team=([^ ]+) to=([^ ]+) pr=(none|[0-9]+) head=(none|[0-9a-f]{40}) -->$/;
+const PENDING = /^<!-- onepick-pm-dispatch:pending source=comment-([0-9]+) kind=(directive|report) team=([^ ]+) assignee=([^ ]+) action=([^ ]+) owner=([^ ]+) area=([^ ]+) pr=(none|[0-9]+) head=(none|[0-9a-f]{40}) -->$/;
 
 const firstLine = (body = '') => body.split(/\r?\n/, 1)[0];
 const names = (issue) => (issue.labels || []).map((x) => typeof x === 'string' ? x : x.name);
 const has = (issue, label) => names(issue).includes(label);
+const currentOwner = (issue) => {
+  const label = names(issue).find((x) => x === 'owner:codex' || x === 'owner:claude');
+  return label ? label.slice(6) : null;
+};
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function inferTeam(issue) {
   const labels = new Set(names(issue));
   const title = issue.title || '';
+  if (labels.has('team:product')) return 'product';
+  if (labels.has('team:ux')) return 'ux';
+  if (labels.has('team:engineering')) return 'engineering';
+  if (labels.has('team:data')) return 'data';
+  if (labels.has('team:qa') || labels.has('team:qa-security')) return 'qa';
+  if (labels.has('team:release')) return 'release';
   if (labels.has('area:data')) return 'data';
-  if (labels.has('area:qa') || labels.has('area:security') || labels.has('security')) return 'qa-security';
+  if (labels.has('area:qa') || labels.has('area:security') || labels.has('security')) return 'qa';
   if (labels.has('area:infra')) return 'release';
   if (/Figma|UX|UI Stabilization/i.test(title)) return 'ux';
   if (/Product|서비스기획|기획|MVP 범위/i.test(title)) return 'product';
   return 'engineering';
 }
 
-function executor(team, requested) {
-  if (requested !== 'auto') return requested;
-  return ['qa-security', 'release'].includes(team) ? 'claude' : 'codex';
+function resolveOwner(issue, assignee, action) {
+  if (assignee === 'lead') return 'codex';
+  if (assignee === 'claude') return 'claude';
+  if (action === 'execute') return 'codex';
+  const owner = currentOwner(issue);
+  if (owner === 'codex') return 'claude';
+  if (owner === 'claude') return 'codex';
+  return 'claude';
 }
 
 function parseDirective(line, issue) {
   let m = line.match(DIRECTIVE);
   if (m) {
-    const [, team, requested, pr, head] = m;
-    return { team, target: executor(team, requested), pr, head };
+    const [, team, assignee, action, pr, head] = m;
+    return { team, assignee, action, owner: resolveOwner(issue, assignee, action), area: TEAM_CONFIG[team].area, pr, head };
+  }
+  m = line.match(OLD_TEAM_DIRECTIVE);
+  if (m) {
+    let [, team, requested, pr, head] = m;
+    if (team === 'qa-security') team = 'qa';
+    const assignee = requested === 'codex' ? 'lead' : requested;
+    return { team, assignee, action: 'execute', owner: resolveOwner(issue, assignee, 'execute'), area: TEAM_CONFIG[team].area, pr, head };
   }
   m = line.match(LEGACY_DIRECTIVE);
   if (!m) return null;
   const [, requested, pr, head] = m;
   const team = inferTeam(issue);
-  return { team, target: executor(team, requested), pr, head };
+  const assignee = requested === 'codex' ? 'lead' : requested;
+  return { team, assignee, action: 'execute', owner: resolveOwner(issue, assignee, 'execute'), area: TEAM_CONFIG[team].area, pr, head };
 }
 
 function validPair(pr, head) {
@@ -96,13 +121,15 @@ module.exports = async function run({ github, context, core }) {
   }
 
   async function ensureTeamLabel(team) {
-    const [name, description] = TEAM_LABELS[team];
+    const config = TEAM_CONFIG[team];
     try {
-      await github.rest.issues.createLabel({ owner, repo, name, color: 'C5DEF5', description });
+      await github.rest.issues.createLabel({
+        owner, repo, name: config.label, color: 'C5DEF5', description: config.description,
+      });
     } catch (error) {
       if (error.status !== 422) throw error;
     }
-    return name;
+    return config.label;
   }
 
   async function removeLabel(label) {
@@ -154,7 +181,10 @@ module.exports = async function run({ github, context, core }) {
         await processedSkip(source.id, 'PR/head/Refs 검증에 실패했습니다. stale 또는 다른 작업 지시는 실행하지 않습니다.');
         return;
       }
-      const pending = `<!-- onepick-pm-dispatch:pending source=comment-${source.id} kind=directive team=${parsed.team} to=${parsed.target} pr=${parsed.pr} head=${parsed.head} -->`;
+      const pending =
+        `<!-- onepick-pm-dispatch:pending source=comment-${source.id} kind=directive ` +
+        `team=${parsed.team} assignee=${parsed.assignee} action=${parsed.action} ` +
+        `owner=${parsed.owner} area=${parsed.area} pr=${parsed.pr} head=${parsed.head} -->`;
       if (!botHas(pending)) await post(pending);
     } else if (line === '## 완료 리포트') {
       if (![repositoryOwner, appLogin].includes(source.user.login)) return;
@@ -164,7 +194,9 @@ module.exports = async function run({ github, context, core }) {
       if (prMatch && headMatch && await verifyPr(prMatch[1], headMatch[1])) {
         pr = prMatch[1]; head = headMatch[1];
       }
-      const pending = `<!-- onepick-pm-dispatch:pending source=comment-${source.id} kind=report team=none to=none pr=${pr} head=${head} -->`;
+      const pending =
+        `<!-- onepick-pm-dispatch:pending source=comment-${source.id} kind=report ` +
+        `team=none assignee=none action=none owner=none area=none pr=${pr} head=${head} -->`;
       if (!botHas(pending)) await post(pending);
     } else {
       return;
@@ -182,7 +214,7 @@ module.exports = async function run({ github, context, core }) {
     .sort((a, b) => a.c.id - b.c.id);
 
   for (const { m } of pendingItems) {
-    const [, sourceId, kind, team, target, pr, head] = m;
+    const [, sourceId, kind, team, assignee, action, resolvedOwner, area, pr, head] = m;
     const processed = `<!-- onepick-pm-dispatch:processed source=comment-${sourceId} -->`;
     if (botHas(processed)) continue;
 
@@ -207,13 +239,17 @@ module.exports = async function run({ github, context, core }) {
         continue;
       }
       const normalized = parseDirective(firstLine(source.body), issue);
-      if (!normalized || normalized.team !== team || normalized.target !== target ||
-          normalized.pr !== pr || normalized.head !== head) {
+      if (!normalized ||
+          normalized.team !== team ||
+          normalized.assignee !== assignee ||
+          normalized.action !== action ||
+          normalized.owner !== resolvedOwner ||
+          normalized.area !== area ||
+          normalized.pr !== pr ||
+          normalized.head !== head) {
         await processedSkip(sourceId, 'pending marker와 원본 지시가 일치하지 않습니다.');
         continue;
       }
-      // A new trusted PM directive is itself the authorization to leave review.
-      // Active work still blocks reassignment; review is removed by ROUTING_LABELS below.
       if (has(issue, 'state:active')) continue;
       if (!(await verifyPr(pr, head))) {
         await processedSkip(sourceId, '처리 시점에 PR/head/Refs가 stale입니다.');
@@ -224,13 +260,13 @@ module.exports = async function run({ github, context, core }) {
         await retry(async () => {
           const teamLabel = await ensureTeamLabel(team);
           issue = await getIssue();
-          const ownerLabel = `owner:${target}`;
+          const ownerLabel = `owner:${resolvedOwner}`;
           for (const label of ROUTING_LABELS) {
             if (label !== ownerLabel && label !== teamLabel && has(issue, label)) await removeLabel(label);
           }
-          await addLabels([ownerLabel, teamLabel, 'state:ready']);
+          await addLabels([ownerLabel, teamLabel, area, 'state:ready']);
           const verify = await getIssue();
-          if (![ownerLabel, teamLabel, 'state:ready'].every((x) => has(verify, x))) {
+          if (![ownerLabel, teamLabel, area, 'state:ready'].every((x) => has(verify, x))) {
             throw new Error('assignment labels not confirmed');
           }
         });
@@ -245,77 +281,18 @@ module.exports = async function run({ github, context, core }) {
 
       await post([
         processed,
-        `<!-- onepick-pm-assignment source=comment-${sourceId} team=${team} executor=${target} phase=execute -->`,
-        '## PM 자동 배정',
+        `<!-- onepick-pm-assignment source=comment-${sourceId} team=${team} assignee=${assignee} resolved=${resolvedOwner} action=${action} owner=${resolvedOwner} area=${area} -->`,
+        '## PM 업무 자동 배정',
         `담당 조직: ${team}`,
-        `실행자: ${target}`,
+        `배정 방식: ${assignee}`,
+        `실행자: ${resolvedOwner}`,
+        `작업 종류: ${action}`,
         '상태: state:ready',
         `원 지시: ${source.html_url}`,
       ].join('\n'));
     } else {
       if (![repositoryOwner, appLogin].includes(source.user?.login) || firstLine(source.body) !== '## 완료 리포트') {
         await processedSkip(sourceId, '신뢰되지 않았거나 형식이 변경된 완료 리포트입니다.');
-        continue;
-      }
-
-      const latestReview = [...comments].reverse().find((comment) =>
-        comment.user?.login === appLogin &&
-        comment.id < Number(sourceId) &&
-        /<!-- onepick-pm-assignment source=comment-[0-9]+ team=[^ ]+ executor=(claude|codex) phase=review -->/.test(comment.body || '')
-      );
-      const reviewMatch = latestReview?.body?.match(/<!-- onepick-pm-assignment source=comment-[0-9]+ team=([^ ]+) executor=(claude|codex) phase=review -->/);
-      const currentOwner = names(issue).find((name) => name === 'owner:codex' || name === 'owner:claude')?.slice(6);
-      const reportIsReview = Boolean(reviewMatch && currentOwner === reviewMatch[2]);
-
-      let needsIndependentReview = names(issue).some((name) =>
-        ['size:M', 'size:L', 'area:data', 'area:security', 'area:infra', 'security'].includes(name)
-      );
-      if (!needsIndependentReview && pr !== 'none') {
-        try {
-          const files = await github.paginate(github.rest.pulls.listFiles, {
-            owner, repo, pull_number: Number(pr), per_page: 100,
-          });
-          needsIndependentReview = files.some(({ filename }) =>
-            /^supabase\/(migrations|functions)\//.test(filename) ||
-            /^\.github\/workflows\//.test(filename) ||
-            /^mobile\/src\/(lib\/auth|app\/auth|hooks\/useAuth)/.test(filename)
-          );
-        } catch (error) {
-          core.warning(`PR file risk check failed for #${pr}: ${error.message}`);
-          needsIndependentReview = true;
-        }
-      }
-
-      if (needsIndependentReview && !reportIsReview && currentOwner) {
-        const reviewer = currentOwner === 'codex' ? 'claude' : 'codex';
-        const reviewTeam = reviewer === 'claude' ? 'qa-security' : 'engineering';
-        try {
-          await retry(async () => {
-            const teamLabel = await ensureTeamLabel(reviewTeam);
-            issue = await getIssue();
-            const ownerLabel = `owner:${reviewer}`;
-            for (const label of ROUTING_LABELS) {
-              if (label !== ownerLabel && label !== teamLabel && has(issue, label)) await removeLabel(label);
-            }
-            await addLabels([ownerLabel, teamLabel, 'state:ready']);
-            const verify = await getIssue();
-            if (![ownerLabel, teamLabel, 'state:ready'].every((x) => has(verify, x))) {
-              throw new Error('review assignment labels not confirmed');
-            }
-          });
-        } catch (error) {
-          core.setFailed(`review assignment failed for source ${sourceId}: ${error.message}`);
-          return;
-        }
-        await post([
-          processed,
-          `<!-- onepick-pm-assignment source=comment-${sourceId} team=${reviewTeam} executor=${reviewer} phase=review -->`,
-          '## 독립 검토 자동 배정',
-          `검토자: ${reviewer}`,
-          `담당 조직: ${reviewTeam}`,
-          '상태: state:ready',
-          `구현 완료 리포트: ${source.html_url}`,
-        ].join('\n'));
         continue;
       }
 
@@ -332,9 +309,8 @@ module.exports = async function run({ github, context, core }) {
         core.setFailed(`report routing failed for source ${sourceId}: ${error.message}`);
         return;
       }
-      const reason = reportIsReview ? 'review-complete' : 'stage-complete';
       await post([
-        `PM_REVIEW_REQUIRED: reason=${reason} pr=${pr} head=${head}`,
+        `PM_REVIEW_REQUIRED: reason=stage-complete pr=${pr} head=${head}`,
         processed,
         `자동 완료 리포트 접수: ${source.html_url}`,
       ].join('\n'));
@@ -342,4 +318,6 @@ module.exports = async function run({ github, context, core }) {
   }
 };
 
-module.exports._test = { inferTeam, executor, parseDirective, validPair, firstLine };
+module.exports._test = {
+  inferTeam, resolveOwner, parseDirective, validPair, firstLine, currentOwner,
+};
