@@ -155,7 +155,8 @@ jobs:
 
       - name: Link onepick-dev
         if: env.MODE == 'apply'
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        # Keep the DB preflight on the password-based IPv4 pooler path.
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Require database to be deployed first
         if: env.MODE == 'apply'
@@ -163,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          supabase db push --linked --dry-run --include-all --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee "$log_file"
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
             exit 1
