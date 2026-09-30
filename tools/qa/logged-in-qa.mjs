@@ -1,8 +1,9 @@
 // Logged-in user-flow QA of the OnePick tester site with the dedicated QA
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
-// registration → link category suggestion → profile → follow → notifications →
-// share/deep link.
+// registration → link category suggestion → profile → settings → public profile →
+// notifications → share/deep link. The initial MVP hides follow
+// (OnePickFeatures.follow=false), so the follow scope, CTA and setting must be absent.
 //
 // Credential rules (docs/daily-qa.md "로그인 상태 QA 계정 규칙"):
 // - ONEPICK_QA_EMAIL / ONEPICK_QA_PASSWORD come only from the environment
@@ -12,7 +13,7 @@
 //   password grant from Node and handed to the browser; no login form is typed.
 // - No screenshot is taken of the own profile screens, and the QA username is
 //   masked in every screenshot and redacted from the report.
-// - Read-only: nothing is submitted, followed or shared. Buttons with side
+// - Read-only: nothing is submitted or shared. Buttons with side
 //   effects are only checked for actionability (Playwright trial click). The
 //   link suggestion lookup is pressed because it only reads the taxonomy.
 //
@@ -20,7 +21,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
-import { SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications, openOwnComments, openNotificationsTab } from './logged-in-contract.mjs';
+import {
+  SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
+  openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaHidden, assertFollowSettingHidden,
+  pickIdSource, pickIdsFromResponse,
+} from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
@@ -278,18 +283,16 @@ async function main() {
       await check(flow, `하단 탭 "${label}"`, () => actionable(bottomTab(page, label)));
     }
     await check(flow, '하단 "원픽 등록" 버튼', () => actionable(page.getByRole('button', { name: '원픽 등록', exact: true })));
-    await check(flow, '팔로잉/전체 피드 전환(로그인 전용)', async () => {
-      await actionable(page.getByRole('tab', { name: '팔로잉 원픽 보기' }));
-      await actionable(page.getByRole('tab', { name: '전체 원픽 보기' }));
-    });
     await check(flow, '피드 카드 표시', async () => {
-      // Count on 전체 whatever tab Home opens on: 팔로잉 is empty while the QA account follows no one.
-      await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       const cards = page.getByRole('button', { name: / 상세 보기$/ });
       await cards.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await cards.count();
       if (!count) return { status: 'warn', detail: '표시된 카드 없음' };
       return `카드 ${count}개`;
+    });
+    await check(flow, '팔로잉/전체 전환 비노출(초기 MVP)', async () => {
+      await assertFollowScopeHidden(page, STEP_TIMEOUT_MS);
+      return '전체 피드만 표시';
     });
     await shot(page, 'home');
 
@@ -512,11 +515,18 @@ async function main() {
     });
     // Own profile screens show the account's handle: no screenshots here.
 
-    flow = '팔로우';
+    flow = '설정';
+    await check(flow, '팔로우 알림 설정 비노출(초기 MVP)', async () => {
+      await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+      await assertFollowSettingHidden(page, STEP_TIMEOUT_MS);
+      await noErrorCopy(page);
+      return '차단 목록 표시 · 팔로우 알림 항목 없음';
+    });
+
+    flow = '공개 프로필';
     let otherProfilePath = null;
     await check(flow, '피드에서 다른 사용자 프로필 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
       const people = page.getByRole('button', { name: /^@.+ 프로필 보기$/ });
       await people.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const names = await people.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
@@ -527,15 +537,14 @@ async function main() {
       otherProfilePath = new URL(page.url()).pathname;
     });
     if (otherProfilePath) {
-      await check(flow, '팔로우 버튼 클릭 가능', async () => {
-        const button = page.getByRole('button', { name: /^@.+ 팔로우( 취소)?$/ });
-        await actionable(button);
-        const label = await button.first().getAttribute('aria-label');
-        return `${label?.endsWith('취소') ? '팔로우 중' : '팔로우 전'} 상태 (누르지 않음)`;
+      await check(flow, '팔로우 버튼 비노출(초기 MVP)', async () => {
+        await page.waitForLoadState('networkidle');
+        await assertFollowCtaHidden(page, STEP_TIMEOUT_MS);
+        return '프로필 공유 버튼 표시 · 팔로우 버튼 없음';
       });
       await shot(page, 'other_profile');
     } else {
-      record(flow, '팔로우 버튼 클릭 가능', 'skip', '대상 사용자 없음');
+      record(flow, '팔로우 버튼 비노출(초기 MVP)', 'skip', '대상 사용자 없음');
     }
 
     flow = '알림';
@@ -556,21 +565,17 @@ async function main() {
     await check(flow, '피드 → 상품 상세 → 원픽 공유 버튼', async () => {
       // #395: each review card's share control is now an "이 원픽 공유" icon that opens the
       // share sheet or copies the /pick/:id link at once, so it is only trial-clicked here.
-      // The Pick id for the deep-link check comes from the picks rows the feed and the detail
-      // screen load (GET /rest/v1/picks?…), preferring a Pick of the item that was opened.
+      // The Pick id for the deep-link check comes from what the feed and the detail screen
+      // load (home_pick_feed_page / item_review_page RPCs), preferring the opened item's Pick.
       const pickRows = [];
       const onPicksResponse = (response) => {
-        if (!/\/rest\/v1\/picks\?/.test(response.url()) || response.request().method() !== 'GET') return;
-        response.json().then((rows) => {
-          for (const row of Array.isArray(rows) ? rows : []) {
-            if (typeof row?.id === 'string') pickRows.push({ id: row.id, itemId: typeof row.item_id === 'string' ? row.item_id : null });
-          }
-        }).catch(() => {});
+        const method = response.request().method();
+        if (!pickIdSource(response.url(), method)) return;
+        response.json().then((rows) => { pickRows.push(...pickIdsFromResponse(response.url(), method, rows)); }).catch(() => {});
       };
       page.on('response', onPicksResponse);
       try {
         await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-        await page.getByRole('tab', { name: '전체 원픽 보기' }).click().catch(() => {});
         const open = page.getByRole('button', { name: / 상세 보기$/ });
         await open.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         await open.first().click();
