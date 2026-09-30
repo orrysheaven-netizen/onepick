@@ -276,3 +276,5 @@ module.exports = async function run({ github, context, core }) {
     }
   }
 };
+
+module.exports._test = { inferTeam, executor, parseDirective, validPair, firstLine };
