@@ -153,9 +153,55 @@ jobs:
               summary.write(text + "\n")
           PY
 
-      - name: Link onepick-dev
+      - name: Resolve IPv4 pooler database URL
         if: env.MODE == 'apply'
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        shell: bash
+        run: |
+          set -euo pipefail
+          config_file="$RUNNER_TEMP/pgbouncer.json"
+          db_url_file="$RUNNER_TEMP/db-url"
+
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/database/pgbouncer" \
+            > "$config_file"
+
+          python3 - "$config_file" "$db_url_file" <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.parse import quote, urlsplit, urlunsplit
+
+          config_path, out_path = sys.argv[1:3]
+          with open(config_path, encoding="utf-8") as handle:
+              config = json.load(handle)
+
+          template = (config.get("connection_string") or "").strip()
+          if not template:
+              raise SystemExit("Supabase Management API returned no pooler connection_string")
+
+          parts = urlsplit(template)
+          if parts.scheme not in {"postgres", "postgresql"} or "@" not in parts.netloc:
+              raise SystemExit("Supabase pooler connection_string has an unexpected format")
+
+          userinfo, hostinfo = parts.netloc.rsplit("@", 1)
+          username = userinfo.split(":", 1)[0]
+          password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
+          db_url = urlunsplit((
+              parts.scheme,
+              username + ":" + password + "@" + hostinfo,
+              parts.path,
+              parts.query,
+              parts.fragment,
+          ))
+
+          with open(out_path, "w", encoding="utf-8") as handle:
+              handle.write(db_url)
+          os.chmod(out_path, 0o600)
+
+          print("::add-mask::" + password)
+          print("::add-mask::" + db_url)
+          PY
 
       - name: Require database to be deployed first
         if: env.MODE == 'apply'
@@ -163,7 +209,7 @@ jobs:
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          supabase db push --db-url "$(cat "$RUNNER_TEMP/db-url")" --dry-run --include-all 2>&1 | tee "$log_file"
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
             exit 1
