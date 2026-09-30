@@ -103,6 +103,10 @@ async function main() {
   assert.equal(offline.brandId, brandId);
   assert.equal(offline.brandName, '서울집');
   assert.equal(offline.brandLogoUrl, 'https://storage.test/brand/store-logo.png');
+  // A member-submitted store keeps road_address '' (#593): show the region, not a blank line.
+  tables.places[0].road_address = '';
+  assert.equal((await new ProviderProfileService(client(tables), client(tables)).get(providerId)).subtitle, '서울 성동구');
+  tables.places[0].road_address = '서울 성동구 성수로 1';
 
   const onlineProvider = '77777777-7777-4777-8777-777777777777';
   const storeId = '88888888-8888-4888-8888-888888888888';
@@ -137,6 +141,10 @@ async function main() {
   assert.equal(branches.items.length, 1, 'MVP brand profile hides online providers');
   assert.equal(branches.items[0].providerId, providerId);
   assert.equal(branches.items[0].subtitle, '서울 성동구 성수로 1');
+  const blankDb = client(tables, { brand_branch_page: [{ provider_id: providerId, kind: 'offline_branch', name: '서울집', branch_name: '성수점',
+    road_address: '', region_1: '서울', region_2: '성동구', pick_count: 1, menu_count: 1 }] });
+  assert.equal((await new ProviderProfileService(blankDb, blankDb).brandBranches(brandId)).items[0].subtitle, '서울 성동구',
+    'An empty branch address falls back to the region');
 
   tables.providers[0].status = 'hidden';
   await assert.rejects(
