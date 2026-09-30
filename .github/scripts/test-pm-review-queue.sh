@@ -381,8 +381,8 @@ mutate --arg owner "$OWNER" '
   .pulls["22"].user = {login: $owner}
   | .issues["12"].labels = ["owner:codex"]
   | .timelines = {"22": [{event: "ready_for_review", created_at: "2026-09-28T00:00:00Z"}]}
-  | (.runs[] | select(.head_sha == "1111111111111111111111111111111111111111" and .name == "Web build")
-       | .status = "in_progress" | .conclusion = "")
+  | ((.runs[] | select(.head_sha == "1111111111111111111111111111111111111111" and .name == "Web build"))
+       |= (.status = "in_progress" | .conclusion = ""))
   | .issues["12"].comments += [
       {id: 1910, user: {login: .bot}, created_at: "2026-09-29T00:00:01Z",
        body: "<!-- onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-CHANGES_REQUESTED to=codex -->"},
