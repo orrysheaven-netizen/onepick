@@ -14,12 +14,15 @@ import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch 
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
+import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
 // 원픽 등록 4단계: 매장 → 메뉴 → 사진 → 한줄평. 지도 링크는 매장 단계 안에서 받는다.
 // Everything the user enters lives in this one screen's state, so moving back
-// and forth between steps never loses a typed review or a chosen photo.
+// and forth between steps never loses a typed review or a chosen photo. The same
+// state is mirrored to an account-bound draft (lib/pick/pickDraft) so a login round
+// trip in this writing session returns to it (#475); server state is re-checked.
 
 type Step = 1 | 2 | 4 | 5 | 6;
 type NewStore = { kind: 'new'; name: string; channel: 'offline'; roadAddress: string; mapUrl: string };
@@ -137,6 +140,41 @@ export default function NewPickScreen() {
   const [expectedPreviousPickId, setExpectedPreviousPickId] = useState<string | null | undefined>(undefined);
   const busy = useRef(false);
   const requestIdRef = useRef<string | null>(null);
+  // Account whose draft this screen has loaded; null until the session resolves.
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  // Saved step 3/4 to return to after the menu selection is re-checked on the server.
+  const [resumeStep, setResumeStep] = useState<PickDraftStep | null>(null);
+  // A photo was chosen before the round trip but could not be kept.
+  const [photoReselect, setPhotoReselect] = useState(false);
+  const drafts = pickDraftStore();
+
+  const resetForm = () => {
+    setStep(1); setQuery(''); setRequesting(false); setNewName(''); setRoadAddress(''); setStore(null);
+    setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
+    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+    setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
+    setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
+    setResumeStep(null); setPhotoReselect(false);
+  };
+  const applyDraft = (draft: RestoredPickDraft) => {
+    setQuery(draft.query); setRequesting(draft.requesting); setNewName(draft.newName); setRoadAddress(draft.roadAddress);
+    setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
+    setManualCategory(draft.manualCategory); setCategoryQuery(draft.categoryQuery); setMenu(draft.menu);
+    setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
+    // Item, photo requirement and the current Pick slot come from the server again:
+    // later steps resume only after the menu step's own checks pass (never auto-submit).
+    if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
+    else setStep(draft.step >= 4 ? (draft.store ? 2 : 1) : draft.step);
+  };
+  // Load once per resolved account. Nothing is read while the session is still being
+  // checked, and a different account first gets an empty form (its predecessor's
+  // in-memory input is dropped and the stored draft is discarded by load()).
+  if (!auth.isLoading && user && hydratedFor !== user.id) {
+    if (hydratedFor !== null) resetForm();
+    setHydratedFor(user.id);
+    const draft = drafts.load(user.id);
+    if (draft) applyDraft(draft);
+  }
 
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} · ${store.branchName}` : store.name) : '';
   const pickDisplayName = pickScope === 'brand' && preflight?.brand ? `${preflight.brand.name} 전체` : storeDisplayName;
@@ -172,6 +210,21 @@ export default function NewPickScreen() {
     const timeout = setTimeout(() => setAiMenuName(requestedMenu), 450);
     return () => clearTimeout(timeout);
   }, [step, menus.isSuccess, requestedMenu, exactMenuMatches.length]);
+
+  const draftOwner = user && hydratedFor === user.id ? user.id : null;
+  useEffect(() => {
+    if (!draftOwner || done) return;
+    drafts.save(draftOwner, {
+      step: resumeStep ?? (step === 6 ? 5 : step), query, requesting, newName, roadAddress, mapLink, store,
+      menuQuery, manualCategory, categoryQuery, menu, pickScope, review,
+    });
+  }, [draftOwner, done, resumeStep, step, query, requesting, newName, roadAddress, mapLink, store, menuQuery,
+    manualCategory, categoryQuery, menu, pickScope, review]);
+  useEffect(() => {
+    // Keep a 'lost' marker until a new photo is chosen, so a second round trip still asks.
+    if (!draftOwner || done || (!photo && photoReselect)) return;
+    drafts.savePhoto(draftOwner, photo);
+  }, [draftOwner, done, photo, photoReselect]);
 
   const selectItem = useSelectStoreItem();
   const itemDetail = useItemDetail(itemId ?? undefined, user?.id);
@@ -227,8 +280,10 @@ export default function NewPickScreen() {
     return snapshot;
   };
 
-  const confirmMenu = async () => {
+  const confirmMenu = async (resume?: PickDraftStep) => {
     if (!user || !store || !effectiveMenu || busy.current) return;
+    // A restored review step stays there only when no photo is missing.
+    const photoStep = (next: 4 | 5): Step => (resume === 5 && next === 4 && photo ? 5 : next);
     if (!menu) setMenu(effectiveMenu);
     if (!effectiveMenu.categoryId) return;
 
@@ -236,7 +291,7 @@ export default function NewPickScreen() {
     try {
       if (store.kind === 'new') {
         await readCurrentSlotSnapshot(effectiveMenu.categoryId);
-        setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(4);
+        setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(photoStep(4));
         return;
       }
 
@@ -252,17 +307,24 @@ export default function NewPickScreen() {
       setItemId(target.itemId);
       setItemHadPhoto(target.hasPhoto);
       setItemPending(target.pending);
-      setStep(target.hasPhoto ? 5 : 4);
+      setStep(target.hasPhoto ? 5 : photoStep(4));
     } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
   };
+
+  useEffect(() => {
+    if (resumeStep === null || !user || step !== 2) return;
+    const target = resumeStep;
+    setResumeStep(null);
+    if (store && menu) void confirmMenu(target);
+  }, [resumeStep, user, step, store, menu]);
 
   const pickNewPhoto = async () => {
     if (busy.current) return;
     busy.current = true;
     try {
       const selected = await choosePhoto.mutateAsync();
-      if (selected) setPhoto(selected);
+      if (selected) { setPhoto(selected); setPhotoReselect(false); }
     } catch (error) { showPhotoFailure(error, 'store_pick_photo_choose'); }
     finally { busy.current = false; }
   };
@@ -300,6 +362,7 @@ export default function NewPickScreen() {
         photo: needsPhoto ? photo : undefined,
       });
 
+      drafts.clear();
       setDone({ pickId: result.pickId, itemId: result.itemId });
       setPickChangedElsewhere(false);
       setStep(6);
@@ -369,6 +432,7 @@ export default function NewPickScreen() {
 
   const cancel = () => {
     if (saving || busy.current || done) return;
+    drafts.clear();
     if (router.canGoBack()) router.back();
     else router.replace('/');
   };
@@ -560,6 +624,8 @@ export default function NewPickScreen() {
             <Text style={styles.title}>대표 사진을 올려주세요</Text>
             <Text style={styles.helper}>사진이 없는 원픽은 대표 사진이 필요해요. 저장 전까지는 선택한 사진만 유지됩니다.</Text>
             {needsPhoto ? <View style={styles.photoPanel}>
+              {photoReselect && !photo
+                ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.noticeText}>사진을 다시 선택해주세요</Text></View> : null}
               {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" /> : null}
               <FlowButton variant="secondary" label={photo ? '사진 바꾸기' : '사진 선택'} loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
               {photo ? <FlowButton variant="text" label="사진 빼기" onPress={() => setPhoto(null)} /> : null}

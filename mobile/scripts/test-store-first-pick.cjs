@@ -84,6 +84,8 @@ const { default: Screen } = load('app/pick/new.tsx', {
   '@/lib/items/pickChannel': pickChannel,
   '@/lib/items/pickSavedToast': savedToast,
   '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+  // Draft persistence (#475) is covered by test-pick-draft-restore.cjs; in-memory here.
+  '@/lib/pick/pickDraft': { pickDraftStore: () => ({ save: () => true, savePhoto: () => true, load: () => null, clear() {}, discardForOtherUser() {} }) },
   '@/services/storeFirstService': service,
 });
 
