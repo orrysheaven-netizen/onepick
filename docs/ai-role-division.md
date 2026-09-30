@@ -76,7 +76,7 @@ OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/p
 
 ### 리뷰 결과 자동 인계
 
-리뷰 결과 및 CI 인계는 모델 실행과 별개의 routing control-plane이다. `.github/workflows/ai-handoff-review-events.yml`, `.github/workflows/ai-handoff-ci-gate.yml`, `.github/workflows/ai-pm-review-queue.yml`은 `ONEPICK_PM_ROUTING_ENABLED != 'false'`일 때 동작하고, 실제 Codex/Claude 모델 실행 workflow는 기존 AI/model enable 조건을 계속 요구한다. 따라서 모델 runner가 꺼져 있어도 GitHub의 owner/handoff/PM queue 전달은 유지된다. Claude GitHub Action 실행은 추가로 `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true'`를 요구하며 기본은 OFF다. 이는 Claude 배정을 끄는 것이 아니라 실패 중인 모델 실행 경로만 opt-in으로 분리하는 안전장치다.
+리뷰 결과와 PM queue는 모델 실행과 별개의 routing control-plane이다. `.github/workflows/ai-handoff-review-events.yml`과 `.github/workflows/ai-pm-review-queue.yml`은 `ONEPICK_PM_ROUTING_ENABLED != 'false'`일 때 기본 ON으로 동작한다. 반면 `.github/workflows/ai-handoff-ci-gate.yml`은 Ready PR의 세 필수 CI 완료 이벤트마다 runner가 배정되는 고정 비용을 피하기 위해 `ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true'`일 때만 동작하며 기본 OFF다. CI gate가 꺼져 있어도 PM queue·review-events와 모델 실행 조건은 유지되고, CI 기반 자동 인계가 꼭 필요한 기간에만 gate를 켠다. 실제 Codex/Claude 모델 실행 workflow는 기존 AI/model enable 조건을 계속 요구한다. Claude GitHub Action 실행은 추가로 `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true'`를 요구하며 기본은 OFF다.
 
 PR 리뷰 본문이나 댓글의 **첫 줄**(앞에 빈 줄 없이)에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
 
