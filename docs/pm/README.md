@@ -227,3 +227,66 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 - 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
 - `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
 - 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).
+
+
+## 12. PM 자동 배정 queue
+
+### 목적
+
+로컬 PC, self-hosted runner, 별도 유료 AI API 없이 GitHub를 팀장·Claude 업무 배정의 단일 원장으로 사용한다. 구현은 `.github/workflows/ai-pm-dispatch.yml`이며, 모델을 직접 호출하지 않는다.
+
+### 지시 형식
+
+원 작업 이슈의 저장소 소유자 댓글 첫 줄에 아래 형식을 사용한다.
+
+```text
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claude> action=execute pr=<N|none> head=<40자리 SHA|none>
+```
+
+- `team`은 담당 조직을 고른다.
+- `assignee=lead`는 해당 팀장을 고른다.
+- `assignee=claude`는 PM이 해당 작업을 Claude에게 명시적으로 위임한다.
+- PR 관련 지시는 `pr`과 `head`를 둘 다 지정하고, 일반 이슈 작업은 둘 다 `none`으로 둔다.
+- 본문 중간의 예시·인용은 명령이 아니다. 첫 줄 strict parse만 인정한다.
+
+### 팀 → 실행 queue
+
+| team | lead 배정 | area |
+| --- | --- | --- |
+| product | `owner:codex` | `area:app` |
+| ux | `owner:codex` | `area:app` |
+| engineering | `owner:codex` | `area:app` |
+| data | `owner:codex` | `area:data` |
+| qa | `owner:claude` | `area:qa` |
+| release | `owner:claude` | `area:infra` |
+
+`assignee=claude`이면 팀과 무관하게 `owner:claude`를 사용하되 area는 해당 팀 값을 유지한다. Product 정책, Figma 직접 편집, Data/DB 기본 구현 등 기존 역할·승인 규칙은 자동배정으로 바뀌지 않는다.
+
+### 상태
+
+1. PM 지시는 comment ID를 SOURCE_ID로 durable pending marker에 먼저 저장한다.
+2. `state:blocked` 또는 `state:active`이면 pending으로 보존하고 실행 queue를 바꾸지 않는다.
+3. blocker/active가 해제되면 GitHub label event로 자동 재평가한다.
+4. 실행 가능하면 기존 stale ready/review/handoff 라우팅을 정리하고 `owner:*` + `area:*` + `state:ready`를 적용한다.
+5. 결과 댓글의 `onepick-pm-assignment` marker가 팀과 실행자를 고정한다.
+6. 팀장/Claude 세션은 #296에서 자기 `state:ready` 업무를 확인하고, marker가 자기 팀/실행자와 일치하는 한 건만 `state:active`로 claim한다.
+
+새 시스템에서 `handoff:*`는 과거/수동 인계 호환용이다. 새 PM 지시에는 자동 생성하지 않는다.
+
+### 완료보고 → PM
+
+공통 완료보고 형식은 PR #579의 `docs/shared-working-rules.md` 규칙을 따른다. 신뢰된 `## 완료 리포트`가 원 이슈에 게시되면 dispatcher가:
+
+1. `state:ready/active/handoff`를 정리하고 `state:review`로 전환한다.
+2. 같은 report source당 한 번만 `PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none`을 handoff App identity로 게시한다.
+3. main의 #567 PM review queue가 이를 받아 PM 검토 대기를 만든다.
+
+`state:blocked` 이슈의 완료 리포트는 blocker를 자동 해제하지 않는다. 이 경우 PM queue 자동생성을 보류하고 blocked 상태를 유지한다.
+
+### AI 실행 스위치와 분리
+
+PM 지시·완료보고·PM review queue는 `ONEPICK_AI_HANDOFF_ENABLED`와 독립적으로 동작한다. Claude/Codex Action을 끄거나 유료 API를 사용하지 않아도 업무 배정과 보고 흐름은 유지되어야 한다.
+
+### 플랫폼 제한
+
+GitHub는 팀장/Claude **업무를 자동 배정**할 수 있지만 별도 ChatGPT/Claude 대화방 자체를 강제로 깨워 실행시키지는 못한다. 따라서 별도 세션이 전혀 실행되지 않는 동안 실제 코드 작업 시작까지 무인화할 수는 없다. 이 제한 때문에 수동 조치가 필요한 시점에는 PM이 해당 작업 번호만 사용자에게 요청하며, 평상시에는 GitHub `state:ready` queue를 기준으로 계속 운영한다.
