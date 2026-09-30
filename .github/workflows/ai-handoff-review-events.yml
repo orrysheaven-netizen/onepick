@@ -51,7 +51,7 @@ permissions: {}
 jobs:
   enqueue:
     if: >-
-      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      vars.ONEPICK_PM_ROUTING_ENABLED != 'false' &&
       (
         (github.event_name == 'pull_request_review' &&
           github.event.pull_request.head.repo.full_name == github.repository &&
