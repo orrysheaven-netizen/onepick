@@ -293,7 +293,12 @@ jobs:
                 skip_item "$issue" "$source" "판정 원문이 저장소 소유자 계정의 PM_REVIEW_DONE 댓글이 아님 (handoff App 판정은 인정하지 않음)"; return 0
               fi
               if [ -z "$required_id" ]; then skip_item "$issue" "$source" "${key}에 대한 PM 검토 요청 없음"; return 0; fi
-              if [ -n "$done_id" ]; then skip_item "$issue" "$source" "${key}의 PM 판정이 이미 기록됨"; return 0; fi
+              # A previous cycle may already have a done marker for the same issue/pr/head.
+              # It blocks this decision only when that done marker belongs to the latest
+              # required marker. If required_id is newer, this is a fresh review cycle.
+              if [ -n "$done_id" ] && [ "$done_id" -gt "$required_id" ]; then
+                skip_item "$issue" "$source" "${key}의 최신 PM 판정이 이미 기록됨"; return 0
+              fi
               if [ "$sid" -le "$required_id" ]; then
                 skip_item "$issue" "$source" "PM 검토 대기 기록보다 먼저 작성된 판정 (오래된 판정)"; return 0
               fi
@@ -337,8 +342,15 @@ jobs:
                 skip_item "$issue" "$source" "CI gate 결과가 '${next_owner:-unknown}' 인계 대상 (PM 경계 아님)"; return 0
               fi
             fi
-            if [ -n "$done_id" ]; then skip_item "$issue" "$source" "${key}의 PM 판정이 이미 존재"; return 0; fi
-            if [ -n "$required_id" ]; then skip_item "$issue" "$source" "${key}의 PM 검토가 이미 대기 중"; return 0; fi
+            # Same issue/pr/head can legitimately reach the PM more than once. Keep one
+            # outstanding cycle at a time, but allow a new request after the previous
+            # required marker has a later done marker and this source was written after it.
+            if [ -n "$required_id" ] && { [ -z "$done_id" ] || [ "$required_id" -gt "$done_id" ]; }; then
+              skip_item "$issue" "$source" "${key}의 PM 검토가 이미 대기 중"; return 0
+            fi
+            if [ -n "$done_id" ] && [ "$sid" -le "$done_id" ]; then
+              skip_item "$issue" "$source" "${key}의 이전 PM 판정 이전에 작성된 요청"; return 0
+            fi
             if jq -e 'index("handoff:codex") != null or index("handoff:claude") != null' <<<"$labels" >/dev/null; then
               skip_item "$issue" "$source" "AI 인계가 아직 대기 중 (완료 경계 아님)"; return 0
             fi
