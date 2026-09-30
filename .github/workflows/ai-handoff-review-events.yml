@@ -51,7 +51,7 @@ permissions: {}
 jobs:
   enqueue:
     if: >-
-      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      vars.ONEPICK_PM_ROUTING_ENABLED != 'false' &&
       (
         (github.event_name == 'pull_request_review' &&
           github.event.pull_request.head.repo.full_name == github.repository &&
@@ -220,6 +220,7 @@ jobs:
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
           EVENT_QUEUE_ISSUE: ${{ needs.enqueue.outputs.issue }}
           REQUIRED_WORKFLOWS: '["Mobile CI","Database Tests","Web build"]'
+          CI_GATE_ENABLED: ${{ vars.ONEPICK_CI_HANDOFF_GATE_ENABLED }}
         shell: bash
         run: |
           set -euo pipefail
@@ -355,6 +356,18 @@ jobs:
             # at/after the latest ready_for_review event count (earlier ones were draft runs).
             local runs ci_table body_head body_next markers ready_at
             if [ "$(jq -r '.draft' <<<"$pr_json")" = "true" ]; then
+              if [ "${CI_GATE_ENABLED:-}" != "true" ]; then
+                gh issue comment "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF
+          ${pm}
+          ## 수정 완료 보고 — Draft PR, CI gate 비활성
+          PR: #${pr} (head \`${short}\`, Draft)
+          큐 항목: \`${source}\`
+
+          후속: CI gate가 비활성 상태입니다. Ready 전환 후 같은 head에서 \`AI_FIX_RESULT: READY_FOR_REVIEW to=${next} pr=${pr} head=${head}\`를 다시 남겨 주세요. 이 보고에는 done/pending marker를 남기지 않아 재게시가 가능합니다.
+          EOF
+          )"
+                return 0
+              fi
               gh issue comment "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF
           ${done_marker}
           <!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->
@@ -393,10 +406,18 @@ jobs:
               body_head="## 수정 완료 보고 — 필수 CI 실패로 인계 보류"
               body_next="인계하지 않았습니다. CI가 모두 성공한 뒤 \`AI_FIX_RESULT: READY_FOR_REVIEW\`를 다시 남겨 주세요."
             else
-              # CI still running: the CI gate (ai-handoff-ci-gate.yml) hands off on completion.
-              markers="${done_marker}"$'\n'"<!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->"$'\n'"${pm}"
-              body_head="## 수정 완료 보고 — 필수 CI 완료 대기"
-              body_next="필수 CI가 모두 성공하면 $(name_of "$next") 재검토로 자동 인계됩니다."
+              if [ "${CI_GATE_ENABLED:-}" = "true" ]; then
+                # CI still running: the CI gate hands off on completion.
+                printf -v markers '%s\n%s\n%s' \
+                  "${done_marker}" "<!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->" "${pm}"
+                body_head="## 수정 완료 보고 — 필수 CI 완료 대기"
+                body_next="필수 CI가 모두 성공하면 $(name_of "$next") 재검토로 자동 인계됩니다."
+              else
+                # No done/pending marker: once CI is green the same result can be posted again.
+                markers="${pm}"
+                body_head="## 수정 완료 보고 — 필수 CI 진행 중, CI gate 비활성"
+                body_next="CI gate가 비활성 상태입니다. 필수 CI가 모두 성공한 뒤 같은 head에서 \`AI_FIX_RESULT: READY_FOR_REVIEW to=${next} pr=${pr} head=${head}\`를 다시 남겨 주세요."
+              fi
             fi
 
             gh issue comment "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF

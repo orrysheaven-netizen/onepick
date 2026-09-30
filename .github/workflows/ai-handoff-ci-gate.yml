@@ -27,7 +27,8 @@ jobs:
     # skipped at job level. Filter it here so no runner is allocated for drafts.
     # Ready PRs always run the `changes` job, so their runs conclude success/failure.
     if: >-
-      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
+      vars.ONEPICK_PM_ROUTING_ENABLED != 'false' &&
+      vars.ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true' &&
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion != 'skipped' &&
       github.event.workflow_run.head_repository.full_name == github.repository
