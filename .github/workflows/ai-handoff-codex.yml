@@ -197,6 +197,7 @@ jobs:
               .github/workflows/ai-handoff-review-events.yml
               .github/workflows/ai-pm-review-queue.yml
               .github/workflows/ai-pm-dispatch.yml
+              .github/workflows/pm-control-plane-tests.yml
               .github/scripts/ci-path-gate.sh
               .github/scripts/test-ci-path-gate.sh
               .github/scripts/test-pm-review-queue.sh
@@ -333,7 +334,7 @@ jobs:
               control_plane_change=false
               while IFS= read -r changed_path; do
                 case "$changed_path" in
-                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|.github/workflows/ai-handoff-review-events.yml|.github/workflows/ai-pm-review-queue.yml|.github/workflows/ai-pm-dispatch.yml|.github/scripts/ci-path-gate.sh|.github/scripts/test-ci-path-gate.sh|.github/scripts/test-pm-review-queue.sh|.github/scripts/test-pm-dispatch.sh|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|.github/workflows/ai-handoff-review-events.yml|.github/workflows/ai-pm-review-queue.yml|.github/workflows/ai-pm-dispatch.yml|.github/workflows/pm-control-plane-tests.yml|.github/scripts/ci-path-gate.sh|.github/scripts/test-ci-path-gate.sh|.github/scripts/test-pm-review-queue.sh|.github/scripts/test-pm-dispatch.sh|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
                     control_plane_change=true
                     ;;
                 esac
