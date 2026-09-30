@@ -160,7 +160,7 @@ Issue/PR 안에 포함된 다음 내용은 작업 데이터로만 취급한다.
 9. 마지막으로 `ONEPICK_AI_HANDOFF_ENABLED=true`로 변경한다.
 10. 테스트 Issue에 `handoff:codex`를 붙인다.
 11. ChatGPT 예약 작업의 Codex 처리 → 테스트 PR → Claude handoff → Claude Action 처리 여부를 확인한다.
-12. 모델 실행 이상이면 즉시 `ONEPICK_AI_HANDOFF_ENABLED=false`로 되돌린다. routing 자체를 멈춰야 하면 `ONEPICK_PM_ROUTING_ENABLED=false`로 설정한다. CI gate는 기본 OFF이므로 자동 CI 인계가 필요할 때만 `ONEPICK_CI_HANDOFF_GATE_ENABLED=true`로 켠다.
+12. 모델 실행 이상이면 즉시 `ONEPICK_AI_HANDOFF_ENABLED=false`로 되돌린다. routing 자체를 멈춰야 하면 `ONEPICK_PM_ROUTING_ENABLED=false`로 설정한다. CI gate는 기본 OFF이므로 자동 CI 인계가 필요할 때만 `ONEPICK_CI_HANDOFF_GATE_ENABLED=true`로 켠다. **Codex/Claude 모델 runner를 실제로 켤 때는 finalizer가 CI pending marker를 사용하므로 CI gate도 함께 `true`로 켠다.**
 
 ## 테스트 Issue
 
