@@ -38,8 +38,8 @@ route() {
   case "$team" in
     product|ux|engineering) area="area:app"; lead_owner="owner:codex" ;;
     data) area="area:data"; lead_owner="owner:codex" ;;
-    qa) area="area:qa"; lead_owner="owner:claude" ;;
-    release) area="area:infra"; lead_owner="owner:claude" ;;
+    qa) area="area:qa"; lead_owner="owner:codex" ;;
+    release) area="area:infra"; lead_owner="owner:codex" ;;
     *) return 1 ;;
   esac
   if [ "$assignee" = claude ]; then owner="owner:claude"; else owner="$lead_owner"; fi
@@ -100,8 +100,8 @@ expect_route product lead owner:codex area:app
 expect_route ux lead owner:codex area:app
 expect_route engineering lead owner:codex area:app
 expect_route data lead owner:codex area:data
-expect_route qa lead owner:claude area:qa
-expect_route release lead owner:claude area:infra
+expect_route qa lead owner:codex area:qa
+expect_route release lead owner:codex area:infra
 expect_route product claude owner:claude area:app
 expect_route data claude owner:claude area:data
 expect_route release claude owner:claude area:infra
