@@ -35,6 +35,7 @@ jobs:
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
+      github.event.comment.user.login == github.repository_owner &&
       startsWith(github.event.comment.body, 'PM_DIRECTIVE: ')
     runs-on: ubuntu-latest
     permissions: {}
@@ -56,6 +57,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           SOURCE_AUTHOR: ${{ github.event.comment.user.login }}
           SOURCE_ID: ${{ github.event.comment.id }}
@@ -67,6 +69,7 @@ jobs:
 
           echo "enqueued=false" >> "$GITHUB_OUTPUT"
           skip() { echo "skip: $*"; exit 0; }
+          bot_login="${APP_SLUG}[bot]"
 
           [ "$SOURCE_AUTHOR" = "$REPOSITORY_OWNER" ] || skip "PM directive is owner-only"
 
@@ -87,10 +90,13 @@ jobs:
 
           comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
           source_key="source=comment-$SOURCE_ID"
-          if jq -e --arg source "$source_key" '
+          if jq -e --arg source "$source_key" --arg bot "$bot_login" '
               any(.[];
-                ((.body // "") | contains("onepick-pm-dispatch:pending " + $source)) or
-                ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
+                .user.login == $bot and
+                (
+                  ((.body // "") | contains("onepick-pm-dispatch:pending " + $source)) or
+                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
+                )
               )
             ' <<<"$comments_json" >/dev/null; then
             echo "enqueued=true" >> "$GITHUB_OUTPUT"
