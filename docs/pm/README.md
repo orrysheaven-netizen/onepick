@@ -272,3 +272,5 @@ main merge, Production DB apply/deploy, secret/permission 변경, 파괴적 데�
 ### 자동화 범위
 
 기계가 검증할 수 있는 PR 존재, head 일치, Refs, CI 결과, 라벨/marker 상태만 자동 판단한다. "정책 변경 없음", "비용 없음", "MVP 적합" 같은 의미 판단은 자동 통과 조건으로 사용하지 않고 PM/QA 검토 대상으로 남긴다.
+
+PM review queue, PR review 결과 인계, CI 완료 인계는 **모델 실행 스위치와 분리된 routing control-plane**이다. 이 세 workflow는 `ONEPICK_PM_ROUTING_ENABLED != 'false'`일 때 동작하며 변수 미설정이 기본 ON이다. 비상 정지가 필요할 때만 이 변수를 `false`로 설정한다. 반면 실제 Codex/Claude 모델 실행 workflow는 기존 `ONEPICK_AI_HANDOFF_ENABLED`와 각 모델별 enable 조건을 계속 요구하므로, routing 활성화만으로 유료 모델/API 호출이 시작되지 않는다.
