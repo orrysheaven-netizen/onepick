@@ -235,6 +235,8 @@ gate_body() { printf '<!-- onepick-ci-handoff:done pr=%s -->\n## 필수 CI 통�
 
 # --- tests -------------------------------------------------------------------------
 echo "# workflow shape"
+check "enqueue if: independent from AI runner switch" \
+  bash -c "! grep -q 'ONEPICK_AI_HANDOFF_ENABLED' '$WORK/enqueue_if.txt'"
 check "enqueue if: first-line startsWith only (no contains)" \
   bash -c "grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_REQUIRED: ')\" '$WORK/enqueue_if.txt' &&
            grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_DONE: ')\" '$WORK/enqueue_if.txt' &&
