@@ -212,7 +212,9 @@ module.exports = async function run({ github, context, core }) {
         await processedSkip(sourceId, 'pending marker와 원본 지시가 일치하지 않습니다.');
         continue;
       }
-      if (has(issue, 'state:active') || has(issue, 'state:review')) continue;
+      // A new trusted PM directive is itself the authorization to leave review.
+      // Active work still blocks reassignment; review is removed by ROUTING_LABELS below.
+      if (has(issue, 'state:active')) continue;
       if (!(await verifyPr(pr, head))) {
         await processedSkip(sourceId, '처리 시점에 PR/head/Refs가 stale입니다.');
         continue;
