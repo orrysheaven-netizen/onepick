@@ -67,6 +67,8 @@ expect_contains "$WORKFLOW" "PM_DIRECTIVE: team=<product|ux|engineering|data|qa|
 expect_contains "$WORKFLOW" "onepick-pm-dispatch:pending" "durable pending marker"
 expect_contains "$WORKFLOW" "onepick-pm-dispatch:processed" "processed marker"
 expect_contains "$WORKFLOW" "onepick-pm-assignment" "assignment marker"
+expect_contains "$WORKFLOW" "github.event.comment.user.login == github.repository_owner" "untrusted directive comments allocate no runner"
+expect_contains "$WORKFLOW" '.user.login == $bot' "only bot-authored queue markers count for dedupe"
 expect_contains "$WORKFLOW" 'index("state:blocked") != null or index("state:active") != null' "blocked/active hold"
 expect_contains "$WORKFLOW" 'state:ready' "ready assignment"
 expect_contains "$WORKFLOW" 'state:review' "report review transition"
