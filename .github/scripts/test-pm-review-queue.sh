@@ -384,7 +384,9 @@ comment 10 "$OWNER" "PM_REVIEW_DONE: decision=user-approval pr=20 head=$H2"
 check "decision for current head after its request is recorded" \
   eq "$(count_bot 10 "<!-- onepick-pm-review:done issue=10 pr=20 head=$H2 decision=user-approval -->")" 1
 comment 10 "$OWNER" "PM_REVIEW_REQUIRED: reason=stage-complete pr=20 head=$H2"
-check "no re-request after a decision" eq "$(count_bot 10 "onepick-pm-review:required issue=10 pr=20 head=$H2 ")" 1
+check "new review cycle allowed after a completed decision" eq "$(count_bot 10 "onepick-pm-review:required issue=10 pr=20 head=$H2 ")" 2
+comment 10 "$OWNER" "PM_REVIEW_DONE: decision=continue pr=20 head=$H2"
+check "new cycle decision is recorded against the latest request" eq "$(count_bot 10 "onepick-pm-review:done issue=10 pr=20 head=$H2 ")" 2
 
 echo "# PM decisions: owner account only, never the shared handoff App bot"
 reset_state
