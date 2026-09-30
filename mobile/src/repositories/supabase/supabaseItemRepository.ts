@@ -80,7 +80,9 @@ export class SupabaseItemRepository implements ItemRepository {
     const { data, error } = await this.client.rpc('stage_user_place_item', {
       p_category_id: input.categoryId,
       p_name: input.name,
-      p_road_address: input.roadAddress,
+      // New stores are registered without a road address (#593); the RPC keeps
+      // the legacy parameter, so send an empty value.
+      p_road_address: '',
       p_map_url: input.mapUrl,
       p_branch_name: input.branchName ?? undefined,
     });

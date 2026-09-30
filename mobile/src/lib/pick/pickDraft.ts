@@ -21,8 +21,9 @@ export type PickDraftFields = {
   step: PickDraftStep;
   query: string;
   requesting: boolean;
+  // Catalog-missing store: name first, then its Naver map link (#593). Older drafts omit it.
+  requestPart?: 'name' | 'link';
   newName: string;
-  roadAddress: string;
   mapLink: string;
   store: unknown;
   menuQuery: string;
@@ -90,7 +91,8 @@ function validFields(fields: unknown): fields is PickDraftFields {
   if (!fields || typeof fields !== 'object') return false;
   const f = fields as PickDraftFields;
   return STEPS.has(f.step) && typeof f.query === 'string' && typeof f.requesting === 'boolean'
-    && typeof f.newName === 'string' && typeof f.roadAddress === 'string' && typeof f.mapLink === 'string'
+    && (f.requestPart === undefined || f.requestPart === 'name' || f.requestPart === 'link')
+    && typeof f.newName === 'string' && typeof f.mapLink === 'string'
     && typeof f.menuQuery === 'string' && typeof f.manualCategory === 'boolean'
     && typeof f.categoryQuery === 'string' && typeof f.review === 'string'
     && (f.pickScope === null || f.pickScope === 'branch' || f.pickScope === 'brand')

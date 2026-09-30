@@ -64,6 +64,22 @@ async function main() {
   assert.equal(result.retried, true);
   assert.equal(result.replacedPickId, 'old-pick');
 
+  // stage_user_place_item keeps its legacy p_road_address parameter; the app sends ''.
+  const itemRpcCalls = [];
+  const { SupabaseItemRepository } = load('repositories/supabase/supabaseItemRepository.ts', {
+    '@/errors/appError': { AppError },
+    '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/mappers/itemMapper': { mapItemRow: (row) => row },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+  });
+  const supabaseItems = new SupabaseItemRepository({
+    rpc: async (name, args) => { itemRpcCalls.push([name, args]); return { data: { id: 'staged' }, error: null }; },
+  });
+  await supabaseItems.stageUserPlaceItem({ categoryId: 'category', name: '새 가게', mapUrl: 'https://naver.me/new-place' });
+  assert.equal(itemRpcCalls[0][0], 'stage_user_place_item');
+  assert.equal(itemRpcCalls[0][1].p_road_address, '');
+  assert.equal(itemRpcCalls[0][1].p_map_url, 'https://naver.me/new-place');
+
   // Supabase P0001 concurrency errors must remain distinguishable in the UI.
   const mapped = mapSupabaseError({ code: 'P0001', message: 'PICK_CHANGED_ELSEWHERE', details: 'actual-pick' });
   assert.ok(mapped instanceof AppError);
@@ -144,14 +160,13 @@ async function main() {
     expectedPreviousPickId: null,
     newPlace: {
       name: '새 가게',
-      roadAddress: '서울 마포구 새길 1',
       mapUrl: 'https://naver.me/new-place',
     },
     photo: { uri: 'file://photo', base64: 'x', thumbnailBase64: 'y', uploadId: 'photo-1' },
   });
   assert.equal(placeStageCalls.length, 1);
   assert.equal(placeStageCalls[0].name, '새 가게');
-  assert.equal(placeStageCalls[0].roadAddress, '서울 마포구 새길 1');
+  assert.equal(placeStageCalls[0].roadAddress, undefined, 'New stores are staged without a road address (#593)');
   assert.equal(placeStageCalls[0].mapUrl, 'https://naver.me/new-place');
   assert.equal(registerCalls[1].itemId, 'staged-item');
   assert.equal(registerCalls[1].imagePath, 'owner/full.jpg');

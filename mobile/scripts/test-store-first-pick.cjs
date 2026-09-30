@@ -231,14 +231,24 @@ async function main() {
   assert.match(page, /카테고리를 추천하지 못했어요/);
   assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);
 
-  // Catalog-missing store identity is collected inside step 1 and forwarded
-  // as stage_user_place_item input; there is no separate link step.
+  // Catalog-missing store identity is collected inside step 1, one input per
+  // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".
   reset();
   registerRun = () => ({ itemId: 'pending-place-item', pickId: 'needs-review-pick', published: false, replacedPickId: null, retried: false });
   render(); input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); page = render();
   assert.equal(step(page), '1');
+  assert.match(page, /매장 이름을 알려 주세요/);
+  assert.doesNotMatch(page, /도로명 주소/);
+  assert.doesNotMatch(page, /다시 검색하기/);
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'), 'The link has its own screen');
   input('등록 요청 이름').onChangeText('새 냉면집');
-  input('도로명 주소').onChangeText('서울 마포구 새길 1');
+  render(); press('다음'); page = render();
+  assert.equal(step(page), '1');
+  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
+  press('이전 단계'); page = render();
+  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
+  press('다음'); render();
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore');
   render(); press('다음'); page = render();
   assert.equal(step(page), '2');
@@ -249,7 +259,7 @@ async function main() {
   assert.equal(newSave.channel, 'offline');
   assert.equal(newSave.requestId, 'request-1');
   assert.equal(newSave.newPlace.name, '새 냉면집');
-  assert.equal(newSave.newPlace.roadAddress, '서울 마포구 새길 1');
+  assert.equal(newSave.newPlace.roadAddress, undefined);
   assert.equal(newSave.newPlace.mapUrl, 'https://naver.me/newstore');
   assert.ok(newSave.photo);
   page = render();

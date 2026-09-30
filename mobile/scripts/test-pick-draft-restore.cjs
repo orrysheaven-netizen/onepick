@@ -42,7 +42,7 @@ function sessionBackend(limit = Infinity) {
   return backend;
 }
 const fields = (over = {}) => ({
-  step: 5, query: '을밀대', requesting: false, newName: '', roadAddress: '', mapLink: '',
+  step: 5, query: '을밀대', requesting: false, requestPart: 'name', newName: '', mapLink: '',
   store: { kind: 'place', catalogId: 'cat-1', name: '을밀대' }, menuQuery: '평양냉면', manualCategory: false,
   categoryQuery: '', menu: { categoryId: 'cat-naengmyeon', name: '평양냉면' }, pickScope: null, review: '육수가 깔끔해요', ...over,
 });
