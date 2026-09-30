@@ -55,7 +55,17 @@ jobs:
           version: 2.118.0
 
       - name: Link onepick-dev
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --debug
+
+      - name: Diagnose IPv4 pooler link
+        if: always()
+        run: |
+          ls -la supabase/.temp || true
+          if test -s supabase/.temp/pooler-url; then
+            echo "pooler-url=present"
+          else
+            echo "pooler-url=MISSING"
+          fi
 
       - name: Show migration status before deploy
         run: supabase migration list --linked
