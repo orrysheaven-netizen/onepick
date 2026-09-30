@@ -407,8 +407,20 @@ jobs:
               body_next="인계하지 않았습니다. CI가 모두 성공한 뒤 \`AI_FIX_RESULT: READY_FOR_REVIEW\`를 다시 남겨 주세요."
             else
               if [ "${CI_GATE_ENABLED:-}" = "true" ]; then
-                # CI still running: the CI gate (ai-handoff-ci-gate.yml) hands off on completion.
-                markers="${done_marker}" "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF
+                # CI still running: the CI gate hands off on completion.
+                printf -v markers '%s\\n%s\\n%s' \
+                  "${done_marker}" "<!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->" "${pm}"
+                body_head="## 수정 완료 보고 — 필수 CI 완료 대기"
+                body_next="필수 CI가 모두 성공하면 $(name_of "$next") 재검토로 자동 인계됩니다."
+              else
+                # No done/pending marker: once CI is green the same result can be posted again.
+                markers="${pm}"
+                body_head="## 수정 완료 보고 — 필수 CI 진행 중, CI gate 비활성"
+                body_next="CI gate가 비활성 상태입니다. 필수 CI가 모두 성공한 뒤 같은 head에서 \`AI_FIX_RESULT: READY_FOR_REVIEW to=${next} pr=${pr} head=${head}\`를 다시 남겨 주세요."
+              fi
+            fi
+
+            gh issue comment "$issue" --repo "$REPOSITORY" --body "$(cat <<EOF
           ${markers}
           ${body_head}
           PR: #${pr} (head \`${short}\`)
@@ -419,6 +431,7 @@ jobs:
           후속: ${body_next}
           EOF
           )"
+
           }
 
           # Issues to drain: the event's issue first, then EVERY open AI-queue issue
