@@ -61,7 +61,7 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Show migration status before deploy
-        run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
 
       - name: Preview pending migrations
         id: preview
@@ -101,7 +101,7 @@ jobs:
 
       - name: Show migration status after deploy
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase migration list --linked
+        run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
 
       - name: Verify no pending migrations remain
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
