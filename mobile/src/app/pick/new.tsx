@@ -25,7 +25,7 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 // trip in this writing session returns to it (#475); server state is re-checked.
 
 type Step = 1 | 2 | 4 | 5 | 6;
-type NewStore = { kind: 'new'; name: string; channel: 'offline'; roadAddress: string; mapUrl: string };
+type NewStore = { kind: 'new'; name: string; channel: 'offline'; mapUrl: string };
 type Store = StoreCandidate | NewStore;
 type Done = { pickId: string; itemId: string };
 
@@ -91,7 +91,6 @@ function errorMessage(error: unknown) {
       case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
       case 'ITEM_NAME_INVALID':
       case 'PLACE_NAME_INVALID': return '매장 이름을 1~100자로 입력해주세요.';
-      case 'PLACE_ADDRESS_REQUIRED': return '도로명 주소를 입력해주세요.';
       case 'LINK_INVALID': return '네이버 지도 링크(naver.me, map.naver.com)만 남길 수 있어요.';
       case 'RATE_LIMITED': return '요청이 많아요. 잠시 후 다시 시도해주세요.';
       case 'PICK_COOLDOWN': return '해제한 원픽은 24시간이 지나야 다시 고를 수 있어요.';
@@ -114,8 +113,8 @@ export default function NewPickScreen() {
   const [step, setStep] = useState<Step>(1);
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState(false);
+  const [requestPart, setRequestPart] = useState<'name' | 'link'>('name');
   const [newName, setNewName] = useState('');
-  const [roadAddress, setRoadAddress] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
@@ -149,7 +148,7 @@ export default function NewPickScreen() {
   const drafts = pickDraftStore();
 
   const resetForm = () => {
-    setStep(1); setQuery(''); setRequesting(false); setNewName(''); setRoadAddress(''); setStore(null);
+    setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
@@ -157,7 +156,7 @@ export default function NewPickScreen() {
     setResumeStep(null); setPhotoReselect(false);
   };
   const applyDraft = (draft: RestoredPickDraft) => {
-    setQuery(draft.query); setRequesting(draft.requesting); setNewName(draft.newName); setRoadAddress(draft.roadAddress);
+    setQuery(draft.query); setRequesting(draft.requesting); setRequestPart(draft.requestPart ?? 'name'); setNewName(draft.newName);
     setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
     setManualCategory(draft.manualCategory); setCategoryQuery(draft.categoryQuery); setMenu(draft.menu);
     setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
@@ -215,10 +214,10 @@ export default function NewPickScreen() {
   useEffect(() => {
     if (!draftOwner || done) return;
     drafts.save(draftOwner, {
-      step: resumeStep ?? (step === 6 ? 5 : step), query, requesting, newName, roadAddress, mapLink, store,
+      step: resumeStep ?? (step === 6 ? 5 : step), query, requesting, requestPart, newName, mapLink, store,
       menuQuery, manualCategory, categoryQuery, menu, pickScope, review,
     });
-  }, [draftOwner, done, resumeStep, step, query, requesting, newName, roadAddress, mapLink, store, menuQuery,
+  }, [draftOwner, done, resumeStep, step, query, requesting, requestPart, newName, mapLink, store, menuQuery,
     manualCategory, categoryQuery, menu, pickScope, review]);
   useEffect(() => {
     // Keep a 'lost' marker until a new photo is chosen, so a second round trip still asks.
@@ -250,6 +249,7 @@ export default function NewPickScreen() {
   const goBack = () => {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
     if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
@@ -266,11 +266,9 @@ export default function NewPickScreen() {
     setStep(2);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
-  const newRoadAddress = roadAddress.trim().replace(/\s+/g, ' ');
   const validMapLink = isNaverMapUrl(mapLink);
-  const canRequest = newStoreName.length >= 1 && newStoreName.length <= 100
-    && newRoadAddress.length >= 1 && newRoadAddress.length <= 300
-    && validMapLink;
+  const validNewName = newStoreName.length >= 1 && newStoreName.length <= 100;
+  const canRequest = validNewName && validMapLink;
 
   const readCurrentSlotSnapshot = async (categoryId: string) => {
     if (!user) throw new AppError('AUTH_REQUIRED');
@@ -356,7 +354,6 @@ export default function NewPickScreen() {
         brandId: pickScope === 'brand' && !itemId ? preflight?.brand?.brandId : undefined,
         newPlace: store.kind === 'new' ? {
           name: store.name,
-          roadAddress: store.roadAddress,
           mapUrl: store.mapUrl,
         } : undefined,
         photo: needsPhoto ? photo : undefined,
@@ -469,8 +466,10 @@ export default function NewPickScreen() {
 
         {step === 1 ? <>
           <View style={styles.body}>
-            <Text style={styles.stepMeta}>1 / 4 · 오프라인 매장</Text>
-            <Text style={styles.title}>상호명을 검색해 주세요</Text>
+            <Text style={styles.stepMeta}>1 / 4 · {requesting && requestPart === 'link' ? newStoreName : '오프라인 매장'}</Text>
+            <Text style={styles.title}>
+              {!requesting ? '상호명을 검색해 주세요' : requestPart === 'name' ? '매장 이름을 알려 주세요' : '네이버 지도 링크를 붙여넣어 주세요'}
+            </Text>
             {!requesting ? <>
               <View style={styles.fieldBlock}>
                 <FieldLabel label="상호명" />
@@ -495,39 +494,30 @@ export default function NewPickScreen() {
               </View>
               {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
                 ? <Text style={styles.helper}>검색한 이름의 매장을 찾지 못했어요.</Text> : null}
-            </> : <View style={styles.requestPanel}>
-              <Text style={styles.panelTitle}>매장 직접 등록</Text>
-              <Text style={styles.helper}>검색에 없는 매장은 주소와 네이버 지도 링크로 확인해요.</Text>
-              <View style={styles.fieldBlock}>
-                <FieldLabel label="상호명" />
-                <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
-                  placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
-              </View>
-              <View style={styles.fieldBlock}>
-                <FieldLabel label="도로명 주소" />
-                <TextInput accessibilityLabel="도로명 주소" maxLength={300} value={roadAddress} onChangeText={setRoadAddress} style={styles.input}
-                  placeholder="예: 서울 마포구 숭문길 24" placeholderTextColor={OnePick.textTertiary} />
-              </View>
-              <View style={styles.fieldBlock}>
-                <FieldLabel label="네이버 지도 링크" />
-                <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
-                  value={mapLink} onChangeText={setMapLink} style={styles.input}
-                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
-                {mapLink.trim() && !validMapLink
-                  ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
-                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 사용해 주세요.</Text>}
-              </View>
+            </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
+              {/* One input per screen (#593): the store name here, its Naver map link next. */}
+              <FieldLabel label="상호명" />
+              <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
+                placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
+              <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어 주세요.</Text>
+            </View> : <View style={styles.fieldBlock}>
+              <FieldLabel label="네이버 지도 링크" />
+              <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
+                value={mapLink} onChangeText={setMapLink} style={styles.input}
+                placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
+              {mapLink.trim() && !validMapLink
+                ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
+                : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러 주세요.{'\n'}링크를 붙여넣으면 다음으로 넘어갈 수 있어요.</Text>}
             </View>}
           </View>
           <View style={styles.footer}>
             {!requesting
               ? <FlowButton variant="secondary" label="찾는 매장이 없어요"
-                  onPress={() => { setRequesting(true); setNewName(query); }} />
-              : <>
-                <FlowButton label="다음" disabled={!canRequest}
-                  onPress={() => pickStore({ kind: 'new', name: newStoreName, channel: 'offline', roadAddress: newRoadAddress, mapUrl: mapLink.trim() })} />
-                <FlowButton variant="text" label="다시 검색하기" onPress={() => setRequesting(false)} />
-              </>}
+                  onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); }} />
+              : requestPart === 'name'
+                ? <FlowButton label="다음" disabled={!validNewName} onPress={() => setRequestPart('link')} />
+                : <FlowButton label="다음" disabled={!canRequest}
+                    onPress={() => pickStore({ kind: 'new', name: newStoreName, channel: 'offline', mapUrl: mapLink.trim() })} />}
           </View>
         </> : null}
 
@@ -724,8 +714,6 @@ const styles = StyleSheet.create({
   },
   resultTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   resultMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
-  requestPanel: { gap: OnePickSpace.md },
-  panelTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },
   flowChip: {
     minHeight: 32,

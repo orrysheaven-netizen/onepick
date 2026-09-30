@@ -42,7 +42,6 @@ export interface ImmediatePickRegistrationInput {
   linkUrl?: string | null;
   newPlace?: {
     name: string;
-    roadAddress: string;
     mapUrl: string;
     branchName?: string | null;
   };
@@ -167,7 +166,6 @@ export class RegistrationService {
       const staged = await this.itemRepository.stageUserPlaceItem({
         categoryId: input.categoryId,
         name: input.newPlace.name,
-        roadAddress: input.newPlace.roadAddress,
         mapUrl: input.newPlace.mapUrl,
         branchName: input.newPlace.branchName,
       });

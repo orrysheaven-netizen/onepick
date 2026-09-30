@@ -55,7 +55,6 @@ export interface SubmitUnclassifiedItemInput {
 export interface StageUserPlaceItemInput {
   categoryId: string;
   name: string;
-  roadAddress: string;
   mapUrl: string;
   branchName?: string | null;
 }

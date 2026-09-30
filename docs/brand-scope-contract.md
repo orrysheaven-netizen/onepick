@@ -34,16 +34,23 @@
 
 ### `stage_user_place_item(p_category_id, p_name, p_road_address, p_map_url, p_branch_name)` → `items`
 
-카탈로그 검색 실패 시 새 매장. 이름(1~100자), 도로명 주소(1~300자), **네이버 지도 링크 필수**.
-같은 이름+같은 주소는 같은 매장으로 재사용. 만들어지는 것:
+카탈로그 검색 실패 시 새 매장. 이름(1~100자), **네이버 지도 링크 필수**. 도로명 주소는 받지 않는다
+(2026-09-30 사용자 결정, #593). `p_road_address`는 호환용으로 남은 선택 입력이며 앱은 `''`를 보낸다.
+주소가 없으면 `places.road_address`는 `''`(사용자 등록 장소만 허용), `place_catalog.road_address`는 `null`이다.
+**같은 정규화 이름 + 똑같은 지도 링크**는 같은 매장으로 재사용한다. 링크를 외부에서 펼치지 않으므로 다른
+short link로 들어온 같은 가게는 별도 대기 요청이 된다. 서로 다른 지점을 잘못 합치는 것보다 안전한 쪽을 택했다.
+사용자 등록 매장은 `item_places` → `item_providers` 트리거로 판매처가 연결되므로 `admin_merge_pending_item`이
+`SOURCE_PROVIDER_ITEM_NOT_MERGEABLE`로 거부한다. 중복은 **하나만 승인하고 나머지는 반려**해서 정리한다. 만들어지는 것:
 
 - `places` 행(`place_provider='user'`, **`is_visible=false`**), `place_catalog` 행(`business_status='pending'`, 검색 제외),
   pending item + `item_places` + `item_channels(offline, 지도 링크)`.
 - 승인(`admin_review_pending_item … 'active'`) 시 트리거가 장소를 공개하고 카탈로그를 `open`으로 바꿔
   `search_store_catalog`에 나오고, 다른 사람은 `select_place_catalog_item`으로 같은 제품을 고른다.
-- 대기 중 `revise_item_request(p_link_url)`로 지도 링크를 바꾸면 장소의 `map_url`도 따라간다.
+  주소 없는 사용자 등록 장소도 선택할 수 있다(카탈로그에서 들여온 장소는 여전히 주소가 필요하다).
+- 대기 중 `revise_item_request(p_link_url)`로 지도 링크를 바꾸면 장소의 `map_url`도 따라간다. 바꾼 링크가 같은 이름의
+  다른 사용자 등록 매장과 겹치면 `PLACE_ALREADY_REGISTERED`로 거부한다(자동 병합하지 않음).
 
-에러: `PLACE_NAME_INVALID`, `PLACE_ADDRESS_REQUIRED`, `ITEM_LINK_REQUIRED`, `LINK_INVALID`,
+에러: `PLACE_NAME_INVALID`, `PLACE_ADDRESS_INVALID`(보낸 주소가 300자 초과), `ITEM_LINK_REQUIRED`, `LINK_INVALID`,
 `ITEM_ALREADY_PENDING`, `CATEGORY_NOT_PICKABLE`, `RATE_LIMITED`.
 
 ### `brand_profile(p_brand_id)` → `jsonb | null`

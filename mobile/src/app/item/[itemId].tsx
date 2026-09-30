@@ -43,6 +43,9 @@ function revisionErrorMessage(error: unknown) {
     if (error.code === 'ITEM_LINK_REQUIRED' || error.code === 'LINK_INVALID') {
       return '네이버 지도 링크를 확인해주세요.';
     }
+    if (error.code === 'PLACE_ALREADY_REGISTERED') {
+      return '같은 이름과 링크로 등록 요청된 매장이 이미 있어요. 링크를 다시 확인해주세요.';
+    }
     if (error.code === 'ITEM_NOT_FOUND' || error.code === 'ITEM_NOT_ELIGIBLE') {
       return '지금은 이 요청을 수정할 수 없어요.';
     }

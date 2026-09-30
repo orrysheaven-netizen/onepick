@@ -221,7 +221,7 @@ export function ChannelLinkPanel() {
                   <View key={place.catalog_id} style={styles.candidateRow}>
                     <View style={styles.itemBody}>
                       <Text style={styles.candidateName}>{placeLabel(place)}</Text>
-                      <Text style={adminStyles.muted}>{place.road_address ?? place.address ?? '주소 없음'}</Text>
+                      <Text style={adminStyles.muted}>{place.road_address || place.address || '주소 없음'}</Text>
                       {place.existing_item_id ? <Text style={styles.warning}>이미 이 카테고리의 원픽 항목이 연결된 장소입니다.</Text> : null}
                     </View>
                     <Pressable accessibilityRole="button" accessibilityLabel={`${placeLabel(place)}에 연결`}
