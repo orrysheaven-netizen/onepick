@@ -273,7 +273,7 @@ PM은 작업 단위 전문성·가용성에 따라 `to=claude` 또는 `to=codex`
 - `state:blocked`이면 dispatcher는 pending을 유지하고 blocker가 해제될 때 재평가한다.
 - `state:active` 또는 `state:review` 중에는 같은 작업을 중복 배정하지 않는다.
 - 기존 `handoff:*`는 과거/수동 인계 호환용이며 새 PM 배정의 기본 경로가 아니다.
-- 완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 `state:review` + `PM_REVIEW_REQUIRED`로 연결하고 #567 PM review queue가 이어받는다.
+- 완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수한다. `size:M/L` 또는 Data/Security/Infra·보안민감 PR은 반대 AI에게 `phase=review` + `state:ready`로 독립 검토를 자동 배정한다. 독립 검토 완료 리포트가 올라오면 `state:review` + `PM_REVIEW_REQUIRED: reason=review-complete`로 #567 PM review queue에 반환한다. 독립 검토가 필요 없는 작업은 `reason=stage-complete`로 바로 PM queue에 반환한다.
 
 구현: `.github/workflows/ai-pm-dispatch.yml`, `.github/scripts/pm-dispatch.cjs`.
 
