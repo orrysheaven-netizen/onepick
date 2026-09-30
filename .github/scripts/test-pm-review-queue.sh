@@ -250,6 +250,10 @@ check "routing queues: shared opt-out kill switch is present" \
   bash -c "grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/enqueue_if.txt' &&
            grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/review_enqueue_if.txt' &&
            grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/ci_gate_if.txt'"
+check "CI handoff gate is explicit opt-in" \
+  bash -c "grep -q \"ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true'\" '$WORK/ci_gate_if.txt' &&
+           ! grep -q 'ONEPICK_CI_HANDOFF_GATE_ENABLED' '$WORK/enqueue_if.txt' &&
+           ! grep -q 'ONEPICK_CI_HANDOFF_GATE_ENABLED' '$WORK/review_enqueue_if.txt'"
 check "Claude model Action remains explicit opt-in" \
   bash -c "grep -q \"ONEPICK_AI_HANDOFF_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
            grep -q \"ONEPICK_CLAUDE_ACTION_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
