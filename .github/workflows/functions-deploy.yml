@@ -39,7 +39,7 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_ID: ygoipwzakzdnkaaxyrgb
+      SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
       MODE: ${{ inputs.mode }}
       FUNCTIONS_INPUT: ${{ inputs.functions }}
 
@@ -95,7 +95,7 @@ jobs:
           echo "Targets:"; cat "$RUNNER_TEMP/targets.txt"
 
       - name: Snapshot deployed functions
-        run: supabase functions list --project-ref "$SUPABASE_PROJECT_ID" -o json > "$RUNNER_TEMP/before.json"
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF" -o json > "$RUNNER_TEMP/before.json"
 
       - name: Show function status
         shell: bash
@@ -155,7 +155,8 @@ jobs:
 
       - name: Link onepick-dev
         if: env.MODE == 'apply'
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        # Keep the DB preflight on the password-based IPv4 pooler path.
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Require database to be deployed first
         if: env.MODE == 'apply'
@@ -163,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          supabase db push --linked --dry-run --include-all --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee "$log_file"
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
             exit 1
@@ -176,7 +177,7 @@ jobs:
           set -euo pipefail
           # verify_jwt and other per-function settings come from supabase/config.toml.
           mapfile -t targets < "$RUNNER_TEMP/targets.txt"
-          supabase functions deploy "${targets[@]}" --project-ref "$SUPABASE_PROJECT_ID" 2>&1 \
+          supabase functions deploy "${targets[@]}" --project-ref "$SUPABASE_PROJECT_REF" 2>&1 \
             | tee "$RUNNER_TEMP/deploy.log"
 
       - name: Verify deployed functions
@@ -184,7 +185,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          supabase functions list --project-ref "$SUPABASE_PROJECT_ID" -o json > "$RUNNER_TEMP/after.json"
+          supabase functions list --project-ref "$SUPABASE_PROJECT_REF" -o json > "$RUNNER_TEMP/after.json"
           python3 - <<'PY'
           import json, os, tomllib
 
