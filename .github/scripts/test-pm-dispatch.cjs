@@ -112,6 +112,26 @@ async function testBlockedResume() {
   assert(labels.includes('state:ready'));
 }
 
+
+async function testReviewReassignment() {
+  const source = {
+    id: 30,
+    body: 'PM_DIRECTIVE: team=qa-security to=auto action=execute pr=none head=none',
+    user: { login: 'orrysheaven-netizen' },
+    html_url: 'https://example.test/30',
+  };
+  const { state, github } = mock({
+    labels: ['state:review', 'owner:codex', 'team:engineering'],
+    comments: [source],
+  });
+  await dispatch({ github, core, context: { ...base, eventName: 'issue_comment', payload: { issue: { number: 77 }, comment: source } } });
+  const labels = labelNames(state);
+  assert(labels.includes('owner:claude'));
+  assert(labels.includes('team:qa-security'));
+  assert(labels.includes('state:ready'));
+  assert(!labels.includes('state:review'));
+}
+
 async function testReviewBridge() {
   const { state, github } = mock({
     labels: ['size:M', 'owner:codex', 'team:engineering', 'state:active'],
@@ -153,6 +173,7 @@ async function testReviewBridge() {
 (async () => {
   await testAssignment();
   await testBlockedResume();
+  await testReviewReassignment();
   await testReviewBridge();
   console.log('pm dispatch checks passed');
 })().catch((error) => {
