@@ -118,9 +118,9 @@ PR: #<번호>
 후속: <없음 또는 다음 담당>
 ```
 
-담당자는 후속 담당을 임의로 확정하지 않는다. 완료 보고 뒤의 owner/state/handoff 결정은 PM 또는 기존 자동화가 수행한다. 담당자는 이미 배정된 작업의 claim(`state:active`)과 완료 보고만 담당한다.
+담당자는 후속 담당을 임의로 확정하지 않는다. 완료 시에는 자기 claim을 끝내기 위한 기계적 전환으로 `state:active`를 제거하고 `state:review`를 붙인 뒤 완료 보고한다. 이 전환은 다음 담당 결정이 아니며 현재 `owner:*`와 `size:*`는 유지한다. 그 이후 owner/state/handoff 결정은 PM 또는 기존 자동화가 수행한다. 독립 리뷰 완료 보고는 첫 줄의 `reason=review-complete`를 사용한다.
 
-자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
+자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다. PM이 `PM_REVIEW_DONE: decision=continue ...`로 판정했고 별도 후속이 없으면 PM이 `owner:*`/`size:*`는 보존한 채 state/handoff 라벨을 정리하고 원 이슈를 completed로 닫아 14일 완료 집계에 포함한다.
 
 ## PR·CI 실행 비용 규칙
 
