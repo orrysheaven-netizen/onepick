@@ -198,10 +198,12 @@ jobs:
       (
         (github.event_name == 'issue_comment' &&
          (needs.assignment_enqueue.outputs.enqueued == 'true' ||
-          needs.report_enqueue.outputs.enqueued == 'true')) ||
+          needs.report_enqueue.outputs.enqueued == 'true' ||
+          startsWith(github.event.comment.body, '<!-- onepick-pm-review:done '))) ||
         (github.event_name == 'issues' &&
          (github.event.label.name == 'state:blocked' ||
-          github.event.label.name == 'state:active'))
+          github.event.label.name == 'state:active' ||
+          github.event.label.name == 'state:review'))
       )
     concurrency:
       group: ai-pm-assignment-dispatcher-${{ github.repository }}
@@ -313,6 +315,30 @@ jobs:
             if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels" >/dev/null; then
               echo "hold assignment comment-$source on #$issue: blocked/active"
               return 2
+            fi
+
+            # state:review may mean an independent review is still running or that a
+            # completion report is waiting for PM judgment. A new PM assignment may
+            # proceed only after the latest bot-authored PM review request has a newer
+            # bot-authored PM decision marker. With no PM request yet, the review is
+            # still in progress and remains locked.
+            if jq -e 'index("state:review") != null' <<<"$labels" >/dev/null; then
+              required_id="$(
+                jq -r --arg bot "$bot_login" '
+                  [ .[] | select(.user.login == $bot and ((.body // "") | contains("<!-- onepick-pm-review:required "))) | .id ]
+                  | last // ""
+                ' <<<"$comments"
+              )"
+              done_id="$(
+                jq -r --arg bot "$bot_login" '
+                  [ .[] | select(.user.login == $bot and ((.body // "") | contains("<!-- onepick-pm-review:done "))) | .id ]
+                  | last // ""
+                ' <<<"$comments"
+              )"
+              if [ -z "$required_id" ] || [ -z "$done_id" ] || [ "$done_id" -le "$required_id" ]; then
+                echo "hold assignment comment-$source on #$issue: review still pending"
+                return 2
+              fi
             fi
 
             if [ "$pr" != "none" ]; then
