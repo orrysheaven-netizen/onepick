@@ -116,3 +116,16 @@ export function pickIdsFromResponse(url, method, body) {
       return [];
   }
 }
+
+// /pick/:id is the standalone review conversation screen (#526): it stays on /pick/:id,
+// shows the focused one-line review and has no share button of its own.
+export async function assertPickConversation(page, pickId, timeout = 15_000) {
+  const { pathname } = new URL(page.url());
+  if (pathname !== `/pick/${encodeURIComponent(pickId)}`) throw new Error(`원픽 딥링크가 다른 화면으로 이동: ${pathname}`);
+  await page.getByText('한줄평 대화를 불러오고 있어요', { exact: true }).waitFor({ state: 'hidden', timeout });
+  for (const blocked of ['한줄평을 볼 수 없어요', '현재 공개 중인 원픽이 아니에요']) {
+    if (await page.getByText(blocked, { exact: true }).filter({ visible: true }).count()) throw new Error(`원픽 딥링크 오류 화면: ${blocked}`);
+  }
+  await page.getByRole('button', { name: '이전 화면', exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+  await page.getByText(/^“.*”$|^삭제된 한줄평입니다/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+}

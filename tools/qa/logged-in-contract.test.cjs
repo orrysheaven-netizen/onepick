@@ -138,6 +138,24 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       assert.equal(api.pickIdSource(`${base}/rpc/item_review_page`, 'POST'), 'reviews');
       assert.equal(api.pickIdSource(`${base}/rpc/item_review_page_v2`, 'POST'), null);
     });
+    await t.test('pick deep link stays on the review conversation screen', async () => {
+      const at = async (path, html) => { await page.goto(`https://fixture.invalid${path}`); await page.setContent(html); };
+      const header = '<button aria-label="이전 화면">‹</button><h1>한줄평 대화</h1>';
+      await at('/pick/p1', `${header}<div>@someone</div><div>“국물이 진해요”</div>`);
+      await api.assertPickConversation(page, 'p1', timeout);
+      await at('/pick/p1', `${header}<div>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</div>`);
+      await api.assertPickConversation(page, 'p1', timeout);
+      await at('/item/i1', `${header}<div>“국물이 진해요”</div>`);
+      await assert.rejects(api.assertPickConversation(page, 'p1', timeout), /다른 화면/);
+      for (const blocked of ['한줄평을 볼 수 없어요', '현재 공개 중인 원픽이 아니에요']) {
+        await at('/pick/p1', `${header}<div>${blocked}</div>`);
+        await assert.rejects(api.assertPickConversation(page, 'p1', timeout), /오류 화면/);
+      }
+      await at('/pick/p1', `${header}<div>한줄평 대화를 불러오고 있어요</div>`);
+      await assert.rejects(api.assertPickConversation(page, 'p1', timeout));
+      await at('/pick/p1', '<div>“국물이 진해요”</div>');
+      await assert.rejects(api.assertPickConversation(page, 'p1', timeout));
+    });
     await t.test('safe-mode suggestion route aborts instead of fabricating a recommendation', async () => {
       let blocked = 0;
       await context.route(api.SUGGESTION_ROUTE, async (route) => { blocked += 1; await route.abort(); });
