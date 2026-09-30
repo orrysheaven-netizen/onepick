@@ -41,6 +41,7 @@ jobs:
         with:
           client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
           private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
+          permission-contents: read
           permission-issues: write
           permission-pull-requests: read
 
@@ -49,6 +50,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Dispatch
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
