@@ -240,12 +240,14 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 원 작업 이슈의 저장소 소유자 댓글 첫 줄에 아래 형식을 사용한다.
 
 ```text
-PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claude> action=execute pr=<N|none> head=<40자리 SHA|none>
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<auto|lead|claude> action=<execute|review> pr=<N|none> head=<40자리 SHA|none>
 ```
 
 - `team`은 담당 조직을 고른다.
 - `assignee=lead`는 해당 팀장을 고른다.
 - `assignee=claude`는 PM이 해당 작업을 Claude에게 명시적으로 위임한다.
+- `assignee=auto`는 실행(`execute`)이면 해당 팀장을, 독립 리뷰(`review`)이면 현재 owner의 반대 실행자를 자동 선택한다. 현재 owner가 없으면 review는 Claude가 기본이다.
+- `action=execute`는 구현·점검 실행, `action=review`는 독립 검토 작업이다.
 - PR 관련 지시는 `pr`과 `head`를 둘 다 지정하고, 일반 이슈 작업은 둘 다 `none`으로 둔다.
 - 본문 중간의 예시·인용은 명령이 아니다. 첫 줄 strict parse만 인정한다.
 
@@ -260,7 +262,7 @@ PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claud
 | qa | `owner:codex` | `area:qa` |
 | release | `owner:codex` | `area:infra` |
 
-`assignee=lead`는 모든 부서에서 해당 ChatGPT 팀장 실행 lane인 `owner:codex`를 사용하며, 실제 부서는 `team=` marker와 area로 구분한다. `assignee=claude`이면 팀과 무관하게 `owner:claude`를 사용하되 area는 해당 팀 값을 유지한다. 따라서 QA·Release 팀장 업무와 Claude 업무도 구분된다. Product 정책, Figma 직접 편집, Data/DB 기본 구현 등 기존 역할·승인 규칙은 자동배정으로 바뀌지 않는다.
+`assignee=lead`는 모든 부서에서 해당 ChatGPT 팀장 실행 lane인 `owner:codex`를 사용하며, 실제 부서는 `team=` marker와 area로 구분한다. `assignee=claude` 또는 `assignee=auto`가 Claude로 resolve된 경우에는 `owner:claude`를 사용하되 area는 해당 팀 값을 유지한다. 따라서 QA·Release 팀장 업무와 Claude 업무도 구분된다. Product 정책, Figma 직접 편집, Data/DB 기본 구현 등 기존 역할·승인 규칙은 자동배정으로 바뀌지 않는다.
 
 ### 상태
 
@@ -268,8 +270,8 @@ PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claud
 2. `state:blocked` 또는 `state:active`이면 pending으로 보존하고 실행 queue를 바꾸지 않는다.
 3. blocker/active가 해제되면 GitHub label event로 자동 재평가한다.
 4. 실행 가능하면 기존 stale ready/review/handoff 라우팅을 정리하고 `owner:*` + `area:*` + `state:ready`를 적용한다.
-5. 결과 댓글의 `onepick-pm-assignment` marker가 팀과 실행자를 고정한다.
-6. 팀장/Claude 세션은 #296에서 자기 `state:ready` 업무를 확인하고, marker가 자기 팀/실행자와 일치하는 한 건만 `state:active`로 claim한다.
+5. 결과 댓글의 `onepick-pm-assignment` marker가 `team`, 요청한 `assignee`, 실제 `resolved`, `action`을 고정한다.
+6. 팀장/Claude 세션은 #296에서 자기 `state:ready` 업무를 확인하고, marker가 자기 팀/실행자와 일치하는 한 건만 claim한다. `action=execute`는 `state:active`, `action=review`는 `state:review`로 claim한다.
 
 새 시스템에서 `handoff:*`는 과거/수동 인계 호환용이다. 새 PM 지시에는 자동 생성하지 않는다.
 
