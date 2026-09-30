@@ -210,7 +210,7 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 
 - 이슈가 닫혔거나 `state:blocked`
 - `head`가 PR의 현재 head가 아님 (stale), 또는 PR이 해당 이슈를 `Refs #N`으로 참조하지 않음
-- 같은 (issue, pr, head)에 PM review가 이미 대기 중이거나 판정이 이미 기록됨
+- 같은 (issue, pr, head)에 **현재 대기 중인** PM review가 이미 있음. 이전 review가 판정 완료된 뒤 새 완료보고/새 경계가 오면 새 review cycle은 허용한다.
 - `handoff:*` 인계가 아직 대기 중
 - 신뢰되지 않은 작성자의 요청·marker
 
