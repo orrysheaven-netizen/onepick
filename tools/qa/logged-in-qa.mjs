@@ -24,7 +24,7 @@ import { chromium, devices } from 'playwright';
 import {
   SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
   openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaHidden, assertFollowSettingHidden,
-  pickIdSource, pickIdsFromResponse,
+  pickIdSource, pickIdsFromResponse, assertPickConversation,
 } from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
@@ -595,25 +595,15 @@ async function main() {
       }
     });
     if (pickId) {
-      await check(flow, '원픽 딥링크 직접 열기 + 공유 버튼', async () => {
+      await check(flow, '원픽 딥링크 직접 열기 → 한줄평 대화', async () => {
         const fresh = await context.newPage();
-        const requestedPickId = pickId;
-        let landed = null;
         try {
-          await fresh.goto(`${BASE_URL}/pick/${encodeURIComponent(requestedPickId)}`, { waitUntil: 'networkidle' });
-          await fresh.waitForURL(/\/item\/[^/]+/, { timeout: STEP_TIMEOUT_MS });
-          landed = new URL(fresh.url());
-          const landedPickId = landed.searchParams.get('pickId');
-          if (landedPickId !== requestedPickId) {
-            throw new Error(`원픽 딥링크 pickId 불일치: 요청 ${requestedPickId}, 도착 ${landedPickId ?? '없음'}`);
-          }
+          await fresh.goto(`${BASE_URL}/pick/${encodeURIComponent(pickId)}`, { waitUntil: 'networkidle' });
+          await assertPickConversation(fresh, pickId, STEP_TIMEOUT_MS);
           await noErrorCopy(fresh);
-          // #395: review cards carry an "이 원픽 공유" icon each; other people's reply threads are
-          // always open now, so the focused card is no longer identifiable by its 댓글 접기 toggle.
-          await actionable(fresh.getByRole('button', { name: '이 원픽 공유', exact: true }));
           await shot(fresh, 'pick_deeplink');
         } finally { await fresh.close(); }
-        return `${landed.pathname.replace(/[^/]+$/, ':id')}?pickId=:id (공유하지 않음)`;
+        return '/pick/:id 한줄평 대화 표시';
       });
     }
     if (otherProfilePath) {
