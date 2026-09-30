@@ -135,6 +135,7 @@ PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claud
 - dispatcher는 지시를 durable marker에 저장한 뒤 팀에 맞는 `owner:*`·`area:*`와 `state:ready`를 적용한다.
 - `state:blocked`·`state:active`를 임의로 덮어쓰지 않고 해제 이벤트 뒤 재평가한다.
 - 팀장 세션은 자기 팀의 bot-authored `onepick-pm-assignment` marker와 `state:ready`가 모두 맞는 작업만 claim한다.
+- `assignee=lead`는 부서별 ChatGPT 팀장 실행 lane으로 배정한다. QA·Release 팀장도 Claude와 별도이며 `team=` marker로 자기 업무만 claim한다.
 - `assignee=claude`는 해당 작업 단위의 명시적 Claude 위임이며 영구 소유권 변경이 아니다.
 - 완료 시 다음 담당을 임의 결정하지 않고 원 이슈에 `## 완료 리포트`를 남긴다. dispatcher가 `state:review` 및 #567 PM review queue로 돌려보낸다.
 - 이 queue는 AI 모델을 자동 호출하지 않고 `ONEPICK_AI_HANDOFF_ENABLED`와 독립적으로 동작한다. legacy handoff workflows는 별도 호환 경로로만 유지한다.
