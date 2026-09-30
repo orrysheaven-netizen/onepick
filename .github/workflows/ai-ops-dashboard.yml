@@ -217,7 +217,7 @@ jobs:
               since=since, cp=codex_points, cpercent=codex_pct,
               ap=claude_points, apercent=claude_pct, status=status,
               codex=render("| 이슈 | 제목 | 팀 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | --- | ---: |", active_rows(codex_open), "대기 작업 없음"),
-              claude=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(claude_open), "대기 작업 없음"),
+              claude=render("| 이슈 | 제목 | 팀 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | --- | ---: |", active_rows(claude_open), "대기 작업 없음"),
               hc=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_codex), "인계 대기 없음"),
               ha=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_claude), "인계 대기 없음"),
               blocked=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", blocked_rows, "차단 작업 없음"),
