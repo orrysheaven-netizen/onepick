@@ -85,6 +85,59 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await set('<h1>알림</h1><button>새로고침</button><div>알림을 불러오고 있어요.</div>');
       await assert.rejects(api.assertNotifications(page, timeout));
     });
+    await t.test('initial MVP hides follow scope, CTA and setting once the screen has loaded', async () => {
+      const card = '<button aria-label="김치찌개 상세 보기">카드</button>';
+      await set(card);
+      await api.assertFollowScopeHidden(page, timeout);
+      await set(`<div hidden><button role="tab" aria-label="팔로잉 원픽 보기">팔로잉</button></div>${card}`);
+      await api.assertFollowScopeHidden(page, timeout);
+      for (const tab of ['팔로잉 원픽 보기', '전체 원픽 보기']) {
+        await set(`<button role="tab" aria-label="${tab}">탭</button>${card}`);
+        await assert.rejects(api.assertFollowScopeHidden(page, timeout), /숨겨야 할/);
+      }
+      await set('<div>로딩 중</div>');
+      await assert.rejects(api.assertFollowScopeHidden(page, timeout));
+
+      const share = '<button>프로필 공유하기</button>';
+      await set(share);
+      await api.assertFollowCtaHidden(page, timeout);
+      for (const label of ['@someone 팔로우', '@someone 팔로우 취소']) {
+        await set(`${share}<button aria-label="${label}">팔로우</button>`);
+        await assert.rejects(api.assertFollowCtaHidden(page, timeout), /팔로우 버튼/);
+      }
+      await set('<div>프로필</div>');
+      await assert.rejects(api.assertFollowCtaHidden(page, timeout));
+
+      const blocked = '<div>차단한 사용자</div>';
+      await set(blocked);
+      await api.assertFollowSettingHidden(page, timeout);
+      await set(`${blocked}<div role="switch" aria-label="팔로우한 사람의 원픽 변경 알림" aria-checked="true">켜짐</div>`);
+      await assert.rejects(api.assertFollowSettingHidden(page, timeout), /팔로우 알림/);
+      await set(`${blocked}<div>팔로우한 사람의 원픽 변경</div>`);
+      await assert.rejects(api.assertFollowSettingHidden(page, timeout), /팔로우 알림/);
+      await set('<div>설정</div>');
+      await assert.rejects(api.assertFollowSettingHidden(page, timeout));
+    });
+    await t.test('pick ids come from the current feed/detail RPCs, current reviews only', () => {
+      const base = 'https://example.supabase.co/rest/v1';
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/rpc/home_pick_feed_page`, 'POST',
+        [{ pick_id: 'p1', item_id: 'i1' }, { pick_id: null, item_id: 'i2' }, { item_id: 'i3' }]),
+      [{ id: 'p1', itemId: 'i1' }]);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/rpc/item_review_page`, 'POST', [
+        { id: 'r1', item_id: 'i1', is_current: true, is_deleted: false },
+        { id: 'r2', item_id: 'i1', is_current: false, is_deleted: false },
+        { id: 'r3', item_id: 'i1', is_current: true, is_deleted: true },
+        { id: 'r4', item_id: null, is_current: true },
+      ]), [{ id: 'r1', itemId: 'i1' }, { id: 'r4', itemId: null }]);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/picks?select=id&item_id=eq.i1`, 'GET', [{ id: 'l1', item_id: 'i1' }]),
+        [{ id: 'l1', itemId: 'i1' }]);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/rpc/home_pick_feed_page`, 'GET', [{ pick_id: 'p1' }]), []);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/picks`, 'POST', [{ id: 'l1' }]), []);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/rpc/search_items`, 'POST', [{ id: 'x', pick_id: 'y', is_current: true }]), []);
+      assert.deepEqual(api.pickIdsFromResponse(`${base}/rpc/home_pick_feed_page`, 'POST', { message: 'error' }), []);
+      assert.equal(api.pickIdSource(`${base}/rpc/item_review_page`, 'POST'), 'reviews');
+      assert.equal(api.pickIdSource(`${base}/rpc/item_review_page_v2`, 'POST'), null);
+    });
     await t.test('safe-mode suggestion route aborts instead of fabricating a recommendation', async () => {
       let blocked = 0;
       await context.route(api.SUGGESTION_ROUTE, async (route) => { blocked += 1; await route.abort(); });

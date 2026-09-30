@@ -61,3 +61,58 @@ export async function openNotificationsTab(page, timeout = 15_000) {
     .or(page.getByRole('link', { name: '알림', exact: true })).first().click({ timeout });
   await page.waitForURL(/\/notifications(?:[?#]|$)/, { timeout });
 }
+
+// Initial MVP hides follow (OnePickFeatures.follow=false): absence is the passing state.
+// Each check first waits for a control that proves the screen rendered, so an unloaded
+// screen cannot pass as "hidden".
+async function assertAbsent(locator, what) {
+  const shown = await locator.filter({ visible: true }).count();
+  if (shown) throw new Error(`초기 MVP에서 숨겨야 할 ${what}이(가) ${shown}개 보임`);
+}
+
+export async function assertFollowScopeHidden(page, timeout = 15_000) {
+  await page.getByRole('button', { name: / 상세 보기$/ }).filter({ visible: true }).first()
+    .waitFor({ state: 'visible', timeout });
+  await assertAbsent(page.getByRole('tab', { name: '팔로잉 원픽 보기' }), '팔로잉 피드 탭');
+  await assertAbsent(page.getByRole('tab', { name: '전체 원픽 보기' }), '팔로잉/전체 전환 탭');
+}
+
+export async function assertFollowCtaHidden(page, timeout = 15_000) {
+  await page.getByRole('button', { name: '프로필 공유하기' }).filter({ visible: true }).first()
+    .waitFor({ state: 'visible', timeout });
+  await assertAbsent(page.getByRole('button', { name: /^@.+ 팔로우( 취소)?$/ }), '팔로우 버튼');
+}
+
+export async function assertFollowSettingHidden(page, timeout = 15_000) {
+  await page.getByText('차단한 사용자', { exact: true }).filter({ visible: true }).first()
+    .waitFor({ state: 'visible', timeout });
+  await assertAbsent(page.getByRole('switch', { name: '팔로우한 사람의 원픽 변경 알림' }), '팔로우 알림 설정');
+  await assertAbsent(page.getByText('팔로우한 사람의 원픽 변경', { exact: true }), '팔로우 알림 설정');
+}
+
+// Pick ids the feed and item detail load, from the app's current read paths:
+// home_pick_feed_page (pick_id) and item_review_page (id, current reviews only).
+// The legacy GET /rest/v1/picks rows are still accepted.
+export function pickIdSource(url, method) {
+  const { pathname } = new URL(url);
+  if (method === 'POST' && pathname.endsWith('/rest/v1/rpc/home_pick_feed_page')) return 'feed';
+  if (method === 'POST' && pathname.endsWith('/rest/v1/rpc/item_review_page')) return 'reviews';
+  if (method === 'GET' && pathname.endsWith('/rest/v1/picks')) return 'picks';
+  return null;
+}
+
+export function pickIdsFromResponse(url, method, body) {
+  const rows = Array.isArray(body) ? body : [];
+  const text = (value) => (typeof value === 'string' && value ? value : null);
+  switch (pickIdSource(url, method)) {
+    case 'feed':
+      return rows.filter((row) => text(row?.pick_id)).map((row) => ({ id: row.pick_id, itemId: text(row.item_id) }));
+    case 'reviews':
+      return rows.filter((row) => text(row?.id) && row.is_current === true && row.is_deleted !== true)
+        .map((row) => ({ id: row.id, itemId: text(row.item_id) }));
+    case 'picks':
+      return rows.filter((row) => text(row?.id)).map((row) => ({ id: row.id, itemId: text(row.item_id) }));
+    default:
+      return [];
+  }
+}
