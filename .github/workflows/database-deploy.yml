@@ -58,7 +58,17 @@ jobs:
         # Force the password-based Postgres flow. With scoped PATs, leaving the
         # password implicit can select the temporary/JIT path and lose the
         # IPv4 Supavisor link on GitHub's IPv4-only runners.
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --debug
+
+      - name: Diagnose IPv4 pooler link
+        if: always()
+        run: |
+          ls -la supabase/.temp || true
+          if test -s supabase/.temp/pooler-url; then
+            echo "pooler-url=present"
+          else
+            echo "pooler-url=MISSING"
+          fi
 
       - name: Show migration status before deploy
         run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
