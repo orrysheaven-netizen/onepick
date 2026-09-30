@@ -163,6 +163,7 @@ jobs:
               .github/workflows/ai-handoff-review-events.yml
               .github/workflows/ai-pm-review-queue.yml
               .github/workflows/ai-pm-dispatch.yml
+              .github/workflows/pm-control-plane-tests.yml
               .github/scripts/ci-path-gate.sh
               .github/scripts/test-ci-path-gate.sh
               .github/scripts/test-pm-review-queue.sh
