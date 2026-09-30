@@ -128,7 +128,7 @@ PR: #<번호>
 새 PM 지시는 legacy `handoff:*` 대신 GitHub-only 자동배정 queue를 우선 사용한다.
 
 ```text
-PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claude> action=execute pr=<N|none> head=<40자리 SHA|none>
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<auto|lead|claude> action=<execute|review> pr=<N|none> head=<40자리 SHA|none>
 ```
 
 - 저장소 소유자가 원 작업 이슈 첫 줄에 게시한 지시만 신뢰한다.
@@ -137,6 +137,8 @@ PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claud
 - 팀장 세션은 자기 팀의 bot-authored `onepick-pm-assignment` marker와 `state:ready`가 모두 맞는 작업만 claim한다.
 - `assignee=lead`는 부서별 ChatGPT 팀장 실행 lane으로 배정한다. QA·Release 팀장도 Claude와 별도이며 `team=` marker로 자기 업무만 claim한다.
 - `assignee=claude`는 해당 작업 단위의 명시적 Claude 위임이며 영구 소유권 변경이 아니다.
+- `assignee=auto`는 `execute`에서 팀장을 기본으로 하고, `review`에서 현재 owner의 반대 실행자를 선택해 독립 검토 배정을 자동화한다. 현재 owner가 없으면 review는 Claude가 기본이다.
+- assignment marker의 `resolved=`가 실제 실행자를, `action=`이 실행/리뷰 claim 상태를 결정한다.
 - 완료 시 다음 담당을 임의 결정하지 않고 원 이슈에 `## 완료 리포트`를 남긴다. dispatcher가 `state:review` 및 #567 PM review queue로 돌려보낸다.
 - 이 queue는 AI 모델을 자동 호출하지 않고 `ONEPICK_AI_HANDOFF_ENABLED`와 독립적으로 동작한다. legacy handoff workflows는 별도 호환 경로로만 유지한다.
 
