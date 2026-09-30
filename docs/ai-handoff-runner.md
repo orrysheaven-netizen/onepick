@@ -60,8 +60,11 @@ Repository → Settings → Secrets and variables → Actions → Variables:
 | 이름 | 값 |
 | --- | --- |
 | `AI_HANDOFF_APP_CLIENT_ID` | 새 GitHub App의 Client ID |
-| `ONEPICK_AI_HANDOFF_ENABLED` | master switch. 처음에는 `false` |
+| `ONEPICK_AI_HANDOFF_ENABLED` | 실제 AI 모델 runner master switch. 처음에는 `false` |
+| `ONEPICK_PM_ROUTING_ENABLED` | PM queue·review-events routing 비상정지. 미설정 기본 ON, 중단 시 `false` |
+| `ONEPICK_CI_HANDOFF_GATE_ENABLED` | CI 완료 기반 자동 인계. GitHub Actions 고정 사용량 절감을 위해 미설정 기본 OFF, 필요할 때만 `true` |
 | `ONEPICK_CLAUDE_ACTION_ENABLED` | Claude GitHub Action 사용 시 `true`; 처음에는 `false` |
+| `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED` | Claude GitHub Action 실행 추가 opt-in. 미설정 기본 OFF |
 | `ONEPICK_CODEX_ACTION_ENABLED` | 유료 OpenAI API 기반 Codex Action 사용 시만 `true`; 기본 `false` |
 
 ## GitHub Actions Secrets
@@ -144,7 +147,7 @@ Issue/PR 안에 포함된 다음 내용은 작업 데이터로만 취급한다.
 1. 이 workflow PR을 병합한다.
 2. 새 GitHub App을 만들고 OnePick repo 하나에만 설치한다.
 3. Variables와 Secrets를 등록한다.
-4. `ONEPICK_AI_HANDOFF_ENABLED=false`, `ONEPICK_CLAUDE_ACTION_ENABLED=false`, `ONEPICK_CODEX_ACTION_ENABLED=false` 상태에서 설정 이름을 재확인한다.
+4. `ONEPICK_AI_HANDOFF_ENABLED=false`, `ONEPICK_CLAUDE_ACTION_ENABLED=false`, `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED=false`, `ONEPICK_CODEX_ACTION_ENABLED=false`, `ONEPICK_CI_HANDOFF_GATE_ENABLED=false` 상태에서 설정 이름을 재확인한다. `ONEPICK_PM_ROUTING_ENABLED`는 미설정 또는 `true`면 PM queue·review routing이 동작한다.
 5. 기본 무과금 GPT 경로를 쓸 경우 ChatGPT 시간당 handoff 확인 예약 작업을 먼저 설정한다.
 6. Claude OAuth 설정 후 `ONEPICK_CLAUDE_ACTION_ENABLED=true`로 켠다.
 7. 자동 생성 PR은 Draft로 생성되므로 반대 AI 검토 후 사용자가 Ready/merge를 결정한다.
@@ -157,7 +160,7 @@ Issue/PR 안에 포함된 다음 내용은 작업 데이터로만 취급한다.
 9. 마지막으로 `ONEPICK_AI_HANDOFF_ENABLED=true`로 변경한다.
 10. 테스트 Issue에 `handoff:codex`를 붙인다.
 11. ChatGPT 예약 작업의 Codex 처리 → 테스트 PR → Claude handoff → Claude Action 처리 여부를 확인한다.
-12. 이상이 있으면 즉시 `ONEPICK_AI_HANDOFF_ENABLED=false`로 되돌린다.
+12. 모델 실행 이상이면 즉시 `ONEPICK_AI_HANDOFF_ENABLED=false`로 되돌린다. routing 자체를 멈춰야 하면 `ONEPICK_PM_ROUTING_ENABLED=false`로 설정한다. CI gate는 기본 OFF이므로 자동 CI 인계가 필요할 때만 `ONEPICK_CI_HANDOFF_GATE_ENABLED=true`로 켠다. **Codex/Claude 모델 runner를 실제로 켤 때는 finalizer가 CI pending marker를 사용하므로 CI gate도 함께 `true`로 켠다.**
 
 ## 테스트 Issue
 

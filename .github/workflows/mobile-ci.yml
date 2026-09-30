@@ -36,9 +36,12 @@ jobs:
     outputs:
       run: ${{ steps.gate.outputs.run }}
     steps:
-      - name: Checkout gate script
+      # The gate script always comes from the base commit, never from the PR under
+      # test, so a PR cannot rewrite the gate to skip its own required checks (#576 M1).
+      - name: Checkout gate script (base commit)
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
           sparse-checkout: |
             .github/scripts
@@ -59,6 +62,12 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Control-plane changes (the gate, its tests, any workflow) always run the
+          # heavy job. Decided here, not by a script (#576 M1).
+          if grep -Eq '^\.github/(scripts|workflows)/' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           run="$(bash .github/scripts/ci-path-gate.sh \
             --pattern '^(mobile/|supabase/|\.github/workflows/mobile-ci\.yml$)' \
             --referenced-in mobile/scripts \
@@ -74,6 +83,8 @@ jobs:
       !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
       (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
     runs-on: ubuntu-latest
+    # Caps a hung run's billing (recent full runs ~2-3.5 min).
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile

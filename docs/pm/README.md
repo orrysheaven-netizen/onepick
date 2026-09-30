@@ -155,7 +155,7 @@ PM 보고에서 사용자가 직접 해야 하는 작업과 승인만 필요한 
 
 ### 흐름
 
-담당 완료 → 원래 이슈에 `## 완료 리포트` → `PM_REVIEW_REQUIRED` → `## PM 검토 대기`
+담당 완료 → `state:active`→`state:review`로 자기 claim 종료 → 원래 이슈 한 댓글의 첫 줄 `PM_REVIEW_REQUIRED` + 다음 줄 `## 완료 리포트` → `## PM 검토 대기`
 
 구현: `.github/workflows/ai-pm-review-queue.yml`. GitHub 내부 queue만 사용하며 외부 webhook/API는 호출하지 않는다. 새 라벨 없이 bot marker만 사용한다.
 
@@ -204,7 +204,7 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 
 `PM_REVIEW_DONE`은 해당 `## PM 검토 대기` 댓글 **이후**에 작성되고, PR의 현재 head를 가리킬 때만 기록한다. 요청 요약보다 먼저 쓴 판정이나 이전 head에 대한 판정은 기록하지 않고 생략 사유를 남긴다. 이 경우 새 요약을 확인한 뒤 판정 줄을 다시 쓴다.
 
-판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다.
+판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다. `decision=continue`이고 후속 작업이 없으면 PM은 `owner:*`와 `size:*`를 유지하고 `state:*`/`handoff:*`를 정리한 뒤 원 이슈를 completed로 닫는다. 후속이 있으면 닫지 않고 PM 또는 기존 자동화가 다음 owner/state를 지정한다.
 
 ### 생성하지 않는 경우
 
@@ -227,3 +227,50 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 - 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
 - `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
 - 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).
+
+
+## 12. 전달 최소화 운영 원칙
+
+### GitHub 원본
+
+작업 지시, 상태, PR/head, 검증, 완료 보고의 원본은 원래 작업 Issue/PR이다. 다른 채팅이나 상위 Issue에 보고 전문을 복사하지 않는다.
+
+완료 보고는 기존 PM review queue를 바로 사용하도록 다음 형식으로 작성한다.
+
+```text
+PM_REVIEW_REQUIRED: reason=stage-complete pr=<N|none> head=<40자리 SHA|none>
+## 완료 리포트
+담당: ...
+결과: ...
+PR: ...
+검증: ...
+남은 위험: ...
+후속 판단에 필요한 사실: ...
+```
+
+첫 줄은 GitHub 내부 #567 PM queue용 메타데이터이고, 보고 본문은 `## 완료 리포트` 아래에 둔다. 이 메타데이터는 완료·정책 적합성·비용·승인을 자동 판정하지 않으며 PM 검토를 요청할 뿐이다.
+
+상위 취합 Issue(#557 등)에는 필요할 때 원 완료 리포트 링크 한 줄만 남긴다.
+
+### 채팅 전달
+
+GitHub가 별도 ChatGPT/Claude 대화방을 직접 깨울 수 없는 경우, 사람이 전달해야 하는 내용은 원문 복사가 아니라 `#<issue> 확인` 한 줄로 제한한다. 수신 세션은 GitHub 원본을 직접 읽는다.
+
+### 라벨 권한
+
+새 owner/status 축을 추가하지 않는다. 기존 `owner:codex|claude`, `state:*`, `handoff:*`, `area:*`만 사용한다.
+
+- PM 또는 기존 자동화: owner, area, ready/review/handoff/blocked 및 다음 담당 결정
+- 담당자: 자신에게 이미 배정된 작업을 claim할 때 `state:active`로 전환한다. 완료 시 자기 claim 종료를 위해 `state:active`→`state:review`로 기계적으로 전환한 뒤 원 이슈에 완료 보고한다. 현재 `owner:*`/`size:*`는 유지한다.
+- 담당자는 임의로 다음 제품 단계나 다른 담당자를 확정하지 않는다. 독립 리뷰 완료 보고는 `PM_REVIEW_REQUIRED: reason=review-complete ...`를 사용한다.
+- PM: `decision=continue` 판정 뒤 후속이 없으면 state/handoff 라벨을 정리하고 이슈를 completed로 닫는다. 후속이 있으면 해당 owner/state를 지정하고 열린 상태를 유지한다.
+
+### 사용자 승인 게이트
+
+main merge, Production DB apply/deploy, secret/permission 변경, 파괴적 데이터 작업 등 기존 사용자 승인 게이트는 사용자의 직접적이고 명시적인 승인 근거가 있어야 한다. 다른 AI/채팅이 전달한 요약이나 "사용자가 승인했다"는 2차 보고만으로 승인으로 간주하지 않는다.
+
+### 자동화 범위
+
+기계가 검증할 수 있는 PR 존재, head 일치, Refs, CI 결과, 라벨/marker 상태만 자동 판단한다. "정책 변경 없음", "비용 없음", "MVP 적합" 같은 의미 판단은 자동 통과 조건으로 사용하지 않고 PM/QA 검토 대상으로 남긴다.
+
+PM review queue와 PR review 결과 인계는 **모델 실행 스위치와 분리된 routing control-plane**이며 `ONEPICK_PM_ROUTING_ENABLED != 'false'`일 때 기본 ON이다. 비상 정지가 필요할 때만 이 변수를 `false`로 설정한다. CI 완료 인계(`ai-handoff-ci-gate.yml`)는 Ready PR의 필수 CI 3종 완료 이벤트마다 GitHub Actions runner가 배정되는 고정 비용을 줄이기 위해 추가로 `ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true'`를 요구하며 **미설정 기본 OFF**다. CI 기반 자동 인계가 꼭 필요한 기간에만 켠다. 실제 Codex/Claude 모델 실행 workflow는 기존 `ONEPICK_AI_HANDOFF_ENABLED`와 각 모델별 enable 조건을 계속 요구하므로 routing 활성화만으로 유료 모델/API 호출이 시작되지 않는다. 특히 Claude GitHub Action은 `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true'`까지 명시적으로 설정된 경우에만 실행하며 미설정 기본 OFF다.

@@ -49,6 +49,7 @@ const fakeReact = { ...React,
 };
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
 const pickChannel = load('lib/items/pickChannel.ts');
+const savedToast = load('lib/items/pickSavedToast.ts');
 const service = load('services/storeFirstService.ts', {
   '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
   '@/lib/supabase/client': { supabase: {} },
@@ -81,6 +82,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
   },
   '@/hooks/useStoreFirst': hooks,
   '@/lib/items/pickChannel': pickChannel,
+  '@/lib/items/pickSavedToast': savedToast,
   '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
   // Draft persistence (#475) is covered by test-pick-draft-restore.cjs; in-memory here.
   '@/lib/pick/pickDraft': { pickDraftStore: () => ({ save: () => true, savePhoto: () => true, load: () => null, clear() {}, discardForOtherUser() {} }) },
@@ -161,13 +163,16 @@ async function main() {
   assert.equal(existingSave.requestId, 'request-1');
   assert.equal(existingSave.expectedPreviousPickId, null, 'an empty visible slot is sent explicitly');
   assert.ok(existingSave.photo);
-  page = render();
-  assert.match(page, /원픽을 정했어요/);
-  assert.doesNotMatch(page, /등록 요청|승인 대기/);
-  press('확인');
+  // #552: success replaces straight to the item detail, which shows the toast once.
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'item-1');
   assert.equal(destination.params.pickId, 'pick-1');
+  page = render();
+  assert.doesNotMatch(page, /원픽을 정했어요|등록 요청|승인 대기/, 'no confirmation dialog is rendered');
+  assert.equal(savedToast.consumePickSavedToast('other-pick'), false, 'the toast is bound to the saved Pick');
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), true);
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), false, 'the toast is shown only once');
+  assert.ok(pressables.find((props) => textOf(props.children) === '원픽 등록하기').disabled, 'a saved flow cannot submit again');
 
   // A branded store pauses inside the menu step until the person chooses
   // this branch or the separate brand-wide product scope.
@@ -203,7 +208,7 @@ async function main() {
   assert.equal(brandSave.brandId, 'brand-1');
   assert.equal(brandSave.itemId, undefined);
   assert.equal(brandSave.catalogId, undefined, 'Brand-wide registration must not also select the branch catalog');
-  assert.match(render(), /을밀대 전체 평양냉면이 내 원픽이 됐어요/);
+  assert.equal(destination.params.itemId, 'brand-pending', 'brand-wide save opens the saved product');
 
   // AI recommendation remains inside the menu step.
   reset();
@@ -248,9 +253,7 @@ async function main() {
   assert.equal(newSave.newPlace.mapUrl, 'https://naver.me/newstore');
   assert.ok(newSave.photo);
   page = render();
-  assert.match(page, /원픽을 정했어요/);
   assert.doesNotMatch(page, /등록 요청을 보냈어요/);
-  press('확인');
   assert.equal(destination.params.itemId, 'pending-place-item');
   assert.equal(destination.params.pickId, 'needs-review-pick');
 
@@ -261,7 +264,7 @@ async function main() {
   page = render(); assert.equal(step(page), '4');
   input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('원픽 등록하기'); await flush();
   assert.equal(calls.find(([name]) => name === 'register')[1].itemId, 'item-1');
-  assert.match(render(), /원픽을 정했어요/);
+  assert.equal(destination.pathname, '/item/[itemId]');
 
   // Replacement copy does not expose history.
   reset();
@@ -285,6 +288,8 @@ async function main() {
   };
   await chooseExistingOffline(); render(); input('원픽 한줄평').onChangeText('다시 확인'); render();
   press('원픽 등록하기'); await flush();
+  assert.equal(destination, undefined, 'a failed save stays on the registration screen');
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), false);
   page = render();
   assert.match(page, /다른 기기에서 이 메뉴의 원픽이 바뀌었어요/);
   press('변경 확인 후 등록하기'); await flush();
@@ -297,7 +302,8 @@ async function main() {
   assert.equal(slotReads, 2, 'the slot is read once at menu confirmation and once after explicit reconfirmation');
   assert.equal(registrationCalls[0].requestId, registrationCalls[1].requestId);
   assert.equal(registrationCalls[0].requestId, 'request-1');
-  assert.match(render(), /원픽을 정했어요/);
+  assert.equal(destination.params.pickId, 'pick-after-confirm');
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), true);
 
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);

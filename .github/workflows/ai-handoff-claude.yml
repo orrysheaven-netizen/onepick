@@ -15,6 +15,7 @@ jobs:
     if: >-
       vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
       vars.ONEPICK_CLAUDE_ACTION_ENABLED == 'true' &&
+      vars.ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true' &&
       github.event.label.name == 'handoff:claude'
     runs-on: ubuntu-latest
     outputs:
