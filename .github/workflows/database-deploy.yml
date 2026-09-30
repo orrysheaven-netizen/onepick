@@ -69,7 +69,7 @@ jobs:
               raise SystemExit("SUPABASE_DB_POOLER_HOST must be the Session pooler hostname only")
 
           encoded_password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
-          db_url = f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres"
+          db_url = f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require"
           print(f"::add-mask::{encoded_password}")
           print(f"::add-mask::{db_url}")
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
