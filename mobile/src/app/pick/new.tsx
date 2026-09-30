@@ -513,7 +513,7 @@ export default function NewPickScreen() {
           <View style={styles.footer}>
             {!requesting
               ? <FlowButton variant="secondary" label="찾는 매장이 없어요"
-                  onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); }} />
+                  onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); }} />
               : requestPart === 'name'
                 ? <FlowButton label="다음" disabled={!validNewName} onPress={() => setRequestPart('link')} />
                 : <FlowButton label="다음" disabled={!canRequest}

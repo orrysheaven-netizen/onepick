@@ -51,6 +51,13 @@ begin
     'A legacy address does not split the same name + link';
   other_item := (public.stage_user_place_item(menu,'골목순대국','','https://naver.me/golmok-2')).id;
   assert other_item <> a_item, 'A different map link is a separate request, never a guessed merge';
+  -- Revising a link must not give two member stores the same name + link.
+  raised := false;
+  begin
+    perform public.revise_item_request(a_item, p_link_url => 'https://naver.me/golmok-2');
+  exception when others then raised := sqlerrm = 'PLACE_ALREADY_REGISTERED'; end;
+  assert raised, 'A revised link cannot collide with another store of the same name';
+  perform public.revise_item_request(a_item, p_link_url => 'https://naver.me/golmok');
   raised := false;
   begin
     perform public.stage_user_place_item(menu,'골목순대국',repeat('가',301),'https://naver.me/golmok');
@@ -111,6 +118,6 @@ begin
   reset role;
 end;
 $flow$;
-$test$, 'member-submitted stores without a road address (#593): name + Naver map link, reuse on name + exact link only, no takeover, searchable and pickable after approval');
+$test$, 'member-submitted stores without a road address (#593): name + Naver map link, reuse on name + exact link only, no takeover, no link-revision collision, searchable and pickable after approval');
 select * from finish();
 rollback;

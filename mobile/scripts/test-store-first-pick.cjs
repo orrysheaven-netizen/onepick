@@ -235,7 +235,16 @@ async function main() {
   // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".
   reset();
   registerRun = () => ({ itemId: 'pending-place-item', pickId: 'needs-review-pick', published: false, replacedPickId: null, retried: false });
-  render(); input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); page = render();
+  // Starting over from search must not carry the previous store's link (Codex review on #596).
+  render(); input('매장명 검색').onChangeText('옛 냉면집'); render(); press('찾는 매장이 없어요'); render();
+  press('다음'); render(); input('네이버 지도 링크').onChangeText('https://naver.me/oldstore'); render();
+  press('이전 단계'); render(); press('이전 단계'); render();
+  input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); render();
+  assert.equal(input('등록 요청 이름').value, '새 냉면집');
+  press('다음'); render();
+  assert.equal(input('네이버 지도 링크').value, '', 'A new direct registration starts without the previous link');
+  assert.ok(pressables.find((props) => textOf(props.children) === '다음')?.disabled, 'No link, no next');
+  press('이전 단계'); page = render();
   assert.equal(step(page), '1');
   assert.match(page, /매장 이름을 알려 주세요/);
   assert.doesNotMatch(page, /도로명 주소/);

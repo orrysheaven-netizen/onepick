@@ -9,9 +9,12 @@
 --   * A member-submitted store is reused on normalized name + the exact map link
 --     (was: + road address). The link is not expanded, so a different short link
 --     to the same store is a second pending request. That is deliberate: a wrong
---     merge of two branches is worse than a duplicate that review can merge.
+--     merge of two branches is worse than a duplicate. admin_merge_pending_item
+--     refuses provider-linked items, so review approves one and rejects the rest.
 --   * place_from_catalog lets an approved address-less member store be picked
 --     from search. Catalog-imported places still need an address.
+--   * revise_item_request refuses a new map link that would give a member store
+--     the same name + link as another one (PLACE_ALREADY_REGISTERED).
 
 begin;
 
@@ -301,6 +304,112 @@ begin
   end if;
 
   return v_place;
+end;
+$$;
+
+-- A revised map link on a member-submitted store keeps the name + link identity
+-- unique (same as 20260928210000 otherwise).
+create or replace function private.revise_item_request_impl(
+  p_item_id uuid,
+  p_link_url text,
+  p_image_path text,
+  p_thumbnail_path text,
+  p_image_source_url text,
+  p_remove_photo boolean
+)
+returns public.items
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_item public.items%rowtype;
+  v_link text := btrim(p_link_url);
+  v_channel text;
+  v_place public.places%rowtype;
+  v_normalized text;
+begin
+  if v_user is null then
+    raise exception 'AUTH_REQUIRED' using errcode = 'P0001';
+  end if;
+  if private.is_user_suspended(v_user) then
+    raise exception 'USER_SUSPENDED' using errcode = '42501';
+  end if;
+
+  select * into v_item from public.items where id = p_item_id for update;
+  if not found or v_item.created_by is distinct from v_user or v_item.status not in ('pending', 'rejected') then
+    raise exception 'ITEM_NOT_FOUND' using errcode = 'P0001';
+  end if;
+
+  if v_link is not null and v_link <> '' then
+    select ch.channel into v_channel
+    from public.item_channels ch
+    where ch.item_id = v_item.id
+    order by ch.is_primary desc, ch.channel
+    limit 1;
+    if v_channel is null then
+      raise exception 'ITEM_LINK_NOT_EDITABLE' using errcode = 'P0001';
+    end if;
+    if (v_channel = 'offline' and not private.is_naver_map_url(v_link))
+       or (v_channel <> 'offline' and not private.is_https_link(v_link)) then
+      raise exception 'LINK_INVALID' using errcode = 'P0001';
+    end if;
+    -- A member-submitted store is identified by normalized name + exact map link
+    -- (#593). A revised link must not collide with another such store; never
+    -- merge automatically.
+    if v_channel = 'offline' then
+      select p.* into v_place
+      from public.item_places ip
+      join public.places p on p.id = ip.place_id
+      where ip.item_id = v_item.id and p.place_provider = 'user'
+      for update of p;
+      if found and v_place.map_url is distinct from v_link then
+        v_normalized := lower(regexp_replace(btrim(v_place.name), '[[:space:]]+', '', 'g'));
+        perform pg_advisory_xact_lock(
+          hashtextextended('user-place:' || v_normalized || ':' || v_link, 0)
+        );
+        if exists (
+          select 1 from public.places p
+          where p.place_provider = 'user'
+            and p.id <> v_place.id
+            and lower(regexp_replace(btrim(p.name), '[[:space:]]+', '', 'g')) = v_normalized
+            and p.map_url = v_link
+        ) then
+          raise exception 'PLACE_ALREADY_REGISTERED' using errcode = 'P0001';
+        end if;
+      end if;
+    end if;
+    update public.item_channels
+    set target_url = v_link, updated_at = now()
+    where item_id = v_item.id and channel = v_channel;
+    if v_channel = 'offline' then
+      update public.places p
+      set map_url = v_link, updated_at = now()
+      from public.item_places ip
+      where ip.item_id = v_item.id and p.id = ip.place_id and p.place_provider = 'user';
+    end if;
+  end if;
+
+  if p_remove_photo then
+    update public.items
+    set image_path = null, thumbnail_path = null, image_source_url = null
+    where id = v_item.id;
+  elsif p_image_path is not null or p_thumbnail_path is not null then
+    perform private.assert_item_photo_owned(v_user, p_image_path, p_thumbnail_path, p_image_source_url);
+    update public.items
+    set image_path = p_image_path,
+        thumbnail_path = p_thumbnail_path,
+        image_source_url = p_image_source_url
+    where id = v_item.id;
+  end if;
+
+  update public.items
+  set status = 'pending', merged_into_item_id = null
+  where id = v_item.id
+  returning * into v_item;
+
+  return v_item;
 end;
 $$;
 
