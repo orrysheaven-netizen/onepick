@@ -70,6 +70,21 @@ jobs:
             echo "pooler-url=MISSING"
           fi
 
+      - name: Diagnose pooler config API access
+        if: always()
+        shell: bash
+        run: |
+          # Status and error text only; a 200 body is reduced to non-secret fields.
+          code=$(curl -sS -o "$RUNNER_TEMP/pooler.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/database/pooler" || true)
+          echo "pooler-config-http=$code"
+          if [ "$code" = "200" ]; then
+            jq -c '[.[] | {database_type, pool_mode, has_connection_string: ((.connection_string // "") != "")}]' "$RUNNER_TEMP/pooler.json" || echo "unparseable body"
+          else
+            jq -c '{message, error}' "$RUNNER_TEMP/pooler.json" 2>/dev/null || head -c 300 "$RUNNER_TEMP/pooler.json"
+          fi
+
       - name: Show migration status before deploy
         run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
 
