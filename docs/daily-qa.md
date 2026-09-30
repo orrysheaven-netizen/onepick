@@ -130,7 +130,7 @@ Claude는 QA·Reliability·Security 항목을 재현·분류하고 독립 검토
 <details><summary>라이브 웹 QA</summary> ... </details>
 <details><summary>실사용자 오류</summary> ... </details>
 
-각 항목에 `owner:codex` 또는 `owner:claude`, `size:S/M/L`, `area:*`를 지정합니다. 기본 구현은 PM/owner/handoff를 따르며 Product/Engineering/Data·DB는 ChatGPT/Codex가 기본 담당입니다. Claude는 QA·Reliability·Security와 독립 리뷰를 주담당하고 명시적으로 위임된 구현만 수행합니다. 인계가 필요하면 `handoff:codex` 또는 `handoff:claude`를 붙입니다. 규칙은 `docs/pm/`, AGENTS.md와 docs/ai-role-division.md를 따릅니다.
+각 항목에 `owner:codex` 또는 `owner:claude`, `size:S/M/L`, `area:*`를 지정합니다. 기본 구현은 PM/owner/handoff를 따르며 Product/Engineering/Data·DB는 ChatGPT/Codex가 기본 담당입니다. Claude는 QA·Reliability·Security와 독립 리뷰를 주담당하고 명시적으로 위임된 구현만 수행합니다. 다음 담당이 필요해도 담당자가 새 `handoff:*`를 임의로 붙이지 않고, 자기 claim을 `state:active`→`state:review`로 종료한 뒤 완료 보고하여 PM 또는 기존 자동화가 후속을 결정하게 합니다. 규칙은 `docs/pm/`, AGENTS.md와 docs/ai-role-division.md를 따릅니다.
 ```
 
 ## 후속 처리
@@ -140,7 +140,7 @@ Claude는 QA·Reliability·Security 항목을 재현·분류하고 독립 검토
 1. **세션 시작 규칙**: 공용 규칙 → `docs/pm/` → #553 PM 대시보드 → #296 AI Ops → 자기 `handoff:*` → 해당 QA 이슈/PR 순으로 읽는다.
 2. **Codex**: Product/Engineering/Data·DB 기본 구현과 명시된 독립 리뷰를 처리한다.
 3. **Claude**: QA·Reliability·Security 측정·재현·독립 리뷰를 주담당하고, 구현은 명시적 owner/handoff가 있을 때만 처리한다.
-4. **완료**: 원래 QA 이슈에 완료 리포트 댓글을 남기고 필요한 경우 상대에게 handoff한다.
+4. **완료**: 원래 QA 이슈에서 `state:active`→`state:review`로 자기 claim을 종료하고, 첫 줄 `PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete> ...` + 다음 줄 `## 완료 리포트`를 한 댓글로 남긴다. 필요한 후속 owner/handoff는 PM 또는 기존 자동화가 결정한다.
 
 처리 규칙:
 
