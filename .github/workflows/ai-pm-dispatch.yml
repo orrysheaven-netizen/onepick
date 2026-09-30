@@ -7,10 +7,9 @@ name: AI PM Assignment Dispatcher
 # Canonical PM command (FIRST LINE of an original issue comment):
 #   PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claude> action=execute pr=<N|none> head=<40hex|none>
 #
-# team=... chooses the department queue. assignee=lead uses the department lead:
-#   product/ux/engineering/data -> owner:codex
-#   qa/release                  -> owner:claude
-# assignee=claude explicitly delegates that task to Claude.
+# team=... chooses the department queue. assignee=lead means the departmental
+# ChatGPT team-lead lane (owner:codex); the team marker distinguishes departments.
+# assignee=claude explicitly delegates that single task to Claude.
 #
 # A valid command is persisted before label mutation:
 #   <!-- onepick-pm-dispatch:pending source=comment-<id> team=... assignee=... pr=... head=... -->
@@ -338,9 +337,9 @@ jobs:
               data)
                 area="area:data"; lead_owner="owner:codex" ;;
               qa)
-                area="area:qa"; lead_owner="owner:claude" ;;
+                area="area:qa"; lead_owner="owner:codex" ;;
               release)
-                area="area:infra"; lead_owner="owner:claude" ;;
+                area="area:infra"; lead_owner="owner:codex" ;;
               *)
                 reject_source "$source" "알 수 없는 team"; continue ;;
             esac
