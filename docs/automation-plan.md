@@ -60,9 +60,9 @@
 
 - 역사적 기준 이슈: #295 `[AI 운영] ChatGPT/Codex 60 : Claude 40 역할 분담 v2` — 현재 비율·권한은 `docs/ai-role-division.md`의 55:45 동적 배정 기준이 supersede한다.
 - 공용 상태판: #296 `[AI Ops] OnePick 작업·인계 대시보드`
-- 완료 보고는 별도 완료 이슈가 아니라 원래 작업 이슈의 `## 완료 리포트` 댓글로 남긴다.
-- 후속 담당이 바뀌면 `state:handoff` + `handoff:codex` 또는 `handoff:claude`를 붙인다.
-- 두 AI는 세션 시작 시 #296 → 자기 handoff → 해당 작업 이슈/PR 순서로 읽는다.
+- 완료 보고는 별도 완료 이슈가 아니라 원래 작업 이슈에 첫 줄 `PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete> ...`와 바로 다음 줄 `## 완료 리포트`를 한 댓글로 남긴다.
+- 담당자는 완료 시 자기 claim만 `state:active`→`state:review`로 종료하고 다음 담당을 정하지 않는다. 후속 owner/handoff는 PM 또는 기존 자동화가 결정한다.
+- 두 AI는 세션 시작 시 #296 → 자기 owner/handoff → 해당 작업 이슈/PR 순서로 읽는다.
 - Claude의 모든 예약 루틴과 일반 세션은 `CLAUDE.md`의 공통 handoff preflight를 먼저 수행한다. 한 번에 한 이슈만 수락하고, 수락 즉시 `handoff:claude`를 제거해 중복 실행을 막는다.
 - 예약 루틴의 필수 산출물(Security QA, Daily QA, Weekly QA 등)은 handoff 수락 때문에 생략하지 않는다.
 - AI Ops workflow는 GitHub 이슈/라벨/PR 데이터만 사용하고 외부 AI API를 호출하지 않는다.
