@@ -48,6 +48,9 @@ name: AI PM Review Queue
 # the record; if the record then fails, the next drain sees the label and only writes the
 # record, so state:blocked is applied once.
 #
+# This PM queue is intentionally independent of ONEPICK_AI_HANDOFF_ENABLED: disabling paid/automatic
+# AI execution must not disable PM reporting and review routing.
+#
 # This workflow only writes issue comments (and state:blocked for decision=block). It never
 # adds handoff labels, advances product work, checks out or runs PR code, merges, deploys,
 # applies DB changes, or touches secrets/permissions.
@@ -63,7 +66,6 @@ jobs:
     # First-line prefixes only: bot summaries and notes that merely quote a command line
     # (e.g. the PM_REVIEW_DONE example in "PM 검토 대기") never start a runner.
     if: >-
-      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
       github.event.issue.pull_request == null &&
       (startsWith(github.event.comment.body, 'PM_REVIEW_REQUIRED: ') ||
        startsWith(github.event.comment.body, 'PM_REVIEW_DONE: ') ||
