@@ -9,7 +9,7 @@ const TEAM_LABELS = {
 
 const ROUTING_LABELS = [
   'owner:codex', 'owner:claude',
-  'state:ready', 'state:handoff',
+  'state:ready', 'state:active', 'state:review', 'state:handoff',
   'handoff:codex', 'handoff:claude',
   ...Object.values(TEAM_LABELS).map(([name]) => name),
 ];
