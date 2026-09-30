@@ -63,7 +63,6 @@ jobs:
     # First-line prefixes only: bot summaries and notes that merely quote a command line
     # (e.g. the PM_REVIEW_DONE example in "PM 검토 대기") never start a runner.
     if: >-
-      vars.ONEPICK_AI_HANDOFF_ENABLED == 'true' &&
       github.event.issue.pull_request == null &&
       (startsWith(github.event.comment.body, 'PM_REVIEW_REQUIRED: ') ||
        startsWith(github.event.comment.body, 'PM_REVIEW_DONE: ') ||
