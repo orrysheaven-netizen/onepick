@@ -408,7 +408,7 @@ jobs:
             else
               if [ "${CI_GATE_ENABLED:-}" = "true" ]; then
                 # CI still running: the CI gate hands off on completion.
-                printf -v markers '%s\\n%s\\n%s' \
+                printf -v markers '%s\n%s\n%s' \
                   "${done_marker}" "<!-- onepick-ci-handoff:pending pr=${pr} next=${next} -->" "${pm}"
                 body_head="## 수정 완료 보고 — 필수 CI 완료 대기"
                 body_next="필수 CI가 모두 성공하면 $(name_of "$next") 재검토로 자동 인계됩니다."
