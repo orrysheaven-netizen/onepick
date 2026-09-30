@@ -134,7 +134,7 @@ PR: #<번호>
 
 `to=auto`는 Product/UX/Engineering/Data를 Codex, QA/Security/Release를 Claude에 기본 배정한다. PM은 전문성·가용성에 따라 명시적으로 다른 실행자를 지정할 수 있다. 이 배정은 AI 모델을 자동 호출하거나 별도 유료 API를 사용한다는 뜻이 아니다.
 
-완료 시 원 이슈의 `## 완료 리포트`는 dispatcher가 `state:review`로 전환하고 `PM_REVIEW_REQUIRED`를 생성한다. 이후 계획·우선순위·승인 판단은 #567 PM review queue로 돌아온다.
+완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수한다. `size:M/L` 또는 고위험(Data/Auth/RLS/Storage/security/production-workflow) 변경은 반대 AI를 `phase=review` + `state:ready`로 자동 배정한다. 독립 리뷰 완료 보고가 올라온 뒤에만 `PM_REVIEW_REQUIRED: reason=review-complete`로 #567 PM review queue에 반환한다. 독립 리뷰가 필요 없는 작업은 `reason=stage-complete`로 바로 PM queue에 반환한다.
 
 ## PR·CI 실행 비용 규칙
 
