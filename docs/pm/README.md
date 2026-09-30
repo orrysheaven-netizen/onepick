@@ -165,7 +165,7 @@ PM review는 계획·우선순위·승인 판단이 필요한 완료 경계에�
 
 | 경계 | 생성 방식 |
 | --- | --- |
-| 부서/단계 작업 완료 | 담당자가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=stage-complete ...` |
+| 부서/단계 작업 완료 | 담당자의 `## 완료 리포트`를 dispatcher가 접수해 독립 검토가 필요 없으면 `PM_REVIEW_REQUIRED: reason=stage-complete ...` 자동 생성 |
 | 독립 리뷰 완료 | 리뷰어가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=review-complete ...` |
 | CI 성공 후 사용자 병합 판단 직전 | CI gate가 `next=user` PR의 필수 CI 통과를 기록하면 자동 생성. `PM_REVIEW_REQUIRED: reason=merge-ready ...`로도 요청 가능 |
 | release/production 승인 직전 | `PM_REVIEW_REQUIRED: reason=release-approval ...` |
@@ -271,7 +271,7 @@ PM은 작업 단위 전문성·가용성에 따라 `to=claude` 또는 `to=codex`
 - Claude/Codex 실행 세션은 자신의 `owner:*` + `state:ready` 이슈를 본다.
 - 실제 착수 시 `state:active`로 claim하고 `state:ready`를 제거한다.
 - `state:blocked`이면 dispatcher는 pending을 유지하고 blocker가 해제될 때 재평가한다.
-- `state:active` 또는 `state:review` 중에는 같은 작업을 중복 배정하지 않는다.
+- `state:active` 중에는 같은 작업을 중복 배정하지 않는다. `state:review`는 새 trusted PM directive가 다음 작업을 확정한 경우에만 자동 해제하고 새 배정으로 전환한다.
 - 기존 `handoff:*`는 과거/수동 인계 호환용이며 새 PM 배정의 기본 경로가 아니다.
 - 완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수한다. `size:M/L` 또는 Data/Security/Infra·보안민감 PR은 반대 AI에게 `phase=review` + `state:ready`로 독립 검토를 자동 배정한다. 독립 검토 완료 리포트가 올라오면 `state:review` + `PM_REVIEW_REQUIRED: reason=review-complete`로 #567 PM review queue에 반환한다. 독립 검토가 필요 없는 작업은 `reason=stage-complete`로 바로 PM queue에 반환한다.
 
