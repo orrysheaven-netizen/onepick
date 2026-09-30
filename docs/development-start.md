@@ -45,7 +45,17 @@ Database CI recreates the project from migrations and runs every pgTAP suite und
 
 Merging a PR deploys neither its migrations nor its Edge Functions to the linked
 Supabase project; the Cloudflare build ships only the web bundle. Deploy from
-GitHub Actions, which always checks out `main`:
+GitHub Actions, which always checks out `main`.
+
+Production Environment configuration used by these workflows:
+- secret `SUPABASE_ACCESS_TOKEN`: scoped PAT used by the Edge Function deployment workflow.
+- secret `SUPABASE_DB_PASSWORD`: the existing database password used by DB migration and Edge apply preflight.
+- variable `SUPABASE_DB_POOLER_HOST`: the **Session pooler Host** shown under
+  Supabase **Connect → Session pooler → View parameters**. Store the hostname only,
+  without protocol, port, username, password, or path. The workflow URL-encodes the
+  existing password and constructs port `5432` Session mode itself.
+GitHub-hosted runners are IPv4-only, so deployment workflows must not rely on the
+direct `db.<project-ref>.supabase.co` IPv6 endpoint. No paid IPv4 add-on is required.
 
 1. **Deploy Database Migrations**: run with `mode=dry-run`, review the pending
    list, then run again with `mode=apply`.
