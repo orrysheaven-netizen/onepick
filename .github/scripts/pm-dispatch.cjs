@@ -243,7 +243,7 @@ module.exports = async function run({ github, context, core }) {
 
       await post([
         processed,
-        `<!-- onepick-pm-assignment source=comment-${sourceId} team=${team} executor=${target} -->`,
+        `<!-- onepick-pm-assignment source=comment-${sourceId} team=${team} executor=${target} phase=execute -->`,
         '## PM 자동 배정',
         `담당 조직: ${team}`,
         `실행자: ${target}`,
@@ -255,6 +255,68 @@ module.exports = async function run({ github, context, core }) {
         await processedSkip(sourceId, '신뢰되지 않았거나 형식이 변경된 완료 리포트입니다.');
         continue;
       }
+
+      const latestReview = [...comments].reverse().find((comment) =>
+        comment.user?.login === appLogin &&
+        comment.id < Number(sourceId) &&
+        /<!-- onepick-pm-assignment source=comment-[0-9]+ team=[^ ]+ executor=(claude|codex) phase=review -->/.test(comment.body || '')
+      );
+      const reviewMatch = latestReview?.body?.match(/<!-- onepick-pm-assignment source=comment-[0-9]+ team=([^ ]+) executor=(claude|codex) phase=review -->/);
+      const currentOwner = names(issue).find((name) => name === 'owner:codex' || name === 'owner:claude')?.slice(6);
+      const reportIsReview = Boolean(reviewMatch && currentOwner === reviewMatch[2]);
+
+      let needsIndependentReview = names(issue).some((name) =>
+        ['size:M', 'size:L', 'area:data', 'area:security', 'area:infra', 'security'].includes(name)
+      );
+      if (!needsIndependentReview && pr !== 'none') {
+        try {
+          const files = await github.paginate(github.rest.pulls.listFiles, {
+            owner, repo, pull_number: Number(pr), per_page: 100,
+          });
+          needsIndependentReview = files.some(({ filename }) =>
+            /^supabase\/(migrations|functions)\//.test(filename) ||
+            /^\.github\/workflows\//.test(filename) ||
+            /^mobile\/src\/(lib\/auth|app\/auth|hooks\/useAuth)/.test(filename)
+          );
+        } catch (error) {
+          core.warning(`PR file risk check failed for #${pr}: ${error.message}`);
+          needsIndependentReview = true;
+        }
+      }
+
+      if (needsIndependentReview && !reportIsReview && currentOwner) {
+        const reviewer = currentOwner === 'codex' ? 'claude' : 'codex';
+        const reviewTeam = reviewer === 'claude' ? 'qa-security' : 'engineering';
+        try {
+          await retry(async () => {
+            const teamLabel = await ensureTeamLabel(reviewTeam);
+            issue = await getIssue();
+            const ownerLabel = `owner:${reviewer}`;
+            for (const label of ROUTING_LABELS) {
+              if (label !== ownerLabel && label !== teamLabel && has(issue, label)) await removeLabel(label);
+            }
+            await addLabels([ownerLabel, teamLabel, 'state:ready']);
+            const verify = await getIssue();
+            if (![ownerLabel, teamLabel, 'state:ready'].every((x) => has(verify, x))) {
+              throw new Error('review assignment labels not confirmed');
+            }
+          });
+        } catch (error) {
+          core.setFailed(`review assignment failed for source ${sourceId}: ${error.message}`);
+          return;
+        }
+        await post([
+          processed,
+          `<!-- onepick-pm-assignment source=comment-${sourceId} team=${reviewTeam} executor=${reviewer} phase=review -->`,
+          '## 독립 검토 자동 배정',
+          `검토자: ${reviewer}`,
+          `담당 조직: ${reviewTeam}`,
+          '상태: state:ready',
+          `구현 완료 리포트: ${source.html_url}`,
+        ].join('\n'));
+        continue;
+      }
+
       try {
         await retry(async () => {
           issue = await getIssue();
@@ -268,8 +330,9 @@ module.exports = async function run({ github, context, core }) {
         core.setFailed(`report routing failed for source ${sourceId}: ${error.message}`);
         return;
       }
+      const reason = reportIsReview ? 'review-complete' : 'stage-complete';
       await post([
-        `PM_REVIEW_REQUIRED: reason=stage-complete pr=${pr} head=${head}`,
+        `PM_REVIEW_REQUIRED: reason=${reason} pr=${pr} head=${head}`,
         processed,
         `자동 완료 리포트 접수: ${source.html_url}`,
       ].join('\n'));
