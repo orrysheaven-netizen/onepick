@@ -131,6 +131,75 @@ function unitTests() {
   backend.values.set('onepick:pick-draft:v1', JSON.stringify(raw));
   assert.equal(store.load('owner'), null);
   assert.equal(backend.values.size, 0);
+
+  nearQuotaTests(now);
+}
+
+// Sizes of the draft record ('stored' marker) and of the photo record, measured on
+// unlimited storage so the quota boundaries below are exact.
+function measure(now, draftFields, draftPhoto) {
+  const backend = sessionBackend();
+  const store = drafts.createPickDraftStore(backend, now);
+  store.save('owner', draftFields);
+  store.savePhoto('owner', draftPhoto);
+  return { record: backend.values.get('onepick:pick-draft:v1').length, photo: backend.values.get('onepick:pick-draft-photo:v1').length };
+}
+
+function nearQuotaTests(now) {
+  const bigPhoto = { ...photo, base64: 'B'.repeat(600) };
+  const size = measure(now, fields(), bigPhoto);
+  const KEY = 'onepick:pick-draft:v1';
+  const PHOTO_KEY = 'onepick:pick-draft-photo:v1';
+
+  // 1. The photo record fits, but the draft record's none→stored update does not
+  //    ('stored' is 2 characters longer than 'none'). Not a success: the photo is
+  //    reported lost so the restore asks for it, and the other input is intact.
+  let backend = sessionBackend(size.record - 2 + size.photo + 1);
+  let store = drafts.createPickDraftStore(backend, now);
+  assert.equal(store.save('owner', fields()), true);
+  assert.equal(store.savePhoto('owner', bigPhoto), false, 'a partial photo commit is not a success');
+  let restored = store.load('owner');
+  assert.equal(restored.photo, null);
+  assert.equal(restored.photoLost, true, 'the person is asked to choose the photo again');
+  assert.equal(restored.review, '육수가 깔끔해요');
+  assert.equal(restored.step, 5);
+  assert.equal(backend.values.has(PHOTO_KEY), false, 'the orphaned photo record is removed');
+
+  // 2. The photo is stored, then a later field save (longer review, earlier step) no
+  //    longer fits next to it. The latest fields win over the photo; the older draft
+  //    is never restored as if it were current.
+  const latest = fields({ step: 4, review: `${'새로 쓴 한줄평 '.repeat(4)}끝` });
+  backend = sessionBackend(size.record + size.photo + 5);
+  store = drafts.createPickDraftStore(backend, now);
+  assert.equal(store.save('owner', fields()), true);
+  assert.equal(store.savePhoto('owner', bigPhoto), true);
+  assert.equal(store.save('owner', latest), true, 'the latest fields are saved by giving up the photo');
+  restored = store.load('owner');
+  assert.equal(restored.review, latest.review, 'the latest review, not the stale one');
+  assert.equal(restored.step, 4);
+  assert.equal(restored.photo, null);
+  assert.equal(restored.photoLost, true);
+  // A later photo change still gets a fresh attempt (and fails honestly here).
+  assert.equal(store.savePhoto('owner', bigPhoto), false);
+  assert.equal(store.load('owner').review, latest.review);
+
+  // 2b. Even without the photo the latest fields do not fit: nothing is restorable,
+  //     instead of the older draft coming back as a normal draft.
+  backend = sessionBackend(size.record + size.photo + 5);
+  store = drafts.createPickDraftStore(backend, now);
+  store.save('owner', fields());
+  store.savePhoto('owner', bigPhoto);
+  assert.equal(store.save('owner', fields({ review: 'C'.repeat(size.record + size.photo) })), false);
+  assert.equal(store.load('owner'), null, 'a stale draft is never restored');
+  assert.equal(backend.values.has(KEY), false);
+  assert.equal(backend.values.has(PHOTO_KEY), false);
+
+  // 2c. Same for a draft that never had a photo.
+  backend = sessionBackend(size.record + 10);
+  store = drafts.createPickDraftStore(backend, now);
+  store.save('owner', fields());
+  assert.equal(store.save('owner', fields({ review: 'D'.repeat(size.record) })), false);
+  assert.equal(store.load('owner'), null);
 }
 
 // ---------------------------------------------------------------------------

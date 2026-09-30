@@ -116,33 +116,55 @@ export function createPickDraftStore(backend: PickDraftBackend = defaultBackend(
     if (record && record.userId !== userId) clear();
   };
 
-  // Returns false when the draft could not be written (storage blocked/full). The
-  // screen keeps working from memory; nothing is reported as restorable.
+  // The draft record is the source of truth; the photo record only backs a 'stored'
+  // marker. When storage is too full for both, the photo is given up ('lost', so the
+  // restore asks for it again) to keep the latest non-photo input. When even that
+  // cannot be written, everything is cleared so an older draft is never restored.
+  const dropPhoto = (record: DraftRecord) => {
+    remove(PHOTO_KEY);
+    if (writeRecord({ ...record, photo: 'lost' })) return true;
+    clear();
+    return false;
+  };
+
+  // Returns true only when these latest fields are what a restore would return (the
+  // photo may have been downgraded to 'lost' to make room). On false nothing is
+  // restorable; the screen keeps working from memory.
   const save = (userId: string, fields: PickDraftFields) => {
     const previous = readRecord();
     if (previous && previous.userId !== userId) clear();
     const photo: PhotoState = previous && previous.userId === userId ? previous.photo : 'none';
-    return writeRecord({ v: 1, userId, savedAt: now(), photo, fields });
+    const record: DraftRecord = { v: 1, userId, savedAt: now(), photo, fields };
+    if (writeRecord(record)) return true;
+    if (photo === 'stored') return dropPhoto(record);
+    clear();
+    return false;
   };
 
-  // null removes the photo. A failed write records 'lost' so the restore can ask for
-  // the photo again instead of pretending it was kept.
+  // null removes the photo. Returns true only when the photo is actually restorable;
+  // a failed or partial write is recorded as 'lost' (or clears the draft) instead of
+  // pretending the photo was kept.
   const savePhoto = (userId: string, photo: PickPhotoDraft | null) => {
     const record = readRecord();
     if (!record || record.userId !== userId) return false;
     if (!photo) {
       remove(PHOTO_KEY);
-      return writeRecord({ ...record, photo: 'none', savedAt: now() });
+      if (writeRecord({ ...record, photo: 'none', savedAt: now() })) return true;
+      clear();
+      return false;
     }
     const stored: PhotoRecord = {
       v: 1, userId, base64: photo.base64, thumbnailBase64: photo.thumbnailBase64,
       uploadId: photo.uploadId, sourceUrl: photo.sourceUrl,
       uri: backend.kind === 'memory' ? photo.uri : undefined,
     };
-    let ok = true;
-    try { backend.setItem(PHOTO_KEY, JSON.stringify(stored)); } catch { ok = false; remove(PHOTO_KEY); }
-    writeRecord({ ...record, photo: ok ? 'stored' : 'lost', savedAt: now() });
-    return ok;
+    let photoWritten = true;
+    try { backend.setItem(PHOTO_KEY, JSON.stringify(stored)); } catch { photoWritten = false; }
+    const next: DraftRecord = { ...record, savedAt: now() };
+    // Both writes must land for 'stored'; a photo record without its marker is dropped.
+    if (photoWritten && writeRecord({ ...next, photo: 'stored' })) return true;
+    dropPhoto(next);
+    return false;
   };
 
   const loadPhoto = (userId: string): PickPhotoDraft | null => {
