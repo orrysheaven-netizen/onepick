@@ -7,7 +7,7 @@ do $flow$
 #variable_conflict use_variable
 declare
   viewer uuid := gen_random_uuid(); friend uuid := gen_random_uuid(); other uuid := gen_random_uuid();
-  blocked_u uuid := gen_random_uuid(); late uuid := gen_random_uuid(); admin uuid := gen_random_uuid();
+  follow_only uuid := gen_random_uuid(); blocked_u uuid := gen_random_uuid(); late uuid := gen_random_uuid(); admin uuid := gen_random_uuid();
   cat uuid := gen_random_uuid(); item_x uuid := gen_random_uuid(); item_y uuid := gen_random_uuid();
   req_fix uuid := gen_random_uuid(); req_ok uuid := gen_random_uuid();
   viewer_pick uuid; friend_pick uuid; c_friend uuid; c_other uuid; c_viewer uuid; r_friend uuid;
@@ -19,9 +19,9 @@ begin
   assert not has_function_privilege('anon','public.mark_notification_group_read(text,timestamptz)','execute'), 'Guests mark nothing';
 
   insert into auth.users(id,aud,role,created_at,updated_at)
-    select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,friend,other,blocked_u,late,admin]) id;
+    select id,'authenticated','authenticated',now(),now() from unnest(array[viewer,friend,other,follow_only,blocked_u,late,admin]) id;
   insert into public.profiles(id,username,onboarding_completed)
-    select id,'gni_'||substr(replace(id::text,'-',''),1,12),true from unnest(array[viewer,friend,other,blocked_u,late,admin]) id;
+    select id,'gni_'||substr(replace(id::text,'-',''),1,12),true from unnest(array[viewer,friend,other,follow_only,blocked_u,late,admin]) id;
   insert into private.admin_users(user_id) values(admin);
   insert into public.categories(id,name,slug,status,is_visible,is_pickable)
     values(cat,'그룹 알림','gni-'||substr(replace(cat::text,'-',''),1,8),'open',true,true);
@@ -42,6 +42,13 @@ begin
   viewer_pick := (public.change_pick(cat, item_x, 'X가 최고')).id;
   reset role;
 
+  -- A second viewer follows friend but does not hold X. Friend's Pick below creates
+  -- only a stored followee notification for this account; MVP grouped APIs hide it.
+  perform set_config('request.jwt.claim.sub',follow_only::text,true);
+  set local role authenticated;
+  insert into public.user_follows(follower_id,followee_id) values(follow_only,friend);
+  reset role;
+
   -- friend, other and blocked_u also pick X: two 내 원픽 새 한줄평 events for the viewer
   -- (the blocked member's never lands), and friend's Pick is also 팔로잉 원픽.
   perform set_config('request.jwt.claim.sub',friend::text,true);
@@ -58,6 +65,19 @@ begin
   reset role;
   assert (select count(*) from public.pick_review_notifications where recipient_id=viewer) = 2, 'Two holders of X notified the viewer; the blocked one did not';
   assert (select count(*) from public.pick_review_notifications where recipient_id=friend) = 2, 'friend hears about other and blocked_u (no block between them)';
+  assert exists (
+    select 1 from public.pick_change_notifications
+    where recipient_id=follow_only and pick_id=friend_pick and read_at is null
+  ), 'Follow data is retained even while the MVP grouped inbox hides it';
+  perform set_config('request.jwt.claim.sub',follow_only::text,true);
+  set local role authenticated;
+  assert public.notification_unread_count() = 0, 'Followee-only account has no MVP badge';
+  assert not exists (select 1 from public.notification_group_page()), 'Followee-only account has no MVP inbox row';
+  assert public.mark_notification_group_read('follow:'||friend::text||':'||cat::text||':', now()) = 0,
+    'Hidden followee group cannot be marked through the MVP grouped API';
+  reset role;
+  assert (select read_at from public.pick_change_notifications where recipient_id=follow_only and pick_id=friend_pick) is null,
+    'Hidden follow data remains untouched for a later rollout';
 
   -- Comments on the viewer's review by friend and other; a reply to the viewer's
   -- own comment under friend's review.
@@ -91,12 +111,14 @@ begin
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
-  assert (select public.notification_unread_count()) = 7,
-    'Badge: 2 pick_review + 2 comment + 1 reply + 1 followee_pick + 1 fix_needed, no approval: '||(select public.notification_unread_count());
+  assert (select public.notification_unread_count()) = 6,
+    'MVP badge: 2 pick_review + 2 comment + 1 reply + 1 fix_needed; followee_pick and approval are hidden: '||(select public.notification_unread_count());
   select array_agg(r) into groups from public.notification_group_page() r;
-  assert array_length(groups,1) = 5, 'Five groups: '||array_length(groups,1);
+  assert array_length(groups,1) = 4, 'Four visible MVP groups: '||array_length(groups,1);
   select array_agg(r->>'kind' order by r->>'kind') into kinds from public.notification_group_page() r;
-  assert kinds = array['comment','fix_needed','followee_pick','pick_review','reply'], 'One group per kind here: '||kinds::text;
+  assert kinds = array['comment','fix_needed','pick_review','reply'], 'MVP grouped inbox excludes followee_pick: '||kinds::text;
+  select coalesce(sum((r->>'unread_count')::int),0) into n from public.notification_group_page() r;
+  assert n = public.notification_unread_count(), 'Group page unread totals and badge use the same event set';
 
   select r into g from public.notification_group_page() r where r->>'kind' = 'pick_review';
   review_group := g->>'group_id';
@@ -111,22 +133,20 @@ begin
   assert g->>'group_id' = 'reply:'||c_viewer::text and (g->'target'->>'root_comment_id')::uuid = c_viewer
     and (g->'target'->>'comment_id')::uuid = r_friend and (g->'target'->>'pick_id')::uuid = friend_pick,
     'Replies group by my comment and point at the reply: '||g::text;
-  select r into g from public.notification_group_page() r where r->>'kind' = 'followee_pick';
-  assert g->>'group_id' = 'follow:'||friend::text||':'||cat::text||':' and (g->'target'->>'user_id')::uuid = friend
-    and (g->'target'->>'pick_id')::uuid = friend_pick and (g->'target'->>'category_id')::uuid = cat,
-    'Followee Picks group by person + menu + channel: '||g::text;
+  assert not exists (select 1 from public.notification_group_page() r where r->>'kind' = 'followee_pick'),
+    'Followee Picks stay out of the MVP grouped inbox';
   select r into g from public.notification_group_page() r where r->>'kind' = 'fix_needed';
   assert g->>'group_id' = 'fix:'||req_fix::text and g->>'reason' = '지도 링크가 필요해요' and g->'actor' = 'null'::jsonb
     and (g->'target'->>'item_id')::uuid = req_fix,
     'Fix-needed groups by the request and carries the reason: '||g::text;
   assert not exists (select 1 from public.notification_group_page() r where r->>'group_id' like 'fix:'||req_ok::text), 'Approved requests are not listed';
 
-  -- Paging: two pages of three cover all five groups once.
+  -- Paging: two pages of three cover all four visible groups once.
   select array_agg(r->>'group_id' order by ord) into ids from public.notification_group_page(p_limit => 3) with ordinality as t(r, ord);
   select r into g from public.notification_group_page(p_limit => 3) with ordinality as t(r, ord) where ord = 3;
   select ids || array_agg(r->>'group_id' order by ord) into ids
     from public.notification_group_page((g->>'latest_at')::timestamptz, g->>'group_id', 3) with ordinality as t(r, ord);
-  assert array_length(ids,1) = 5 and (select count(distinct x) from unnest(ids) x) = 5, 'Keyset paging walks every group once: '||ids::text;
+  assert array_length(ids,1) = 4 and (select count(distinct x) from unnest(ids) x) = 4, 'Keyset paging walks every visible MVP group once: '||ids::text;
   raised := false;
   begin
     perform public.notification_group_page(now(), null);
@@ -150,7 +170,7 @@ begin
   assert (g->>'unread_count')::int = 1 and (g->>'total_count')::int = 3 and (g->>'actor_count')::int = 3
     and g->'actor'->>'user_id' = late::text,
     'The later arrival stays unread and leads the group: '||g::text;
-  assert (select public.notification_unread_count()) = 6, 'Badge drops by the two read events and counts the new one: '||(select public.notification_unread_count());
+  assert (select public.notification_unread_count()) = 5, 'MVP badge drops by the two read events and counts the new visible one: '||(select public.notification_unread_count());
   assert public.mark_notification_group_read(review_group, snapshot) = 0, 'Marking again with the old snapshot changes nothing';
   assert public.mark_notification_group_read('fix:'||req_fix::text, now()) = 1, 'A fix-needed group is read the same way';
   -- Marking is per member: another member's call never touches my rows.
@@ -167,7 +187,7 @@ begin
   set local role authenticated;
   insert into public.user_blocks(blocker_user_id,blocked_user_id,blocked_username_snapshot)
     select viewer, friend, username from public.profiles where id=friend;
-  assert not exists (select 1 from public.notification_group_page() r where r->>'kind' in ('followee_pick','reply')), 'A blocked member''s Pick change and reply leave the inbox';
+  assert not exists (select 1 from public.notification_group_page() r where r->>'kind' = 'reply'), 'A blocked member''s reply leaves the inbox';
   select r into g from public.notification_group_page() r where r->>'kind' = 'comment';
   assert (g->>'actor_count')::int = 1 and g->'actor'->>'user_id' = other::text, 'The comment group keeps only the unblocked commenter: '||g::text;
   select count(*) into n from public.notification_group_page() r where r->>'group_id' = review_group;
@@ -176,6 +196,6 @@ begin
   reset role;
 end;
 $flow$;
-$test$, 'grouped inbox: five kinds grouped by their target with actor and unread counts, approvals excluded from list and badge, keyset paging, read up to a snapshot only, blocks respected');
+$test$, 'MVP grouped inbox: four visible kinds share the same list/badge/read event set, followee rows are retained but hidden, approvals excluded, keyset paging, snapshot reads and blocks respected');
 select * from finish();
 rollback;
