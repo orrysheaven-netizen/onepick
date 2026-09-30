@@ -211,10 +211,12 @@ jobs:
           comments_of() {
             gh api --paginate "repos/$REPOSITORY/issues/$1/comments?per_page=100" | jq -s 'add // []'
           }
-          # First id of a bot-authored comment (in comments JSON $1) that contains $2.
+          # Latest id of a bot-authored comment (in comments JSON $1) that contains $2.
+          # Processed markers are source-unique; required/done markers may repeat across
+          # completed PM review cycles for the same issue/pr/head.
           bot_comment_id() {
             jq -r --arg bot "$bot_login" --arg m "$2" '
-              [ .[] | select(.user.login == $bot and (.body | contains($m))) | .id ] | first // ""
+              [ .[] | select(.user.login == $bot and (.body | contains($m))) | .id ] | last // ""
             ' <<<"$1"
           }
           post() { gh issue comment "$1" --repo "$REPOSITORY" --body "$2" >/dev/null; }
