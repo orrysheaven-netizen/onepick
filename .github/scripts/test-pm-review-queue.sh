@@ -124,6 +124,8 @@ if p[0] == "issues" and len(p) == 1:
 elif p[0] == "issues" and len(p) == 2:
     if p[1] not in st["issues"]: sys.exit(1)
     out(issue_view(p[1]), jq_expr)
+elif p[0] == "issues" and len(p) == 3 and p[2] == "timeline":
+    out(st.get("timelines", {}).get(p[1], []), jq_expr)
 elif p[0] == "issues" and p[2] == "comments":
     out(st["issues"][p[1]]["comments"], jq_expr)
 elif p[0] == "issues" and p[2] == "labels" and method == "POST":
@@ -372,6 +374,27 @@ check "gate-off draft result is processed" eq "$(count_bot 12 'onepick-review-qu
 check "gate-off draft result leaves no done marker" eq "$(count_bot 12 'onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-READY_FOR_REVIEW')" 0
 check "gate-off draft result leaves no CI pending marker" eq "$(count_bot 12 'onepick-ci-handoff:pending pr=22')" 0
 check "gate-off draft result asks for a later repost" eq "$(count_bot 12 'CI gate가 비활성 상태입니다')" 1
+
+echo "# review-events with CI running and CI gate disabled"
+reset_state
+mutate --arg owner "$OWNER" '
+  .pulls["22"].user = {login: $owner}
+  | .issues["12"].labels = ["owner:codex"]
+  | .timelines = {"22": [{event: "ready_for_review", created_at: "2026-09-28T00:00:00Z"}]}
+  | (.runs[] | select(.head_sha == "1111111111111111111111111111111111111111" and .name == "Web build")
+       | .status = "in_progress" | .conclusion = "")
+  | .issues["12"].comments += [
+      {id: 1910, user: {login: .bot}, created_at: "2026-09-29T00:00:01Z",
+       body: "<!-- onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-CHANGES_REQUESTED to=codex -->"},
+      {id: 1911, user: {login: .bot}, created_at: "2026-09-29T00:00:02Z",
+       body: "<!-- onepick-review-queue:pending source=comment-1810 pr=22 head=1111111111111111111111111111111111111111 result=READY_FOR_REVIEW to=claude by=owner -->"}
+    ]'
+run_review_drain 12 false
+check "review drain succeeds while CI is running and gate is disabled" eq "$REVIEW_DRAIN_RC" 0
+check "gate-off running result is processed" eq "$(count_bot 12 'onepick-review-queue:processed source=comment-1810')" 1
+check "gate-off running result leaves no done marker" eq "$(count_bot 12 'onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-READY_FOR_REVIEW')" 0
+check "gate-off running result leaves no CI pending marker" eq "$(count_bot 12 'onepick-ci-handoff:pending pr=22')" 0
+check "gate-off running result asks for a later repost" eq "$(count_bot 12 '필수 CI 진행 중, CI gate 비활성')" 1
 
 echo "# CI gate routing"
 reset_state
