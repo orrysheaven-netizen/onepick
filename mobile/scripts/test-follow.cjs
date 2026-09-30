@@ -160,8 +160,13 @@ async function main() {
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /follow: true/, 'Restaurant-first MVP keeps follow exposed');
+  assert.match(featureSource, /follow: false/, 'Initial restaurant MVP keeps follow implementation hidden behind the exposure gate');
   assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
+  const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
+  assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.follow \? user\?\.id : undefined\)/,
+    'Hidden follow mode does not start the follow-notification preference query');
+  assert.match(settings, /\{OnePickFeatures\.follow \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
+    'Follow notification settings remain implemented but hidden behind the same gate');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
@@ -171,7 +176,7 @@ async function main() {
   assert.doesNotMatch(publicProfile, /follow === '1'/, 'a shareable query string cannot trigger a follow mutation');
   assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 
-  console.log('Follow checks passed: service guards, login return intent, button states, follow-count Home default and profile placement.');
+  console.log('Follow checks passed: retained service/login/button contracts plus initial-MVP exposure gates for Home, profile and Settings.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
