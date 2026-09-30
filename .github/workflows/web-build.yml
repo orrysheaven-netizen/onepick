@@ -35,13 +35,15 @@ jobs:
       run: ${{ steps.gate.outputs.run }}
       control_plane: ${{ steps.control_plane.outputs.result }}
     steps:
-      - name: Checkout gate script
+      # The gate script always comes from the base commit, never from the PR under
+      # test, so a PR cannot rewrite the gate to skip its own required checks (#576 M1).
+      - name: Checkout gate script (base commit)
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
           sparse-checkout: |
             .github/scripts
-            .github/workflows
 
       - name: Decide whether heavy steps are needed
         id: gate
@@ -58,28 +60,25 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Control-plane changes (the gate, its tests, any workflow) always run the
+          # heavy job. Decided here, not by a script (#576 M1).
+          if grep -Eq '^\.github/(scripts|workflows)/' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           run="$(bash .github/scripts/ci-path-gate.sh \
             --pattern '^(mobile/|tools/qa/|\.github/workflows/web-build\.yml$)' \
             < "$RUNNER_TEMP/changed-files.txt")"
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
-      # Offline regression test for the AI handoff / PM routing control plane (#586).
-      # It runs inside this existing lightweight job and only when those files change,
-      # so it adds seconds, not a runner. A failure is surfaced by verify-web (the
-      # required check) below; this job itself stays green so the path gate still works.
-      - name: Control-plane regression test
+      # Flags control-plane changes for the regression test in verify-web (#586). Pure
+      # inline check; the heavy job already runs for these paths (see above).
+      - name: Flag control-plane changes
         id: control_plane
         run: |
-          set -euo pipefail
-          changed="$RUNNER_TEMP/changed-files.txt"
-          if [ "$(wc -l < "$changed")" -lt 3000 ] &&
-             ! grep -Eq '^\.github/(workflows/(ai-[^/]+|web-build)\.yml|scripts/test-pm-review-queue\.sh)$' "$changed"; then
-            echo "result=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
+          if grep -Eq '^\.github/(workflows/(ai-[^/]+|web-build)\.yml|scripts/test-pm-review-queue\.sh)$' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
           fi
-          python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y -qq python3-yaml >/dev/null || true
-          if bash .github/scripts/test-pm-review-queue.sh; then result=passed; else result=failed; fi
-          echo "result=$result" >> "$GITHUB_OUTPUT"
 
   verify-web:
     needs: changes
@@ -88,8 +87,7 @@ jobs:
     if: >-
       !cancelled() &&
       !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
-      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true' ||
-       needs.changes.outputs.control_plane == 'failed')
+      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
     runs-on: ubuntu-latest
     # Caps a hung run's billing (recent full runs ~1-2 min).
     timeout-minutes: 20
@@ -97,15 +95,6 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      # Fails the required check in seconds, before any heavy step, when the
-      # control-plane test in `changes` failed.
-      - name: Control-plane regression test result
-        if: needs.changes.outputs.control_plane == 'failed'
-        working-directory: .
-        run: |
-          echo "::error::Control-plane regression test failed; see the 'changes' job log (.github/scripts/test-pm-review-queue.sh)."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -124,6 +113,15 @@ jobs:
       - name: Test CI path gate
         working-directory: .
         run: bash .github/scripts/test-ci-path-gate.sh
+
+      # AI handoff / PM routing control plane (#586). Only when those files change;
+      # a changed workflow already forces this job to run, so no extra runner.
+      - name: Test PM review queue control plane
+        if: needs.changes.outputs.control_plane == 'true'
+        working-directory: .
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y -qq python3-yaml >/dev/null
+          bash .github/scripts/test-pm-review-queue.sh
 
       - name: Install dependencies
         run: npm ci
