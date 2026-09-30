@@ -268,6 +268,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useSelectStoreItem: () => mutation('select', () => { if (selectFails) throw new AppError('ITEM_NOT_FOUND'); return selectResult; }),
   },
   '@/lib/items/pickChannel': pickChannel,
+  '@/lib/items/pickSavedToast': { armPickSavedToast() {} },
   '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
   '@/lib/pick/pickDraft': { ...drafts, pickDraftStore: () => draftStore },
   '@/services/storeFirstService': service,
@@ -342,7 +343,10 @@ async function screenTests() {
   const saved = calls.find(([n]) => n === 'register')[1];
   assert.equal(saved.photo.base64, 'QUJD', 'restored photo used, rebuilt from base64');
   assert.equal(saved.oneLineReview, '육수가 깔끔해요');
-  assert.match(page, /원픽을 정했어요/);
+  assert.equal(destination.pathname, '/item/[itemId]', 'save follows the current item-detail success contract');
+  assert.equal(destination.params.itemId, 'item-1');
+  assert.equal(destination.params.pickId, 'pick-1');
+  assert.doesNotMatch(page, /원픽을 정했어요/, 'the registration screen no longer renders a success dialog');
   assert.equal(draftStore.load('owner'), null, 'submit success clears the draft');
 
   // 2. Another account after the round trip: empty form, draft discarded.
