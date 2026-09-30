@@ -155,7 +155,7 @@ PM 보고에서 사용자가 직접 해야 하는 작업과 승인만 필요한 
 
 ### 흐름
 
-담당 완료 → 원래 이슈에 `## 완료 리포트` → `PM_REVIEW_REQUIRED` → `## PM 검토 대기`
+담당 완료 → `state:active`→`state:review`로 자기 claim 종료 → 원래 이슈 한 댓글의 첫 줄 `PM_REVIEW_REQUIRED` + 다음 줄 `## 완료 리포트` → `## PM 검토 대기`
 
 구현: `.github/workflows/ai-pm-review-queue.yml`. GitHub 내부 queue만 사용하며 외부 webhook/API는 호출하지 않는다. 새 라벨 없이 bot marker만 사용한다.
 
@@ -204,7 +204,7 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 
 `PM_REVIEW_DONE`은 해당 `## PM 검토 대기` 댓글 **이후**에 작성되고, PR의 현재 head를 가리킬 때만 기록한다. 요청 요약보다 먼저 쓴 판정이나 이전 head에 대한 판정은 기록하지 않고 생략 사유를 남긴다. 이 경우 새 요약을 확인한 뒤 판정 줄을 다시 쓴다.
 
-판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다.
+판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다. `decision=continue`이고 후속 작업이 없으면 PM은 `owner:*`와 `size:*`를 유지하고 `state:*`/`handoff:*`를 정리한 뒤 원 이슈를 completed로 닫는다. 후속이 있으면 닫지 않고 PM 또는 기존 자동화가 다음 owner/state를 지정한다.
 
 ### 생성하지 않는 경우
 
@@ -261,8 +261,9 @@ GitHub가 별도 ChatGPT/Claude 대화방을 직접 깨울 수 없는 경우, �
 새 owner/status 축을 추가하지 않는다. 기존 `owner:codex|claude`, `state:*`, `handoff:*`, `area:*`만 사용한다.
 
 - PM 또는 기존 자동화: owner, area, ready/review/handoff/blocked 및 다음 담당 결정
-- 담당자: 자신에게 이미 배정된 작업을 claim할 때 `state:active`로 전환하고, 작업 결과를 원 이슈에 완료 보고
-- 담당자는 임의로 다음 제품 단계나 다른 담당자를 확정하지 않는다.
+- 담당자: 자신에게 이미 배정된 작업을 claim할 때 `state:active`로 전환한다. 완료 시 자기 claim 종료를 위해 `state:active`→`state:review`로 기계적으로 전환한 뒤 원 이슈에 완료 보고한다. 현재 `owner:*`/`size:*`는 유지한다.
+- 담당자는 임의로 다음 제품 단계나 다른 담당자를 확정하지 않는다. 독립 리뷰 완료 보고는 `PM_REVIEW_REQUIRED: reason=review-complete ...`를 사용한다.
+- PM: `decision=continue` 판정 뒤 후속이 없으면 state/handoff 라벨을 정리하고 이슈를 completed로 닫는다. 후속이 있으면 해당 owner/state를 지정하고 열린 상태를 유지한다.
 
 ### 사용자 승인 게이트
 
