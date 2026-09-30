@@ -45,7 +45,7 @@ jobs:
           ensure_label "team:ux" "D4C5F9" "UX / Figma"
           ensure_label "team:engineering" "0E8A16" "Engineering / app development"
           ensure_label "team:data" "BFE5BF" "Data / Supabase DB"
-          ensure_label "team:qa-security" "B60205" "QA / Reliability / Security"
+          ensure_label "team:qa" "B60205" "QA / Reliability / Security"
           ensure_label "team:release" "0052CC" "Release / operations"
           ensure_label "area:app" "C5DEF5" "Product and app work"
           ensure_label "area:data" "BFE5BF" "Content or data work"
