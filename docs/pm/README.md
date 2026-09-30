@@ -143,3 +143,87 @@ PM 보고에서 사용자가 직접 해야 하는 작업과 승인만 필요한 
 - **관리자 직접 수행 필요**: 계정 소유자만 가능한 UI 조작·인증·비밀값 입력·결제·MFA 등으로 AI가 대신 수행할 수 없는 작업. 예: OAuth token 재발급, GitHub Secret 입력/교체, MFA 완료, 외부 서비스 결제 승인.
 
 상태 보고에는 해당 사항이 있으면 별도 섹션으로 명시한다. 없으면 **관리자 직접 수행 필요: 없음**으로 표시한다.
+
+## 11. PM review queue
+
+### 운영 원칙
+
+- PM은 지시·우선순위·다음 계획을 결정한다.
+- 각 담당자는 자신의 범위만 수행한다.
+- 담당 완료 후 계획 판단이 필요한 경우 PM review queue로 반환한다.
+- PM 판정 전에는 다음 제품 단계로 임의 진행하지 않는다.
+
+### 흐름
+
+담당 완료 → 원래 이슈에 `## 완료 리포트` → `PM_REVIEW_REQUIRED` → `## PM 검토 대기`
+
+구현: `.github/workflows/ai-pm-review-queue.yml`. GitHub 내부 queue만 사용하며 외부 webhook/API는 호출하지 않는다. 새 라벨 없이 bot marker만 사용한다.
+
+### 생성하는 경계
+
+PM review는 계획·우선순위·승인 판단이 필요한 완료 경계에서만 만든다.
+
+| 경계 | 생성 방식 |
+| --- | --- |
+| 부서/단계 작업 완료 | 담당자가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=stage-complete ...` |
+| 독립 리뷰 완료 | 리뷰어가 원래 이슈에 `PM_REVIEW_REQUIRED: reason=review-complete ...` |
+| CI 성공 후 사용자 병합 판단 직전 | CI gate가 `next=user` PR의 필수 CI 통과를 기록하면 자동 생성. `PM_REVIEW_REQUIRED: reason=merge-ready ...`로도 요청 가능 |
+| release/production 승인 직전 | `PM_REVIEW_REQUIRED: reason=release-approval ...` |
+
+수정 담당이 명확한 Codex↔Claude 인계(`handoff:*`, CI gate `next=claude|codex`, 리뷰 결과 `CHANGES_REQUESTED`/`READY_FOR_REVIEW`)는 기존 handoff 체인만 사용하고 PM queue를 만들지 않는다.
+
+### 요청·판정 줄
+
+원래 작업 이슈 댓글의 **첫 줄**(앞에 빈 줄 없이)에 쓴다.
+
+- `PM_REVIEW_REQUIRED`: 저장소 소유자 계정 또는 handoff App bot이 쓴 줄만 인정한다.
+- `PM_REVIEW_DONE`: **저장소 소유자 계정이 쓴 줄만** 인정한다. handoff App은 Codex/Claude 자동 담당 실행과 같은 identity라서, bot이 쓴 판정은 담당자가 스스로 내린 판정과 구분할 수 없으므로 거부한다. drain도 처리 직전에 원 댓글이 소유자 계정의 같은 판정 줄인지 다시 확인하므로, bot이 pending marker를 위조해도 기록되지 않는다.
+
+**남은 신뢰 경계**: 소유자 계정은 여러 수동 세션(ChatGPT PM, 사용자, 수동 Codex/Claude 세션)이 함께 쓸 수 있다. 이 검사는 PM 판정을 handoff App 자동 실행과 분리할 뿐, 소유자 계정으로 쓴 판정이 실제 PM의 판정임을 보증하지 않는다. 또한 bot이 결과 marker(`onepick-pm-review:done`)를 직접 쓰는 것은 막지 못하므로, 이후 단계에서 이 marker를 승인 근거로 소비하려면 별도 PM identity 도입이 선행되어야 한다. 둘째 줄 이후에 인용한 명령 줄은 workflow를 실행하지 않는다.
+
+```text
+PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40자리 SHA|none>
+PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=<40자리 SHA|none>
+```
+
+### Marker
+
+아래 marker는 handoff App bot이 쓴 경우에만 유효하다. 다른 작성자가 같은 문자열을 써도 무시한다.
+
+```text
+<!-- onepick-pm-review:required issue=<N> pr=<N|none> head=<SHA|none> -->
+<!-- onepick-pm-review:done issue=<N> pr=<N|none> head=<SHA|none> decision=<continue|revise|block|user-approval> -->
+```
+
+| decision | 의미 |
+| --- | --- |
+| `continue` | 계획대로 다음 단계 진행을 PM이 지시 |
+| `revise` | 담당자에게 수정 반환 |
+| `block` | `state:blocked` 전환, 사용자/외부 조치 대기 |
+| `user-approval` | 사용자 승인 게이트로 전달 (main merge, Production 등) |
+
+`PM_REVIEW_DONE`은 해당 `## PM 검토 대기` 댓글 **이후**에 작성되고, PR의 현재 head를 가리킬 때만 기록한다. 요청 요약보다 먼저 쓴 판정이나 이전 head에 대한 판정은 기록하지 않고 생략 사유를 남긴다. 이 경우 새 요약을 확인한 뒤 판정 줄을 다시 쓴다.
+
+판정 기록은 상태만 남기며, 다음 작업은 PM 지시에 따라 담당자/사용자가 진행한다. 자동으로 handoff 라벨을 붙이거나 다음 단계로 넘어가지 않는다.
+
+### 생성하지 않는 경우
+
+- 이슈가 닫혔거나 `state:blocked`
+- `head`가 PR의 현재 head가 아님 (stale), 또는 PR이 해당 이슈를 `Refs #N`으로 참조하지 않음
+- 같은 (issue, pr, head)에 PM review가 이미 대기 중이거나 판정이 이미 기록됨
+- `handoff:*` 인계가 아직 대기 중
+- 신뢰되지 않은 작성자의 요청·marker
+
+### 이벤트 보존 (durable queue)
+
+같은 이슈에 요청·판정·CI gate 결과가 짧은 간격으로 겹쳐도 유실되지 않도록 두 단계로 처리한다.
+
+1. **enqueue** (동시성 제한 없음): 신뢰된 요청·판정·gate 댓글마다 원래 이슈에 bot marker를 한 번만 남긴다.
+   `<!-- onepick-pm-queue:pending source=comment-<id> kind=<required|done|gate> arg=<reason|decision> pr=<N|none> head=<SHA|none> -->`
+2. **drain** (저장소 단위 직렬화, 취소 없음): 이벤트 이슈와 댓글이 있는 모든 열린 이슈에서 `onepick-pm-queue:processed source=<id>`가 없는 pending marker를 원 댓글 작성 순서대로 처리한다. 결과 댓글(`PM 검토 대기`/`PM 판정 기록`/생략 사유)에 processed marker를 함께 남기므로 결과와 처리 상태가 한 댓글로 기록된다.
+
+- 대기 중인 drain run이 새 run으로 대체되거나 취소되어도 marker가 남아 다음 drain이 회수한다.
+- 같은 SOURCE_ID는 한 번만 접수·처리한다.
+- 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
+- `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
+- 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).

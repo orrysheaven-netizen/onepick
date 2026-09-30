@@ -161,8 +161,10 @@ jobs:
               .github/workflows/ai-handoff-claude.yml
               .github/workflows/ai-handoff-ci-gate.yml
               .github/workflows/ai-handoff-review-events.yml
+              .github/workflows/ai-pm-review-queue.yml
               .github/scripts/ci-path-gate.sh
               .github/scripts/test-ci-path-gate.sh
+              .github/scripts/test-pm-review-queue.sh
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
