@@ -13,6 +13,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORKFLOW="$ROOT/.github/workflows/ai-pm-review-queue.yml"
 REVIEW_WORKFLOW="$ROOT/.github/workflows/ai-handoff-review-events.yml"
 CI_GATE_WORKFLOW="$ROOT/.github/workflows/ai-handoff-ci-gate.yml"
+CLAUDE_WORKFLOW="$ROOT/.github/workflows/ai-handoff-claude.yml"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -249,6 +250,10 @@ check "routing queues: shared opt-out kill switch is present" \
   bash -c "grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/enqueue_if.txt' &&
            grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/review_enqueue_if.txt' &&
            grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/ci_gate_if.txt'"
+check "Claude model Action remains explicit opt-in" \
+  bash -c "grep -q \"ONEPICK_AI_HANDOFF_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
+           grep -q \"ONEPICK_CLAUDE_ACTION_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
+           grep -q \"ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true'\" '$CLAUDE_WORKFLOW'"
 check "enqueue if: first-line startsWith only (no contains)" \
   bash -c "grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_REQUIRED: ')\" '$WORK/enqueue_if.txt' &&
            grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_DONE: ')\" '$WORK/enqueue_if.txt' &&
