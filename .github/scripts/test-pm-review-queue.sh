@@ -36,6 +36,7 @@ open(f"{out}/enqueue.sh", "w").write(jobs["enqueue"]["steps"][1]["run"])
 open(f"{out}/drain.sh", "w").write(jobs["drain"]["steps"][1]["run"])
 open(f"{out}/enqueue_if.txt", "w").write(jobs["enqueue"]["if"])
 open(f"{out}/review_enqueue_if.txt", "w").write(review_wf["jobs"]["enqueue"]["if"])
+open(f"{out}/review_drain.sh", "w").write(review_wf["jobs"]["drain"]["steps"][1]["run"])
 open(f"{out}/ci_gate_if.txt", "w").write(ci_wf["jobs"]["gate"]["if"])
 open(f"{out}/drain_if.txt", "w").write(jobs["drain"]["if"])
 c = jobs["drain"].get("concurrency") or {}
@@ -225,6 +226,16 @@ run_drain() {
   set -e
 }
 
+REVIEW_DRAIN_RC=0
+run_review_drain() {
+  set +e
+  PATH="$WORK/bin:$PATH" GH_TOKEN=x REPOSITORY="$REPO" REPOSITORY_OWNER="$OWNER" APP_SLUG=handoff \
+    EVENT_QUEUE_ISSUE="$1" REQUIRED_WORKFLOWS='["Mobile CI","Database Tests","Web build"]' \
+    CI_GATE_ENABLED="${2:-}" bash "$WORK/review_drain.sh" >>"$WORK/log" 2>&1
+  REVIEW_DRAIN_RC=$?
+  set -e
+}
+
 # comment <issue> <author> <body> [drain|nodrain]: full event (comment + workflow run).
 comment() {
   add_comment "$1" "$2" "$3"
@@ -254,6 +265,8 @@ check "CI handoff gate is explicit opt-in" \
   bash -c "grep -q \"ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true'\" '$WORK/ci_gate_if.txt' &&
            ! grep -q 'ONEPICK_CI_HANDOFF_GATE_ENABLED' '$WORK/enqueue_if.txt' &&
            ! grep -q 'ONEPICK_CI_HANDOFF_GATE_ENABLED' '$WORK/review_enqueue_if.txt'"
+check "review drain receives the CI gate state" \
+  grep -q 'CI_GATE_ENABLED' "$WORK/review_drain.sh"
 check "Claude model Action remains explicit opt-in" \
   bash -c "grep -q \"ONEPICK_AI_HANDOFF_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
            grep -q \"ONEPICK_CLAUDE_ACTION_ENABLED == 'true'\" '$CLAUDE_WORKFLOW' &&
@@ -340,6 +353,25 @@ long="$(head -c 100000 /dev/zero | tr '\0' 'a')"
 comment 12 "$OWNER" "PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none"$'\r\n'"$long"
 check "CRLF first line with a >64KB body is enqueued" eq "$ENQUEUED" true
 check "and processed" eq "$(count_bot 12 '<!-- onepick-pm-review:required issue=12 pr=none head=none -->')" 1
+
+echo "# review-events with CI gate disabled"
+reset_state
+mutate --arg owner "$OWNER" '
+  .pulls["22"].draft = true
+  | .pulls["22"].user = {login: $owner}
+  | .issues["12"].labels = ["owner:codex"]
+  | .issues["12"].comments += [
+      {id: 1900, user: {login: .bot}, created_at: "2026-09-29T00:00:01Z",
+       body: "<!-- onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-CHANGES_REQUESTED to=codex -->"},
+      {id: 1901, user: {login: .bot}, created_at: "2026-09-29T00:00:02Z",
+       body: "<!-- onepick-review-queue:pending source=comment-1800 pr=22 head=1111111111111111111111111111111111111111 result=READY_FOR_REVIEW to=claude by=owner -->"}
+    ]'
+run_review_drain 12 false
+check "review drain succeeds with CI gate disabled" eq "$REVIEW_DRAIN_RC" 0
+check "gate-off draft result is processed" eq "$(count_bot 12 'onepick-review-queue:processed source=comment-1800')" 1
+check "gate-off draft result leaves no done marker" eq "$(count_bot 12 'onepick-review-handoff:done key=22-1111111111111111111111111111111111111111-READY_FOR_REVIEW')" 0
+check "gate-off draft result leaves no CI pending marker" eq "$(count_bot 12 'onepick-ci-handoff:pending pr=22')" 0
+check "gate-off draft result asks for a later repost" eq "$(count_bot 12 'CI gate가 비활성 상태입니다')" 1
 
 echo "# CI gate routing"
 reset_state
