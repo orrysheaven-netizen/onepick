@@ -1,26 +1,31 @@
 name: AI PM Assignment Dispatcher
 
-# GitHub-only PM assignment and completion-report routing.
-# No model call, local/self-hosted runner, merge, deploy, DB apply, secret change,
-# or external callback is performed here.
+# GitHub-only PM work assignment and completion-report routing.
+# This workflow never calls an AI model, local/self-hosted runner, deployment,
+# DB apply, secret mutation, or external callback.
 #
-# Canonical PM command (FIRST LINE of an original issue comment):
+# Canonical PM command: FIRST line of an ORIGINAL issue comment.
 #   PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<auto|lead|claude> action=<execute|review> pr=<N|none> head=<40hex|none>
 #
-# team=... chooses the department queue. assignee=lead means the departmental
-# ChatGPT team-lead lane (owner:codex); assignee=claude delegates to Claude.
-# assignee=auto resolves execute->lead and review->the opposite of the current owner
-# (owner:codex->Claude, owner:claude->lead; no current owner->Claude).
+# assignee=auto:
+#   execute -> departmental ChatGPT team lead
+#   review  -> opposite of current owner (codex -> Claude, Claude -> lead);
+#              no current owner -> Claude
 #
-# A valid command is persisted before label mutation:
+# Durable assignment marker:
 #   <!-- onepick-pm-dispatch:pending source=comment-<id> team=... assignee=... action=... pr=... head=... -->
-# Successful assignment records:
+# Result:
 #   <!-- onepick-pm-assignment source=comment-<id> issue=<N> team=... assignee=... resolved=... action=... owner=... area=... -->
 #   <!-- onepick-pm-dispatch:processed source=comment-<id> -->
 #
-# Completion reports are also GitHub-only. A trusted comment whose first line is
-# exactly "## 완료 리포트" moves the issue to state:review and emits one
-# bot-authored PM_REVIEW_REQUIRED request for #567's PM review queue.
+# Durable report marker:
+#   <!-- onepick-pm-report:pending source=comment-<id> -->
+# Result:
+#   PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none
+#   <!-- onepick-pm-report:processed source=comment-<id> -->
+#
+# New PM assignments do NOT create handoff:* labels. Existing handoff workflows
+# remain only as a legacy compatibility path.
 
 on:
   issue_comment:
@@ -31,7 +36,7 @@ on:
 permissions: {}
 
 jobs:
-  enqueue:
+  assignment_enqueue:
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
@@ -75,7 +80,7 @@ jobs:
 
           first_line="${SOURCE_BODY%%$'\n'*}"
           first_line="${first_line%$'\r'}"
-          directive_re='^PM_DIRECTIVE: team=(product|ux|engineering|data|qa|release) assignee=(auto|lead|claude) action=(execute|review) pr=(none|[1-9][0-9]*) head=(none|[0-9a-f]{40})
+          directive_re='^PM_DIRECTIVE: team=(product|ux|engineering|data|qa|release) assignee=(auto|lead|claude) action=(execute|review) pr=(none|[1-9][0-9]*) head=(none|[0-9a-f]{40})$'
           [[ "$first_line" =~ $directive_re ]] || skip "invalid directive syntax"
 
           team="${BASH_REMATCH[1]}"
@@ -89,7 +94,7 @@ jobs:
             skip "pr/head must be both none or both set"
           fi
 
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
+          comments="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add // []')"
           source_key="source=comment-$SOURCE_ID"
           if jq -e --arg source "$source_key" --arg bot "$bot_login" '
               any(.[];
@@ -99,31 +104,34 @@ jobs:
                   ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
                 )
               )
-            ' <<<"$comments_json" >/dev/null; then
+            ' <<<"$comments" >/dev/null; then
             echo "enqueued=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          body="$(cat <<EOF
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
           <!-- onepick-pm-dispatch:pending source=comment-$SOURCE_ID team=$team assignee=$assignee action=$action pr=$pr head=$head -->
           ## PM 지시 접수
           - 팀: $team
           - 배정 방식: $assignee
           - 작업 유형: $action
           - 원 지시: $SOURCE_URL
-          - 상태: GitHub queue에 영속 저장됨. blocked/active면 해제 후 자동 재평가.
+          - 상태: durable queue 저장 완료
           EOF
-          )"
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
+          )" >/dev/null
+
           echo "enqueued=true" >> "$GITHUB_OUTPUT"
 
-  report:
+  report_enqueue:
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
+      github.event.comment.user.login == github.repository_owner &&
       startsWith(github.event.comment.body, '## 완료 리포트')
     runs-on: ubuntu-latest
     permissions: {}
+    outputs:
+      enqueued: ${{ steps.enqueue.outputs.enqueued }}
     steps:
       - name: Create handoff App token
         id: app-token
@@ -133,7 +141,8 @@ jobs:
           private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
           permission-issues: write
 
-      - name: Route trusted completion report to PM review
+      - name: Validate and persist completion report
+        id: enqueue
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
@@ -148,82 +157,48 @@ jobs:
         run: |
           set -euo pipefail
 
-          bot_login="${APP_SLUG}[bot]"
+          echo "enqueued=false" >> "$GITHUB_OUTPUT"
           skip() { echo "skip: $*"; exit 0; }
+          bot_login="${APP_SLUG}[bot]"
+
+          [ "$SOURCE_AUTHOR" = "$REPOSITORY_OWNER" ] || skip "completion report is owner-only"
 
           first_line="${SOURCE_BODY%%$'\n'*}"
           first_line="${first_line%$'\r'}"
           [ "$first_line" = "## 완료 리포트" ] || skip "first line is not the exact report heading"
 
-          if [ "$SOURCE_AUTHOR" != "$REPOSITORY_OWNER" ] && [ "$SOURCE_AUTHOR" != "$bot_login" ]; then
-            skip "untrusted completion report author"
-          fi
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
+          comments="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add // []')"
           source_key="source=comment-$SOURCE_ID"
           if jq -e --arg source "$source_key" --arg bot "$bot_login" '
               any(.[];
                 .user.login == $bot and
-                ((.body // "") | contains("onepick-pm-report:processed " + $source))
+                (
+                  ((.body // "") | contains("onepick-pm-report:pending " + $source)) or
+                  ((.body // "") | contains("onepick-pm-report:processed " + $source))
+                )
               )
-            ' <<<"$comments_json" >/dev/null; then
+            ' <<<"$comments" >/dev/null; then
+            echo "enqueued=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-          [ "$(jq -r '.state' <<<"$issue_json")" = "open" ] || skip "issue is closed"
-          labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-          if jq -e 'index("state:blocked") != null' <<<"$labels_json" >/dev/null; then
-            body="$(cat <<EOF
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
-          ## 완료 리포트 자동전달 보류
-          이 이슈는 \`state:blocked\` 상태라 PM review queue를 자동 생성하지 않았습니다.
-          원 보고: $SOURCE_URL
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
+          <!-- onepick-pm-report:pending source=comment-$SOURCE_ID -->
+          완료 리포트 자동전달 대기: $SOURCE_URL
           EOF
-          )"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
-            exit 0
-          fi
+          )" >/dev/null
 
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
-          }
-
-          for label in state:ready state:active state:handoff handoff:codex handoff:claude; do
-            remove_label "$label"
-          done
-          jq -n '{labels:["state:review"]}' |
-            gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null
-
-          request="$(cat <<EOF
-          PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none
-
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
-          자동 전달된 완료 리포트입니다.
-          원 보고: $SOURCE_URL
-          EOF
-          )"
-
-          success=false
-          for attempt in 1 2 3; do
-            if gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$request" >/dev/null; then
-              success=true
-              break
-            fi
-            sleep "$attempt"
-          done
-          [ "$success" = "true" ]
+          echo "enqueued=true" >> "$GITHUB_OUTPUT"
 
   drain:
-    needs: [enqueue]
+    needs: [assignment_enqueue, report_enqueue]
     if: >-
       always() &&
       github.event.issue.pull_request == null &&
       (
-        (github.event_name == 'issue_comment' && needs.enqueue.outputs.enqueued == 'true') ||
+        (github.event_name == 'issue_comment' &&
+         (needs.assignment_enqueue.outputs.enqueued == 'true' ||
+          needs.report_enqueue.outputs.enqueued == 'true')) ||
         (github.event_name == 'issues' &&
          (github.event.label.name == 'state:blocked' ||
           github.event.label.name == 'state:active'))
@@ -243,54 +218,77 @@ jobs:
           permission-issues: write
           permission-pull-requests: read
 
-      - name: Drain pending PM assignments
+      - name: Drain durable PM queues
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          EVENT_ISSUE: ${{ github.event.issue.number }}
         shell: bash
         run: |
           set -euo pipefail
 
           bot_login="${APP_SLUG}[bot]"
 
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
+          comments_of() {
+            gh api --paginate "repos/$REPOSITORY/issues/$1/comments?per_page=100" | jq -s 'add // []'
           }
 
-          reject_source() {
-            local source="$1" reason="$2"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
+          issue_json() {
+            gh api "repos/$REPOSITORY/issues/$1"
+          }
+
+          post() {
+            gh issue comment "$1" --repo "$REPOSITORY" --body "$2" >/dev/null
+          }
+
+          remove_label() {
+            local issue="$1" label="$2" encoded
+            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
+            gh api --method DELETE "repos/$REPOSITORY/issues/$issue/labels/$encoded" >/dev/null 2>&1 || true
+          }
+
+          add_labels() {
+            local issue="$1"; shift
+            jq -n --args '$ARGS.positional | {labels:.}' -- "$@" |
+              gh api --method POST "repos/$REPOSITORY/issues/$issue/labels" --input - >/dev/null
+          }
+
+          processed_assignment() {
+            printf '<!-- onepick-pm-dispatch:processed source=comment-%s -->' "$1"
+          }
+
+          processed_report() {
+            printf '<!-- onepick-pm-report:processed source=comment-%s -->' "$1"
+          }
+
+          reject_assignment() {
+            local issue="$1" source="$2" reason="$3"
+            post "$issue" "$(cat <<EOF
+          $(processed_assignment "$source")
           ## PM 자동 배정 생략
           사유: $reason
           EOF
-          )" >/dev/null
+          )"
           }
 
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
+          process_assignment() {
+            local issue="$1" source="$2" team="$3" assignee="$4" action="$5" pr="$6" head="$7"
+            local comments source_json source_author source_body first_line expected
+            local current labels pr_json pr_body area resolved owner
 
-          while IFS=
-            [ -n "$source" ] || continue
-            source_key="source=comment-$source"
-
-            if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-                any(.[];
-                  .user.login == $bot and
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              ' <<<"$comments_json" >/dev/null; then
-              continue
+            comments="$(comments_of "$issue")"
+            if jq -e --arg bot "$bot_login" --arg marker "$(processed_assignment "$source")" '
+                any(.[]; .user.login == $bot and ((.body // "") | contains($marker)))
+              ' <<<"$comments" >/dev/null; then
+              return 0
             fi
 
             source_json="$(gh api "repos/$REPOSITORY/issues/comments/$source" 2>/dev/null || true)"
             if [ -z "$source_json" ]; then
-              reject_source "$source" "원 지시 댓글을 다시 확인할 수 없음"
-              continue
+              reject_assignment "$issue" "$source" "원 지시 댓글을 다시 확인할 수 없음"
+              return 0
             fi
 
             source_author="$(jq -r '.user.login' <<<"$source_json")"
@@ -300,21 +298,21 @@ jobs:
             expected="PM_DIRECTIVE: team=$team assignee=$assignee action=$action pr=$pr head=$head"
 
             if [ "$source_author" != "$REPOSITORY_OWNER" ] || [ "$first_line" != "$expected" ]; then
-              reject_source "$source" "원 지시가 삭제·변경되었거나 신뢰 작성자가 아님"
-              continue
+              reject_assignment "$issue" "$source" "원 지시가 변경되었거나 신뢰 작성자가 아님"
+              return 0
             fi
 
-            issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-            if [ "$(jq -r '.state' <<<"$issue_json")" != "open" ]; then
-              reject_source "$source" "이슈가 닫힘"
-              continue
+            current="$(issue_json "$issue")"
+            if [ "$(jq -r '.state' <<<"$current")" != "open" ]; then
+              reject_assignment "$issue" "$source" "이슈가 닫힘"
+              return 0
             fi
-            labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
+            labels="$(jq -c '[.labels[].name]' <<<"$current")"
 
-            # A PM assignment never steals a task from a running worker or bypasses a blocker.
-            if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels_json" >/dev/null; then
-              echo "hold pending source=comment-$source: blocked/active"
-              break
+            # Do not steal a task that is blocked or currently executing.
+            if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels" >/dev/null; then
+              echo "hold assignment comment-$source on #$issue: blocked/active"
+              return 2
             fi
 
             if [ "$pr" != "none" ]; then
@@ -324,34 +322,32 @@ jobs:
                  [ "$(jq -r '.base.ref' <<<"$pr_json")" != "main" ] ||
                  [ "$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")" != "$REPOSITORY" ] ||
                  [ "$(jq -r '.head.sha' <<<"$pr_json")" != "$head" ]; then
-                reject_source "$source" "PR/head가 현재 열린 same-repo main 대상과 일치하지 않음"
-                continue
+                reject_assignment "$issue" "$source" "PR/head가 현재 열린 same-repo main 대상과 일치하지 않음"
+                return 0
               fi
               pr_body="$(jq -r '.body // ""' <<<"$pr_json")"
-              if ! grep -Eq "(^|[^[:alnum:]_])Refs[[:space:]]+#${ISSUE_NUMBER}([^0-9]|$)" <<<"$pr_body"; then
-                reject_source "$source" "PR 본문에 Refs #$ISSUE_NUMBER가 없음"
-                continue
+              if ! grep -Eq "(^|[^[:alnum:]_])Refs[[:space:]]+#${issue}([^0-9]|$)" <<<"$pr_body"; then
+                reject_assignment "$issue" "$source" "PR 본문에 Refs #$issue가 없음"
+                return 0
               fi
             fi
 
             case "$team" in
-              product|ux|engineering)
-                area="area:app"; lead_owner="owner:codex" ;;
-              data)
-                area="area:data"; lead_owner="owner:codex" ;;
-              qa)
-                area="area:qa"; lead_owner="owner:codex" ;;
-              release)
-                area="area:infra"; lead_owner="owner:codex" ;;
+              product|ux|engineering) area="area:app" ;;
+              data) area="area:data" ;;
+              qa) area="area:qa" ;;
+              release) area="area:infra" ;;
               *)
-                reject_source "$source" "알 수 없는 team"; continue ;;
+                reject_assignment "$issue" "$source" "알 수 없는 team"
+                return 0
+                ;;
             esac
 
             resolved="$assignee"
             if [ "$assignee" = "auto" ]; then
               if [ "$action" = "execute" ]; then
                 resolved="lead"
-              elif jq -e 'index("owner:claude") != null and index("owner:codex") == null' <<<"$labels_json" >/dev/null; then
+              elif jq -e 'index("owner:claude") != null and index("owner:codex") == null' <<<"$labels" >/dev/null; then
                 resolved="lead"
               else
                 resolved="claude"
@@ -361,881 +357,184 @@ jobs:
             if [ "$resolved" = "claude" ]; then
               owner="owner:claude"
             else
-              owner="$lead_owner"
+              owner="owner:codex"
             fi
 
-            success=false
-            for attempt in 1 2 3; do
-              # PM directives supersede stale ready/review/handoff routing, but never
-              # state:blocked or state:active (checked above).
-              for label in owner:codex owner:claude area:app area:data area:qa area:infra \
-                           state:ready state:review state:handoff handoff:codex handoff:claude; do
-                remove_label "$label"
-              done
-
-              jq -n --arg owner "$owner" --arg area "$area" \
-                '{labels:[$owner,$area,"state:ready"]}' |
-                gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null || true
-
-              verify="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-              verify_labels="$(jq '[.labels[].name]' <<<"$verify")"
-              if jq -e --arg owner "$owner" --arg area "$area" '
-                  index($owner) != null and
-                  index($area) != null and
-                  index("state:ready") != null and
-                  index("state:blocked") == null and
-                  index("state:active") == null and
-                  index("state:handoff") == null and
-                  index("handoff:codex") == null and
-                  index("handoff:claude") == null and
-                  ([.[] | select(startswith("owner:") and . != $owner)] | length) == 0 and
-                  ([.[] | select((. == "area:app" or . == "area:data" or . == "area:qa" or . == "area:infra") and . != $area)] | length) == 0
-                ' <<<"$verify_labels" >/dev/null; then
-                success=true
-                break
-              fi
-              sleep "$attempt"
+            # PM directives may replace a stale ready/review/handoff route, but never
+            # state:blocked/state:active (checked above). Keep unrelated labels intact.
+            for label in owner:codex owner:claude area:app area:data area:qa area:infra \
+                         state:ready state:review state:handoff handoff:codex handoff:claude; do
+              remove_label "$issue" "$label"
             done
+            add_labels "$issue" "$owner" "$area" "state:ready"
 
-            [ "$success" = "true" ] || {
-              echo "label mutation did not verify; pending marker retained" >&2
-              exit 1
-            }
+            current="$(issue_json "$issue")"
+            labels="$(jq -c '[.labels[].name]' <<<"$current")"
+            if ! jq -e --arg owner "$owner" --arg area "$area" '
+                index($owner) != null and
+                index($area) != null and
+                index("state:ready") != null and
+                index("state:blocked") == null and
+                index("state:active") == null and
+                index("state:handoff") == null and
+                index("handoff:codex") == null and
+                index("handoff:claude") == null and
+                ([.[] | select(startswith("owner:") and . != $owner)] | length) == 0 and
+                ([.[] | select((. == "area:app" or . == "area:data" or . == "area:qa" or . == "area:infra") and . != $area)] | length) == 0
+              ' <<<"$labels" >/dev/null; then
+              echo "::error::assignment labels did not verify on #$issue" >&2
+              return 1
+            fi
 
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-assignment source=comment-$source issue=$ISSUE_NUMBER team=$team assignee=$assignee owner=$owner area=$area -->
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 — $team / $assignee
+            post "$issue" "$(cat <<EOF
+          <!-- onepick-pm-assignment source=comment-$source issue=$issue team=$team assignee=$assignee resolved=$resolved action=$action owner=$owner area=$area -->
+          $(processed_assignment "$source")
+          ## PM 자동 배정 — $team / $resolved
+          - 배정 방식: \`$assignee\`
+          - 작업 유형: \`$action\`
           - 담당 큐: \`$owner\`
           - 영역: \`$area\`
           - 상태: \`state:ready\`
           - 원 지시: $(jq -r '.html_url' <<<"$source_json")
-          - 실행 의미: 업무 배정 완료. AI 모델/채팅을 자동 호출했다는 뜻은 아님.
-          EOF
-          )" >/dev/null
-
-            comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          done < <(
-            jq -r --arg bot "$bot_login" '
-              .[]
-              | select(.user.login == $bot)
-              | (.body // "")
-              | try capture("<!-- onepick-pm-dispatch:pending source=comment-(?<source>[0-9]+) team=(?<team>product|ux|engineering|data|qa|release) assignee=(?<assignee>auto|lead|claude) action=(?<action>execute|review) pr=(?<pr>none|[1-9][0-9]*) head=(?<head>none|[0-9a-f]{40}) -->") catch empty
-              | [.source,.team,.assignee,.action,.pr,.head]
-              | @tsv
-            ' <<<"$comments_json"
-          )
-
-          [[ "$first_line" =~ $directive_re ]] || skip "invalid directive syntax"
-
-          team="${BASH_REMATCH[1]}"
-          assignee="${BASH_REMATCH[2]}"
-          pr="${BASH_REMATCH[3]}"
-          head="${BASH_REMATCH[4]}"
-
-          if { [ "$pr" = "none" ] && [ "$head" != "none" ]; } ||
-             { [ "$pr" != "none" ] && [ "$head" = "none" ]; }; then
-            skip "pr/head must be both none or both set"
-          fi
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          source_key="source=comment-$SOURCE_ID"
-          if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-              any(.[];
-                .user.login == $bot and
-                (
-                  ((.body // "") | contains("onepick-pm-dispatch:pending " + $source)) or
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              )
-            ' <<<"$comments_json" >/dev/null; then
-            echo "enqueued=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          body="$(cat <<EOF
-          <!-- onepick-pm-dispatch:pending source=comment-$SOURCE_ID team=$team assignee=$assignee pr=$pr head=$head -->
-          ## PM 지시 접수
-          - 팀: $team
-          - 실행자: $assignee
-          - 원 지시: $SOURCE_URL
-          - 상태: GitHub queue에 영속 저장됨. blocked/active면 해제 후 자동 재평가.
+          - 실행 의미: 업무 배정 완료. AI 모델/채팅 자동 호출을 뜻하지 않음.
           EOF
           )"
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
-          echo "enqueued=true" >> "$GITHUB_OUTPUT"
-
-  report:
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '## 완료 리포트')
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Create handoff App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
-          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
-          permission-issues: write
-
-      - name: Route trusted completion report to PM review
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          SOURCE_AUTHOR: ${{ github.event.comment.user.login }}
-          SOURCE_ID: ${{ github.event.comment.id }}
-          SOURCE_URL: ${{ github.event.comment.html_url }}
-          SOURCE_BODY: ${{ github.event.comment.body }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bot_login="${APP_SLUG}[bot]"
-          skip() { echo "skip: $*"; exit 0; }
-
-          first_line="${SOURCE_BODY%%$'\n'*}"
-          first_line="${first_line%$'\r'}"
-          [ "$first_line" = "## 완료 리포트" ] || skip "first line is not the exact report heading"
-
-          if [ "$SOURCE_AUTHOR" != "$REPOSITORY_OWNER" ] && [ "$SOURCE_AUTHOR" != "$bot_login" ]; then
-            skip "untrusted completion report author"
-          fi
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          source_key="source=comment-$SOURCE_ID"
-          if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-              any(.[];
-                .user.login == $bot and
-                ((.body // "") | contains("onepick-pm-report:processed " + $source))
-              )
-            ' <<<"$comments_json" >/dev/null; then
-            exit 0
-          fi
-
-          issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-          [ "$(jq -r '.state' <<<"$issue_json")" = "open" ] || skip "issue is closed"
-          labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-          if jq -e 'index("state:blocked") != null' <<<"$labels_json" >/dev/null; then
-            body="$(cat <<EOF
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
-          ## 완료 리포트 자동전달 보류
-          이 이슈는 \`state:blocked\` 상태라 PM review queue를 자동 생성하지 않았습니다.
-          원 보고: $SOURCE_URL
-          EOF
-          )"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
-            exit 0
-          fi
-
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
           }
 
-          for label in state:ready state:active state:handoff handoff:codex handoff:claude; do
-            remove_label "$label"
-          done
-          jq -n '{labels:["state:review"]}' |
-            gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null
+          process_report() {
+            local issue="$1" source="$2"
+            local comments source_json source_author source_body first_line current labels source_url
 
-          request="$(cat <<EOF
+            comments="$(comments_of "$issue")"
+            if jq -e --arg bot "$bot_login" --arg marker "$(processed_report "$source")" '
+                any(.[]; .user.login == $bot and ((.body // "") | contains($marker)))
+              ' <<<"$comments" >/dev/null; then
+              return 0
+            fi
+
+            source_json="$(gh api "repos/$REPOSITORY/issues/comments/$source" 2>/dev/null || true)"
+            if [ -z "$source_json" ]; then
+              post "$issue" "$(processed_report "$source")"$'\n'"완료 리포트 원문을 다시 확인할 수 없어 자동전달을 종료했습니다."
+              return 0
+            fi
+
+            source_author="$(jq -r '.user.login' <<<"$source_json")"
+            source_body="$(jq -r '.body // ""' <<<"$source_json")"
+            first_line="${source_body%%$'\n'*}"
+            first_line="${first_line%$'\r'}"
+            source_url="$(jq -r '.html_url' <<<"$source_json")"
+
+            if [ "$source_author" != "$REPOSITORY_OWNER" ] || [ "$first_line" != "## 완료 리포트" ]; then
+              post "$issue" "$(processed_report "$source")"$'\n'"신뢰된 완료 리포트 원문이 아니어서 자동전달을 종료했습니다."
+              return 0
+            fi
+
+            current="$(issue_json "$issue")"
+            if [ "$(jq -r '.state' <<<"$current")" != "open" ]; then
+              post "$issue" "$(processed_report "$source")"$'\n'"원 이슈가 닫혀 자동전달을 종료했습니다."
+              return 0
+            fi
+            labels="$(jq -c '[.labels[].name]' <<<"$current")"
+
+            # A blocker is not cleared by a completion report. Leave the report pending;
+            # removing state:blocked wakes this workflow and retries automatically.
+            if jq -e 'index("state:blocked") != null' <<<"$labels" >/dev/null; then
+              echo "hold report comment-$source on #$issue: blocked"
+              return 2
+            fi
+
+            for label in state:ready state:active state:handoff handoff:codex handoff:claude; do
+              remove_label "$issue" "$label"
+            done
+            add_labels "$issue" "state:review"
+
+            current="$(issue_json "$issue")"
+            labels="$(jq -c '[.labels[].name]' <<<"$current")"
+            jq -e 'index("state:review") != null and index("state:active") == null and index("state:ready") == null' \
+              <<<"$labels" >/dev/null || {
+                echo "::error::report state transition did not verify on #$issue" >&2
+                return 1
+              }
+
+            # The processed marker lives in the PM_REVIEW_REQUIRED comment. If posting
+            # fails, the pending marker remains and a later dispatcher event can retry.
+            post "$issue" "$(cat <<EOF
           PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none
 
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
+          $(processed_report "$source")
           자동 전달된 완료 리포트입니다.
-          원 보고: $SOURCE_URL
+          원 보고: $source_url
           EOF
           )"
-
-          success=false
-          for attempt in 1 2 3; do
-            if gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$request" >/dev/null; then
-              success=true
-              break
-            fi
-            sleep "$attempt"
-          done
-          [ "$success" = "true" ]
-
-  drain:
-    needs: [enqueue]
-    if: >-
-      always() &&
-      github.event.issue.pull_request == null &&
-      (
-        (github.event_name == 'issue_comment' && needs.enqueue.outputs.enqueued == 'true') ||
-        (github.event_name == 'issues' &&
-         (github.event.label.name == 'state:blocked' ||
-          github.event.label.name == 'state:active'))
-      )
-    concurrency:
-      group: ai-pm-assignment-dispatcher-${{ github.repository }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Create handoff App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
-          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
-          permission-issues: write
-          permission-pull-requests: read
-
-      - name: Drain pending PM assignments
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bot_login="${APP_SLUG}[bot]"
-
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
           }
 
-          reject_source() {
-            local source="$1" reason="$2"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 생략
-          사유: $reason
-          EOF
-          )" >/dev/null
+          drain_issue() {
+            local issue="$1" comments rc=0
+            comments="$(comments_of "$issue")"
+
+            # Assignment sources are processed in source-comment order.
+            while IFS=$'\t' read -r source team assignee action pr head; do
+              [ -n "$source" ] || continue
+              if process_assignment "$issue" "$source" "$team" "$assignee" "$action" "$pr" "$head"; then
+                :
+              else
+                rc=$?
+                [ "$rc" -eq 2 ] && break
+                return "$rc"
+              fi
+              comments="$(comments_of "$issue")"
+            done < <(
+              jq -r --arg bot "$bot_login" '
+                .[]
+                | select(.user.login == $bot)
+                | (.body // "")
+                | try capture("<!-- onepick-pm-dispatch:pending source=comment-(?<source>[0-9]+) team=(?<team>product|ux|engineering|data|qa|release) assignee=(?<assignee>auto|lead|claude) action=(?<action>execute|review) pr=(?<pr>none|[1-9][0-9]*) head=(?<head>none|[0-9a-f]{40}) -->") catch empty
+                | [.source,.team,.assignee,.action,.pr,.head]
+                | @tsv
+              ' <<<"$comments"
+            )
+
+            comments="$(comments_of "$issue")"
+            while IFS= read -r source; do
+              [ -n "$source" ] || continue
+              if process_report "$issue" "$source"; then
+                :
+              else
+                rc=$?
+                [ "$rc" -eq 2 ] && break
+                return "$rc"
+              fi
+              comments="$(comments_of "$issue")"
+            done < <(
+              jq -r --arg bot "$bot_login" '
+                .[]
+                | select(.user.login == $bot)
+                | (.body // "")
+                | try capture("<!-- onepick-pm-report:pending source=comment-(?<source>[0-9]+) -->") catch empty
+                | .source
+              ' <<<"$comments"
+            )
           }
 
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
+          # Event issue first for low latency.
+          drain_issue "$EVENT_ISSUE"
 
-          while IFS=$'\t' read -r source team assignee pr head; do
-            [ -n "$source" ] || continue
-            source_key="source=comment-$source"
-
-            if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-                any(.[];
-                  .user.login == $bot and
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              ' <<<"$comments_json" >/dev/null; then
-              continue
-            fi
-
-            source_json="$(gh api "repos/$REPOSITORY/issues/comments/$source" 2>/dev/null || true)"
-            if [ -z "$source_json" ]; then
-              reject_source "$source" "원 지시 댓글을 다시 확인할 수 없음"
-              continue
-            fi
-
-            source_author="$(jq -r '.user.login' <<<"$source_json")"
-            source_body="$(jq -r '.body // ""' <<<"$source_json")"
-            first_line="${source_body%%$'\n'*}"
-            first_line="${first_line%$'\r'}"
-            expected="PM_DIRECTIVE: team=$team assignee=$assignee action=execute pr=$pr head=$head"
-
-            if [ "$source_author" != "$REPOSITORY_OWNER" ] || [ "$first_line" != "$expected" ]; then
-              reject_source "$source" "원 지시가 삭제·변경되었거나 신뢰 작성자가 아님"
-              continue
-            fi
-
-            issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-            if [ "$(jq -r '.state' <<<"$issue_json")" != "open" ]; then
-              reject_source "$source" "이슈가 닫힘"
-              continue
-            fi
-            labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-            # A PM assignment never steals a task from a running worker or bypasses a blocker.
-            if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels_json" >/dev/null; then
-              echo "hold pending source=comment-$source: blocked/active"
-              break
-            fi
-
-            if [ "$pr" != "none" ]; then
-              pr_json="$(gh api "repos/$REPOSITORY/pulls/$pr" 2>/dev/null || true)"
-              if [ -z "$pr_json" ] ||
-                 [ "$(jq -r '.state' <<<"$pr_json")" != "open" ] ||
-                 [ "$(jq -r '.base.ref' <<<"$pr_json")" != "main" ] ||
-                 [ "$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")" != "$REPOSITORY" ] ||
-                 [ "$(jq -r '.head.sha' <<<"$pr_json")" != "$head" ]; then
-                reject_source "$source" "PR/head가 현재 열린 same-repo main 대상과 일치하지 않음"
-                continue
+          # Then sweep every other open issue so a previous failed/cancelled drain is
+          # recovered by the next real PM/report/unblock event. Pull requests are excluded.
+          gh api --paginate "repos/$REPOSITORY/issues?state=open&per_page=100" |
+            jq -s 'add // [] | .[] | select(.pull_request == null) | .number' |
+            while read -r issue; do
+              [ "$issue" = "$EVENT_ISSUE" ] && continue
+              comments="$(comments_of "$issue")"
+              if jq -e --arg bot "$bot_login" '
+                  any(.[];
+                    .user.login == $bot and
+                    (
+                      ((.body // "") | contains("onepick-pm-dispatch:pending source=comment-")) or
+                      ((.body // "") | contains("onepick-pm-report:pending source=comment-"))
+                    )
+                  )
+                ' <<<"$comments" >/dev/null; then
+                drain_issue "$issue"
               fi
-              pr_body="$(jq -r '.body // ""' <<<"$pr_json")"
-              if ! grep -Eq "(^|[^[:alnum:]_])Refs[[:space:]]+#${ISSUE_NUMBER}([^0-9]|$)" <<<"$pr_body"; then
-                reject_source "$source" "PR 본문에 Refs #$ISSUE_NUMBER가 없음"
-                continue
-              fi
-            fi
-
-            case "$team" in
-              product|ux|engineering)
-                area="area:app"; lead_owner="owner:codex" ;;
-              data)
-                area="area:data"; lead_owner="owner:codex" ;;
-              qa)
-                area="area:qa"; lead_owner="owner:codex" ;;
-              release)
-                area="area:infra"; lead_owner="owner:codex" ;;
-              *)
-                reject_source "$source" "알 수 없는 team"; continue ;;
-            esac
-
-            if [ "$assignee" = "claude" ]; then
-              owner="owner:claude"
-            else
-              owner="$lead_owner"
-            fi
-
-            success=false
-            for attempt in 1 2 3; do
-              # PM directives supersede stale ready/review/handoff routing, but never
-              # state:blocked or state:active (checked above).
-              for label in owner:codex owner:claude area:app area:data area:qa area:infra \
-                           state:ready state:review state:handoff handoff:codex handoff:claude; do
-                remove_label "$label"
-              done
-
-              jq -n --arg owner "$owner" --arg area "$area" \
-                '{labels:[$owner,$area,"state:ready"]}' |
-                gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null || true
-
-              verify="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-              verify_labels="$(jq '[.labels[].name]' <<<"$verify")"
-              if jq -e --arg owner "$owner" --arg area "$area" '
-                  index($owner) != null and
-                  index($area) != null and
-                  index("state:ready") != null and
-                  index("state:blocked") == null and
-                  index("state:active") == null and
-                  index("state:handoff") == null and
-                  index("handoff:codex") == null and
-                  index("handoff:claude") == null and
-                  ([.[] | select(startswith("owner:") and . != $owner)] | length) == 0 and
-                  ([.[] | select((. == "area:app" or . == "area:data" or . == "area:qa" or . == "area:infra") and . != $area)] | length) == 0
-                ' <<<"$verify_labels" >/dev/null; then
-                success=true
-                break
-              fi
-              sleep "$attempt"
             done
-
-            [ "$success" = "true" ] || {
-              echo "label mutation did not verify; pending marker retained" >&2
-              exit 1
-            }
-
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-assignment source=comment-$source issue=$ISSUE_NUMBER team=$team assignee=$assignee owner=$owner area=$area -->
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 — $team / $assignee
-          - 담당 큐: \`$owner\`
-          - 영역: \`$area\`
-          - 상태: \`state:ready\`
-          - 원 지시: $(jq -r '.html_url' <<<"$source_json")
-          - 실행 의미: 업무 배정 완료. AI 모델/채팅을 자동 호출했다는 뜻은 아님.
-          EOF
-          )" >/dev/null
-
-            comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          done < <(
-            jq -r --arg bot "$bot_login" '
-              .[]
-              | select(.user.login == $bot)
-              | (.body // "")
-              | try capture("<!-- onepick-pm-dispatch:pending source=comment-(?<source>[0-9]+) team=(?<team>product|ux|engineering|data|qa|release) assignee=(?<assignee>lead|claude) pr=(?<pr>none|[1-9][0-9]*) head=(?<head>none|[0-9a-f]{40}) -->") catch empty
-              | [.source,.team,.assignee,.pr,.head]
-              | @tsv
-            ' <<<"$comments_json"
-          )
-\t' read -r source team assignee action pr head; do
-            [ -n "$source" ] || continue
-            source_key="source=comment-$source"
-
-            if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-                any(.[];
-                  .user.login == $bot and
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              ' <<<"$comments_json" >/dev/null; then
-              continue
-            fi
-
-            source_json="$(gh api "repos/$REPOSITORY/issues/comments/$source" 2>/dev/null || true)"
-            if [ -z "$source_json" ]; then
-              reject_source "$source" "원 지시 댓글을 다시 확인할 수 없음"
-              continue
-            fi
-
-            source_author="$(jq -r '.user.login' <<<"$source_json")"
-            source_body="$(jq -r '.body // ""' <<<"$source_json")"
-            first_line="${source_body%%$'\n'*}"
-            first_line="${first_line%$'\r'}"
-            expected="PM_DIRECTIVE: team=$team assignee=$assignee action=execute pr=$pr head=$head"
-
-            if [ "$source_author" != "$REPOSITORY_OWNER" ] || [ "$first_line" != "$expected" ]; then
-              reject_source "$source" "원 지시가 삭제·변경되었거나 신뢰 작성자가 아님"
-              continue
-            fi
-
-            issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-            if [ "$(jq -r '.state' <<<"$issue_json")" != "open" ]; then
-              reject_source "$source" "이슈가 닫힘"
-              continue
-            fi
-            labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-            # A PM assignment never steals a task from a running worker or bypasses a blocker.
-            if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels_json" >/dev/null; then
-              echo "hold pending source=comment-$source: blocked/active"
-              break
-            fi
-
-            if [ "$pr" != "none" ]; then
-              pr_json="$(gh api "repos/$REPOSITORY/pulls/$pr" 2>/dev/null || true)"
-              if [ -z "$pr_json" ] ||
-                 [ "$(jq -r '.state' <<<"$pr_json")" != "open" ] ||
-                 [ "$(jq -r '.base.ref' <<<"$pr_json")" != "main" ] ||
-                 [ "$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")" != "$REPOSITORY" ] ||
-                 [ "$(jq -r '.head.sha' <<<"$pr_json")" != "$head" ]; then
-                reject_source "$source" "PR/head가 현재 열린 same-repo main 대상과 일치하지 않음"
-                continue
-              fi
-              pr_body="$(jq -r '.body // ""' <<<"$pr_json")"
-              if ! grep -Eq "(^|[^[:alnum:]_])Refs[[:space:]]+#${ISSUE_NUMBER}([^0-9]|$)" <<<"$pr_body"; then
-                reject_source "$source" "PR 본문에 Refs #$ISSUE_NUMBER가 없음"
-                continue
-              fi
-            fi
-
-            case "$team" in
-              product|ux|engineering)
-                area="area:app"; lead_owner="owner:codex" ;;
-              data)
-                area="area:data"; lead_owner="owner:codex" ;;
-              qa)
-                area="area:qa"; lead_owner="owner:codex" ;;
-              release)
-                area="area:infra"; lead_owner="owner:codex" ;;
-              *)
-                reject_source "$source" "알 수 없는 team"; continue ;;
-            esac
-
-            if [ "$assignee" = "claude" ]; then
-              owner="owner:claude"
-            else
-              owner="$lead_owner"
-            fi
-
-            success=false
-            for attempt in 1 2 3; do
-              # PM directives supersede stale ready/review/handoff routing, but never
-              # state:blocked or state:active (checked above).
-              for label in owner:codex owner:claude area:app area:data area:qa area:infra \
-                           state:ready state:review state:handoff handoff:codex handoff:claude; do
-                remove_label "$label"
-              done
-
-              jq -n --arg owner "$owner" --arg area "$area" \
-                '{labels:[$owner,$area,"state:ready"]}' |
-                gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null || true
-
-              verify="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-              verify_labels="$(jq '[.labels[].name]' <<<"$verify")"
-              if jq -e --arg owner "$owner" --arg area "$area" '
-                  index($owner) != null and
-                  index($area) != null and
-                  index("state:ready") != null and
-                  index("state:blocked") == null and
-                  index("state:active") == null and
-                  index("state:handoff") == null and
-                  index("handoff:codex") == null and
-                  index("handoff:claude") == null and
-                  ([.[] | select(startswith("owner:") and . != $owner)] | length) == 0 and
-                  ([.[] | select((. == "area:app" or . == "area:data" or . == "area:qa" or . == "area:infra") and . != $area)] | length) == 0
-                ' <<<"$verify_labels" >/dev/null; then
-                success=true
-                break
-              fi
-              sleep "$attempt"
-            done
-
-            [ "$success" = "true" ] || {
-              echo "label mutation did not verify; pending marker retained" >&2
-              exit 1
-            }
-
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-assignment source=comment-$source issue=$ISSUE_NUMBER team=$team assignee=$assignee owner=$owner area=$area -->
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 — $team / $assignee
-          - 담당 큐: \`$owner\`
-          - 영역: \`$area\`
-          - 상태: \`state:ready\`
-          - 원 지시: $(jq -r '.html_url' <<<"$source_json")
-          - 실행 의미: 업무 배정 완료. AI 모델/채팅을 자동 호출했다는 뜻은 아님.
-          EOF
-          )" >/dev/null
-
-            comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          done < <(
-            jq -r --arg bot "$bot_login" '
-              .[]
-              | select(.user.login == $bot)
-              | (.body // "")
-              | try capture("<!-- onepick-pm-dispatch:pending source=comment-(?<source>[0-9]+) team=(?<team>product|ux|engineering|data|qa|release) assignee=(?<assignee>lead|claude) pr=(?<pr>none|[1-9][0-9]*) head=(?<head>none|[0-9a-f]{40}) -->") catch empty
-              | [.source,.team,.assignee,.pr,.head]
-              | @tsv
-            ' <<<"$comments_json"
-          )
-
-          [[ "$first_line" =~ $directive_re ]] || skip "invalid directive syntax"
-
-          team="${BASH_REMATCH[1]}"
-          assignee="${BASH_REMATCH[2]}"
-          pr="${BASH_REMATCH[3]}"
-          head="${BASH_REMATCH[4]}"
-
-          if { [ "$pr" = "none" ] && [ "$head" != "none" ]; } ||
-             { [ "$pr" != "none" ] && [ "$head" = "none" ]; }; then
-            skip "pr/head must be both none or both set"
-          fi
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          source_key="source=comment-$SOURCE_ID"
-          if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-              any(.[];
-                .user.login == $bot and
-                (
-                  ((.body // "") | contains("onepick-pm-dispatch:pending " + $source)) or
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              )
-            ' <<<"$comments_json" >/dev/null; then
-            echo "enqueued=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          body="$(cat <<EOF
-          <!-- onepick-pm-dispatch:pending source=comment-$SOURCE_ID team=$team assignee=$assignee pr=$pr head=$head -->
-          ## PM 지시 접수
-          - 팀: $team
-          - 실행자: $assignee
-          - 원 지시: $SOURCE_URL
-          - 상태: GitHub queue에 영속 저장됨. blocked/active면 해제 후 자동 재평가.
-          EOF
-          )"
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
-          echo "enqueued=true" >> "$GITHUB_OUTPUT"
-
-  report:
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '## 완료 리포트')
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Create handoff App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
-          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
-          permission-issues: write
-
-      - name: Route trusted completion report to PM review
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          SOURCE_AUTHOR: ${{ github.event.comment.user.login }}
-          SOURCE_ID: ${{ github.event.comment.id }}
-          SOURCE_URL: ${{ github.event.comment.html_url }}
-          SOURCE_BODY: ${{ github.event.comment.body }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bot_login="${APP_SLUG}[bot]"
-          skip() { echo "skip: $*"; exit 0; }
-
-          first_line="${SOURCE_BODY%%$'\n'*}"
-          first_line="${first_line%$'\r'}"
-          [ "$first_line" = "## 완료 리포트" ] || skip "first line is not the exact report heading"
-
-          if [ "$SOURCE_AUTHOR" != "$REPOSITORY_OWNER" ] && [ "$SOURCE_AUTHOR" != "$bot_login" ]; then
-            skip "untrusted completion report author"
-          fi
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          source_key="source=comment-$SOURCE_ID"
-          if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-              any(.[];
-                .user.login == $bot and
-                ((.body // "") | contains("onepick-pm-report:processed " + $source))
-              )
-            ' <<<"$comments_json" >/dev/null; then
-            exit 0
-          fi
-
-          issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-          [ "$(jq -r '.state' <<<"$issue_json")" = "open" ] || skip "issue is closed"
-          labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-          if jq -e 'index("state:blocked") != null' <<<"$labels_json" >/dev/null; then
-            body="$(cat <<EOF
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
-          ## 완료 리포트 자동전달 보류
-          이 이슈는 \`state:blocked\` 상태라 PM review queue를 자동 생성하지 않았습니다.
-          원 보고: $SOURCE_URL
-          EOF
-          )"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body" >/dev/null
-            exit 0
-          fi
-
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
-          }
-
-          for label in state:ready state:active state:handoff handoff:codex handoff:claude; do
-            remove_label "$label"
-          done
-          jq -n '{labels:["state:review"]}' |
-            gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null
-
-          request="$(cat <<EOF
-          PM_REVIEW_REQUIRED: reason=stage-complete pr=none head=none
-
-          <!-- onepick-pm-report:processed source=comment-$SOURCE_ID -->
-          자동 전달된 완료 리포트입니다.
-          원 보고: $SOURCE_URL
-          EOF
-          )"
-
-          success=false
-          for attempt in 1 2 3; do
-            if gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$request" >/dev/null; then
-              success=true
-              break
-            fi
-            sleep "$attempt"
-          done
-          [ "$success" = "true" ]
-
-  drain:
-    needs: [enqueue]
-    if: >-
-      always() &&
-      github.event.issue.pull_request == null &&
-      (
-        (github.event_name == 'issue_comment' && needs.enqueue.outputs.enqueued == 'true') ||
-        (github.event_name == 'issues' &&
-         (github.event.label.name == 'state:blocked' ||
-          github.event.label.name == 'state:active'))
-      )
-    concurrency:
-      group: ai-pm-assignment-dispatcher-${{ github.repository }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Create handoff App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
-          private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
-          permission-issues: write
-          permission-pull-requests: read
-
-      - name: Drain pending PM assignments
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bot_login="${APP_SLUG}[bot]"
-
-          remove_label() {
-            local label="$1" encoded
-            encoded="$(jq -rn --arg v "$label" '$v|@uri')"
-            gh api --method DELETE "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
-          }
-
-          reject_source() {
-            local source="$1" reason="$2"
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 생략
-          사유: $reason
-          EOF
-          )" >/dev/null
-          }
-
-          comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-
-          while IFS=$'\t' read -r source team assignee pr head; do
-            [ -n "$source" ] || continue
-            source_key="source=comment-$source"
-
-            if jq -e --arg source "$source_key" --arg bot "$bot_login" '
-                any(.[];
-                  .user.login == $bot and
-                  ((.body // "") | contains("onepick-pm-dispatch:processed " + $source))
-                )
-              ' <<<"$comments_json" >/dev/null; then
-              continue
-            fi
-
-            source_json="$(gh api "repos/$REPOSITORY/issues/comments/$source" 2>/dev/null || true)"
-            if [ -z "$source_json" ]; then
-              reject_source "$source" "원 지시 댓글을 다시 확인할 수 없음"
-              continue
-            fi
-
-            source_author="$(jq -r '.user.login' <<<"$source_json")"
-            source_body="$(jq -r '.body // ""' <<<"$source_json")"
-            first_line="${source_body%%$'\n'*}"
-            first_line="${first_line%$'\r'}"
-            expected="PM_DIRECTIVE: team=$team assignee=$assignee action=execute pr=$pr head=$head"
-
-            if [ "$source_author" != "$REPOSITORY_OWNER" ] || [ "$first_line" != "$expected" ]; then
-              reject_source "$source" "원 지시가 삭제·변경되었거나 신뢰 작성자가 아님"
-              continue
-            fi
-
-            issue_json="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-            if [ "$(jq -r '.state' <<<"$issue_json")" != "open" ]; then
-              reject_source "$source" "이슈가 닫힘"
-              continue
-            fi
-            labels_json="$(jq '[.labels[].name]' <<<"$issue_json")"
-
-            # A PM assignment never steals a task from a running worker or bypasses a blocker.
-            if jq -e 'index("state:blocked") != null or index("state:active") != null' <<<"$labels_json" >/dev/null; then
-              echo "hold pending source=comment-$source: blocked/active"
-              break
-            fi
-
-            if [ "$pr" != "none" ]; then
-              pr_json="$(gh api "repos/$REPOSITORY/pulls/$pr" 2>/dev/null || true)"
-              if [ -z "$pr_json" ] ||
-                 [ "$(jq -r '.state' <<<"$pr_json")" != "open" ] ||
-                 [ "$(jq -r '.base.ref' <<<"$pr_json")" != "main" ] ||
-                 [ "$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")" != "$REPOSITORY" ] ||
-                 [ "$(jq -r '.head.sha' <<<"$pr_json")" != "$head" ]; then
-                reject_source "$source" "PR/head가 현재 열린 same-repo main 대상과 일치하지 않음"
-                continue
-              fi
-              pr_body="$(jq -r '.body // ""' <<<"$pr_json")"
-              if ! grep -Eq "(^|[^[:alnum:]_])Refs[[:space:]]+#${ISSUE_NUMBER}([^0-9]|$)" <<<"$pr_body"; then
-                reject_source "$source" "PR 본문에 Refs #$ISSUE_NUMBER가 없음"
-                continue
-              fi
-            fi
-
-            case "$team" in
-              product|ux|engineering)
-                area="area:app"; lead_owner="owner:codex" ;;
-              data)
-                area="area:data"; lead_owner="owner:codex" ;;
-              qa)
-                area="area:qa"; lead_owner="owner:codex" ;;
-              release)
-                area="area:infra"; lead_owner="owner:codex" ;;
-              *)
-                reject_source "$source" "알 수 없는 team"; continue ;;
-            esac
-
-            if [ "$assignee" = "claude" ]; then
-              owner="owner:claude"
-            else
-              owner="$lead_owner"
-            fi
-
-            success=false
-            for attempt in 1 2 3; do
-              # PM directives supersede stale ready/review/handoff routing, but never
-              # state:blocked or state:active (checked above).
-              for label in owner:codex owner:claude area:app area:data area:qa area:infra \
-                           state:ready state:review state:handoff handoff:codex handoff:claude; do
-                remove_label "$label"
-              done
-
-              jq -n --arg owner "$owner" --arg area "$area" \
-                '{labels:[$owner,$area,"state:ready"]}' |
-                gh api --method POST "repos/$REPOSITORY/issues/$ISSUE_NUMBER/labels" --input - >/dev/null || true
-
-              verify="$(gh api "repos/$REPOSITORY/issues/$ISSUE_NUMBER")"
-              verify_labels="$(jq '[.labels[].name]' <<<"$verify")"
-              if jq -e --arg owner "$owner" --arg area "$area" '
-                  index($owner) != null and
-                  index($area) != null and
-                  index("state:ready") != null and
-                  index("state:blocked") == null and
-                  index("state:active") == null and
-                  index("state:handoff") == null and
-                  index("handoff:codex") == null and
-                  index("handoff:claude") == null and
-                  ([.[] | select(startswith("owner:") and . != $owner)] | length) == 0 and
-                  ([.[] | select((. == "area:app" or . == "area:data" or . == "area:qa" or . == "area:infra") and . != $area)] | length) == 0
-                ' <<<"$verify_labels" >/dev/null; then
-                success=true
-                break
-              fi
-              sleep "$attempt"
-            done
-
-            [ "$success" = "true" ] || {
-              echo "label mutation did not verify; pending marker retained" >&2
-              exit 1
-            }
-
-            gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-          <!-- onepick-pm-assignment source=comment-$source issue=$ISSUE_NUMBER team=$team assignee=$assignee owner=$owner area=$area -->
-          <!-- onepick-pm-dispatch:processed source=comment-$source -->
-          ## PM 자동 배정 — $team / $assignee
-          - 담당 큐: \`$owner\`
-          - 영역: \`$area\`
-          - 상태: \`state:ready\`
-          - 원 지시: $(jq -r '.html_url' <<<"$source_json")
-          - 실행 의미: 업무 배정 완료. AI 모델/채팅을 자동 호출했다는 뜻은 아님.
-          EOF
-          )" >/dev/null
-
-            comments_json="$(gh api --paginate "repos/$REPOSITORY/issues/$ISSUE_NUMBER/comments?per_page=100" | jq -s 'add')"
-          done < <(
-            jq -r --arg bot "$bot_login" '
-              .[]
-              | select(.user.login == $bot)
-              | (.body // "")
-              | try capture("<!-- onepick-pm-dispatch:pending source=comment-(?<source>[0-9]+) team=(?<team>product|ux|engineering|data|qa|release) assignee=(?<assignee>lead|claude) pr=(?<pr>none|[1-9][0-9]*) head=(?<head>none|[0-9a-f]{40}) -->") catch empty
-              | [.source,.team,.assignee,.pr,.head]
-              | @tsv
-            ' <<<"$comments_json"
-          )
