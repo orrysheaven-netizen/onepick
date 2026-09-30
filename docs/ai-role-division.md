@@ -121,6 +121,21 @@ PR: #<번호>
 
 자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
 
+### GitHub-only PM 자동 배정
+
+새 PM 지시는 `handoff:*` 라벨을 기본 경로로 사용하지 않는다. `.github/workflows/ai-pm-dispatch.yml`이 검증된 `PM_DIRECTIVE`를 받아 다음을 함께 기록한다.
+
+- 부서/팀장: `team:product|ux|engineering|data|qa-security|release`
+- 실행자: `owner:codex|owner:claude`
+- 착수 가능: `state:ready`
+- 근거 marker: `onepick-pm-assignment`
+
+세션 시작 시 팀장방은 자신의 `team:*` + `state:ready`를, 실행자는 자신의 `owner:*` + `state:ready`를 우선 확인한다. 실제 착수 시 `state:active`로 원자적으로 claim한다. 기존 `handoff:*`는 리뷰 결과나 과거 자동화와의 호환을 위한 보조 경로다.
+
+`to=auto`는 Product/UX/Engineering/Data를 Codex, QA/Security/Release를 Claude에 기본 배정한다. PM은 전문성·가용성에 따라 명시적으로 다른 실행자를 지정할 수 있다. 이 배정은 AI 모델을 자동 호출하거나 별도 유료 API를 사용한다는 뜻이 아니다.
+
+완료 시 원 이슈의 `## 완료 리포트`는 dispatcher가 `state:review`로 전환하고 `PM_REVIEW_REQUIRED`를 생성한다. 이후 계획·우선순위·승인 판단은 #567 PM review queue로 돌아온다.
+
 ## PR·CI 실행 비용 규칙
 
 GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필수 CI(`Database Tests`, `Mobile CI`, `Web build`)와 반대 AI 리뷰 구조는 그대로 두고, 작업 중 반복 실행만 줄인다.
