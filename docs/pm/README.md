@@ -227,3 +227,64 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 - 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
 - `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
 - 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).
+
+
+## 12. PM automatic assignment dispatcher
+
+GitHub는 OnePick의 팀장·실행자 자동 배정 원장이다. 로컬 PC, self-hosted runner, 별도 유료 AI API, 채팅 간 직접전송을 필수 경로로 사용하지 않는다.
+
+### 지시 형식
+
+원 작업 이슈의 첫 줄에 다음 형식을 사용한다.
+
+```text
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa-security|release> to=<auto|claude|codex> action=execute pr=<N|none> head=<40자리 SHA|none>
+```
+
+기존 지시와의 호환을 위해 `team=`이 없는 형식도 읽되, area/title을 기준으로 팀을 보수적으로 추론한다.
+
+### 자동 배정 결과
+
+dispatcher는 검증된 지시를 다음 두 축으로 기록한다.
+
+- 팀장 큐: `team:product`, `team:ux`, `team:engineering`, `team:data`, `team:qa-security`, `team:release`
+- 실행자 큐: `owner:codex` 또는 `owner:claude`
+- 착수 가능 상태: `state:ready`
+- 배정 근거: bot의 `onepick-pm-assignment` marker
+
+`to=auto`의 기본값은 역할 분담을 따른다.
+
+| 팀 | 기본 실행자 |
+| --- | --- |
+| Product | Codex |
+| UX/Figma | Codex |
+| Engineering | Codex |
+| Data/DB | Codex |
+| QA/Reliability/Security | Claude |
+| Release/운영 | Claude |
+
+PM은 작업 단위 전문성·가용성에 따라 `to=claude` 또는 `to=codex`로 명시적 예외 배정할 수 있다.
+
+### 실행과 완료
+
+- 팀장 세션은 자신의 `team:*` + `state:ready` 이슈를 본다.
+- Claude/Codex 실행 세션은 자신의 `owner:*` + `state:ready` 이슈를 본다.
+- 실제 착수 시 `state:active`로 claim하고 `state:ready`를 제거한다.
+- `state:blocked`이면 dispatcher는 pending을 유지하고 blocker가 해제될 때 재평가한다.
+- `state:active` 또는 `state:review` 중에는 같은 작업을 중복 배정하지 않는다.
+- 기존 `handoff:*`는 과거/수동 인계 호환용이며 새 PM 배정의 기본 경로가 아니다.
+- 완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 `state:review` + `PM_REVIEW_REQUIRED`로 연결하고 #567 PM review queue가 이어받는다.
+
+구현: `.github/workflows/ai-pm-dispatch.yml`, `.github/scripts/pm-dispatch.cjs`.
+
+### 수동 요청 원칙
+
+자동화 문제는 먼저 재시도·stale/중복 검증·상태 복구로 해결한다. 사용자에게 수동 작업을 요청하는 것은 아래처럼 자동화가 대신할 수 없는 경우로 제한한다.
+
+- main merge 등 기존 사용자 승인 게이트
+- Production DB `mode=apply` / production 배포 승인
+- secret/environment/permission 변경
+- MFA, OAuth 재인증, 결제 또는 계정 소유자 전용 UI 조작
+- GitHub API 상태 반영을 3회 재시도한 뒤에도 실패하고 자동 복구 이벤트도 없는 경우
+
+단순히 다른 ChatGPT 대화방을 깨울 수 없다는 이유만으로 사용자에게 반복 지시를 요청하지 않는다. GitHub의 `team:*` / `owner:*` / `state:ready`를 공식 배정 상태로 사용한다.
