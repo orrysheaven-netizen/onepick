@@ -121,6 +121,24 @@ PR: #<번호>
 
 자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
 
+
+
+## PM 자동 배정 queue
+
+새 PM 지시는 legacy `handoff:*` 대신 GitHub-only 자동배정 queue를 우선 사용한다.
+
+```text
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<lead|claude> action=execute pr=<N|none> head=<40자리 SHA|none>
+```
+
+- 저장소 소유자가 원 작업 이슈 첫 줄에 게시한 지시만 신뢰한다.
+- dispatcher는 지시를 durable marker에 저장한 뒤 팀에 맞는 `owner:*`·`area:*`와 `state:ready`를 적용한다.
+- `state:blocked`·`state:active`를 임의로 덮어쓰지 않고 해제 이벤트 뒤 재평가한다.
+- 팀장 세션은 자기 팀의 bot-authored `onepick-pm-assignment` marker와 `state:ready`가 모두 맞는 작업만 claim한다.
+- `assignee=claude`는 해당 작업 단위의 명시적 Claude 위임이며 영구 소유권 변경이 아니다.
+- 완료 시 다음 담당을 임의 결정하지 않고 원 이슈에 `## 완료 리포트`를 남긴다. dispatcher가 `state:review` 및 #567 PM review queue로 돌려보낸다.
+- 이 queue는 AI 모델을 자동 호출하지 않고 `ONEPICK_AI_HANDOFF_ENABLED`와 독립적으로 동작한다. legacy handoff workflows는 별도 호환 경로로만 유지한다.
+
 ## PR·CI 실행 비용 규칙
 
 GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필수 CI(`Database Tests`, `Mobile CI`, `Web build`)와 반대 AI 리뷰 구조는 그대로 두고, 작업 중 반복 실행만 줄인다.
