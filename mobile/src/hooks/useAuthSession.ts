@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { discardPickDraftForOtherUser } from '@/lib/pick/pickDraft';
 import { authService } from '@/services';
 import type { AuthUser } from '@/types/domain/auth';
 
@@ -22,6 +23,8 @@ export function useAuthSession() {
     const unsubscribe = authService.subscribe((nextUser) => {
       if (!active) return;
       receivedAuthEvent = true;
+      // Signing in as another account discards the previous account's Pick draft.
+      if (nextUser) discardPickDraftForOtherUser(nextUser.id);
       setUser(nextUser);
       setError(null);
       setIsLoading(false);
@@ -31,6 +34,7 @@ export function useAuthSession() {
       try {
         const currentUser = await authService.getCurrentUser();
         if (!active || receivedAuthEvent) return;
+        if (currentUser) discardPickDraftForOtherUser(currentUser.id);
         setUser(currentUser);
         setError(null);
         setIsLoading(false);

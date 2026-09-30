@@ -1,0 +1,411 @@
+// #475: an in-progress /pick/new draft survives a login round trip for the SAME
+// account only, re-checks server state, never auto-submits, and is cleared on submit,
+// explicit cancel, explicit sign-out and account switch. A photo that could not be
+// kept is reported ("사진을 다시 선택해주세요") while the other input is restored.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+
+function load(file, imports = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, { exports, URL, setTimeout, clearTimeout, require: (name) => {
+    if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name in imports) return imports[name];
+    if (name === 'react/jsx-runtime') return require(name);
+    assert.fail(`Unexpected dependency: ${name}`);
+  } });
+  return exports;
+}
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const drafts = load('lib/pick/pickDraft.ts');
+
+// Web-like storage with a byte quota; `failAll` simulates blocked storage.
+function sessionBackend(limit = Infinity) {
+  const values = new Map();
+  const backend = {
+    kind: 'session', failAll: false, values,
+    getItem: (key) => { if (backend.failAll) throw new Error('blocked'); return values.get(key) ?? null; },
+    setItem: (key, value) => {
+      if (backend.failAll) throw new Error('blocked');
+      const used = [...values].filter(([k]) => k !== key).reduce((sum, [, v]) => sum + v.length, 0);
+      if (used + value.length > limit) throw new Error('QuotaExceededError');
+      values.set(key, value);
+    },
+    removeItem: (key) => { values.delete(key); },
+  };
+  return backend;
+}
+const fields = (over = {}) => ({
+  step: 5, query: '을밀대', requesting: false, newName: '', roadAddress: '', mapLink: '',
+  store: { kind: 'place', catalogId: 'cat-1', name: '을밀대' }, menuQuery: '평양냉면', manualCategory: false,
+  categoryQuery: '', menu: { categoryId: 'cat-naengmyeon', name: '평양냉면' }, pickScope: null, review: '육수가 깔끔해요', ...over,
+});
+const photo = { uri: 'blob:web/1', base64: 'QUJD', thumbnailBase64: 'eA==', uploadId: 'photo-1' };
+
+function unitTests() {
+  let clock = 1_000;
+  const now = () => clock;
+
+  // Same account restores every field; another account never sees it and discards it.
+  let backend = sessionBackend();
+  let store = drafts.createPickDraftStore(backend, now);
+  assert.equal(store.save('owner', fields()), true);
+  const restored = store.load('owner');
+  assert.equal(restored.review, '육수가 깔끔해요');
+  assert.equal(restored.step, 5);
+  assert.equal(restored.photo, null);
+  assert.equal(restored.photoLost, false);
+  assert.equal(store.load('other'), null, 'another account never receives the draft');
+  assert.equal(store.load('owner'), null, 'and the draft was discarded');
+
+  // Account switch outside the screen (auth event) discards; the owner keeps it.
+  store.save('owner', fields());
+  store.discardForOtherUser('owner');
+  assert.ok(store.load('owner'));
+  store.discardForOtherUser('other');
+  assert.equal(store.load('owner'), null);
+
+  // TTL bounds a restored browser session.
+  store.save('owner', fields());
+  clock += drafts.PICK_DRAFT_TTL_MS + 1;
+  assert.equal(store.load('owner'), null);
+
+  // Web photo: stored as base64, restored as a data URL (blob URLs die with the page).
+  store.save('owner', fields());
+  assert.equal(store.savePhoto('owner', photo), true);
+  const withPhoto = store.load('owner');
+  assert.equal(withPhoto.photo.uri, 'data:image/jpeg;base64,QUJD');
+  assert.equal(withPhoto.photo.base64, 'QUJD');
+  assert.equal(withPhoto.photo.uploadId, 'photo-1');
+  assert.equal(withPhoto.photoLost, false);
+  assert.equal(store.savePhoto('owner', null), true);
+  assert.equal(store.load('owner').photo, null);
+  assert.equal(store.load('owner').photoLost, false, 'removing the photo is not a loss');
+
+  // Native memory keeps the original file URI for the running process.
+  const memory = drafts.createPickDraftStore(drafts.memoryBackend(), now);
+  memory.save('owner', fields());
+  memory.savePhoto('owner', { ...photo, uri: 'file:///cache/photo.jpg' });
+  assert.equal(memory.load('owner').photo.uri, 'file:///cache/photo.jpg');
+
+  // Quota exceeded: the photo is reported lost, the rest of the draft is intact.
+  backend = sessionBackend(2_000);
+  store = drafts.createPickDraftStore(backend, now);
+  store.save('owner', fields());
+  assert.equal(store.savePhoto('owner', { ...photo, base64: 'A'.repeat(5_000) }), false);
+  const lost = store.load('owner');
+  assert.equal(lost.photo, null);
+  assert.equal(lost.photoLost, true);
+  assert.equal(lost.review, '육수가 깔끔해요');
+  assert.equal(lost.menu.name, '평양냉면');
+
+  // Unreadable / missing photo record is a loss, not a silent success.
+  backend = sessionBackend();
+  store = drafts.createPickDraftStore(backend, now);
+  store.save('owner', fields());
+  store.savePhoto('owner', photo);
+  backend.values.set('onepick:pick-draft-photo:v1', '{not json');
+  assert.equal(store.load('owner').photoLost, true);
+  store.savePhoto('owner', photo);
+  backend.values.delete('onepick:pick-draft-photo:v1');
+  assert.equal(store.load('owner').photoLost, true);
+
+  // Blocked storage: nothing is reported as saved or restorable.
+  backend = sessionBackend();
+  store = drafts.createPickDraftStore(backend, now);
+  backend.failAll = true;
+  assert.equal(store.save('owner', fields()), false);
+  assert.equal(store.load('owner'), null);
+  backend.failAll = false;
+
+  // Tampered/invalid fields are discarded, not partially applied.
+  store.save('owner', fields());
+  const raw = JSON.parse(backend.values.get('onepick:pick-draft:v1'));
+  raw.fields.step = 6;
+  backend.values.set('onepick:pick-draft:v1', JSON.stringify(raw));
+  assert.equal(store.load('owner'), null);
+  assert.equal(backend.values.size, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Real screen with stubbed hooks; unlike the static store-first harness this one
+// runs effects (hydration, persistence, resume re-check) after each render.
+let states, refs, stateIndex, refIndex, effectIndex, effectDeps, pendingEffects, pressables, inputs, destination, uuidCounter;
+const part = (tag) => ({ children }) => React.createElement(tag, null, children);
+const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
+const { AppError } = load('errors/appError.ts');
+const native = {
+  View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+  Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
+  TextInput: (props) => { inputs.push(props); return React.createElement('input', { 'aria-label': props.accessibilityLabel, placeholder: props.placeholder }); },
+  Pressable: (props) => { pressables.push(props); return React.createElement('button', null, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children); },
+  StyleSheet: { create: (styles) => styles },
+};
+const fakeReact = { ...React,
+  useState: (initial) => {
+    const i = stateIndex++;
+    if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial;
+    return [states[i], (value) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }];
+  },
+  useMemo: (compute) => compute(),
+  useRef: (initial) => {
+    const i = refIndex++;
+    if (!(i in refs)) refs[i] = { current: initial };
+    return refs[i];
+  },
+  useEffect: (effect, deps) => {
+    const i = effectIndex++;
+    const previous = effectDeps[i];
+    if (!previous || !deps || deps.length !== previous.length || deps.some((dep, k) => !Object.is(dep, previous[k]))) {
+      effectDeps[i] = deps;
+      pendingEffects.push(effect);
+    }
+  },
+};
+const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
+const pickChannel = load('lib/items/pickChannel.ts');
+const service = load('services/storeFirstService.ts', {
+  '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
+  '@/lib/supabase/client': { supabase: {} },
+});
+
+let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore;
+const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
+  mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
+const { default: Screen } = load('app/pick/new.tsx', {
+  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
+  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() { destination = 'back'; }, canGoBack: () => true }) },
+  '@/components/ui': ui, '@/errors/appError': { AppError },
+  '@/hooks/useAuthSession': { useAuthSession: () => auth },
+  '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
+  '@/hooks/useRegisterPick': {
+    useChoosePhoto: () => mutation('choosePhoto', () => choosePhotoResult),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
+    useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
+  },
+  '@/hooks/useStoreFirst': {
+    useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
+      { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
+    ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
+    useMenuOptions: () => ({ data: [{ categoryId: 'cat-naengmyeon', name: '평양냉면', groupName: '면', placeEnabled: true }], isSuccess: true, isError: false, refetch() {} }),
+    useMenuSuggestions: () => ({ data: undefined, isPending: true, isFetching: false, isError: false }),
+    useSelectStoreItem: () => mutation('select', () => { if (selectFails) throw new AppError('ITEM_NOT_FOUND'); return selectResult; }),
+  },
+  '@/lib/items/pickChannel': pickChannel,
+  '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+  '@/lib/pick/pickDraft': { ...drafts, pickDraftStore: () => draftStore },
+  '@/services/storeFirstService': service,
+});
+
+function mount() { states = []; refs = []; effectDeps = []; }
+function reset(backend = sessionBackend()) {
+  mount(); calls = []; destination = undefined; uuidCounter = 0;
+  auth = { user: { id: 'owner' }, isLoading: false, error: null };
+  detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
+  selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
+  selectFails = false;
+  choosePhotoResult = { ...photo };
+  draftStore = drafts.createPickDraftStore(backend);
+  return backend;
+}
+async function render() {
+  let page;
+  for (let pass = 0; pass < 4; pass++) {
+    stateIndex = 0; refIndex = 0; effectIndex = 0; pressables = []; inputs = []; pendingEffects = [];
+    page = renderToStaticMarkup(React.createElement(Screen));
+    const effects = pendingEffects;
+    for (const effect of effects) effect();
+    await flush();
+    if (effects.length === 0) break;
+  }
+  return page;
+}
+function press(label) {
+  const found = pressables.find((props) => props.accessibilityLabel === label || textOf(props.children) === label || textOf(props.children).includes(label));
+  assert.ok(found, `Expected control: ${label}`);
+  assert.ok(!found.disabled, `Control is disabled: ${label}`);
+  return found.onPress();
+}
+const isDisabled = (label) => pressables.find((props) => textOf(props.children) === label)?.disabled;
+const input = (label) => { const found = inputs.find((props) => props.accessibilityLabel === label); assert.ok(found, `Expected input: ${label}`); return found; };
+const stepOf = (page) => /(\d) \/ 4/.exec(page)?.[1];
+const count = (name) => calls.filter(([n]) => n === name).length;
+
+// Store -> menu -> photo -> review typed on the last step (not submitted).
+async function writeUntilReview() {
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  press('다음'); await flush(); await render();
+  press('사진 선택'); await flush(); await render(); press('다음'); await render();
+  input('원픽 한줄평').onChangeText('육수가 깔끔해요'); return render();
+}
+
+async function screenTests() {
+  // 1. Same account after an OAuth full-page round trip (remount): nothing is shown
+  //    while the session is checked, then the review step returns after the menu is
+  //    re-checked on the server, with no automatic submit.
+  reset();
+  let page = await writeUntilReview();
+  assert.equal(stepOf(page), '4');
+  const selectsBefore = count('select');
+  const slotsBefore = count('currentSlot');
+  mount(); auth = { user: null, isLoading: true, error: null };
+  page = await render();
+  assert.match(page, /로그인 상태를 확인하고 있어요/);
+  assert.doesNotMatch(page, /을밀대|육수가/);
+  assert.ok(draftStore.load('owner'), 'the draft is not cleared while the session is unresolved');
+  auth = { user: { id: 'owner' }, isLoading: false, error: null };
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4', 'returns to the review step');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(count('select'), selectsBefore + 1, 'item selection re-checked on the server');
+  assert.equal(count('currentSlot'), slotsBefore + 1, 'current Pick slot re-read');
+  assert.equal(count('register'), 0, 'no automatic submit');
+  press('원픽 등록하기'); await flush(); page = await render();
+  assert.equal(count('register'), 1);
+  const saved = calls.find(([n]) => n === 'register')[1];
+  assert.equal(saved.photo.base64, 'QUJD', 'restored photo used, rebuilt from base64');
+  assert.equal(saved.oneLineReview, '육수가 깔끔해요');
+  assert.match(page, /원픽을 정했어요/);
+  assert.equal(draftStore.load('owner'), null, 'submit success clears the draft');
+
+  // 2. Another account after the round trip: empty form, draft discarded.
+  reset();
+  await writeUntilReview();
+  mount(); auth = { user: { id: 'other' }, isLoading: false, error: null };
+  page = await render();
+  assert.equal(stepOf(page), '1');
+  assert.doesNotMatch(page, /을밀대|육수가/);
+  assert.equal(draftStore.load('owner'), null);
+
+  // 3. Session expires while the screen stays mounted: login card, draft kept, same
+  //    account re-login keeps the in-memory input (native OAuth hop).
+  reset();
+  await writeUntilReview();
+  auth = { user: null, isLoading: false, error: null };
+  page = await render();
+  assert.match(page, /로그인하고 원픽을 등록해보세요/);
+  assert.ok(draftStore.load('owner'), 'expiry keeps the draft');
+  auth = { user: { id: 'owner' }, isLoading: false, error: null };
+  page = await render();
+  assert.equal(stepOf(page), '4');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 4. Another account signs in on the same mounted screen: in-memory input dropped.
+  auth = { user: null, isLoading: false, error: null }; await render();
+  auth = { user: { id: 'other' }, isLoading: false, error: null };
+  page = await render();
+  assert.equal(stepOf(page), '1');
+  assert.doesNotMatch(page, /육수가/);
+  assert.equal(draftStore.load('owner'), null);
+
+  // 5. Photo could not be kept (quota): other input restored, the person is asked to
+  //    choose the photo again, and the required-photo gate still holds.
+  reset(sessionBackend(3_000));
+  choosePhotoResult = { ...photo, base64: 'A'.repeat(10_000) };
+  await writeUntilReview();
+  mount();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '3', 'returns to the photo step, not the review step');
+  assert.match(page, /사진을 다시 선택해주세요/);
+  assert.equal(isDisabled('다음'), true, 'required photo cannot be skipped');
+  assert.equal(count('register'), 0);
+  choosePhotoResult = { ...photo };
+  press('사진 선택'); await flush(); page = await render();
+  assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
+  press('다음'); page = await render();
+  assert.equal(stepOf(page), '4');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요', 'review kept despite the photo loss');
+
+  // 5b. The loss marker survives a second round trip before reselecting.
+  reset(sessionBackend(3_000));
+  choosePhotoResult = { ...photo, base64: 'A'.repeat(10_000) };
+  await writeUntilReview();
+  mount(); await render(); await render();
+  mount(); page = await render(); page = await render();
+  assert.match(page, /사진을 다시 선택해주세요/);
+
+  // 6. Item already has a photo: no photo request, review step returns directly.
+  reset();
+  selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  press('다음'); await flush(); await render();
+  input('원픽 한줄평').onChangeText('또 가고 싶어요'); await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '4');
+  assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
+
+  // 7. Server re-check fails: stay on the menu step (its error shows there), no submit,
+  //    the draft is kept for another try.
+  reset();
+  await writeUntilReview();
+  selectFails = true;
+  mount();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(count('register'), 0);
+  assert.ok(draftStore.load('owner'));
+
+  // 7b. While the session is still being checked, even a stale user object must not
+  //     load (or discard) a draft: the owner resolves and still gets it back.
+  reset();
+  await writeUntilReview();
+  mount(); auth = { user: { id: 'other' }, isLoading: true, error: null };
+  page = await render();
+  assert.match(page, /로그인 상태를 확인하고 있어요/);
+  assert.ok(draftStore.load('owner'), 'no read/discard during the auth check');
+  auth = { user: { id: 'owner' }, isLoading: false, error: null };
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4');
+
+  // 8. Explicit cancel clears the draft.
+  reset();
+  await writeUntilReview();
+  press('원픽 등록 취소');
+  assert.equal(destination, 'back');
+  assert.equal(draftStore.load('owner'), null);
+
+  // 9. Early steps restore as they were (menu step keeps its selection).
+  reset();
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(input('메뉴 이름').value, '평양냉면');
+  assert.equal(count('register'), 0);
+}
+
+async function signOutTests() {
+  const cleared = [];
+  let signOutError = null;
+  const signedOut = [];
+  const hook = load('hooks/useSignOut.ts', {
+    '@tanstack/react-query': { useMutation: (options) => options, useQueryClient: () => ({ cancelQueries: async () => {}, clear() {} }) },
+    '@/services': { authService: { signOut: async () => { signedOut.push(true); if (signOutError) throw signOutError; } } },
+    '@/lib/pick/pickDraft': { clearPickDraft: () => cleared.push(true) },
+  });
+  const options = hook.useSignOut();
+  await options.mutationFn();
+  assert.equal(signedOut.length, 1);
+  assert.equal(cleared.length, 1, 'explicit sign-out clears the draft');
+  signOutError = new Error('network');
+  await assert.rejects(options.mutationFn());
+  assert.equal(cleared.length, 1, 'a failed sign-out keeps the draft (session still active)');
+}
+
+async function main() {
+  unitTests();
+  await screenTests();
+  await signOutTests();
+  console.log('pick draft restore checks passed');
+}
+
+main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -29,6 +29,7 @@ function deferred() {
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+const discardedDrafts = [];
 function sessionHarness() {
   const values = [], reads = [];
   let index = 0, deps, cleanup, listener, unsubscribed = 0;
@@ -50,6 +51,7 @@ function sessionHarness() {
       subscribe: (fn) => { listener = fn; return () => { unsubscribed++; }; },
       getCurrentUser: () => { const read = deferred(); reads.push(read); return read.promise; },
     } },
+    '@/lib/pick/pickDraft': { discardPickDraftForOtherUser: (id) => discardedDrafts.push(id) },
   });
   return {
     render: () => { index = 0; return useAuthSession(); },
@@ -63,6 +65,7 @@ async function main() {
   const h = sessionHarness();
   assert.equal(h.render().isLoading, true);
   h.emit({ id: 'new-account' });
+  assert.deepEqual(discardedDrafts, ['new-account'], 'a signed-in account discards another account\'s Pick draft (#475)');
   h.reads[0].resolve({ id: 'old-account' });
   await flush();
   assert.equal(h.render().user.id, 'new-account', 'An old lookup must not replace a newer auth event');
@@ -162,6 +165,7 @@ async function main() {
       useMutation: ({ mutationFn, onSuccess }) => ({ mutateAsync: async () => { await mutationFn(); await onSuccess(); } }),
     },
     '@/services': { authService: { signOut: async () => { if (shouldFail) throw new Error('offline'); } } },
+    '@/lib/pick/pickDraft': { clearPickDraft() {} },
   });
   await assert.rejects(() => useSignOut().mutateAsync(), /offline/);
   assert.equal(client.getQueryData(['profiles', 'mine', 'owner']).private, true);
