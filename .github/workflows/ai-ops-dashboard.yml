@@ -41,6 +41,12 @@ jobs:
           ensure_label "state:blocked" "D73A4A" "Blocked on dependency or user action"
           ensure_label "handoff:codex" "1D76DB" "Next action belongs to ChatGPT/Codex"
           ensure_label "handoff:claude" "5319E7" "Next action belongs to Claude"
+          ensure_label "team:product" "BFD4F2" "Product / service planning"
+          ensure_label "team:ux" "D4C5F9" "UX / Figma"
+          ensure_label "team:engineering" "0E8A16" "Engineering / app development"
+          ensure_label "team:data" "BFE5BF" "Data / Supabase DB"
+          ensure_label "team:qa-security" "B60205" "QA / Reliability / Security"
+          ensure_label "team:release" "0052CC" "Release / operations"
           ensure_label "area:app" "C5DEF5" "Product and app work"
           ensure_label "area:data" "BFE5BF" "Content or data work"
           ensure_label "area:security" "B60205" "Security-sensitive work"
@@ -109,8 +115,9 @@ jobs:
               for issue in sorted(items, key=lambda x: x["number"]):
                   if "state:handoff" in labels(issue):
                       continue
-                  rows.append("| #{} | {} | {} | {} | {}h |".format(
+                  rows.append("| #{} | {} | {} | {} | {} | {}h |".format(
                       issue["number"], safe(issue["title"]),
+                      label_with_prefix(issue, "team:"),
                       label_with_prefix(issue, "size:"),
                       label_with_prefix(issue, "state:"),
                       age_hours(issue)))
@@ -209,7 +216,7 @@ jobs:
           ]).format(
               since=since, cp=codex_points, cpercent=codex_pct,
               ap=claude_points, apercent=claude_pct, status=status,
-              codex=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(codex_open), "대기 작업 없음"),
+              codex=render("| 이슈 | 제목 | 팀 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | --- | ---: |", active_rows(codex_open), "대기 작업 없음"),
               claude=render("| 이슈 | 제목 | 크기 | 상태 | 마지막 갱신 |\n| --- | --- | --- | --- | ---: |", active_rows(claude_open), "대기 작업 없음"),
               hc=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_codex), "인계 대기 없음"),
               ha=render("| 이슈 | 제목 | 크기 | 대기 |\n| --- | --- | --- | ---: |", handoff_rows(handoff_claude), "인계 대기 없음"),
