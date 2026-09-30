@@ -11,6 +11,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORKFLOW="$ROOT/.github/workflows/ai-pm-review-queue.yml"
+REVIEW_WORKFLOW="$ROOT/.github/workflows/ai-handoff-review-events.yml"
+CI_GATE_WORKFLOW="$ROOT/.github/workflows/ai-handoff-ci-gate.yml"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -22,14 +24,18 @@ H2="2222222222222222222222222222222222222222"
 H3="3333333333333333333333333333333333333333"
 
 # --- extract workflow pieces -------------------------------------------------------
-python3 - "$WORKFLOW" "$WORK" <<'PY'
+python3 - "$WORKFLOW" "$REVIEW_WORKFLOW" "$CI_GATE_WORKFLOW" "$WORK" <<'PY'
 import sys, yaml
 wf = yaml.safe_load(open(sys.argv[1]))
-out = sys.argv[2]
+review_wf = yaml.safe_load(open(sys.argv[2]))
+ci_wf = yaml.safe_load(open(sys.argv[3]))
+out = sys.argv[4]
 jobs = wf["jobs"]
 open(f"{out}/enqueue.sh", "w").write(jobs["enqueue"]["steps"][1]["run"])
 open(f"{out}/drain.sh", "w").write(jobs["drain"]["steps"][1]["run"])
 open(f"{out}/enqueue_if.txt", "w").write(jobs["enqueue"]["if"])
+open(f"{out}/review_enqueue_if.txt", "w").write(review_wf["jobs"]["enqueue"]["if"])
+open(f"{out}/ci_gate_if.txt", "w").write(ci_wf["jobs"]["gate"]["if"])
 open(f"{out}/drain_if.txt", "w").write(jobs["drain"]["if"])
 c = jobs["drain"].get("concurrency") or {}
 open(f"{out}/drain_concurrency.txt", "w").write(f'{c.get("group","")}|{c.get("cancel-in-progress")}')
@@ -235,8 +241,14 @@ gate_body() { printf '<!-- onepick-ci-handoff:done pr=%s -->\n## 필수 CI 통�
 
 # --- tests -------------------------------------------------------------------------
 echo "# workflow shape"
-check "enqueue if: independent from AI runner switch" \
-  bash -c "! grep -q 'ONEPICK_AI_HANDOFF_ENABLED' '$WORK/enqueue_if.txt'"
+check "routing queues: independent from AI model runner switch" \
+  bash -c "! grep -q 'ONEPICK_AI_HANDOFF_ENABLED' '$WORK/enqueue_if.txt' &&
+           ! grep -q 'ONEPICK_AI_HANDOFF_ENABLED' '$WORK/review_enqueue_if.txt' &&
+           ! grep -q 'ONEPICK_AI_HANDOFF_ENABLED' '$WORK/ci_gate_if.txt'"
+check "routing queues: shared opt-out kill switch is present" \
+  bash -c "grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/enqueue_if.txt' &&
+           grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/review_enqueue_if.txt' &&
+           grep -q \"ONEPICK_PM_ROUTING_ENABLED != 'false'\" '$WORK/ci_gate_if.txt'"
 check "enqueue if: first-line startsWith only (no contains)" \
   bash -c "grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_REQUIRED: ')\" '$WORK/enqueue_if.txt' &&
            grep -q \"startsWith(github.event.comment.body, 'PM_REVIEW_DONE: ')\" '$WORK/enqueue_if.txt' &&
