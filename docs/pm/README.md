@@ -231,60 +231,81 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 
 ## 12. PM automatic assignment dispatcher
 
-GitHub는 OnePick의 팀장·실행자 자동 배정 원장이다. 로컬 PC, self-hosted runner, 별도 유료 AI API, 채팅 간 직접전송을 필수 경로로 사용하지 않는다.
+GitHub는 OnePick의 **팀장·Claude 업무 자동 배정 원장**이다. 로컬 PC, self-hosted runner, 별도 유료 AI API, 채팅 간 직접전송을 필수 경로로 사용하지 않는다.
 
 ### 지시 형식
 
-원 작업 이슈의 첫 줄에 다음 형식을 사용한다.
+원 작업 이슈 댓글의 첫 줄만 명령으로 인정한다.
 
 ```text
-PM_DIRECTIVE: team=<product|ux|engineering|data|qa-security|release> to=<auto|claude|codex> action=execute pr=<N|none> head=<40자리 SHA|none>
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<auto|lead|claude> action=<execute|review> pr=<N|none> head=<40자리 SHA|none>
 ```
 
-기존 지시와의 호환을 위해 `team=`이 없는 형식도 읽되, area/title을 기준으로 팀을 보수적으로 추론한다.
+- `assignee=lead`: 해당 부서의 ChatGPT 팀장 lane(`owner:codex`)
+- `assignee=claude`: Claude에 명시 위임
+- `assignee=auto + action=execute`: 팀장에게 배정
+- `assignee=auto + action=review`: 현재 owner의 반대 실행자에게 배정. 현재 owner가 없으면 Claude
+- PR 작업은 `pr/head`를 모두 지정하고, 일반 이슈는 `none/none`
 
-### 자동 배정 결과
+과거 PM 댓글과의 전환 호환을 위해 구형 `to=` 형식도 읽을 수 있지만, 새 지시는 위 형식을 사용한다.
 
-dispatcher는 검증된 지시를 다음 두 축으로 기록한다.
+### 팀장/실행자 queue
 
-- 팀장 큐: `team:product`, `team:ux`, `team:engineering`, `team:data`, `team:qa-security`, `team:release`
-- 실행자 큐: `owner:codex` 또는 `owner:claude`
-- 착수 가능 상태: `state:ready`
-- 배정 근거: bot의 `onepick-pm-assignment` marker
+| team | 팀장 lane | 기본 area |
+| --- | --- | --- |
+| Product | `owner:codex` | `area:app` |
+| UX/Figma | `owner:codex` | `area:app` |
+| Engineering | `owner:codex` | `area:app` |
+| Data/DB | `owner:codex` | `area:data` |
+| QA/Reliability/Security | `owner:codex` | `area:qa` |
+| Release/운영 | `owner:codex` | `area:infra` |
 
-`to=auto`의 기본값은 역할 분담을 따른다.
+Claude로 resolve되면 `owner:claude`를 사용하고 팀/area는 유지한다. dispatcher는 대시보드 식별을 위해 `team:product|ux|engineering|data|qa|release`도 함께 기록한다. 기존 보안·위험 분류용 area 라벨은 임의로 삭제하지 않는다.
 
-| 팀 | 기본 실행자 |
-| --- | --- |
-| Product | Codex |
-| UX/Figma | Codex |
-| Engineering | Codex |
-| Data/DB | Codex |
-| QA/Reliability/Security | Claude |
-| Release/운영 | Claude |
+배정 완료는 `owner:*` + `team:*` + 기본 `area:*` + `state:ready`로 표시하고, bot의 `onepick-pm-assignment` marker에 team / assignee / resolved owner / action / area / 원 지시 SOURCE_ID를 고정한다.
 
-PM은 작업 단위 전문성·가용성에 따라 `to=claude` 또는 `to=codex`로 명시적 예외 배정할 수 있다.
+### 상태와 claim
 
-### 실행과 완료
+- `state:blocked`: pending을 유지한다. blocker가 해제되면 새 사용자 지시 없이 label event로 재평가한다.
+- `state:active`: 실행 중이므로 새 배정을 보류한다.
+- `state:ready`: 배정 완료, 아직 실제 착수 전.
+- `action=execute`를 claim하면 `state:active`.
+- `action=review`를 claim하면 `state:review`.
+- 새 trusted PM directive는 이전 `state:ready/review/handoff` 라우팅을 명시적으로 대체할 수 있다.
+- 신규 PM 배정은 `handoff:*`를 만들지 않는다. 기존 handoff는 과거/수동 리뷰 체인의 호환 경로다.
 
-- 팀장 세션은 자신의 `team:*` + `state:ready` 이슈를 본다.
-- Claude/Codex 실행 세션은 자신의 `owner:*` + `state:ready` 이슈를 본다.
-- 실제 착수 시 `state:active`로 claim하고 `state:ready`를 제거한다.
-- `state:blocked`이면 dispatcher는 pending을 유지하고 blocker가 해제될 때 재평가한다.
-- `state:active` 중에는 같은 작업을 중복 배정하지 않는다. `state:review`는 새 trusted PM directive가 다음 작업을 확정한 경우에만 자동 해제하고 새 배정으로 전환한다.
-- 기존 `handoff:*`는 과거/수동 인계 호환용이며 새 PM 배정의 기본 경로가 아니다.
-- 완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수한다. `size:M/L` 또는 Data/Security/Infra·보안민감 PR은 반대 AI에게 `phase=review` + `state:ready`로 독립 검토를 자동 배정한다. 독립 검토 완료 리포트가 올라오면 `state:review` + `PM_REVIEW_REQUIRED: reason=review-complete`로 #567 PM review queue에 반환한다. 독립 검토가 필요 없는 작업은 `reason=stage-complete`로 바로 PM queue에 반환한다.
+팀장 세션은 자신의 `team:* + owner:codex + state:ready`를, Claude 세션은 `owner:claude + state:ready`를 우선 확인한다.
 
-구현: `.github/workflows/ai-pm-dispatch.yml`, `.github/scripts/pm-dispatch.cjs`.
+### 완료보고 → PM
+
+trusted `## 완료 리포트`가 원 작업 이슈에 게시되면 dispatcher는 후속 담당을 임의로 선택하지 않는다.
+
+1. 실행/handoff 상태를 정리하고 `state:review`로 전환
+2. report SOURCE_ID를 한 번만 처리
+3. `PM_REVIEW_REQUIRED: reason=stage-complete ...` 생성
+4. #567 PM review queue가 접수
+5. PM이 다음 `execute` 또는 `review` 지시를 결정
+
+따라서 M/L·고위험 작업의 반대 AI 독립 검토도 **PM이 정책에 따라 `action=review` 지시로 자동 배정**하며, 담당 팀장이 임의로 다음 owner를 정하지 않는다.
+
+### AI 실행 스위치와 분리
+
+PM dispatcher와 #567 PM review queue는 `ONEPICK_AI_HANDOFF_ENABLED`와 독립적으로 동작한다. 기존 Claude/Codex 모델 runner를 꺼도 업무 배정·완료보고·PM queue는 계속 작동한다.
+
+구현:
+- `.github/workflows/ai-pm-dispatch.yml`
+- `.github/scripts/pm-dispatch.cjs`
+- `.github/workflows/ai-pm-review-queue.yml`
 
 ### 수동 요청 원칙
 
-자동화 문제는 먼저 재시도·stale/중복 검증·상태 복구로 해결한다. 사용자에게 수동 작업을 요청하는 것은 아래처럼 자동화가 대신할 수 없는 경우로 제한한다.
+문제가 생기면 먼저 중복/stale 검증, 3회 상태 반영 재시도, pending 복구, blocker 해제 event를 사용한다. 사용자에게 수동 작업을 요청하는 것은 자동화가 대신할 수 없는 다음 경우로 제한한다.
 
 - main merge 등 기존 사용자 승인 게이트
 - Production DB `mode=apply` / production 배포 승인
 - secret/environment/permission 변경
 - MFA, OAuth 재인증, 결제 또는 계정 소유자 전용 UI 조작
-- GitHub API 상태 반영을 3회 재시도한 뒤에도 실패하고 자동 복구 이벤트도 없는 경우
+- GitHub 상태 반영을 3회 재시도한 뒤에도 실패하고 자동 복구 event도 없는 경우
 
-단순히 다른 ChatGPT 대화방을 깨울 수 없다는 이유만으로 사용자에게 반복 지시를 요청하지 않는다. GitHub의 `team:*` / `owner:*` / `state:ready`를 공식 배정 상태로 사용한다.
+별도 ChatGPT 대화방을 직접 깨울 수 없다는 이유만으로 사용자에게 반복 지시를 요청하지 않는다. GitHub의 team/owner/state와 assignment marker를 공식 배정 상태로 사용한다.
+
