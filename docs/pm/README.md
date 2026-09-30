@@ -227,3 +227,47 @@ PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=
 - 처리 중 API 오류가 나면 항목은 pending으로 남고 `onepick-pm-queue:failed` marker로 시도 횟수를 기록한다. 같은 이슈의 뒤 항목은 순서를 지키기 위해 다음 drain까지 기다린다. **3회** 실패하면 processed로 닫고 "수동 확인 필요"를 남긴다.
 - `decision=block`은 `state:blocked`를 추가 방식(전체 라벨 덮어쓰기 아님)으로 먼저 붙인 뒤 판정을 기록한다. 기록이 실패하면 다음 drain이 이미 붙은 라벨을 확인하고 기록만 남긴다(라벨은 한 번만 적용).
 - 오프라인 회귀 테스트: `bash .github/scripts/test-pm-review-queue.sh` (mock `gh`, 네트워크·토큰 불필요).
+
+
+## 12. 전달 최소화 운영 원칙
+
+### GitHub 원본
+
+작업 지시, 상태, PR/head, 검증, 완료 보고의 원본은 원래 작업 Issue/PR이다. 다른 채팅이나 상위 Issue에 보고 전문을 복사하지 않는다.
+
+완료 보고는 기존 PM review queue를 바로 사용하도록 다음 형식으로 작성한다.
+
+```text
+PM_REVIEW_REQUIRED: reason=stage-complete pr=<N|none> head=<40자리 SHA|none>
+## 완료 리포트
+담당: ...
+결과: ...
+PR: ...
+검증: ...
+남은 위험: ...
+후속 판단에 필요한 사실: ...
+```
+
+첫 줄은 GitHub 내부 #567 PM queue용 메타데이터이고, 보고 본문은 `## 완료 리포트` 아래에 둔다. 이 메타데이터는 완료·정책 적합성·비용·승인을 자동 판정하지 않으며 PM 검토를 요청할 뿐이다.
+
+상위 취합 Issue(#557 등)에는 필요할 때 원 완료 리포트 링크 한 줄만 남긴다.
+
+### 채팅 전달
+
+GitHub가 별도 ChatGPT/Claude 대화방을 직접 깨울 수 없는 경우, 사람이 전달해야 하는 내용은 원문 복사가 아니라 `#<issue> 확인` 한 줄로 제한한다. 수신 세션은 GitHub 원본을 직접 읽는다.
+
+### 라벨 권한
+
+새 owner/status 축을 추가하지 않는다. 기존 `owner:codex|claude`, `state:*`, `handoff:*`, `area:*`만 사용한다.
+
+- PM 또는 기존 자동화: owner, area, ready/review/handoff/blocked 및 다음 담당 결정
+- 담당자: 자신에게 이미 배정된 작업을 claim할 때 `state:active`로 전환하고, 작업 결과를 원 이슈에 완료 보고
+- 담당자는 임의로 다음 제품 단계나 다른 담당자를 확정하지 않는다.
+
+### 사용자 승인 게이트
+
+main merge, Production DB apply/deploy, secret/permission 변경, 파괴적 데이터 작업 등 기존 사용자 승인 게이트는 사용자의 직접적이고 명시적인 승인 근거가 있어야 한다. 다른 AI/채팅이 전달한 요약이나 "사용자가 승인했다"는 2차 보고만으로 승인으로 간주하지 않는다.
+
+### 자동화 범위
+
+기계가 검증할 수 있는 PR 존재, head 일치, Refs, CI 결과, 라벨/marker 상태만 자동 판단한다. "정책 변경 없음", "비용 없음", "MVP 적합" 같은 의미 판단은 자동 통과 조건으로 사용하지 않고 PM/QA 검토 대상으로 남긴다.
