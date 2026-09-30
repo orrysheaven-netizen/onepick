@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StateCard } from '@/components/ui';
@@ -12,6 +12,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { useChoosePhoto, useReadCurrentPickSlot, useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
+import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { PickPhotoDraft } from '@/types/domain/photo';
@@ -302,6 +303,9 @@ export default function NewPickScreen() {
       setDone({ pickId: result.pickId, itemId: result.itemId });
       setPickChangedElsewhere(false);
       setStep(6);
+      // Approved in #552: no confirmation dialog; the item detail shows a toast.
+      armPickSavedToast(result.pickId);
+      router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.pickId } });
     } catch (error) {
       if (error instanceof AppError && error.code === 'PICK_CHANGED_ELSEWHERE') {
         setPickChangedElsewhere(true);
@@ -591,18 +595,6 @@ export default function NewPickScreen() {
         </> : null}
       </ScrollView>
 
-      <Modal transparent visible={step === 6 && Boolean(done)} animationType="fade" onRequestClose={() => {}}>
-        <View style={styles.overlay}>
-          {done && store && menu ? <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>원픽을 정했어요</Text>
-            <Text style={styles.dialogBody}>{`${pickDisplayName} ${menu.name}이 내 원픽이 됐어요.`}</Text>
-            <View style={styles.dialogSpacer} />
-            <FlowButton label="확인" onPress={() => {
-              router.replace({ pathname: '/item/[itemId]', params: { itemId: done.itemId, pickId: done.pickId } });
-            }} />
-          </View> : null}
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -709,16 +701,4 @@ const styles = StyleSheet.create({
   notice: { padding: OnePickSpace.md, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgAccentSubtle },
   noticeText: { ...OnePickType.caption, color: OnePick.textPrimary },
   counter: { ...OnePickType.caption, alignSelf: 'stretch', color: OnePick.textTertiary, textAlign: 'right' },
-  overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgOverlay },
-  dialog: {
-    width: 300,
-    alignItems: 'center',
-    gap: OnePickSpace.sm,
-    padding: OnePickSpace.xxl,
-    borderRadius: OnePickRadius.lg,
-    backgroundColor: OnePick.bgDefault,
-  },
-  dialogTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  dialogBody: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center' },
-  dialogSpacer: { height: OnePickSpace.sm },
 });
