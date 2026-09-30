@@ -123,18 +123,26 @@ PR: #<번호>
 
 ### GitHub-only PM 자동 배정
 
-새 PM 지시는 `handoff:*` 라벨을 기본 경로로 사용하지 않는다. `.github/workflows/ai-pm-dispatch.yml`이 검증된 `PM_DIRECTIVE`를 받아 다음을 함께 기록한다.
+새 PM 지시는 `handoff:*`를 기본 경로로 사용하지 않는다. `.github/workflows/ai-pm-dispatch.yml`이 repository-owner의 첫 줄 `PM_DIRECTIVE`를 검증하고 다음을 기록한다.
 
-- 부서/팀장: `team:product|ux|engineering|data|qa-security|release`
-- 실행자: `owner:codex|owner:claude`
-- 착수 가능: `state:ready`
-- 근거 marker: `onepick-pm-assignment`
+```text
+PM_DIRECTIVE: team=<product|ux|engineering|data|qa|release> assignee=<auto|lead|claude> action=<execute|review> pr=<N|none> head=<40자리 SHA|none>
+```
 
-세션 시작 시 팀장방은 자신의 `team:*` + `state:ready`를, 실행자는 자신의 `owner:*` + `state:ready`를 우선 확인한다. 실제 착수 시 `state:active`로 원자적으로 claim한다. 기존 `handoff:*`는 리뷰 결과나 과거 자동화와의 호환을 위한 보조 경로다.
+- 팀장 lane: 모든 부서에서 `owner:codex`; 실제 부서는 `team:*`와 area로 구분
+- Claude 위임: `owner:claude`
+- `assignee=auto + execute`: 해당 팀장
+- `assignee=auto + review`: 현재 owner의 반대 실행자, owner가 없으면 Claude
+- 배정 완료: `team:*` + `owner:*` + 팀 기본 `area:*` + `state:ready`
+- bot의 `onepick-pm-assignment` marker가 source/team/assignee/resolved/action/owner/area를 고정
 
-`to=auto`는 Product/UX/Engineering/Data를 Codex, QA/Security/Release를 Claude에 기본 배정한다. PM은 전문성·가용성에 따라 명시적으로 다른 실행자를 지정할 수 있다. 이 배정은 AI 모델을 자동 호출하거나 별도 유료 API를 사용한다는 뜻이 아니다.
+세션 시작 시 팀장방은 자신의 `team:* + owner:codex + state:ready`를, Claude는 `owner:claude + state:ready`를 우선 확인한다. 실제 착수 시 assignment marker의 `action=execute`면 `state:active`, `action=review`면 `state:review`로 claim한다. 기존 `handoff:*`는 과거/수동 리뷰 체인의 호환 경로다.
 
-완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수한다. `size:M/L` 또는 고위험(Data/Auth/RLS/Storage/security/production-workflow) 변경은 반대 AI를 `phase=review` + `state:ready`로 자동 배정한다. 독립 리뷰 완료 보고가 올라온 뒤에만 `PM_REVIEW_REQUIRED: reason=review-complete`로 #567 PM review queue에 반환한다. 독립 리뷰가 필요 없는 작업은 `reason=stage-complete`로 바로 PM queue에 반환한다.
+`state:blocked`과 실행 중 `state:active`는 pending을 유지한다. blocker/active가 해제되면 GitHub label event가 자동 재평가한다. 명시적인 새 PM directive는 이전 ready/review/handoff 라우팅을 대체할 수 있다.
+
+완료 시 원 이슈의 `## 완료 리포트`를 dispatcher가 접수해 `state:review` + `PM_REVIEW_REQUIRED`로 #567 PM review queue에 반환한다. dispatcher가 완료 리포트만 보고 다음 구현자나 리뷰어를 임의로 선택하지 않는다. M/L·고위험 작업의 반대 AI 검토는 PM이 정책에 따라 `action=review` directive로 배정한다.
+
+PM dispatcher와 PM review queue는 AI 모델 runner의 master switch와 분리되어 있다. 이 경로는 Claude/Codex 모델을 자동 호출하거나 별도 유료 API를 사용하지 않는다.
 
 ## PR·CI 실행 비용 규칙
 
