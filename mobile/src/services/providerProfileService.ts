@@ -103,7 +103,7 @@ type ProviderItemRow = {
 };
 type ProviderCategoryRow = { id: string; name: string; status: string; is_visible: boolean };
 type ProviderBrandRow = { id: string; name: string; logo_path: string | null; is_active: boolean };
-type PickCountRow = { item_id: string; one_line_review?: string | null; started_at?: string | null };
+type PickCountRow = { id: string; item_id: string; one_line_review?: string | null; started_at?: string | null };
 
 function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
   const path = row.thumbnail_path ?? row.image_path;
@@ -136,9 +136,10 @@ export class ProviderProfileService {
     while (true) {
       const { data, error } = await this.db(this.countClient)
         .from('picks')
-        .select('item_id,one_line_review,started_at')
+        .select('id,item_id,one_line_review,started_at')
         .in('item_id', itemIds)
         .eq('status', 'active')
+        .order('id', { ascending: true })
         .range(from, from + COUNT_PAGE_SIZE - 1);
       if (error) throw mapSupabaseError(error);
       const rows = (data ?? []) as PickCountRow[];

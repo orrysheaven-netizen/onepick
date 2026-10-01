@@ -38,7 +38,8 @@ assert.match(screen, /item\.latestReview \? <Text numberOfLines=\{1\} style=\{st
 assert.match(screen, /pathname: '\/item\/\[itemId\]'/, 'store menu rows open item detail');
 
 assert.match(service, /latestReview: string \| null/);
-assert.match(service, /select\('item_id,one_line_review,started_at'\)/);
+assert.match(service, /select\('id,item_id,one_line_review,started_at'\)/);
+assert.match(service, /order\('id', \{ ascending: true \}\)[\s\S]*?range\(/, 'Pick stats pagination uses a stable unique order before range');
 assert.match(service, /latestReviews\.get\(item\.id\)\?\.review \?\? null/);
 assert.match(service, /from\('brands'\)[\s\S]*?select\('id,name,logo_path,is_active'\)/);
 
