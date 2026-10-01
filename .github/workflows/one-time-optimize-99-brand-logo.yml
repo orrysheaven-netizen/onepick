@@ -1,0 +1,275 @@
+name: One-time optimize 99 brand logo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-time-optimize-99-brand-logo.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-time-optimize-99-brand-logo
+  cancel-in-progress: false
+
+jobs:
+  optimize:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Production
+    timeout-minutes: 10
+    env:
+      SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      BRAND_ID: 3ce54733-96f2-4115-b29e-7e619e283487
+      BRAND_NAME: "99밀크티앤커피"
+      OLD_PATH: 3ce54733-96f2-4115-b29e-7e619e283487/muikb1vk-aue7tb1s.png
+      EXPECTED_OLD_SIZE: "210625"
+
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pinned image dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/brand-logo-job"
+          cd "$RUNNER_TEMP/brand-logo-job"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact sharp@0.34.4
+
+      - name: Re-encode and replace brand logo
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/brand-logo-job/node_modules
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const sharp = require('sharp');
+
+          const projectRef = process.env.SUPABASE_PROJECT_REF;
+          const projectUrl = `https://${projectRef}.supabase.co`;
+          const brandId = process.env.BRAND_ID;
+          const brandName = process.env.BRAND_NAME;
+          const oldPath = process.env.OLD_PATH;
+          const expectedOldSize = Number(process.env.EXPECTED_OLD_SIZE);
+
+          function storagePath(path) {
+            return path.split('/').map(encodeURIComponent).join('/');
+          }
+
+          function authHeaders(key, extra = {}) {
+            return {
+              apikey: key,
+              Authorization: `Bearer ${key}`,
+              ...extra,
+            };
+          }
+
+          async function responseText(res) {
+            const text = await res.text();
+            return text.slice(0, 1000);
+          }
+
+          async function resolveServiceKey() {
+            let key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+            if (key) {
+              console.log('Using an existing Production server key.');
+              console.log(`::add-mask::${key}`);
+              return key;
+            }
+
+            const token = (process.env.SUPABASE_ACCESS_TOKEN || '').trim();
+            if (!token) throw new Error('No server key or SUPABASE_ACCESS_TOKEN is available.');
+
+            const res = await fetch(
+              `https://api.supabase.com/v1/projects/${projectRef}/api-keys?reveal=true`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (!res.ok) {
+              throw new Error(`Management API could not reveal a server key (HTTP ${res.status}).`);
+            }
+
+            const payload = await res.json();
+            const keys = Array.isArray(payload) ? payload : (payload?.api_keys || payload?.keys || []);
+            const row =
+              keys.find((item) => item?.type === 'secret' && item?.api_key) ||
+              keys.find((item) => item?.name === 'service_role' && item?.api_key);
+            key = row?.api_key || '';
+            if (!key) throw new Error('No usable secret/service_role key was returned.');
+            console.log(`::add-mask::${key}`);
+            return key;
+          }
+
+          async function removeObject(key, path) {
+            const res = await fetch(`${projectUrl}/storage/v1/object/brand-logos`, {
+              method: 'DELETE',
+              headers: authHeaders(key, { 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ prefixes: [path] }),
+            });
+            if (!res.ok) throw new Error(`Storage remove failed (HTTP ${res.status}): ${await responseText(res)}`);
+          }
+
+          async function main() {
+            const key = await resolveServiceKey();
+
+            const brandQuery = new URLSearchParams({
+              select: 'id,name,logo_path',
+              id: `eq.${brandId}`,
+            });
+            const beforeRes = await fetch(`${projectUrl}/rest/v1/brands?${brandQuery}`, {
+              headers: authHeaders(key, { Accept: 'application/json' }),
+            });
+            if (!beforeRes.ok) throw new Error(`Brand preflight failed (HTTP ${beforeRes.status}).`);
+            const before = await beforeRes.json();
+            if (!Array.isArray(before) || before.length !== 1) throw new Error('Brand preflight did not return exactly one row.');
+            if (before[0].name !== brandName || before[0].logo_path !== oldPath) {
+              throw new Error('Brand preflight mismatch; refusing to modify a changed record.');
+            }
+
+            const sourceRes = await fetch(
+              `${projectUrl}/storage/v1/object/public/brand-logos/${storagePath(oldPath)}?reencode=${Date.now()}`,
+              { cache: 'no-store' },
+            );
+            if (!sourceRes.ok) throw new Error(`Source logo download failed (HTTP ${sourceRes.status}).`);
+            const source = Buffer.from(await sourceRes.arrayBuffer());
+            if (source.length !== expectedOldSize) {
+              throw new Error(`Source size changed: expected ${expectedOldSize}, got ${source.length}. Refusing to proceed.`);
+            }
+
+            const sourceMeta = await sharp(source, { failOn: 'error' }).metadata();
+            if (!sourceMeta.width || !sourceMeta.height) throw new Error('Could not read source PNG dimensions.');
+
+            const { data: encoded, info } = await sharp(source, { failOn: 'error' })
+              .resize({ width: 256, height: 256, fit: 'inside', withoutEnlargement: true })
+              .png({ compressionLevel: 9, adaptiveFiltering: true })
+              .toBuffer({ resolveWithObject: true });
+
+            if (!info.width || !info.height || Math.max(info.width, info.height) > 256) {
+              throw new Error(`Unexpected output dimensions: ${info.width}x${info.height}.`);
+            }
+
+            const token = crypto.randomBytes(5).toString('hex');
+            const newPath = `${brandId}/${Date.now().toString(36)}-${token}.png`;
+
+            console.log(`Source: ${sourceMeta.width}x${sourceMeta.height}, ${source.length} bytes`);
+            console.log(`Output: ${info.width}x${info.height}, ${encoded.length} bytes`);
+            console.log(`New path: ${newPath}`);
+
+            const uploadRes = await fetch(
+              `${projectUrl}/storage/v1/object/brand-logos/${storagePath(newPath)}`,
+              {
+                method: 'POST',
+                headers: authHeaders(key, {
+                  'Content-Type': 'image/png',
+                  'cache-control': '31536000',
+                  'x-upsert': 'false',
+                }),
+                body: encoded,
+              },
+            );
+            if (!uploadRes.ok) throw new Error(`Storage upload failed (HTTP ${uploadRes.status}): ${await responseText(uploadRes)}`);
+
+            let brandUpdated = false;
+            try {
+              const patchQuery = new URLSearchParams({
+                id: `eq.${brandId}`,
+                name: `eq.${brandName}`,
+                logo_path: `eq.${oldPath}`,
+              });
+              const patchRes = await fetch(`${projectUrl}/rest/v1/brands?${patchQuery}`, {
+                method: 'PATCH',
+                headers: authHeaders(key, {
+                  'Content-Type': 'application/json',
+                  Prefer: 'return=representation',
+                }),
+                body: JSON.stringify({ logo_path: newPath }),
+              });
+              if (!patchRes.ok) throw new Error(`Brand update failed (HTTP ${patchRes.status}): ${await responseText(patchRes)}`);
+              const patched = await patchRes.json();
+              if (!Array.isArray(patched) || patched.length !== 1 || patched[0].logo_path !== newPath) {
+                throw new Error('Brand update did not affect exactly the expected row.');
+              }
+              brandUpdated = true;
+            } catch (error) {
+              await removeObject(key, newPath).catch(() => {});
+              throw error;
+            }
+
+            if (!brandUpdated) throw new Error('Brand update was not confirmed.');
+
+            let oldDeleted = false;
+            let lastDeleteError = null;
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              try {
+                await removeObject(key, oldPath);
+                oldDeleted = true;
+                break;
+              } catch (error) {
+                lastDeleteError = error;
+                await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+              }
+            }
+
+            const verifyRes = await fetch(
+              `${projectUrl}/storage/v1/object/authenticated/brand-logos/${storagePath(newPath)}`,
+              { headers: authHeaders(key, { 'cache-control': 'no-cache' }) },
+            );
+            if (!verifyRes.ok) throw new Error(`New logo verification download failed (HTTP ${verifyRes.status}).`);
+            const verified = Buffer.from(await verifyRes.arrayBuffer());
+            const verifyMeta = await sharp(verified, { failOn: 'error' }).metadata();
+            if (verified.length !== encoded.length || Math.max(verifyMeta.width || 0, verifyMeta.height || 0) > 256) {
+              throw new Error('New logo verification did not match expected size/dimensions.');
+            }
+
+            const afterRes = await fetch(`${projectUrl}/rest/v1/brands?${brandQuery}`, {
+              headers: authHeaders(key, { Accept: 'application/json' }),
+            });
+            const after = await afterRes.json();
+            if (!afterRes.ok || !Array.isArray(after) || after.length !== 1 || after[0].logo_path !== newPath) {
+              throw new Error('Brand post-verification failed.');
+            }
+
+            if (!oldDeleted) {
+              console.log(`::warning::New logo is active, but old-object cleanup failed: ${lastDeleteError?.message || 'unknown error'}`);
+            }
+
+            const summary = [
+              '### 99밀크티앤커피 brand-logo replacement',
+              '',
+              `- old path: \`${oldPath}\``,
+              `- old bytes: ${source.length}`,
+              `- source dimensions: ${sourceMeta.width}x${sourceMeta.height}`,
+              `- new path: \`${newPath}\``,
+              `- new bytes: ${verified.length}`,
+              `- new dimensions: ${verifyMeta.width}x${verifyMeta.height}`,
+              `- old object deleted: ${oldDeleted ? 'yes' : 'no'}`,
+            ].join('\n') + '\n';
+            if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+
+            console.log(JSON.stringify({
+              brandId,
+              brandName,
+              oldPath,
+              newPath,
+              oldBytes: source.length,
+              newBytes: verified.length,
+              sourceDimensions: [sourceMeta.width, sourceMeta.height],
+              newDimensions: [verifyMeta.width, verifyMeta.height],
+              oldDeleted,
+            }));
+          }
+
+          main().catch((error) => {
+            console.error(error?.stack || String(error));
+            process.exit(1);
+          });
+          NODE
