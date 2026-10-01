@@ -34,7 +34,14 @@ begin
 
   -- viewer follows friend, blocks blocked_u, and holds X.
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
-  perform set_config('request.jwt.claim.sub',viewer::text,true);
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+perform set_config('request.jwt.claim.sub',viewer::text,true);
   set local role authenticated;
   insert into public.user_follows(follower_id,followee_id) values(viewer,friend);
   insert into public.user_blocks(blocker_user_id,blocked_user_id,blocked_username_snapshot)
