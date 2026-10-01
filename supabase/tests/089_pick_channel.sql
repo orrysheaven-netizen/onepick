@@ -64,6 +64,13 @@ select ok(
   'members can remove a Pick by category and channel'
 );
 
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 select set_config('request.jwt.claim.sub',(select id::text from pc_ids where key='member'),true);
 
 -- A client that sends no channel gets the item's own channel.
