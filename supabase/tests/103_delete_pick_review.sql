@@ -39,7 +39,14 @@ begin
     (cur_pick, cur_u,   menu,  item_x,   'online', 'X for me',    'active',   base, null, null),
     (susp_pick,susp_u,  menu,  item_x,   'online', 'susp review', 'active',   base - interval '1 hour', null, null);
   update public.picks set replaced_by_pick_id = x_pick where id = old_pick;
-  perform set_config('request.jwt.claim.sub',cur_u::text,true);
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+perform set_config('request.jwt.claim.sub',cur_u::text,true);
   set local role authenticated;
   insert into public.comments(id,pick_id,user_id,body,created_at) values(c_cur, x_pick, cur_u, 'good choice', base + interval '1 minute');
   reset role;
