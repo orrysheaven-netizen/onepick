@@ -21,6 +21,13 @@ insert into public.items(id,category_id,name,normalized_name,status) values
   ('f9940000-0000-4000-8000-000000000001','f9930000-0000-4000-8000-000000000001','댓글 제품 A','댓글제품a','active'),
   ('f9940000-0000-4000-8000-000000000002','f9930000-0000-4000-8000-000000000001','댓글 제품 B','댓글제품b','active');
 
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','f9920000-0000-4000-8000-000000000001',true);
 select set_config(
