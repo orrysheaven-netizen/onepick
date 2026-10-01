@@ -16,6 +16,10 @@ export class ExploreService {
     return this.readRepository.getCategoryTopItems(categoryId, channel);
   }
 
+  getRecentFoodMenuRanking(groupCategoryId: string | null = null, limit = 6) {
+    return this.readRepository.getRecentFoodMenuRanking(groupCategoryId, limit);
+  }
+
   /** Public ranking page data; optional filters keep the future full model intact. */
   getCategoryRanking(slug: string, limit?: number, channel: PickChannel | null = null, rootSlug: string | null = null) {
     return this.readRepository.getCategoryRanking(slug, limit, channel, rootSlug);

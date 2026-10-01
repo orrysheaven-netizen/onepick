@@ -51,6 +51,14 @@ const onepickConstants = load('constants/onepick.ts', {
   './font-family': load('constants/font-family.web.ts'),
 });
 const followCountsQuery = { data: { followingCount: 0, followerCount: 0 }, isPending: false, isError: false };
+const recentMenuRankingQuery = {
+  data: [
+    { categoryId: 'ramen', categoryName: '라면', groupCategoryId: 'noodles', pickCount: 5, rank: 1, isTied: false },
+    { categoryId: 'snacks', categoryName: '과자', groupCategoryId: 'food', pickCount: 2, rank: 2, isTied: false },
+  ],
+  isPending: false,
+  isError: false,
+};
 const followingQuery = {
   data: { items: [query.data.picks[0]], nextCursor: null },
   isPending: false, isError: false, isFetching: false, isRefetching: false,
@@ -80,7 +88,9 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
+  '@/hooks/useExploreData': {
+    useRecentFoodMenuRanking: () => recentMenuRankingQuery,
+    useExploreCategories: () => ({ data: [
     { id: 'food', parentId: null, name: '먹을것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
     { id: 'noodles', parentId: 'food', name: '면류', slug: 'noodles', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
     { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
@@ -89,7 +99,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'movie', parentId: 'culture', name: '영화', slug: 'movie', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
-  ] }) },
+  ] }),
+  },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; } },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
@@ -172,6 +183,9 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면 사람들의 원픽 보기'), 'Signed-in Home keeps the menu grid');
+  assert.match(page, /최근 7일 많이 고른 메뉴/, 'Home uses the rolling-7-day menu ranking when available');
+  assert.match(page, /원픽 5\s*›/, 'A menu at or above the 3-person threshold exposes its 7-day count');
+  assert.doesNotMatch(page, /원픽 2\s*›/, 'A low-sample recent menu hides its count');
   itemSearchProps.onSubmitSearch('최재천의 아마존');
   assert.equal(destination.pathname, '/explore');
   assert.equal(destination.params.search, '1');
@@ -203,12 +217,18 @@ const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Signed-out Home hides the own-profile avatar');
-assert.match(publicPage, /메뉴별 원픽 보기/);
+assert.match(publicPage, /최근 7일 많이 고른 메뉴/);
 assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home category cards show only the leaf name');
 assert.match(publicPage, />과자</);
 assert.doesNotMatch(publicPage, /영화|>책<|>유튜브</, 'MVP Home starter cards are food only');
 press('라면 사람들의 원픽 보기'); assert.equal(destination.pathname, '/menu/[slug]');
 assert.equal(destination.params.slug, 'ramen', 'A Home menu card opens the production Figma 16A menu detail');
+const rankingData = recentMenuRankingQuery.data;
+recentMenuRankingQuery.data = [];
+const fallbackPage = render();
+assert.match(fallbackPage, /메뉴별 원픽 보기/, 'Empty recent ranking safely falls back to starter menu discovery');
+assert.match(fallbackPage, />과자</, 'Fallback retains food-only starter categories');
+recentMenuRankingQuery.data = rankingData;
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|✓ 내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.doesNotMatch(publicPage, /나도 이게 원픽/, 'Home no longer promotes copying someone else’s Pick');
 assert.match(publicPage, /댓글/); assert.match(publicPage, /공유/);

@@ -2,6 +2,7 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   DishChannelItem,
   DishChannelOverview,
@@ -272,6 +273,31 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getRecentFoodMenuRanking(groupCategoryId: string | null = null, limit = 6) {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 50);
+    // This RPC landed after the last generated database.types.ts snapshot.
+    // It is a public aggregate, so use the same public count client as other rankings.
+    const publicDb = this.countClient as unknown as SupabaseClient;
+    const { data, error } = await publicDb.rpc('food_menu_recent_ranking', {
+      p_group_category_id: groupCategoryId,
+      p_limit: safeLimit,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) return [];
+    return data.flatMap((value) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const row = value as Record<string, unknown>;
+      if (typeof row.category_id !== 'string' || typeof row.category_name !== 'string') return [];
+      return [{
+        categoryId: row.category_id,
+        categoryName: row.category_name,
+        groupCategoryId: typeof row.group_category_id === 'string' ? row.group_category_id : null,
+        pickCount: Number(row.pick_count) || 0,
+        rank: Number(row.rank) || 0,
+        isTied: row.is_tied === true,
+      }];
+    });
+  }
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. Optional channel scope is server-side before limiting.

@@ -16,6 +16,20 @@ export function useExploreCategories(enabled = true) {
   });
 }
 
+const RECENT_FOOD_RANKING_STALE_TIME = 60_000;
+
+export function useRecentFoodMenuRanking(
+  enabled = true,
+  groupCategoryId: string | null = null,
+  limit = 6,
+) {
+  return useQuery({
+    queryKey: queryKeys.explore.recentFoodMenus(groupCategoryId, limit),
+    enabled,
+    staleTime: RECENT_FOOD_RANKING_STALE_TIME,
+    queryFn: () => exploreService.getRecentFoodMenuRanking(groupCategoryId, limit),
+  });
+}
 export function useCategoryTopItems(categoryId?: string, channel: PickChannel | null = null) {
   return useQuery({
     queryKey: queryKeys.explore.topItems(categoryId, channel),

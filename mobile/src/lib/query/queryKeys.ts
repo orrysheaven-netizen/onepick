@@ -15,6 +15,8 @@ export const queryKeys = {
     ranking: (slug?: string, channel: string | null = null, rootSlug: string | null = null) =>
       ['explore', 'ranking', slug ?? 'none', channel ?? 'all-channels', rootSlug ?? 'all-roots'] as const,
     rankingCategories: (rootSlug: string | null = null) => ['explore', 'ranking', 'categories', rootSlug ?? 'all-roots'] as const,
+    recentFoodMenus: (groupCategoryId: string | null = null, limit = 6) =>
+      ['explore', 'recent-food-menus', groupCategoryId ?? 'all-groups', limit] as const,
     data: (categoryId?: string) => ['explore', categoryId ?? 'all', 'cursor'] as const,
     recentItems: (categoryIds: string[] | null, storesOnly = false) =>
       ['explore', 'recent-items', categoryIds ? [...categoryIds].sort().join(',') : 'all', storesOnly ? 'stores' : 'items'] as const,

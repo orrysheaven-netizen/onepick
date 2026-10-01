@@ -38,7 +38,10 @@ function home(count = 20, followingCount = 0) {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
+    '@/hooks/useExploreData': {
+      useExploreCategories: () => ({ data: catalog }),
+      useRecentFoodMenuRanking: () => ({ data: [] }),
+    },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },

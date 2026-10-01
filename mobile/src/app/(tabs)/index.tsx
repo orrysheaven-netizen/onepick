@@ -11,7 +11,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useExploreCategories } from '@/hooks/useExploreData';
+import { useExploreCategories, useRecentFoodMenuRanking } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
@@ -76,6 +76,7 @@ export default function HomeScreen() {
   // Home search, category filters and Explore share one cached category-tree query.
   // Start it alongside Home context instead of waiting for Home to finish first.
   const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
+  const recentMenuRankingQuery = useRecentFoodMenuRanking(!isSessionLoading && !sessionError, null, 6);
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -94,10 +95,23 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  // A menu card opens the production menu-detail screen (Figma 16A). Rankings
-  // remain a separate explicit surface rather than replacing the menu detail.
-  const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
+  // Prefer the real rolling-7-day ranking when available. If the RPC is empty,
+  // unavailable, or still loading, keep the old food starter cards as a safe fallback.
+  // Low-sample rows may still help discovery, but their counts stay hidden below
+  // the same 3-person threshold used by Explore ranking detail.
+  const rankedMenuCategories = useMemo(() => {
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    return (recentMenuRankingQuery.data ?? []).flatMap((row) => {
+      const category = byId.get(row.categoryId);
+      return category ? [{ category, recentPickCount: row.pickCount }] : [];
+    });
+  }, [categoryCatalog, recentMenuRankingQuery.data]);
+  const starterMenuCategories = useMemo(
+    () => homeStarterCategories(categoryCatalog).map((category) => ({ category, recentPickCount: null as number | null })),
+    [categoryCatalog],
+  );
+  const menuCategories = rankedMenuCategories.length ? rankedMenuCategories : starterMenuCategories;
+  const hasRecentMenuRanking = rankedMenuCategories.length > 0;
   const openMenu = (category: { slug: string }) => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } });
   const ready = !isLoading && !sessionError && Boolean(data);
 
@@ -227,14 +241,18 @@ export default function HomeScreen() {
           </View>
         </View> : null}
 
-        {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
+        {ready && data && menuCategories.length ? <View style={styles.categorySection}>
+          <View style={styles.nextSection}><SectionHeader
+            title={hasRecentMenuRanking ? '최근 7일 많이 고른 메뉴' : '메뉴별 원픽 보기'}
+            description={hasRecentMenuRanking ? '최근 7일 동안 사람들이 현재 원픽으로 고른 메뉴예요' : '메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요'} /></View>
           <View style={styles.categoryGrid}>
-            {categories.map((category) => {
+            {menuCategories.map(({ category, recentPickCount }) => {
               const label = category.name;
+              const showRecentCount = recentPickCount !== null && recentPickCount >= OnePickThresholds.exploreRankingMinPicks;
               return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 사람들의 원픽 보기'}
                 onPress={() => openMenu(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>사람들의 원픽 보기  ›</Text>
+                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text>
+                <Text style={styles.categoryAction}>{showRecentCount ? `원픽 ${recentPickCount.toLocaleString()}  ›` : '사람들의 원픽 보기  ›'}</Text>
               </Pressable>;
             })}
           </View>

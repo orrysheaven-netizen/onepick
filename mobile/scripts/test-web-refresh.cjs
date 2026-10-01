@@ -47,6 +47,7 @@ function fixture(kind, platform = 'web') {
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
+      useRecentFoodMenuRanking: () => query([]),
       useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
