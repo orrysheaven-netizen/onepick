@@ -42,7 +42,14 @@ begin
     (v_mapo,'reviewplace','mapo','원픽식당','원픽식당','마포점','서울 마포구 원픽로 2','서울','마포구','한식','open',now());
 
   -- A new place is a pending request by the selecting user.
-  set local role authenticated;
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_alice::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
 
