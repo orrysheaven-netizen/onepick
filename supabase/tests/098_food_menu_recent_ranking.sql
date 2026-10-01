@@ -60,7 +60,7 @@ join fmr_ids i on i.key=v.ikey
 join fmr_ids c on c.key=v.ckey;
 
 -- Age rows explicitly: now() is constant inside the test transaction.
---   soup:   u1 A offline (1d) + u1 B online (2d) → u1 counted once
+--   soup:   u1 C offline (1d) + u1 B online (2d) → u1 counted once
 --           (items without item_channels accept offline/online; recipe needs a YouTube item)
 --           u2 A offline (3d), u3 B online (6d), u4 C offline (8d, too old)
 --           u5 C offline replaced within the week (not current)
@@ -71,7 +71,7 @@ insert into public.picks(user_id,category_id,item_id,channel,one_line_review,sta
 select u.id, i.category_id, i.id, v.channel, 'fmr', v.status, now() - v.age,
   case when v.status = 'active' then null else now() - interval '1 hour' end
 from (values
-  ('u1','soup_a','offline','active',interval '1 day'),
+  ('u1','soup_c','offline','active',interval '1 day'),
   ('u1','soup_b','online','active',interval '2 days'),
   ('u2','soup_a','offline','active',interval '3 days'),
   ('u3','soup_b','online','active',interval '6 days'),
@@ -112,6 +112,29 @@ select is(
 );
 
 select is(
+  (select array_agg(category_name || ':' || pick_count || ':' || rank || ':' || is_tied order by category_name)
+   from public.food_menu_recent_ranking(
+     (select id from fmr_ids where key='group'),
+     20,
+     'offline'
+   )),
+  array['FMR 국:2:2:false','FMR 면:3:1:false'],
+  'channel scope counts only current Picks in the requested channel'
+);
+
+select is(
+  (select cover_item_id
+   from public.food_menu_recent_ranking(
+     (select id from fmr_ids where key='group'),
+     20,
+     'offline'
+   )
+   where category_id = (select id from fmr_ids where key='soup')),
+  (select id from fmr_ids where key='soup_c'),
+  'channel scope chooses the cover only from Picks in that channel'
+);
+
+select is(
   (select count(*)::int from public.food_menu_recent_ranking(p_limit => 50)
    where category_id in (select id from fmr_ids)),
   3,
@@ -125,6 +148,42 @@ select is(
 );
 
 reset role;
+
+select ok(
+  to_regprocedure('public.food_menu_recent_ranking(uuid,integer)') is null,
+  'the old two-argument overload is gone'
+);
+
+select ok(
+  to_regprocedure('public.food_menu_recent_ranking(uuid,integer,text)') is not null,
+  'the channel-scoped function has one unambiguous three-argument identity'
+);
+
+select ok(
+  not (select prosecdef from pg_proc where oid='public.food_menu_recent_ranking(uuid,integer,text)'::regprocedure),
+  'recent menu ranking remains SECURITY INVOKER'
+);
+
+select ok(
+  (select 'search_path=""'=any(proconfig)
+   from pg_proc where oid='public.food_menu_recent_ranking(uuid,integer,text)'::regprocedure),
+  'recent menu ranking keeps an empty search_path'
+);
+
+select ok(
+  has_function_privilege('anon','public.food_menu_recent_ranking(uuid,integer,text)','execute'),
+  'anon keeps execute on recent menu ranking'
+);
+
+select ok(
+  has_function_privilege('authenticated','public.food_menu_recent_ranking(uuid,integer,text)','execute'),
+  'authenticated keeps execute on recent menu ranking'
+);
+
+select ok(
+  has_function_privilege('service_role','public.food_menu_recent_ranking(uuid,integer,text)','execute'),
+  'service_role keeps execute on recent menu ranking'
+);
 
 select * from finish();
 rollback;
