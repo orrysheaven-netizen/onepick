@@ -41,7 +41,10 @@ update public.items set status='active' where id=(select id from admin_test_requ
 select is((select status from public.items where id=(select id from admin_test_request)),'pending','submitter cannot approve own request');
 select throws_ok($$select public.change_pick((select category_id from admin_test_request),(select id from admin_test_request),'이유')$$,'P0001','ITEM_NOT_ELIGIBLE','pending item cannot be chosen through legacy route');
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
-select lives_ok($$update public.items set status='active' where id=(select id from admin_test_request)$$,'admin approves pending request');
+select lives_ok($update public.items set status='active' where id=(select id from admin_test_request)$,'admin approves pending request');
+reset role;
+update public.items set image_source_url='https://example.invalid/admin-item.jpg' where id=(select id from admin_test_request);
+set local role authenticated;
 select set_config('request.jwt.claim.sub','88888888-8888-8888-8888-888888888888',true);
 select lives_ok($$select public.register_pick((select category_id from admin_test_request),(select id from admin_test_request),'새 제품 120g','이유')$$,'approved item in new category is selectable');
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
