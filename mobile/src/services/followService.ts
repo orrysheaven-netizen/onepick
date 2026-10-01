@@ -1,6 +1,7 @@
 import { AppError } from '@/errors/appError';
 import type { FollowRepository } from '@/repositories/interfaces/followRepository';
 import type { PickChannel, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { FollowConnectionCursor, FollowConnectionDirection } from '@/types/domain/safety';
 
 export class FollowService {
   constructor(
@@ -31,6 +32,21 @@ export class FollowService {
   getCounts(userId: string) {
     if (!userId) throw new AppError('AUTH_REQUIRED');
     return this.followRepository.getCounts(userId);
+  }
+
+  getPublicCounts(profileId: string) {
+    if (!profileId) throw new AppError('PROFILE_NOT_FOUND');
+    return this.followRepository.getPublicCounts(profileId);
+  }
+
+  getConnections(
+    profileId: string,
+    direction: FollowConnectionDirection,
+    cursor: FollowConnectionCursor | null = null,
+    limit = 20,
+  ) {
+    if (!profileId) throw new AppError('PROFILE_NOT_FOUND');
+    return this.followRepository.getConnections(profileId, direction, cursor, limit);
   }
 
   getFollowingFeed(
