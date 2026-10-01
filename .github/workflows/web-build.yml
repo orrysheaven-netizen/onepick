@@ -3,7 +3,9 @@ name: Web build
 on:
   # No path filter on pull_request: these jobs are required status checks on main,
   # and a filtered-out check never reports, which leaves such a PR unmergeable.
+  # Draft PRs and unrelated changes are skipped at job level instead (see `changes`).
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
     paths:
@@ -19,8 +21,76 @@ permissions:
   contents: read
 
 jobs:
-  verify-web:
+  # Lightweight gate. Draft PRs skip it entirely (zero runner minutes); for ready
+  # PRs it decides whether the required job below needs its heavy steps. Anything
+  # other than a successful "no relevant change" verdict runs the full job.
+  changes:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      control_plane: ${{ steps.control_plane.outputs.result }}
+    steps:
+      # The gate script always comes from the base commit, never from the PR under
+      # test, so a PR cannot rewrite the gate to skip its own required checks (#576 M1).
+      - name: Checkout gate script (base commit)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+
+      - name: Decide whether heavy steps are needed
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed-files.txt"
+          # The files API stops at 3000 entries; a truncated list must not skip checks.
+          if [ "$(wc -l < "$RUNNER_TEMP/changed-files.txt")" -ge 3000 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Control-plane changes (the gate, its tests, any workflow) always run the
+          # heavy job. Decided here, not by a script (#576 M1).
+          if grep -Eq '^\.github/(scripts|workflows)/' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          run="$(bash .github/scripts/ci-path-gate.sh \
+            --pattern '^(mobile/|tools/qa/|\.github/workflows/web-build\.yml$)' \
+            < "$RUNNER_TEMP/changed-files.txt")"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      # Flags control-plane changes for the regression test in verify-web (#586). Pure
+      # inline check; the heavy job already runs for these paths (see above).
+      - name: Flag control-plane changes
+        id: control_plane
+        run: |
+          if grep -Eq '^\.github/(workflows/(ai-[^/]+|web-build)\.yml|scripts/test-pm-review-queue\.sh)$' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify-web:
+    needs: changes
+    # Required check: keep this job name. When skipped by this condition it reports
+    # success, so draft or unrelated PRs never leave the check pending.
+    if: >-
+      !cancelled() &&
+      !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
+      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
+    runs-on: ubuntu-latest
+    # Caps a hung run's billing (recent full runs ~1-2 min).
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
@@ -39,6 +109,19 @@ jobs:
         working-directory: .
         run: |
           find tools/qa -type f -name '*.mjs' -print0 | sort -z | xargs -0 -r -n1 node --check
+
+      - name: Test CI path gate
+        working-directory: .
+        run: bash .github/scripts/test-ci-path-gate.sh
+
+      # AI handoff / PM routing control plane (#586). Only when those files change;
+      # a changed workflow already forces this job to run, so no extra runner.
+      - name: Test PM review queue control plane
+        if: needs.changes.outputs.control_plane == 'true'
+        working-directory: .
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y -qq python3-yaml >/dev/null
+          bash .github/scripts/test-pm-review-queue.sh
 
       - name: Install dependencies
         run: npm ci

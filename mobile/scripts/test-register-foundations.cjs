@@ -10,7 +10,7 @@ assert.match(source, /OnePickType\.bodyMedium/, 'registration actions and labels
 assert.match(source, /OnePickSpace\.gutter/, 'registration must use the shared 16px gutter');
 assert.match(source, /OnePickRadius\.md/, 'inputs/buttons/results must use the shared radius scale');
 assert.match(source, /OnePickRadius\.full/, 'chips must use the shared full radius');
-assert.match(source, /OnePick\.bgOverlay/, 'dialog overlay must use the semantic overlay role');
+assert.doesNotMatch(source, /<Modal\b/, 'registration completion is a toast on item detail, not a dialog (#552)');
 assert.doesNotMatch(source, /fontWeight:\s*['"](?:800|900)['"]/, 'registration must not use 800/900 weights');
 assert.doesNotMatch(source, /#[0-9A-Fa-f]{6}/, 'registration screen must not embed six-digit hex colors');
 

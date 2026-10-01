@@ -91,7 +91,8 @@ begin
   insert into public.notification_preferences(user_id,followee_pick_change) values(viewer,false);
   reset role;
   perform set_config('request.jwt.claim.sub',friend::text,true);
-  update public.picks set status='replaced', ended_at=now() where id=pick1;
+  -- Ended over a day ago so re-picking the same item is past the 24-hour cooldown.
+  update public.picks set status='replaced', started_at=now()-interval '26 hours', ended_at=now()-interval '25 hours' where id=pick1;
   insert into public.picks(id,user_id,category_id,item_id,one_line_review,status,started_at)
     values(pick3,friend,cat2,product3,'Switched reason','active',now());
   select count(*) into n from public.pick_change_notifications where pick_id=pick3;

@@ -38,7 +38,6 @@ jobs:
     timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
       MODE: ${{ inputs.mode }}
       FUNCTIONS_INPUT: ${{ inputs.functions }}
@@ -57,7 +56,6 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
-          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
@@ -153,17 +151,38 @@ jobs:
               summary.write(text + "\n")
           PY
 
-      - name: Link onepick-dev
-        if: env.MODE == 'apply'
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
-
       - name: Require database to be deployed first
         if: env.MODE == 'apply'
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_POOLER_HOST: ${{ vars.SUPABASE_DB_POOLER_HOST }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
+          test -n "$SUPABASE_DB_POOLER_HOST" || { echo "Missing SUPABASE_DB_POOLER_HOST variable"; exit 1; }
+
+          db_url="$(python3 - <<'PY'
+          import os
+          import re
+          from urllib.parse import quote
+
+          ref = os.environ["SUPABASE_PROJECT_REF"]
+          host = os.environ["SUPABASE_DB_POOLER_HOST"].strip()
+          if not re.fullmatch(r"[a-z0-9-]+\.pooler\.supabase\.com", host):
+              raise SystemExit("SUPABASE_DB_POOLER_HOST must be the Session pooler hostname only")
+
+          encoded_password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
+          print(f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require")
+          PY
+          )"
+          echo "::add-mask::$db_url"
+
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          trap 'rm -f "$log_file"' EXIT
+          supabase db push --db-url "$db_url" --dry-run --include-all 2>&1 | tee "$log_file"
+          unset db_url
+
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
             exit 1

@@ -1,14 +1,15 @@
 # AI 역할 분담 v2 — Product Builder / Platform Reliability
 
-결정일: 2026-09-25.
+결정일: 2026-09-25.  
+PM 조직 전환 반영: 2026-09-29.
 
-OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 단순 작업 건수가 아니라 작업량 점수로 관리한다. **ChatGPT/Codex가 기본 Product/Technical Owner이자 전체 작업 조정의 기본 주체**다. Claude는 Platform/Reliability, QA, 독립 검토와 위임받은 구현을 담당한다. GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
+OnePick의 **총괄 PM은 ChatGPT**다. 조직과 현재 우선순위는 `docs/pm/` 및 #553을 따른다. AI 구현 작업은 **ChatGPT/Codex 55% : Claude 45%를 참고선**으로 두되 고정 할당량으로 사용하지 않는다. 단순 작업 건수가 아니라 작업량 점수를 보조 지표로 사용하며, 실제 배정은 PM 우선순위·전문성·현재 가용 자원에 따라 동적으로 조정한다. PM 거버넌스 아래 **ChatGPT/Codex가 기본 Product/Technical Owner이자 구현 조정의 기본 주체**다. Claude는 QA/Reliability/Security, 성능 검증, 독립 검토를 주도하고, PM이 배정한 일반 앱/UI S/M 수정, 성능 개선, QA 자동화, Release tooling 구현까지 적극적으로 담당할 수 있다. **Figma 직접 작업은 ChatGPT가 기본 담당하며 Claude는 독립 검수한다.** GPT 사용량·가용성 등의 이유로 사용자가 Claude에 구현을 임시 위임할 수 있으나, 이는 기본 권한이나 영구 소유권의 변경을 뜻하지 않는다. 고위험 변경의 교차 검증과 사용자 승인 게이트는 작업량 비율보다 우선한다.
 
 ## 유일한 원본
 
 대화 내용보다 GitHub의 `main`, 이슈, PR, 커밋, migration, 테스트 결과를 우선한다. 두 에이전트의 설명이 다를 때도 저장소의 실제 상태를 기준으로 판단한다.
 
-## 작업량 60:40
+## 작업량 55:45 참고선과 동적 배정
 
 작업 크기는 이슈에 다음 라벨로 표시한다.
 
@@ -18,13 +19,13 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 | `size:M` | 2 | 화면 기능, API 연결, 중간 규모 수정 |
 | `size:L` | 3 | 여러 파일 구조 변경, DB, 인증, 성능, 대규모 리팩터링 |
 
-최근 14일 **완료된 작업 점수** 기준 목표는 Codex 60% : Claude 40%다. Codex 55~65%를 정상 범위로 보고, 65%를 넘으면 다음 M/L 작업 중 Claude 담당 가능 영역을 Claude에 우선 배정한다.
+최근 14일 **완료된 작업 점수**는 Codex 55% : Claude 45%를 참고선으로 본다. 일반적으로 Codex 50~60%, Claude 40~50% 범위면 균형 상태로 본다. 다만 한쪽의 가용 자원이 더 많거나 전문성이 더 맞는 경우 PM이 일시적으로 이 범위를 벗어나 배정할 수 있다.
 
-비율을 맞추기 위해 기본 권한 구조를 바꾸거나 동일 기능을 중복 구현하지 않는다.
+비율은 우선순위를 결정하는 규칙이 아니다. 비율을 맞추기 위해 불필요한 작업을 만들거나 기본 권한 구조를 바꾸거나 동일 기능을 중복 구현하지 않는다.
 
 ## 역할
 
-### ChatGPT / Codex — 기본 Product / Technical Owner (목표 60%)
+### ChatGPT / Codex — 기본 Product / Technical Owner (참고선 55%)
 
 - 전체 작업 조정, 기본 구현 주체, 기술적 후속 조치 정리
 - 화면, UI/UX, 온보딩, 프로필, 홈, 탐색, 댓글 등 제품 기능
@@ -35,20 +36,25 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 기능 단위 테스트와 기능 명세
 - Claude가 만든 보안/DB PR의 제한 독립 검토
 
-### Claude — Platform / Reliability·독립 검토 (목표 40%)
+### Claude — QA / Reliability / Security + 위임 구현 (참고선 45%)
 
-- Supabase migration, RLS, Auth, Storage 정책
-- secret, 권한, 보안 민감 CI/workflow 변경
-- Critical/High 보안 수정
-- DB 구조·SQL·쿼리 성능
-- 여러 파일에 걸친 리팩터링과 회귀 테스트
-- 성능 분석, 보안 조사
-- Daily QA, Security QA, PR 리뷰, 테스트 자동화
-- Codex M/L PR의 독립 리뷰
+- Daily QA, Security QA, 로그인 E2E, 회귀 테스트
+- 성능 분석과 운영 상태 검증
+- Supabase advisor, DB/SQL 성능 검토
+- Critical/High 보안 조사와 수정 제안
+- 보안 민감 CI/workflow 독립 검토
+- Codex M/L 및 고위험 PR 독립 리뷰
+- PM 또는 handoff로 명시적으로 위임받은 구현
+- Figma 화면의 UX 일관성·접근성·Foundations 준수·앱 정합성 독립 검수
+- **PM 또는 handoff로 배정된 경우에만** 일반 앱/UI S/M 버그와 확정 Product/Figma 계약 반영
+- 성능 개선 및 성능 관련 리팩터링
+- QA 자동화·테스트 도구 구현
+- Release/운영 검증 도구·배포 정합성 도구 구현
+- Claude의 Figma 직접 편집은 사용자의 명시적 예외 위임 시에만 수행
 
 ## 고위험 영역
 
-다음 변경은 **특정 AI의 영구 독점 영역이 아니다.** 현재 작업의 `owner:*`, `handoff:*`, 사용자 지시와 60:40 배분에 따라 구현 담당을 정하되, 반대 AI의 독립 검토를 필수로 한다.
+다음 변경은 **특정 AI의 영구 독점 영역이 아니다.** 현재 작업의 `owner:*`, `handoff:*`, 사용자 지시와 PM의 동적 배정에 따라 구현 담당을 정하되, 반대 AI의 독립 검토를 필수로 한다.
 
 - `supabase/migrations/**`
 - RLS / GRANT / SECURITY DEFINER 정책과 함수
@@ -58,7 +64,7 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 보안 민감 `.github/workflows/**`
 - production 데이터 재작성·삭제 등 되돌리기 어려운 작업
 
-기본 작업 조정 권한은 ChatGPT/Codex에 있다. Claude가 전문성·작업량 배분·GPT 사용량 제한 등의 이유로 위임받아 구현할 수 있으며, 그 위임은 해당 작업에만 적용된다. 반대로 Codex가 고위험 영역을 구현할 수도 있으며 이 경우 Claude 독립 검토를 거친다.
+기본 작업 조정 권한은 ChatGPT PM/ChatGPT-Codex에 있다. DB migration, RLS, GRANT/REVOKE 등 Data/DB 기본 구현은 최신 공용 규칙대로 ChatGPT/Codex가 담당하고 Claude가 독립 리뷰한다. Claude가 전문성·작업량 배분·GPT 사용량 제한 등의 이유로 위임받아 구현할 수 있으며, 그 위임은 해당 작업에만 적용된다. 반대로 Codex가 고위험 영역을 구현할 수도 있으며 이 경우 Claude 독립 검토를 거친다.
 
 ## 교차 검증
 
@@ -67,6 +73,27 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - DB/Auth/RLS/Storage/보안/secret/production workflow 등 고위험 PR: 구현 담당과 관계없이 반대 AI가 **PR diff, 권한 변화, migration/rollback, 관련 테스트 결과**를 제한 독립 검토한다.
 - Production DB `mode=apply`, production Edge Function 배포, secret/권한 변경, 파괴적 데이터 작업, `main` 병합은 자동화하지 않고 사용자 승인 게이트를 유지한다.
 - 자기 PR을 스스로 승인하거나 병합하지 않는다.
+
+### 리뷰 결과 자동 인계
+
+리뷰 결과와 PM queue는 모델 실행과 별개의 routing control-plane이다. `.github/workflows/ai-handoff-review-events.yml`과 `.github/workflows/ai-pm-review-queue.yml`은 `ONEPICK_PM_ROUTING_ENABLED != 'false'`일 때 기본 ON으로 동작한다. 반면 `.github/workflows/ai-handoff-ci-gate.yml`은 Ready PR의 세 필수 CI 완료 이벤트마다 runner가 배정되는 고정 비용을 피하기 위해 `ONEPICK_CI_HANDOFF_GATE_ENABLED == 'true'`일 때만 동작하며 기본 OFF다. CI gate가 꺼져 있어도 PM queue·review-events와 모델 실행 조건은 유지되고, CI 기반 자동 인계가 꼭 필요한 기간에만 gate를 켠다. 실제 Codex/Claude 모델 실행 workflow는 기존 AI/model enable 조건을 계속 요구한다. Claude GitHub Action 실행은 추가로 `ONEPICK_CLAUDE_GITHUB_ACTION_ENABLED == 'true'`를 요구하며 기본은 OFF다.
+
+PR 리뷰 본문이나 댓글의 **첫 줄**(앞에 빈 줄 없이)에 아래 결과 줄을 남기면 `.github/workflows/ai-handoff-review-events.yml`이 원래 작업 이슈의 `handoff:*` 체인으로 즉시 연결한다.
+
+```text
+AI_REVIEW_RESULT: CHANGES_REQUESTED to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+AI_FIX_RESULT: READY_FOR_REVIEW to=<codex|claude> [pr=<N>] [head=<40자리 SHA>]
+```
+
+- `to=`는 다음에 행동할 쪽이다. 수정 요청은 구현 담당, 수정 완료는 수정을 요청했던 리뷰 담당이다. 두 AI가 같은 GitHub 계정을 쓰고 claim 시 `owner:*`가 바뀌므로 자동으로 추론하지 않는다.
+- 저장소 소유자 계정과 handoff App bot의 결과 줄만 인정한다. PR은 열린 same-repo `main` 대상이어야 하고, PR 본문의 `Refs #N` 중 `owner:*`가 붙은 열린 이슈가 정확히 하나여야 한다.
+- 결과는 PR의 **현재 head**에 대한 것이어야 한다. PR 리뷰는 리뷰한 커밋을 쓰고, 댓글은 `head=`가 필수다. 원래 이슈에 남길 때는 `pr=`도 필수다.
+- `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 건드리지 않는다.
+- `state:active`인 동안에는 누구의 결과든 즉시 인계하지 않는다. 소유자 계정 결과는 처리하지 않은 채 queue에 남겨 두고 `state:active`가 해제된 뒤의 drain에서 다시 판정한다. bot이 남긴 결과는 실행 중인 자동화의 finalizer가 처리하므로 기존대로 처리 생략으로 기록한다.
+- 같은 (PR, head, 결과)는 한 번만 인계한다. 수정 완료는 먼저 처리된 수정 요청이 있어야 하며 그 요청자에게만 돌아간다.
+- 수정 완료는 필수 CI가 모두 성공한 경우에만 즉시 인계한다. CI가 진행 중이면 CI gate 대기 marker를 남겨 완료 시 인계하고, 실패면 인계하지 않고 기록만 한다.
+- Draft/Ready CI 계약(PR #569, CI gate와 동일): PR이 Draft면 CI 실패로 기록하지 않고 CI gate 대기 marker를 남겨 Ready 전환 후 필수 CI 성공 시 인계한다. Draft였다가 Ready가 된 PR은 마지막 `ready_for_review` 이후 생성된 필수 CI run만 판정한다. #569 병합 전에는 Draft에서도 CI가 정상 실행되므로 동작 차이가 없다.
+- 이벤트 유실 방지: 검증된 결과는 먼저 원래 이슈에 bot queue marker(`onepick-review-queue:pending source=<id> ...`)로 append-only 기록된다. 처리(drain)는 저장소 단위로 직렬화되며, 실행될 때마다 이벤트 이슈를 먼저, 이어서 열린 모든 AI 작업 이슈(`owner:codex`/`owner:claude`, 기간·개수 제한 없음)의 미처리 marker를 생성 순서대로 처리하고 `onepick-review-queue:processed source=<id>`를 남긴다. 대기 중이던 drain 실행이 교체·취소돼도 marker가 남아 다음 drain이 회수한다. 모든 검증은 처리 시점의 현재 상태로 다시 한다. 결과 줄로 시작하지 않는 댓글(안내·인용)은 enqueue도 drain도 실행하지 않는다.
 
 ## 작업 이슈와 인계
 
@@ -80,9 +107,10 @@ OnePick의 AI 작업은 **ChatGPT/Codex 60% : Claude 40%**를 목표로 하되, 
 - 인계: `handoff:codex`, `handoff:claude`
 - 영역: `area:app`, `area:data`, `area:security`, `area:infra`, `area:qa`
 
-작업 완료 시 원래 이슈에 다음 형식의 댓글을 남긴다.
+작업 완료 시 원래 이슈에 다음 형식의 댓글을 남긴다. 첫 줄은 기존 #567 PM review queue가 직접 받는 메타데이터이며 자동 승인 의미가 없다.
 
 ```markdown
+PM_REVIEW_REQUIRED: reason=stage-complete pr=<N|none> head=<40자리 SHA|none>
 ## 완료 리포트
 담당: Codex | Claude
 결과: <한 줄>
@@ -92,7 +120,30 @@ PR: #<번호>
 후속: <없음 또는 다음 담당>
 ```
 
-후속 작업이 있으면 `state:handoff`와 `handoff:*`를 붙인다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다.
+담당자는 후속 담당을 임의로 확정하지 않는다. 완료 시에는 자기 claim을 끝내기 위한 기계적 전환으로 `state:active`를 제거하고 `state:review`를 붙인 뒤 완료 보고한다. 이 전환은 다음 담당 결정이 아니며 현재 `owner:*`와 `size:*`는 유지한다. 그 이후 owner/state/handoff 결정은 PM 또는 기존 자동화가 수행한다. 독립 리뷰 완료 보고는 첫 줄의 `reason=review-complete`를 사용한다.
+
+자동 인계가 PR을 만든 경우에는 다음 담당을 즉시 붙이지 않는다. finalizer가 원래 이슈에 bot 전용 대기 marker를 남기고, `.github/workflows/ai-handoff-ci-gate.yml`이 `Mobile CI`·`Database Tests`·`Web build` 완료 이벤트(`workflow_run`)에서 해당 PR head의 필수 CI를 확인한다. 모두 성공하면 원래 규칙대로 반대 AI에 `handoff:*`를 붙이거나 사용자 병합 판단 대기로 종료하고, 실패·취소면 인계하지 않고 원래 이슈에 실패한 workflow와 상태만 기록한다. `state:blocked`이거나 이미 `handoff:*`가 있는 이슈는 재개하지 않으며, 대기 marker 하나당 인계는 한 번만 한다. 받는 쪽은 작업 시작 시 인계 수락 댓글을 남기고 자신의 `owner:*`와 `state:active`로 갱신한다. 특정 작업을 Claude에 넘기거나 Claude가 수락한 사실은 해당 작업의 임시 위임을 뜻하며, ChatGPT/Codex의 기본 Product/Technical Owner 역할을 변경하지 않는다. PM이 `PM_REVIEW_DONE: decision=continue ...`로 판정했고 별도 후속이 없으면 PM이 `owner:*`/`size:*`는 보존한 채 state/handoff 라벨을 정리하고 원 이슈를 completed로 닫아 14일 완료 집계에 포함한다.
+
+## PR·CI 실행 비용 규칙
+
+GitHub Actions는 비공개 저장소라 실행 시간만큼 과금된다. 필수 CI(`Database Tests`, `Mobile CI`, `Web build`)와 반대 AI 리뷰 구조는 그대로 두고, 작업 중 반복 실행만 줄인다.
+
+1. **PR은 Draft로 연다.** Draft 동안 필수 CI 3종은 job 단위로 skip되어 러너 시간을 쓰지 않는다(체크는 skipped=성공으로 보고되지만 Draft는 병합할 수 없다).
+2. **구현과 자체 검증이 끝나면 Ready for review로 전환한다**(`gh pr ready <번호>`). 이 전환(`ready_for_review`)에서 필수 CI가 실행되고, 이후 반대 AI 리뷰 → PM 검토로 이어진다.
+   - 자동 인계: Claude는 `AI_HANDOFF_RESULT: COMPLETE`일 때, Codex는 patch PR을 만든 직후 finalizer가 자동 전환한다.
+   - `state:blocked` 또는 `BLOCKED`/`CODEX_FOLLOWUP` 결과에서는 Ready로 전환하지 않는다.
+   - `AI Handoff - CI Gate`는 Draft PR의 skip된 CI를 통과로 보지 않는다. Ready 전환 이후 생성된 필수 CI 실행이 모두 성공해야 다음 담당으로 인계한다.
+   - Ready 이후 큰 재작업이 필요하면 `gh pr ready <번호> --undo`로 Draft로 되돌리고, 다시 완료되면 Ready로 전환한다.
+3. **push는 논리적 작업 단위로 묶는다.** 작은 수정마다 즉시 push하지 말고, 하나의 논리적 작업 단위가 완성된 시점에 변경을 묶어서 push한다. 단, 충돌 방지나 외부 handoff에 반드시 필요한 경우는 예외로 한다. CI 실행 횟수뿐 아니라 GitHub 이벤트 자체를 줄이기 위한 규칙이다.
+4. Ready PR에서도 변경 경로와 무관한 CI는 무거운 단계를 건너뛴다(`.github/scripts/ci-path-gate.sh`). 필수 체크 이름은 바꾸지 않는다.
+
+| 필수 체크 | 실제 실행되는 변경 경로 |
+|---|---|
+| `database-tests` (Database Tests) | `supabase/**`, `tools/*.py`, 자기 workflow 파일 |
+| `typecheck` (Mobile CI) | `mobile/**`, `supabase/**`, `mobile/scripts`가 경로로 읽는 파일(예: `docs/pokemon-catalog.md`), 자기 workflow 파일 |
+| `verify-web` (Web build) | `mobile/**`, `tools/qa/**`, 자기 workflow 파일 |
+
+`.github/scripts/ci-path-gate.sh`가 바뀌면 세 CI가 모두 실행된다. 이 스크립트와 `.github/scripts/test-ci-path-gate.sh`는 자동 인계 control-plane 파일이므로 무인 자동 실행기가 수정하지 않는다. 판정 job이 실패하면 무거운 단계는 항상 실행된다(fail-safe). `main` push와 수동 실행은 기존 동작 그대로다.
 
 ## AI Ops 대시보드
 
@@ -106,7 +157,7 @@ PR: #<번호>
 - blocked 작업
 - 48시간 이상 갱신되지 않은 열린 작업
 
-두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **AI Ops 대시보드 → 자기 handoff → 해당 작업 이슈/PR** 순서로 읽는다.
+두 AI는 세션 시작 시 전체 대화를 다시 읽기보다 **공용 규칙 → `docs/pm/` → #553 PM 대시보드 → #296 AI Ops → 자기 owner/handoff → 해당 작업 이슈/PR** 순서로 읽는다. 다른 채팅에서 `#N 확인` 한 줄만 전달받아도 원문 복사를 요구하지 않고 GitHub #N을 직접 읽는다.
 
 ## 보안
 

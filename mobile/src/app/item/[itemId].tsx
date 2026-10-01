@@ -18,6 +18,7 @@ import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import { itemTitle } from '@/lib/items/itemTitle';
+import { consumePickSavedToast } from '@/lib/items/pickSavedToast';
 import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
@@ -41,6 +42,9 @@ function revisionErrorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'ITEM_LINK_REQUIRED' || error.code === 'LINK_INVALID') {
       return '네이버 지도 링크를 확인해주세요.';
+    }
+    if (error.code === 'PLACE_ALREADY_REGISTERED') {
+      return '같은 이름과 링크로 등록 요청된 매장이 이미 있어요. 링크를 다시 확인해주세요.';
     }
     if (error.code === 'ITEM_NOT_FOUND' || error.code === 'ITEM_NOT_ELIGIBLE') {
       return '지금은 이 요청을 수정할 수 없어요.';
@@ -99,6 +103,14 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
+  // Set only by /pick/new right before it replaces itself with this screen.
+  const [pickSavedToast, setPickSavedToast] = useState(() => consumePickSavedToast(focusPickId));
+  const itemLoaded = Boolean(query.data);
+  useEffect(() => {
+    if (!pickSavedToast || !itemLoaded) return;
+    const timer = setTimeout(() => setPickSavedToast(false), 2600);
+    return () => clearTimeout(timer);
+  }, [pickSavedToast, itemLoaded]);
 
   useEffect(() => {
     const data = query.data;
@@ -435,6 +447,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
         )}
       </ScrollView>
+      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
+        <Text style={styles.toastText}>원픽을 정했어요</Text>
+      </View> : null}
     </SafeAreaView>
   );
 }
@@ -449,6 +464,16 @@ const styles = StyleSheet.create({
     paddingBottom: OnePickSpace.xxxl + OnePickSpace.lg,
   },
   centered: { alignSelf: 'center' },
+  toast: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: OnePickSpace.xxxl,
+    backgroundColor: OnePick.actionPrimary,
+    borderRadius: OnePickRadius.full,
+    paddingHorizontal: OnePickSpace.lg,
+    paddingVertical: OnePickSpace.md,
+  },
+  toastText: { ...OnePickType.bodyMedium, color: OnePick.onAction },
   backButton: {
     width: 44,
     height: 44,

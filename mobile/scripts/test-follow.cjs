@@ -142,12 +142,16 @@ async function main() {
   const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
   assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing[\s\S]*?mvpChannel, HOME_FEED_ROOT_SLUG\)/,
     'Following Home is scoped to the same MVP channel and food root');
-  assert.match(home, /const \[feedScope, setFeedScope\] = useState<'all' \| 'following'>\('all'\)/,
-    'New members and guests start from the public feed; following remains an explicit choice');
-  assert.match(home, /const showFollowing = OnePickFeatures\.follow && Boolean\(user\) && feedScope === 'following'/);
+  assert.match(home, /useFollowCounts\(followCountUserId\)/,
+    'Home reads the signed-in viewer follow count before choosing the default scope');
+  assert.match(home, /followingCount \?\? 0\) > 0 \? 'following' : 'all'/,
+    'Members with follows default to Following while zero follows defaults to All');
+  assert.match(home, /feedScopeChoice && feedScopeChoice\.userId === user\?\.id \? feedScopeChoice\.scope : defaultFeedScope/,
+    'A manual scope choice is isolated to the current account');
+  assert.match(home, /const showFollowing = Boolean\(followCountUserId\) && !followDefaultPending && feedScope === 'following'/);
   assert.match(home, /\(\['following', 'all'\] as const\)\.map/,
     'Following appears before the public feed in the preserved member scope switcher');
-  assert.match(home, /OnePickFeatures\.follow && user \? <View style=\{styles\.scopeRow\}>/);
+  assert.match(home, /OnePickFeatures\.follow && user && !followDefaultPending \? <View style=\{styles\.scopeRow\}>/);
   assert.match(home, /아직 팔로잉 원픽이 없어요/);
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
@@ -156,8 +160,13 @@ async function main() {
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /follow: true/, 'Restaurant-first MVP keeps follow exposed');
+  assert.match(featureSource, /follow: false/, 'Initial restaurant MVP keeps follow implementation hidden behind the exposure gate');
   assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
+  const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
+  assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.follow \? user\?\.id : undefined\)/,
+    'Hidden follow mode does not start the follow-notification preference query');
+  assert.match(settings, /\{OnePickFeatures\.follow \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
+    'Follow notification settings remain implemented but hidden behind the same gate');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
@@ -167,7 +176,7 @@ async function main() {
   assert.doesNotMatch(publicProfile, /follow === '1'/, 'a shareable query string cannot trigger a follow mutation');
   assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 
-  console.log('Follow checks passed: service guards, login return intent, button states, all-first home scope and profile placement.');
+  console.log('Follow checks passed: retained service/login/button contracts plus initial-MVP exposure gates for Home, profile and Settings.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -32,8 +32,8 @@ jobs:
     # not at repository level (#426 M9).
     environment: Production
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_POOLER_HOST: ${{ vars.SUPABASE_DB_POOLER_HOST }}
       SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
 
     steps:
@@ -46,19 +46,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
           test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
+          test -n "$SUPABASE_DB_POOLER_HOST" || { echo "Missing SUPABASE_DB_POOLER_HOST variable"; exit 1; }
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.118.0
 
-      - name: Link onepick-dev
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Configure IPv4 Session pooler URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          from urllib.parse import quote
+
+          ref = os.environ["SUPABASE_PROJECT_REF"]
+          host = os.environ["SUPABASE_DB_POOLER_HOST"].strip()
+          if not re.fullmatch(r"[a-z0-9-]+\.pooler\.supabase\.com", host):
+              raise SystemExit("SUPABASE_DB_POOLER_HOST must be the Session pooler hostname only")
+
+          encoded_password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
+          db_url = f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require"
+          print(f"::add-mask::{encoded_password}")
+          print(f"::add-mask::{db_url}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"SUPABASE_DB_URL={db_url}\n")
+          PY
 
       - name: Show migration status before deploy
-        run: supabase migration list --linked
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
 
       - name: Preview pending migrations
         id: preview
@@ -66,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --include-all 2>&1 | tee "$log_file"
 
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
@@ -94,11 +113,11 @@ jobs:
 
       - name: Apply pending migrations
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase db push --linked --include-all
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --include-all
 
       - name: Show migration status after deploy
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
-        run: supabase migration list --linked
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
 
       - name: Verify no pending migrations remain
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
@@ -106,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --linked --dry-run --include-all 2>&1 | tee "$log_file"
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --include-all 2>&1 | tee "$log_file"
 
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::Database apply completed, but pending migrations still remain."

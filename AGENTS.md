@@ -1,10 +1,14 @@
 # Shared priority rules
 
-Before any OnePick work, read `docs/shared-working-rules.md` first. It contains the user's latest common rules for both ChatGPT/Codex and Claude. If it conflicts with older discussions or repository guidance, follow the newer user-approved document or instruction.
+Before any OnePick work, read `docs/shared-working-rules.md`, then `docs/pm/README.md`, then `docs/pm/current-priorities.md`. Next read the department document that matches the task. These are the shared user-approved rules and PM operating baseline for ChatGPT/Codex, Claude, QA, automation, and other OnePick work. The user's latest explicit instruction remains highest priority. Newer user-approved PM/shared rules supersede older repository instructions when they conflict.
 
 # Agent rules for this repository
 
 Read `CLAUDE.md` first. It holds the branching rule (`main` is the single trunk, PRs only, required CI checks) and the working-tree rule. Both apply to every agent, not only Claude.
+
+## Pull requests and CI cost
+
+Open PRs as draft, push once per logical unit of work, and run `gh pr ready <number>` only after implementation and self-verification (never for blocked work). Required CI runs on `ready_for_review`; draft pushes skip it. See "Pull requests and CI cost" in `CLAUDE.md`.
 
 ## Working tree
 
@@ -12,9 +16,9 @@ The primary checkout is shared by several concurrent agent sessions. Never check
 
 ## Role division
 
-ChatGPT/Codex is the **default Product / Technical Owner and work coordinator**. Claude Code specializes in **Platform / Reliability, QA, and independent review**, and may implement work explicitly delegated by the user or the handoff queue. Workload is tracked by `size:S/M/L` points with a 60:40 Codex:Claude target. Temporary delegation to Claude (including delegation caused by GPT usage limits or availability) does not change the default authority model. High-risk changes require cross-review and user approval gates regardless of who implements them. GitHub is the source of truth, and agents must not implement the same feature in parallel. See `docs/ai-role-division.md`.
+ChatGPT is the **OnePick General PM**. Under PM governance, ChatGPT/Codex remains the default Product / Technical Owner and implementation coordinator. Claude Code is the lead for **QA / Reliability / Security** and independent review, and may implement work explicitly delegated by the user, PM, or handoff queue. Workload is tracked by `size:S/M/L` points with **55:45 Codex:Claude as a planning reference, not a quota**. PM may dynamically assign more S/M work to Claude when Claude has more available capacity, including general app/UI fixes, performance work, QA automation, and Release tooling. **Figma editing remains ChatGPT-owned by default; Claude reviews Figma for consistency, accessibility, Foundations compliance, and app parity unless the user explicitly delegates an exception.** This delegation does not change Product policy ownership, Data/DB default implementation ownership, or the default authority model. High-risk changes require cross-review and user approval gates regardless of who implements them. GitHub is the source of truth, and agents must not implement the same feature in parallel. See `docs/ai-role-division.md`.
 
-At session start, read the `[AI Ops] OnePick 작업·인계 대시보드` issue first, then your `handoff:*` issues, then only the referenced task/PR. Avoid broad repository rereads unless the task requires them.
+At session start, after the PM preflight above, read #553 `[PM] OnePick 총괄 PM 운영·우선순위 대시보드`, then #296 `[AI Ops] OnePick 작업·인계 대시보드`, then your existing owner/handoff queue, then only the referenced task/PR. If another chat only says `#N 확인`, treat that as a pointer: read GitHub #N directly instead of asking for copied instructions or reports. PM docs/#553 decide what should be done first; #296 and owner/handoff labels show who executes it. Avoid broad repository rereads unless the task requires them.
 
 Supabase migrations, RLS/GRANT/SECURITY DEFINER, Auth core, Storage policies, secret/permission handling, security-sensitive workflows, and destructive production data work are **high-risk areas, not permanent Claude-only areas**. Respect the current `owner:*`, `handoff:*`, and explicit user instruction. If Codex implements a high-risk change, Claude performs the narrow independent review; if Claude implements it, Codex performs the narrow independent review. Production apply, secret/permission changes, destructive data operations, and `main` merge remain user approval gates.
 

@@ -163,16 +163,12 @@ begin
     perform public.stage_user_place_item(menu,'동네국밥','서울 마포구 동네길 1',null);
   exception when others then raised := sqlerrm = 'ITEM_LINK_REQUIRED'; end;
   assert raised, 'A new store needs its map link';
-  raised := false;
-  begin
-    perform public.stage_user_place_item(menu,'동네국밥','','https://naver.me/dongne');
-  exception when others then raised := sqlerrm = 'PLACE_ADDRESS_REQUIRED'; end;
-  assert raised, 'A new store needs its road address';
+  -- Stores without a road address are covered by 111_user_place_without_road_address.sql.
   v_item := public.stage_user_place_item(menu,'동네국밥','서울 마포구 동네길 1','https://naver.me/dongne');
   u_item := v_item.id;
   assert v_item.status='pending' and v_item.external_source='onepick_place', 'A member-submitted store is a pending request';
-  assert (public.stage_user_place_item(menu,'동네 국밥','서울 마포구 동네길 1','https://naver.me/other')).id = u_item,
-    'The same name at the same address is the same store';
+  assert (public.stage_user_place_item(menu,'동네 국밥','','https://naver.me/dongne')).id = u_item,
+    'The same name with the same map link is the same store';
   -- The link can be fixed while it waits; the place follows.
   perform public.revise_item_request(u_item, p_link_url => 'https://naver.me/dongne2');
   res := public.register_item_pick(menu,'offline','동네가 최고', p_item_id => u_item,
@@ -192,7 +188,7 @@ begin
   assert (select count(*) from public.places where id=u_place) = 0, 'Others do not see the hidden place';
   raised := false;
   begin
-    perform public.stage_user_place_item(menu,'동네국밥','서울 마포구 동네길 1','https://naver.me/dongne');
+    perform public.stage_user_place_item(menu,'동네국밥','','https://naver.me/dongne2');
   exception when others then raised := sqlerrm = 'ITEM_ALREADY_PENDING'; end;
   assert raised, 'Another member cannot take over the pending store';
   reset role;

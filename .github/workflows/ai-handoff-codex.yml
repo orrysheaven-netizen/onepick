@@ -26,7 +26,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
-          app-id: ${{ vars.AI_HANDOFF_APP_ID }}
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
           private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
           permission-contents: read
           permission-issues: write
@@ -125,7 +125,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
-          app-id: ${{ vars.AI_HANDOFF_APP_ID }}
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
           private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
           permission-contents: read
           permission-issues: read
@@ -193,6 +193,12 @@ jobs:
             - Do not modify these automation control-plane files in an automatic run:
               .github/workflows/ai-handoff-codex.yml
               .github/workflows/ai-handoff-claude.yml
+              .github/workflows/ai-handoff-ci-gate.yml
+              .github/workflows/ai-handoff-review-events.yml
+              .github/workflows/ai-pm-review-queue.yml
+              .github/scripts/ci-path-gate.sh
+              .github/scripts/test-ci-path-gate.sh
+              .github/scripts/test-pm-review-queue.sh
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
@@ -231,7 +237,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
-          app-id: ${{ vars.AI_HANDOFF_APP_ID }}
+          client-id: ${{ vars.AI_HANDOFF_APP_CLIENT_ID }}
           private-key: ${{ secrets.AI_HANDOFF_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-issues: write
@@ -325,7 +331,7 @@ jobs:
               control_plane_change=false
               while IFS= read -r changed_path; do
                 case "$changed_path" in
-                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|.github/workflows/ai-handoff-review-events.yml|.github/workflows/ai-pm-review-queue.yml|.github/scripts/ci-path-gate.sh|.github/scripts/test-ci-path-gate.sh|.github/scripts/test-pm-review-queue.sh|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
                     control_plane_change=true
                     ;;
                 esac
@@ -361,6 +367,11 @@ jobs:
 
               printf '%s\n\n%s\n' "$body"                 '> 자동 인계가 만든 PR입니다. merge·production deploy는 자동 수행하지 않습니다.'                 > /tmp/pr-body.md
               pr_url="$(gh pr create --draft --repo "$REPOSITORY" --base main --head "$branch" --title "$title" --body-file /tmp/pr-body.md)"
+              pr_number="${pr_url##*/}"
+              if ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+                block_task "PR은 생성됐지만 번호를 확인하지 못해 CI 완료 후 자동 인계를 연결하지 못했습니다. PR: ${pr_url}"
+                exit 0
+              fi
 
               issue_labels="$(gh issue view "$ISSUE_NUMBER" --repo "$REPOSITORY" --json labels --jq '[.labels[].name]')"
               needs_claude=false
@@ -371,24 +382,35 @@ jobs:
                 needs_claude=true
               fi
 
+              # The next owner is handed off by ai-handoff-ci-gate.yml only after required CI succeeds.
+              update_labels '["owner:codex","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
               if [ "$needs_claude" = "true" ]; then
-                update_labels '["owner:codex","state:review","state:handoff","handoff:claude"]' '["state:active","state:ready","state:blocked","handoff:codex"]'
-                next="Claude 독립 리뷰로 자동 인계"
+                ci_next="claude"
+                next="필수 CI 성공 후 Claude 독립 리뷰로 자동 인계"
               else
-                update_labels '["owner:codex","state:review"]' '["state:active","state:handoff","state:ready","state:blocked","handoff:codex","handoff:claude"]'
-                next="사용자 병합 판단 대기"
+                ci_next="user"
+                next="필수 CI 성공 후 사용자 병합 판단 대기"
               fi
 
               gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$(cat <<EOF
-              ## 완료 리포트
-              담당: Codex
-              결과: $summary
-              PR: $pr_url
-              검증: PR 필수 CI 실행 예정
-              남은 위험: $reason
-              후속: $next
-              EOF
+          <!-- onepick-ci-handoff:pending pr=${pr_number} next=${ci_next} -->
+          ## 완료 리포트
+          담당: Codex
+          결과: $summary
+          PR: $pr_url
+          검증: Ready for review 자동 전환 후 필수 CI 실행 — 성공 시 CI Gate가 다음 단계로 인계
+          남은 위험: $reason
+          후속: $next
+          EOF
               )"
+
+              # The patch is complete once pushed. Draft -> Ready only after the pending marker
+              # exists, so the ready_for_review CI completion finds it. Blocked/handoff/comment
+              # results never reach this point and nothing else marks a PR ready.
+              if ! gh pr ready "$pr_url" --repo "$REPOSITORY"; then
+                gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
+                  "PR ${pr_url}을 Ready for review로 자동 전환하지 못했습니다. Draft 동안 필수 CI는 skip되므로 수동으로 Ready 전환해야 CI와 다음 인계가 진행됩니다."
+              fi
               ;;
             handoff)
               update_labels '["state:handoff","handoff:claude"]' '["state:active","state:ready","state:review","state:blocked","handoff:codex"]'

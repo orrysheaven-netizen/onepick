@@ -64,21 +64,38 @@ async function main() {
   assert.equal(result.retried, true);
   assert.equal(result.replacedPickId, 'old-pick');
 
+  // stage_user_place_item keeps its legacy p_road_address parameter; the app sends ''.
+  const itemRpcCalls = [];
+  const { SupabaseItemRepository } = load('repositories/supabase/supabaseItemRepository.ts', {
+    '@/errors/appError': { AppError },
+    '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/mappers/itemMapper': { mapItemRow: (row) => row },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+  });
+  const supabaseItems = new SupabaseItemRepository({
+    rpc: async (name, args) => { itemRpcCalls.push([name, args]); return { data: { id: 'staged' }, error: null }; },
+  });
+  await supabaseItems.stageUserPlaceItem({ categoryId: 'category', name: '새 가게', mapUrl: 'https://naver.me/new-place' });
+  assert.equal(itemRpcCalls[0][0], 'stage_user_place_item');
+  assert.equal(itemRpcCalls[0][1].p_road_address, '');
+  assert.equal(itemRpcCalls[0][1].p_map_url, 'https://naver.me/new-place');
+
   // Supabase P0001 concurrency errors must remain distinguishable in the UI.
   const mapped = mapSupabaseError({ code: 'P0001', message: 'PICK_CHANGED_ELSEWHERE', details: 'actual-pick' });
   assert.ok(mapped instanceof AppError);
   assert.equal(mapped.code, 'PICK_CHANGED_ELSEWHERE');
   assert.equal(mapped.cause.details, 'actual-pick');
 
-  // The service reads the current slot immediately before the write and passes
-  // that Pick as p_expected_previous_pick_id through the repository.
+  // The UI reads the current slot before confirmation. The service must preserve
+  // that visible snapshot even if the database changes before the write.
   const registerCalls = [];
   const photoCalls = [];
   const placeStageCalls = [];
   const brandStageCalls = [];
   let current = [{ id: 'previous-online', channel: 'online' }];
+  let currentReads = 0;
   const pickRepository = {
-    getCurrentPicksInCategory: async () => current,
+    getCurrentPicksInCategory: async () => { currentReads += 1; return current; },
     registerItemPick: async (input) => {
       registerCalls.push(input);
       return { itemId: input.itemId ?? 'server-item', pickId: 'server-pick', published: false, replacedPickId: null, retried: false };
@@ -114,15 +131,21 @@ async function main() {
     { choosePhoto: async () => null, preparePhoto: async () => null },
   );
 
+  const visibleSlot = await service.getCurrentPickSlot('owner', 'category', 'online');
+  assert.equal(visibleSlot.id, 'previous-online');
+  current = [{ id: 'changed-after-screen', channel: 'online' }];
   await service.registerImmediatePick({
     userId: 'owner',
     categoryId: 'category',
     channel: 'online',
     oneLineReview: '온라인 원픽',
     requestId: 'same-request',
+    expectedPreviousPickId: visibleSlot.id,
     itemId: 'existing-item',
   });
-  assert.equal(registerCalls[0].expectedPreviousPickId, 'previous-online');
+  assert.equal(registerCalls[0].expectedPreviousPickId, 'previous-online',
+    'the write must use the screen snapshot, not a last-moment repository read');
+  assert.equal(currentReads, 1, 'registerImmediatePick must not silently refresh the visible concurrency snapshot');
   assert.equal(registerCalls[0].requestId, 'same-request');
 
   // A catalog-missing Figma 75 store must keep place/provider identity:
@@ -134,16 +157,16 @@ async function main() {
     channel: 'offline',
     oneLineReview: '신규 원픽',
     requestId: 'new-request',
+    expectedPreviousPickId: null,
     newPlace: {
       name: '새 가게',
-      roadAddress: '서울 마포구 새길 1',
       mapUrl: 'https://naver.me/new-place',
     },
     photo: { uri: 'file://photo', base64: 'x', thumbnailBase64: 'y', uploadId: 'photo-1' },
   });
   assert.equal(placeStageCalls.length, 1);
   assert.equal(placeStageCalls[0].name, '새 가게');
-  assert.equal(placeStageCalls[0].roadAddress, '서울 마포구 새길 1');
+  assert.equal(placeStageCalls[0].roadAddress, undefined, 'New stores are staged without a road address (#593)');
   assert.equal(placeStageCalls[0].mapUrl, 'https://naver.me/new-place');
   assert.equal(registerCalls[1].itemId, 'staged-item');
   assert.equal(registerCalls[1].imagePath, 'owner/full.jpg');
@@ -159,6 +182,7 @@ async function main() {
     channel: 'offline',
     oneLineReview: '브랜드 전체 원픽',
     requestId: 'brand-request',
+    expectedPreviousPickId: null,
     brandId: 'brand-1',
   });
   assert.equal(brandStageCalls.length, 1);
@@ -168,6 +192,6 @@ async function main() {
   assert.equal(registerCalls[2].providerId, undefined);
   assert.equal(registerCalls[2].requestId, 'brand-request');
 
-  console.log('Immediate registration checks passed: public RPC wiring, response ids, request id, concurrency, user-place/brand staging, and photo forwarding.');
+  console.log('Immediate registration checks passed: public RPC wiring, visible concurrency snapshot, request id, user-place/brand staging, and photo forwarding.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

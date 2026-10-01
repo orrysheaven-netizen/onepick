@@ -12,6 +12,19 @@ pgTAP `106_grouped_notifications.sql`. 앱 연결은 Codex 담당. 푸시 알림
   알림은 남는다.
 - 승인/검토 중/등록 완료 이벤트는 목록과 미읽음 집계에서 모두 제외(유령 점 없음).
 
+## 현재 MVP follow-off 필터 (2026-09-30)
+
+초기 공개 MVP에서는 팔로우를 보류한다. 따라서 grouped API의 공통 이벤트 집합
+`private.notification_events()`에서 `followee_pick`을 제외한다.
+
+- `notification_group_page`: followee 그룹을 반환하지 않음
+- `notification_unread_count`: followee 이벤트를 배지에 세지 않음
+- `mark_notification_group_read`: 숨겨진 followee 행을 읽음 처리하지 않음
+- 기존 `pick_change_notifications`, follow 관계, 알림 설정 데이터는 삭제하지 않고 그대로 유지
+- 팔로우를 후속 롤아웃할 때는 별도 migration에서 공통 이벤트 projection에 다시 포함
+
+이 방식으로 목록과 배지가 다른 이벤트 집합을 써서 생기는 유령 미읽음 점을 막는다.
+
 ## 새 원천
 
 `pick_review_notifications(pick_id, recipient_id, created_at, read_at)`: 내가 현재 원픽으로 가진
@@ -20,6 +33,7 @@ pgTAP `106_grouped_notifications.sql`. 앱 연결은 Codex 담당. 푸시 알림
 
 기존 원천은 그대로: `comment_notifications(kind comment|reply)`, `pick_change_notifications`,
 `item_review_notifications`(이 중 `outcome='rejected'`만 이벤트).
+`pick_change_notifications`는 데이터 원천으로 유지하지만 현재 MVP grouped projection에서는 제외한다.
 
 ## RPC (모두 authenticated, security definer, 본인 것만)
 
@@ -34,7 +48,7 @@ pgTAP `106_grouped_notifications.sql`. 앱 연결은 Codex 담당. 푸시 알림
 | 키 | 설명 |
 | --- | --- |
 | `group_id` | 안정적인 그룹 id. `review:<item>:<channel>` / `comment:<pick>` / `reply:<parent comment>` / `fix:<item>` / `follow:<user>:<category>:<channel>` |
-| `kind` | `pick_review` / `comment` / `reply` / `fix_needed` / `followee_pick` |
+| `kind` | 현재 MVP: `pick_review` / `comment` / `reply` / `fix_needed`. `followee_pick`은 데이터만 유지하고 비노출 |
 | `latest_at`, `snapshot` | 최신 활동 시각. `snapshot`을 읽음 처리에 그대로 넘긴다 |
 | `unread_count`, `total_count`, `actor_count` | 그룹 안 미읽음/전체 이벤트 수, 서로 다른 행위자 수 |
 | `actor` | 최신 행위자 `{user_id, username, profile_image_url}` (`fix_needed`는 null) |

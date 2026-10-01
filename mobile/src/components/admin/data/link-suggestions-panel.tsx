@@ -55,7 +55,7 @@ export function LinkSuggestionsPanel() {
     {!loading && rows.length === 0 ? <Text style={adminStyles.muted}>처리할 지도 링크 제안이 없습니다.</Text> : null}
     {rows.map((row) => <View key={row.suggestion_id} style={adminStyles.card}>
       <Text style={styles.title}>{row.place_name ? `${row.place_name}${row.place_branch_name ? ` ${row.place_branch_name}` : ''}` : row.item_name} · {row.category_name}</Text>
-      <Text style={adminStyles.muted}>{row.place_road_address ?? (row.item_status === 'pending' ? '검수 대기 중인 새 매장 요청' : '매장 미연결 항목')}</Text>
+      <Text style={adminStyles.muted}>{row.place_road_address || (row.item_status === 'pending' ? '검수 대기 중인 새 매장 요청' : '매장 미연결 항목')}</Text>
       <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(row.url)}>
         <Text style={styles.link}>{row.url}</Text>
       </Pressable>

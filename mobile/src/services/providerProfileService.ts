@@ -111,8 +111,9 @@ function publicUrl(client: AppSupabaseClient, row: ProviderItemRow) {
 }
 
 function displayAddress(place: PlaceRow) {
-  return place.road_address ?? place.address
-    ?? ([place.region_1, place.region_2].filter(Boolean).join(' ') || null);
+  // A member-submitted store has road_address '' (#593); fall back like null.
+  return place.road_address || place.address
+    || ([place.region_1, place.region_2].filter(Boolean).join(' ') || null);
 }
 
 export class ProviderProfileService {
@@ -347,7 +348,7 @@ export class ProviderProfileService {
         kind: 'offline_branch',
         name: row.name,
         branchName: row.branch_name ?? null,
-        subtitle: row.road_address ?? ([row.region_1, row.region_2].filter(Boolean).join(' ') || null),
+        subtitle: row.road_address || ([row.region_1, row.region_2].filter(Boolean).join(' ') || null),
         pickCount: Number(row.pick_count) || 0,
         menuCount: Number(row.menu_count) || 0,
       }];

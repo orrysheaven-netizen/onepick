@@ -49,12 +49,13 @@ const fakeReact = { ...React,
 };
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
 const pickChannel = load('lib/items/pickChannel.ts');
+const savedToast = load('lib/items/pickSavedToast.ts');
 const service = load('services/storeFirstService.ts', {
   '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun;
+let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
@@ -76,11 +77,15 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useChoosePhoto: () => mutation('choosePhoto', () => ({
       uri: 'data:image/jpeg;base64,eA==', base64: 'eA==', thumbnailBase64: 'eA==', uploadId: 'photo-1',
     })),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => currentSlotRun()),
     useRegisterItemPick: () => mutation('register', (input) => registerRun(input)),
   },
   '@/hooks/useStoreFirst': hooks,
   '@/lib/items/pickChannel': pickChannel,
+  '@/lib/items/pickSavedToast': savedToast,
   '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
+  // Draft persistence (#475) is covered by test-pick-draft-restore.cjs; in-memory here.
+  '@/lib/pick/pickDraft': { pickDraftStore: () => ({ save: () => true, savePhoto: () => true, load: () => null, clear() {}, discardForOtherUser() {} }) },
   '@/services/storeFirstService': service,
 });
 
@@ -102,6 +107,7 @@ function reset() {
   aiResult = { suggestions: [{ categoryId: 'cat-naengmyeon', label: '면 › 평양냉면', reason: '평양냉면으로 유명한 곳이에요', confidence: 'high' }], needsNewCategory: false };
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
+  currentSlotRun = () => null;
   registerRun = (input) => ({ itemId: input.itemId ?? 'created-item', pickId: 'pick-1', published: Boolean(input.itemId), replacedPickId: null, retried: false });
 }
 function render() {
@@ -155,14 +161,18 @@ async function main() {
   assert.equal(existingSave.categoryId, 'cat-naengmyeon');
   assert.equal(existingSave.channel, 'offline');
   assert.equal(existingSave.requestId, 'request-1');
+  assert.equal(existingSave.expectedPreviousPickId, null, 'an empty visible slot is sent explicitly');
   assert.ok(existingSave.photo);
-  page = render();
-  assert.match(page, /원픽을 정했어요/);
-  assert.doesNotMatch(page, /등록 요청|승인 대기/);
-  press('확인');
+  // #552: success replaces straight to the item detail, which shows the toast once.
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'item-1');
   assert.equal(destination.params.pickId, 'pick-1');
+  page = render();
+  assert.doesNotMatch(page, /원픽을 정했어요|등록 요청|승인 대기/, 'no confirmation dialog is rendered');
+  assert.equal(savedToast.consumePickSavedToast('other-pick'), false, 'the toast is bound to the saved Pick');
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), true);
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), false, 'the toast is shown only once');
+  assert.ok(pressables.find((props) => textOf(props.children) === '원픽 등록하기').disabled, 'a saved flow cannot submit again');
 
   // A branded store pauses inside the menu step until the person chooses
   // this branch or the separate brand-wide product scope.
@@ -198,7 +208,7 @@ async function main() {
   assert.equal(brandSave.brandId, 'brand-1');
   assert.equal(brandSave.itemId, undefined);
   assert.equal(brandSave.catalogId, undefined, 'Brand-wide registration must not also select the branch catalog');
-  assert.match(render(), /을밀대 전체 평양냉면이 내 원픽이 됐어요/);
+  assert.equal(destination.params.itemId, 'brand-pending', 'brand-wide save opens the saved product');
 
   // AI recommendation remains inside the menu step.
   reset();
@@ -221,14 +231,33 @@ async function main() {
   assert.match(page, /카테고리를 추천하지 못했어요/);
   assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);
 
-  // Catalog-missing store identity is collected inside step 1 and forwarded
-  // as stage_user_place_item input; there is no separate link step.
+  // Catalog-missing store identity is collected inside step 1, one input per
+  // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".
   reset();
   registerRun = () => ({ itemId: 'pending-place-item', pickId: 'needs-review-pick', published: false, replacedPickId: null, retried: false });
-  render(); input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); page = render();
+  // Starting over from search must not carry the previous store's link (Codex review on #596).
+  render(); input('매장명 검색').onChangeText('옛 냉면집'); render(); press('찾는 매장이 없어요'); render();
+  press('다음'); render(); input('네이버 지도 링크').onChangeText('https://naver.me/oldstore'); render();
+  press('이전 단계'); render(); press('이전 단계'); render();
+  input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); render();
+  assert.equal(input('등록 요청 이름').value, '새 냉면집');
+  press('다음'); render();
+  assert.equal(input('네이버 지도 링크').value, '', 'A new direct registration starts without the previous link');
+  assert.ok(pressables.find((props) => textOf(props.children) === '다음')?.disabled, 'No link, no next');
+  press('이전 단계'); page = render();
   assert.equal(step(page), '1');
+  assert.match(page, /매장 이름을 알려 주세요/);
+  assert.doesNotMatch(page, /도로명 주소/);
+  assert.doesNotMatch(page, /다시 검색하기/);
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'), 'The link has its own screen');
   input('등록 요청 이름').onChangeText('새 냉면집');
-  input('도로명 주소').onChangeText('서울 마포구 새길 1');
+  render(); press('다음'); page = render();
+  assert.equal(step(page), '1');
+  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
+  press('이전 단계'); page = render();
+  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
+  press('다음'); render();
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore');
   render(); press('다음'); page = render();
   assert.equal(step(page), '2');
@@ -239,13 +268,11 @@ async function main() {
   assert.equal(newSave.channel, 'offline');
   assert.equal(newSave.requestId, 'request-1');
   assert.equal(newSave.newPlace.name, '새 냉면집');
-  assert.equal(newSave.newPlace.roadAddress, '서울 마포구 새길 1');
+  assert.equal(newSave.newPlace.roadAddress, undefined);
   assert.equal(newSave.newPlace.mapUrl, 'https://naver.me/newstore');
   assert.ok(newSave.photo);
   page = render();
-  assert.match(page, /원픽을 정했어요/);
   assert.doesNotMatch(page, /등록 요청을 보냈어요/);
-  press('확인');
   assert.equal(destination.params.itemId, 'pending-place-item');
   assert.equal(destination.params.pickId, 'needs-review-pick');
 
@@ -256,12 +283,13 @@ async function main() {
   page = render(); assert.equal(step(page), '4');
   input('원픽 한줄평').onChangeText('수육이 부드러워요'); render(); press('원픽 등록하기'); await flush();
   assert.equal(calls.find(([name]) => name === 'register')[1].itemId, 'item-1');
-  assert.match(render(), /원픽을 정했어요/);
+  assert.equal(destination.pathname, '/item/[itemId]');
 
   // Replacement copy does not expose history.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
   detail.myPickStatus = { type: 'selected_other' };
+  currentSlotRun = () => ({ id: 'visible-old-pick', channel: 'offline' });
   await chooseExistingOffline(); page = render();
   assert.match(page, /저장하면 이 메뉴의 매장 원픽이 이걸로 바뀝니다/);
   assert.doesNotMatch(page, /기록으로 남아요/);
@@ -270,25 +298,35 @@ async function main() {
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
   let attempts = 0;
+  let slotReads = 0;
+  currentSlotRun = () => ({ id: ++slotReads === 1 ? 'visible-before-save' : 'changed-elsewhere', channel: 'offline' });
   registerRun = () => {
     attempts += 1;
     if (attempts === 1) throw new AppError('PICK_CHANGED_ELSEWHERE');
-    return { itemId: 'item-1', pickId: 'pick-after-confirm', published: true, replacedPickId: 'other-pick', retried: false };
+    return { itemId: 'item-1', pickId: 'pick-after-confirm', published: true, replacedPickId: 'changed-elsewhere', retried: false };
   };
   await chooseExistingOffline(); render(); input('원픽 한줄평').onChangeText('다시 확인'); render();
   press('원픽 등록하기'); await flush();
+  assert.equal(destination, undefined, 'a failed save stays on the registration screen');
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), false);
   page = render();
   assert.match(page, /다른 기기에서 이 메뉴의 원픽이 바뀌었어요/);
   press('변경 확인 후 등록하기'); await flush();
   const registrationCalls = calls.filter(([name]) => name === 'register').map(([, value]) => value);
   assert.equal(registrationCalls.length, 2);
+  assert.equal(registrationCalls[0].expectedPreviousPickId, 'visible-before-save',
+    'first submit uses the Pick slot the person saw before confirmation');
+  assert.equal(registrationCalls[1].expectedPreviousPickId, 'changed-elsewhere',
+    'explicit reconfirmation refreshes the slot before retrying');
+  assert.equal(slotReads, 2, 'the slot is read once at menu confirmation and once after explicit reconfirmation');
   assert.equal(registrationCalls[0].requestId, registrationCalls[1].requestId);
   assert.equal(registrationCalls[0].requestId, 'request-1');
-  assert.match(render(), /원픽을 정했어요/);
+  assert.equal(destination.params.pickId, 'pick-after-confirm');
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), true);
 
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, user-place identity, immediate Pick save, response-id navigation, and concurrency reconfirmation.');
+  console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

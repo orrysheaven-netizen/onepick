@@ -41,7 +41,7 @@ assert.deepEqual({ ...pickPayload }, { url: 'https://onepick.example/pick/seed' 
 
 let profilePayload;
 const shareProfile = load('lib/share/shareProfile.ts', {
-  'react-native': { Share: { share: async (payload) => { profilePayload = payload; return payload; } } },
+  'react-native': { Platform: { OS: 'ios' }, Share: { share: async (payload) => { profilePayload = payload; return payload; } } },
   './shareLinks': { createProfileShareUrl: () => 'https://onepick.example/u/moodarchive' },
 });
 shareProfile.shareProfile({ username: 'moodarchive', pickCount: 3 });
