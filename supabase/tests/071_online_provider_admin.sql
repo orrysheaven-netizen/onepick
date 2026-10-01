@@ -64,6 +64,13 @@ select set_config(
   true
 );
 select set_config('request.jwt.claims','{"aal":"aal1"}',true);
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 set local role authenticated;
 
 select throws_ok(
