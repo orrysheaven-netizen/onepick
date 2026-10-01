@@ -124,7 +124,7 @@ jobs:
       # AI handoff / PM routing control plane (#586). Only when those files change;
       # a changed workflow already forces this job to run, so no extra runner.
       - name: Test PM review queue control plane
-        if: needs.changes.outputs.control_plane == 'true'
+        if: (needs.changes.result != 'success' || needs.changes.outputs.run == 'true') && needs.changes.outputs.control_plane == 'true'
         working-directory: .
         run: |
           python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y -qq python3-yaml >/dev/null
