@@ -18,6 +18,13 @@ select
   'pickitem'||i,
   'active'
 from generate_series(1,12) i;
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','f9400000-0000-4000-8000-000000000002',true);
 insert into public.user_follows(follower_id,followee_id)
