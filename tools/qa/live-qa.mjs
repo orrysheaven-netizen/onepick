@@ -59,6 +59,29 @@ function safeUrl(raw) {
   }
 }
 
+// Split one request's time into where it went, from Playwright's request.timing()
+// (ms relative to the request start; -1 = phase did not happen, e.g. a reused
+// connection has no DNS/connect/TLS). Numbers only: no URL, header or token goes
+// into this object, so it is safe to keep in the report and report.json.
+//   waitMs      queued/stalled before the request could be sent (excl. connection setup)
+//   dnsMs/tcpMs/tlsMs  connection setup, 0 when the connection was reused
+//   serverMs    request sent -> first response byte (server + network round trip)
+//   downloadMs  first byte -> last byte
+function splitTiming(t) {
+  const span = (a, b) => (a >= 0 && b >= 0 && b >= a ? Math.round(b - a) : 0);
+  const dnsMs = span(t.domainLookupStart, t.domainLookupEnd);
+  const connectTotal = span(t.connectStart, t.connectEnd);
+  const tlsMs = t.secureConnectionStart >= 0 ? span(t.secureConnectionStart, t.connectEnd) : 0;
+  const tcpMs = Math.max(0, connectTotal - tlsMs);
+  const serverMs = span(t.requestStart, t.responseStart);
+  const downloadMs = span(t.responseStart, t.responseEnd);
+  const waitMs = t.requestStart >= 0 ? Math.max(0, Math.round(t.requestStart) - dnsMs - connectTotal) : 0;
+  return { reused: connectTotal === 0, waitMs, dnsMs, tcpMs, tlsMs, serverMs, downloadMs };
+}
+
+const connectMs = (a) => a.dnsMs + a.tcpMs + a.tlsMs;
+const timingText = (a) => `${a.reused ? '연결 재사용' : `연결 ${connectMs(a)}ms(DNS ${a.dnsMs}·TCP ${a.tcpMs}·TLS ${a.tlsMs})`} · 대기 ${a.waitMs}ms · 서버 ${a.serverMs}ms · 다운로드 ${a.downloadMs}ms`;
+
 const OBSERVERS = () => {
   const qa = { fcp: null, lcp: null, tbt: 0, longTasks: 0, cls: 0 };
   window.__qa = qa;
@@ -100,7 +123,7 @@ function instrument(page) {
     if (SUPABASE_HOST.test(host) && req.method() !== 'OPTIONS') {
       const t = req.timing();
       const ms = t.responseEnd > 0 ? Math.round(t.responseEnd) : null;
-      log.api.push({ method: req.method(), url, status, ms });
+      log.api.push({ method: req.method(), url, status, ms, ...splitTiming(t) });
     }
   });
   return log;
@@ -155,7 +178,7 @@ function judge(result, { throttled = false } = {}) {
   uniqueConsole.slice(0, 5).forEach((e) => finding('Medium', where, '콘솔 에러', e));
 
   const slowApi = result.log.api.filter((a) => a.ms != null && a.ms > LIMITS.apiMs);
-  slowApi.forEach((a) => finding(throttled ? 'Low' : 'Medium', where, 'Supabase 응답 지연', `${a.method} ${a.url} ${a.ms}ms (기준 ${LIMITS.apiMs}ms)`));
+  slowApi.forEach((a) => finding(throttled ? 'Low' : 'Medium', where, 'Supabase 응답 지연', `${a.method} ${a.url} ${a.ms}ms (기준 ${LIMITS.apiMs}ms) · ${timingText(a)}`));
   if (result.log.api.length > LIMITS.apiCallsPerPage) {
     finding('Medium', where, 'Supabase 호출 과다 (N+1 의심)', `한 화면에서 ${result.log.api.length}회 (기준 ${LIMITS.apiCallsPerPage})`);
   }
@@ -296,8 +319,26 @@ function toMarkdown(report) {
   const slowest = report.pages.flatMap((p) => p.log.api.map((a) => ({ ...a, page: p.label })))
     .filter((a) => a.ms != null).sort((a, b) => b.ms - a.ms).slice(0, 8);
   if (slowest.length) {
-    lines.push('### 가장 느린 Supabase 요청', '', '| ms | 요청 | 화면 |', '| --- | --- | --- |',
-      ...slowest.map((a) => `| ${a.ms} | ${a.method} ${a.url} (${a.status}) | ${a.page} |`), '');
+    lines.push('### 가장 느린 Supabase 요청', '',
+      '| ms | 요청 | 화면 | 연결(새 연결만) | 대기 | 서버 응답 | 다운로드 |', '| --- | --- | --- | --- | --- | --- | --- |',
+      ...slowest.map((a) => `| ${a.ms} | ${a.method} ${a.url} (${a.status}) | ${a.page} | ${a.reused ? '재사용' : `${connectMs(a)} (DNS ${a.dnsMs}·TCP ${a.tcpMs}·TLS ${a.tlsMs})`} | ${a.waitMs} | ${a.serverMs} | ${a.downloadMs} |`), '');
+  }
+  // Connection cost vs server cost: for each screen, how many requests opened a
+  // new connection and where the median request spent its time. Lets a reader tell
+  // "the runner is far from the database" (connection/server round trip dominates)
+  // from "the query is slow" (server response dominates on reused connections).
+  const timed = report.pages.map((p) => ({ label: p.label, api: p.log.api.filter((a) => a.ms != null) })).filter((p) => p.api.length);
+  if (timed.length) {
+    lines.push('### Supabase 지연 구성 (요청 중앙값, ms)', '',
+      '| 화면 | 요청 수 | 새 연결 | 새 연결 비용 | 대기 | 서버 응답(재사용 연결) | 서버 응답(새 연결) | 다운로드 |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- |',
+      ...timed.map(({ label, api }) => {
+        const fresh = api.filter((a) => !a.reused);
+        const reused = api.filter((a) => a.reused);
+        const cell = (v) => (v == null ? '-' : v);
+        return `| ${label} | ${api.length} | ${fresh.length} | ${cell(median(fresh.map(connectMs)))} | ${cell(median(api.map((a) => a.waitMs)))} | ${cell(median(reused.map((a) => a.serverMs)))} | ${cell(median(fresh.map((a) => a.serverMs)))} | ${cell(median(api.map((a) => a.downloadMs)))} |`;
+      }), '',
+      '읽는 법: "서버 응답(재사용 연결)"이 크면 쿼리·서버 처리가 느린 것이고, "새 연결 비용"과 "서버 응답(새 연결)"만 크면 러너↔Supabase 거리·핸드셰이크 비용입니다. "대기"가 크면 브라우저 동시 요청 큐잉입니다.', '');
   }
   return lines.join('\n');
 }
