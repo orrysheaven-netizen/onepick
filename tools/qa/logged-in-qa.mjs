@@ -491,10 +491,14 @@ async function main() {
     await check(flow, '내 원픽 목록 표시', async () => {
       // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
       const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
-      const empty = page.getByText('아직 원픽이 없어요');
+      // Empty copy per scope tab (profile.tsx): "아직 고른 음식 원픽이 없어요" / "아직 다른 취향 원픽이 없어요".
+      const empty = page.getByText(/아직 (고른 음식|다른 취향) 원픽이 없어요/);
       await rows.first().or(empty).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await rows.count();
-      if (!count) return { status: 'warn', detail: '내 원픽 행 없음 · 목록 확인 건너뜀' };
+      if (!count) {
+        const shownEmpty = await empty.first().isVisible().catch(() => false);
+        return { status: 'warn', detail: shownEmpty ? '내 원픽 없음(빈 상태 문구 표시) · 목록 확인 건너뜀' : '내 원픽 행도 빈 상태 문구도 보이지 않음 · 목록 확인 건너뜀' };
+      }
       await actionable(rows);
       await noErrorCopy(page);
       return `내 원픽 ${count}개 표시`;
@@ -628,7 +632,9 @@ async function main() {
           const write = fresh.getByRole('button', { name: '댓글 쓰기', exact: true });
           if (!(await write.filter({ visible: true }).count())) {
             await noErrorCopy(fresh);
-            return { status: 'warn', detail: '댓글 영역 표시 · "댓글 쓰기" 없음(작성 권한 없는 원픽일 수 있음)' };
+            // can_comment (item_review_page): only the Pick's owner or a member with their own active Pick
+          // of the same item and channel may write, so a QA account without Picks never sees it.
+          return { status: 'warn', detail: '댓글 영역 표시 · "댓글 쓰기" 없음(같은 항목에 본인 원픽이 있는 회원만 작성 가능 — QA 계정에 원픽이 없으면 정상)' };
           }
           await actionable(write);
           await noErrorCopy(fresh);
