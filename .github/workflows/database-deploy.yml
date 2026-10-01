@@ -33,7 +33,7 @@ jobs:
     environment: Production
     env:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_DB_POOLER_HOST: ${{ vars.SUPABASE_DB_POOLER_HOST }}
+      SUPABASE_DB_POOLER_HOST: aws-0-ap-northeast-2.pooler.supabase.com
       SUPABASE_PROJECT_REF: ygoipwzakzdnkaaxyrgb
 
     steps:
@@ -47,7 +47,6 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
-          test -n "$SUPABASE_DB_POOLER_HOST" || { echo "Missing SUPABASE_DB_POOLER_HOST variable"; exit 1; }
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
@@ -67,6 +66,13 @@ jobs:
           host = os.environ["SUPABASE_DB_POOLER_HOST"].strip()
           if not re.fullmatch(r"[a-z0-9-]+\.pooler\.supabase\.com", host):
               raise SystemExit("SUPABASE_DB_POOLER_HOST must be the Session pooler hostname only")
+
+          expected_target = ("ygoipwzakzdnkaaxyrgb", "aws-0-ap-northeast-2.pooler.supabase.com")
+          if (ref, host) != expected_target:
+              raise SystemExit(
+                  "Supabase project/pooler target mismatch. "
+                  "Confirm the Production project ref and Session pooler host are updated together."
+              )
 
           encoded_password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
           db_url = f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require"
