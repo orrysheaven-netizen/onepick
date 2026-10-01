@@ -2,6 +2,7 @@ import { AppError } from '@/errors/appError';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { FollowRepository } from '@/repositories/interfaces/followRepository';
+import type { FollowConnectionCursor, FollowDirection } from '@/types/domain/safety';
 
 export class SupabaseFollowRepository implements FollowRepository {
   constructor(private readonly client: AppSupabaseClient) {}
@@ -49,5 +50,44 @@ export class SupabaseFollowRepository implements FollowRepository {
     if (error) throw mapSupabaseError(error);
     const row = data?.[0];
     return { followingCount: row?.following_count ?? 0, followerCount: row?.follower_count ?? 0 };
+  }
+
+  async getPublicCounts(profileId: string) {
+    const { data, error } = await this.client.rpc('profile_follow_counts', { p_profile_id: profileId });
+    if (error) throw mapSupabaseError(error);
+    const row = data?.[0];
+    if (!row) return null;
+    return { followingCount: row.following_count, followerCount: row.follower_count };
+  }
+
+  async getConnections(
+    profileId: string,
+    direction: FollowDirection,
+    cursor: FollowConnectionCursor | null = null,
+    limit = 20,
+  ) {
+    const { data, error } = await this.client.rpc('profile_follow_connections_page', {
+      p_profile_id: profileId,
+      p_direction: direction,
+      p_after_username: cursor?.username ?? null,
+      p_after_user_id: cursor?.userId ?? null,
+      p_limit: limit,
+    });
+    if (error) throw mapSupabaseError(error);
+    const rows = data ?? [];
+    const hasNextPage = rows.length > limit;
+    const visible = rows.slice(0, limit);
+    const items = visible.map((row) => ({
+      userId: row.user_id,
+      username: row.username,
+      profileImageUrl: row.profile_image_url,
+      bio: row.bio,
+      viewerIsFollowing: row.viewer_is_following,
+    }));
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor: hasNextPage && last ? { username: last.username, userId: last.userId } : null,
+    };
   }
 }
