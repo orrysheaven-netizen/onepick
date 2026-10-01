@@ -93,6 +93,11 @@ set local role authenticated;
   assert v_moved.status='pending','Same place in another category is a separate request';
 
   -- Admin review.
+  reset role;
+  update public.items
+  set image_source_url='https://example.invalid/reviewed-place.jpg'
+  where id in (v_item.id, v_mapo_item.id);
+  set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
 
