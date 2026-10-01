@@ -1,0 +1,86 @@
+node_id	type	name	descendants	instances
+3:8	symbol	Avatar / 36	0	0
+3:12	symbol	Social / Action Row	0	0
+3:16	symbol	Media / Square 64	0	0
+3:17	frame	01 Home — Threads × OnePick	63	4
+3:79	frame	02 Explore — Visual discovery	80	0
+3:129	frame	03 Profile — Instagram × OnePick	69	0
+3:185	frame	과거 참고 · 04 Detail & Comments — Threaded conversation	48	3
+8:306	frame	과거 참고 · 05A Pick Registration — Store	67	0
+8:370	frame	06 Brand Direction — Official Assets	46	0
+13:34	frame	후속 · 05B Pick Registration — Online	67	0
+13:98	frame	후속 · 05C Pick Registration — Recipe	67	0
+16:23	frame	과거 참고 · 07A Registration State — Before Search	25	0
+16:45	frame	과거 참고 · 07B Registration State — Search Results	31	0
+16:78	frame	과거 참고 · 07C Registration State — Store Empty	19	0
+16:94	frame	후속 · 07C2 Registration State — Online Empty	19	0
+16:110	frame	과거 참고 · 07D Registration State — New Request	31	0
+16:138	frame	과거 참고 · 07E 새 제품 — 원픽 즉시 저장 완료	15	0
+16:152	frame	08A Explore State — Ranking Low Sample	27	0
+16:178	frame	08B Explore State — Ranking TOP3	37	0
+16:215	frame	09 Home State — No Image	29	0
+18:23	frame	과거 참고 · 10 Notifications — Threads-like	44	0
+18:86	frame	상태 참고 · 10B 알림 빈 상태	14	0
+18:97	frame	11 Implementation Gap Matrix	75	0
+21:23	frame	과거 참고 · 12 OnePick v3 Review Mockup — v5 화면으로 대체	329	0
+22:23	frame	과거 참고 · 13 OnePick v4 Channel & Provider Proposal	276	0
+26:23	frame	14 Title Hierarchy Study	103	0
+27:23	frame	15 Title Hierarchy Final Check	84	0
+33:103	frame	16 OnePick v5 — 메뉴 상세 MVP 오프라인 기준	61	1
+35:20	frame	17 OnePick v5 — 매장 프로필 MVP 기준	45	1
+41:20	frame	후속 · 18 OnePick v5 — Online Provider Production	55	0
+44:20	frame	후속 · 19 OnePick v5 — Recipe Channel Production	52	0
+46:20	frame	과거 참고 · 20 OnePick v5 — Registration Flow Production	298	0
+58:20	frame	22 OnePick v5 — 수정 필요 보조 흐름	76	4
+64:20	frame	과거 참고 · 24 OnePick v5 — Profile Information Architecture	82	0
+67:26	frame	과거 참고 · 25 내 원픽 수정·해제 — 62·64·65로 통합	217	0
+71:20	frame	과거 참고 · 26 수정·해제 결과 — 42·62·64·65로 통합	208	0
+73:20	frame	후속 · 27 프로필 편집 확장 — MVP는 65 인라인 편집	160	0
+76:20	frame	과거 참고 · 28 OnePick v5 — Home Structure Review	194	0
+82:20	frame	과거 참고 · 29 OnePick v5 — Home Menu Grid Proposal	263	0
+92:20	frame	지피티 30. OnePick v5 — 홈 MVP 오프라인 기준	135	23
+95:20	frame	지피티 31. OnePick v5 — 탐색 MVP 오프라인 기준	205	15
+107:20	frame	정책 참고 · 32 댓글 삭제 정책 — 확정	5	0
+119:20	frame	과거 참고 · 33 상품 상세 — 36·72로 대체	61	4
+119:75	frame	33 작성자 원픽 깃발 — 확정 정책	5	0
+124:31	frame	정책 참고 · 34 제목 체계 — 매장명 + 메뉴명	213	7
+128:51	frame	과거 참고 · 35 댓글 5개 이상 — 목록 내 펼침 방식	158	11
+129:84	frame	36 OnePick v5 — 아이템 상세 MVP 기준	104	15
+132:116	frame	상태 참고 · 37 대화 상세 — 72로 통합	190	15
+134:161	frame	38 전 화면 공통 — 왼쪽 가장자리 뒤로가기	5	0
+136:161	frame	39 OnePick v5 — 앱 안 알림 MVP 기준	120	4
+142:161	frame	40 OnePick v5 — 다른 사용자 프로필 MVP 기준	151	13
+143:161	frame	후속 · 41 팔로워·팔로잉 목록 — 팔로우 기능 확장	152	0
+148:161	frame	42 OnePick v5 — 프로필 빈 상태 MVP 기준	49	4
+150:161	frame	43 메뉴 검색 — 입력 전·결과·결과 없음	59	7
+152:161	frame	후속 · 44 라멘 메뉴별 원픽 — 매장·온라인·레시피	223	0
+158:161	frame	45 메뉴 상세 상태 — 대표 원픽 기준 미달 · 원픽 0명	39	5
+165:161	frame	과거 참고 · 46 등록·수정 한줄평 — 75·62로 통합	82	0
+169:161	frame	과거 참고 · 47 등록 여정·개인 첨부 — 75로 대체	60	0
+172:161	frame	과거 참고 · 48 사진·링크 등록 시안 — 75로 대체	116	0
+174:161	frame	과거 참고 · 49 한 화면 한 입력 — 75로 대체	154	0
+181:161	frame	과거 참고 · 50 원픽 등록 — 채널부터 완료까지	227	2
+187:161	frame	과거 참고 · 51 상호명 검색 — 75 1/4로 통합	77	0
+188:161	frame	정책 참고 · 52 새 매장 정보 — 75 1/4 내부	82	0
+191:161	frame	과거 참고 · 53 메뉴명 입력 — 75 2/4로 통합	56	0
+192:161	frame	지피티 54. 사진 등록 — 75의 3 / 4 단계	42	6
+197:161	frame	과거 참고 · 55 한줄평 작성·등록 완료 — 75로 통합	133	2
+202:166	frame	과거 참고 · 56 상호명→식당 소개 — 17 매장 프로필로 통합	102	2
+206:171	frame	후속 · 57 온라인 매장 · 레시피 — 내부 소개	105	0
+210:171	frame	과거 참고 · 58 기존 아이템 선택 — 75로 통합	183	2
+214:176	frame	과거 참고 · 59 원픽 변경 — 61 분기로 대체	174	4
+218:201	frame	상태 참고 · 61 기존 원픽 변경 확인 — 75 분기	96	0
+220:186	frame	상태 참고 · 62 한줄평 수정 — 36·65 공통	112	2
+222:191	frame	정책 참고 · 63 한줄평 삭제 — 댓글 보존	163	4
+224:202	frame	상태 참고 · 64 원픽 해제 — 36·65 공통	112	4
+226:212	frame	65 OnePick v5 — 내 프로필 MVP 기준	156	5
+231:212	frame	상태 참고 · 66 원픽 해제 후 프로필 — 42 빈 상태로 통합	122	0
+236:212	frame	67 OnePick v5 — 댓글 목록 · 프로필 진입 MVP 기준	106	2
+238:212	frame	68 OnePick v5 — 설정 MVP 기준	96	7
+240:212	frame	후속 · 69 계정 정보 — MVP 설정에 통합	84	0
+245:217	frame	정책 참고 · 70 프랜차이즈 — 지점·브랜드 전체	110	0
+250:217	frame	후속 · 71 브랜드 프로필 — 프랜차이즈 확장	98	0
+252:217	frame	72 OnePick v5 — 한줄평 대화 · 읽기/작성 권한 기준	147	16
+263:253	frame	후속 · 73 온라인 매장·레시피 — 새 아이템 개별 링크 필수	59	0
+430:997	frame	Group 3	61	0
+299:253	frame	지피티 75. 원픽 등록 v6 — MVP 오프라인 · 최종 기준	180	49
