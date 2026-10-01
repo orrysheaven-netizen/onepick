@@ -67,7 +67,7 @@ function arrange(status = { type: 'not_selected' }) {
   auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => retries++ };
   params = { itemId, categoryId };
   query = { isPending: false, isError: false, data: {
-    item: { id: itemId, categoryId, name: '진라면', status: 'active', thumbnailUrl: null },
+    item: { id: itemId, categoryId, name: '진라면', status: 'active', thumbnailUrl: null, imageUrl: 'https://image.test/item.jpg' },
     canChoose: true, myPickStatus: status,
   } };
   result = { id: status.type === 'selected_this' ? status.pickId : newPickId,

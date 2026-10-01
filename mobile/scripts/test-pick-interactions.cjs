@@ -32,7 +32,7 @@ async function main() {
   const { AppError } = loadSource('errors/appError.ts');
   const { ItemService } = loadSource('services/itemService.ts', { '@/errors/appError': { AppError } });
   let category = { id: 'category', status: 'open', isVisible: true, isPickable: true };
-  let item = { id: 'item', categoryId: 'category', status: 'active', name: '제품' };
+  let item = { id: 'item', categoryId: 'category', status: 'active', name: '제품', imageUrl: 'https://image.test/item.jpg' };
   let currentPick = null;
   const service = new ItemService(
     { getById: async () => item },

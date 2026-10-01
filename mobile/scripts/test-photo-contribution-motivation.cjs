@@ -78,7 +78,10 @@ const baseItem = { id: itemId, name: '진라면', categoryId, status: 'active', 
 function choice() {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null };
   const params = { itemId, categoryId };
-  const query = { data: { item: { ...baseItem }, canChoose: true, myPickStatus: { type: 'not_selected' } }, isPending: false, isError: false, isFetching: false };
+  // New picks of a photo-less item now need the photo first (test-choose-photo-first),
+  // so the post-save invitation remains only for editing the review of an existing
+  // pick whose item still has no photo.
+  const query = { data: { item: { ...baseItem }, canChoose: true, myPickStatus: { type: 'selected_this', pickId, oneLineReview: '예전 이유' } }, isPending: false, isError: false, isFetching: false };
   const writes = [], destinations = [], pending = [];
   const mutation = { isPending: false, isError: false, mutateAsync: (p) => { writes.push(p); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
   const view = harness('app/pick/choose.tsx', {
@@ -86,7 +89,7 @@ function choice() {
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
-  const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('내 원픽으로 선택').onPress(); };
+  const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('한줄평 저장').onPress(); };
   const finish = async () => { pending[0].resolve({ id: pickId, itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' }); await flush(); return view.render(); };
   return { auth, params, query, mutation, view, writes, destinations, pending, start, finish };
 }
