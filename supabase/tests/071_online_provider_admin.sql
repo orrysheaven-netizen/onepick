@@ -279,6 +279,9 @@ begin
     'Provider and online-store admin writes are audited';
 
   reset role;
+  update public.items
+  set image_source_url='https://example.invalid/provider-admin-photo.jpg'
+  where id=v_first.item_id;
 
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
