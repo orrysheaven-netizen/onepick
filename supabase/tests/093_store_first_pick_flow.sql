@@ -95,6 +95,9 @@ perform set_config('request.jwt.claim.sub',member::text,true);
     assert false, 'Hidden sellers are refused';
   exception when sqlstate 'P0001' then assert sqlerrm='PROVIDER_NOT_FOUND', sqlerrm; end;
   reset role;
+  update public.items
+  set image_source_url='https://example.invalid/store-first-photo.jpg'
+  where id=v_item.id;
   assert (select target_url='https://gomtang-sf.example.com/' and is_primary from public.item_channels
           where item_id=v_item.id and channel='online'), 'The seller item opens the seller link';
   perform set_config('request.jwt.claim.sub',member::text,true);
