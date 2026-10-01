@@ -91,6 +91,9 @@ set local role authenticated;
   get diagnostics v_rows = row_count;
   assert v_rows=1, 'Admin can reject a pending request';
 
+  reset role;
+  update public.items set image_source_url='https://example.invalid/approved-item.jpg' where id=v_item.id;
+  set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_alice::text,true);
   assert (select status='active' from public.items where id=v_item.id), 'Submitter can read approval status';
   perform public.register_pick(v_category,v_item.id,'검증용 제품','첫 선택 이유');
@@ -122,8 +125,8 @@ set local role authenticated;
   assert v_rows=0, 'A user cannot edit another user comment';
 
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  insert into public.items(category_id,name,normalized_name,status)
-    values(v_category,'두 번째 검증 제품','두번째검증제품','active') returning * into v_second;
+  insert into public.items(category_id,name,normalized_name,status,image_source_url)
+    values(v_category,'두 번째 검증 제품','두번째검증제품','active','https://example.invalid/second.jpg') returning * into v_second;
   perform set_config('request.jwt.claim.sub',v_alice::text,true);
   perform public.change_pick(v_category,v_second.id,'다른 제품으로 변경');
   assert (select status='replaced' from public.picks where id=v_alice_pick), 'Old choice becomes history';
