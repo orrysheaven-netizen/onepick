@@ -99,9 +99,11 @@ jobs:
         if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
         run: echo "No relevant changes; heavy verify-web steps skipped."
       - name: Checkout
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/checkout@v7
 
       - name: Setup Node
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -109,11 +111,13 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
 
       - name: Check QA script syntax
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         working-directory: .
         run: |
           find tools/qa -type f -name '*.mjs' -print0 | sort -z | xargs -0 -r -n1 node --check
 
       - name: Test CI path gate
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         working-directory: .
         run: bash .github/scripts/test-ci-path-gate.sh
 
@@ -127,10 +131,13 @@ jobs:
           bash .github/scripts/test-pm-review-queue.sh
 
       - name: Install dependencies
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm ci
 
       - name: Export web build
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm run build:web
 
       - name: Check exported assets and direct routes
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm run check:web
