@@ -75,10 +75,6 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
   typecheck:
-
-      - name: Required check satisfied
-        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
-        run: echo "No relevant changes; heavy typecheck steps skipped."
     needs: changes
     # Required check: keep this job present on ready PRs. GitHub branch protection
     # does not accept a skipped required job as success, so only heavy steps are gated.
@@ -93,6 +89,10 @@ jobs:
         working-directory: mobile
 
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy typecheck steps skipped."
       - name: Checkout
         uses: actions/checkout@v7
         with:
