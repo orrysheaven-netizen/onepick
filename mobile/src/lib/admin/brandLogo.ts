@@ -8,7 +8,9 @@ import { supabase } from '@/lib/supabase/client';
 // Brand logos live in the `brand-logos` bucket under `<brand id>/`. Only AAL2
 // admins can write there, and brands.logo_path only accepts an uploaded object
 // (supabase/migrations/20260927171208_add_brand_logos.sql).
-const LOGO_MAX_SIDE = 512;
+// App surfaces render brand logos at up to 86pt; 256px is approximately 3x that size
+// without shipping a 512px asset to every cold home load.
+const LOGO_MAX_SIDE = 256;
 
 export type BrandLogoDraft = { uri: string; base64: string };
 
