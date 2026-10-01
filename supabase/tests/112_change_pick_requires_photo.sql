@@ -61,8 +61,16 @@ begin
 
   assert (select prosecdef from pg_proc where oid='private.change_pick_impl(uuid,uuid,text,text,text,text)'::regprocedure),
     'private change_pick implementation remains SECURITY DEFINER';
+  assert (select coalesce('search_path=""' = any(proconfig), false)
+          from pg_proc
+          where oid='private.change_pick_impl(uuid,uuid,text,text,text,text)'::regprocedure),
+    'private change_pick implementation keeps an empty search_path';
+  assert has_function_privilege('authenticated','private.change_pick_impl(uuid,uuid,text,text,text,text)','execute'),
+    'authenticated callers keep private implementation execute privilege';
   assert has_function_privilege('authenticated','public.change_pick(uuid,uuid,text,text,text,text)','execute'),
     'authenticated callers keep change_pick execute privilege';
+  assert has_function_privilege('service_role','public.change_pick(uuid,uuid,text,text,text,text)','execute'),
+    'service role keeps change_pick execute privilege';
   assert not has_function_privilege('anon','public.change_pick(uuid,uuid,text,text,text,text)','execute'),
     'anonymous callers still cannot execute change_pick';
 
