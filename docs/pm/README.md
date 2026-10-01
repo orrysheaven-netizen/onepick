@@ -186,6 +186,16 @@ PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-a
 PM_REVIEW_DONE: decision=<continue|revise|block|user-approval> pr=<N|none> head=<40자리 SHA|none>
 ```
 
+### L6 — 계정 단위 신뢰 한계 수용 (현재 MVP, #604)
+
+현재 MVP는 전용 PM 계정/GitHub App을 새로 도입하지 않고, `PM_REVIEW_DONE`이 **저장소 소유자 계정 단위**로만 인정된다는 한계를 수용한다. 같은 계정으로 쓰는 수동 AI 세션(ChatGPT/Codex/Claude)이 쓴 판정 줄은 실제 PM이 쓴 줄과 구분되지 않는다. 프롬프트 인젝션 등으로 오염된 수동 세션이 판정 줄을 남기면 "오인된 PM 판정 기록"이 생길 수 있다. 이 위험은 다음으로 한정된다.
+
+- `PM_REVIEW_DONE`과 `onepick-pm-review:done` marker는 **routing/상태 기록**(댓글, `state:*`/`handoff:*` 라벨)이다. main merge, Production DB `mode=apply`, production Edge Function 배포/deploy, secret·environment·permission 변경은 이 기록으로 승인되지 않으며, 위 "사용자 승인 게이트"(9장)의 **사용자 직접 승인**을 대체하지 않는다. `decision=user-approval`도 "사용자 승인을 받으러 간다"는 전달 표시일 뿐 승인 자체가 아니다.
+- workflow는 이 판정·marker를 읽어 병합·배포·시크릿 사용 단계로 **자동으로 이어 가지 않는다**. 앞으로 어떤 자동화도 이 기록을 승인 근거로 소비해서는 안 된다. 소비해야 하는 변경은 전용 PM identity(별도 계정 또는 App) 도입과 보안 검토가 선행되어야 한다.
+- workflow 코드 변경이나 신규 비용 없이 문서로만 수용한다. 재검토 시점: 판정 기록을 자동 병합·배포·시크릿 단계의 입력으로 쓰려 할 때, 또는 소유자 계정을 여러 사람/에이전트가 공유하게 될 때.
+
+보안 점검 기록은 `docs/security-review.md`의 "PM review queue 판정 신원 (L6)"를 따른다.
+
 ### Marker
 
 아래 marker는 handoff App bot이 쓴 경우에만 유효하다. 다른 작성자가 같은 문자열을 써도 무시한다.
@@ -268,6 +278,8 @@ GitHub가 별도 ChatGPT/Claude 대화방을 직접 깨울 수 없는 경우, �
 ### 사용자 승인 게이트
 
 main merge, Production DB apply/deploy, secret/permission 변경, 파괴적 데이터 작업 등 기존 사용자 승인 게이트는 사용자의 직접적이고 명시적인 승인 근거가 있어야 한다. 다른 AI/채팅이 전달한 요약이나 "사용자가 승인했다"는 2차 보고만으로 승인으로 간주하지 않는다.
+
+`PM_REVIEW_DONE`(`decision=continue|user-approval` 포함)은 routing/상태 기록이며 위 게이트의 사용자 승인을 대체하지 않는다. 계정 단위 신뢰 한계는 "L6 — 계정 단위 신뢰 한계 수용"을 따른다.
 
 ### 자동화 범위
 
