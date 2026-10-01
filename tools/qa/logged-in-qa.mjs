@@ -2,7 +2,7 @@
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
 // registration → link category suggestion → profile → settings → public profile →
-// notifications → share/deep link. The initial MVP hides follow
+// notifications → share/deep link, plus read-only own picks list and pick comment area. The initial MVP hides follow
 // (OnePickFeatures.follow=false), so the follow scope, CTA and setting must be absent.
 //
 // Credential rules (docs/daily-qa.md "로그인 상태 QA 계정 규칙"):
@@ -488,6 +488,17 @@ async function main() {
       await actionable(page.getByRole('button', { name: '설정 열기', exact: true }));
       await noErrorCopy(page);
     });
+    await check(flow, '내 원픽 목록 표시', async () => {
+      // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
+      const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
+      const empty = page.getByText('아직 원픽이 없어요');
+      await rows.first().or(empty).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
+      const count = await rows.count();
+      if (!count) return { status: 'warn', detail: '내 원픽 행 없음 · 목록 확인 건너뜀' };
+      await actionable(rows);
+      await noErrorCopy(page);
+      return `내 원픽 ${count}개 표시`;
+    });
     await check(flow, '프로필의 "내 댓글 보기"', async () => {
       await openOwnComments(page);
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
@@ -604,6 +615,26 @@ async function main() {
           await shot(fresh, 'pick_deeplink');
         } finally { await fresh.close(); }
         return '/pick/:id 한줄평 대화 표시';
+      });
+    }
+    if (pickId) {
+      await check(flow, '원픽 댓글 영역·작성 진입 표시', async () => {
+        const fresh = await context.newPage();
+        try {
+          await fresh.goto(`${BASE_URL}/pick/${encodeURIComponent(pickId)}`, { waitUntil: 'networkidle' });
+          await assertPickConversation(fresh, pickId, STEP_TIMEOUT_MS);
+          await fresh.getByText('댓글', { exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+          // Read-only: the composer entry is only trial-clicked; no comment is typed or posted.
+          const write = fresh.getByRole('button', { name: '댓글 쓰기', exact: true });
+          if (!(await write.filter({ visible: true }).count())) {
+            await noErrorCopy(fresh);
+            return { status: 'warn', detail: '댓글 영역 표시 · "댓글 쓰기" 없음(작성 권한 없는 원픽일 수 있음)' };
+          }
+          await actionable(write);
+          await noErrorCopy(fresh);
+          const threads = await fresh.getByRole('button', { name: /에게 답글 달기$/ }).count();
+          return `댓글 영역 표시 · "댓글 쓰기" 클릭 가능 · 답글 버튼 ${threads}개 (작성하지 않음)`;
+        } finally { await fresh.close(); }
       });
     }
     if (otherProfilePath) {
