@@ -108,7 +108,7 @@ select ok(
 select is(
   (select cover_item_id from public.food_menu_recent_ranking((select id from fmr_ids where key='group')) where category_id = (select id from fmr_ids where key='soup')),
   (select id from fmr_ids where key='soup_b'),
-  'the cover is the most chosen item of the week that has an image (A has more people but no image)'
+  'the unscoped cover is the most chosen imaged item across all channels'
 );
 
 select is(
