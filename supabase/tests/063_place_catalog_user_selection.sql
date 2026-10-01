@@ -87,7 +87,14 @@ begin
   assert v_count=0,'Closed businesses stay hidden from public place search';
   reset role;
 
-  perform set_config('request.jwt.claim.sub',v_user::text,true);
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
 
