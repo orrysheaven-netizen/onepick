@@ -1,8 +1,9 @@
 name: One-time #639 migration filename generator
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - chore/639-generate-migration-name
     paths:
       - '.github/workflows/one-time-639-migration-name.yml'
 
@@ -11,7 +12,6 @@ permissions:
 
 jobs:
   generate:
-    if: github.head_ref == 'chore/639-generate-migration-name'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
