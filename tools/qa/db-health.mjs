@@ -50,7 +50,14 @@ async function fetchSlowStatements() {
   return res.json();
 }
 
-function advisorSection(title, lints) {
+// A failed lookup is not "nothing found": the section must say it has no result,
+// otherwise a 403/expired token reads as a clean bill of health (#605).
+function failedSection(title, failure) {
+  return [`### ${title}`, '', `**조회 실패 — 결과 없음(안전하다는 뜻이 아님).** ${failure}`, ''];
+}
+
+function advisorSection(title, lints, failure) {
+  if (failure) return failedSection(title, failure);
   const lines = [`### ${title}`, ''];
   if (!lints.length) {
     lines.push('발견 사항 없음.', '');
@@ -66,8 +73,10 @@ function advisorSection(title, lints) {
   return lines;
 }
 
-function slowStatementsSection(rows) {
-  const lines = ['### 느린 쿼리 상위 (pg_stat_statements)', ''];
+function slowStatementsSection(rows, failure) {
+  const title = '느린 쿼리 상위 (pg_stat_statements)';
+  if (failure) return failedSection(title, failure);
+  const lines = [`### ${title}`, ''];
   if (!rows.length) {
     lines.push('pg_stat_statements 기록 없음 (확장 비활성 또는 통계 없음).', '');
     return lines;
@@ -83,32 +92,28 @@ function slowStatementsSection(rows) {
 
 async function buildMarkdown() {
   const lines = ['## DB 점검 (Supabase advisors, 읽기 전용)', ''];
-  const errors = [];
+  const failures = {};
 
-  let performance = [];
-  let security = [];
-  let slowStatements = [];
-
-  try {
-    performance = await fetchAdvisors('performance');
-  } catch (err) {
-    errors.push(`성능 advisor 조회 실패: ${String(err?.message || err).slice(0, 200)}`);
-  }
-  try {
-    security = await fetchAdvisors('security');
-  } catch (err) {
-    errors.push(`보안 advisor 조회 실패: ${String(err?.message || err).slice(0, 200)}`);
-  }
-  try {
-    slowStatements = await fetchSlowStatements();
-  } catch (err) {
-    errors.push(`느린 쿼리 조회 실패: ${String(err?.message || err).slice(0, 200)}`);
+  async function attempt(key, label, fn, fallback) {
+    try {
+      return await fn();
+    } catch (err) {
+      failures[key] = `${label} 조회 실패: ${String(err?.message || err).slice(0, 200)}`;
+      return fallback;
+    }
   }
 
-  lines.push(...advisorSection('성능 advisor', performance));
-  lines.push(...advisorSection('보안 advisor', security));
-  lines.push(...slowStatementsSection(slowStatements));
-  if (errors.length) lines.push('### 조회 실패', '', ...errors.map((e) => `- ${e}`), '');
+  const performance = await attempt('performance', '성능 advisor', () => fetchAdvisors('performance'), []);
+  const security = await attempt('security', '보안 advisor', () => fetchAdvisors('security'), []);
+  const slowStatements = await attempt('slow', '느린 쿼리', fetchSlowStatements, []);
+
+  const failed = Object.values(failures);
+  if (failed.length) {
+    lines.push(`> **주의:** ${failed.length}개 섹션을 조회하지 못했습니다. "조회 실패"로 표시된 섹션은 "문제 없음"이 아니라 "확인하지 못함"입니다.`, '');
+  }
+  lines.push(...advisorSection('성능 advisor', performance, failures.performance));
+  lines.push(...advisorSection('보안 advisor', security, failures.security));
+  lines.push(...slowStatementsSection(slowStatements, failures.slow));
   return lines.join('\n');
 }
 
