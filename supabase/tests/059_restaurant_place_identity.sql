@@ -128,10 +128,6 @@ perform set_config('request.jwt.claim.sub',v_admin::text,true);
 
   update public.items
   set image_source_url='https://example.invalid/place-photo.jpg'
-  where id in (v_place_item_a.id, v_place_item_b.id);
-
-  update public.items
-  set image_source_url='https://example.invalid/place-photo.jpg'
   where id in (v_place_item_a.id,v_place_item_b.id);
 
   perform set_config('request.jwt.claim.sub',v_user::text,true);
