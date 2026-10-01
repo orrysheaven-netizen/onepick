@@ -88,6 +88,9 @@ set local role authenticated;
   get diagnostics v_rows = row_count;
   assert v_rows=1, 'Admin can reject a pending request';
 
+  reset role;
+  update public.items set image_source_url='https://example.invalid/approved-item.jpg' where id=v_item.id;
+  set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_alice::text,true);
   assert (select status='active' from public.items where id=v_item.id), 'Submitter can read approval status';
   perform public.register_pick(v_category,v_item.id,'검증용 제품','첫 선택 이유');
