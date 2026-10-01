@@ -15,6 +15,26 @@ export interface FollowCounts {
   followerCount: number;
 }
 
+export type FollowConnectionDirection = 'followers' | 'following';
+
+export interface FollowConnectionCursor {
+  username: string;
+  userId: string;
+}
+
+export interface FollowConnection {
+  userId: string;
+  username: string;
+  profileImageUrl: string | null;
+  bio: string | null;
+  viewerIsFollowing: boolean;
+}
+
+export interface FollowConnectionPage {
+  items: FollowConnection[];
+  nextCursor: FollowConnectionCursor | null;
+}
+
 export interface ContentReport {
   id: string;
   reporterUserId: string | null;
