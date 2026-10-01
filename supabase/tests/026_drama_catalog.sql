@@ -26,7 +26,14 @@ begin
     raise exception 'Duplicate TV identity should fail';
   exception when unique_violation then null;
   end;
-  perform set_config('request.jwt.claim.sub','',true);
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+perform set_config('request.jwt.claim.sub','',true);
   set local role anon;
   select count(*) into n from public.search_items('미디어 동일 제목',array[drama],20) i where i.id in (film,tv,tv_other);
   assert n=2, 'Same-title different series remain distinct and movie is not in drama search';
