@@ -6,20 +6,25 @@ const { OnePick } = require('./design-tokens.cjs');
 
 // Minimal react-native stand-ins: record Pressable props so the checks can press and inspect state.
 let pressables = [];
+let views = [];
+let seq = 0;
 const flat = (style) => (Array.isArray(style) ? style.flatMap(flat) : style ? [style] : []);
 const resolveStyle = (style) => Object.assign({}, ...flat(typeof style === 'function' ? style({ pressed: false }) : style));
 const host = (tag) => ({ children, accessibilityLabel, accessibilityRole, style }) =>
   React.createElement(tag, { 'aria-label': accessibilityLabel, role: accessibilityRole, 'data-style': JSON.stringify(resolveStyle(style)) }, children);
 let spinners = 0;
 const native = {
-  Text: host('span'), View: host('div'),
-  Pressable: (props) => { pressables.push({ ...props, resolved: resolveStyle(props.style) }); return React.createElement('button', { 'aria-label': props.accessibilityLabel, disabled: props.disabled }, props.children); },
+  Text: host('span'),
+  View: (props) => { views.push({ ...props, order: seq++, resolved: resolveStyle(props.style) }); return host('div')(props); },
+  Pressable: (props) => { pressables.push({ ...props, order: seq++, resolved: resolveStyle(props.style) }); return React.createElement('button', { 'aria-label': props.accessibilityLabel, disabled: props.disabled }, props.children); },
   ActivityIndicator: () => { spinners++; return React.createElement('i', null, 'spinner'); },
   StyleSheet: { create: (s) => s },
 };
 const ui = loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: ({ label, feed }) => React.createElement('img', { alt: label, 'data-feed': String(feed) }) } });
-const render = (element) => { pressables = []; spinners = 0; return renderToStaticMarkup(element); };
+const render = (element) => { pressables = []; views = []; seq = 0; spinners = 0; return renderToStaticMarkup(element); };
 const pressable = (label) => pressables.find((p) => p.accessibilityLabel === label);
+// The visual box drawn inside a Pressable wrapper (the wrapper itself is the touch area).
+const visual = (label) => views.find((v) => v.order > pressable(label).order).resolved;
 
 // Button: one visual per variant, disabled/loading block presses, ghost stays a text link.
 {
@@ -27,20 +32,20 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   const html = render(React.createElement(ui.Button, { label: '이 원픽으로 정하기', onPress: () => pressed++ }));
   assert.match(html, /이 원픽으로 정하기/);
   const primary = pressable('이 원픽으로 정하기');
-  assert.equal(primary.resolved.backgroundColor, OnePick.actionPrimary);
-  assert.equal(primary.resolved.minHeight, 52);
+  assert.equal(visual('이 원픽으로 정하기').backgroundColor, OnePick.actionPrimary);
+  assert.equal(visual('이 원픽으로 정하기').minHeight, 52);
   assert.equal(primary.accessibilityRole, 'button');
   primary.onPress(); assert.equal(pressed, 1);
 
   render(React.createElement(ui.Button, { label: '공유', variant: 'secondary', size: 'sm' }));
-  assert.equal(pressable('공유').resolved.borderColor, OnePick.borderStrong);
-  assert.equal(pressable('공유').resolved.minHeight, 40);
+  assert.equal(visual('공유').borderColor, OnePick.borderStrong);
+  assert.equal(visual('공유').minHeight, 40);
 
   render(React.createElement(ui.Button, { label: '나도 이게 원픽', variant: 'soft' }));
-  assert.equal(pressable('나도 이게 원픽').resolved.backgroundColor, OnePick.accentSoft);
+  assert.equal(visual('나도 이게 원픽').backgroundColor, OnePick.accentSoft);
 
   render(React.createElement(ui.Button, { label: '삭제', variant: 'danger' }));
-  assert.equal(pressable('삭제').resolved.backgroundColor, 'transparent');
+  assert.equal(visual('삭제').backgroundColor, 'transparent');
 
   render(React.createElement(ui.Button, { label: '저장', disabled: true, accessibilityLabel: '원픽 저장' }));
   assert.equal(pressable('원픽 저장').disabled, true);
@@ -60,16 +65,16 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   render(React.createElement(ui.Chip, { label: '영화', selected: true, accessibilityLabel: '영화 카테고리 보기' }));
   const selected = pressable('영화 카테고리 보기');
   assert.equal(selected.accessibilityState.selected, true);
-  assert.equal(selected.resolved.backgroundColor, OnePick.actionPrimary);
-  assert.equal(selected.resolved.borderColor, OnePick.actionPrimary);
+  assert.equal(visual('영화 카테고리 보기').backgroundColor, OnePick.actionPrimary);
+  assert.equal(visual('영화 카테고리 보기').borderColor, OnePick.actionPrimary);
 
   render(React.createElement(ui.Chip, { label: '드라마' }));
   assert.equal(pressable('드라마').accessibilityState.selected, false);
-  assert.equal(pressable('드라마').resolved.backgroundColor, OnePick.bgMuted);
+  assert.equal(visual('드라마').backgroundColor, OnePick.bgMuted);
 
   const dashed = render(React.createElement(ui.Chip, { label: '책', dashed: true, leading: React.createElement('b', null, '+') }));
   assert.match(dashed, /<b>\+<\/b>/);
-  assert.equal(pressable('책').resolved.borderStyle, 'dashed');
+  assert.equal(visual('책').borderStyle, 'dashed');
 }
 
 // SectionHeader: title + accent count + description, optional ghost action.
@@ -78,7 +83,7 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   const html = render(React.createElement(ui.SectionHeader, { title: '카테고리별 원픽', count: 7, description: '카테고리마다 하나', action: { label: '관리', onPress: () => managed++ } }));
   assert.match(html, /카테고리별 원픽/); assert.match(html, /7/); assert.match(html, /카테고리마다 하나/);
   pressable('관리').onPress(); assert.equal(managed, 1);
-  assert.equal(pressable('관리').resolved.backgroundColor, 'transparent');
+  assert.equal(visual('관리').backgroundColor, 'transparent');
 
   const bare = render(React.createElement(ui.SectionHeader, { title: '댓글' }));
   assert.equal(pressables.length, 0); assert.match(bare, /댓글/);
@@ -100,8 +105,8 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.equal(pressable('다시 불러오기').disabled, true);
 
   render(React.createElement(ui.StateCard, { title: '나의 원픽을 모아보세요', action: { label: '로그인하기', onPress() {}, variant: 'primary' } }));
-  assert.equal(pressable('로그인하기').resolved.backgroundColor, OnePick.actionPrimary, 'Full-screen states can promote the action to primary');
-  assert.equal(pressable('로그인하기').resolved.minHeight, 52);
+  assert.equal(visual('로그인하기').backgroundColor, OnePick.actionPrimary, 'Full-screen states can promote the action to primary');
+  assert.equal(visual('로그인하기').minHeight, 52);
 
   const compact = render(React.createElement(ui.StateCard, { text: '다음 제품을 불러오지 못했어요.', compact: true }));
   assert.doesNotMatch(compact, />원픽</); assert.equal(spinners, 0);
@@ -179,4 +184,81 @@ const pressable = (label) => pressables.find((p) => p.accessibilityLabel === lab
   assert.match(recipeFallback, />미역국</, 'D hierarchy keeps the menu title when no recipe provider/source is available');
 }
 
-console.log('UI kit passed: Button variants/states, Chip selection, SectionHeader, StateCard states, Avatar, PickCard order.');
+// Touch + press rules: visual size is unchanged, but every pressable reaches 44pt and shares one pressed state.
+{
+  const reach = (p, axis) => {
+    const slop = p.hitSlop ?? { top: 0, bottom: 0, left: 0, right: 0 };
+    return axis === 'y' ? (p.resolved.minHeight ?? p.resolved.height) + slop.top + slop.bottom : slop.left + slop.right;
+  };
+  const pressedOf = (p) => resolveStyleAs(p.style, true).opacity;
+  const resolveStyleAs = (style, pressed) => Object.assign({}, ...flat(typeof style === 'function' ? style({ pressed }) : style));
+
+  // Button/Chip: the Pressable itself is a layout box of at least 44x44, so a short label, a padding-less
+  // text link or a tight parent cannot shrink the touch area. The visual box inside keeps its designed size.
+  const wrapperReaches44 = (label, why) => {
+    const w = pressable(label).resolved;
+    assert.ok(w.minWidth >= 44 && w.minHeight >= 44, `${why}: wrapper is at least 44x44`);
+    assert.equal(pressable(label).hitSlop, undefined, `${why}: does not rely on hitSlop`);
+  };
+
+  render(React.createElement(ui.Button, { label: '작게', size: 'sm' }));
+  assert.equal(visual('작게').minHeight, 40, 'Button sm keeps its visual height');
+  wrapperReaches44('작게', 'Button sm');
+  render(React.createElement(ui.Button, { label: '보통' }));
+  assert.equal(visual('보통').minHeight, 52);
+  wrapperReaches44('보통', 'Button md');
+  render(React.createElement(ui.Button, { label: 'X', variant: 'secondary', size: 'sm' }));
+  wrapperReaches44('X', 'Short-label Button (narrower than 44)');
+  for (const variant of ['ghost', 'danger']) {
+    render(React.createElement(ui.Button, { label: '링크', variant, size: 'sm', style: { alignSelf: 'flex-start', marginLeft: -8 } }));
+    wrapperReaches44('링크', `${variant} text link`);
+    assert.equal(visual('링크').paddingHorizontal, 0, `${variant} text link keeps its padding-less look`);
+    assert.equal(pressable('링크').resolved.marginLeft, -8, 'Caller layout style stays on the wrapper');
+  }
+  render(React.createElement(ui.Button, { label: '전폭', fullWidth: true }));
+  assert.equal(pressable('전폭').resolved.alignSelf, 'stretch');
+  assert.equal(visual('전폭').alignSelf, 'stretch', 'Full-width visual fills the wrapper');
+
+  render(React.createElement(ui.Chip, { label: '칩' }));
+  assert.equal(visual('칩').minHeight, 32, 'Chip keeps its visual height');
+  wrapperReaches44('칩', 'Chip');
+  render(React.createElement(ui.Chip, { label: '범위', style: { marginTop: 4 }, visualStyle: { paddingHorizontal: 14 } }));
+  assert.equal(visual('범위').paddingHorizontal, 14, 'visualStyle (e.g. profile scope chip padding) reaches the visual chip');
+  assert.equal(visual('범위').minHeight, 32);
+  assert.equal(pressable('범위').resolved.paddingHorizontal, undefined, 'visualStyle does not leak onto the touch wrapper');
+  assert.equal(pressable('범위').resolved.marginTop, 4, 'style stays on the touch wrapper');
+  wrapperReaches44('범위', 'Chip with visualStyle');
+  render(React.createElement(ui.Chip, { label: '책', dashed: true }));
+  wrapperReaches44('책', 'One-character Chip (narrower than 44)');
+
+  for (const size of [24, 32, 40]) {
+    render(React.createElement(ui.Avatar, { name: 'a', size, onPress() {}, accessibilityLabel: `아바타${size}` }));
+    const avatar = pressable(`아바타${size}`);
+    assert.equal(avatar.resolved.width, size, 'Avatar keeps its visual size');
+    assert.ok(size + avatar.hitSlop.left + avatar.hitSlop.right >= 44 && size + avatar.hitSlop.top + avatar.hitSlop.bottom >= 44);
+  }
+
+  render(React.createElement(ui.PickCard, {
+    providerName: '서울집', itemName: '미역국', photo: {}, onPress() {}, onPressProvider() {}, accessibilityLabel: '카드',
+    person: { username: 'friend', onPress() {} },
+  }));
+
+  // One pressed state across the kit: 0.9, never a scale transform, and disabled/loading never press.
+  render(React.createElement(ui.Button, { label: '눌림' }));
+  assert.equal(pressedOf(pressable('눌림')), 0.9);
+  render(React.createElement(ui.Chip, { label: '눌림칩' }));
+  assert.equal(pressedOf(pressable('눌림칩')), 0.9);
+  render(React.createElement(ui.Avatar, { name: 'a', onPress() {}, accessibilityLabel: '눌림아바타' }));
+  assert.equal(pressedOf(pressable('눌림아바타')), 0.9);
+  render(React.createElement(ui.PickCard, { itemName: '미역국', photo: {}, onPress() {}, accessibilityLabel: '눌림카드' }));
+  assert.equal(pressedOf(pressable('눌림카드')), 0.9);
+  for (const p of pressables) assert.equal(resolveStyleAs(p.style, true).transform, undefined, 'No scale animation');
+
+  render(React.createElement(ui.Button, { label: '비활성', variant: 'secondary', disabled: true }));
+  assert.equal(resolveStyleAs(pressable('비활성').style, true).opacity, 0.6, 'Disabled stays dimmed, pressed state does not apply');
+  render(React.createElement(ui.Button, { label: '로딩', variant: 'secondary', loading: true }));
+  assert.equal(pressable('로딩').disabled, true);
+  assert.equal(resolveStyleAs(pressable('로딩').style, true).opacity, 0.6);
+}
+
+console.log('UI kit passed: Button variants/states, Chip selection, SectionHeader, StateCard states, Avatar, PickCard order, 44pt Button/Chip wrappers, Avatar touch area and one pressed state.');

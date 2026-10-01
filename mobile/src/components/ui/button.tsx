@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
+import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from './touch';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger';
 export type ButtonSize = 'lg' | 'md' | 'sm';
@@ -20,6 +21,8 @@ type Props = {
 // Primary = one per screen. Soft is the in-card action ("나도 이게 원픽"); ghost is a text link.
 export function Button({ label, onPress, variant = 'primary', size = 'md', disabled, loading, fullWidth, accessibilityLabel, style }: Props) {
   const inactive = Boolean(disabled || loading);
+  // The Pressable is the real 44x44 interaction area (layout, not hitSlop, so tight parents cannot shrink it);
+  // the visual button inside keeps its designed size.
   return (
     <Pressable
       accessibilityRole="button"
@@ -27,21 +30,26 @@ export function Button({ label, onPress, variant = 'primary', size = 'md', disab
       accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, inactive && variant === 'primary' && styles.primaryDisabled, style]}>
-      {loading
-        ? <ActivityIndicator color={variant === 'primary' ? OnePick.onAction : variant === 'danger' ? OnePick.danger : OnePick.text} />
-        : <Text numberOfLines={1} style={[styles.label, size === 'sm' && styles.labelSmall, labels[variant]]}>{label}</Text>}
+      style={({ pressed }) => [styles.touch, fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, inactive && variant === 'primary' && styles.primaryDisabledOpacity, style]}>
+      <View style={[styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidthVisual, inactive && variant === 'primary' && styles.primaryDisabled]}>
+        {loading
+          ? <ActivityIndicator color={variant === 'primary' ? OnePick.onAction : variant === 'danger' ? OnePick.danger : OnePick.text} />
+          : <Text numberOfLines={1} style={[styles.label, size === 'sm' && styles.labelSmall, labels[variant]]}>{label}</Text>}
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', borderRadius: OnePickRadius.md },
-  fullWidth: { alignSelf: 'stretch' },
+  touch: { minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center' },
+  fullWidth: { alignSelf: 'stretch', alignItems: 'stretch' },
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', borderRadius: OnePickRadius.md },
+  fullWidthVisual: { alignSelf: 'stretch' },
   // Keep enabled pressed text readable; only unavailable controls are dimmed.
-  pressed: { opacity: 0.9 },
+  pressed: { opacity: PRESSED_OPACITY },
   disabled: { opacity: 0.6 },
-  primaryDisabled: { backgroundColor: OnePick.actionDisabled, opacity: 1 },
+  primaryDisabledOpacity: { opacity: 1 },
+  primaryDisabled: { backgroundColor: OnePick.actionDisabled },
   label: { ...OnePickType.bodyMedium },
   labelSmall: { ...OnePickType.captionMedium },
 });

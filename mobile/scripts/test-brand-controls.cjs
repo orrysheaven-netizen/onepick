@@ -39,6 +39,7 @@ function load(file) {
   } }, { filename: file, timeout: 1000 });
   return exports;
 }
+mocks['./touch'] = load('src/components/ui/touch.ts');
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
 const AppTabs = load('src/components/app-tabs.web.tsx').default;
@@ -81,13 +82,13 @@ function test(name, fn) {
 }
 test('primary uses approved ink action + white on-action text', () => {
   const button = Button({ label: '선택' });
-  assert.equal(styleOf(button).backgroundColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(button, 'View')).backgroundColor, OnePick.actionPrimary);
   assert.equal(styleOf(first(button, 'Text')).color, OnePick.onAction);
-  readable(styleOf(first(button, 'Text')).color, styleOf(button).backgroundColor);
+  readable(styleOf(first(button, 'Text')).color, styleOf(first(button, 'View')).backgroundColor);
 });
 test('pressed primary retains readable text', () => {
   const button = Button({ label: '선택' });
-  readable(styleOf(first(button, 'Text')).color, styleOf(button, true).backgroundColor, styleOf(button, true).opacity ?? 1);
+  readable(styleOf(first(button, 'Text')).color, styleOf(first(button, 'View')).backgroundColor, styleOf(button, true).opacity ?? 1);
 });
 test('loading primary has on-action spinner and disabled/busy semantics', () => {
   const button = Button({ label: '선택', loading: true });
@@ -100,7 +101,7 @@ test('loading primary has on-action spinner and disabled/busy semantics', () => 
 test('secondary, soft and ghost labels remain readable off brand fills', () => {
   for (const variant of ['secondary', 'soft', 'ghost']) {
     const button = Button({ label: '보기', variant });
-    const background = styleOf(button).backgroundColor;
+    const background = styleOf(first(button, 'View')).backgroundColor;
     const canvas = background === 'transparent' ? OnePick.surface : background;
     const foreground = styleOf(first(button, 'Text')).color;
     assert.notEqual(foreground, OnePick.brand);
@@ -116,7 +117,8 @@ test('button dimensions, callback, overrides and labels are preserved', () => {
   let pressed = 0;
   for (const [size, height] of [['sm', 40], ['md', 52], ['lg', 52]]) {
     const button = Button({ label: '공유', size, fullWidth: true, onPress: () => { pressed++; } });
-    assert.equal(styleOf(button).minHeight, height);
+    assert.equal(styleOf(first(button, 'View')).minHeight, height);
+    assert.ok(styleOf(button).minWidth >= 44 && styleOf(button).minHeight >= 44, 'wrapper is a 44x44 touch area');
     assert.equal(styleOf(button).alignSelf, 'stretch');
     button.props.onPress();
   }
@@ -129,24 +131,24 @@ test('button dimensions, callback, overrides and labels are preserved', () => {
 });
 test('selected chip uses Foundations ink fill and on-action label', () => {
   const chip = Chip({ label: '책', selected: true });
-  assert.equal(styleOf(chip).minHeight, 32);
-  assert.equal(styleOf(chip).backgroundColor, OnePick.actionPrimary);
+  assert.equal(styleOf(first(chip, 'View')).minHeight, 32);
+  assert.equal(styleOf(first(chip, 'View')).backgroundColor, OnePick.actionPrimary);
   assert.equal(styleOf(first(chip, 'Text')).color, OnePick.onAction);
   assert.equal(chip.props.accessibilityState.selected, true);
-  readable(styleOf(first(chip, 'Text')).color, styleOf(chip).backgroundColor);
+  readable(styleOf(first(chip, 'Text')).color, styleOf(first(chip, 'View')).backgroundColor);
 });
 test('pressed chip keeps readable selected and unselected text', () => {
   for (const selected of [true, false]) {
     const chip = Chip({ label: '책', selected });
-    readable(styleOf(first(chip, 'Text')).color, styleOf(chip, true).backgroundColor, styleOf(chip, true).opacity ?? 1);
+    readable(styleOf(first(chip, 'Text')).color, styleOf(first(chip, 'View')).backgroundColor, styleOf(chip, true).opacity ?? 1);
   }
 });
 test('unselected/dashed chip appearance and callback stay available', () => {
   let pressed = 0;
   const chip = Chip({ label: '책', dashed: true, onPress: () => { pressed++; } });
-  assert.equal(styleOf(chip).backgroundColor, OnePick.bgDefault);
-  assert.equal(styleOf(chip).borderColor, OnePick.borderDefault);
-  assert.equal(styleOf(chip).borderStyle, 'dashed');
+  assert.equal(styleOf(first(chip, 'View')).backgroundColor, OnePick.bgDefault);
+  assert.equal(styleOf(first(chip, 'View')).borderColor, OnePick.borderDefault);
+  assert.equal(styleOf(first(chip, 'View')).borderStyle, 'dashed');
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
 });

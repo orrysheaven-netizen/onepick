@@ -8,8 +8,8 @@ const avatar = fs.readFileSync(path.join(__dirname, '../src/components/ui/avatar
 
 assert.match(profile, /03|profileHeader/);
 assert.match(profile, /<Avatar name=\{displayName\} size=\{72\} tone="subtle" \/>/);
-assert.match(profile, /<Chip label="음식"[\s\S]*?style=\{styles\.profileScopeChip\}/);
-assert.match(profile, /<Chip label="기타"[\s\S]*?style=\{styles\.profileScopeChip\}/);
+assert.match(profile, /<Chip label="음식"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
+assert.match(profile, /<Chip label="기타"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
 assert.match(profile, /useMyComments\(listUserId\)/);
 assert.match(profile, /<Text style=\{styles\.statLabel\}>원픽<\/Text>/);
 assert.match(profile, /<Text style=\{styles\.statLabel\}>댓글<\/Text>/);

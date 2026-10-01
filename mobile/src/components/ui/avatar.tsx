@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickRadius } from '@/constants/onepick';
+import { PRESSED_OPACITY, touchSlop } from './touch';
 
 type Size = 24 | 32 | 40 | 64 | 68 | 72;
 
@@ -22,6 +23,7 @@ export function Avatar({ name, size = 32, tone = 'accent', onPress, accessibilit
   if (!onPress) return <View style={box}>{glyph}</View>;
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? `@${name} 프로필 보기`} onPress={onPress}
+      hitSlop={touchSlop(size, size)}
       style={({ pressed }) => [box, pressed && styles.pressed]}>
       {glyph}
     </Pressable>
@@ -32,5 +34,5 @@ const styles = StyleSheet.create({
   circle: { borderRadius: OnePickRadius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   subtle: { backgroundColor: OnePick.bgSubtle },
   initial: { color: OnePick.accentDeep, fontWeight: '800' },
-  pressed: { opacity: 0.6 },
+  pressed: { opacity: PRESSED_OPACITY },
 });
