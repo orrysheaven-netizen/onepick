@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
+const same = (a, b, message) => assert.equal(JSON.stringify(a), JSON.stringify(b), message);
 
 function loadSource(relativePath, imports = {}) {
   const file = path.join(root, 'src', relativePath);
@@ -49,8 +50,8 @@ async function main() {
   });
   const repository = new SupabaseFollowRepository(client);
 
-  assert.deepEqual(await repository.getPublicCounts('profile-1'), { followingCount: 7, followerCount: 11 });
-  assert.deepEqual(rpcCalls[0], ['profile_follow_counts', { p_profile_id: 'profile-1' }]);
+  same(await repository.getPublicCounts('profile-1'), { followingCount: 7, followerCount: 11 });
+  same(rpcCalls[0], ['profile_follow_counts', { p_profile_id: 'profile-1' }]);
   countsUnavailable = true;
   assert.equal(await repository.getPublicCounts('hidden-profile'), null, 'Unavailable profile maps to null instead of zero counts');
 
@@ -61,15 +62,15 @@ async function main() {
     20,
   );
   assert.equal(page.items.length, 20, '21 RPC rows become 20 visible rows plus lookahead');
-  assert.deepEqual(page.items[0], {
+  same(page.items[0], {
     userId: 'user-01',
     username: 'user_01',
     profileImageUrl: 'https://example.test/u1.jpg',
     bio: '첫 사용자 소개',
     viewerIsFollowing: true,
   });
-  assert.deepEqual(page.nextCursor, { username: 'user_20', userId: 'user-20' });
-  assert.deepEqual(rpcCalls.at(-1), ['profile_follow_connections_page', {
+  same(page.nextCursor, { username: 'user_20', userId: 'user-20' });
+  same(rpcCalls.at(-1), ['profile_follow_connections_page', {
     p_profile_id: 'profile-1',
     p_direction: 'followers',
     p_after_username: 'before_name',
@@ -98,7 +99,7 @@ async function main() {
   assert.throws(() => service.getConnections('', 'followers'), (error) => error.code === 'PROFILE_NOT_FOUND');
   await service.getPublicCounts('profile-1');
   await service.getConnections('profile-1', 'following', { username: 'u', userId: 'id' }, 15);
-  assert.deepEqual(serviceCalls, [
+  same(serviceCalls, [
     ['publicCounts', 'profile-1'],
     ['connections', 'profile-1', 'following', { username: 'u', userId: 'id' }, 15],
   ]);
