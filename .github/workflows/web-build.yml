@@ -81,10 +81,6 @@ jobs:
           fi
 
   verify-web:
-
-      - name: Required check satisfied
-        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
-        run: echo "No relevant changes; heavy verify-web steps skipped."
     needs: changes
     # Required check: keep this job present on ready PRs. GitHub branch protection
     # does not accept a skipped required job as success, so only heavy steps are gated.
@@ -98,6 +94,10 @@ jobs:
       run:
         working-directory: mobile
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy verify-web steps skipped."
       - name: Checkout
         uses: actions/checkout@v7
 
