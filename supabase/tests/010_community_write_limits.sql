@@ -23,7 +23,14 @@ begin
     values(c,'Quota fixture','quota-fixture','open',true,true);
   insert into public.items(category_id,name,normalized_name,status)
     values(c,'Quota item','quotaitem','active') returning id into item;
-  set local role authenticated;
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+set local role authenticated;
   perform set_config('request.jwt.claim.sub',a::text,true);
   perform public.register_pick(c,item,'Quota item','Fixture review');
   select id into pick from public.picks where user_id=a and category_id=c and status='active';
