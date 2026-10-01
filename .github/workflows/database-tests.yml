@@ -70,10 +70,6 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
   database-tests:
-
-      - name: Required check satisfied
-        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
-        run: echo "No relevant changes; heavy database-tests steps skipped."
     needs: changes
     # Required check: keep this job present on ready PRs. GitHub branch protection
     # does not accept a skipped required job as success, so only heavy steps are gated.
@@ -85,6 +81,10 @@ jobs:
     timeout-minutes: 25
 
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy database-tests steps skipped."
       - name: Checkout
         uses: actions/checkout@v7
 
