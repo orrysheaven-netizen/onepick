@@ -46,6 +46,10 @@ ChatGPT is the OnePick General PM. Under PM governance, ChatGPT/Codex is the def
 
 At session start, read the PM docs and #553 first, then use #296 `[AI Ops] OnePick 작업·인계 대시보드` and `handoff:claude` as the execution queue. Do not duplicate work already owned by Codex. M/L work and high-risk DB/Auth/RLS/Storage/security/secret/production-workflow changes require independent review by the opposite AI before user merge. Production apply, secret/permission changes, destructive data operations, and `main` merge remain user approval gates. GitHub `main`, issues, PRs, migrations, and test results are the source of truth. See `docs/ai-role-division.md`.
 
+# Start and completion reports
+
+Every Claude task, handoff or not, posts a `## 착수` comment on GitHub (original issue; create a work issue if none exists, or use the related PR) **before editing**, and a `## 완료 리포트` comment on the same issue/PR when done, so ChatGPT/Codex can see what is in progress and avoid duplicate work. Check #296 and open issues/PRs first; if Codex already owns the same work, do not start it. Tell the user the issue/PR number and comment link. See §10 of `docs/shared-working-rules.md`.
+
 # Claude handoff queue — applies to every Claude session and routine
 
 This preflight applies before Daily Security, Daily QA, scheduled PR review, Weekly QA, automation work, and ad-hoc Claude sessions.
