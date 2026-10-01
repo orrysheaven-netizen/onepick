@@ -70,7 +70,14 @@ begin
   assert (select count(*) from public.search_online_sellers('숨김몰'))=0, 'Hidden sellers are not offered';
   reset role;
 
-  perform set_config('request.jwt.claim.sub',member::text,true);
+  -- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
+perform set_config('request.jwt.claim.sub',member::text,true);
   set local role authenticated;
   v_item := public.select_online_provider_item(menu,v_provider);
   v_again := public.select_online_provider_item(menu,v_provider);
