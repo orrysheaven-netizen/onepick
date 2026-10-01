@@ -1,6 +1,10 @@
 -- An isolated, rollback-only lifecycle with real authenticated RLS roles.
 -- Never uses or modifies an existing account, category, item or Pick.
 begin;
+-- Keep this legacy fixture focused on its original contract after the
+-- photo-required Pick invariant. Rolled back with this pgTAP transaction.
+alter table public.items alter column image_source_url
+  set default 'https://example.test/onepick-test-item.png'; -- test fixture default for the photo-required Pick invariant
 create extension if not exists pgtap with schema extensions;
 select plan(1);
 set local plpgsql.check_asserts = on;
@@ -74,7 +78,9 @@ begin
 
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   assert (select count(*)=2 from public.items where category_id=v_category and status='pending'), 'Admin must see the two distinct pending requests';
-  update public.items set status='active' where id=v_item.id and status='pending';
+  update public.items
+  set status='active', image_source_url='https://example.test/approved-item.png'
+  where id=v_item.id and status='pending';
   get diagnostics v_rows = row_count;
   assert v_rows=1, 'Admin approval must update exactly one pending item';
   update public.items set status='rejected' where id=v_item.id and status='pending';

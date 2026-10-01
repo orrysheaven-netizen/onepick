@@ -1,4 +1,8 @@
 begin;
+-- Keep this legacy fixture focused on its original contract after the
+-- photo-required Pick invariant. Rolled back with this pgTAP transaction.
+alter table public.items alter column image_source_url
+  set default 'https://example.test/onepick-test-item.png'; -- test fixture default for the photo-required Pick invariant
 create extension if not exists pgtap with schema extensions;
 select plan(1);
 set local plpgsql.check_asserts=on;
@@ -17,9 +21,9 @@ begin
   insert into auth.users(id,aud,role,created_at,updated_at) values(member,'authenticated','authenticated',now(),now());
   insert into public.profiles(id,username,onboarding_completed) values(member,'drama_'||substr(replace(member::text,'-',''),1,12),true);
   insert into public.items(id,category_id,name,normalized_name,status,external_source,external_id,original_name,release_year,image_source_url) values
-    (film,movie,'미디어 동일 제목','미디어동일제목','active','tmdb','912345670001','Film fixture',2020,null),
+    (film,movie,'미디어 동일 제목','미디어동일제목','active','tmdb','912345670001','Film fixture',2020,'https://example.test/film.jpg'),
     (tv,drama,'미디어 동일 제목','미디어동일제목','active','tmdb_tv','912345670001','Series fixture',2021,'https://image.tmdb.org/t/p/w342/series.jpg'),
-    (tv_other,drama,'미디어 동일 제목','미디어동일제목','active','tmdb_tv','912345670002','Another series',2024,null);
+    (tv_other,drama,'미디어 동일 제목','미디어동일제목','active','tmdb_tv','912345670002','Another series',2024,'https://example.test/series-2.jpg');
   begin
     insert into public.items(category_id,name,normalized_name,status,external_source,external_id)
       values(drama,'중복 테스트','중복테스트','active','tmdb_tv','912345670001');

@@ -4,6 +4,10 @@
 -- 팁만 있고 살 곳이 없는 행이 막히는가, 쇼핑몰 판별이 상위 도메인을 통째로
 -- 삼키지 않는가.
 begin;
+-- Keep this legacy fixture focused on its original contract after the
+-- photo-required Pick invariant. Rolled back with this pgTAP transaction.
+alter table public.items alter column image_source_url
+  set default 'https://example.test/onepick-test-item.png'; -- test fixture default for the photo-required Pick invariant
 
 create extension if not exists pgtap with schema extensions;
 select plan(23);

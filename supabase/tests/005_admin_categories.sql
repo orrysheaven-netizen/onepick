@@ -1,4 +1,8 @@
 begin;
+-- Keep this legacy fixture focused on its original contract after the
+-- photo-required Pick invariant. Rolled back with this pgTAP transaction.
+alter table public.items alter column image_source_url
+  set default 'https://example.test/onepick-test-item.png'; -- test fixture default for the photo-required Pick invariant
 create extension if not exists pgtap with schema extensions;
 select no_plan();
 insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at) values
@@ -35,8 +39,11 @@ select is((select status from public.items where id=(select id from admin_test_r
 select throws_ok($$select public.change_pick((select category_id from admin_test_request),(select id from admin_test_request),'이유')$$,'P0001','ITEM_NOT_ELIGIBLE','pending item cannot be chosen through legacy route');
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
 select lives_ok($$update public.items set status='active' where id=(select id from admin_test_request)$$,'admin approves pending request');
+update public.items
+set image_source_url='https://example.test/approved-item.png'
+where id=(select id from admin_test_request);
 select set_config('request.jwt.claim.sub','88888888-8888-8888-8888-888888888888',true);
-select lives_ok($$select public.register_pick((select category_id from admin_test_request),(select id from admin_test_request),'새 제품 120g','이유')$$,'approved item in new category is selectable');
+select lives_ok($pick$select public.register_pick((select category_id from admin_test_request),(select id from admin_test_request),'새 제품 120g','이유')$pick$,'approved item in new category is selectable');
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
 update public.categories set is_visible=false where slug='qa-food';
 select set_config('request.jwt.claim.sub','88888888-8888-8888-8888-888888888888',true);
