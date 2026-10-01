@@ -259,9 +259,9 @@ export default function PublicProfileScreen() {
 
             {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
               <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'}
-                onPress={() => setProfileScope('food')} style={styles.profileScopeChip} />
+                onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
               <Chip label="다른 취향" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'}
-                onPress={() => setProfileScope('other')} style={styles.profileScopeChip} />
+                onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
             </View> : null}
 
             {visibleProfilePicks.length > 0 ? <View style={styles.publicPickList}>

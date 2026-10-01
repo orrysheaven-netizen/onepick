@@ -322,8 +322,8 @@ export default function ProfileScreen() {
           {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
 
           {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} style={styles.profileScopeChip} />
-            <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} style={styles.profileScopeChip} />
+            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
+            <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
           </View> : null}
 
           {visibleProfilePicks.length > 0 ? <View style={styles.currentPickList}>

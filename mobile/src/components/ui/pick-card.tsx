@@ -5,6 +5,7 @@ import { PickPhoto } from '@/components/pick-photo';
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
 import { Avatar } from './avatar';
+import { PRESSED_OPACITY } from './touch';
 
 type Props = {
   /** Short channel badge shown before the provider, e.g. 매장 / 온라인 / 레시피. */
@@ -108,5 +109,5 @@ const styles = StyleSheet.create({
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.caption, color: OnePick.muted },
   footer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6 },
-  pressed: { opacity: 0.6 },
+  pressed: { opacity: PRESSED_OPACITY },
 });
