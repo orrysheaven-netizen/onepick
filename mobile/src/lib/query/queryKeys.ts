@@ -90,6 +90,9 @@ export const queryKeys = {
     all: ['follows'] as const,
     state: (userId: string, profileId: string) => ['follows', 'state', userId, profileId] as const,
     counts: (userId: string) => ['follows', 'counts', userId] as const,
+    publicCounts: (profileId: string) => ['follows', 'public-counts', profileId] as const,
+    connections: (profileId: string, direction: 'followers' | 'following') =>
+      ['follows', 'connections', profileId, direction, 'cursor'] as const,
     feed: (userId: string, channel: string | null = null, rootSlug: string | null = null) =>
       ['follows', 'feed', userId, channel ?? 'all-channels', rootSlug ?? 'all-roots', 'cursor'] as const,
   },
