@@ -66,6 +66,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [requestedReview, setRequestedReview] = useState<string | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
+  const [showPhotoError, setShowPhotoError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   // The item as returned by a photo saved in step 1; keeps the new photo on
   // screen even before the detail query refreshes.
@@ -110,6 +111,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
       || saving || savedChoice || requestedReview !== null || isSessionLoading || sessionError) return;
+    // No pick without a photo: an item that still has none is saved only after step 1.
+    if (needsPhotoStep) { setShowPhotoError(true); return; }
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
@@ -159,7 +162,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // the typed review. Photos are added in step 1 below instead.
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
     itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
-  // Photo first, review last: an item without a photo gets an optional photo
+  // Photo first, review last: an item without a photo gets a required photo
   // step above the review. Editing the review of the current pick skips it.
   const needsPhotoStep = Boolean(user && item && !savedChoice && pickStatus?.type !== 'selected_this'
     && ['active', 'discontinued'].includes(item.status)
@@ -222,7 +225,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           </View>
           {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
-            onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
+            onAttached={(saved) => { setPhotoItem(saved); setShowPhotoError(false); void itemQuery.refetch().catch(() => {}); }} /> : null}
+          {needsPhotoStep && showPhotoError ? <Text accessibilityRole="alert" style={styles.reviewError}>사진을 먼저 등록해주세요. 사진이 있어야 원픽을 저장할 수 있어요.</Text> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
@@ -299,7 +303,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
             <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 원픽을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
-            <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
+            <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요.</Text>
             <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
             <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}

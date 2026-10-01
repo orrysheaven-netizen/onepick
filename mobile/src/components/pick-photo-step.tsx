@@ -15,7 +15,7 @@ function photoErrorMessage(error: unknown) {
     if (error.code === 'PHOTO_TOO_LARGE') return '사진이 너무 커요. 다른 사진을 선택해주세요.';
     if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진을 저장하지 못했어요. 선택한 사진은 그대로 있어요. 다시 시도해주세요.';
   }
-  return '사진을 등록하지 못했어요. 다시 시도하거나 사진 없이 계속해주세요.';
+  return '사진을 등록하지 못했어요. 다시 시도해주세요.';
 }
 
 type Props = {
@@ -27,7 +27,8 @@ type Props = {
 };
 
 /**
- * First step of choosing a pick for an item without a photo. The photo is chosen
+ * Required first step of choosing a pick for an item without a photo: no pick is
+ * saved without one. The photo is chosen
  * and uploaded on the choose screen itself, so the review typed afterwards is
  * never lost to a round trip through another screen.
  */
@@ -62,7 +63,7 @@ export function PickPhotoStep({ userId, itemId, disabled = false, onAttached }: 
   };
 
   return <View style={styles.card}>
-    <Text style={styles.title}>1. 대표 사진 <Text style={styles.optional}>선택</Text></Text>
+    <Text style={styles.title}>1. 대표 사진 <Text style={styles.required}>필수</Text></Text>
     <Text style={styles.hint}>아직 사진이 없어요. 이름이 잘 보이는 사진이면 충분하고, 같은 걸 고른 사람들의 원픽 카드에도 함께 표시돼요.</Text>
     {photo ? <>
       <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
@@ -72,14 +73,14 @@ export function PickPhotoStep({ userId, itemId, disabled = false, onAttached }: 
       </View>
     </> : <Button fullWidth variant="soft" label="사진 선택" disabled={disabled || (working && !picker.isPending)} loading={picker.isPending} onPress={() => void choose()} style={styles.choose} />}
     {picker.isError || attachment.isError ? <Text accessibilityRole="alert" style={styles.error}>{photoErrorMessage(attachment.error ?? picker.error)}</Text> : null}
-    <Text style={styles.hint}>사진이 없어도 원픽을 고를 수 있어요. 직접 찍었거나 공유할 권한이 있는 사진만 올려주세요.</Text>
+    <Text style={styles.hint}>사진을 등록해야 원픽을 저장할 수 있어요. 직접 찍었거나 공유할 권한이 있는 사진만 올려주세요.</Text>
   </View>;
 }
 
 const styles = StyleSheet.create({
   card: { borderRadius: 20, borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, padding: 16, marginTop: 20 },
   title: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
-  optional: { color: OnePick.muted, fontSize: 12, fontWeight: '600' },
+  required: { color: OnePick.danger, fontSize: 12, fontWeight: '600' },
   hint: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 8 },
   preview: { width: '100%', height: 220, borderRadius: 12, marginTop: 12, backgroundColor: OnePick.background },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
