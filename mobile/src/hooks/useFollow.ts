@@ -5,13 +5,18 @@ import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepo
 import type { FollowConnectionCursor, FollowConnectionDirection } from '@/types/domain/safety';
 import { followService } from '@/services/followServiceInstance';
 
-export function useFollowState(userId: string | undefined, profileId: string | undefined) {
+export function useFollowState(
+  userId: string | undefined,
+  profileId: string | undefined,
+  initialFollowing?: boolean,
+) {
   const enabled = Boolean(userId && profileId && userId !== profileId);
   return useQuery({
     queryKey: userId && profileId ? queryKeys.follows.state(userId, profileId) : ['follows', 'state', 'missing'],
     queryFn: () => followService.isFollowing(userId!, profileId!),
     enabled,
     retry: false,
+    ...(typeof initialFollowing === 'boolean' ? { initialData: initialFollowing, staleTime: 60_000 } : {}),
   });
 }
 
