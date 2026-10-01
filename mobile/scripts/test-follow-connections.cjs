@@ -5,6 +5,8 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
+const same = (actual, expected, message) =>
+  assert.equal(JSON.stringify(actual), JSON.stringify(expected), message);
 
 function loadSource(relativePath, imports = {}) {
   const file = path.join(root, 'src', relativePath);
@@ -52,15 +54,15 @@ async function main() {
 
   assert.throws(() => service.getPublicCounts(''), (error) => error.code === 'PROFILE_NOT_FOUND');
   assert.throws(() => service.getConnections('', 'followers'), (error) => error.code === 'PROFILE_NOT_FOUND');
-  assert.deepEqual(await service.getPublicCounts('target'), { followingCount: 7, followerCount: 11 });
-  assert.deepEqual(
+  same(await service.getPublicCounts('target'), { followingCount: 7, followerCount: 11 });
+  same(
     await service.getConnections('target', 'followers', { username: 'amy', userId: 'u0' }, 10),
     {
       items: [{ userId: 'u1', username: 'alice', profileImageUrl: null, bio: 'bio', viewerIsFollowing: true }],
       nextCursor: { username: 'alice', userId: 'u1' },
     },
   );
-  assert.deepEqual(calls, [
+  same(calls, [
     ['publicCounts', 'target'],
     ['connections', 'target', 'followers', { username: 'amy', userId: 'u0' }, 10],
   ]);
@@ -92,16 +94,16 @@ async function main() {
   });
   const repository = new SupabaseFollowRepository(client);
 
-  assert.deepEqual(await repository.getPublicCounts('target'), { followingCount: 3, followerCount: 4 });
+  same(await repository.getPublicCounts('target'), { followingCount: 3, followerCount: 4 });
   const page = await repository.getConnections('target', 'following', { username: 'amy', userId: '0' }, 2);
-  assert.deepEqual(page, {
+  same(page, {
     items: [
       { userId: '1', username: 'alice', profileImageUrl: null, bio: 'a', viewerIsFollowing: true },
       { userId: '2', username: 'bob', profileImageUrl: 'img', bio: null, viewerIsFollowing: false },
     ],
     nextCursor: { username: 'bob', userId: '2' },
   });
-  assert.deepEqual(rpcCalls, [
+  same(rpcCalls, [
     ['profile_follow_counts', { p_profile_id: 'target' }],
     ['profile_follow_connections_page', {
       p_profile_id: 'target',
