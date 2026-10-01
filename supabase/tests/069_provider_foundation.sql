@@ -309,6 +309,12 @@ begin
   set constraints all deferred;
 
   -- Picks move between offline and online candidates of one category.
+  reset role;
+  update public.items
+  set image_source_url='https://example.invalid/provider-photo.jpg'
+  where status in ('active','discontinued')
+    and image_path is null and thumbnail_path is null and image_source_url is null;
+  set local role authenticated;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
