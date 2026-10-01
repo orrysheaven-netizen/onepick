@@ -111,7 +111,9 @@ perform set_config('request.jwt.claim.sub',v_user::text,true);
   -- Stand-in for admin approval (covered in 096_review_new_catalog_places);
   -- a pending item's place rows are not readable by other users.
   reset role;
-  update public.items set status='active' where id=v_item_a.id;
+  update public.items
+  set status='active', image_source_url='https://example.invalid/place-a.jpg'
+  where id=v_item_a.id;
   set local role authenticated;
 
   select place_id into v_place_a from public.item_places where item_id=v_item_a.id;
@@ -123,7 +125,9 @@ perform set_config('request.jwt.claim.sub',v_user::text,true);
 
   v_item_b := public.select_place_catalog_item(v_cat_b,v_catalog);
   reset role;
-  update public.items set status='active' where id=v_item_b.id;
+  update public.items
+  set status='active', image_source_url='https://example.invalid/place-b.jpg'
+  where id=v_item_b.id;
   set local role authenticated;
   select place_id into v_place_b from public.item_places where item_id=v_item_b.id;
   assert v_item_b.id<>v_item_a.id and v_place_b=v_place_a,
