@@ -126,6 +126,10 @@ perform set_config('request.jwt.claim.sub',v_admin::text,true);
   insert into public.item_channels(item_id,channel,is_primary)
   values(v_broken_item,'offline',true);
 
+  update public.items
+  set image_source_url='https://example.invalid/place-photo.jpg'
+  where id in (v_place_item_a.id, v_place_item_b.id);
+
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
