@@ -151,7 +151,7 @@ jobs:
               summary.write(text + "\n")
           PY
 
-      - name: Configure IPv4 Session pooler URL
+      - name: Require database to be deployed first
         if: env.MODE == 'apply'
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -161,7 +161,8 @@ jobs:
           set -euo pipefail
           test -n "$SUPABASE_DB_PASSWORD" || { echo "Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
           test -n "$SUPABASE_DB_POOLER_HOST" || { echo "Missing SUPABASE_DB_POOLER_HOST variable"; exit 1; }
-          python3 - <<'PY'
+
+          db_url="$(python3 - <<'PY'
           import os
           import re
           from urllib.parse import quote
@@ -172,20 +173,16 @@ jobs:
               raise SystemExit("SUPABASE_DB_POOLER_HOST must be the Session pooler hostname only")
 
           encoded_password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
-          db_url = f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require"
-          print(f"::add-mask::{encoded_password}")
-          print(f"::add-mask::{db_url}")
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"SUPABASE_DB_URL={db_url}\n")
+          print(f"postgresql://postgres.{ref}:{encoded_password}@{host}:5432/postgres?sslmode=require")
           PY
+          )"
+          echo "::add-mask::$db_url"
 
-      - name: Require database to be deployed first
-        if: env.MODE == 'apply'
-        shell: bash
-        run: |
-          set -euo pipefail
           log_file="$(mktemp)"
-          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --include-all 2>&1 | tee "$log_file"
+          trap 'rm -f "$log_file"' EXIT
+          supabase db push --db-url "$db_url" --dry-run --include-all 2>&1 | tee "$log_file"
+          unset db_url
+
           if grep -q '^Would push these migrations:' "$log_file"; then
             echo "::error::main has migrations that are not applied yet. Run Deploy Database Migrations with mode=apply first, then rerun this workflow."
             exit 1
