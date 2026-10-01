@@ -1,0 +1,31 @@
+name: One-time #639 migration filename generator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/one-time-639-migration-name.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    if: github.head_ref == 'chore/639-generate-migration-name'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.118.0
+
+      - name: Generate migration filename only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p supabase/migrations
+          supabase migration new scope_food_menu_recent_ranking_by_channel
+          file="$(find supabase/migrations -maxdepth 1 -type f -name '*_scope_food_menu_recent_ranking_by_channel.sql' -printf '%f\n' | sort | tail -n 1)"
+          test -n "$file"
+          echo "GENERATED_MIGRATION=$file"
