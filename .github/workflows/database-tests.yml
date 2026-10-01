@@ -71,12 +71,11 @@ jobs:
 
   database-tests:
     needs: changes
-    # Required check: keep this job name. When skipped by this condition it reports
-    # success, so draft or unrelated PRs never leave the check pending.
+    # Required check: keep this job present on ready PRs. GitHub branch protection
+    # does not accept a skipped required job as success, so only heavy steps are gated.
     if: >-
       !cancelled() &&
-      !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
-      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
+      !(github.event_name == 'pull_request' && github.event.pull_request.draft)
     runs-on: ubuntu-latest
     # Caps a hung run's billing (recent full runs ~2-3 min; headroom for Supabase image pulls).
     timeout-minutes: 25
