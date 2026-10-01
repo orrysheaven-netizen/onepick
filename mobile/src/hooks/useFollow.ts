@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
+import type { FollowConnectionCursor, FollowConnectionDirection } from '@/types/domain/safety';
 import { followService } from '@/services/followServiceInstance';
 
 export function useFollowState(userId: string | undefined, profileId: string | undefined) {
@@ -20,6 +21,34 @@ export function useFollowCounts(userId: string | undefined) {
     queryFn: () => followService.getCounts(userId!),
     enabled: Boolean(userId),
     retry: false,
+  });
+}
+
+export function useProfileFollowCounts(profileId: string | undefined) {
+  return useQuery({
+    queryKey: profileId ? queryKeys.follows.publicCounts(profileId) : ['follows', 'public-counts', 'missing'],
+    queryFn: () => followService.getPublicCounts(profileId!),
+    enabled: Boolean(profileId),
+    retry: false,
+  });
+}
+
+export function useFollowConnections(
+  profileId: string | undefined,
+  direction: FollowConnectionDirection,
+  enabled = true,
+) {
+  return useInfiniteQuery({
+    enabled: enabled && Boolean(profileId),
+    queryKey: profileId
+      ? queryKeys.follows.connections(profileId, direction)
+      : ['follows', 'connections', 'missing', direction],
+    initialPageParam: null as FollowConnectionCursor | null,
+    queryFn: ({ pageParam }) => followService.getConnections(profileId!, direction, pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    select: (data) => ({
+      items: data.pages.flatMap((page) => page.items),
+    }),
   });
 }
 
