@@ -23,6 +23,13 @@ values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '라면 테스트', 'pick-mutati
 insert into public.items (id, category_id, name, normalized_name, status)
 values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '신라면', '신라면', 'active');
 
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true);
 
