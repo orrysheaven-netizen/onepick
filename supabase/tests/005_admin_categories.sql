@@ -8,6 +8,13 @@ insert into public.profiles(id,username,onboarding_completed) values
 ('77777777-7777-7777-7777-777777777777','admin_test',true),
 ('88888888-8888-8888-8888-888888888888','member_test',true);
 insert into private.admin_users(user_id) values('77777777-7777-7777-7777-777777777777');
+-- This test exercises a non-photo contract. The product now requires photos for
+-- new/replacement Picks, so give eligible fixtures a test-only external image.
+update public.items
+set image_source_url='https://example.invalid/test-photo.jpg'
+where status in ('active','discontinued')
+  and image_path is null and thumbnail_path is null and image_source_url is null;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
 -- Real administrator data access now also requires AAL2; model a stepped-up session.
