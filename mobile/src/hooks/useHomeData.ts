@@ -5,6 +5,16 @@ import { homeService } from '@/services/homeServiceInstance';
 
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
 const HOME_MAX_PAGES = 3;
+const HOME_MENU_RANKING_CANDIDATE_LIMIT = 20;
+
+export function useHomeMenuRanking(groupCategoryId: string | null = null, channel: PickChannel | null = null, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.menuRanking(groupCategoryId, channel),
+    queryFn: () => homeService.getRecentMenuRanking(groupCategoryId, channel, HOME_MENU_RANKING_CANDIDATE_LIMIT),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
 
 export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
   const context = useQuery({

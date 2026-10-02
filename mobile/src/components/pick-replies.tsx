@@ -139,7 +139,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       <View style={styles.commentCopy}>
         {deleted ? <Text style={styles.commentAuthor}>삭제된 댓글</Text> : author ? <View style={styles.commentAuthorRow}>
           <Pressable accessibilityRole="button" accessibilityLabel={`@${author.username} 공개 프로필 보기`}
-            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username } })}
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username, returnTo: `/pick/${pickId}` } })}
             style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
             <Text style={styles.commentAuthor}>@{author.username} ›</Text>
           </Pressable>

@@ -25,7 +25,7 @@ function query(data) {
 const picks = (count) => Array.from({ length: count }, (_, i) => ({ pickId: String(i), itemId: `item-${i}`, categoryId: i ? 'ramen' : 'movie' }));
 function home(count = 20, followingCount = 0) {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null };
-  const q = query({ picks: picks(count), currentPicks: [], editorialItems: [] });
+  const q = query({ picks: picks(count), currentPicks: [] });
   const following = query({ items: [], nextCursor: null });
   const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
@@ -33,7 +33,7 @@ function home(count = 20, followingCount = 0) {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; } },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeMenuRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -41,7 +41,7 @@ function home(count = 20, followingCount = 0) {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
-    '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
+    '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
   });
@@ -74,8 +74,12 @@ function profile(isPublic = false) {
   const history = query([]), requests = query([]), calls = { history: 0, requests: 0, taste: 0, ai: 0, aiIds: [] };
   const auth = { user: { id: 'reader' }, isLoading: false };
   const mount = (key) => () => { calls[key]++; return null; };
-  const view = screen(isPublic ? 'app/u/[username].tsx' : 'app/(tabs)/profile.tsx', {
-    'expo-router': { useRouter: () => ({ push() {}, back() {}, replace() {} }), useLocalSearchParams: () => ({ username: 'owner' }) },
+  const view = screen(isPublic ? 'app/(tabs)/(profile)/u/[username].tsx' : 'app/(tabs)/(profile)/profile.tsx', {
+    'expo-router': {
+      useRouter: () => ({ push() {}, back() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),
+      useNavigation: () => ({ addListener: () => () => {} }),
+      useLocalSearchParams: () => ({ username: 'owner' }),
+    },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
@@ -100,7 +104,9 @@ function profile(isPublic = false) {
 async function main() {
   await test('MVP flags and thresholds are centralized', () => {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
-    assert.equal(flags.follow, false, 'Initial MVP defers follow exposure while retaining the implementation');
+    assert.equal(flags.profileFollow, true, 'MVP exposes the approved public-profile follow CTA');
+    assert.equal(flags.followingFeed, false, 'MVP keeps the following feed separately deferred');
+    assert.equal(flags.followNotifications, false, 'MVP keeps follow-change notifications separately deferred');
     assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(flags.foodChannelPicker, false, 'Initial MVP keeps online/recipe food registration entries hidden');
     assert.equal(constants.OnePickMvp.publicPickChannel, 'offline'); assert.equal(constants.OnePickMvp.browseGroupSlug, 'food');
@@ -108,14 +114,14 @@ async function main() {
   });
   const isChannelChip = (p) => /탭 원픽 보기$/.test(p.accessibilityLabel ?? '');
   const categoryChips = (view) => view.all('Chip').filter((p) => !isChannelChip(p));
-  await test('MVP follow-off keeps Home public while the preserved rollout gate can restore Following', () => {
+  await test('MVP following-feed-off keeps Home public while the preserved rollout gate can restore Following', () => {
     const hidden = home(20, 2);
     assert.equal(hidden.calls.home[2], true, 'Existing follow rows do not change the visible MVP feed');
     assert.equal(hidden.calls.following[1], false);
     assert.equal(hidden.view.find('Pressable', (p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
     assert.equal(hidden.view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 
-    flags.follow = true;
+    flags.followingFeed = true;
     const existing = home(20, 2);
     assert.equal(existing.calls.home[2], false, 'A future follow rollout still supports Following-first behavior');
     assert.equal(existing.calls.following[1], true);
@@ -140,7 +146,7 @@ async function main() {
     assert.equal(view.all('Chip').filter(isChannelChip).length, 0, 'No channel switcher is exposed in the initial MVP');
     assert.equal(calls.home[3], 'offline', 'Public Home is server-filtered to physical-store Picks');
     assert.equal(calls.home[4], 'food', 'Public Home stays inside the food root');
-    assert.equal(calls.following[1], false, 'Follow-off MVP keeps the preserved following query disabled');
+    assert.equal(calls.following[1], false, 'Following-feed-off MVP keeps the preserved following query disabled');
     assert.equal(calls.following[2], 'offline', 'Preserved following query keeps the same offline scope');
     assert.equal(calls.following[3], 'food', 'Preserved following query keeps the same food root');
   });
@@ -162,13 +168,14 @@ async function main() {
     assert.equal(calls.route.pathname, '/menu/[slug]'); assert.equal(calls.route.params.slug, 'ramen');
     assert.doesNotMatch(view.text(), /Recent place/, 'Menu discovery replaces the old recent-provider landing list');
   });
-  await test('Home restoration threshold, signed-out avatar and editorial copy', () => {
+  await test('Home restoration threshold and signed-out header stay compatible with recent ranking', () => {
     flags.categoryChips = true;
     thresholds.homeCategoryFilterMinPicks = 0;
-    const { view, q, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
-    auth.user = null; q.data.editorialItems = [{ itemId: 'editorial', name: 'Editorial', categoryId: 'ramen', categoryName: 'ramen', categoryPath: 'food', pickCount: 0, channels: ['offline'] }]; view.render();
+    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
+    auth.user = null; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
-    assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽'), undefined);
   });
   await test('Home normal refresh hidden; pull, initial error, stale error and pagination retries survive', () => {
     const { view, q } = home(); assert.equal(view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'), undefined);
@@ -250,11 +257,11 @@ async function main() {
       if (isPublic) assert.equal(calls.aiIds[0], ai ? 'owner' : undefined);
     }
   });
-  await test('Public profile suppresses cached AI, keeps safety/share, and hides follow until rollout', async () => {
+  await test('Public profile suppresses cached AI, keeps safety/share, and exposes approved follow CTA', async () => {
     const { view, calls, auth } = profile(true); assert.equal(calls.aiIds[0], undefined); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('FollowButton').length, 0); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
-    flags.follow = true; view.render(); assert.equal(view.all('FollowButton').length, 1, 'Follow UI remains restorable behind the rollout gate');
-    flags.follow = false; view.render();
+    assert.equal(view.all('FollowButton').length, 1); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
+    flags.profileFollow = false; view.render(); assert.equal(view.all('FollowButton').length, 0, 'Profile follow can still be independently disabled');
+    flags.profileFollow = true; view.render(); assert.equal(view.all('FollowButton').length, 1);
     view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
     auth.user = null; view.render(); assert.doesNotMatch(view.text(), /AI 취향평가도/); assert.match(view.text(), /내 원픽 만들기/);
     flags.profileAi = true; view.render(); assert.match(view.text(), /AI 취향평가도/);

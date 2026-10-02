@@ -21,13 +21,22 @@ function load(relative, imports = {}) {
 }
 
 class Query {
-  constructor(rows) { this.rows = rows; this.filters = []; this.start = 0; this.end = null; }
+  constructor(rows) { this.rows = rows; this.filters = []; this.orders = []; this.start = 0; this.end = null; }
   select() { return this; }
   eq(key, value) { this.filters.push((row) => row[key] === value); return this; }
   in(key, values) { this.filters.push((row) => values.includes(row[key])); return this; }
+  order(key, { ascending = true } = {}) { this.orders.push({ key, ascending }); return this; }
   range(start, end) { this.start = start; this.end = end; return this; }
   result() {
     let rows = this.rows.filter((row) => this.filters.every((fn) => fn(row)));
+    for (const { key, ascending } of this.orders) {
+      rows = [...rows].sort((a, b) => {
+        const left = a[key];
+        const right = b[key];
+        if (left === right) return 0;
+        return (left < right ? -1 : 1) * (ascending ? 1 : -1);
+      });
+    }
     if (this.end !== null) rows = rows.slice(this.start, this.end + 1);
     return rows;
   }
@@ -82,10 +91,10 @@ async function main() {
       { id: riceCat, name: '국밥', status: 'open', is_visible: true },
     ],
     picks: [
-      { item_id: soup, status: 'active', one_line_review: '예전 한줄평', started_at: '2026-09-20T00:00:00Z' },
-      { item_id: soup, status: 'active', one_line_review: '국물이 진한데 부담스럽지 않음', started_at: '2026-09-28T00:00:00Z' },
-      { item_id: rice, status: 'active', one_line_review: '깔끔해서 자주 생각남', started_at: '2026-09-27T00:00:00Z' },
-      { item_id: soup, status: 'replaced', one_line_review: '교체된 리뷰', started_at: '2026-09-29T00:00:00Z' },
+      { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', item_id: soup, status: 'active', one_line_review: '예전 한줄평', started_at: '2026-09-20T00:00:00Z' },
+      { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', item_id: soup, status: 'active', one_line_review: '국물이 진한데 부담스럽지 않음', started_at: '2026-09-28T00:00:00Z' },
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', item_id: rice, status: 'active', one_line_review: '깔끔해서 자주 생각남', started_at: '2026-09-27T00:00:00Z' },
+      { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', item_id: soup, status: 'replaced', one_line_review: '교체된 리뷰', started_at: '2026-09-29T00:00:00Z' },
     ],
   };
   const db = client(tables);
@@ -161,6 +170,8 @@ async function main() {
     'provider location, brand and item mapping must start in the same parallel phase');
   assert.match(serviceSource, /locationPromise,[\s\S]*brandPromise,[\s\S]*mappingPromise/,
     'parallel phase includes all independent provider profile reads');
+  assert.match(serviceSource, /\.select\('id,item_id,one_line_review,started_at'\)[\s\S]*?\.order\('id', \{ ascending: true \}\)[\s\S]*?\.range\(/,
+    'active Pick pagination must use a stable unique order before offset ranges');
 
   const screen = fs.readFileSync(path.join(root, 'src/app/provider/[providerId].tsx'), 'utf8');
   assert.match(screen, /<View style=\{styles\.storeHeader\}>/, 'store scope uses the Figma 17A Foundations header');

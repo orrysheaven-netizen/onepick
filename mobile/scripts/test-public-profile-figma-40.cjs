@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
 
-const profile = read('src/app/u/[username].tsx');
+const profile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const follow = read('src/components/follow-button.tsx');
 const photo = read('src/components/pick-photo.tsx');
 const avatar = read('src/components/ui/avatar.tsx');
@@ -36,6 +36,7 @@ assert.ok(safetyIndex > bodyIndex, 'safety controls stay below the primary Figma
 assert.ok(shareIndex > bodyIndex, 'share card stays below the primary Figma 40 body');
 
 assert.match(profile, /action: 'follow_profile'/);
+assert.match(profile, /OnePickFeatures\.profileFollow && !query\.data\.isMine/);
 assert.match(profile, /autoFollow=\{autoFollow && Boolean\(user\)\}/);
 assert.match(profile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 assert.match(profile, /<ReportAction/);
@@ -44,6 +45,9 @@ assert.match(profile, /accessibilityLabel="프로필 공유"/);
 
 assert.match(follow, /fullWidth\?: boolean/);
 assert.match(follow, /buttonFullWidth: \{ width: '100%', height: 42, minHeight: 42/);
+assert.match(follow, /setConfirmingUnfollow\(true\)/, '팔로잉 press opens a confirmation state');
+assert.match(follow, />팔로우 취소<\/Text>/, 'confirmation exposes an explicit unfollow action');
+assert.match(follow, /accessibilityLabel="팔로우 취소하지 않기"/, 'confirmation exposes a cancel action');
 assert.match(photo, /size\?: 62 \| 64 \| 86/);
 assert.match(photo, /thumb62: \{ width: 62, height: 62, borderRadius: 12 \}/);
 assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 68 \| 72/);

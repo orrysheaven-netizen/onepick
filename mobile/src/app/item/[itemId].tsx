@@ -359,7 +359,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {/* No photo yet: a one-line upload row instead of an empty square. */}
           {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto} logoUri={brand?.logoUrl} /> : null}
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
-            onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username } })} style={styles.creditLink}>
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username, returnTo: `/item/${item.id}` } })} style={styles.creditLink}>
             <Text style={styles.creditText}>사진 @{credit.username}</Text>
           </Pressable> : null}
           {photoAcknowledged.current && credit && credit.userId === user?.id ?

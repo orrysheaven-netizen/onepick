@@ -73,8 +73,8 @@ async function main() {
   assert.deepEqual(Array.from(calls[1].statuses), ['active']);
   assert.equal(Object.hasOwn(calls[1], 'categoryId'), false, 'Public Profile must not apply an MVP restaurant category filter');
 
-  const ownerScreen = read('src/app/(tabs)/profile.tsx');
-  const publicScreen = read('src/app/u/[username].tsx');
+  const ownerScreen = read('src/app/(tabs)/(profile)/profile.tsx');
+  const publicScreen = read('src/app/(tabs)/(profile)/u/[username].tsx');
   const labScreen = read('src/app/lab/[username].tsx');
   // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {

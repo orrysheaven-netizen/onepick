@@ -1,6 +1,10 @@
 -- Store-first pick registration: store search without a menu, seller search,
 -- seller × menu selection by users, and reviewed Naver map link suggestions.
 begin;
+-- Keep this legacy fixture focused on its original contract after the
+-- photo-required Pick invariant. Rolled back with this pgTAP transaction.
+alter table public.items alter column image_source_url
+  set default 'https://example.test/onepick-test-item.png'; -- test fixture default for the photo-required Pick invariant
 create extension if not exists pgtap with schema extensions;
 select plan(1);
 set local plpgsql.check_asserts = on;

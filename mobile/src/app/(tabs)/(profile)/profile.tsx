@@ -266,7 +266,7 @@ export default function ProfileScreen() {
   };
   const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username } });
+  const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: '/profile' } });
   const openLab = () => router.push('/lab');
   const shareMyProfile = async () => {
     if (isSharingProfile) return;

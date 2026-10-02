@@ -96,6 +96,18 @@ export interface CategoryTopItem {
   channels: PickChannel[];
 }
 
+/** One food menu ranked by distinct current pickers during the rolling last 7 days. */
+export interface FoodMenuRecentRankingItem {
+  categoryId: string;
+  categoryName: string;
+  groupCategoryId: string | null;
+  pickCount: number;
+  rank: number;
+  isTied: boolean;
+  coverItemId: string | null;
+  thumbnailUrl: string | null;
+}
+
 /** A leaf category that has a public ranking page (/ranking/<slug>). */
 export interface RankingCategory {
   categoryId: string;
@@ -208,6 +220,7 @@ export interface ReadRepository {
   getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
+  getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;

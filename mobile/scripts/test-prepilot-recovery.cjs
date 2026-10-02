@@ -91,7 +91,7 @@ const categoryId = 'b2222222-2222-4222-8222-222222222222';
 function choice() {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry() {} };
   const params = { itemId, categoryId };
-  const data = { item: { id: itemId, categoryId, name: '라면', status: 'active' }, canChoose: true, myPickStatus: { type: 'not_selected' } };
+  const data = { item: { id: itemId, categoryId, name: '라면', status: 'active', imageUrl: 'https://image.test/item.jpg' }, canChoose: true, myPickStatus: { type: 'not_selected' } };
   const query = { data, isPending: false, isError: false, isFetching: false, retries: 0, refetch: async () => { query.retries++; } };
   const result = { id: 'saved-pick', itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' };
   const writes = [], pending = [], destinations = [];

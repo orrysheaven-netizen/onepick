@@ -21,7 +21,7 @@ function query(data) {
 }
 function fixture(kind, platform = 'web') {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry() {} };
-  const home = query({ picks: [{ pickId: 'pick', itemId: 'item', categoryId: 'ramen' }], currentPicks: [], editorialItems: [] });
+  const home = query({ picks: [{ pickId: 'pick', itemId: 'item', categoryId: 'ramen' }], currentPicks: [] });
   const following = query({ items: [], nextCursor: null });
   const profile = query({ profile: { id: 'owner', username: 'owner', bio: '' }, currentPicks: [] });
   const history = query([]), requests = query([]), categories = query([category]);
@@ -36,12 +36,15 @@ function fixture(kind, platform = 'web') {
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
     'profile-taste-composition': 'ProfileTasteComposition', 'sign-out-button': 'SignOutButton',
   };
-  const view = screen(`app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`, {
+  const screenPath = kind === 'profile'
+    ? 'app/(tabs)/(profile)/profile.tsx'
+    : `app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`;
+  const view = screen(screenPath, {
     'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}) },
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; } },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeMenuRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -57,7 +60,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
-    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
+    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
   view.render();
@@ -91,7 +94,7 @@ async function main() {
     auth.isLoading = false; auth.error = new Error('offline'); view.render(); assert.equal(button(view, homeLabel), undefined);
   });
   await test('Preserved Web following refresh works when the future rollout gate is enabled', () => {
-    flags.follow = true;
+    flags.followingFeed = true;
     const { view, home, following, auth, calls } = fixture('home');
     view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[2], false); assert.equal(calls.following[1], true);
@@ -190,7 +193,7 @@ async function main() {
     assert.match(view.text(), /프로필을 불러오지 못했어요/);
   });
   await test('Native iOS and Android keep pull refresh instead of normal manual controls', async () => {
-    flags.profilePickHistory = true; flags.profileItemRequests = true; flags.follow = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true; flags.followingFeed = true;
     for (const platform of ['ios', 'android']) {
       const h = fixture('home', platform); assert.equal(button(h.view, homeLabel), undefined);
       h.view.find('RefreshControl').onRefresh(); assert.equal(h.home.refetches, 1);

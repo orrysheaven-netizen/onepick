@@ -8,8 +8,8 @@ const screen = read('src/app/provider/[providerId].tsx');
 const service = read('src/services/providerProfileService.ts');
 const home = read('src/app/(tabs)/index.tsx');
 const dish = read('src/components/dish-people-picks.tsx');
-const own = read('src/app/(tabs)/profile.tsx');
-const pub = read('src/app/u/[username].tsx');
+const own = read('src/app/(tabs)/(profile)/profile.tsx');
+const pub = read('src/app/(tabs)/(profile)/u/[username].tsx');
 
 assert.match(screen, /<View style=\{styles\.storeHeader\}>/);
 assert.match(screen, /storeHeader:[\s\S]*?height: 56/);
@@ -38,7 +38,8 @@ assert.match(screen, /item\.latestReview \? <Text numberOfLines=\{1\} style=\{st
 assert.match(screen, /pathname: '\/item\/\[itemId\]'/, 'store menu rows open item detail');
 
 assert.match(service, /latestReview: string \| null/);
-assert.match(service, /select\('item_id,one_line_review,started_at'\)/);
+assert.match(service, /select\('id,item_id,one_line_review,started_at'\)/);
+assert.match(service, /order\('id', \{ ascending: true \}\)[\s\S]*?range\(/, 'Pick stats pagination uses a stable unique order before range');
 assert.match(service, /latestReviews\.get\(item\.id\)\?\.review \?\? null/);
 assert.match(service, /from\('brands'\)[\s\S]*?select\('id,name,logo_path,is_active'\)/);
 

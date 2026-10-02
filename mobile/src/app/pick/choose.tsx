@@ -110,6 +110,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
       || saving || savedChoice || requestedReview !== null || isSessionLoading || sessionError) return;
+    // No pick without a photo: the button stays disabled until step 1 saves one.
+    if (needsPhotoStep) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
@@ -159,7 +161,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // the typed review. Photos are added in step 1 below instead.
   const itemPhoto = item ? <PickPhoto uri={item.thumbnailUrl ?? item.imageUrl ?? item.imageSourceUrl} label={`${item.name} 대표 이미지`}
     itemStatus={item.status} hasPhoto={Boolean(item.imagePath)} /> : null;
-  // Photo first, review last: an item without a photo gets an optional photo
+  // Photo first, review last: an item without a photo gets a required photo
   // step above the review. Editing the review of the current pick skips it.
   const needsPhotoStep = Boolean(user && item && !savedChoice && pickStatus?.type !== 'selected_this'
     && ['active', 'discontinued'].includes(item.status)
@@ -263,7 +265,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={saving} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep} onPress={() => void handleSubmit()} style={styles.submit} />
+          {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
           <Text style={styles.footnote}>{isOwnRequest ? '새로 등록되는 곳은 관리자가 확인한 뒤 공개돼요.' : '원픽은 언제든 바꿀 수 있어요.'}</Text>
         </> : null}
         {!isLoading && item && user && requestedReview !== null ? <View style={styles.successCard}>
@@ -299,7 +302,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
             <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 원픽을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
-            <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요. 지금 사진이 없어도 괜찮아요.</Text>
+            <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요.</Text>
             <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
             <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}

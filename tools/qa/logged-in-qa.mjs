@@ -2,8 +2,8 @@
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
 // registration → link category suggestion → profile → settings → public profile →
-// notifications → share/deep link, plus read-only own picks list and pick comment area. The initial MVP hides follow
-// (OnePickFeatures.follow=false), so the follow scope, CTA and setting must be absent.
+// notifications → share/deep link, plus read-only own picks list and pick comment area. The MVP shows
+// the public-profile follow CTA, while the following-feed scope and follow notification setting stay hidden.
 //
 // Credential rules (docs/daily-qa.md "로그인 상태 QA 계정 규칙"):
 // - ONEPICK_QA_EMAIL / ONEPICK_QA_PASSWORD come only from the environment
@@ -23,7 +23,7 @@ import path from 'node:path';
 import { chromium, devices } from 'playwright';
 import {
   SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
-  openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaHidden, assertFollowSettingHidden,
+  openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
 } from './logged-in-contract.mjs';
 
@@ -552,14 +552,14 @@ async function main() {
       otherProfilePath = new URL(page.url()).pathname;
     });
     if (otherProfilePath) {
-      await check(flow, '팔로우 버튼 비노출(초기 MVP)', async () => {
+      await check(flow, '팔로우 버튼 노출(MVP)', async () => {
         await page.waitForLoadState('networkidle');
-        await assertFollowCtaHidden(page, STEP_TIMEOUT_MS);
-        return '프로필 공유 버튼 표시 · 팔로우 버튼 없음';
+        await assertFollowCtaVisible(page, STEP_TIMEOUT_MS);
+        return '프로필 공유 버튼 표시 · 팔로우 CTA 표시';
       });
       await shot(page, 'other_profile');
     } else {
-      record(flow, '팔로우 버튼 비노출(초기 MVP)', 'skip', '대상 사용자 없음');
+      record(flow, '팔로우 버튼 노출(MVP)', 'skip', '대상 사용자 없음');
     }
 
     flow = '알림';
