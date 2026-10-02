@@ -49,7 +49,7 @@ export default function MenuPeoplePicksScreen() {
 
         {categoryOpen && category.data && name ? (
           <DishPeoplePicks categoryId={category.data.id} categoryName={name} userId={user?.id}
-            fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
+            returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
         ) : null}
       </ScrollView>
     </SafeAreaView>
