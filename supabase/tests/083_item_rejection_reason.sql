@@ -1,6 +1,6 @@
 -- Rejecting a product request requires a 1-500 character reason, trimmed and
--- sent to the requester; approval ignores a passed reason. Every review is
--- logged privately with the reviewing admin. The items table keeps its shape.
+-- sent to the requester. Approval ignores a passed reason but creates no
+-- user-facing review notification. Every review is logged privately.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(1);
@@ -75,8 +75,8 @@ begin
 
   select * into r from public.items where id=approved;
   assert r.status='active', 'Approval ignores a passed reason';
-  select * into r from public.item_review_notifications where item_id=approved;
-  assert r.outcome='approved' and r.reason is null, 'An approval notification carries no reason';
+  assert not exists(select 1 from public.item_review_notifications where item_id=approved),
+    'Approval creates no user review notification';
   assert (select status='rejected' from public.items where id=rejected), 'The request is rejected';
 
   select count(*) into n from private.item_review_log
@@ -109,7 +109,8 @@ begin
   assert not exists(select 1 from public.notification_page() where id=rejected), 'Other users get no notification';
   reset role;
 
-  -- Reopened and then approved: one row, now the approval, unread again.
+  -- Reopened and then approved: the earlier fix-needed row is cleared and no
+  -- approval notification replaces it.
   update public.item_review_notifications set read_at=now() where item_id=reopened;
   update public.items set status='pending' where id=reopened;
   perform set_config('request.jwt.claim.sub',admin::text,true);
@@ -117,11 +118,8 @@ begin
   set local role authenticated;
   perform public.admin_review_pending_item(reopened,'active');
   reset role;
-  select count(*) into n from public.item_review_notifications where item_id=reopened;
-  assert n=1, 'Still one notification per request';
-  select * into r from public.item_review_notifications where item_id=reopened;
-  assert r.outcome='approved' and r.read_at is null, 'A new result replaces the old one and is unread';
-  assert r.reason is null, 'Approval clears the stale reason';
+  assert not exists(select 1 from public.item_review_notifications where item_id=reopened),
+    'Approval clears the stale fix-needed row without creating a new event';
 
   -- Rejections made outside the review endpoint have no reason and send nothing.
   insert into public.items(id,category_id,name,normalized_name,status,created_by)
