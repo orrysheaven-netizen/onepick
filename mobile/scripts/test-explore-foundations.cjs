@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const explore = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/explore.tsx'), 'utf8');
+const explore = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(explore)/explore.tsx'), 'utf8');
 
 assert.match(explore, /paddingHorizontal: OnePickSpace\.gutter/);
 assert.match(explore, /title: \{ \.\.\.OnePickType\.pageTitle/);
