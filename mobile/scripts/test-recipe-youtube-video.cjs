@@ -260,7 +260,7 @@ async function main() {
     const other = setup();
     other.state.rows.push({ id: 'theirs', category_id: DISH, external_source: 'youtube_video', external_id: videoId, status: 'pending', created_by: 'someone-else' });
     const extra = action === 'video_lookup' ? { url: 'https://youtu.be/' + videoId }
-      : action === 'video_import' ? { externalId: videoId, categoryId: DISH } : { externalId: videoId, dishName: '파김치', review: '좋아요' };
+      : action === 'video_import' ? { externalId: videoId, categoryId: DISH } : { externalId: videoId, dishName: '파김치' };
     const res = await other.request(action, extra);
     assert.equal(res.status, 409, action + ': a pending video requested by someone else is not taken over');
     assert.equal((await res.json()).error, 'ITEM_ALREADY_PENDING', action);
@@ -350,7 +350,7 @@ async function main() {
     const flood = setup();
     let allowed = 2;
     flood.state.videoItems = [];
-    const extra = action === 'video_import' ? { categoryId: DISH } : { dishName: '파김치', review: '좋아요' };
+    const extra = action === 'video_import' ? { categoryId: DISH } : { dishName: '파김치' };
     const statuses = [];
     for (let i = 0; i < 5; i += 1) {
       flood.state.importAllowed = allowed-- > 0;
@@ -367,9 +367,10 @@ async function main() {
     assert.equal(blocked.state.upstream.length, 0, action + ': a rate-limited caller never reaches YouTube');
   }
 
-  // A dish missing from the catalog: the video waits for review with its dish name and review.
+  // A dish missing from the catalog: the video waits for item review with its
+  // dish name only. Approval never receives a Pick intent.
   const req = setup();
-  const pending = await (await req.request('video_request', { externalId: videoId, dishName: '  파김치 ', review: '  이 비율이 정답  ' })).json();
+  const pending = await (await req.request('video_request', { externalId: videoId, dishName: '  파김치 ' })).json();
   assert.equal(pending.pending, true);
   assert.equal(pending.categoryId, null);
   const pendingRow = req.state.writes[0];
@@ -379,11 +380,9 @@ async function main() {
   assert.equal(pendingRow.requested_category_label, '파김치');
   assert.equal(pendingRow.external_id, videoId);
   assert.equal(req.state.channels[0].channel, 'recipe');
-  assert.deepEqual(JSON.parse(JSON.stringify(req.state.intents[0])),
-    { item_id: pending.itemId, user_id: 'user', one_line_review: '이 비율이 정답', channel: 'recipe' },
-    'approval makes the requester a recipe Pick');
+  assert.equal(req.state.intents.length, 0, 'recipe requests never create pending Pick intents');
   assert.equal(req.state.importQuotaCalls, 1, 'requests share the import quota');
-  for (const [mode, extra] of [['empty dish', { dishName: ' ', review: '좋아요' }], ['long dish', { dishName: '가'.repeat(61), review: '좋아요' }], ['no review', { dishName: '파김치', review: '' }]]) {
+  for (const [mode, extra] of [['empty dish', { dishName: ' ' }], ['long dish', { dishName: '가'.repeat(61) }]]) {
     const t = setup();
     const res = await t.request('video_request', { externalId: videoId, ...extra });
     assert.equal(res.status, 400, mode);
@@ -417,8 +416,8 @@ async function main() {
   assert.equal(calls.at(-1).body.categoryId, DISH);
   assert.equal(calls.at(-1).headers.Authorization, 'Bearer user-jwt');
   response = { itemId: 'c3333333-3333-4333-8333-333333333333', categoryId: null, created: true, pending: true };
-  assert.equal((await repo.requestVideo(videoId, '파김치', '정답')).itemId, 'c3333333-3333-4333-8333-333333333333');
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).body)), { action: 'video_request', externalId: videoId, dishName: '파김치', review: '정답' });
+  assert.equal((await repo.requestVideo(videoId, '파김치')).itemId, 'c3333333-3333-4333-8333-333333333333');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).body)), { action: 'video_request', externalId: videoId, dishName: '파김치' });
   failure = { context: new Response(JSON.stringify({ error: 'VIDEO_URL_INVALID' }), { status: 400 }) };
   await assert.rejects(() => repo.lookupVideo('https://youtu.be/' + videoId), (error) => error.code === 'VIDEO_URL_INVALID');
   failure = { context: new Response(JSON.stringify({ error: 'VIDEO_NOT_FOUND' }), { status: 404 }) };
@@ -441,10 +440,9 @@ async function main() {
   assert.equal(serviceCalls[0][0], 'https://youtu.be/' + videoId);
   await assert.rejects(() => service.lookupVideo('https://www.youtube.com/@channel'), (error) => error.code === 'VIDEO_URL_INVALID');
   assert.equal(serviceCalls.length, 1, 'invalid links never reach the Edge Function');
-  await service.requestVideo(videoId, '  파   김치 ', ' 좋아요 ');
-  assert.deepEqual(serviceCalls.at(-1), [videoId, '파 김치', '좋아요']);
-  await assert.rejects(() => service.requestVideo(videoId, ' ', '좋아요'), (error) => error.code === 'CATEGORY_LABEL_INVALID');
-  await assert.rejects(() => service.requestVideo(videoId, '파김치', ' '), (error) => error.code === 'REVIEW_INVALID');
+  await service.requestVideo(videoId, '  파   김치 ');
+  assert.deepEqual(serviceCalls.at(-1), [videoId, '파 김치']);
+  await assert.rejects(() => service.requestVideo(videoId, ' '), (error) => error.code === 'CATEGORY_LABEL_INVALID');
 
   const intents = load('mobile/src/lib/auth/authIntent.ts');
   const intent = intents.getAuthIntent({ action: 'choose_recipe', externalVideoId: videoId, categoryId: DISH });
