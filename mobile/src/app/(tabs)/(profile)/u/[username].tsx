@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,6 +121,7 @@ function PublicProfilePickRow({
 
 export default function PublicProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { username, returnTo } = useLocalSearchParams<{ username?: string; returnTo?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
@@ -147,7 +148,23 @@ export default function PublicProfileScreen() {
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
   const returnHref = profileReturnHref(returnTo);
-  const goBack = () => router.replace(returnHref ?? '/');
+  const goBack = () => {
+    if (router.canGoBack()) { router.back(); return; }
+    router.replace(returnHref ?? '/');
+  };
+
+  useEffect(() => {
+    if (!returnHref) return;
+    let unsubscribe: (() => void) | undefined;
+    unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      const actionType = event.data.action.type;
+      if (actionType !== 'GO_BACK' && actionType !== 'POP' && actionType !== 'POP_TO_TOP') return;
+      event.preventDefault();
+      unsubscribe?.();
+      router.dismissTo(returnHref);
+    });
+    return () => unsubscribe?.();
+  }, [navigation, returnHref, router]);
 
   useEffect(() => {
     if (!followToast) return;
