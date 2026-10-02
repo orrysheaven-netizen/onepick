@@ -57,7 +57,7 @@ const followingQuery = {
   hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false,
   refetch: async () => {}, fetchNextPage: async () => {},
 };
-const { default: Home } = load('app/(tabs)/index.tsx', {
+const { default: Home } = load('app/(tabs)/(home)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
