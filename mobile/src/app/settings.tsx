@@ -25,8 +25,8 @@ export default function SettingsScreen() {
   const blocked = useBlockedUsers(user?.id);
   const safety = useSafetyActions();
   const deleteAccount = useDeleteAccount();
-  const preferences = useNotificationPreferences(OnePickFeatures.follow ? user?.id : undefined);
-  const setFolloweePickChange = useSetFolloweePickChange(OnePickFeatures.follow ? user?.id : undefined);
+  const preferences = useNotificationPreferences(OnePickFeatures.followNotifications ? user?.id : undefined);
+  const setFolloweePickChange = useSetFolloweePickChange(OnePickFeatures.followNotifications ? user?.id : undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteAccount = async () => {
@@ -60,7 +60,7 @@ export default function SettingsScreen() {
 
         {user ? (
           <>
-            {OnePickFeatures.follow ? <>
+            {OnePickFeatures.followNotifications ? <>
             <Text style={styles.sectionLabel}>알림</Text>
             <View style={styles.card}>
               <View style={styles.switchRow}>
