@@ -162,7 +162,11 @@ async function main() {
 
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
   const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', {
-    'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
+    'expo-router': {
+      useLocalSearchParams: () => ({ username: 'owner' }),
+      useRouter: () => ({ back() {}, push() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),
+      useNavigation: () => ({ addListener: () => () => {} }),
+    },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
     '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
