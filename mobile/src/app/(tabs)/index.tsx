@@ -115,7 +115,7 @@ export default function HomeScreen() {
     }
     if (!homeQuery.isFetching) void homeQuery.refetch({ cancelRefetch: false });
   };
-  const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username } });
+  const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
   const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) =>
     pick.itemId === itemId && pick.status === 'active' && pick.channel === mvpChannel));
   // Both feed scopes render the same current-Pick card. Home is for reading
