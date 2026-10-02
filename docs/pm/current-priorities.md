@@ -11,14 +11,13 @@
 - 별도 유료 API·추가 비용은 필수인 경우가 아니면 도입하지 않는다.
 - P3 확장은 사용자가 별도로 우선 지시하지 않는 한 보류한다.
 
-## P0 — Production 정합성 / 데이터 무결성
+## P0 — 데이터 무결성 / 운영 확인
 
-1. **Production migration 2건 적용 대기**
-   - `20261002165000_guard_current_pick_last_photo` (#634)
-   - `20261002193000_remove_approval_auto_pick` (#674)
-   - 둘 다 main 병합·CI·GPT DB/RLS 검토 완료.
-   - Production 읽기 전용 preflight 완료, 적용 순서는 `165000 → 193000`.
-   - 실제 Production apply는 사용자 별도 승인 전 금지.
+1. **Production migration 정합성 완료**
+   - `20261002165000_guard_current_pick_last_photo` (#634) Production 적용·사후 검증 완료.
+   - `20261002193000_remove_approval_auto_pick` (#674) Production 적용·사후 검증 완료.
+   - migration history, trigger/function 계약, Security advisor를 재검증했으며 신규 Critical/High 없음.
+   - #634·#674는 completed.
 
 2. **기존 photo-less active Pick 8건 비파괴 보충** (#633)
    - Pick/한줄평/선택 기록은 유지한다.
@@ -44,11 +43,11 @@
 
 - **원픽 사진 계약**
   - 신규/교체 Pick은 대표사진 필수.
-  - current Pick item의 마지막 사진 제거 차단 코드는 main 반영 완료.
+  - current Pick item의 마지막 사진 제거 차단은 main + Production 반영 완료.
   - 기존 photo-less Pick 8건은 별도 비파괴 보충 대상으로 유지.
 
 - **등록 요청 정책**
-  - 승인/병합 이벤트가 legacy intent에서 새 Pick을 자동 생성하지 않는 코드가 main 반영 완료.
+  - 승인/병합 이벤트가 legacy intent에서 새 Pick을 자동 생성하지 않는 계약은 main + Production 반영 완료.
   - modern `needs_review` Pick은 새 row 생성이 아니라 기존 row publish/move 계약을 유지.
   - 승인/검토 완료 후속 알림은 현재 MVP에서 노출하지 않는다.
 
@@ -72,5 +71,9 @@
 - Home following feed / follow 알림
 - 비필수 AI·추천 고도화
 - 추가 유료 자동화·인프라
+- `youtube-catalog` Production Edge drift (#683)
+  - DB의 승인 후 자동 Pick 제거 계약은 Production 반영 완료.
+  - 배포된 Edge Function은 아직 #675 이전 recipe request contract라 main과 불일치.
+  - 현재 recipe 공개 롤아웃이 OFF이므로 MVP blocker는 아니며, 재노출 전에 사용자 승인 후 공식 Edge deploy가 필요.
 
 사용자가 별도로 우선 지시하지 않는 한 P0~P2보다 먼저 시작하지 않는다.
