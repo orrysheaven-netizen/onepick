@@ -13,12 +13,13 @@
 
 ## P0 — Production 정합성 / 데이터 무결성
 
-1. **Production migration 2건 적용 대기**
+1. **Production migration 2건 적용·검증 완료**
    - `20261002165000_guard_current_pick_last_photo` (#634)
    - `20261002193000_remove_approval_auto_pick` (#674)
-   - 둘 다 main 병합·CI·GPT DB/RLS 검토 완료.
-   - Production 읽기 전용 preflight 완료, 적용 순서는 `165000 → 193000`.
-   - 실제 Production apply는 사용자 별도 승인 전 금지.
+   - 2026-10-02 Production 적용 완료, migration history가 저장소 버전과 일치함을 검증.
+   - current Pick item의 마지막 대표사진 제거는 DB에서 차단됨.
+   - legacy 승인/병합 시 새 원픽 자동생성 및 승인/병합 알림 생성이 제거됨.
+   - SECURITY DEFINER 함수의 empty `search_path` 및 anon EXECUTE 차단 상태를 확인.
 
 2. **기존 photo-less active Pick 8건 비파괴 보충** (#633)
    - Pick/한줄평/선택 기록은 유지한다.
