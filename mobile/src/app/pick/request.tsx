@@ -42,7 +42,7 @@ function hintErrorMessage(error: unknown) {
   return '카테고리 힌트를 보내지 못했어요. 적은 내용은 그대로 있으니 다시 시도해주세요.';
 }
 
-type Params = { categoryId?: string; itemName?: string; sourceUrl?: string; channel?: string; oneLineReview?: string };
+type Params = { categoryId?: string; itemName?: string; sourceUrl?: string; channel?: string };
 
 // Route params can come from a deep link, so only an https URL is carried and its host is
 // shown to the user before it is attached to their request.
@@ -81,8 +81,6 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const imageImport = useImportItemPhoto();
   const busy = useRef(false);
   const [name, setName] = useState(typeof params.itemName === 'string' ? params.itemName : '');
-  // The review stays private with the request; approval never creates a Pick automatically.
-  const [review, setReview] = useState(typeof params.oneLineReview === 'string' ? params.oneLineReview : '');
   const categoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
   // 온라인 restaurant requests must carry the seller's link for admin review; delivery-app
   // links are rejected here because delivery belongs to the 매장 (place) flow.
@@ -116,9 +114,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   const selectedCategory = categories.data?.find((category) => category.id === categoryId);
   const normalizedName = name.trim().replace(/\s+/g, ' ');
-  const trimmedReview = review.trim();
   const isValid = normalizedName.length >= 1 && normalizedName.length <= 100
-    && trimmedReview.length >= 1 && trimmedReview.length <= 100
     && (!categoryId || Boolean(selectedCategory))
     && (!isOnlineRequest || Boolean(sourceUrl));
   const canSubmit = isValid && (!categoryId || (!categories.isPending && !categories.isError)) && !auth.isLoading && !auth.error
@@ -129,8 +125,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     ...(categoryId ? { categoryId } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),
     ...(isOnlineRequest ? { channel: 'online' as const } : {}),
-    ...(trimmedReview ? { oneLineReview: trimmedReview } : {}),
-  }), [categoryId, isOnlineRequest, normalizedName, sourceUrl, trimmedReview]);
+  }), [categoryId, isOnlineRequest, normalizedName, sourceUrl]);
 
   const getPhoto = async (fromLink: boolean) => {
     if (busy.current || submitting) return;
@@ -164,7 +159,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         categoryId: categoryId || undefined,
         itemName: normalizedName,
         variant: '',
-        oneLineReview: trimmedReview,
+        oneLineReview: undefined,
         photo,
         ...(isOnlineRequest ? { channel: 'online' as const } : {}),
       });
@@ -433,23 +428,6 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
         </View>
 
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.label, styles.reviewLabel]}>한 줄 이유 <Text style={styles.required}>필수</Text></Text>
-          <Text style={styles.counter}>{review.length}/100</Text>
-        </View>
-        <TextInput
-          accessibilityLabel="원픽 한줄평"
-          editable={!submitting}
-          maxLength={100}
-          multiline
-          onChangeText={setReview}
-          placeholder="예: 결국 기본으로 돌아오게 되는 맛"
-          placeholderTextColor={OnePick.hint}
-          style={[styles.input, styles.reviewInput]}
-          value={review}
-        />
-        <Text style={styles.helper}>이 내용은 등록 요청에만 저장돼요. 승인돼도 원픽으로 자동 등록되지는 않아요.</Text>
-
         {!auth.user ? (
           <View style={styles.notice}>
             <Text style={styles.noticeText}>요청을 보내기 전에 로그인합니다. 지금 입력한 정보는 로그인 후 그대로 이어집니다.</Text>
@@ -491,11 +469,7 @@ const styles = StyleSheet.create({
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginTop: 24, marginBottom: 8 },
-  reviewHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 },
-  reviewLabel: { marginTop: 0, marginBottom: 0 },
   required: { color: OnePick.accent, fontSize: 12, fontWeight: '700' },
-  counter: { color: OnePick.muted, fontSize: 12 },
-  reviewInput: { minHeight: 76, paddingTop: 14, paddingBottom: 14, textAlignVertical: 'top' },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 15 },
   selectedCategory: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600', marginBottom: 8 },
   helper: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 10 },
