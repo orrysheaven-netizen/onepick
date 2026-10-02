@@ -130,8 +130,8 @@ assert.ok(laneSections[0].groups.every((group) => group.kind === 'channel'));
 assert.deepEqual(Array.from(grouping.buildFoodLaneGroups(lanePicks.slice(0, 1), foodCats), (group) => group.id), ['offline'], 'empty lanes are hidden');
 
 const component = read('src/components/profile-pick-groups.tsx');
-const owner = read('src/app/(tabs)/profile.tsx');
-const publicProfile = read('src/app/u/[username].tsx');
+const owner = read('src/app/(tabs)/(profile)/profile.tsx');
+const publicProfile = read('src/app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx');
 const exploreHook = read('src/hooks/useExploreData.ts');
 const queryKeys = read('src/lib/query/queryKeys.ts');
 
