@@ -113,13 +113,16 @@ export const OnePickSpace = {
 // of the MVP, while the following feed and follow-change notifications remain
 // hidden until separately approved. Backend follow data remains intact.
 //
-// followCounts: public counts/connections require the sanitized read contract in
-// #645 before the UI can expose them; the legacy own-count component stays off.
+// profileFollowConnections: approved public follower/following counts + list surface.
+// It depends on the sanitized #645 RPC and must not ship before that migration is applied.
+//
+// followCounts: legacy own-profile count component remains separately gated.
 //
 // purchaseLinks: schema is ready too, but the feed/profile surfaces that make
 // purchase links useful are not fully rolled out yet.
 export const OnePickFeatures = {
   profileFollow: true,
+  profileFollowConnections: true,
   followingFeed: false,
   followNotifications: false,
   followCounts: false,
