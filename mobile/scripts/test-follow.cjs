@@ -133,6 +133,10 @@ async function main() {
   assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
   assert.match(followButtonSource, />팔로우 취소<\/Text>/);
   assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
+  assert.ok(
+    followButtonSource.indexOf('if (isSelf) return null;') > followButtonSource.lastIndexOf('useEffect(() =>'),
+    'Self-profile early return stays after hooks so hook order cannot change between renders',
+  );
   assert.match(followButtonSource, /unfollow\.mutate\(undefined,[\s\S]*?onSuccess: \(\) => setConfirmingUnfollow\(false\)/,
     'Only the explicit confirmation action performs unfollow');
   mutations.unfollow.error = new AppError('FOLLOW_BLOCKED');
