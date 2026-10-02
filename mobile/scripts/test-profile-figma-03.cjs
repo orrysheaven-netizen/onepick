@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const profile = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
+const profile = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
 const photo = fs.readFileSync(path.join(__dirname, '../src/components/pick-photo.tsx'), 'utf8');
 const avatar = fs.readFileSync(path.join(__dirname, '../src/components/ui/avatar.tsx'), 'utf8');
 
