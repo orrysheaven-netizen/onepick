@@ -16,7 +16,8 @@ assert.match(constants, /profileFollowConnections: true/,
 assert.match(constants, /followCounts: false/,
   'Legacy own-profile counts remain independently hidden');
 
-assert.match(profile, /useLocalSearchParams<\{ username\?: string; connections\?: string \}>/);
+assert.ok(profile.includes('useLocalSearchParams<{ username?: string; connections?: string; returnTo?: string }>()'),
+  'Public profile keeps username, connections and safe return origin in one route contract');
 assert.match(profile, /usePublicFollowCounts\([\s\S]*?query\.data\?\.profile\.id[\s\S]*?user\?\.id \?\? null/);
 assert.match(profile, /connections === 'followers' \|\| connections === 'following'/);
 assert.match(profile, /const publicPickCount = publicMainPicks\.length \+ labPicks\.length/);
