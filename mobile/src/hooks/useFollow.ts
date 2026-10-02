@@ -24,7 +24,7 @@ export function useFollowCounts(userId: string | undefined) {
   });
 }
 
-export function usePublicFollowCounts(profileId: string | undefined, viewerId?: string) {
+export function usePublicFollowCounts(profileId: string | undefined, viewerId: string | null) {
   return useQuery({
     queryKey: profileId ? queryKeys.follows.publicCounts(profileId, viewerId) : ['follows', 'public-counts', 'missing'],
     queryFn: () => followService.getPublicCounts(profileId!),
@@ -36,7 +36,7 @@ export function usePublicFollowCounts(profileId: string | undefined, viewerId?: 
 export function useFollowConnections(
   profileId: string | undefined,
   direction: FollowDirection,
-  viewerId?: string,
+  viewerId: string | null,
   enabled = true,
 ) {
   return useInfiniteQuery({

@@ -107,10 +107,19 @@ async function main() {
   const hooks = fs.readFileSync(path.join(root, 'src/hooks/useFollow.ts'), 'utf8');
   const keys = fs.readFileSync(path.join(root, 'src/lib/query/queryKeys.ts'), 'utf8');
   const overrides = fs.readFileSync(path.join(root, 'src/lib/supabase/database.overrides.ts'), 'utf8');
-  assert.match(hooks, /usePublicFollowCounts\(profileId: string \| undefined, viewerId\?: string\)/);
+  assert.match(hooks, /usePublicFollowCounts\(profileId: string \| undefined, viewerId: string \| null\)/);
   assert.match(hooks, /useFollowConnections[\s\S]*?queryKeys\.follows\.connections\(profileId, direction, viewerId\)/);
-  assert.match(keys, /publicCounts: \(profileId: string, viewerId\?: string\)/);
-  assert.match(keys, /connections: \(profileId: string, direction: 'followers' \| 'following', viewerId\?: string\)/);
+  assert.match(keys, /publicCounts: \(profileId: string, viewerId: string \| null\)/);
+  assert.match(keys, /connections: \(profileId: string, direction: 'followers' \| 'following', viewerId: string \| null\)/);
+  const { queryKeys } = loadSource('lib/query/queryKeys.ts');
+  same(queryKeys.follows.publicCounts('profile-1', null), ['follows', 'public-counts', 'profile-1', 'public']);
+  same(queryKeys.follows.publicCounts('profile-1', 'viewer-a'), ['follows', 'public-counts', 'profile-1', 'viewer-a']);
+  assert.notEqual(
+    JSON.stringify(queryKeys.follows.connections('profile-1', 'followers', 'viewer-a')),
+    JSON.stringify(queryKeys.follows.connections('profile-1', 'followers', 'viewer-b')),
+    'Different signed-in viewers never share block-filtered connection caches',
+  );
+
   assert.match(overrides, /profile_follow_counts:/);
   assert.match(overrides, /profile_follow_connections_page:/);
 
