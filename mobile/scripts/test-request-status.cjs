@@ -67,7 +67,7 @@ async function main() {
   let commentsRefreshes = 0;
   profileCommentsQuery.refetch = async () => { commentsRefreshes++; };
   let historyUser, requestsUser, profileCommentsUser, socialProps, bioProps;
-  const { default: Profile } = load('app/(tabs)/profile.tsx', {
+  const { default: Profile } = load('app/(tabs)/(profile)/profile.tsx', {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -122,7 +122,7 @@ async function main() {
     '@/hooks/useMyProfileLists': { useMyComments: (userId, scope) => { commentsUser = userId; commentsScope = scope; return commentsQuery; } },
   });
   const renderMyComments = () => { presses = []; commentsProps = undefined; return renderToStaticMarkup(React.createElement(MyComments)); };
-  const profileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
+  const profileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
   assert.match(profileSource, /accessibilityLabel="내 댓글 보기"[\s\S]*router\.push\('\/comments'\)/);
   const myCommentsScreen = renderMyComments();
   assert.match(myCommentsScreen, /MY_COMMENTS_LIST/); assert.doesNotMatch(myCommentsScreen, /내 댓글/, 'The screen is just 댓글');

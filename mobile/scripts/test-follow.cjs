@@ -166,7 +166,7 @@ async function main() {
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
   // Public profile: follow sits in the header for other people's profiles only.
-  const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
+  const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
@@ -179,7 +179,7 @@ async function main() {
     'Hidden follow mode does not start the follow-notification preference query');
   assert.match(settings, /\{OnePickFeatures\.followNotifications \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
     'Follow notification settings remain implemented but hidden behind the same gate');
-  const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
+  const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
   assert.match(publicProfile, /action: 'follow_profile'/);

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 
-const source = readFileSync(path.join(__dirname, '..', 'src', 'app', 'u', '[username].tsx'), 'utf8');
+const source = readFileSync(path.join(__dirname, '..', 'src', 'app', '(tabs)', '(profile)', 'u', '[username].tsx'), 'utf8');
 
 assert.match(
   source,

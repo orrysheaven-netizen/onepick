@@ -11,6 +11,7 @@ type TabIcon = 'home' | 'explore' | 'notifications' | 'profile';
 
 function isActive(pathname: string, href: '/' | '/explore' | '/notifications' | '/profile') {
   if (href === '/') return pathname === '/';
+  if (href === '/profile') return pathname === '/profile' || pathname.startsWith('/profile/') || pathname.startsWith('/u/');
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

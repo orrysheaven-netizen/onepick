@@ -73,8 +73,8 @@ assert.equal(grouping.isLabCategory('movie', categories, 'food', false), false);
 // but Explore no longer advertises a second 실험실 entry.
 const lab = read('src/app/lab/[username].tsx');
 const labIndex = read('src/app/lab/index.tsx');
-const owner = read('src/app/(tabs)/profile.tsx');
-const publicProfile = read('src/app/u/[username].tsx');
+const owner = read('src/app/(tabs)/(profile)/profile.tsx');
+const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const explore = read('src/app/(tabs)/explore.tsx');
 const onboarding = read('src/app/onboarding.tsx');
 const find = read('src/app/pick/find.tsx');
