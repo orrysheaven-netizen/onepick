@@ -50,10 +50,10 @@ assert.doesNotMatch(profilePayload.message, /DEMO/i);
 assert.match(profilePayload.title, /^@moodarchive/);
 
 const source = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
-assert.doesNotMatch(source('app/(tabs)/index.tsx'), />DEMO</);
+assert.doesNotMatch(source('app/(tabs)/(home)/index.tsx'), />DEMO</);
 assert.doesNotMatch(source('components/item-review-card.tsx'), /DEMO · 테스트 데이터/);
-assert.doesNotMatch(source('app/u/[username].tsx'), /DEMO · 테스트 데이터/);
-assert.match(source('app/u/[username].tsx'), /user && !isSeed/);
+assert.doesNotMatch(source('app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx'), /DEMO · 테스트 데이터/);
+assert.match(source('app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx'), /user && !isSeed/);
 assert.match(source('components/pick-share-actions.tsx'), /isSeedProfileId\(props\.authorUserId\)/);
 assert.doesNotMatch(source('components/pick-share-actions.tsx'), /DEMO DATA/);
 
