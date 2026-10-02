@@ -149,7 +149,7 @@ async function main() {
   item = null;
   submittedStatus = 'active';
   const resolved = await service.register(input);
-  assert.equal(resolved.type, 'pending_item', 'A request that resolves to an active item still does not auto-select it');
+  assert.equal(resolved.type, 'available_item', 'A request that resolves to an active item returns it for explicit selection');
   assert.deepEqual(calls.map(([name]) => name), ['submit']);
   assert.equal(resolved.item.id, 'submitted');
 
