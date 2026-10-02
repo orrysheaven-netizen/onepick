@@ -91,7 +91,7 @@ async function main() {
     auth.isLoading = false; auth.error = new Error('offline'); view.render(); assert.equal(button(view, homeLabel), undefined);
   });
   await test('Preserved Web following refresh works when the future rollout gate is enabled', () => {
-    flags.follow = true;
+    flags.followingFeed = true;
     const { view, home, following, auth, calls } = fixture('home');
     view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기').onPress(); view.render();
     assert.equal(calls.home[2], false); assert.equal(calls.following[1], true);
@@ -190,7 +190,7 @@ async function main() {
     assert.match(view.text(), /프로필을 불러오지 못했어요/);
   });
   await test('Native iOS and Android keep pull refresh instead of normal manual controls', async () => {
-    flags.profilePickHistory = true; flags.profileItemRequests = true; flags.follow = true;
+    flags.profilePickHistory = true; flags.profileItemRequests = true; flags.followingFeed = true;
     for (const platform of ['ios', 'android']) {
       const h = fixture('home', platform); assert.equal(button(h.view, homeLabel), undefined);
       h.view.find('RefreshControl').onRefresh(); assert.equal(h.home.refetches, 1);

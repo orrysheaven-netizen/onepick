@@ -246,7 +246,7 @@ export default function PublicProfileScreen() {
               </View>
             </View>
 
-            {OnePickFeatures.follow && !query.data.isMine ? <View style={styles.followRow}>
+            {OnePickFeatures.profileFollow && !query.data.isMine ? <View style={styles.followRow}>
               <FollowButton
                 viewerUserId={user?.id}
                 profileUserId={query.data.profile.id}
