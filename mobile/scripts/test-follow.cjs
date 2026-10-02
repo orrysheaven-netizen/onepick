@@ -164,7 +164,7 @@ async function main() {
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
-  assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
+  assert.match(publicProfile, /onRequireLogin=\{\(\) => openFollowLogin\(query\.data\.profile\.username\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
   assert.match(featureSource, /profileFollow: true/, 'MVP exposes the public-profile follow relationship');
   assert.match(featureSource, /followingFeed: false/, 'MVP keeps the following feed hidden behind its own gate');
