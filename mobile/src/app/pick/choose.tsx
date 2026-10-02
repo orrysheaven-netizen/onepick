@@ -8,7 +8,7 @@ import { PickPhotoStep } from '@/components/pick-photo-step';
 import { BrandMark, Button, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useChoosePick, useRequestPendingPick } from '@/hooks/useChoosePick';
+import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
@@ -53,9 +53,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const requestedChannel = routeChannel && !OnePickFeatures.foodChannelPicker ? OnePickMvp.publicPickChannel : routeChannel;
   const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
   const choosePick = useChoosePick();
-  const requestPick = useRequestPendingPick();
-  const saving = choosePick.isPending || requestPick.isPending;
-  const saveError = choosePick.error ?? requestPick.error;
+  const saving = choosePick.isPending;
+  const saveError = choosePick.error;
   const [draftReview, setReview] = useState<string | null>(null);
   // null means "not touched on this screen". The stored link is not read back
   // here yet, so an untouched field must send nothing rather than an empty
@@ -64,7 +63,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [draftTip, setDraftTip] = useState<string | null>(null);
   const [tipAnswer, setTipAnswer] = useState<'unanswered' | 'yes' | 'no'>('unanswered');
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
-  const [requestedReview, setRequestedReview] = useState<string | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   // The item as returned by a photo saved in step 1; keeps the new photo on
@@ -84,10 +82,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const pickChannel = itemQuery.data?.pickChannel ?? null;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
-  // A place selected for the first time is the user's own pending request: the
-  // review is sent with it and approval makes it their pick.
+  // Pending requests are not Pick targets. After review the member explicitly
+  // chooses the approved item; approval never creates a new Pick from this screen.
   const isOwnRequest = Boolean(user && item && item.status === 'pending' && item.createdBy === user.id);
-  const canSubmit = canChoose || isOwnRequest;
+  const canSubmit = canChoose;
   const trimmedReview = review.trim();
   const trimmedUrl = (draftUrl ?? '').trim();
   const trimmedTip = (draftTip ?? '').trim();
@@ -98,18 +96,17 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = isOwnRequest ? '새로 등록 요청할까요?' : pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
-    if (isOwnRequest) return '등록 요청 보내기';
     if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
     return '내 원픽으로 선택';
-  }, [isOwnRequest, pickStatus]);
+  }, [pickStatus]);
 
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
-      || saving || savedChoice || requestedReview !== null || isSessionLoading || sessionError) return;
+      || saving || savedChoice || isSessionLoading || sessionError) return;
     // No pick without a photo: the button stays disabled until step 1 saves one.
     if (needsPhotoStep) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
@@ -117,13 +114,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
-      if (isOwnRequest) {
-        const saved = await requestPick.mutateAsync({ itemId: item.id, oneLineReview: trimmedReview });
-        await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
-        submitPhase.current = 'saved';
-        setRequestedReview(saved);
-        return;
-      }
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
         ...(pickChannel ? { channel: pickChannel } : {}),
@@ -154,7 +144,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
   const openLogin = () => openRecovery(false);
-  const isSuccess = savedChoice !== null || requestedReview !== null;
+  const isSuccess = savedChoice !== null;
   const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   // No itemId: the card's own "사진 등록" shortcut leaves this screen and would drop
@@ -200,10 +190,14 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />
         </View> : null}
         {hasItem && item && !canSubmit && !isSuccess ? <View style={styles.stateArea}>
-          <StateCard title="지금은 선택할 수 없어요" text="지금은 여기서 새 원픽을 선택할 수 없어요."
-            action={{ label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '상세 보기', variant: 'secondary',
-              onPress: () => router.replace(pickStatus?.type === 'selected_this'
-                ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } }) }} />
+          <StateCard
+            title={isOwnRequest ? '관리자 확인 중이에요' : '지금은 선택할 수 없어요'}
+            text={isOwnRequest ? '승인돼도 원픽으로 자동 등록되지 않아요. 확인이 끝난 뒤 직접 원픽으로 선택할 수 있고, 수정이 필요할 때만 알려드려요.' : '지금은 여기서 새 원픽을 선택할 수 없어요.'}
+            action={isOwnRequest
+              ? { label: '내 등록 요청 보기', variant: 'secondary', onPress: () => router.replace('/(tabs)/profile') }
+              : { label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '상세 보기', variant: 'secondary',
+                  onPress: () => router.replace(pickStatus?.type === 'selected_this'
+                    ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } }) }} />
         </View> : null}
         {hasItem && item && canChoose && !user ? <View style={styles.panel}>
           {itemPhoto}
@@ -219,10 +213,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{isOwnRequest ? '관리자 확인 후 이 한줄평으로 내 원픽에 등록돼요.' : pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {!isOwnRequest && pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
@@ -231,7 +225,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
-          {OnePickFeatures.purchaseLinks && !isOwnRequest ? <>
+          {OnePickFeatures.purchaseLinks ? <>
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>산 곳 링크 <Text style={styles.optional}>선택</Text></Text></View>
           <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!saving}
             inputMode="url" maxLength={2048}
@@ -267,23 +261,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           </View> : null}
           <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep} onPress={() => void handleSubmit()} style={styles.submit} />
           {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
-          <Text style={styles.footnote}>{isOwnRequest ? '새로 등록되는 곳은 관리자가 확인한 뒤 공개돼요.' : '원픽은 언제든 바꿀 수 있어요.'}</Text>
+          <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
-        {!isLoading && item && user && requestedReview !== null ? <View style={styles.successCard}>
-          <BrandMark size="lg" soft />
-          <Text style={[styles.title, styles.successTitle]}>등록 요청을 보냈어요</Text>
-          <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{requestedReview}”</Text>
-          <Text style={styles.panelText}>관리자 승인되면 이 한줄평으로 내 원픽에 자동 등록되고, 알림으로 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.</Text>
-          <View style={styles.successActions}>
-            {params.onboarding === '1' ? <>
-              <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
-              <Button variant="ghost" label="나중에 이어하기" accessibilityLabel="온보딩을 나중에 이어서 하기" onPress={() => router.replace('/profile')} style={styles.centered} />
-            </> : <>
-              <Button size="lg" fullWidth label="내 등록 요청 보기" onPress={() => router.replace('/(tabs)/profile')} style={styles.submit} />
-              <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
-            </>}
-          </View>
-        </View> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <BrandMark size="lg" soft />
           <Text style={[styles.title, styles.successTitle]}>원픽을 정했어요</Text>
