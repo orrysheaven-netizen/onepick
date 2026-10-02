@@ -145,7 +145,7 @@ async function main() {
   assert.equal(presses[0].disabled, true, 'No double submit while pending');
 
   // Home: the 팔로잉 scope only exists for members and is a separate query from the public feed.
-  const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
+  const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/(home)/index.tsx'), 'utf8');
   assert.match(home, /useFollowingFeed\(user\?\.id, showFollowing[\s\S]*?mvpChannel, HOME_FEED_ROOT_SLUG\)/,
     'Following Home is scoped to the same MVP channel and food root');
   assert.match(home, /useFollowCounts\(followCountUserId\)/,
@@ -162,7 +162,7 @@ async function main() {
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
   // Public profile: follow sits in the header for other people's profiles only.
-  const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
+  const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
@@ -173,7 +173,7 @@ async function main() {
     'Hidden follow mode does not start the follow-notification preference query');
   assert.match(settings, /\{OnePickFeatures\.follow \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
     'Follow notification settings remain implemented but hidden behind the same gate');
-  const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
+  const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');
   assert.match(publicProfile, /action: 'follow_profile'/);
