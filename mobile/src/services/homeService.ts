@@ -32,6 +32,10 @@ export class HomeService {
     };
   }
 
+  getRecentMenuRanking(groupCategoryId: string | null = null, channel: PickChannel | null = null, limit = 4) {
+    return this.readRepository.getFoodMenuRecentRanking(groupCategoryId, channel, limit);
+  }
+
   // The feed leaves the viewer out, so a dish page reads the viewer's own current
   // Picks for that dish separately (one per channel) and shows them first.
   async getMyDishPicks(userId: string, categoryId: string): Promise<HomeFeedPick[]> {

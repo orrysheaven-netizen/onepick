@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,39 +8,36 @@ import { OnePickBrand } from '@/components/onepick-brand';
 import { NotificationButton } from '@/components/notification-button';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
-import { PickPhoto } from '@/components/pick-photo';
 import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
-import { useHomeData } from '@/hooks/useHomeData';
+import { useHomeData, useHomeMenuRanking } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
-import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeStarterCategories } from '@/lib/home/homeCategoryFilters';
-import { categoryWithChannels } from '@/lib/home/homeChannels';
-import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
+import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeMenuRankingGroups } from '@/lib/home/homeCategoryFilters';
+import type { FoodMenuRecentRankingItem, HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
-type HomeData = NonNullable<ReturnType<typeof useHomeData>['data']>;
-type EditorialItem = HomeData['editorialItems'][number];
-
-function EditorialCard({ item, onOpen }: { item: EditorialItem; onOpen: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={item.name + ' 추천 원픽 상세 보기'}
-    onPress={onOpen} style={({ pressed }) => [styles.editorialCard, pressed && styles.pressed]}>
-    <View style={styles.editorialTop}>
-      <Text style={styles.editorialKicker}>원픽 추천</Text>
-      <Text numberOfLines={1} style={styles.editorialPath}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
+function RecentMenuCard({ menu, onOpen }: { menu: FoodMenuRecentRankingItem; onOpen?: () => void }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const imageFailed = Boolean(menu.thumbnailUrl && failedImage === menu.thumbnailUrl);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${menu.categoryName} 메뉴 원픽 보기`}
+    accessibilityState={{ disabled: !onOpen }} disabled={!onOpen} onPress={onOpen}
+    style={({ pressed }) => [styles.menuCard, pressed && styles.menuPressed]}>
+    <View style={styles.menuPhoto}>
+      {!imageFailed && menu.thumbnailUrl ? <Image source={{ uri: menu.thumbnailUrl }} accessibilityLabel={menu.categoryName}
+        style={styles.menuImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={menu.thumbnailUrl}
+        onError={() => setFailedImage(menu.thumbnailUrl)} />
+        : <View accessibilityLabel={`${menu.categoryName} 이미지 로딩 실패`} style={styles.menuPhotoPlaceholder}>
+            <Text style={styles.menuPhotoPlaceholderText}>사진을 불러올 수 없어요</Text>
+          </View>}
     </View>
-    <View style={styles.editorialBody}>
-      <PickPhoto uri={item.thumbnailUrl} label={item.name} itemId={item.itemId} logoUri={item.brandLogoUrl} />
-      <View style={styles.editorialCopy}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        {item.editorialNote ? <Text numberOfLines={3} style={styles.editorialNote}>{item.editorialNote}</Text> : null}
-        <Text style={styles.editorialCount}>{item.pickCount > 0 ? `현재 ${item.pickCount.toLocaleString()}명이 이 원픽을 추천` : '아직 첫 추천을 기다리는 원픽'}</Text>
-      </View>
+    <View style={styles.menuCardCopy}>
+      <Text numberOfLines={1} style={styles.menuCardName}>{menu.categoryName}</Text>
+      <Text style={styles.menuCardCount}>{menu.pickCount >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${menu.pickCount.toLocaleString()}` : '사람들의 원픽 보기'}</Text>
     </View>
   </Pressable>;
 }
-
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = useAuthSession();
@@ -70,9 +68,6 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || followDefaultPending || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  const editorialItems = data?.editorialItems
-    ?.filter((item) => item.channels.includes(mvpChannel))
-    .map((item) => ({ ...item, channels: [mvpChannel] })) ?? [];
   // Home search, category filters and Explore share one cached category-tree query.
   // Start it alongside Home context instead of waiting for Home to finish first.
   const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
@@ -94,11 +89,16 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  // MVP Home only surfaces restaurant (food) entry points; see HOME_ROOT_SLUGS.
-  // A menu card opens the production menu-detail screen (Figma 16A). Rankings
-  // remain a separate explicit surface rather than replacing the menu detail.
-  const categories = useMemo(() => homeStarterCategories(categoryCatalog), [categoryCatalog]);
-  const openMenu = (category: { slug: string }) => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } });
+  const rankingGroups = useMemo(() => homeMenuRankingGroups(categoryCatalog), [categoryCatalog]);
+  const [selectedMenuRankingGroupId, setSelectedMenuRankingGroupId] = useState<string | null>(null);
+  const menuRankingQuery = useHomeMenuRanking(selectedMenuRankingGroupId, mvpChannel, !isSessionLoading && !sessionError);
+  // The product contract never displays a photo-less Pick card. Legacy ranking rows without a cover stay hidden; only URL load failure uses the fixed placeholder.
+  const rankedMenus = (menuRankingQuery.data ?? []).filter((menu) => Boolean(menu.thumbnailUrl)).slice(0, 4);
+  const categoryById = useMemo(() => new Map(categoryCatalog.map((category) => [category.id, category])), [categoryCatalog]);
+  const openMenu = (categoryId: string) => {
+    const category = categoryById.get(categoryId);
+    if (category) router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } });
+  };
   const ready = !isLoading && !sessionError && Boolean(data);
 
   useEffect(() => {
@@ -108,6 +108,7 @@ export default function HomeScreen() {
   }, [categoryFilters, selectedCategoryGroupId, showCategoryFilters]);
   const refresh = () => {
     if (isSessionLoading || sessionError) return;
+    if (!menuRankingQuery.isFetching) void menuRankingQuery.refetch({ cancelRefetch: false });
     if (showFollowing) {
       if (!followingQuery.isFetching) void followingQuery.refetch({ cancelRefetch: false });
       return;
@@ -220,24 +221,30 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} />
         </View>}
 
-        {ready && editorialItems.length ? <View style={styles.editorialSection}>
-          <SectionHeader title="먼저 소개하는 원픽" />
-          <View style={styles.editorialList}>
-            {editorialItems.map((item) => <EditorialCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
-          </View>
-        </View> : null}
-
-        {ready && data && categories.length ? <View style={styles.categorySection}>
-          <View style={styles.nextSection}><SectionHeader title="메뉴별 원픽 보기" description="메뉴를 고르면 사람들이 고른 원픽과 한줄평을 볼 수 있어요" /></View>
-          <View style={styles.categoryGrid}>
-            {categories.map((category) => {
-              const label = category.name;
-              return <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={label + ' 사람들의 원픽 보기'}
-                onPress={() => openMenu(category)} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-                <Text numberOfLines={2} style={styles.categoryName}>{label}</Text><Text style={styles.categoryAction}>사람들의 원픽 보기  ›</Text>
-              </Pressable>;
-            })}
-          </View>
+        {ready ? <View style={styles.rankingSection}>
+          <View style={styles.nextSection}><SectionHeader title="최근 7일 많이 고른 메뉴" /></View>
+          {rankingGroups.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.rankingFilterRow}>
+            <Chip label="전체" selected={selectedMenuRankingGroupId === null} accessibilityLabel="전체 인기 메뉴 보기"
+              onPress={() => setSelectedMenuRankingGroupId(null)} />
+            {rankingGroups.map((group) => <Chip key={group.id} label={group.name}
+              selected={selectedMenuRankingGroupId === group.id} accessibilityLabel={`${group.name} 인기 메뉴 보기`}
+              onPress={() => setSelectedMenuRankingGroupId(group.id)} />)}
+          </ScrollView> : null}
+          {menuRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요" /> : null}
+          {menuRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요"
+            text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있습니다."
+            action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
+          {!menuRankingQuery.isPending && !menuRankingQuery.isError && rankedMenus.length ? <>
+            <Text style={styles.rankingSort}>원픽 많은 순</Text>
+            <View style={styles.menuGrid}>
+            {rankedMenus.map((menu) => <RecentMenuCard key={menu.categoryId} menu={menu}
+              onOpen={categoryById.has(menu.categoryId) ? () => openMenu(menu.categoryId) : undefined} />)}
+            </View>
+          </> : null}
+          {!menuRankingQuery.isPending && !menuRankingQuery.isError && !rankedMenus.length ? <StateCard compact
+            title="최근 7일 원픽이 아직 없어요" text="원픽이 쌓이면 많이 고른 메뉴를 보여드릴게요."
+            action={{ label: '전체 메뉴 보기', onPress: () => router.push('/explore') }} /> : null}
         </View> : null}
 
         <View style={styles.sectionHeader}>
@@ -324,6 +331,19 @@ const styles = StyleSheet.create({
   scopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   scopeTextSelected: { color: OnePick.onAction },
   categoryFilterRow: { gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, paddingRight: OnePickSpace.xs, marginBottom: OnePickSpace.sm },
+  rankingSection: { marginTop: OnePickSpace.md, marginBottom: OnePickSpace.xxl },
+  rankingFilterRow: { gap: OnePickSpace.sm, paddingBottom: OnePickSpace.md, paddingRight: OnePickSpace.xs },
+  rankingSort: { ...OnePickType.caption, color: OnePick.textSecondary, marginBottom: OnePickSpace.md },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.md },
+  menuCard: { width: '46%', overflow: 'hidden', borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgDefault },
+  menuPhoto: { width: '100%', aspectRatio: 173 / 118, overflow: 'hidden', backgroundColor: OnePick.bgPlaceholder },
+  menuImage: { width: '100%', height: '100%' },
+  menuPhotoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgPlaceholder },
+  menuPhotoPlaceholderText: { ...OnePickType.caption, color: OnePick.textSecondary },
+  menuCardCopy: { padding: OnePickSpace.md },
+  menuCardName: { ...OnePickType.headline, color: OnePick.textPrimary },
+  menuCardCount: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  menuPressed: { opacity: 0.9 },
   productCell: { marginBottom: OnePickSpace.md },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },

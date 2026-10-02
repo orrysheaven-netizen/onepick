@@ -33,7 +33,7 @@ function home(count = 20, followingCount = 0) {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; } },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeMenuRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -41,7 +41,7 @@ function home(count = 20, followingCount = 0) {
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
-    '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
+    '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
   });
@@ -162,13 +162,14 @@ async function main() {
     assert.equal(calls.route.pathname, '/menu/[slug]'); assert.equal(calls.route.params.slug, 'ramen');
     assert.doesNotMatch(view.text(), /Recent place/, 'Menu discovery replaces the old recent-provider landing list');
   });
-  await test('Home restoration threshold, signed-out avatar and editorial copy', () => {
+  await test('Home restoration threshold and signed-out header stay compatible with recent ranking', () => {
     flags.categoryChips = true;
     thresholds.homeCategoryFilterMinPicks = 0;
-    const { view, q, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
-    auth.user = null; q.data.editorialItems = [{ itemId: 'editorial', name: 'Editorial', categoryId: 'ramen', categoryName: 'ramen', categoryPath: 'food', pickCount: 0, channels: ['offline'] }]; view.render();
+    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
+    auth.user = null; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
-    assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽'), undefined);
   });
   await test('Home normal refresh hidden; pull, initial error, stale error and pagination retries survive', () => {
     const { view, q } = home(); assert.equal(view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'), undefined);

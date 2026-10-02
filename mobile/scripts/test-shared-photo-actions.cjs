@@ -160,7 +160,9 @@ async function main() {
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));
   cache.clear();
-  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
+  const homeFeedCardSource = fs.readFileSync(path.join(__dirname, '../src/components/home-feed-card.tsx'), 'utf8');
+  assert.match(homeFeedCardSource, /photo=\{\{[\s\S]*?itemId:\s*pick\.itemId/, 'Home people feed passes the real catalog target through the shared PickCard');
+  for (const file of ['app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
   const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');

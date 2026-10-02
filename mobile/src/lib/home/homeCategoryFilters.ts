@@ -34,6 +34,30 @@ export function buildHomeCategoryFilters(categories: Category[], rootSlugs: read
     .filter((group) => group.categoryIds.length > 0);
 }
 
+export interface HomeMenuRankingGroup {
+  id: string;
+  name: string;
+}
+
+/** Second-level food groups used by the Home recent-menu ranking chips. */
+export function homeMenuRankingGroups(categories: Category[], rootSlug: string = HOME_FEED_ROOT_SLUG ?? 'food'): HomeMenuRankingGroup[] {
+  const root = categories.find((category) => !category.parentId && category.slug === rootSlug
+    && category.status === 'open' && category.isVisible);
+  if (!root) return [];
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  const hasPickableDescendant = (groupId: string) => categories.some((category) => {
+    if (category.status !== 'open' || !category.isVisible || !category.isPickable) return false;
+    if (category.parentId === groupId) return true;
+    const parent = category.parentId ? byId.get(category.parentId) : null;
+    return parent?.parentId === groupId;
+  });
+  return categories
+    .filter((category) => category.parentId === root.id && category.status === 'open' && category.isVisible && !category.isPickable)
+    .filter((category) => hasPickableDescendant(category.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map((category) => ({ id: category.id, name: category.name }));
+}
+
 /**
  * Signed-out starter cards: one leaf per sub-group (e.g. 고기, 면, 국/탕) in tree
  * order, so a large restaurant taxonomy shows variety instead of its first rows.
