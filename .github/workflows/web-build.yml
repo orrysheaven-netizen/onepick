@@ -97,6 +97,7 @@ jobs:
 
       - name: Required check satisfied
         if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        working-directory: .
         run: echo "No relevant changes; heavy verify-web steps skipped."
       - name: Checkout
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
