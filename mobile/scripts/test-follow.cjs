@@ -167,13 +167,16 @@ async function main() {
 
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
-  assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
-  assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
+  assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followActions\}>/);
+  assert.match(publicProfile, /onRequireLogin=\{\(\) => openFollowLogin\(query\.data\.profile\.username\)\}[\s\S]*?fullWidth \/>/,
+    'Figma 40 keeps the Follow relationship in the primary action');
+  assert.match(publicProfile, /<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"[\s\S]*?accessibilityLabel="프로필 공유"/,
+    'Figma 40 exposes Share beside Follow/Following');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
   assert.match(featureSource, /profileFollow: true/, 'MVP exposes the public-profile follow relationship');
   assert.match(featureSource, /followingFeed: false/, 'MVP keeps the following feed hidden behind its own gate');
   assert.match(featureSource, /followNotifications: false/, 'MVP keeps follow-change notifications hidden behind their own gate');
-  assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
+  assert.match(featureSource, /followCounts: false/, 'Legacy own-profile count component remains separately hidden');
   const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
   assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.followNotifications \? user\?\.id : undefined\)/,
     'Hidden follow mode does not start the follow-notification preference query');
