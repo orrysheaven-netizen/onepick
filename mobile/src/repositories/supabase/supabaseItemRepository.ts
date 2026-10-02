@@ -14,7 +14,6 @@ import type {
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
-import type { PickChannel } from '@/lib/items/pickChannel';
 
 const PUBLIC_ITEM_STATUSES = ['active', 'discontinued'] as const;
 type ItemRow = Database['public']['Tables']['items']['Row'];
