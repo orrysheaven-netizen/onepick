@@ -28,7 +28,7 @@ type Props = {
  * first, with the Home channel tabs. The feed leaves the viewer out, so their own
  * Pick for the dish is read separately and shown first as "내 원픽".
  */
-export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true, fixedChannel, variant = 'default' }: Props) {
+export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true, returnTo = '/explore', fixedChannel, variant = 'default' }: Props) {
   const router = useRouter();
   const [channel, setChannel] = useState<PickChannel | null>(null);
   const activeChannel = fixedChannel ?? channel;
@@ -47,7 +47,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
   const renderDefaultCard = (pick: HomeFeedPick, isMine: boolean) => <View key={pick.pickId} style={styles.cell}>
     <HomeFeedCard pick={pick} mine={isMine} menuContext={menuContext}
       onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
-      onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
+      onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username, returnTo } })}
       onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
       onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
   </View>;
@@ -57,7 +57,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
     pick={pick}
     itemPickCountLabel={`${itemCounts.get(pick.itemId) ?? 1}${countSuffix}`}
     onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
-    onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username } })}
+    onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username, returnTo } })}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
     onOpenComments={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
   />;
