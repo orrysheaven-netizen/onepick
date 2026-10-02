@@ -161,7 +161,7 @@ async function main() {
   assert.notEqual(ProfileBioEditor(props).key, key, 'Account changes remount the editor');
 
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
-  const { default: PublicProfile } = load('app/u/[username].tsx', {
+  const { default: PublicProfile } = load('app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx', {
     'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
