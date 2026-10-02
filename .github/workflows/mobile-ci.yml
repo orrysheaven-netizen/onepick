@@ -76,12 +76,11 @@ jobs:
 
   typecheck:
     needs: changes
-    # Required check: keep this job name. When skipped by this condition it reports
-    # success, so draft or unrelated PRs never leave the check pending.
+    # Required check: keep this job present on ready PRs. GitHub branch protection
+    # does not accept a skipped required job as success, so only heavy steps are gated.
     if: >-
       !cancelled() &&
-      !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
-      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
+      !(github.event_name == 'pull_request' && github.event.pull_request.draft)
     runs-on: ubuntu-latest
     # Caps a hung run's billing (recent full runs ~2-3.5 min).
     timeout-minutes: 20
@@ -90,12 +89,18 @@ jobs:
         working-directory: mobile
 
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy typecheck steps skipped."
       - name: Checkout
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Setup Node
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: '22.13.1'
@@ -103,10 +108,13 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm ci
 
       - name: Typecheck
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm run typecheck
 
       - name: Regression tests
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm test

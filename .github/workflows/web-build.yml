@@ -82,12 +82,11 @@ jobs:
 
   verify-web:
     needs: changes
-    # Required check: keep this job name. When skipped by this condition it reports
-    # success, so draft or unrelated PRs never leave the check pending.
+    # Required check: keep this job present on ready PRs. GitHub branch protection
+    # does not accept a skipped required job as success, so only heavy steps are gated.
     if: >-
       !cancelled() &&
-      !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
-      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
+      !(github.event_name == 'pull_request' && github.event.pull_request.draft)
     runs-on: ubuntu-latest
     # Caps a hung run's billing (recent full runs ~1-2 min).
     timeout-minutes: 20
@@ -95,10 +94,16 @@ jobs:
       run:
         working-directory: mobile
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy verify-web steps skipped."
       - name: Checkout
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/checkout@v7
 
       - name: Setup Node
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -106,28 +111,33 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
 
       - name: Check QA script syntax
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         working-directory: .
         run: |
           find tools/qa -type f -name '*.mjs' -print0 | sort -z | xargs -0 -r -n1 node --check
 
       - name: Test CI path gate
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         working-directory: .
         run: bash .github/scripts/test-ci-path-gate.sh
 
       # AI handoff / PM routing control plane (#586). Only when those files change;
       # a changed workflow already forces this job to run, so no extra runner.
       - name: Test PM review queue control plane
-        if: needs.changes.outputs.control_plane == 'true'
+        if: (needs.changes.result != 'success' || needs.changes.outputs.run == 'true') && needs.changes.outputs.control_plane == 'true'
         working-directory: .
         run: |
           python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y -qq python3-yaml >/dev/null
           bash .github/scripts/test-pm-review-queue.sh
 
       - name: Install dependencies
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm ci
 
       - name: Export web build
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm run build:web
 
       - name: Check exported assets and direct routes
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: npm run check:web
