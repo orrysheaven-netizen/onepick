@@ -64,14 +64,6 @@ export class PickService {
     };
   }
 
-  // A place selected for the first time is a pending request (select_place_catalog_item).
-  // Its review waits here; approval makes it the requester's pick.
-  async requestPendingPick(itemId: string, oneLineReview: string) {
-    const review = normalizeReview(oneLineReview);
-    await this.itemRepository.setPendingPickReview(itemId, review);
-    return review;
-  }
-
   async choosePick(input: ChangePickInput) {
     const review = normalizeReview(input.oneLineReview);
     const [category, item] = await Promise.all([
