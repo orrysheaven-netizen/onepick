@@ -172,6 +172,11 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         return;
       }
 
+      if (result.type === 'available_item') {
+        router.replace({ pathname: '/item/[itemId]', params: { itemId: result.item.id } });
+        return;
+      }
+
       router.replace({ pathname: '/pick/[pickId]', params: { pickId: result.pick.id } });
     } catch (error) {
       if (photo && isPhotoFailure(error)) showPhotoFailure(error, 'request_item_photo_upload');
