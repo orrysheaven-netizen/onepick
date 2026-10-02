@@ -94,7 +94,7 @@ const inbox = {
   refetch: async () => {}, fetchNextPage: async () => {},
 };
 
-const { default: Screen } = load('app/(tabs)/notifications.tsx', {
+const { default: Screen } = load('app/(tabs)/(notifications)/notifications.tsx', {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
@@ -184,7 +184,7 @@ async function main() {
 
   // Opening the inbox never acknowledges a group. The read mutation lives at
   // the successfully-loaded destination screen.
-  const notificationSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/notifications.tsx'), 'utf8');
+  const notificationSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(notifications)/notifications.tsx'), 'utf8');
   assert.doesNotMatch(notificationSource, /useReadNotificationGroup|markGroupRead/, 'inbox open must not mark read');
   const itemSource = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
   const conversationSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
