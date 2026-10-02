@@ -128,7 +128,13 @@ async function main() {
   assert.match(html, />팔로잉</);
   assert.equal(presses[0].accessibilityState.selected, true);
   presses[0].onPress();
-  assert.equal(unfollowCalls, 1);
+  assert.equal(unfollowCalls, 0, 'Pressing 팔로잉 only opens confirmation; it must not unfollow immediately');
+  const followButtonSource = fs.readFileSync(path.join(root, 'src/components/follow-button.tsx'), 'utf8');
+  assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
+  assert.match(followButtonSource, />팔로우 취소<\/Text>/);
+  assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
+  assert.match(followButtonSource, /unfollow\.mutate\(undefined,[\s\S]*?onSuccess: \(\) => setConfirmingUnfollow\(false\)/,
+    'Only the explicit confirmation action performs unfollow');
   mutations.unfollow.error = new AppError('FOLLOW_BLOCKED');
   html = render({ viewerUserId: 'me', profileUserId: 'them', username: 'jimin' });
   assert.match(html, /차단 관계에서는 팔로우할 수 없어요/);
@@ -151,21 +157,23 @@ async function main() {
   assert.match(home, /const showFollowing = Boolean\(followCountUserId\) && !followDefaultPending && feedScope === 'following'/);
   assert.match(home, /\(\['following', 'all'\] as const\)\.map/,
     'Following appears before the public feed in the preserved member scope switcher');
-  assert.match(home, /OnePickFeatures\.follow && user && !followDefaultPending \? <View style=\{styles\.scopeRow\}>/);
+  assert.match(home, /OnePickFeatures\.followingFeed && user && !followDefaultPending \? <View style=\{styles\.scopeRow\}>/);
   assert.match(home, /아직 팔로잉 원픽이 없어요/);
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
-  assert.match(publicProfile, /\{OnePickFeatures\.follow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
+  assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followRow\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => setLoginSheetOpen\(true\)\}[\s\S]*?fullWidth \/>/, 'Figma 40 keeps the follow contract in a full-width primary action');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /follow: false/, 'Initial restaurant MVP keeps follow implementation hidden behind the exposure gate');
+  assert.match(featureSource, /profileFollow: true/, 'MVP exposes the public-profile follow relationship');
+  assert.match(featureSource, /followingFeed: false/, 'MVP keeps the following feed hidden behind its own gate');
+  assert.match(featureSource, /followNotifications: false/, 'MVP keeps follow-change notifications hidden behind their own gate');
   assert.match(featureSource, /followCounts: false/, 'Early MVP keeps follower/following numbers hidden');
   const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
-  assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.follow \? user\?\.id : undefined\)/,
+  assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.followNotifications \? user\?\.id : undefined\)/,
     'Hidden follow mode does not start the follow-notification preference query');
-  assert.match(settings, /\{OnePickFeatures\.follow \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
+  assert.match(settings, /\{OnePickFeatures\.followNotifications \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
     'Follow notification settings remain implemented but hidden behind the same gate');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
@@ -176,7 +184,7 @@ async function main() {
   assert.doesNotMatch(publicProfile, /follow === '1'/, 'a shareable query string cannot trigger a follow mutation');
   assert.match(publicProfile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 
-  console.log('Follow checks passed: retained service/login/button contracts plus initial-MVP exposure gates for Home, profile and Settings.');
+  console.log('Follow checks passed: profile CTA is enabled while following feed and follow notifications remain separately gated.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
