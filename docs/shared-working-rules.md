@@ -150,7 +150,28 @@ Claude는 해당 영역의 기본 구현자가 아니라 독립 리뷰·QA 역�
 
 세부 구현 규칙은 각 전문 문서(`docs/pm/`, `docs/design-foundations.md`, `docs/ai-role-division.md` 등)를 따르되, **이 문서 또는 이후의 최신 사용자 지시와 충돌하면 최신 기준을 우선**한다.
 
-## 10. 문서 유지
+## 10. 완료 보고 및 PM review queue
+
+담당자가 배정된 작업 단계를 완료하면 **원래 작업 이슈를 단일 원본**으로 사용한다.
+
+1. 자기 claim을 `state:active`에서 `state:review`로 종료한다. 현재 `owner:*`와 `size:*`는 유지한다.
+2. 원래 작업 이슈의 **한 댓글**에 아래 형식으로 보고한다. 첫 줄 앞에는 빈 줄을 두지 않는다.
+
+```text
+PM_REVIEW_REQUIRED: reason=<stage-complete|review-complete|merge-ready|release-approval> pr=<N|none> head=<40자리 SHA|none>
+## 완료 리포트
+```
+
+3. 완료 리포트에는 결과, PR·exact head, 검증 결과, 남은 위험, PM 판단에 필요한 사실을 기록한다.
+4. 원래 작업 이슈가 있는 작업에서 임의의 PR 본문·PR 댓글을 PM review queue의 대체 경로로 사용하지 않는다. 작업 이슈가 없다면 PM queue 요청을 위해 임의 경로를 만들지 말고 PM이 원 이슈를 지정한 뒤 보고한다.
+5. 담당자는 완료 후 다음 owner/handoff를 임의로 확정하지 않는다. 후속 owner/state/handoff는 PM 또는 기존 자동화가 결정한다.
+6. 채팅에는 결과 요약과 원 이슈/문서 번호만 간단히 전달한다. GitHub 완료 리포트를 채팅에 반복 복사하지 않는다.
+7. 비밀값, 개인정보, QA 계정 자격 증명은 GitHub 완료 리포트·PR·채팅에 기록하지 않는다.
+8. `PM_REVIEW_REQUIRED`는 검토 요청 메타데이터일 뿐 승인 자체가 아니다. main merge, Production DB apply, production 배포, secret/permission 변경 등 사용자 승인 게이트를 대체하지 않는다.
+
+세부 PM queue 형식과 신뢰 경계는 `docs/pm/README.md`를 따른다. Claude의 실행 절차는 `CLAUDE.md`와 동일 계약을 사용한다.
+
+## 11. 문서 유지
 
 이 대화에서 사용자가 새로운 공통 원칙을 확정하면 이 문서를 갱신한다.  
 기존 결정을 바꾸는 내용은 예전 문장을 병렬로 남겨 혼동시키지 말고, 최신 결정을 기준으로 명확히 정리한다.
