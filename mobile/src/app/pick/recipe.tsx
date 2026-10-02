@@ -25,7 +25,6 @@ type Params = {
 
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 const DISH_NAME_MAX = 60;
-const REVIEW_MAX = 100;
 
 function recipeErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -38,7 +37,6 @@ function recipeErrorMessage(error: unknown) {
     if (error.code === 'ITEM_ALREADY_PENDING') return '다른 사람이 먼저 등록 요청한 영상이에요. 관리자 승인 후 레시피 원픽으로 고를 수 있어요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '이 요리에는 레시피를 등록할 수 없어요. 다른 요리를 골라주세요.';
     if (error.code === 'CATEGORY_LABEL_INVALID') return '요리 이름을 1~60자로 적어주세요.';
-    if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 적어주세요.';
     if (error.code === 'CATEGORY_NOT_FOUND') return '요리 정보를 확인하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
   return 'YouTube 영상 정보를 불러오지 못했어요. 다시 시도해주세요.';
@@ -61,8 +59,8 @@ export default function RecipePickScreen() {
 /**
  * A recipe is the third channel of a dish (미역국 · 오프라인 맛집 / 온라인 맛집 / 레시피).
  * Paste a video link, confirm which dish it cooks (suggested from the title), and the
- * video becomes that dish's recipe Pick. A dish not in the catalog goes to review with
- * its name and the one-line review, and approval makes the Pick.
+ * video becomes that dish's recipe Pick. A dish not in the catalog goes to review
+ * with its name; approval only publishes the item and the member chooses it later.
  */
 function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
   const router = useRouter();
@@ -78,7 +76,6 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const [dishQuery, setDishQuery] = useState('');
   const [requestMode, setRequestMode] = useState(false);
   const [dishName, setDishName] = useState('');
-  const [review, setReview] = useState('');
   const [requested, setRequested] = useState<string | null>(null);
 
   const menuTree = useExploreCategories(authReady);
@@ -189,7 +186,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     const owner = user.id;
     setActionError(null);
     try {
-      await requestVideo.mutateAsync({ externalId: entry.externalId, dishName, review });
+      await requestVideo.mutateAsync({ externalId: entry.externalId, dishName });
       if (!focused.current || latest.current.userId !== owner || latest.current.videoId !== entry.externalId) return;
       setRequested(dishName.trim());
     } catch (error) {
@@ -215,9 +212,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   </SafeAreaView>;
 
   const trimmedDishName = dishName.trim();
-  const trimmedReview = review.trim();
-  const canRequest = trimmedDishName.length >= 1 && trimmedDishName.length <= DISH_NAME_MAX
-    && trimmedReview.length >= 1 && trimmedReview.length <= REVIEW_MAX;
+  const canRequest = trimmedDishName.length >= 1 && trimmedDishName.length <= DISH_NAME_MAX;
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -304,14 +299,10 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               </Pressable>
             </> : <View style={styles.requestCard}>
               <Text style={styles.stateTitle}>새 요리로 등록 요청</Text>
-              <Text style={styles.stateText}>요리 이름과 한줄평을 남기면 관리자가 요리를 추가하고 승인해요. 승인되면 이 영상이 그 요리의 레시피 원픽이 되고 알림을 드려요.</Text>
+              <Text style={styles.stateText}>요리 이름을 남기면 관리자가 확인해요. 승인돼도 레시피 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 확인 후 직접 원픽으로 선택할 수 있어요.</Text>
               <Text style={styles.label}>요리 이름</Text>
               <TextInput accessibilityLabel="요리 이름" maxLength={DISH_NAME_MAX} editable={!busy} value={dishName} onChangeText={setDishName}
                 placeholder="예: 파김치" placeholderTextColor={OnePick.hint} style={styles.input} />
-              <Text style={styles.label}>한줄평</Text>
-              <TextInput accessibilityLabel="레시피 한줄평" maxLength={REVIEW_MAX} multiline editable={!busy} value={review} onChangeText={setReview}
-                placeholder="예: 이 비율대로 하면 실패가 없어요" placeholderTextColor={OnePick.hint} style={[styles.input, styles.reviewInput]} />
-              <Text style={styles.hint}>{review.length}/{REVIEW_MAX}</Text>
               <Button fullWidth size="lg" label="등록 요청하기" loading={requestVideo.isPending} disabled={busy || !canRequest}
                 onPress={() => void request(video)} style={styles.submit} />
               <Button variant="ghost" label="목록에서 고르기" disabled={busy} onPress={() => setRequestMode(false)} style={styles.centered} />
@@ -322,7 +313,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       </> : null}
 
       {requested ? <View style={styles.block}><StateCard title="등록을 요청했어요"
-        text={`관리자가 '${requested}' 요리를 확인하고 승인하면 이 영상이 레시피 원픽으로 등록되고 알림을 드려요.`}
+        text={`관리자가 '${requested}' 요리를 확인해요. 승인돼도 자동으로 원픽이 되거나 승인 알림이 오지 않아요. 확인이 끝난 뒤 직접 선택할 수 있어요.`}
         action={{ label: '홈으로', variant: 'secondary', onPress: () => router.replace('/') }} /></View> : null}
 
       <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>
@@ -348,7 +339,6 @@ const styles = StyleSheet.create({
   block: { marginTop: 16 },
   label: { color: OnePick.text, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 16 },
-  reviewInput: { minHeight: 88, paddingTop: 14, textAlignVertical: 'top' },
   hint: { color: OnePick.hint, fontSize: 11, lineHeight: 17, marginTop: 7 },
   loading: { marginTop: 18 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
