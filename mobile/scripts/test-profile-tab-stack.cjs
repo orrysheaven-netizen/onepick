@@ -37,10 +37,13 @@ const pickReplies = read('src/components/pick-replies.tsx');
 const itemReview = read('src/components/item-review-card.tsx');
 const itemDetail = read('src/app/item/[itemId].tsx');
 
-assert.match(publicSource, /const \{ username, returnTo \} = useLocalSearchParams/);
-assert.match(publicSource, /const returnHref = profileReturnHref\(returnTo\)/);
-assert.match(publicSource, /router\.replace\(returnHref \?\? '\/'\)/,
-  'Cold public-profile links fall back Home instead of popping a stale Profile stack');
+assert.match(publicSource, /const \\{ username, returnTo \\} = useLocalSearchParams/);
+assert.match(publicSource, /const returnHref = profileReturnHref\\(returnTo\\)/);
+assert.match(publicSource, /useNavigation\\(\\)/);
+assert.match(publicSource, /navigation\\.addListener\\('beforeRemove'[\\s\\S]*?router\\.dismissTo\\(returnHref\\)/,
+  'Native back returns toward the real origin instead of stale nested Profile history');
+assert.match(publicSource, /router\\.replace\\(returnHref \\?\\? '\\/'\\)/,
+  'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
   'Home -> public profile records Home as the return target');
 assert.match(publicSource, /value\.startsWith\('\/auth\/'\)/);
