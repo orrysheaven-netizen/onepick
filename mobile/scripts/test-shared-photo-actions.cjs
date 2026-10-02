@@ -162,10 +162,10 @@ async function main() {
   cache.clear();
   const homeFeedCardSource = fs.readFileSync(path.join(__dirname, '../src/components/home-feed-card.tsx'), 'utf8');
   assert.match(homeFeedCardSource, /photo=\{\{[\s\S]*?itemId:\s*pick\.itemId/, 'Home people feed passes the real catalog target through the shared PickCard');
-  for (const file of ['app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
+  for (const file of ['app/(tabs)/explore.tsx', 'app/(tabs)/(profile)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
-  const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
+  const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
   assert.match(publicProfileSource, /function PublicProfilePickRow[\s\S]*?<PickPhoto[\s\S]*?itemId=\{item\.item\?\.id\}/, 'public Figma 40 row forwards the real catalog target to PickPhoto');
   const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
   assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');
