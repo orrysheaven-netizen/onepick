@@ -14,9 +14,9 @@ const provider = read('src/app/provider/[providerId].tsx');
 const constants = read('src/constants/onepick.ts');
 
 // Home and Explore must converge on the same production menu-detail route.
-assert.match(home, /const openMenu = .*pathname: '\/menu\/\[slug\]'/,
+assert.match(home, /const openMenu = \(categoryId: string\) => \{\s*const category = categoryById\.get\(categoryId\);\s*if \(category\) router\.push\(\{ pathname: '\/menu\/\[slug\]'/,
   'Home menu cards must open the Figma 16A production menu detail');
-assert.doesNotMatch(home, /const openMenu = .*pathname: '\/ranking\/\[slug\]'/,
+assert.doesNotMatch(home, /const openMenu = \(categoryId: string\) => \{\s*const category = categoryById\.get\(categoryId\);\s*if \(category\) router\.push\(\{ pathname: '\/ranking\/\[slug\]'/,
   'Home must not bypass Figma 16A with the ranking surface');
 assert.match(explore, /accessibilityLabel=\{\`\$\{category\.name\} 메뉴 원픽 보기\`\}[\s\S]*?pathname: '\/menu\/\[slug\]'/,
   'Explore menu discovery must open the same Figma 16A route');

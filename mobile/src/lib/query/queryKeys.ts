@@ -4,6 +4,8 @@ export const queryKeys = {
   home: {
     all: ['home'] as const,
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
+    menuRanking: (groupCategoryId: string | null = null, channel: string | null = null) =>
+      ['home', 'menu-ranking', groupCategoryId ?? 'all', channel ?? 'all-channels'] as const,
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,

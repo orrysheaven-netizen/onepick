@@ -41,7 +41,7 @@ function fixture(kind, platform = 'web') {
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; } },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeMenuRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -57,7 +57,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
-    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
+    '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
   view.render();
