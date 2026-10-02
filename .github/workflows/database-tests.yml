@@ -71,22 +71,27 @@ jobs:
 
   database-tests:
     needs: changes
-    # Required check: keep this job name. When skipped by this condition it reports
-    # success, so draft or unrelated PRs never leave the check pending.
+    # Required check: keep this job present on ready PRs. GitHub branch protection
+    # does not accept a skipped required job as success, so only heavy steps are gated.
     if: >-
       !cancelled() &&
-      !(github.event_name == 'pull_request' && github.event.pull_request.draft) &&
-      (needs.changes.result != 'success' || needs.changes.outputs.run == 'true')
+      !(github.event_name == 'pull_request' && github.event.pull_request.draft)
     runs-on: ubuntu-latest
     # Caps a hung run's billing (recent full runs ~2-3 min; headroom for Supabase image pulls).
     timeout-minutes: 25
 
     steps:
+
+      - name: Required check satisfied
+        if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        run: echo "No relevant changes; heavy database-tests steps skipped."
       - name: Checkout
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: actions/checkout@v7
 
       # Fail fast before starting a local database when concurrent branches reused a version.
       - name: Check unique migration versions
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: |
           python - <<'PY'
           from collections import Counter
@@ -104,28 +109,35 @@ jobs:
           PY
 
       - name: Test SBIZ place adapter
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: python3 tools/test_sbiz_place_adapter.py
 
       - name: Test place import loader
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: python3 tools/test_load_place_import_jsonl.py
 
       - name: Setup Supabase CLI
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.118.0
 
       - name: Start local database
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: supabase db start
 
       - name: Run database tests
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: supabase test db
 
       - name: Setup Deno
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
 
       - name: Check edge functions
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: |
           deno check --config supabase/functions/import-item-image/deno.json supabase/functions/import-item-image/index.ts
           deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts
