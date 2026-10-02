@@ -162,19 +162,21 @@ async function main() {
 
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
   const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', {
-    'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {} }) },
+    'expo-router': { useLocalSearchParams: () => ({ username: 'owner' }), useRouter: () => ({ back() {}, push() {}, replace() {}, canGoBack: () => false }) },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
-    '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/block-user-button': { BlockUserButton: () => null }, '@/components/follow-button': { FollowButton: () => null }, '@/components/follow-connections-view': { FollowConnectionsView: () => null }, '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/profile-pick-card': { ProfilePickCard: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-pick-groups': { ProfilePickGroups: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, 
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/profile-follow-counts': { ProfileFollowCounts: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
+    '@/hooks/useFollow': { usePublicFollowCounts: () => ({ data: { followingCount: 0, followerCount: 0 } }) },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [] }) },
     '@/hooks/useProfileAi': { useProfileAiComment: () => ({ data: null }) },
+    '@/hooks/useFollow': { usePublicFollowCounts: () => ({ data: { followerCount: 0, followingCount: 0 } }) },
     '@/hooks/usePublicProfile': { usePublicProfile: () => ({ data: publicData, isPending: false, isError: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/lib/auth/authIntent': { getPostAuthRoute: () => ({ pathname: '/u/[username]', params: { username: 'owner' } }) },
