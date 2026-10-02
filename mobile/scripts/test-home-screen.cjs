@@ -202,6 +202,7 @@ for (width of [390, 800, 1200]) {
   press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
+  assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
   press('진라면 제공처 프로필 보기'); assert.equal(destination.pathname, '/provider/[providerId]'); assert.equal(destination.params.providerId, '11111111-1111-4111-8111-111111111111');
   press('진라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.pickId, 'other');
   press('신라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'ramen'); assert.equal(destination.params.pickId, 'same-as-mine');
