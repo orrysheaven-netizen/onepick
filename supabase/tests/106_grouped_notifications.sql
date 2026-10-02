@@ -109,14 +109,17 @@ begin
   perform public.admin_review_pending_item(req_fix,'rejected',null,'지도 링크가 필요해요');
   perform public.admin_review_pending_item(req_ok,'active');
   reset role;
-  assert (select outcome from public.item_review_notifications where item_id=req_ok and recipient_id=viewer) = 'approved', 'The approval row exists but is not an event';
+  assert not exists(
+    select 1 from public.item_review_notifications
+    where item_id=req_ok and recipient_id=viewer
+  ), 'Approval creates no review notification row';
 
   -- ------------------------------------------------------------ the viewer's grouped inbox
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
   assert (select public.notification_unread_count()) = 6,
-    'MVP badge: 2 pick_review + 2 comment + 1 reply + 1 fix_needed; followee_pick and approval are hidden: '||(select public.notification_unread_count());
+    'MVP badge: 2 pick_review + 2 comment + 1 reply + 1 fix_needed; followee_pick is hidden and approval emits no event: '||(select public.notification_unread_count());
   select array_agg(r) into groups from public.notification_group_page() r;
   assert array_length(groups,1) = 4, 'Four visible MVP groups: '||array_length(groups,1);
   select array_agg(r->>'kind' order by r->>'kind') into kinds from public.notification_group_page() r;
