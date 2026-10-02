@@ -44,7 +44,7 @@ export default function HomeScreen() {
   // Default scope follows the user's actual follow graph: existing followers see
   // their following feed first; new members with no follows see the public feed.
   // A manual tab choice wins until the signed-in account changes.
-  const followCountUserId = OnePickFeatures.follow && !isSessionLoading && !sessionError ? user?.id : undefined;
+  const followCountUserId = OnePickFeatures.followingFeed && !isSessionLoading && !sessionError ? user?.id : undefined;
   const followCountsQuery = useFollowCounts(followCountUserId);
   const followDefaultPending = Boolean(followCountUserId) && followCountsQuery.isPending;
   const defaultFeedScope: 'all' | 'following' = (followCountsQuery.data?.followingCount ?? 0) > 0 ? 'following' : 'all';
@@ -141,7 +141,7 @@ export default function HomeScreen() {
       onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
       onSelect={openItem} />
 
-    {OnePickFeatures.follow && user && !followDefaultPending ? <View style={styles.scopeRow}>
+    {OnePickFeatures.followingFeed && user && !followDefaultPending ? <View style={styles.scopeRow}>
       {(['following', 'all'] as const).map((scope) => {
         const selected = feedScope === scope;
         return <Pressable key={scope} accessibilityRole="tab" accessibilityState={{ selected }}
