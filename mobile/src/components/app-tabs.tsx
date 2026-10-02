@@ -18,7 +18,7 @@ export default function AppTabs() {
         default: { color: OnePick.textTertiary, fontSize: 12, fontWeight: '500' },
         selected: { color: OnePick.actionPrimary, fontSize: 12, fontWeight: '500' },
       }}>
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="(home)">
         <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/home.png')}
@@ -26,7 +26,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
+      <NativeTabs.Trigger name="(explore)">
         <NativeTabs.Trigger.Label>탐색</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="grid_view" />
       </NativeTabs.Trigger>
@@ -39,7 +39,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="notifications">
+      <NativeTabs.Trigger name="(notifications)">
         <NativeTabs.Trigger.Label>알림</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'bell', selected: 'bell.fill' }}
@@ -48,7 +48,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Badge hidden={!hasUnreadNotifications} />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile">
+      <NativeTabs.Trigger name="(profile)">
         <NativeTabs.Trigger.Label>프로필</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'person', selected: 'person.fill' }}
