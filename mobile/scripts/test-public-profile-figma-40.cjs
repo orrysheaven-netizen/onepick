@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
 
-const profile = read('src/app/u/[username].tsx');
+const profile = read('src/app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx');
 const follow = read('src/components/follow-button.tsx');
 const photo = read('src/components/pick-photo.tsx');
 const avatar = read('src/components/ui/avatar.tsx');
