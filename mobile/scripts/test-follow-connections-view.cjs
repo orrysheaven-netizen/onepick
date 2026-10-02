@@ -156,8 +156,8 @@ const source = fs.readFileSync(path.join(root, 'src/components/follow-connection
 assert.match(source, /item\.bio \?/);
 assert.match(source, /viewerUserId !== item\.userId/);
 assert.match(source, /initialFollowing=\{item\.viewerIsFollowing\}/);
-assert.match(source, /usePublicFollowCounts\(profileId, viewerUserId\)/);
-assert.match(source, /useFollowConnections\(profileId, direction, viewerUserId\)/);
+assert.match(source, /usePublicFollowCounts\(profileId, viewerUserId \?\? null\)/);
+assert.match(source, /useFollowConnections\(profileId, direction, viewerUserId \?\? null\)/);
 assert.doesNotMatch(source, /profileImageUrl/, 'Dormant profile image URL is not treated as an active avatar feature');
 
 const hookSource = fs.readFileSync(path.join(root, 'src/hooks/useFollow.ts'), 'utf8');
