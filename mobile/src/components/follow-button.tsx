@@ -27,6 +27,7 @@ export function FollowButton({
   autoFollow = false,
   onFollowed,
   fullWidth = false,
+  initialFollowing,
 }: {
   viewerUserId?: string;
   profileUserId: string;
@@ -35,11 +36,11 @@ export function FollowButton({
   autoFollow?: boolean;
   onFollowed?: () => void;
   fullWidth?: boolean;
+  initialFollowing?: boolean;
 }) {
-  const state = useFollowState(viewerUserId, profileUserId);
+  const state = useFollowState(viewerUserId, profileUserId, initialFollowing);
   const { follow, unfollow } = useFollowActions(viewerUserId, profileUserId);
-
-  if (viewerUserId === profileUserId) return null;
+  const isSelf = viewerUserId === profileUserId;
 
   const following = state.data === true;
   const pending = follow.isPending || unfollow.isPending;
@@ -79,6 +80,9 @@ export function FollowButton({
       },
     });
   }, [autoFollow, follow, onFollowed, pending, profileUserId, state.data, state.isPending, viewerUserId]);
+
+  // Keep every hook unconditional even when this row belongs to the viewer.
+  if (isSelf) return null;
 
   const handlePress = () => {
     if (!viewerUserId) {
