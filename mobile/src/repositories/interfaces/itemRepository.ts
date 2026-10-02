@@ -1,5 +1,4 @@
 import type { Item } from '@/types/domain/item';
-import type { PickChannel } from '@/lib/items/pickChannel';
 
 export interface ItemSearchInput {
   query: string;
