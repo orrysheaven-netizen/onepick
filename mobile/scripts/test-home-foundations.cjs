@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const home = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/index.tsx'), 'utf8');
+const home = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(home)/index.tsx'), 'utf8');
 
 assert.match(home, /paddingHorizontal: OnePickSpace\.gutter/);
 assert.match(home, /OnePickType\.headline/);
