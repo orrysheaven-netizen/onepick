@@ -128,7 +128,13 @@ async function main() {
   assert.match(html, />팔로잉</);
   assert.equal(presses[0].accessibilityState.selected, true);
   presses[0].onPress();
-  assert.equal(unfollowCalls, 1);
+  assert.equal(unfollowCalls, 0, 'Pressing 팔로잉 only opens confirmation; it must not unfollow immediately');
+  const followButtonSource = fs.readFileSync(path.join(root, 'src/components/follow-button.tsx'), 'utf8');
+  assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
+  assert.match(followButtonSource, />팔로우 취소<\/Text>/);
+  assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
+  assert.match(followButtonSource, /unfollow\.mutate\(undefined,[\s\S]*?onSuccess: \(\) => setConfirmingUnfollow\(false\)/,
+    'Only the explicit confirmation action performs unfollow');
   mutations.unfollow.error = new AppError('FOLLOW_BLOCKED');
   html = render({ viewerUserId: 'me', profileUserId: 'them', username: 'jimin' });
   assert.match(html, /차단 관계에서는 팔로우할 수 없어요/);
