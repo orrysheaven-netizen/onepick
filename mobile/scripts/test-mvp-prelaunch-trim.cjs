@@ -25,7 +25,7 @@ function query(data) {
 const picks = (count) => Array.from({ length: count }, (_, i) => ({ pickId: String(i), itemId: `item-${i}`, categoryId: i ? 'ramen' : 'movie' }));
 function home(count = 20, followingCount = 0) {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null };
-  const q = query({ picks: picks(count), currentPicks: [], editorialItems: [] });
+  const q = query({ picks: picks(count), currentPicks: [] });
   const following = query({ items: [], nextCursor: null });
   const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
