@@ -229,7 +229,7 @@ async function main() {
   const itemSearchSource=fs.readFileSync(path.join(root,'mobile/src/components/item-search.tsx'),'utf8');
   assert.match(itemSearchSource,/onSearchPokemon/);
   assert.match(itemSearchSource,/PokéAPI에서 포켓몬 검색/);
-  const exploreSource=fs.readFileSync(path.join(root,'mobile/src/app/(tabs)/explore.tsx'),'utf8');
+  const exploreSource=fs.readFileSync(path.join(root,'mobile/src/app/(tabs)/(explore)/explore.tsx'),'utf8');
   assert.match(exploreSource,/pathname: '\/pick\/pokemon'/);
 
   const docsSource=fs.readFileSync(path.join(root,'docs/pokemon-catalog.md'),'utf8');
