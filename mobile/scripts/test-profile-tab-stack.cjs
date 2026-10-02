@@ -31,6 +31,27 @@ const publicSource = read(publicProfile);
 assert.match(publicSource, /router\.replace\('\/profile'\)/,
   'Own public profile can still return to the Profile tab root');
 
+const home = read('src/app/(tabs)/index.tsx');
+const dishPeople = read('src/components/dish-people-picks.tsx');
+const pickReplies = read('src/components/pick-replies.tsx');
+const itemReview = read('src/components/item-review-card.tsx');
+const itemDetail = read('src/app/item/[itemId].tsx');
+
+assert.match(publicSource, /const \{ username, returnTo \} = useLocalSearchParams/);
+assert.match(publicSource, /const returnHref = profileReturnHref\(returnTo\)/);
+assert.match(publicSource, /router\.replace\(returnHref \?\? '\/'\)/,
+  'Cold public-profile links fall back Home instead of popping a stale Profile stack');
+assert.match(home, /params: \{ username, returnTo: '\/' \}/,
+  'Home -> public profile records Home as the return target');
+assert.match(publicSource, /value\.startsWith\('\/auth\/'\)/);
+assert.match(publicSource, /value\.startsWith\('\/admin\/'\)/);
+assert.match(publicSource, /value\.startsWith\('\/u\/'\)/,
+  'Untrusted returnTo cannot bounce through auth/admin/another public profile');
+assert.match(dishPeople, /params: \{ username: pick\.username, returnTo \}/);
+assert.match(pickReplies, /returnTo: `\/pick\/\$\{pickId\}`/);
+assert.match(itemReview, /returnTo: `\/item\/\$\{itemId\}`/);
+assert.match(itemDetail, /returnTo: `\/item\/\$\{item\.id\}`/);
+
 const authIntent = read('src/lib/auth/authIntent.ts');
 assert.match(authIntent, /case 'follow_profile': return \{ pathname: '\/u\/\[username\]'/,
   'Login-resume follow intent keeps the existing public-profile deep link');
