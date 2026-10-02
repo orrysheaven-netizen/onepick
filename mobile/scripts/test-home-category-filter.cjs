@@ -80,7 +80,7 @@ assert.deepEqual(
 );
 assert.deepEqual(Array.from(filters.homeStarterCategories(restaurants, 1), (category) => category.id), ['daechang']);
 
-const home = read('src/app/(tabs)/index.tsx');
+const home = read('src/app/(tabs)/(home)/index.tsx');
 assert.match(home, /buildHomeCategoryFilters/);
 assert.match(home, /filterHomeFeedByCategory\(data\?\.picks \?\? \[\], selectedCategoryGroup\)/, 'the category filter narrows the people feed');
 assert.match(home, /<Chip key=\{group\.id\} label=\{group\.name\} selected=\{selected\}/, 'Category filters are kit Chips, which expose accessibilityState.selected');
