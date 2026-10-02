@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,14 @@ const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
   online: '온라인',
   recipe: '레시피',
 };
+
+const SAFE_PROFILE_RETURN_PATH = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
+function profileReturnHref(value: string | string[] | undefined): Href | null {
+  if (typeof value !== 'string' || value.length > 512 || !SAFE_PROFILE_RETURN_PATH.test(value)) return null;
+  if (value === '/auth' || value.startsWith('/auth/') || value === '/admin' || value.startsWith('/admin/')
+    || value === '/u' || value.startsWith('/u/')) return null;
+  return value as Href;
+}
 
 function PublicProfilePickRow({
   item,
@@ -113,7 +121,7 @@ function PublicProfilePickRow({
 
 export default function PublicProfileScreen() {
   const router = useRouter();
-  const { username } = useLocalSearchParams<{ username?: string }>();
+  const { username, returnTo } = useLocalSearchParams<{ username?: string; returnTo?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
   const categoriesQuery = useExploreCategories(Boolean(query.data));
@@ -138,7 +146,8 @@ export default function PublicProfileScreen() {
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
-  const goBack = () => router.canGoBack() ? router.back() : router.replace('/');
+  const returnHref = profileReturnHref(returnTo);
+  const goBack = () => router.replace(returnHref ?? '/');
 
   useEffect(() => {
     if (!followToast) return;
