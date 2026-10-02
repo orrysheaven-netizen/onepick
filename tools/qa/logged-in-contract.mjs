@@ -62,9 +62,9 @@ export async function openNotificationsTab(page, timeout = 15_000) {
   await page.waitForURL(/\/notifications(?:[?#]|$)/, { timeout });
 }
 
-// Initial MVP hides follow (OnePickFeatures.follow=false): absence is the passing state.
-// Each check first waits for a control that proves the screen rendered, so an unloaded
-// screen cannot pass as "hidden".
+// MVP follow exposure is split: the public-profile CTA is visible, while the
+// following-feed scope and follow-change notification setting remain hidden.
+// Each check first waits for a control that proves the screen rendered.
 async function assertAbsent(locator, what) {
   const shown = await locator.filter({ visible: true }).count();
   if (shown) throw new Error(`초기 MVP에서 숨겨야 할 ${what}이(가) ${shown}개 보임`);
@@ -77,10 +77,11 @@ export async function assertFollowScopeHidden(page, timeout = 15_000) {
   await assertAbsent(page.getByRole('tab', { name: '전체 원픽 보기' }), '팔로잉/전체 전환 탭');
 }
 
-export async function assertFollowCtaHidden(page, timeout = 15_000) {
+export async function assertFollowCtaVisible(page, timeout = 15_000) {
   await page.getByRole('button', { name: '프로필 공유하기' }).filter({ visible: true }).first()
     .waitFor({ state: 'visible', timeout });
-  await assertAbsent(page.getByRole('button', { name: /^@.+ 팔로우( 취소)?$/ }), '팔로우 버튼');
+  await page.getByRole('button', { name: /^@.+ 팔로우( 취소)?$/ }).filter({ visible: true }).first()
+    .waitFor({ state: 'visible', timeout });
 }
 
 export async function assertFollowSettingHidden(page, timeout = 15_000) {
