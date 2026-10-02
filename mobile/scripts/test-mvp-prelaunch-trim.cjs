@@ -29,7 +29,7 @@ function home(count = 20, followingCount = 0) {
   const following = query({ items: [], nextCursor: null });
   const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
-  const view = screen('app/(tabs)/index.tsx', {
+  const view = screen('app/(tabs)/(home)/index.tsx', {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
@@ -53,7 +53,7 @@ function explore({ chips = true } = {}) {
   const q = query([{ itemId: 'first', name: 'First', rank: 1, pickCount: 2, isTied: true, channels: [] }, { itemId: 'second', name: 'Second', rank: 1, pickCount: 2, isTied: true, channels: [] }]);
   const recent = recentQuery([{ itemId: 'recent', name: 'Recent place', categoryId: 'ramen', categoryName: 'ramen', thumbnailUrl: null, lastPickedAt: '2026-09-26T00:00:00Z', channels: ['offline'] }]);
   const calls = {};
-  const view = screen('app/(tabs)/explore.tsx', {
+  const view = screen('app/(tabs)/(explore)/explore.tsx', {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
@@ -74,7 +74,7 @@ function profile(isPublic = false) {
   const history = query([]), requests = query([]), calls = { history: 0, requests: 0, taste: 0, ai: 0, aiIds: [] };
   const auth = { user: { id: 'reader' }, isLoading: false };
   const mount = (key) => () => { calls[key]++; return null; };
-  const view = screen(isPublic ? 'app/u/[username].tsx' : 'app/(tabs)/profile.tsx', {
+  const view = screen(isPublic ? 'app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx' : 'app/(tabs)/(profile)/profile.tsx', {
     'expo-router': { useRouter: () => ({ push() {}, back() {}, replace() {} }), useLocalSearchParams: () => ({ username: 'owner' }) },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
