@@ -157,18 +157,21 @@ jobs:
             - Never merge main.
             - Never deploy production, run Production DB mode=apply, deploy production Edge Functions,
               change repository/environment secrets or permissions, or perform destructive production data work.
-            - Do not modify these automatic-handoff control-plane files:
-              .github/workflows/ai-handoff-codex.yml
-              .github/workflows/ai-handoff-claude.yml
-              .github/workflows/ai-handoff-ci-gate.yml
-              .github/workflows/ai-handoff-review-events.yml
-              .github/workflows/ai-pm-review-queue.yml
-              .github/scripts/ci-path-gate.sh
-              .github/scripts/test-ci-path-gate.sh
-              .github/scripts/test-pm-review-queue.sh
+            - Automatic handoff must not modify protected/high-risk paths:
+              .github/workflows/**
+              .github/scripts/**
+              supabase/migrations/**
+              supabase/functions/**
+              supabase/config.toml
+              mobile/functions/**
+              mobile/public/_headers
+              tools/**
+              any auth/storage-sensitive path
               AGENTS.md
               CLAUDE.md
               docs/ai-role-division.md
+              If the requested implementation requires one of these paths, do not edit it;
+              return AI_HANDOFF_RESULT: BLOCKED and leave the change for an explicitly supervised session.
             - If code changes are needed, create a focused branch and commit the changes.
             - Do not set handoff labels yourself; the workflow finalizer manages queue state.
             - Prefer the smallest complete change and leave verification to required CI where local tools are unavailable.
@@ -263,18 +266,47 @@ jobs:
           fi
 
           branch_has_changes=false
-          changed_files=""
+          protected_change=false
+          changed_paths=()
           if [ -n "$CLAUDE_BRANCH" ]; then
             if compare_json="$(gh api "repos/$REPOSITORY/compare/main...$CLAUDE_BRANCH" 2>/dev/null)"; then
               ahead_by="$(jq -r '.ahead_by // 0' <<<"$compare_json")"
-              changed_files="$(jq -r '.files[].filename' <<<"$compare_json")"
-              if [ "$ahead_by" -gt 0 ] && [ -n "$changed_files" ]; then
-                branch_has_changes=true
+              # Inspect both sides of renames. NUL delimiters preserve non-ASCII,
+              # tabs and newlines in Git paths without shell re-tokenization.
+              mapfile -d '' -t changed_paths < <(
+                jq -j '.files[] | .filename, "\u0000", (.previous_filename // empty), "\u0000"' <<<"$compare_json"
+              )
+              if [ "$ahead_by" -gt 0 ]; then
+                for changed_path in "${changed_paths[@]}"; do
+                  if [ -n "$changed_path" ]; then
+                    branch_has_changes=true
+                    break
+                  fi
+                done
               fi
             fi
           fi
 
           if [ "$branch_has_changes" = "true" ]; then
+            shopt -s nocasematch
+            for changed_path in "${changed_paths[@]}"; do
+              [ -n "$changed_path" ] || continue
+              case "$changed_path" in
+                .github/workflows/*|.github/scripts/*|supabase/migrations/*|supabase/functions/*|supabase/config.toml|mobile/functions/*|mobile/public/_headers|tools/*|*auth*|*storage*|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                  protected_change=true
+                  break
+                  ;;
+              esac
+            done
+            shopt -u nocasematch
+
+            if [ "$protected_change" = "true" ]; then
+              update_labels '["state:blocked"]' '["state:active","state:handoff","state:ready","state:review","handoff:codex","handoff:claude"]'
+              gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
+                "무인 Claude 실행에서 보호/고위험 경로 변경이 감지되어 PR 생성·Ready 전환을 차단했습니다. 명시적으로 감독되는 세션에서 별도 처리해야 합니다."
+              exit 0
+            fi
+
             existing_pr="$(gh pr list --repo "$REPOSITORY" --state open --head "$CLAUDE_BRANCH" --json url --jq '.[0].url // empty')"
             if [ -z "$existing_pr" ]; then
               cat > /tmp/pr-body.md <<EOF
@@ -316,7 +348,7 @@ jobs:
             if jq -e 'index("size:M") != null or index("size:L") != null' <<<"$issue_labels" >/dev/null; then
               needs_codex=true
             fi
-            if grep -Eq '^(\.github/workflows/|\.github/scripts/|supabase/migrations/|supabase/functions/|.*auth.*|.*storage.*)' <<<"$changed_files"; then
+            if [ "$protected_change" = "true" ]; then
               needs_codex=true
             fi
 
