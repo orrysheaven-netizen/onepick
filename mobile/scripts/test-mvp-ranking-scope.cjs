@@ -54,7 +54,7 @@ function load(p, imports = {}) {
     'Food ranking category cache is isolated from the future full catalogue',
   );
 
-  const explore = read('src/app/(tabs)/explore.tsx');
+  const explore = read('src/app/(tabs)/(explore)/explore.tsx');
   assert.match(explore, /useCategoryTopItems\(selectedCategoryId, OnePickMvp\.publicPickChannel\)/);
 
   const index = read('src/app/ranking/index.tsx');
