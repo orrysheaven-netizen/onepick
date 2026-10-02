@@ -111,4 +111,21 @@ PY
   fi
 done
 
+# Required success steps run before checkout on unrelated PRs. Jobs with a
+# default working-directory (mobile) must override that step back to repo root,
+# otherwise the runner fails before it can report the required check as success.
+for wf_file in mobile-ci.yml web-build.yml; do
+  if python3 - "$wf/$wf_file" <<'PY'
+import sys, yaml
+jobs = yaml.safe_load(open(sys.argv[1]))["jobs"]
+job_name = "typecheck" if sys.argv[1].endswith("mobile-ci.yml") else "verify-web"
+steps = jobs[job_name]["steps"]
+step = next(s for s in steps if s.get("name") == "Required check satisfied")
+sys.exit(0 if step.get("working-directory") == "." else 1)
+PY
+  then echo "ok   [$wf_file] unrelated required success step runs from repository root"
+  else echo "FAIL [$wf_file] unrelated required success step inherits a missing pre-checkout working directory"; fail=1
+  fi
+done
+
 exit "$fail"
