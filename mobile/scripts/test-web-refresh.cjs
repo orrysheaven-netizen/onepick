@@ -21,7 +21,7 @@ function query(data) {
 }
 function fixture(kind, platform = 'web') {
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry() {} };
-  const home = query({ picks: [{ pickId: 'pick', itemId: 'item', categoryId: 'ramen' }], currentPicks: [], editorialItems: [] });
+  const home = query({ picks: [{ pickId: 'pick', itemId: 'item', categoryId: 'ramen' }], currentPicks: [] });
   const following = query({ items: [], nextCursor: null });
   const profile = query({ profile: { id: 'owner', username: 'owner', bio: '' }, currentPicks: [] });
   const history = query([]), requests = query([]), categories = query([category]);

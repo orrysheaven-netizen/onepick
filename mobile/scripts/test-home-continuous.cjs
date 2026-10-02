@@ -18,7 +18,7 @@ async function main() {
   let contextOptions, feedOptions, contextRequest, feedRequest;
   let contextRefetches = 0, feedRefetches = 0;
   const contextResult = {
-    data: { openCategories: ['open'], currentPicks: ['current'], editorialItems: ['editorial'] },
+    data: { openCategories: ['open'], currentPicks: ['current'] },
     error: null, isError: false, isPending: false, isFetching: false, isRefetching: false,
     refetch: async () => { contextRefetches++; return contextResult; },
   };

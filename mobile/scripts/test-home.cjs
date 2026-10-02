@@ -31,7 +31,6 @@ const readRepository = {
   getPicks: async (input) => { calls.push(['private', input]); assert.ok(input.userId); return current; },
   getHomePicks: async (cursor) => { calls.push(['feed', cursor]); return feed; },
   getHomeShowcase: async () => assert.fail('Home no longer reads the aggregate product showcase'),
-  getEditorialHomeItems: async (...args) => { calls.push(['editorial', ...args]); return [{ itemId: 'editorial', name: '먼저 소개할 원픽' }]; },
 };
 const service = new HomeService(readRepository);
 
@@ -39,17 +38,13 @@ async function main() {
   const context = await service.getHomeContext('me');
   assert.equal(context.currentPicks.length, 2);
   assert.equal(context.currentPicks[1].item, null, 'Missing metadata must not remove the private collection count');
-  assert.equal(context.editorialItems[0].itemId, 'editorial');
   assert.equal(calls.filter(([kind]) => kind === 'private').length, 1);
-  assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
-  assert.deepEqual(calls.find(([kind]) => kind === 'editorial'), ['editorial', 6, null, null],
-    'Default context keeps the full internal editorial contract');
   assert.equal(calls.some(([kind]) => kind === 'feed'), false, 'Context never fetches a feed page');
 
   calls = [];
   await service.getHomeContext('me', 'offline', 'food');
-  assert.deepEqual(calls.find(([kind]) => kind === 'editorial'), ['editorial', 6, 'offline', 'food'],
-    'MVP context scopes editorial items to food + offline');
+  assert.deepEqual(calls.map(([kind]) => kind), ['private'],
+    'MVP context no longer calls the removed editorial Home RPC');
 
   calls = [];
   const firstPage = await service.getHomePicks();
@@ -69,17 +64,18 @@ async function main() {
   const publicContext = await service.getHomeContext();
   assert.equal(publicContext.currentPicks.length, 0);
   assert.equal(calls.some(([kind]) => kind === 'private'), false);
-  assert.equal(calls.filter(([kind]) => kind === 'editorial').length, 1);
 
   feed.items = []; feed.nextCursor = null;
   const empty = await service.getHomePicks();
   assert.equal(empty.picks.length, 0);
   assert.equal(empty.nextCursor, null);
 
-  const failure = new HomeService(
-    { ...readRepository, getEditorialHomeItems: async () => { throw new Error('offline'); } },
-  );
-  await assert.rejects(() => failure.getHomeContext('me'), /offline/);
-  console.log('Home checks passed: context skips duplicate categories and stays separate from single-read feed pages.');
+  const noEditorialRepository = {
+    ...readRepository,
+    getEditorialHomeItems: async () => { throw new Error('editorial Home RPC should not be called'); },
+  };
+  const noEditorialService = new HomeService(noEditorialRepository);
+  assert.equal((await noEditorialService.getHomeContext('me')).currentPicks.length, 2);
+  console.log('Home checks passed: context skips unused editorial reads and stays separate from single-read feed pages.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
