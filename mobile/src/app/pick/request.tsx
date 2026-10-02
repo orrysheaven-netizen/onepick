@@ -187,8 +187,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     try {
       const result = await applyCategory.mutateAsync(selectedSuggestedCategoryId);
       if (result.type === 'existing_item') {
-        // The request merged into an existing product, which the server made this
-        // user's pick with the saved review. Show that product.
+        // The request resolved to an existing product. Show it so the member can
+        // choose it explicitly after review; resolution never creates a Pick.
         router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId } });
         return;
       }
