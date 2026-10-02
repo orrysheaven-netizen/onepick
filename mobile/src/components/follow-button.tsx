@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
@@ -44,13 +44,19 @@ export function FollowButton({
   const following = state.data === true;
   const pending = follow.isPending || unfollow.isPending;
   const error = follow.error ?? unfollow.error;
+  const [confirmingUnfollow, setConfirmingUnfollow] = useState(false);
   const autoAttempted = useRef(false);
   const followedNotified = useRef(false);
 
   useEffect(() => {
     autoAttempted.current = false;
     followedNotified.current = false;
+    setConfirmingUnfollow(false);
   }, [autoFollow, profileUserId, viewerUserId]);
+
+  useEffect(() => {
+    if (!following) setConfirmingUnfollow(false);
+  }, [following]);
 
   useEffect(() => {
     if (!autoFollow || !viewerUserId || viewerUserId === profileUserId || state.isPending || pending || autoAttempted.current) return;
@@ -82,8 +88,20 @@ export function FollowButton({
     if (pending) return;
     follow.reset();
     unfollow.reset();
-    if (following) unfollow.mutate();
-    else follow.mutate();
+    if (following) {
+      setConfirmingUnfollow(true);
+      return;
+    }
+    follow.mutate();
+  };
+
+  const confirmUnfollow = () => {
+    if (pending || !viewerUserId || !following) return;
+    follow.reset();
+    unfollow.reset();
+    unfollow.mutate(undefined, {
+      onSuccess: () => setConfirmingUnfollow(false),
+    });
   };
 
   return (
@@ -101,6 +119,26 @@ export function FollowButton({
           <Text style={[styles.text, fullWidth && styles.textFullWidth, following && styles.textFollowing]}>{following ? '팔로잉' : '팔로우'}</Text>
         )}
       </Pressable>
+      {confirmingUnfollow && following ? (
+        <View accessibilityRole="menu" style={[styles.confirmRow, fullWidth && styles.confirmRowFullWidth]}>
+          <Pressable
+            accessibilityRole="menuitem"
+            accessibilityLabel={`@${username} 팔로우 취소 확인`}
+            disabled={pending}
+            onPress={confirmUnfollow}
+            style={({ pressed }) => [styles.confirmAction, pressed && styles.pressed]}>
+            <Text style={styles.confirmText}>팔로우 취소</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="menuitem"
+            accessibilityLabel="팔로우 취소하지 않기"
+            disabled={pending}
+            onPress={() => setConfirmingUnfollow(false)}
+            style={({ pressed }) => [styles.cancelAction, pressed && styles.pressed]}>
+            <Text style={styles.cancelText}>취소</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{errorText(error)}</Text> : null}
     </View>
   );
@@ -115,6 +153,12 @@ const styles = StyleSheet.create({
   text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '700' },
   textFullWidth: { ...OnePickType.bodyMedium },
   textFollowing: { color: OnePick.muted },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  confirmRowFullWidth: { alignSelf: 'stretch', justifyContent: 'flex-end' },
+  confirmAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: OnePick.danger },
+  confirmText: { color: OnePick.danger, fontSize: 12, fontWeight: '700' },
+  cancelAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10 },
+  cancelText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 6 },
   pressed: { opacity: 0.7 },
 });
