@@ -160,10 +160,10 @@ async function main() {
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));
   cache.clear();
-  for (const file of ['app/(tabs)/index.tsx', 'app/(tabs)/explore.tsx', 'app/(tabs)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
+  for (const file of ['app/(tabs)/(home)/index.tsx', 'app/(tabs)/(explore)/explore.tsx', 'app/(tabs)/(profile)/profile.tsx', 'app/pick/find.tsx', 'app/pick/choose.tsx', 'components/item-search.tsx']) {
     assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<PickPhoto[^>]*itemId=/s, `${file} passes a real catalog target`);
   }
-  const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
+  const publicProfileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx'), 'utf8');
   assert.match(publicProfileSource, /function PublicProfilePickRow[\s\S]*?<PickPhoto[\s\S]*?itemId=\{item\.item\?\.id\}/, 'public Figma 40 row forwards the real catalog target to PickPhoto');
   const profilePickGroupsSource = fs.readFileSync(path.join(__dirname, '../src/components/profile-pick-groups.tsx'), 'utf8');
   assert.match(profilePickGroupsSource, /<ProfilePickCard[\s\S]*?itemId=\{item\.item\?\.id\}/, 'profile groups pass the real catalog target to the shared card');
