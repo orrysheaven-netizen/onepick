@@ -23,14 +23,18 @@ for (const file of walk('src/app')) {
   }
 }
 
-for (const file of ['src/app/(tabs)/(profile)/u/[username].tsx', 'src/app/settings.tsx', 'src/app/auth/login.tsx', 'src/app/pick/link.tsx',
+for (const file of ['src/app/settings.tsx', 'src/app/auth/login.tsx', 'src/app/pick/link.tsx',
   'src/app/lab/[username].tsx', 'src/app/legal/terms.tsx', 'src/app/legal/privacy.tsx']) {
   assert.match(read(file), /router\.canGoBack\(\) \? router\.back\(\) : router\.replace\('\/'\)/, `${file}: back falls back to home`);
 }
 
 const profile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 assert.match(profile, /프로필을 찾을 수 없어요[\s\S]{0,200}label: '홈으로'/, 'missing profile screen needs a way home');
-assert.match(profile, /const goBack = \(\) => router\.canGoBack\(\) \? router\.back\(\) : router\.replace\('\/'\);/);
+assert.match(profile, /const returnHref = profileReturnHref\(returnTo\);/);
+assert.match(profile, /const goBack = \(\) => router\.replace\(returnHref \?\? '\/'\);/,
+  'public profile back uses its explicit safe origin and cold links fall back Home');
+assert.doesNotMatch(profile, /const goBack = \(\) => router\.canGoBack/,
+  'nested Profile stack history must not override the public-profile origin');
 assert.match(profile, /onBlocked=\{goBack\}/);
 
 // Onboarding: a signed-out visit or a failed load must not spin forever.
