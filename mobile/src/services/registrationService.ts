@@ -67,6 +67,7 @@ export interface ImmediatePickRegistrationResult {
 export type RegistrationResult =
   | { type: 'pick'; pick: Pick }
   | { type: 'pending_item'; item: Item }
+  | { type: 'available_item'; item: Item }
 
 
 export const CATEGORY_HINT_MAX_LENGTH = 60;
@@ -314,8 +315,8 @@ export class RegistrationService {
     if (submitted.status === 'active' || submitted.status === 'discontinued') {
       if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       // The request resolved to an already-available item while submitting.
-      // Do not auto-select it; the member chooses it explicitly afterwards.
-      return { type: 'pending_item', item: submitted };
+      // Do not pretend a request was created and do not auto-select it.
+      return { type: 'available_item', item: submitted };
     }
 
     if (uploaded) await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
