@@ -318,9 +318,33 @@ jobs:
               fi
               git apply /tmp/change.patch
 
-              changed_files="$(git diff --name-only)"
+              # Stage before inspection so new files are included. Use NUL-delimited,
+              # unquoted paths and disable rename detection so both sides of a rename are
+              # checked independently (including non-ASCII, tabs and newlines).
+              git add -A
+              mapfile -d '' -t changed_paths < <(
+                git -c core.quotePath=false diff --cached --name-only --no-renames -z
+              )
 
-              if grep -Eq '^(\.github/workflows/|supabase/migrations/|supabase/functions/|.*auth.*|.*storage.*)' <<<"$changed_files"; then
+              protected_change=false
+              control_plane_change=false
+              shopt -s nocasematch
+              for changed_path in "${changed_paths[@]}"; do
+                [ -n "$changed_path" ] || continue
+                case "$changed_path" in
+                  .github/workflows/*|.github/scripts/*|supabase/migrations/*|supabase/functions/*|supabase/config.toml|mobile/functions/*|mobile/public/_headers|tools/*|*auth*|*storage*)
+                    protected_change=true
+                    ;;
+                esac
+                case "$changed_path" in
+                  .github/workflows/*|.github/scripts/*|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
+                    control_plane_change=true
+                    ;;
+                esac
+              done
+              shopt -u nocasematch
+
+              if [ "$protected_change" = "true" ]; then
                 git reset --hard HEAD
                 update_labels '["state:handoff","handoff:claude"]' '["state:active","state:ready","state:review","state:blocked","handoff:codex"]'
                 gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body \
@@ -328,22 +352,20 @@ jobs:
                 exit 0
               fi
 
-              control_plane_change=false
-              while IFS= read -r changed_path; do
-                case "$changed_path" in
-                  .github/workflows/ai-handoff-codex.yml|.github/workflows/ai-handoff-claude.yml|.github/workflows/ai-handoff-ci-gate.yml|.github/workflows/ai-handoff-review-events.yml|.github/workflows/ai-pm-review-queue.yml|.github/scripts/ci-path-gate.sh|.github/scripts/test-ci-path-gate.sh|.github/scripts/test-pm-review-queue.sh|AGENTS.md|CLAUDE.md|docs/ai-role-division.md)
-                    control_plane_change=true
-                    ;;
-                esac
-              done <<< "$changed_files"
               if [ "$control_plane_change" = "true" ]; then
                 git reset --hard HEAD
                 block_task "자동 실행기가 자신의 제어 규칙을 수정하려 해 차단했습니다. 이 변경은 일반 GPT 세션에서 별도 PR로 처리해야 합니다."
                 exit 0
               fi
 
-              file_count="$(git diff --name-only | sed '/^$/d' | wc -l | tr -d ' ')"
-              changed_lines="$(git diff --numstat | awk '{a += ($1 == "-" ? 0 : $1); d += ($2 == "-" ? 0 : $2)} END {print a+d+0}')"
+              file_count="${#changed_paths[@]}"
+              changed_lines=0
+              while IFS=$'\t' read -r -d '' added deleted changed_path; do
+                if [ "$added" = "-" ] || [ "$deleted" = "-" ]; then
+                  continue
+                fi
+                changed_lines=$((changed_lines + added + deleted))
+              done < <(git -c core.quotePath=false diff --cached --numstat --no-renames -z)
               if [ "$file_count" -gt 25 ] || [ "$changed_lines" -gt 2000 ]; then
                 git reset --hard HEAD
                 block_task "자동 patch 범위 제한(25 files / 2000 lines)을 넘어 중단했습니다. 범위를 나누어 다시 인계해야 합니다."
