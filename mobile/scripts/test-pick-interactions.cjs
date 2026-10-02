@@ -257,7 +257,7 @@ async function main() {
     { itemId: 'tied-item', name: '공동 순위 과자', thumbnailUrl: null, rank: 2, isTied: true, pickCount: 101, channels: [] },
   ], isFetching: false, isError: false, refetch: () => { rankRefreshes++; } };
   const { browseCategoryGroups, categoryLabel } = loadSource('lib/categories/categoryTree.ts');
-  const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
+  const { default: Explore } = loadSource('app/(tabs)/(explore)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
