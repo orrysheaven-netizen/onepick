@@ -71,5 +71,9 @@
 - Home following feed / follow 알림
 - 비필수 AI·추천 고도화
 - 추가 유료 자동화·인프라
+- `youtube-catalog` Production Edge drift (#683)
+  - DB의 승인 후 자동 Pick 제거 계약은 Production 반영 완료.
+  - 배포된 Edge Function은 아직 #675 이전 recipe request contract라 main과 불일치.
+  - 현재 recipe 공개 롤아웃이 OFF이므로 MVP blocker는 아니며, 재노출 전에 사용자 승인 후 공식 Edge deploy가 필요.
 
 사용자가 별도로 우선 지시하지 않는 한 P0~P2보다 먼저 시작하지 않는다.
