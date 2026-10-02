@@ -113,7 +113,7 @@ async function main() {
   assert.equal(pressed.some((p) => /온라인|레시피/.test(p.accessibilityLabel ?? '')), false);
 
   // Explore: unscoped dish search is pinned to the initial MVP public channel.
-  const explore = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/explore.tsx'), 'utf8');
+  const explore = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(explore)/explore.tsx'), 'utf8');
   assert.match(explore, /dishChannels=\{\{ userId: user\?\.id, channel: OnePickMvp\.publicPickChannel, onRegister: registerDish \}\}/);
   assert.match(explore, /channel === 'recipe'\s+\? \{ pathname: '\/pick\/recipe', params: \{ categoryId \} \}\s+: \{ pathname: '\/pick\/find', params: \{ categoryId, channel \} \}/);
   const search = fs.readFileSync(path.join(__dirname, '../src/components/item-search.tsx'), 'utf8');
