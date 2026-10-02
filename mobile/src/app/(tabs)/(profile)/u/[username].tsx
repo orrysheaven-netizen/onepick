@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
+import { FollowConnectionsView } from '@/components/follow-connections-view';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
@@ -15,6 +16,7 @@ import { Avatar, Button, Chip, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
+import { usePublicFollowCounts } from '@/hooks/useFollow';
 import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
@@ -113,10 +115,15 @@ function PublicProfilePickRow({
 
 export default function PublicProfileScreen() {
   const router = useRouter();
-  const { username } = useLocalSearchParams<{ username?: string }>();
+  const { username, connections } = useLocalSearchParams<{ username?: string; connections?: string }>();
   const { user } = useAuthSession();
   const query = usePublicProfile(username, user?.id);
   const categoriesQuery = useExploreCategories(Boolean(query.data));
+  const publicFollowCounts = usePublicFollowCounts(
+    OnePickFeatures.profileFollowConnections ? query.data?.profile.id : undefined,
+    user?.id ?? null,
+  );
+  const connectionDirection = connections === 'followers' || connections === 'following' ? connections : null;
   // Always call the hook; an absent profileId disables its network query.
   const aiCommentQuery = useProfileAiComment(OnePickFeatures.profileAi ? query.data?.profile.id : undefined);
   const [isSharing, setIsSharing] = useState(false);
@@ -124,6 +131,7 @@ export default function PublicProfileScreen() {
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [loginSheetOpen, setLoginSheetOpen] = useState(false);
+  const [loginTargetUsername, setLoginTargetUsername] = useState<string | null>(null);
   const [followToast, setFollowToast] = useState(false);
   const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
   const socialSignIn = useSocialSignIn();
@@ -134,11 +142,35 @@ export default function PublicProfileScreen() {
     [query.data?.currentPicks, categoriesQuery.data],
   );
   const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
+  const publicPickCount = publicMainPicks.length + labPicks.length;
   const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/');
+  const openFollowLogin = (targetUsername: string) => {
+    setLoginTargetUsername(targetUsername);
+    setLoginSheetOpen(true);
+  };
+  const closeFollowLogin = () => {
+    setLoginSheetOpen(false);
+    setLoginTargetUsername(null);
+  };
+  const openConnections = (direction: 'followers' | 'following') => {
+    if (!query.data || !publicFollowCounts.data) return;
+    router.push({
+      pathname: '/u/[username]',
+      params: { username: query.data.profile.username, connections: direction },
+    });
+  };
+  const closeConnections = () => {
+    if (router.canGoBack()) return router.back();
+    if (query.data) {
+      router.replace({ pathname: '/u/[username]', params: { username: query.data.profile.username } });
+      return;
+    }
+    router.replace('/');
+  };
 
   useEffect(() => {
     if (!followToast) return;
@@ -148,7 +180,7 @@ export default function PublicProfileScreen() {
 
   const continueProfileLogin = async (provider: SocialAuthProvider) => {
     if (!query.data || socialSignIn.isPending) return;
-    const targetUsername = query.data.profile.username;
+    const targetUsername = loginTargetUsername ?? query.data.profile.username;
     const intent: AuthIntent = { action: 'follow_profile', username: targetUsername };
     const redirectTo = Linking.createURL('auth/callback', { queryParams: { ...intent } });
     armFollowProfileIntent(targetUsername);
@@ -160,7 +192,7 @@ export default function PublicProfileScreen() {
         if (Platform.OS !== 'web') clearFollowProfileIntent();
         return;
       }
-      setLoginSheetOpen(false);
+      closeFollowLogin();
       router.replace(getPostAuthRoute(intent, !result.profile));
     } catch {
       clearFollowProfileIntent();
@@ -205,7 +237,17 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      {query.data && OnePickFeatures.profileFollowConnections && connectionDirection ? (
+        <FollowConnectionsView
+          profileId={query.data.profile.id}
+          ownerUsername={query.data.profile.username}
+          viewerUserId={user?.id}
+          initialDirection={connectionDirection}
+          onBack={closeConnections}
+          onOpenProfile={(targetUsername) => router.push({ pathname: '/u/[username]', params: { username: targetUsername } })}
+          onRequireLogin={openFollowLogin}
+        />
+      ) : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable> : null}
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요" /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
@@ -246,6 +288,28 @@ export default function PublicProfileScreen() {
               </View>
             </View>
 
+            {OnePickFeatures.profileFollowConnections ? <View style={styles.publicStats}>
+              <View style={styles.publicStat}>
+                <Text style={styles.publicStatText}>원픽 {publicPickCount}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`팔로워 ${publicFollowCounts.data?.followerCount ?? '불러오는 중'}명 보기`}
+                disabled={!publicFollowCounts.data}
+                onPress={() => openConnections('followers')}
+                style={({ pressed }) => [styles.publicStat, pressed && publicFollowCounts.data && styles.pressed]}>
+                <Text style={styles.publicStatText}>팔로워 {publicFollowCounts.data?.followerCount ?? '—'}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`팔로잉 ${publicFollowCounts.data?.followingCount ?? '불러오는 중'}명 보기`}
+                disabled={!publicFollowCounts.data}
+                onPress={() => openConnections('following')}
+                style={({ pressed }) => [styles.publicStat, pressed && publicFollowCounts.data && styles.pressed]}>
+                <Text style={styles.publicStatText}>팔로잉 {publicFollowCounts.data?.followingCount ?? '—'}</Text>
+              </Pressable>
+            </View> : null}
+
             {OnePickFeatures.profileFollow && !query.data.isMine ? <View style={styles.followRow}>
               <FollowButton
                 viewerUserId={user?.id}
@@ -253,7 +317,7 @@ export default function PublicProfileScreen() {
                 username={query.data.profile.username}
                 autoFollow={autoFollow && Boolean(user)}
                 onFollowed={() => setFollowToast(true)}
-                onRequireLogin={() => setLoginSheetOpen(true)}
+                onRequireLogin={() => openFollowLogin(query.data.profile.username)}
                 fullWidth />
             </View> : null}
 
@@ -310,13 +374,13 @@ export default function PublicProfileScreen() {
           </View>
           {query.data.isMine ? <View style={styles.mineRow}><Button variant="ghost" size="sm" label="내 프로필 관리로 이동" onPress={() => router.replace('/profile')} /></View> : null}
         </> : null}
-      </ScrollView>
-      {followToast && query.data ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요</Text></View> : null}
-      <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={() => setLoginSheetOpen(false)}>
+      </ScrollView>}
+      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요</Text></View> : null}
+      <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={closeFollowLogin}>
         <View style={styles.modalBackdrop}>
-          <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={() => setLoginSheetOpen(false)} style={StyleSheet.absoluteFill} />
+          <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={closeFollowLogin} style={StyleSheet.absoluteFill} />
           <View style={styles.loginSheet}>
-            <Text style={styles.loginSheetTitle}>로그인하고 @{query.data?.profile.username ?? username}님을 팔로우하세요</Text>
+            <Text style={styles.loginSheetTitle}>로그인하고 @{loginTargetUsername ?? query.data?.profile.username ?? username}님을 팔로우하세요</Text>
             <Text style={styles.loginSheetText}>로그인하면 바로 팔로우되고 이 프로필로 돌아와요.</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="카카오로 계속하기" disabled={socialSignIn.isPending}
               onPress={() => void continueProfileLogin('kakao')} style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed]}>
@@ -327,7 +391,7 @@ export default function PublicProfileScreen() {
               <Text style={styles.appleText}>Apple로 계속하기</Text>
             </Pressable>
             {socialSignIn.isError ? <Text accessibilityRole="alert" style={styles.loginError}>로그인을 완료하지 못했어요. 다시 시도해주세요.</Text> : null}
-            <Button variant="ghost" size="sm" label="취소" onPress={() => setLoginSheetOpen(false)} />
+            <Button variant="ghost" size="sm" label="취소" onPress={closeFollowLogin} />
           </View>
         </View>
       </Modal>
@@ -369,6 +433,9 @@ const styles = StyleSheet.create({
   publicDisplayName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   publicHandle: { ...OnePickType.caption, color: OnePick.textSecondary },
   publicBio: { ...OnePickType.body, color: OnePick.textSecondary },
+  publicStats: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md },
+  publicStat: { minHeight: 44, justifyContent: 'center' },
+  publicStatText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   followRow: { width: '100%' },
   profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
   profileScopeChip: { paddingHorizontal: 13 },
