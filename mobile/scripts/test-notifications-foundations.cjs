@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const notifications = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/notifications.tsx'), 'utf8');
+const notifications = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(notifications)/notifications.tsx'), 'utf8');
 const itemDetail = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
 
 assert.match(notifications, /OnePickType\.pageTitle/, 'notifications title must use the shared type scale');
