@@ -17,38 +17,34 @@
 | Follow Home/알림 | following feed / follow 변경 알림·설정·푸시는 feature gate OFF |
 | Profile navigation | 공개 프로필·connections에서 하단 5탭/뒤로가기 계약 main 반영 |
 | 원픽 사진 필수 | 신규/교체 photo-less Pick 서버 차단 Production 반영 완료 |
-| 마지막 사진 제거 guard | PR #664 main 병합 완료, **Production migration 미적용** |
-| 승인 후 자동 Pick 제거 | PR #675 main 병합 완료, **Production migration 미적용** |
+| 마지막 사진 제거 guard | PR #664 main 병합 + **Production 적용·검증 완료** |
+| 승인 후 자동 Pick 제거 | PR #675 main 병합 + **Production 적용·검증 완료** |
 | CI required check | unrelated Ready PR cwd 회귀 수정 + 재발 방지 테스트 main 반영 |
 | Social/Home/QA 문서 | 최신 Follow·offline MVP 노출 정책으로 정합화 완료 |
 | Baseline | Product/UX/Engineering/Data/QA/Release #558~#563 및 #557 완료 |
 
-## Production DB 현재 차이
+## Production DB 정합성
 
-main에는 있으나 Production migration history에 아직 없는 항목:
+2026-10-02 아래 두 migration의 Production 적용과 검증이 완료되었다.
 
 1. `20261002165000_guard_current_pick_last_photo`
 2. `20261002193000_remove_approval_auto_pick`
 
-읽기 전용 preflight 결과:
-- 두 migration 모두 미적용
-- last-photo guard trigger 2개는 아직 없음
-- Production `change_pick_impl`은 target item row lock이 아직 없음
-- legacy review trigger는 아직 pending intent에서 새 Pick/approved notification을 만들 수 있는 구 정의
-- `pending_item_picks` 현재 0건
-- pending/rejected + needs_review Pick 0건
-- photo-backed current-Pick item 18건
-- 기존 photo-less current-Pick item 8건
+검증 결과:
+- Production migration history가 저장소 버전과 정확히 일치
+- current Pick item의 마지막 대표사진 제거 DB 차단 확인
+- legacy 승인/병합 시 새 원픽 자동생성 제거 확인
+- 승인/병합 알림 생성 제거 확인
+- SECURITY DEFINER / empty `search_path` / anon EXECUTE 차단 확인
+- 기존 photo-less current-Pick item 8건은 데이터 삭제·해제 없이 유지하며 #633에서 별도 비파괴 보충
 
-두 migration은 기존 Pick/한줄평/사진을 bulk rewrite하지 않는다. Production 적용은 사용자 별도 승인 게이트다.
+두 migration은 기존 Pick/한줄평/사진을 bulk rewrite하지 않는다. #634와 #674는 Production 반영까지 완료되어 종료 상태다.
 
 ## 열린 작업
 
 | Issue | 상태 | 의미 |
 | --- | --- | --- |
 | #633 | blocked | photo-less active Pick 8건 중 게임 3건 exact IGDB cover 미확정 + Production 사진 반영 승인 대기 |
-| #634 | blocked | main 구현 완료, Production `165000` apply 승인 대기 |
-| #674 | blocked | main 구현 완료, Production `193000` apply 승인 대기 |
 | #640 | open | Security QA Low/정책 결정·다음 측정 추적 |
 | #641 | open | Daily QA 다음 cold/warm 재측정 추적 |
 | #665 | Draft | Security L4 risk-acceptance 사용자 결정 전 병합 금지 |
@@ -56,7 +52,7 @@ main에는 있으나 Production migration history에 아직 없는 항목:
 ## 현재 실행 정책
 
 - **즉시 가능:** 읽기 전용 Production 검증, QA 재측정, 문서 정합화, superseded 정리.
-- **사용자 승인 후 가능:** Production migration apply, Production 사진 보충, Security L4 risk acceptance.
+- **사용자 승인 후 가능:** Production 사진 보충, Security L4 risk acceptance.
 - **보류:** P3 확장, 별도 유료 API, 불필요한 새 DB 인덱스/인프라.
 - **금지:** 기존 Pick/한줄평 자동 삭제, source-policy를 우회한 이미지 자동 채택, 승인 게이트 우회.
 
@@ -72,5 +68,5 @@ main에는 있으나 Production migration history에 아직 없는 항목:
 
 ## 관리자 조치 표기
 
-- **관리자 승인 필요:** Production DB migration 2건 apply, Production 사진 보충, Security L4 risk acceptance.
+- **관리자 승인 필요:** Production 사진 보충, Security L4 risk acceptance.
 - **관리자 직접 수행 필요:** 현재 없음.
