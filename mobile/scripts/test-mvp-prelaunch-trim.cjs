@@ -81,6 +81,7 @@ function profile(isPublic = false) {
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
+    '@/hooks/useFollow': { usePublicFollowCounts: () => query({ followingCount: 2, followerCount: 3 }) },
     '@/hooks/useMyProfileLists': { useMyPickHistory: () => { calls.history++; return history; }, useMyItemRequests: () => { calls.requests++; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
@@ -93,7 +94,7 @@ function profile(isPublic = false) {
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
     '@/components/profile-taste-composition': { ProfileTasteComposition: mount('taste') },
     '@/components/profile-ai-panel': { ProfileAiPanel: mount('ai') }, '@/components/profile-ai-comment': { ProfileAiComment: mount('ai') },
-    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
+    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'follow-connections-view': 'FollowConnectionsView', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
   });
   view.render(); return { view, q, history, requests, calls, auth };
 }
