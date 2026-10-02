@@ -4,8 +4,6 @@ export const queryKeys = {
   home: {
     all: ['home'] as const,
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
-    menuRanking: (groupCategoryId: string | null = null, channel: string | null = null) =>
-      ['home', 'menu-ranking', groupCategoryId ?? 'all', channel ?? 'all-channels'] as const,
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
@@ -92,6 +90,10 @@ export const queryKeys = {
     all: ['follows'] as const,
     state: (userId: string, profileId: string) => ['follows', 'state', userId, profileId] as const,
     counts: (userId: string) => ['follows', 'counts', userId] as const,
+    publicCounts: (profileId: string, viewerId: string | null) =>
+      ['follows', 'public-counts', profileId, viewerId ?? 'public'] as const,
+    connections: (profileId: string, direction: 'followers' | 'following', viewerId: string | null) =>
+      ['follows', 'connections', profileId, direction, viewerId ?? 'public', 'cursor'] as const,
     feed: (userId: string, channel: string | null = null, rootSlug: string | null = null) =>
       ['follows', 'feed', userId, channel ?? 'all-channels', rootSlug ?? 'all-roots', 'cursor'] as const,
   },
