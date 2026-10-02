@@ -48,7 +48,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Badge hidden={!hasUnreadNotifications} />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile">
+      <NativeTabs.Trigger name="(profile)">
         <NativeTabs.Trigger.Label>프로필</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'person', selected: 'person.fill' }}
