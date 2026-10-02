@@ -92,6 +92,7 @@ jobs:
 
       - name: Required check satisfied
         if: needs.changes.result == 'success' && needs.changes.outputs.run != 'true'
+        working-directory: .
         run: echo "No relevant changes; heavy typecheck steps skipped."
       - name: Checkout
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
