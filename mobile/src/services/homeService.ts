@@ -5,20 +5,17 @@ export class HomeService {
 
   // Home context changes much less often than feed pages. Keep it outside the
   // infinite query so pagination/refetching never repeats these broad reads.
-  async getHomeContext(userId?: string, channel: PickChannel | null = null, rootSlug: string | null = null) {
-    const [currentPicks, editorialItems] = await Promise.all([
-      userId
-        ? this.readRepository.getPicks({
-            userId,
-            statuses: ['active', 'needs_review'],
-            orderBy: 'updated_at',
-            limit: 100,
-          })
-        : Promise.resolve([]),
-      this.readRepository.getEditorialHomeItems(6, channel, rootSlug),
-    ]);
+  async getHomeContext(userId?: string, _channel: PickChannel | null = null, _rootSlug: string | null = null) {
+    const currentPicks = userId
+      ? await this.readRepository.getPicks({
+          userId,
+          statuses: ['active', 'needs_review'],
+          orderBy: 'updated_at',
+          limit: 100,
+        })
+      : [];
 
-    return { currentPicks, editorialItems };
+    return { currentPicks };
   }
 
   // Home is people-first: each card is one person's current Pick with their
