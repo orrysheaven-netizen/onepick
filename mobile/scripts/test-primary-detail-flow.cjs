@@ -4,10 +4,10 @@ const path = require('node:path');
 
 const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
 
-const home = read('src/app/(tabs)/index.tsx');
-const explore = read('src/app/(tabs)/explore.tsx');
-const owner = read('src/app/(tabs)/profile.tsx');
-const publicProfile = read('src/app/u/[username].tsx');
+const home = read('src/app/(tabs)/(home)/index.tsx');
+const explore = read('src/app/(tabs)/(explore)/explore.tsx');
+const owner = read('src/app/(tabs)/(profile)/profile.tsx');
+const publicProfile = read('src/app/(tabs)/(home,explore,notifications,profile)/u/[username].tsx');
 const menu = read('src/app/menu/[slug].tsx');
 const dish = read('src/components/dish-people-picks.tsx');
 const provider = read('src/app/provider/[providerId].tsx');
