@@ -17,6 +17,8 @@ type Props = {
   userId?: string;
   /** The menu is already named by the surrounding view, so cards use D hierarchy. */
   menuContext?: boolean;
+  /** Internal path restored when a public profile opened from this list closes. */
+  returnTo?: string;
   /** When set, query only this channel and hide the channel switcher. */
   fixedChannel?: PickChannel;
   /** Figma 16A menu-detail layout. Default keeps the reusable browse/ranking presentation. */
