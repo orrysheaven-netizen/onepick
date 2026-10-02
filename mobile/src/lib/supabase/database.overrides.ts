@@ -88,6 +88,14 @@ type UserFollowRow = {
   created_at: string;
 };
 
+export type PublicFollowConnectionRow = {
+  user_id: string;
+  username: string;
+  profile_image_url: string | null;
+  bio: string | null;
+  viewer_is_following: boolean;
+};
+
 type PickChangeNotificationRow = {
   pick_id: string;
   recipient_id: string;
@@ -350,6 +358,20 @@ export type AppDatabase = Omit<Database, 'public'> & {
       follow_counts: {
         Args: never;
         Returns: { following_count: number; follower_count: number }[];
+      };
+      profile_follow_counts: {
+        Args: { p_profile_id: string };
+        Returns: { following_count: number; follower_count: number }[];
+      };
+      profile_follow_connections_page: {
+        Args: {
+          p_profile_id: string;
+          p_direction: 'followers' | 'following';
+          p_after_username?: string | null;
+          p_after_user_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: PublicFollowConnectionRow[];
       };
       notification_unread_count: {
         Args: never;
