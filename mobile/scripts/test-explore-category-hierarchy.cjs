@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const explore = fs.readFileSync(path.join(root, 'src/app/(tabs)/explore.tsx'), 'utf8');
+const explore = fs.readFileSync(path.join(root, 'src/app/(tabs)/(explore)/explore.tsx'), 'utf8');
 const tree = fs.readFileSync(path.join(root, 'src/lib/categories/categoryTree.ts'), 'utf8');
-const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
+const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/(home)/index.tsx'), 'utf8');
 const profileGroups = fs.readFileSync(path.join(root, 'src/components/profile-pick-groups.tsx'), 'utf8');
 
 assert.doesNotMatch(explore, /categoryLabel/, 'Explore shows leaf names, never the full category path');
