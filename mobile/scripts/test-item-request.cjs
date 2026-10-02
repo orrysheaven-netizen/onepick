@@ -201,6 +201,14 @@ async function main() {
   press('홈으로 돌아가기');
   assert.equal(destination, '/');
 
+  // If the request races with an already-approved catalog item, do not show a
+  // fake request receipt and do not auto-pick it. Open the item for explicit choice.
+  state = []; mutation.isError = false; mutation.error = null;
+  outcome = async () => ({ type: 'available_item', item: { id: 'available-ramen', name: '이미 등록된 라면' } });
+  render(); press('등록하기'); await settle();
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'available-ramen');
+
   state = []; render();
   press('직접 사진 선택'); await settle(); render();
   assert.equal(button('등록하기').disabled, false, 'A chosen photo can be sent without a separate confirmation step');
