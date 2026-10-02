@@ -13,7 +13,8 @@ assert.match(profile, /<View style=\{styles\.publicHeader\}>/);
 assert.match(profile, /<View style=\{styles\.publicBody\}>/);
 assert.match(profile, /publicBody: \{ minHeight: 675, paddingTop: 10, gap: OnePickSpace\.md \}/);
 assert.match(profile, /<Avatar name=\{query\.data\.profile\.username\} size=\{68\} tone="subtle" \/>/);
-assert.match(profile, /<FollowButton[\s\S]*?fullWidth \/>/);
+assert.match(profile, /<View style=\{styles\.followActions\}>[\s\S]*?<FollowButton[\s\S]*?fullWidth \/>[\s\S]*?<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"/,
+  'Figma 40 keeps Follow/Following and Share in one core action row');
 assert.match(profile, /<Chip label="음식"/);
 assert.match(profile, /<Chip label="다른 취향"/);
 assert.match(profile, /profileScopeChip: \{ paddingHorizontal: 13 \}/);
@@ -41,10 +42,12 @@ assert.match(profile, /autoFollow=\{autoFollow && Boolean\(user\)\}/);
 assert.match(profile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 assert.match(profile, /<ReportAction/);
 assert.match(profile, /<BlockUserButton/);
+assert.match(profile, /<Text style=\{styles\.publicHeaderMenu\}>공유<\/Text>/);
 assert.match(profile, /accessibilityLabel="프로필 공유"/);
+assert.match(profile, /followShareButton: \{ width: 67 \}/);
 
 assert.match(follow, /fullWidth\?: boolean/);
-assert.match(follow, /buttonFullWidth: \{ width: '100%', height: 42, minHeight: 42/);
+assert.match(follow, /buttonFullWidth: \{ width: '100%', height: 52, minHeight: 52/);
 assert.match(follow, /setConfirmingUnfollow\(true\)/, '팔로잉 press opens a confirmation state');
 assert.match(follow, />팔로우 취소<\/Text>/, 'confirmation exposes an explicit unfollow action');
 assert.match(follow, /accessibilityLabel="팔로우 취소하지 않기"/, 'confirmation exposes a cancel action');

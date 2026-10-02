@@ -27,6 +27,7 @@ export function FollowButton({
   autoFollow = false,
   onFollowed,
   fullWidth = false,
+  initialFollowing,
 }: {
   viewerUserId?: string;
   profileUserId: string;
@@ -35,8 +36,9 @@ export function FollowButton({
   autoFollow?: boolean;
   onFollowed?: () => void;
   fullWidth?: boolean;
+  initialFollowing?: boolean;
 }) {
-  const state = useFollowState(viewerUserId, profileUserId);
+  const state = useFollowState(viewerUserId, profileUserId, initialFollowing);
   const { follow, unfollow } = useFollowActions(viewerUserId, profileUserId);
   const isSelf = viewerUserId === profileUserId;
 
@@ -79,7 +81,7 @@ export function FollowButton({
     });
   }, [autoFollow, follow, onFollowed, pending, profileUserId, state.data, state.isPending, viewerUserId]);
 
-  // Keep hook order stable even if this component switches between self and another profile.
+  // Keep every hook unconditional even when this row belongs to the viewer.
   if (isSelf) return null;
 
   const handlePress = () => {
@@ -111,7 +113,7 @@ export function FollowButton({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected: following, busy: pending }}
-        accessibilityLabel={following ? `@${username} 팔로우 취소` : `@${username} 팔로우`}
+        accessibilityLabel={following ? `@${username} 팔로잉, 팔로우 취소 옵션 열기` : `@${username} 팔로우`}
         disabled={pending || (Boolean(viewerUserId) && state.isPending)}
         onPress={handlePress}
         style={({ pressed }) => [styles.button, fullWidth && styles.buttonFullWidth, following && styles.buttonFollowing, pressed && styles.pressed]}>
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   container: { alignItems: 'flex-start' },
   containerFullWidth: { alignSelf: 'stretch', width: '100%' },
   button: { minHeight: 40, minWidth: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, paddingHorizontal: 16 },
-  buttonFullWidth: { width: '100%', height: 42, minHeight: 42, backgroundColor: OnePick.actionPrimary },
+  buttonFullWidth: { width: '100%', height: 52, minHeight: 52, backgroundColor: OnePick.actionPrimary },
   buttonFollowing: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
   text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '700' },
   textFullWidth: { ...OnePickType.bodyMedium },

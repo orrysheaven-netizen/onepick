@@ -37,7 +37,7 @@ const pickReplies = read('src/components/pick-replies.tsx');
 const itemReview = read('src/components/item-review-card.tsx');
 const itemDetail = read('src/app/item/[itemId].tsx');
 
-assert.ok(publicSource.includes('const { username, returnTo } = useLocalSearchParams'));
+assert.ok(publicSource.includes('const { username, connections, returnTo } = useLocalSearchParams'));
 assert.ok(publicSource.includes('const returnHref = profileReturnHref(returnTo)'));
 assert.ok(publicSource.includes('useNavigation()'));
 assert.ok(publicSource.includes("navigation.addListener('beforeRemove'"),
