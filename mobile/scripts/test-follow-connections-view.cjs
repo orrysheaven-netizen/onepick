@@ -166,5 +166,8 @@ assert.match(hookSource, /initialData: initialFollowing/);
 const followButtonSource = fs.readFileSync(path.join(root, 'src/components/follow-button.tsx'), 'utf8');
 assert.match(followButtonSource, /initialFollowing\?: boolean/);
 assert.match(followButtonSource, /useFollowState\(viewerUserId, profileUserId, initialFollowing\)/);
+assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
+assert.match(followButtonSource, />팔로우 취소<\/Text>/);
+assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
 
 console.log('Canonical follow connections view checks passed.');
