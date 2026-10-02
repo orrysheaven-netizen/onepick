@@ -254,7 +254,8 @@ select is(
   'a Pick stays put when the member already holds a Pick in the target channel'
 );
 
--- A product request carries the chosen channel into the Pick made on approval.
+-- Legacy request intent may still retain the old channel for compatibility,
+-- but approval discards that intent and never auto-creates a Pick.
 select set_config('request.jwt.claim.sub',(select id::text from pc_ids where key='other'),true);
 insert into public.items(id,category_id,name,normalized_name,status,created_by)
 select (select id from pc_ids where key='request'),c.id,'요청 미역국','요청미역국','pending',(select id from pc_ids where key='other')
@@ -262,27 +263,32 @@ from public.categories c where c.slug='pending-product';
 select is(
   (public.set_pending_item_pick_review((select id from pc_ids where key='request'),'택배 미역국','online')).channel,
   'online',
-  'the request stores the channel chosen with it'
+  'legacy request intent can still store its historical channel'
 );
 select set_config('request.jwt.claim.sub','',true);
 update public.items
 set category_id=(select id from pc_ids where key='soup'), status='active'
 where id=(select id from pc_ids where key='request');
-select is(
-  (select channel from public.picks
-   where user_id=(select id from pc_ids where key='other')
-     and item_id=(select id from pc_ids where key='request')
-     and status='active'),
-  'online',
-  'approval creates the Pick under the requested channel'
+select ok(
+  not exists(
+    select 1 from public.picks
+    where user_id=(select id from pc_ids where key='other')
+      and item_id=(select id from pc_ids where key='request')
+      and status in ('active','needs_review')
+  ),
+  'approval does not auto-create a Pick from the legacy request intent'
 );
 select is(
   (select count(*)::int from public.picks
    where user_id=(select id from pc_ids where key='other')
      and category_id=(select id from pc_ids where key='soup')
      and status='active'),
-  2,
-  'the approved online Pick sits next to the member''s offline Pick'
+  1,
+  'approval leaves the member''s existing current Pick set unchanged'
+);
+select ok(
+  not exists(select 1 from public.pending_item_picks where item_id=(select id from pc_ids where key='request')),
+  'approval discards the resolved legacy request intent'
 );
 
 select * from finish();

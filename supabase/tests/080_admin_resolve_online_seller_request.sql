@@ -83,17 +83,13 @@ select throws_ok(
 );
 reset role;
 
--- Checked as the table owner: the requester, not the admin, can read their inbox row.
 select ok(
-  exists(
+  not exists(
     select 1 from public.item_review_notifications n
-    join public.items req on req.id=n.item_id
     where n.item_id=(select id from osr_ids where key='request')
       and n.recipient_id=(select id from osr_ids where key='user')
-      and n.outcome='merged'
-      and n.target_item_id=req.merged_into_item_id
   ),
-  'Resolving notifies the requester (item_review/merged) with the new online seller as the target'
+  'Resolving an online seller request creates no approval/merge notification'
 );
 
 select * from finish();

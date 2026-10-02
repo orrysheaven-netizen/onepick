@@ -44,9 +44,9 @@ select ok(
   'signed-in members can ask for suggestions'
 );
 
--- The pending request youtube-catalog writes for a dish not in the catalog: a video
--- item waiting in pending-product with the dish name, its recipe channel and the
--- requester's review. Approval under a new dish makes a recipe Pick.
+-- A video request for a dish not in the catalog waits in pending-product with
+-- its dish name and recipe channel. It carries no Pick intent, and approval only
+-- publishes the item; the member chooses it explicitly later.
 insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
 values ('f9d00000-0000-4000-8000-000000000001','authenticated','authenticated','recipe-req@example.invalid','',now(),now());
 insert into public.profiles(id,username,onboarding_completed)
@@ -58,9 +58,6 @@ select 'f9d30000-0000-4000-8000-000000000001',c.id,'쪽파김치 담그는 법',
 from public.categories c where c.slug='pending-product';
 insert into public.item_channels(item_id,channel,target_url,is_primary)
 values ('f9d30000-0000-4000-8000-000000000001','recipe','https://www.youtube.com/watch?v=PPPPPPPPPPP',true);
-insert into public.pending_item_picks(item_id,user_id,one_line_review,channel)
-values ('f9d30000-0000-4000-8000-000000000001','f9d00000-0000-4000-8000-000000000001','이 비율이 정답','recipe');
-
 insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable)
 select 'f9d10000-0000-4000-8000-000000000001',g.id,'테스트 파김치','test-pa-kimchi','open',true,true
 from public.categories g where g.slug='food-kimchi-sides';
@@ -69,12 +66,21 @@ update public.items
 set category_id='f9d10000-0000-4000-8000-000000000001', status='active'
 where id='f9d30000-0000-4000-8000-000000000001';
 
-select is(
-  (select channel from public.picks
-   where user_id='f9d00000-0000-4000-8000-000000000001'
-     and item_id='f9d30000-0000-4000-8000-000000000001' and status='active'),
-  'recipe',
-  'approving a recipe request makes the requester''s recipe Pick for the new dish'
+select ok(
+  not exists(
+    select 1 from public.picks
+    where user_id='f9d00000-0000-4000-8000-000000000001'
+      and item_id='f9d30000-0000-4000-8000-000000000001'
+      and status in ('active','needs_review')
+  ),
+  'approving a recipe request does not auto-create the requester''s recipe Pick'
+);
+select ok(
+  not exists(
+    select 1 from public.pending_item_picks
+    where item_id='f9d30000-0000-4000-8000-000000000001'
+  ),
+  'the current recipe request flow stores no legacy Pick intent'
 );
 
 select * from finish();

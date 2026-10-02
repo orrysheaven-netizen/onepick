@@ -1,7 +1,6 @@
--- A requester hears back when their pending item is approved or merged, so
--- they can pick it, or rejected, with the admin's reason; nothing is sent for
--- requests with no requester, or when the requester already picks the
--- resulting product.
+-- Only "수정 필요" (rejected) is a user-facing request-review event.
+-- Approval/merge publishes or resolves the item without creating an approval
+-- notification. Legacy request review intents never create a Pick.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(1);
@@ -16,7 +15,7 @@ declare
   existing uuid := gen_random_uuid(); picked uuid := gen_random_uuid();
   approved uuid := gen_random_uuid(); merged uuid := gen_random_uuid(); already uuid := gen_random_uuid();
   rejected uuid := gen_random_uuid(); orphan uuid := gen_random_uuid();
-  n integer; r record; ids uuid[];
+  n integer; r record;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
     select id,'authenticated','authenticated',now(),now() from unnest(array[alice,bob,admin]) id;
@@ -56,70 +55,55 @@ begin
   perform public.admin_merge_pending_item(already,picked);
   reset role;
 
-  select * into r from public.item_review_notifications where item_id=approved;
-  assert found and r.recipient_id=alice and r.outcome='approved' and r.target_item_id=approved and r.read_at is null,
-    'Approval notifies the requester with the approved product';
-  select * into r from public.item_review_notifications where item_id=merged;
-  assert found and r.recipient_id=alice and r.outcome='merged' and r.target_item_id=existing,
-    'A merge points the requester at the existing product';
+  assert not exists(select 1 from public.item_review_notifications where item_id=approved),
+    'Approval creates no user-facing review notification';
+  assert not exists(select 1 from public.item_review_notifications where item_id=merged),
+    'Merge creates no user-facing review notification';
   select * into r from public.item_review_notifications where item_id=rejected;
-  assert found and r.recipient_id=alice and r.outcome='rejected' and r.target_item_id=rejected,
-    'Rejection notifies the requester about the request itself';
-  assert not exists(select 1 from public.item_review_notifications where item_id=orphan), 'No requester, no notification';
+  assert found and r.recipient_id=alice and r.outcome='rejected' and r.target_item_id=rejected
+    and r.reason='중복 상품',
+    'Rejection notifies the requester about the request and reason';
+  assert not exists(select 1 from public.item_review_notifications where item_id=orphan),
+    'No requester, no notification';
   assert not exists(select 1 from public.item_review_notifications where item_id=already),
-    'No nudge when the requester already picks the resulting product';
+    'No approval/merge nudge when the requester already picks the result';
 
-  -- Re-resolving the same request never duplicates its notification.
+  -- Re-resolving the same approved request still creates no notification.
   update public.items set status='pending' where id=approved;
   update public.items set status='active' where id=approved;
-  select count(*) into n from public.item_review_notifications where item_id=approved;
-  assert n=1, 'One notification per request';
+  assert not exists(select 1 from public.item_review_notifications where item_id=approved),
+    'Repeated approval remains silent';
 
-  -- Alice's inbox: both results, newest first, pick_id null and item_id to pick.
-  update public.item_review_notifications set created_at=now()-interval '3 minutes' where item_id=rejected;
-  update public.item_review_notifications set created_at=now()-interval '2 minutes' where item_id=approved;
-  update public.item_review_notifications set created_at=now()-interval '1 minute' where item_id=merged;
+  -- The legacy row-level inbox may remain for compatibility, but with current
+  -- writes only the rejected/fix-needed event exists.
   perform set_config('request.jwt.claim.sub',alice::text,true);
   perform set_config('request.jwt.claims','{}',true);
   set local role authenticated;
-  assert (select public.notification_count())=3, 'Unread count includes review results';
-  select array_agg(p.item_id order by p.created_at desc, p.id desc) into ids
-    from public.notification_page() p where p.kind='item_review';
-  assert ids=array[existing,approved,rejected], 'Review results are listed newest first with the product to pick';
-  select * into r from public.notification_page() p where p.kind='item_review' and p.id=rejected;
-  assert r.outcome='rejected' and r.body='중복 상품' and r.item_name='Rejected request',
-    'Rejected rows carry the reason and the requested name';
-  select * into r from public.notification_page() p where p.kind='item_review' and p.id=merged;
-  assert r.pick_id is null and r.username is null and r.outcome='merged' and r.item_name='Existing product',
-    'Merged rows name the product the request was merged into';
+  assert (select public.notification_count())=1, 'Only the fix-needed result is unread';
+  select * into r from public.notification_page() p where p.kind='item_review';
+  assert found and r.id=rejected and r.outcome='rejected' and r.body='중복 상품'
+    and r.item_name='Rejected request',
+    'The row-level compatibility inbox exposes only the rejection from this flow';
 
-  -- Read marks are per row and only the recipient can set them.
-  update public.item_review_notifications set read_at=now() where item_id=approved;
-  assert (select public.notification_count())=2, 'Read review results leave the unread count';
+  update public.item_review_notifications set read_at=now() where item_id=rejected;
+  assert (select public.notification_count())=0, 'Reading the fix-needed result clears the unread count';
   select count(*) into n from public.notification_page() where kind='item_review';
-  assert n=3, 'Read rows stay listed';
+  assert n=1, 'Read fix-needed rows stay listed in the compatibility inbox';
   reset role;
 
+  -- RLS keeps request-review rows private to their recipient.
+  update public.item_review_notifications set read_at=null where item_id=rejected;
   perform set_config('request.jwt.claim.sub',bob::text,true);
   set local role authenticated;
   select count(*) into n from public.item_review_notifications;
   assert n=0, 'Review results are private to the requester';
   assert (select public.notification_count())=0, 'Other users count nothing';
-  update public.item_review_notifications set read_at=now() where item_id=merged;
+  update public.item_review_notifications set read_at=now() where item_id=rejected;
   reset role;
-  assert (select read_at is null from public.item_review_notifications where item_id=merged),
+  assert (select read_at is null from public.item_review_notifications where item_id=rejected),
     'Other users cannot mark someone else''s result read';
-
-  -- If the product stops being pickable, the nudge disappears.
-  update public.items set status='hidden' where id=existing;
-  perform set_config('request.jwt.claim.sub',alice::text,true);
-  set local role authenticated;
-  select count(*) into n from public.notification_page() where kind='item_review';
-  assert n=2, 'Results for a hidden product are not shown';
-  assert (select public.notification_count())=1, 'Hidden products leave the unread count';
-  reset role;
 end;
 $flow$;
-$test$, 'Item review notifications: approval, merge and rejection results, exclusions, inbox and privacy');
+$test$, 'Item review notifications: only fix-needed rejection is user-facing; approval/merge stay silent');
 select * from finish();
 rollback;
