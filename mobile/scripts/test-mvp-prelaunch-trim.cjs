@@ -75,7 +75,11 @@ function profile(isPublic = false) {
   const auth = { user: { id: 'reader' }, isLoading: false };
   const mount = (key) => () => { calls[key]++; return null; };
   const view = screen(isPublic ? 'app/(tabs)/(profile)/u/[username].tsx' : 'app/(tabs)/(profile)/profile.tsx', {
-    'expo-router': { useRouter: () => ({ push() {}, back() {}, replace() {} }), useLocalSearchParams: () => ({ username: 'owner' }) },
+    'expo-router': {
+      useRouter: () => ({ push() {}, back() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),
+      useNavigation: () => ({ addListener: () => () => {} }),
+      useLocalSearchParams: () => ({ username: 'owner' }),
+    },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
     '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
