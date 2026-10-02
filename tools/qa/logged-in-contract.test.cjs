@@ -85,7 +85,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await set('<h1>알림</h1><button>새로고침</button><div>알림을 불러오고 있어요.</div>');
       await assert.rejects(api.assertNotifications(page, timeout));
     });
-    await t.test('initial MVP hides follow scope, CTA and setting once the screen has loaded', async () => {
+    await t.test('MVP shows profile follow CTA while following feed and setting stay hidden', async () => {
       const card = '<button aria-label="김치찌개 상세 보기">카드</button>';
       await set(card);
       await api.assertFollowScopeHidden(page, timeout);
@@ -99,14 +99,14 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await assert.rejects(api.assertFollowScopeHidden(page, timeout));
 
       const share = '<button>프로필 공유하기</button>';
-      await set(share);
-      await api.assertFollowCtaHidden(page, timeout);
       for (const label of ['@someone 팔로우', '@someone 팔로우 취소']) {
         await set(`${share}<button aria-label="${label}">팔로우</button>`);
-        await assert.rejects(api.assertFollowCtaHidden(page, timeout), /팔로우 버튼/);
+        await api.assertFollowCtaVisible(page, timeout);
       }
+      await set(share);
+      await assert.rejects(api.assertFollowCtaVisible(page, timeout));
       await set('<div>프로필</div>');
-      await assert.rejects(api.assertFollowCtaHidden(page, timeout));
+      await assert.rejects(api.assertFollowCtaVisible(page, timeout));
 
       const blocked = '<div>차단한 사용자</div>';
       await set(blocked);
