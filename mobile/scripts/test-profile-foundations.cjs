@@ -2,8 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const own = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/profile.tsx'), 'utf8');
-const pub = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
+const own = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
+const pub = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
 
 for (const [label, source] of [['own profile', own], ['public profile', pub]]) {
   assert.match(source, /OnePickType\./, label + ' must use the shared type scale');

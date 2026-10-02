@@ -7,8 +7,8 @@ const read = (relative) => readFileSync(path.join(root, relative), 'utf8');
 
 const service = read('src/services/profileTasteCompositionService.ts');
 const component = read('src/components/profile-taste-composition.tsx');
-const profile = read('src/app/(tabs)/profile.tsx');
-const publicProfile = read('src/app/u/[username].tsx');
+const profile = read('src/app/(tabs)/(profile)/profile.tsx');
+const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const aiPanel = read('src/components/profile-ai-panel.tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 const queryKeys = read('src/lib/query/queryKeys.ts');

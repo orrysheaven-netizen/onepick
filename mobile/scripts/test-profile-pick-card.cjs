@@ -8,8 +8,8 @@ const { renderToStaticMarkup } = require('react-dom/server');
 
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'src/components/profile-pick-card.tsx'), 'utf8');
-const owner = fs.readFileSync(path.join(root, 'src/app/(tabs)/profile.tsx'), 'utf8');
-const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
+const owner = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
+const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
 const groups = fs.readFileSync(path.join(root, 'src/components/profile-pick-groups.tsx'), 'utf8');
 
 const moduleExports = {};

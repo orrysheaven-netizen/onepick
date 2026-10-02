@@ -36,7 +36,10 @@ function fixture(kind, platform = 'web') {
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
     'profile-taste-composition': 'ProfileTasteComposition', 'sign-out-button': 'SignOutButton',
   };
-  const view = screen(`app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`, {
+  const screenPath = kind === 'profile'
+    ? 'app/(tabs)/(profile)/profile.tsx'
+    : `app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`;
+  const view = screen(screenPath, {
     'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}) },
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },

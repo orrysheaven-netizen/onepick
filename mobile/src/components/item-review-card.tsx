@@ -39,7 +39,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
           <View style={styles.author}>
             {profile ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
-                onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username } })} style={styles.profileLink}>
+                onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: `/item/${itemId}` } })} style={styles.profileLink}>
                 <Text numberOfLines={1} style={styles.username}>@{profile.username}</Text>
               </Pressable>
             ) : <Text style={styles.username}>사용자</Text>}
