@@ -68,8 +68,8 @@ export function useImportYouTubeVideo() {
 export function useRequestYouTubeVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { externalId: string; dishName: string; review: string }) =>
-      youtubeCatalogService.requestVideo(input.externalId, input.dishName, input.review),
+    mutationFn: (input: { externalId: string; dishName: string }) =>
+      youtubeCatalogService.requestVideo(input.externalId, input.dishName),
     // The new request belongs in the profile's "등록 요청" list right away.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles', 'requests'] }),
   });
