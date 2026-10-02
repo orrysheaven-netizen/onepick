@@ -38,8 +38,7 @@ export function FollowButton({
 }) {
   const state = useFollowState(viewerUserId, profileUserId);
   const { follow, unfollow } = useFollowActions(viewerUserId, profileUserId);
-
-  if (viewerUserId === profileUserId) return null;
+  const isSelf = viewerUserId === profileUserId;
 
   const following = state.data === true;
   const pending = follow.isPending || unfollow.isPending;
@@ -79,6 +78,9 @@ export function FollowButton({
       },
     });
   }, [autoFollow, follow, onFollowed, pending, profileUserId, state.data, state.isPending, viewerUserId]);
+
+  // Keep hook order stable even if this component switches between self and another profile.
+  if (isSelf) return null;
 
   const handlePress = () => {
     if (!viewerUserId) {
