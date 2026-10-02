@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const read = (relative) => fs.readFileSync(path.join(__dirname, '..', 'src', relative), 'utf8');
-const home = read('app/(tabs)/index.tsx');
+const home = read('app/(tabs)/(home)/index.tsx');
 const service = read('services/homeService.ts');
 const hooks = read('hooks/useExploreData.ts');
 
