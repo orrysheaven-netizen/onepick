@@ -4,16 +4,6 @@ import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import type { ChangePickInput } from '@/repositories/interfaces/pickRepository';
 import { observabilityService, pickService } from '@/services';
 
-export function useRequestPendingPick() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: { itemId: string; oneLineReview: string }) =>
-      pickService.requestPendingPick(input.itemId, input.oneLineReview),
-    onSuccess: () => invalidatePickData(queryClient),
-  });
-}
-
 export function useChoosePick() {
   const queryClient = useQueryClient();
 

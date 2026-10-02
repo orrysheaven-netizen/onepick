@@ -118,11 +118,10 @@ begin
   perform public.admin_review_pending_item(v_moved.id,'rejected',null,'카테고리가 맞지 않아요');
   reset role;
 
-  select * into v_pick
-  from public.picks
-  where user_id=v_alice and category_id=v_cat_a and status='active';
-  assert v_pick.item_id=v_item.id and v_pick.one_line_review='강남점이 최고',
-    'Approval makes the saved review the requester''s Pick';
+  assert not exists(
+    select 1 from public.picks
+    where user_id=v_alice and item_id=v_item.id and status in ('active','needs_review')
+  ), 'Approval does not create a Pick from the saved legacy request review';
 
   -- After review, selection works like any active item.
   set local role authenticated;

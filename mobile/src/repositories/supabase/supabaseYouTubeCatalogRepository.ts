@@ -124,9 +124,9 @@ export class SupabaseYouTubeCatalogRepository implements YouTubeCatalogRepositor
     return importedItem(data);
   }
 
-  async requestVideo(externalId: string, dishName: string, review: string): Promise<RequestedRecipeVideo> {
+  async requestVideo(externalId: string, dishName: string): Promise<RequestedRecipeVideo> {
     const { data, error } = await this.client.functions.invoke('youtube-catalog', {
-      body: { action: 'video_request', externalId, dishName, review },
+      body: { action: 'video_request', externalId, dishName },
       headers: await this.sessionHeaders(),
     });
     if (error) throw await functionError(error);

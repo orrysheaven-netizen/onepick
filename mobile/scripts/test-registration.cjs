@@ -108,20 +108,15 @@ async function main() {
     oneLineReview: '  국물이 시원해요  ',
   };
 
-  await assert.rejects(() => service.register({ ...input, oneLineReview: '  ', photo: { base64: 'image' } }), (error) => error.code === 'REVIEW_INVALID');
-  await assert.rejects(() => service.register({ ...input, oneLineReview: '가'.repeat(101) }), (error) => error.code === 'REVIEW_INVALID');
-  assert.equal(calls.length, 0, 'A new product request needs its review before any upload or submit');
-
-  const pending = await service.register(input);
+  const pending = await service.register({ ...input, oneLineReview: undefined });
   assert.equal(pending.type, 'pending_item', 'Unknown item becomes an approval request');
-  assert.deepEqual(calls.map(([name]) => name), ['submit', 'pending-review'], 'The request saves the review that becomes the pick on approval');
+  assert.deepEqual(calls.map(([name]) => name), ['submit'], 'A request creates only the item request, never a Pick intent');
   assert.equal(calls[0][1].itemName, '진라면 매운맛');
-  assert.deepEqual(calls[1], ['pending-review', 'submitted', '국물이 시원해요']);
 
   calls = [];
-  const generalProduct = await service.register({ ...input, categoryId: undefined, itemName: '새 텀블러' });
+  const generalProduct = await service.register({ ...input, categoryId: undefined, itemName: '새 텀블러', oneLineReview: undefined });
   assert.equal(generalProduct.type, 'pending_item');
-  assert.deepEqual(calls.map(([name]) => name), ['submit-unclassified', 'pending-review'], 'General products are staged without user category selection');
+  assert.deepEqual(calls.map(([name]) => name), ['submit-unclassified'], 'General products are staged without a Pick review');
   assert.equal(calls[0][1].itemName, '새 텀블러');
 
   calls = [];
@@ -154,10 +149,9 @@ async function main() {
   item = null;
   submittedStatus = 'active';
   const resolved = await service.register(input);
-  assert.equal(resolved.type, 'pick', 'A concurrent duplicate that is already approved becomes the pick right away');
-  assert.deepEqual(calls.map(([name]) => name), ['submit', 'save']);
-  assert.equal(calls[1][1].itemId, 'submitted');
-  assert.equal(calls[1][1].oneLineReview, '국물이 시원해요');
+  assert.equal(resolved.type, 'available_item', 'A request that resolves to an active item returns it for explicit selection');
+  assert.deepEqual(calls.map(([name]) => name), ['submit']);
+  assert.equal(resolved.item.id, 'submitted');
 
   calls = [];
   submittedStatus = 'pending';
@@ -179,7 +173,7 @@ async function main() {
   const imported = await service.importPhoto('https://www.otoki.com/item');
   assert.equal(imported.sourceUrl, 'https://www.otoki.com/item');
 
-  console.log('Registration checks passed: category-free product staging, category hints, fixed-category requests, existing-item picks, photo reuse, validation and URL import.');
+  console.log('Registration checks passed: request-only staging, category hints, explicit existing-item picks, photo reuse, validation and URL import.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

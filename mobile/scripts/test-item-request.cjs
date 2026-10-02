@@ -50,7 +50,7 @@ async function main() {
   };
   const { AppError } = load('errors/appError.ts');
   const category = { id: 'ramen', label: '먹을것 › 라면' };
-  let params = { categoryId: category.id, itemName: '새 라면', oneLineReview: '국물이 시원해요' };
+  let params = { categoryId: category.id, itemName: '새 라면' };
   const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => { sessionRetries++; } };
   const categories = { data: [category], isPending: false, isError: false, refetch: () => { categoryRetries++; } };
   const profile = { data: { currentPicks: [] }, isPending: false, isError: false, error: null, refetch: () => { profileRetries++; } };
@@ -140,7 +140,6 @@ async function main() {
   const button = (text) => { const found = presses.find((p) => textOf(p.children).includes(text)); assert.ok(found, text); return found; };
   const press = (text) => { const found = button(text); assert.ok(!found.disabled, text); return found.onPress(); };
   const nameInput = () => inputs.find((p) => p.accessibilityLabel === '등록 요청 이름');
-  const reviewInput = () => inputs.find((p) => p.accessibilityLabel === '원픽 한줄평');
   const assertBlocked = async () => {
     const submit = button('등록하기');
     assert.equal(submit.disabled, true);
@@ -148,12 +147,9 @@ async function main() {
     assert.equal(calls, 0, 'Unavailable prerequisites must not submit even through a stale handler');
   };
 
-  // The request is the pick, so the one-line review is required up front.
-  assert.match(render(), /한 줄 이유/);
-  assert.equal(reviewInput().value, '국물이 시원해요', 'A review carried through login is restored');
-  reviewInput().onChangeText('   '); render(); await assertBlocked();
-  reviewInput().onChangeText('가'.repeat(101)); render(); await assertBlocked();
-  reviewInput().onChangeText('국물이 시원해요');
+  // A registration request is not a Pick. No one-line Pick review is collected
+  // before approval.
+  assert.doesNotMatch(render(), /한 줄 이유|원픽 한줄평/);
 
   render(); nameInput().onChangeText('  수정한   라면  ');
   auth.error = new Error('session unavailable');
@@ -186,7 +182,7 @@ async function main() {
   assert.equal(payload.itemName, '수정한 라면');
   assert.equal(payload.categoryId, category.id);
   assert.equal(payload.photo, null);
-  assert.equal(payload.oneLineReview, '국물이 시원해요', 'The review travels with the request');
+  assert.equal(payload.oneLineReview, undefined, 'The request carries no Pick review intent');
   mutation.isPending = true; render();
   assert.equal(nameInput().editable, false);
   assert.equal(presses.find((p) => p.accessibilityLabel === '돌아가기').disabled, true);
@@ -199,17 +195,19 @@ async function main() {
   assert.equal(calls, 2, 'Failure releases the in-flight guard for retry');
   const done = render();
   assert.match(done, /등록 요청을 보냈어요/);
-  assert.match(done, /승인되면 이 한줄평으로 내 원픽에 자동 등록/, 'The user is told approval makes it their pick');
+  assert.match(done, /승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요/, 'The user is told approval requires an explicit later Pick');
   press('내 등록 요청 보기');
   assert.equal(destination, '/(tabs)/profile', 'A pending request leads directly to its status in My Profile');
   press('홈으로 돌아가기');
   assert.equal(destination, '/');
 
+  // If the request races with an already-approved catalog item, do not show a
+  // fake request receipt and do not auto-pick it. Open the item for explicit choice.
   state = []; mutation.isError = false; mutation.error = null;
-  outcome = async () => ({ type: 'pick', pick: { id: 'pick-existing' } });
+  outcome = async () => ({ type: 'available_item', item: { id: 'available-ramen', name: '이미 등록된 라면' } });
   render(); press('등록하기'); await settle();
-  assert.equal(destination.pathname, '/pick/[pickId]', 'An already-approved product is picked right away, not chosen again');
-  assert.equal(destination.params.pickId, 'pick-existing');
+  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.params.itemId, 'available-ramen');
 
   state = []; render();
   press('직접 사진 선택'); await settle(); render();
@@ -255,12 +253,12 @@ async function main() {
   assert.equal(destination.params.action, 'request_item');
   assert.equal(destination.params.itemName, params.itemName);
   assert.equal(destination.params.categoryId, category.id);
-  assert.equal(destination.params.oneLineReview, '국물이 시원해요', 'The review survives the login round trip');
+  assert.equal(destination.params.oneLineReview, undefined, 'Login return carries no pre-approval Pick review');
 
   // Link-first online requests keep the source URL attached to the caller's pending item.
   state = []; auth.user = { id: 'owner' }; profile.data = { currentPicks: [] }; profile.isPending = false; profile.isError = false; profile.error = null;
   categories.isError = false; categories.data = [category]; attachedPendingLink = undefined;
-  params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen', oneLineReview: '국물이 시원해요' };
+  params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
   const onlinePage = render();
   assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
@@ -272,7 +270,7 @@ async function main() {
 
   // 온라인 restaurant requests (channel=online) require the seller link and reject delivery apps.
   state = []; attachedPendingLink = undefined; mutation.isError = false; mutation.error = null;
-  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online', oneLineReview: '국물이 시원해요' };
+  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-seller', name: '곰탕 온라인몰' } });
   const sellerLink = () => inputs.find((p) => p.accessibilityLabel === '온라인 판매처 링크');
   let sellerPage = render();
@@ -293,7 +291,7 @@ async function main() {
 
   // A signed-out online request carries the channel and seller link through login.
   state = []; auth.user = null;
-  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online', sourceUrl: 'https://smartstore.example/gomtang', oneLineReview: '국물이 시원해요' };
+  params = { categoryId: category.id, itemName: '곰탕 온라인몰', channel: 'online', sourceUrl: 'https://smartstore.example/gomtang' };
   render(); press('로그인하고 등록하기');
   assert.equal(destination.pathname, '/auth/login');
   assert.equal(destination.params.channel, 'online');
@@ -303,7 +301,7 @@ async function main() {
   // Ordinary products do not ask the user for a category. Even if the category
   // list is temporarily unavailable, the product-name request can still proceed.
   state = []; auth.user = { id: 'owner' }; profile.data = { currentPicks: [] }; profile.isPending = false; profile.isError = false; profile.error = null;
-  categories.isError = true; params = { itemName: '새 텀블러', oneLineReview: '국물이 시원해요' }; mutation.isError = false; mutation.error = null;
+  categories.isError = true; params = { itemName: '새 텀블러' }; mutation.isError = false; mutation.error = null;
   outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 텀블러' } });
   const generalPage = render();
   assert.match(generalPage, /이름만 등록하면 됩니다/);
@@ -326,7 +324,7 @@ async function main() {
   assert.match(render(), /카테고리를 적용했어요/);
 
   state = []; appliedCategoryId = undefined; suggestionQuery.isError = true; suggestionQuery.data = undefined;
-  params = { itemName: '새 제품', oneLineReview: '국물이 시원해요' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
+  params = { itemName: '새 제품' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
   render(); press('등록하기'); await settle();
   assert.match(render(), /AI 추천을 불러오지 못했어요/);
   press('AI 추천 다시 받기'); assert.equal(categorySuggestionRetries, 1);
@@ -354,12 +352,12 @@ async function main() {
   assert.equal(hintItemId, undefined, 'A saved hint stops further classification queries');
   press('내 등록 요청 보기'); assert.equal(destination, '/(tabs)/profile');
 
-  // Applying a category that matches an existing product merges the request;
-  // the server already made that product the pick, so show it instead of the chooser.
+  // Applying a category that matches an existing product resolves the request;
+  // show that product so the member can choose it explicitly.
   state = []; suggestionQuery.isError = false;
   suggestionQuery.data = { itemId: 'general-pending', suggestions: [{ categoryId: 'ramen', label: '먹을것 › 라면', reason: '가까운 분류', confidence: 'high' }],
     categories: [{ categoryId: 'ramen', label: '먹을것 › 라면' }], needsNewCategory: false, reused: false };
-  params = { itemName: '새 제품', oneLineReview: '국물이 시원해요' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
+  params = { itemName: '새 제품' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
   applyOutcome = () => ({ type: 'existing_item', itemId: 'existing-ramen', categoryId: 'ramen' });
   render(); press('등록하기'); await settle(); render();
   press('먹을것 › 라면'); render(); press('이 카테고리 적용'); await settle();

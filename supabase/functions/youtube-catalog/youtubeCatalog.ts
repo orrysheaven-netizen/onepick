@@ -4,7 +4,6 @@ export const YOUTUBE_SOURCE = 'youtube_channel' as const;
 export const YOUTUBE_VIDEO_SOURCE = 'youtube_video' as const;
 const CHANNEL_CATEGORY_SLUG = 'youtube';
 const DISH_NAME_MAX = 60;
-const REVIEW_MAX = 100;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -336,10 +335,6 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     if (body.action === 'video_import' && !dishId) return json({ error: 'CATEGORY_REQUIRED' }, 400);
     const dishName = requesting ? clean(body.dishName, DISH_NAME_MAX + 1) : '';
     if (requesting && (!dishName || dishName.length > DISH_NAME_MAX)) return json({ error: 'DISH_NAME_INVALID' }, 400);
-    // The one-line review travels with the request so approval can make the Pick.
-    const review = requesting && typeof body.review === 'string' ? body.review.trim() : '';
-    if (requesting && (!review || review.length > REVIEW_MAX)) return json({ error: 'REVIEW_INVALID' }, 400);
-
     const client = makeClient();
     if (!client) return json({ error: 'CATALOG_NOT_CONFIGURED' }, 503);
     const user = await authenticate(client, req);
@@ -484,8 +479,8 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     const inserted = await client.from('items').insert({
       category_id: targetCategory,
       ...videoFields(video, now),
-      // Every new video is a request: approval publishes it (and makes the
-      // requester's Pick from their pending review).
+      // Every new video is a request. Approval only publishes the item; it
+      // never creates the requester's Pick automatically.
       status: 'pending',
       created_by: user.id,
       ...(requesting ? { requested_category_label: dishName } : {}),
@@ -496,13 +491,6 @@ export function createYouTubeCatalogHandler(deps: Dependencies) {
     }).select('id,category_id').maybeSingle();
     if (!inserted.error && inserted.data) {
       await ensureRecipeChannel(client, inserted.data.id, video.videoUrl);
-      if (requesting) {
-        const intent = await client.from('pending_item_picks').upsert(
-          { item_id: inserted.data.id, user_id: user.id, one_line_review: review, channel: 'recipe' },
-          { onConflict: 'item_id' },
-        );
-        if (intent.error) return json({ error: 'CATALOG_UNAVAILABLE' }, 503);
-      }
       return json(requesting
         ? { itemId: inserted.data.id, categoryId: null, created: true, pending: true }
         : { itemId: inserted.data.id, categoryId: inserted.data.category_id, created: true, pending: true });

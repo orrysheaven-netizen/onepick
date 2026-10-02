@@ -1,5 +1,4 @@
 import type { Item } from '@/types/domain/item';
-import type { PickChannel } from '@/lib/items/pickChannel';
 
 export interface ItemSearchInput {
   query: string;
@@ -18,8 +17,6 @@ export interface ItemRepository {
   reviseItemRequest(input: ReviseItemRequestInput): Promise<Item>;
   /** Writes or clears the requester's free-text category hint on their own pending request. */
   setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
-  /** Saves the one-line review that becomes the requester's pick when their pending request is approved. */
-  setPendingPickReview(itemId: string, review: string, channel?: PickChannel): Promise<void>;
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
   getById(itemId: string): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;
