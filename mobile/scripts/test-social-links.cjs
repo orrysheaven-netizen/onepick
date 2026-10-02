@@ -121,7 +121,7 @@ async function main() {
     auth.error = null; auth.user = null; query.data = [];
     assert.equal(render(), '', 'Empty public profile has no SNS clutter');
     query.isError = true; assert.match(render(), /불러오지 못했어요/);
-    for (const file of ['app/(tabs)/profile.tsx', 'app/u/[username].tsx']) {
+    for (const file of ['app/(tabs)/(profile)/profile.tsx', 'app/(tabs)/(profile)/u/[username].tsx']) {
       assert.match(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), /<ProfileSocialLinks/, 'Both profile screens expose SNS links');
     }
   }
