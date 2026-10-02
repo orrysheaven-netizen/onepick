@@ -53,11 +53,13 @@
 | #640 | open | Security QA Low/정책 결정·다음 측정 추적 |
 | #641 | open | Daily QA 다음 cold/warm 재측정 추적 |
 | #665 | Draft | Security L4 risk-acceptance 사용자 결정 전 병합 금지 |
+| #683 | blocked / P3 | Production `youtube-catalog`가 main보다 뒤처짐. recipe 공개 재개 전 사용자 승인 후 Edge deploy 필요 |
 
 ## 현재 실행 정책
 
 - **즉시 가능:** 읽기 전용 Production 검증, QA 재측정, 문서 정합화, superseded 정리.
 - **사용자 승인 후 가능:** Production 사진 보충, Security L4 risk acceptance.
+- **P3 재노출 전 승인 필요:** #683 `youtube-catalog` Production Edge deploy.
 - **보류:** P3 확장, 별도 유료 API, 불필요한 새 DB 인덱스/인프라.
 - **금지:** 기존 Pick/한줄평 자동 삭제, source-policy를 우회한 이미지 자동 채택, 승인 게이트 우회.
 
