@@ -36,7 +36,11 @@ begin
     if sqlerrm <> 'PHOTO_INVALID' then raise; end if;
   end;
   result := public.attach_item_photo(blank_item,original,thumb);
-  assert result.image_path=original and result.thumbnail_path=thumb, 'First photo is saved';
+  -- L4: the first photo waits for admin review as the member's own candidate.
+  assert result.image_path is null, 'First photo is not published before review';
+  assert exists(select 1 from public.item_photo_candidates
+    where item_id=blank_item and image_path=original and thumbnail_path=thumb and status='pending'),
+    'First photo is saved as a pending candidate';
   select count(*) into n from public.picks where item_id=blank_item;
   assert n=0, 'Contributing a photo does not register a Pick';
   result := public.attach_item_photo(poster_item,original,thumb);
@@ -49,12 +53,15 @@ begin
   perform set_config('request.jwt.claim.sub',second_user::text,true);
   set local role authenticated;
   result := public.attach_item_photo(blank_item,second_original,second_thumb);
-  assert result.image_path=original and result.thumbnail_path=thumb, 'Later contributor receives first winner unchanged';
+  assert result.image_path is null, 'Later contributor does not publish a photo either';
+  select count(*) into n from public.item_photo_candidates where item_id=blank_item;
+  assert n=1, 'Each member sees only their own candidate';
   result := public.attach_item_photo(poster_item,second_original,second_thumb);
   assert result.image_source_url=poster and result.image_path is null, 'Second contributor also preserves the catalog poster';
   pick := public.register_pick(category,blank_item,'Empty photo','Keep uploaded photo',second_original,second_thumb,null);
+  assert pick.status='needs_review', 'A Pick on a candidate photo waits for the photo review';
   select * into result from public.items where id=blank_item;
-  assert result.image_path=original, 'Legacy registration cannot replace uploaded photo';
+  assert result.image_path is null, 'Legacy registration cannot publish a photo before review';
   reset role;
   perform set_config('request.jwt.claim.sub','',true);
   set local role anon;

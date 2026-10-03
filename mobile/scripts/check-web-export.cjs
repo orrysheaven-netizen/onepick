@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
+const zlib = require('node:zlib');
 const { spawn } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 
@@ -32,6 +33,23 @@ async function main() {
   assert.match(headers, /Content-Security-Policy:[^\n]*\bimg-src [^;\n]*\bblob:/, 'CSP img-src must allow blob: so web photo uploads can decode picked images');
   const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)].map((match) => match[1]))];
   assert.ok(assets.some((asset) => asset.endsWith('.js')), 'The exported page must load a JavaScript entry');
+
+  // Initial-load JavaScript budget: only scripts referenced directly by
+  // index.html count here. Async route chunks stay out of the first-load budget.
+  // Gzip is a conservative approximation of the transfer size that live-qa
+  // measures in a real browser; keep the same 1500 KB ceiling as live-qa.
+  const INITIAL_JS_BUDGET_KB = 1500;
+  const initialJs = assets.filter((asset) => asset.endsWith('.js'));
+  const initialJsGzipBytes = initialJs.reduce((sum, asset) => {
+    const file = fs.readFileSync(path.join(dist, decodeURIComponent(asset)));
+    return sum + zlib.gzipSync(file, { level: 9 }).length;
+  }, 0);
+  const initialJsGzipKb = Math.ceil(initialJsGzipBytes / 1024);
+  assert.ok(
+    initialJsGzipKb <= INITIAL_JS_BUDGET_KB,
+    `Initial JavaScript budget exceeded: ${initialJsGzipKb}KB gzip > ${INITIAL_JS_BUDGET_KB}KB across ${initialJs.length} direct scripts`,
+  );
+  console.log(`Initial JavaScript budget passed: ${initialJsGzipKb}KB gzip / ${INITIAL_JS_BUDGET_KB}KB (${initialJs.length} direct scripts).`);
 
   // Repeat visits should not re-download the multi-megabyte bundle. Pages joins
   // the Cache-Control of every matching rule with a comma instead of letting a

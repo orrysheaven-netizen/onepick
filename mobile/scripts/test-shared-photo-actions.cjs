@@ -109,6 +109,7 @@ async function main() {
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => picker,
       useAttachItemPhoto: () => attachment,
+      useMyPendingItemPhoto: () => ({ data: null, isPending: false }),
       useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
     },
     '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },

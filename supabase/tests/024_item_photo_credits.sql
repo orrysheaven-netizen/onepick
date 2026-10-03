@@ -7,6 +7,7 @@ do $flow$
 #variable_conflict use_variable
 declare
   uploader uuid := gen_random_uuid(); later_user uuid := gen_random_uuid(); creator uuid := gen_random_uuid();
+  admin uuid := gen_random_uuid(); candidate uuid;
   category uuid := gen_random_uuid(); target uuid := gen_random_uuid(); legacy_target uuid := gen_random_uuid();
   poster_target uuid := gen_random_uuid(); unknown_target uuid := gen_random_uuid();
   full_a text := uploader::text||'/credit-full.jpg'; thumb_a text := uploader::text||'/credit-thumb.jpg';
@@ -17,9 +18,10 @@ declare
   row_item public.items%rowtype; n integer; credited uuid; credited_name text;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
-    select id,'authenticated','authenticated',now(),now() from unnest(array[uploader,later_user,creator]) id;
+    select id,'authenticated','authenticated',now(),now() from unnest(array[uploader,later_user,creator,admin]) id;
   insert into public.profiles(id,username,onboarding_completed)
-    select id,'credit_'||substr(replace(id::text,'-',''),1,10),true from unnest(array[uploader,later_user,creator]) id;
+    select id,'credit_'||substr(replace(id::text,'-',''),1,10),true from unnest(array[uploader,later_user,creator,admin]) id;
+  insert into private.admin_users(user_id) values(admin);
   insert into public.categories(id,name,slug,status,is_visible,is_pickable)
     values(category,'Credit test','credit-'||category,'open',true,true);
   insert into public.items(id,category_id,name,normalized_name,status,created_by,image_path,thumbnail_path,image_source_url) values
@@ -39,13 +41,13 @@ begin
   perform set_config('request.jwt.claim.sub',uploader::text,true);
   set local role authenticated;
   row_item := public.attach_item_photo(target,full_a,thumb_a);
-  select c.user_id into credited from public.item_photo_credit(target) c;
-  assert credited=uploader and credited<>creator, 'Credit belongs to stored-photo owner, not product creator';
+  select count(*) into n from public.item_photo_credit(target);
+  assert n=0, 'L4: no public credit before the photo is approved';
   select count(*) into n from public.picks where item_id=target;
   assert n=0, 'Photo contribution alone creates no Pick';
   perform public.register_pick(category,legacy_target,'Legacy target','My reason',legacy_full,legacy_thumb,null);
-  select c.user_id into credited from public.item_photo_credit(legacy_target) c;
-  assert credited=uploader, 'Existing registration also records verified photo ownership';
+  select count(*) into n from public.item_photo_credit(legacy_target);
+  assert n=0, 'L4: registration photo is not credited before approval';
   begin
     update public.item_photo_credits set user_id=later_user where item_id=target;
     raise exception 'Client forged credit';
@@ -63,6 +65,22 @@ begin
   exception when insufficient_privilege then null;
   end;
   reset role;
+  -- L4: an AAL2 admin approves both waiting photos.
+  perform set_config('request.jwt.claim.sub',admin::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',admin,'role','authenticated','aal','aal2')::text,true);
+  set local role authenticated;
+  for candidate in
+    select c.candidate_id from public.admin_item_photo_candidates(200) c
+    where c.item_id in (target,legacy_target)
+  loop
+    perform public.admin_review_item_photo_candidate(candidate,true);
+  end loop;
+  reset role;
+  perform set_config('request.jwt.claims','',true);
+  select c.user_id into credited from public.item_photo_credit(target) c;
+  assert credited=uploader and credited<>creator, 'Credit belongs to stored-photo owner, not product creator or approving admin';
+  select c.user_id into credited from public.item_photo_credit(legacy_target) c;
+  assert credited=uploader, 'Existing registration also records verified photo ownership after approval';
   perform set_config('request.jwt.claim.sub',later_user::text,true);
   set local role authenticated;
   row_item := public.attach_item_photo(target,full_b,thumb_b);

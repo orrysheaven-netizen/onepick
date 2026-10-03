@@ -129,6 +129,12 @@ function ProfileCurrentPickRow({
     ? (channel === 'recipe' ? item.item?.creatorName ?? '레시피' : item.item?.name ?? '')
     : item.category?.name ?? '';
   const imageUri = item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl;
+  // L4: a Pick on a published product waits for its first photo's admin review.
+  const waitsForPhoto = item.pick.status === 'needs_review'
+    && (item.item?.status === 'active' || item.item?.status === 'discontinued');
+  const photoReviewText = !waitsForPhoto ? null : item.item?.photoPendingReview
+    ? '사진 검수 중 · 승인되면 다른 사람에게도 보여요'
+    : '사진이 반려됐어요 · 상세에서 다시 올려주세요';
   const badgeStyle = channel === 'offline'
     ? styles.currentPickBadgeOffline
     : channel === 'online'
@@ -180,6 +186,7 @@ function ProfileCurrentPickRow({
           </Pressable>
         ) : <Text numberOfLines={1} style={styles.currentPickProvider}>{providerName}</Text> : null}
         {item.pick.oneLineReview ? <Text numberOfLines={1} style={styles.currentPickReview}>“{item.pick.oneLineReview}”</Text> : null}
+        {photoReviewText ? <Text numberOfLines={1} style={styles.currentPickPhotoReview}>{photoReviewText}</Text> : null}
       </View>
     </Pressable>
   );
@@ -479,6 +486,7 @@ const styles = StyleSheet.create({
   currentPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   currentPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   currentPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
+  currentPickPhotoReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   managementSection: {
     marginTop: OnePickSpace.xxxl,
     paddingTop: OnePickSpace.xxl,
