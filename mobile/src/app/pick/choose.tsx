@@ -12,6 +12,7 @@ import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
+import { armPickChangedToast } from '@/lib/items/pickSavedToast';
 import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
@@ -35,7 +36,7 @@ function getErrorMessage(error: unknown) {
   }
 }
 
-type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string };
+type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string; replaceConfirmed?: string };
 type SavedChoice = { pick: Pick; item: Item };
 
 export default function ChoosePickScreen() {
@@ -43,7 +44,7 @@ export default function ChoosePickScreen() {
   const params = useLocalSearchParams<Params>();
   // A saved result and its draft belong to one account/product only. Pending
   // requests from an unmounted form cannot populate the next account's result.
-  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}:${params.channel ?? ''}`} auth={auth} params={params} />;
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}:${params.channel ?? ''}:${params.replaceConfirmed ?? ''}`} auth={auth} params={params} />;
 }
 
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -78,6 +79,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const loadedItem = itemQuery.data?.item;
   const item = savedChoice?.item ?? (photoItem && photoItem.id === loadedItem?.id ? photoItem : loadedItem);
   const pickStatus = itemQuery.data?.myPickStatus;
+  const replacementConfirmed = params.replaceConfirmed === '1' && pickStatus?.type === 'selected_other';
+  const categoryName = itemQuery.data?.category?.name ?? '이 카테고리';
   // Food menus keep one Pick per channel (오프라인 맛집 / 온라인 맛집 / 레시피).
   const pickChannel = itemQuery.data?.pickChannel ?? null;
   const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
@@ -96,7 +99,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+  const formTitle = pickStatus?.type === 'selected_other'
+    ? replacementConfirmed ? '원픽 바꾸기' : '이걸로 원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
     if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
@@ -125,6 +129,11 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       // A later normal pick overrides an earlier onboarding skip signal too.
       await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
       submitPhase.current = 'saved';
+      if (replacementConfirmed) {
+        armPickChangedToast(result.id);
+        router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.id } });
+        return;
+      }
       setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
     finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
@@ -216,7 +225,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>
+            {replacementConfirmed
+              ? `저장하면 ${categoryName} 원픽이 이걸로 바뀌어요. 이전 선택은 기록으로 남아요.`
+              : pickChannel
+                ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.`
+                : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}
+          </Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>

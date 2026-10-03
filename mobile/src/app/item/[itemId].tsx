@@ -13,12 +13,12 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { YouTubeVideoLink } from '@/components/youtube-video-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, StateCard } from '@/components/ui';
+import { Button, ConfirmDialog, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import { itemTitle } from '@/lib/items/itemTitle';
-import { consumePickSavedToast } from '@/lib/items/pickSavedToast';
+import { consumePickResultToast } from '@/lib/items/pickSavedToast';
 import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
@@ -103,14 +103,15 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  // Set only by /pick/new right before it replaces itself with this screen.
-  const [pickSavedToast, setPickSavedToast] = useState(() => consumePickSavedToast(focusPickId));
+  // Set only by a successful Pick flow right before it replaces itself with this screen.
+  const [pickResultToast, setPickResultToast] = useState(() => consumePickResultToast(focusPickId));
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const itemLoaded = Boolean(query.data);
   useEffect(() => {
-    if (!pickSavedToast || !itemLoaded) return;
-    const timer = setTimeout(() => setPickSavedToast(false), 2600);
+    if (!pickResultToast || !itemLoaded) return;
+    const timer = setTimeout(() => setPickResultToast(null), 2600);
     return () => clearTimeout(timer);
-  }, [pickSavedToast, itemLoaded]);
+  }, [pickResultToast, itemLoaded]);
 
   useEffect(() => {
     const data = query.data;
@@ -321,10 +322,27 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   }
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
+  const openChooseScreen = (replaceConfirmed = false) => {
+    router.push({
+      pathname: '/pick/choose',
+      params: {
+        itemId: item.id,
+        categoryId: item.categoryId,
+        ...(pickChannel ? { channel: pickChannel } : {}),
+        ...(replaceConfirmed ? { replaceConfirmed: '1' } : {}),
+      },
+    });
+  };
   const openPickAction = () => {
     if (!canChoose) return;
-    router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
+    if (myPickStatus.type === 'selected_other') {
+      setReplaceConfirmOpen(true);
+      return;
+    }
+    openChooseScreen();
   };
+  const replaceCategoryName = category?.name ?? '이 카테고리';
+  const replacementItemName = itemTitle(item.name, category?.name, isRestaurant);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -452,8 +470,19 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
         )}
       </ScrollView>
-      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Text style={styles.toastText}>원픽을 정했어요</Text>
+      <ConfirmDialog
+        visible={replaceConfirmOpen}
+        title="이걸로 원픽을 바꿀까요?"
+        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 ${replacementItemName}이 새 원픽이 되고, 이전 선택은 기록으로 남아요.`}
+        confirmLabel="바꾸고 한줄평 쓰기"
+        onCancel={() => setReplaceConfirmOpen(false)}
+        onConfirm={() => {
+          setReplaceConfirmOpen(false);
+          openChooseScreen(true);
+        }}
+      />
+      {pickResultToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
+        <Text style={styles.toastText}>{pickResultToast}</Text>
       </View> : null}
     </SafeAreaView>
   );

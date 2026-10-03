@@ -67,6 +67,7 @@ async function main() {
   const native = {
     Platform: { OS: 'ios' },
     View: nativeComponent('div'), Text: nativeComponent('span'), RefreshControl: () => null,
+    Modal: ({ visible, children }) => visible ? React.createElement('dialog', null, children) : null,
     ScrollView: (props) => { if (!props.horizontal) pullToRefresh = props.refreshControl; return React.createElement('main', null, props.children); },
     ActivityIndicator: () => null,
     Image: nativeComponent('img'),
@@ -121,7 +122,10 @@ async function main() {
   destination = undefined;
   detail.myPickStatus = { type: 'selected_other', currentPickId: 'previous', currentItemId: 'previous-item' };
   render(Item);
-  assert.ok(presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
+  const replaceMark = presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기');
+  assert.ok(replaceMark, 'Another Pick in the category keeps the uncolored mark with a change label');
+  replaceMark.onPress();
+  assert.equal(destination, undefined, 'A replacement never jumps straight to the review screen before confirmation');
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   detail.canChoose = false;
 

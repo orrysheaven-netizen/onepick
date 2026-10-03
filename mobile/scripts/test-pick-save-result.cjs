@@ -29,6 +29,7 @@ const itemId = 'a1111111-1111-4111-8111-111111111111';
 const categoryId = 'b2222222-2222-4222-8222-222222222222';
 const newPickId = 'c3333333-3333-4333-8333-333333333333';
 const { AppError } = load('errors/appError.ts');
+const savedToast = load('lib/items/pickSavedToast.ts');
 let auth, params, query, mutation, result, states, stateIndex, mountedKey;
 let buttons, input, inputs, destinations, attempts, mode, pending, retries = 0;
 const native = {
@@ -61,6 +62,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: () => query },
   '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
+  '@/lib/items/pickSavedToast': savedToast,
 });
 
 function arrange(status = { type: 'not_selected' }) {
@@ -133,6 +135,23 @@ async function main() {
     assert.equal(attempts.length, 1); assert.equal(attempts[0].oneLineReview, '직접 작성한 나의 이유');
     checkSavedNavigation();
   }
+
+  // Figma 61: a replacement confirmed on item detail skips the generic receipt,
+  // returns to item detail immediately and arms a one-shot change toast.
+  arrange({ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' });
+  params = { itemId, categoryId, replaceConfirmed: '1' };
+  let replacementPage = render();
+  assert.match(replacementPage, /원픽 바꾸기/);
+  assert.match(replacementPage, /저장하면 .* 원픽이 이걸로 바뀌어요/);
+  submit('이걸로 바꾸기'); await flush();
+  replacementPage = render();
+  assert.doesNotMatch(replacementPage, /원픽을 정했어요/, 'confirmed replacement does not show the generic receipt');
+  assert.equal(destinations.at(-1).action, 'replace');
+  assert.equal(destinations.at(-1).route.pathname, '/item/[itemId]');
+  assert.equal(destinations.at(-1).route.params.itemId, result.itemId);
+  assert.equal(destinations.at(-1).route.params.pickId, result.id);
+  assert.equal(savedToast.consumePickResultToast(result.id), '원픽을 바꿨어요');
+  assert.equal(savedToast.consumePickResultToast(result.id), null, 'change toast is one-shot');
 
   arrange(); mode = 'pending'; submit('내 원픽으로 선택'); noSuccess(render());
   assert.equal(button('내 원픽으로 선택').disabled, true);
