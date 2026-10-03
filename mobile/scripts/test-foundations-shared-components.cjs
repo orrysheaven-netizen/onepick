@@ -69,6 +69,6 @@ assert.equal(views.some((v) => v.resolved.minHeight === 44), false, 'Time-only c
 
 render(React.createElement(ui.CurrentPickFlag));
 const decorativeFlag = texts.find((t) => t.children === '⚑');
-assert.equal(decorativeFlag.props.importantForAccessibility, 'no', 'Decorative current-pick glyph is hidden from TalkBack');
+assert.equal(decorativeFlag.importantForAccessibility, 'no', 'Decorative current-pick glyph is hidden from TalkBack');
 
 console.log('Shared Foundations components passed: PickButton states, ReviewRow actions, CommentRow hierarchy and safe touch targets.');
