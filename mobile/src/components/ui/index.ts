@@ -15,3 +15,4 @@ export { CommentRow } from './comment-row';
 export { PickButton } from './pick-button';
 export type { PickButtonState } from './pick-button';
 export { LoadingState } from './loading-state';
+export { CurrentPickFlag } from './current-pick-flag';

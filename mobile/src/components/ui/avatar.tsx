@@ -24,9 +24,14 @@ export function Avatar({ name, size = 32, tone = 'accent', onPress, accessibilit
     </View>
   );
   if (!onPress) return visual;
+  const touchInset = Math.max(0, (MIN_TOUCH_TARGET - size) / 2);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? `@${name} 프로필 보기`} onPress={onPress}
-      style={({ pressed }) => [styles.touch, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.touch,
+        touchInset > 0 && { marginHorizontal: -touchInset, marginVertical: -touchInset },
+        pressed && styles.pressed,
+      ]}>
       {visual}
     </Pressable>
   );
@@ -36,6 +41,6 @@ const styles = StyleSheet.create({
   touch: { minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   circle: { borderRadius: OnePickRadius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   subtle: { backgroundColor: OnePick.bgSubtle },
-  initial: { color: OnePick.accentDeep, fontWeight: '800' },
+  initial: { color: OnePick.accentDeep, fontWeight: '700' },
   pressed: { opacity: PRESSED_OPACITY },
 });

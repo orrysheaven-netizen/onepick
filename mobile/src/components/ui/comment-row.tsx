@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { Avatar } from './avatar';
+import { CurrentPickFlag } from './current-pick-flag';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from './touch';
 
 type Props = {
@@ -22,7 +23,7 @@ export function CommentRow({ username, body, time, reply, currentPick, showReply
       <View style={styles.copy}>
         <View style={styles.top}>
           <Text style={styles.username}>@{username}</Text>
-          {currentPick ? <View style={styles.flag}><Text style={styles.flagText}>원픽</Text></View> : null}
+          {currentPick ? <CurrentPickFlag /> : null}
         </View>
         <Text style={styles.body}>{body}</Text>
         <View style={styles.metaRow}>
@@ -43,14 +44,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: OnePickSpace.sm, paddingVertical: OnePickSpace.md },
   reply: { marginLeft: 40 },
   copy: { flex: 1, minWidth: 0 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.xs },
-  username: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
-  flag: { borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle, paddingHorizontal: OnePickSpace.xs, paddingVertical: 2 },
-  flagText: { ...OnePickType.captionMedium, color: OnePick.textAccent },
+  top: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: OnePickSpace.sm },
+  username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   body: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm, marginTop: OnePickSpace.xs },
+  metaRow: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   time: { ...OnePickType.caption, color: OnePick.textSecondary },
-  replyAction: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center', paddingHorizontal: OnePickSpace.xs, marginVertical: -13 },
+  replyAction: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center', paddingHorizontal: OnePickSpace.xs },
   replyLabel: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   pressed: { opacity: PRESSED_OPACITY },
 });

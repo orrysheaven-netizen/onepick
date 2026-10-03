@@ -1,4 +1,7 @@
-import { Button } from './button';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from './touch';
 
 export type PickButtonState = 'default' | 'change' | 'mine';
 
@@ -16,14 +19,43 @@ const labels: Record<PickButtonState, string> = {
 };
 
 export function PickButton({ state = 'default', onPress, loading, fullWidth = true }: Props) {
+  const mine = state === 'mine';
+  const inactive = mine || Boolean(loading);
   return (
-    <Button
-      label={labels[state]}
-      variant={state === 'default' ? 'primary' : state === 'change' ? 'secondary' : 'soft'}
-      disabled={state === 'mine'}
-      loading={loading}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={labels[state]}
+      accessibilityState={{ disabled: mine, busy: Boolean(loading) }}
+      disabled={inactive}
       onPress={onPress}
-      fullWidth={fullWidth}
-    />
+      style={({ pressed }) => [
+        styles.touch,
+        fullWidth && styles.fullWidth,
+        pressed && !inactive && styles.pressed,
+      ]}>
+      <View style={[styles.visual, mine ? styles.mine : styles.selectable, fullWidth && styles.fullWidthVisual]}>
+        {loading && !mine ? <ActivityIndicator color={OnePick.onAction} /> : (
+          <>
+            {mine ? <Text accessibilityElementsHidden style={styles.mineIcon}>✓</Text> : <View accessibilityElementsHidden style={styles.circleIcon} />}
+            <Text style={[styles.label, mine ? styles.mineLabel : styles.selectableLabel]}>{labels[state]}</Text>
+          </>
+        )}
+      </View>
+    </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  touch: { minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center' },
+  fullWidth: { alignSelf: 'stretch', alignItems: 'stretch' },
+  visual: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: OnePickSpace.sm, paddingHorizontal: OnePickSpace.xl, borderRadius: OnePickRadius.md },
+  fullWidthVisual: { alignSelf: 'stretch' },
+  selectable: { backgroundColor: OnePick.actionPrimary },
+  mine: { backgroundColor: OnePick.bgAccent },
+  circleIcon: { width: 18, height: 18, borderRadius: OnePickRadius.full, borderWidth: 2, borderColor: OnePick.onAction },
+  mineIcon: { ...OnePickType.headline, color: OnePick.textPrimary },
+  label: { ...OnePickType.bodyMedium },
+  selectableLabel: { color: OnePick.onAction },
+  mineLabel: { color: OnePick.textPrimary },
+  pressed: { opacity: PRESSED_OPACITY },
+});

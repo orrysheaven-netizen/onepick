@@ -21,6 +21,7 @@ type Props = {
 // Primary = one per screen. Soft is the in-card action ("나도 이게 원픽"); ghost is a text link.
 export function Button({ label, onPress, variant = 'primary', size = 'md', disabled, loading, fullWidth, accessibilityLabel, style }: Props) {
   const inactive = Boolean(disabled || loading);
+  const solidDisabled = inactive && (variant === 'primary' || variant === 'danger');
   // The Pressable is the real 44x44 interaction area (layout, not hitSlop, so tight parents cannot shrink it);
   // the visual button inside keeps its designed size.
   return (
@@ -30,8 +31,8 @@ export function Button({ label, onPress, variant = 'primary', size = 'md', disab
       accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.touch, fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, inactive && variant === 'primary' && styles.primaryDisabledOpacity, style]}>
-      <View style={[styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidthVisual, inactive && variant === 'primary' && styles.primaryDisabled]}>
+      style={({ pressed }) => [styles.touch, fullWidth && styles.fullWidth, pressed && !inactive && styles.pressed, inactive && styles.disabled, solidDisabled && styles.solidDisabledOpacity, style]}>
+      <View style={[styles.base, sizes[size], variants[variant], fullWidth && styles.fullWidthVisual, solidDisabled && styles.solidDisabled]}>
         {loading
           ? <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? OnePick.onAction : variant === 'dangerText' ? OnePick.danger : OnePick.text} />
           : <Text numberOfLines={1} style={[styles.label, size === 'sm' && styles.labelSmall, labels[variant]]}>{label}</Text>}
@@ -48,8 +49,8 @@ const styles = StyleSheet.create({
   // Keep enabled pressed text readable; only unavailable controls are dimmed.
   pressed: { opacity: PRESSED_OPACITY },
   disabled: { opacity: 0.6 },
-  primaryDisabledOpacity: { opacity: 1 },
-  primaryDisabled: { backgroundColor: OnePick.actionDisabled },
+  solidDisabledOpacity: { opacity: 1 },
+  solidDisabled: { backgroundColor: OnePick.actionDisabled },
   label: { ...OnePickType.bodyMedium },
   labelSmall: { ...OnePickType.captionMedium },
 });

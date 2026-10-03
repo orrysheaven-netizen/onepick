@@ -37,5 +37,5 @@ const styles = StyleSheet.create({
   base: { alignItems: 'center', justifyContent: 'center' },
   page: { minHeight: 160, gap: OnePickSpace.sm },
   inline: { minHeight: 44 },
-  label: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center' },
+  label: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, textAlign: 'center' },
 });

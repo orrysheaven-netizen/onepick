@@ -117,6 +117,8 @@ test('danger uses semantic fill, white label and white loading spinner', () => {
   readable(styleOf(first(button, 'Text')).color, styleOf(first(button, 'View')).backgroundColor);
   const loading = Button({ label: '삭제', variant: 'danger', loading: true });
   assert.equal(first(loading, 'Spinner').props.color, OnePick.onAction);
+  assert.equal(styleOf(first(loading, 'View')).backgroundColor, OnePick.actionDisabled);
+  assert.equal(styleOf(loading).opacity, 1);
 });
 test('button dimensions, callback, overrides and labels are preserved', () => {
   let pressed = 0;
@@ -138,6 +140,8 @@ test('interactive avatar has a real 44x44 touch wrapper', () => {
   const avatar = Avatar({ name: 'duck', size: 24, onPress: () => {} });
   assert.equal(avatar.type, 'Pressable');
   assert.ok(styleOf(avatar).minWidth >= 44 && styleOf(avatar).minHeight >= 44);
+  assert.equal(styleOf(avatar).marginHorizontal, -10);
+  assert.equal(styleOf(avatar).marginVertical, -10);
   const circle = first(avatar, 'View');
   assert.equal(styleOf(circle).width, 24);
   assert.equal(styleOf(circle).height, 24);

@@ -57,7 +57,7 @@
 
 | 컴포넌트 | 변형·속성 | 규칙 |
 | --- | --- | --- |
-| Button | Style=Primary/Secondary/Soft/Ghost/Danger/DangerText × State=Default/Disabled/Loading, Label | 기본 높이 52, 실제 터치 영역 최소 44. Danger는 `text/danger` 배경 + 흰 글자, DangerText는 텍스트형 위험 동작 |
+| Button | Figma=Primary/Secondary/Text/Danger × State=Default/Disabled/Loading. 앱 보조=Soft/Ghost/DangerText | 기본 높이 52, 실제 터치 영역 최소 44. Danger는 `text/danger` 배경 + 흰 글자, 앱의 DangerText는 텍스트형 위험 동작 |
 | Chip | State=Default/Selected, Label | 높이 32, radius/full, 선택=action/primary |
 | Tag | Style=Ink/Soft, Label | "원픽" 모티프, 높이 24, radius/sm |
 | Field Label | Label, Required | "필수"는 text/accent |
@@ -82,9 +82,9 @@
 | Avatar | Size=24/32/40/64/68/72 × Tone=Subtle/Accent | 프로필/댓글/목록 공용 아바타. 이미지가 없으면 이니셜 대체 |
 | Tab Header | Title, Action, Show Action | 메인 탭 제목 + 오른쪽 텍스트 동작. 높이 56 |
 | Menu Row | Title, Meta, Leading | 사진/자리 56 + 메뉴명 + 보조 정보 + 셰브론. 행 최소 76 |
-| Review Row | Mode=Others/Mine | 한줄평 표시. Mine은 수정·원픽 해제·한줄평 삭제 동작을 한 곳에 모음 |
+| Review Row | Mode=Others/Mine | Body Medium 사용자명, 현재 원픽 표시, 댓글·공유. Others=신고, Mine=수정·원픽 해제·한줄평 삭제(삭제는 danger) |
 | Comment Row | Mode=Comment/Reply, Show Reply | 댓글 아바타 32, 답글 24 + 들여쓰기. 시간·답글 동작 터치 44 |
-| Pick Button | State=Default/Change/Mine | `원픽으로 고르기` / `이걸로 원픽 바꾸기` / `내 원픽이에요` 의미를 공통화 |
+| Pick Button | State=Default/Change/Mine | Default·Change=잉크 주 버튼 + ○, Mine=탠저린 면 + 잉크 글자 + ✓(비활성 흐림 없음) |
 | Loading State | Mode=Page/Inline | 첫 로드는 틀 유지 + 가운데 스피너/문구, 다음 페이지는 목록 끝 44 영역. 스켈레톤 미사용 |
 | Confirm Dialog | Title, Body (+ Cancel/Confirm 버튼) | 되돌리기 어려운 동작 확인 |
 
@@ -119,3 +119,10 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 - 첫 불러오기는 기존 화면 틀을 유지한 채 가운데 스피너와 `{무엇}을 불러오고 있어요` 문구를 표시합니다. 0.3초 미만의 짧은 로딩은 표시하지 않습니다.
 - 다음 페이지 로딩은 목록 끝 최소 44 영역에 스피너만 둡니다. 저장·삭제는 누른 버튼 자체만 로딩 상태로 바꿔 중복 제출을 막습니다.
 - 데이터 모양을 미리 단정하는 스켈레톤 UI는 현재 MVP에서 사용하지 않습니다.
+
+### Danger 사용 범위
+
+- Danger 채움 버튼은 **되돌릴 수 없거나 데이터를 지우는 확인 동작**에만 사용합니다(예: 원픽 선택 해제, 한줄평 삭제, 계정 삭제 확인).
+- 취소, 사진 빼기, 차단 해제, 원픽 변경처럼 되돌릴 수 있거나 단순 선택인 동작에는 Danger를 사용하지 않습니다.
+- 한 화면/확인창에는 Danger 주요 동작을 하나만 둡니다.
+- Figma의 Text 변형은 앱에서 `ghost`/`dangerText` 등 의미별 보조 변형으로 구현할 수 있으나, 시각적 위계와 semantic 색 규칙은 Foundations를 따릅니다.

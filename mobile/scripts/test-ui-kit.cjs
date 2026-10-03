@@ -134,6 +134,7 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   const link = pressable('@friend 프로필 보기');
   assert.ok(link, 'Pressable avatar gets a profile label by default');
   assert.ok(link.resolved.minWidth >= 44 && link.resolved.minHeight >= 44, 'Interactive avatar uses a real 44x44 touch wrapper');
+  assert.equal(link.resolved.marginHorizontal, -2, '40px avatar keeps its original layout footprint');
   const avatarVisual = views.find((v) => v.order > link.order).resolved;
   assert.equal(avatarVisual.width, 40);
   assert.equal(avatarVisual.height, 40);
@@ -242,6 +243,7 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
     const avatar = pressable(`아바타${size}`);
     assert.ok(avatar.resolved.minWidth >= 44 && avatar.resolved.minHeight >= 44, 'Avatar wrapper reaches 44x44');
     assert.equal(avatar.hitSlop, undefined, 'Avatar does not rely on hitSlop');
+    assert.equal(avatar.resolved.marginHorizontal, -(44 - size) / 2, 'Avatar touch wrapper preserves visual footprint');
     const circle = views.find((v) => v.order > avatar.order).resolved;
     assert.equal(circle.width, size, 'Avatar keeps its visual size');
     assert.equal(circle.height, size, 'Avatar keeps its visual size');
