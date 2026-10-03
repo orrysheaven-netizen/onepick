@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAvoidingForm } from '@/components/keyboard-avoiding-form';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -279,6 +280,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     const manualCategories = categorySuggestions.data?.categories.filter((entry) => !suggestionIds.has(entry.categoryId)) ?? [];
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingForm>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>AI가 카테고리를 추천했어요</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
@@ -365,12 +367,14 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} />
           </View>
         </ScrollView>
+      </KeyboardAvoidingForm>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <KeyboardAvoidingForm>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Text style={styles.back}>‹</Text>
@@ -454,6 +458,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <Button size="lg" fullWidth disabled={!canSubmit || submitting} loading={registration.isPending || linkAttach.isPending}
           label={auth.user ? '등록하기' : '로그인하고 등록하기'} onPress={() => void submit()} style={styles.primaryAction} />
       </ScrollView>
+    </KeyboardAvoidingForm>
     </SafeAreaView>
   );
 }

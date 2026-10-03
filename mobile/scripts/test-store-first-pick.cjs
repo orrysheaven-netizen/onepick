@@ -77,7 +77,7 @@ const hooks = {
 };
 
 const { default: Screen } = load('app/pick/new.tsx', {
-  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
     useLocalSearchParams: () => routeParams,

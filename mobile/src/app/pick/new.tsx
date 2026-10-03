@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAvoidingForm } from '@/components/keyboard-avoiding-form';
 import { StateCard } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
@@ -530,6 +531,7 @@ export default function NewPickScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <KeyboardAvoidingForm>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {header}
 
@@ -778,6 +780,7 @@ export default function NewPickScreen() {
         </> : null}
       </ScrollView>
 
+    </KeyboardAvoidingForm>
     </SafeAreaView>
   );
 }

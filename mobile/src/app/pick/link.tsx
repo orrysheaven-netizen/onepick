@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+
+import { KeyboardAvoidingForm } from '@/components/keyboard-avoiding-form';import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -132,6 +133,7 @@ export default function LinkCategorySuggestionScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+    <KeyboardAvoidingForm>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButton}>
           <Text style={styles.backText}>‹</Text>
@@ -285,6 +287,7 @@ export default function LinkCategorySuggestionScreen() {
           </>
         ) : null}
       </ScrollView>
+    </KeyboardAvoidingForm>
     </SafeAreaView>
   );
 }

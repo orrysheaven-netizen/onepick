@@ -60,7 +60,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   'expo-router': { useLocalSearchParams: () => ({ itemId, categoryId }), useRouter: () => ({
     replace: (route) => destinations.push(route), push: (route) => destinations.push(route), back() {}, canGoBack: () => false,
   }) },
-  'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: part('section') },
   '@/components/pick-photo': { PickPhoto }, '@/components/pick-photo-step': { PickPhotoStep }, '@/errors/appError': { AppError },
   '@/components/ui': ui,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },

@@ -43,7 +43,7 @@ function harness(file, imports) {
   const native = { StyleSheet: { create: (s) => s } };
   for (const n of ['View','Text','TextInput','ScrollView','ActivityIndicator','Image','Pressable']) native[n] = n;
   const Screen = load(file, { react: hooks, 'react-native': native,
-    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/errors/appError': { AppError },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: 'SafeAreaView' }, '@/errors/appError': { AppError },
     '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/components/item-pick-count': { ItemPickCount: 'ItemPickCount' }, '@/components/item-channel-links': { ItemChannelLinks: 'ItemChannelLinks' }, '@/components/youtube-video-link': { YouTubeVideoLink: 'ItemChannelLinks' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },

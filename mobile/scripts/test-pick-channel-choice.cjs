@@ -99,7 +99,7 @@ const { default: Find } = load('app/pick/find.tsx', {
     useRouter: () => ({ canGoBack: () => true, back() {}, push: (route) => { destination = route; }, replace: (route) => { destination = route; } }),
   },
   'react-native': native,
-  'react-native-safe-area-context': { SafeAreaView: component('section') },
+  'react-native-safe-area-context': { SafeAreaView: component('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: component('section') },
   '@/errors/appError': load('errors/appError.ts'),
   '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
   '@/components/pick-photo': { PickPhoto: () => null },
@@ -223,7 +223,7 @@ const linkNative = { ...native, Pressable: (props) => { linkPresses.push(props);
 const { default: Link } = load('app/pick/link.tsx', {
   react: linkReact,
   'react-native': linkNative,
-  'react-native-safe-area-context': { SafeAreaView: component('section') },
+  'react-native-safe-area-context': { SafeAreaView: component('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: component('section') },
   'expo-router': { useLocalSearchParams: () => ({}), useRouter: () => ({ push: (route) => { destination = route; }, back() {} }) },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': linkNative, '@/components/pick-photo': { PickPhoto: () => null } }),
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false, error: null }) },

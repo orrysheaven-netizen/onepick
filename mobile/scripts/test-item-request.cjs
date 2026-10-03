@@ -109,7 +109,7 @@ async function main() {
     '@/services/registrationService': { CATEGORY_HINT_MAX_LENGTH: 60 },
     react: fakeReact, 'react-native': native,
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
-    'react-native-safe-area-context': { SafeAreaView: component('section') },
+    'react-native-safe-area-context': { SafeAreaView: component('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: component('section') },
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({
       push: (route) => { destination = route; }, replace: (route) => { destination = route; }, canGoBack: () => false,
     }) },

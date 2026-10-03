@@ -51,7 +51,7 @@ function harness(file, exportName, imports) {
   for (const name of ['View', 'Text', 'TextInput', 'ScrollView', 'ActivityIndicator', 'Image', 'Pressable']) native[name] = name;
   const Screen = load(file, {
     react: hooks, 'react-native': native,
-    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
     '@/components/current-pick-flag': { CurrentPickFlag: 'CurrentPickFlag' },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
