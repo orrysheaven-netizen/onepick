@@ -105,9 +105,9 @@ jobs:
 
   real-user-errors:
     runs-on: ubuntu-latest
-    # Reads Management API data with the dedicated read-only QA token.
-    # The job remains main-only and keeps the Production environment gate.
-    environment: Production
+    # Reads Management API data with the repository-scoped read-only QA token.
+    # Keep this main-only; do not attach Production because environment secrets
+    # override repository secrets with the same name.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 5
     steps:
@@ -138,9 +138,9 @@ jobs:
   # only. Without SUPABASE_ACCESS_TOKEN the script records a skip and exits 0.
   db-health:
     runs-on: ubuntu-latest
-    # Reads Management API data with the dedicated read-only QA token.
-    # The job remains main-only and keeps the Production environment gate.
-    environment: Production
+    # Reads Management API data with the repository-scoped read-only QA token.
+    # Keep this main-only; do not attach Production because environment secrets
+    # override repository secrets with the same name.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 5
     steps:
