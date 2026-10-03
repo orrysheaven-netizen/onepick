@@ -52,7 +52,7 @@ Production Environment configuration used by these workflows:
 - secret `SUPABASE_DB_PASSWORD`: the existing database password used by DB migration and Edge apply preflight. Edge dry-run does not receive this secret.
 
 Repository Actions configuration for read-only QA:
-- secret `SUPABASE_QA_ACCESS_TOKEN`: project-scoped PAT used by Deployment Consistency and read-only QA jobs. Grant exactly **Edge Functions: Read**, **Database: Read**, and **Advisors: Read**. Do not grant Read-write access.
+- secret `SUPABASE_QA_ACCESS_TOKEN`: project-scoped PAT used by Deployment Consistency and read-only QA jobs. Grant exactly **Edge Functions: Read**, **Database: Read**, and **Advisors: Read**. Do not grant Read-write access. Read-only QA jobs intentionally do **not** attach the `Production` Environment, so an Environment secret with the same name cannot shadow this Repository secret.
 - the non-secret Session pooler host is pinned in the deployment workflows as
   `aws-0-ap-northeast-2.pooler.supabase.com` for the current `onepick-dev` project.
   The workflow URL-encodes the existing password and constructs port `5432` Session
