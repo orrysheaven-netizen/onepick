@@ -25,7 +25,7 @@ export function PickButton({ state = 'default', onPress, loading, fullWidth = tr
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={labels[state]}
-      accessibilityState={{ disabled: mine, busy: Boolean(loading) }}
+      accessibilityState={{ disabled: inactive, busy: Boolean(loading) }}
       disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [
