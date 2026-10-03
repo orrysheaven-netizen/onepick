@@ -55,15 +55,22 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill;
+let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
   useProviderStorePrefill: (providerId, enabled) => ({
-    data: enabled && providerId ? providerPrefill : null, isPending: false, isError: false,
+    data: enabled && providerId ? providerPrefill : null,
+    // TanStack Query v5: a never-run disabled query is pending, but not loading.
+    isPending: !enabled,
+    isLoading: false,
+    isError: false,
   }),
-  useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
-    isWaiting: false, isFetching: false, isError: false, refetch() {} }),
+  useStoreSearch: (channel, query, enabled) => {
+    storeSearchEnabled = enabled;
+    return { data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
+      isWaiting: false, isFetching: false, isError: false, refetch() {} };
+  },
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
   useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: false, isError: false }),
   useSelectStoreItem: () => mutation('select', () => selectResult),
@@ -96,7 +103,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
 });
 
 function reset() {
-  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {};
+  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
     offline: [
@@ -158,6 +165,15 @@ async function main() {
   press('다음'); page = render();
   assert.equal(step(page), '2');
 
+  // Clearing a validated provider prefill falls back to ordinary search.
+  reset();
+  routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
+  render(); page = render();
+  press('매장명 지우기'); page = render();
+  input('매장명 검색').onChangeText('을밀대'); page = render();
+  assert.equal(storeSearchEnabled, true, 'cleared provider prefill re-enables ordinary search');
+  assert.match(page, /검색 결과 2개/);
+
   // Menu detail entry keeps step 1, then prefills menu/category after a store is chosen.
   reset();
   menuOptions = [
@@ -170,10 +186,25 @@ async function main() {
   assert.equal(input('메뉴 이름').value, '라멘');
   assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
   assert.match(page, /면 › 라멘/);
+  input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
+  press('이전 단계'); page = render();
+  input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
+  assert.equal(input('메뉴 이름').value, '쇼유라멘', 'edited prefilled menu survives back + reselecting the store');
+
+  // Fresh menu-prefill path still accepts the validated category on first use.
+  reset();
+  menuOptions = [
+    { categoryId: '22222222-2222-2222-2222-222222222222', name: '라멘', groupName: '면', placeEnabled: true },
+  ];
+  selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
+  routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
   press('다음'); await flush();
   page = render(); assert.equal(step(page), '4', 'Existing photo skips the photo interaction from a valid menu prefill');
 
   // Public MVP starts directly at offline store search: no channel chooser.
+  // A disabled provider-prefill query is isPending=true in TanStack Query v5,
+  // but that must not disable ordinary store search.
   reset();
   page = render();
   assert.equal(step(page), '1');
@@ -181,6 +212,7 @@ async function main() {
   assert.match(page, /오프라인 매장/);
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
   input('매장명 검색').onChangeText('을밀대'); page = render();
+  assert.equal(storeSearchEnabled, true, 'normal entry enables store search even while disabled prefill query is pending');
   assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해 주세요/);
 
   // Existing item: store -> menu -> photo -> review, then response ids.

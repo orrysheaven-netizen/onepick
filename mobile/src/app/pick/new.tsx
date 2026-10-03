@@ -166,6 +166,7 @@ export default function NewPickScreen() {
   const [prefillDismissed, setPrefillDismissed] = useState(false);
   const [menuPrefilled, setMenuPrefilled] = useState(false);
   const restoredDraftRef = useRef(false);
+  const entryMenuPrefillConsumedRef = useRef(false);
   const drafts = pickDraftStore();
 
   const resetForm = () => {
@@ -176,9 +177,11 @@ export default function NewPickScreen() {
     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     setResumeStep(null); setPhotoReselect(false); setPrefillDismissed(false); setMenuPrefilled(false);
     restoredDraftRef.current = false;
+    entryMenuPrefillConsumedRef.current = false;
   };
   const applyDraft = (draft: RestoredPickDraft) => {
     restoredDraftRef.current = true;
+    entryMenuPrefillConsumedRef.current = true;
     setPrefillDismissed(true);
     setMenuPrefilled(false);
     setQuery(draft.query); setRequesting(draft.requesting); setRequestPart(draft.requestPart ?? 'name'); setNewName(draft.newName);
@@ -217,7 +220,7 @@ export default function NewPickScreen() {
   const search = useStoreSearch(
     'offline',
     query,
-    Boolean(user) && step === 1 && !requesting && !providerPrefillStore && !providerPrefill.isPending,
+    Boolean(user) && step === 1 && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
   );
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const suggestionStore = useMemo(() => store ? {
@@ -302,7 +305,8 @@ export default function NewPickScreen() {
     setStep(previousFrom(step));
   };
   const applyEntryMenuPrefill = () => {
-    if (!entryMenuName || restoredDraftRef.current) return;
+    if (!entryMenuName || restoredDraftRef.current || entryMenuPrefillConsumedRef.current) return;
+    entryMenuPrefillConsumedRef.current = true;
     setMenuQuery(entryMenuName);
     setMenu(null);
     setMenuPrefilled(true);
@@ -554,7 +558,7 @@ export default function NewPickScreen() {
                 </View>
                 {providerPrefillStore
                   ? <Text style={styles.helper}>보고 있던 매장을 선택해 두었어요. 다른 매장이면 다시 검색해 주세요.</Text>
-                  : providerPrefill.isPending
+                  : providerPrefill.isLoading
                     ? <Text style={styles.helper}>보고 있던 매장을 확인하고 있어요.</Text>
                     : search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
                       ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해 주세요.</Text>

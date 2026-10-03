@@ -263,7 +263,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
   '@/hooks/useStoreFirst': {
-    useProviderStorePrefill: () => ({ data: null, isPending: false, isError: false }),
+    useProviderStorePrefill: () => ({ data: null, isPending: true, isLoading: false, isError: false }),
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
       { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
     ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
@@ -443,7 +443,18 @@ async function screenTests() {
   page = await render(); page = await render();
   assert.equal(stepOf(page), '4');
 
-  // 8. Explicit cancel clears the draft.
+  // 8. A restored step-1 draft still enables ordinary store search even though
+  //    the disabled provider-prefill query reports isPending=true in Query v5.
+  reset();
+  draftStore.save('owner', fields({
+    step: 1, query: '을밀대', store: null, menuQuery: '', menu: null, review: '',
+  }));
+  mount();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '1');
+  assert.match(page, /을밀대 선택/, 'restored step-1 draft may search normally');
+
+  // 9. Explicit cancel clears the draft.
   reset();
   await writeUntilReview();
   press('원픽 등록 취소');
