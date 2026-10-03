@@ -150,7 +150,8 @@ async function main() {
   // Provider profile entry re-reads the ID and shows step 1 with a selected store until Next.
   reset();
   routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
-  page = render();
+  render(); // first render binds the account-owned draft scope
+  page = render(); // next render may apply the validated entry prefill
   assert.equal(input('매장명 검색').value, '서울집 성수점');
   assert.match(page, /보고 있던 매장을 선택해 두었어요/);
   assert.match(page, /서울집 · 성수점/);
