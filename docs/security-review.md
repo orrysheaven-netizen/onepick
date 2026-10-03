@@ -51,3 +51,18 @@ Reference: #604 (Security QA 2026-10-01, L6, Low, 참고).
 - **금지:** 어떤 자동화도 이 판정/marker를 병합·배포·시크릿 단계의 입력이나 승인 근거로 쓰지 않는다. 쓰려면 전용 PM identity(별도 계정 또는 App)와 보안 검토를 먼저 한다.
 - **재검토 조건:** 판정 기록을 자동 단계의 입력으로 쓰려 할 때, 소유자 계정을 여러 사람/에이전트가 공유하게 될 때.
 - **완료 기준 충족:** #604 L6의 완료 기준 중 "`docs/pm/README.md`·`docs/security-review.md`에 계정 단위 신뢰 수용 기록"을 이 문서화로 충족한다. 워크플로가 전용 신원만 인정하도록 바꾸는 선택지는 택하지 않았다.
+
+## Dependency advisory: node-forge build-tool chain (L8, 2026-10-03)
+
+Reference: #686 (Security QA 2026-10-03, L8, Low).
+
+`mobile/package-lock.json` resolves `node-forge@1.4.0` only through the Expo tool chain:
+`expo@57.0.22 -> @expo/cli@57.0.24 -> @expo/code-signing-certificates@0.0.6 -> node-forge`,
+and directly from `@expo/cli`. The app does not declare `node-forge` as a runtime dependency.
+
+The current High advisory (CVE-2026-85393 / GHSA-86w9-cpqp-85rv) includes 1.4.0, while 1.4.0 is also the current npm release. There is therefore no released npm version to upgrade to as of this review.
+
+**Temporary MVP handling:** keep the affected package confined to the existing Expo build/development tool chain; do not add direct application use of `node-forge` or its RSA verification APIs. Do not pin an unreviewed Git commit or introduce a new dependency solely to silence the audit. Re-run `npm audit` when Expo/node-forge publishes a patched release and take the compatible upgrade through the normal dependency/regression-test path.
+
+This is a time-bounded build-tool residual-risk record, not approval to ignore future patched versions. Reopen immediately if the dependency becomes part of shipped application runtime code, the advisory scope changes, or an upstream fixed npm release becomes available.
+
