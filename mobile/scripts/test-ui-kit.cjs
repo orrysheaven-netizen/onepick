@@ -133,7 +133,10 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   render(React.createElement(ui.Avatar, { name: 'friend', size: 40, onPress: () => opened++ }));
   const link = pressable('@friend 프로필 보기');
   assert.ok(link, 'Pressable avatar gets a profile label by default');
-  assert.equal(link.resolved.width, 40);
+  assert.ok(link.resolved.minWidth >= 44 && link.resolved.minHeight >= 44, 'Interactive avatar uses a real 44x44 touch wrapper');
+  const avatarVisual = views.find((v) => v.order > link.order).resolved;
+  assert.equal(avatarVisual.width, 40);
+  assert.equal(avatarVisual.height, 40);
   link.onPress(); assert.equal(opened, 1);
 }
 
@@ -237,8 +240,11 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   for (const size of [24, 32, 40]) {
     render(React.createElement(ui.Avatar, { name: 'a', size, onPress() {}, accessibilityLabel: `아바타${size}` }));
     const avatar = pressable(`아바타${size}`);
-    assert.equal(avatar.resolved.width, size, 'Avatar keeps its visual size');
-    assert.ok(size + avatar.hitSlop.left + avatar.hitSlop.right >= 44 && size + avatar.hitSlop.top + avatar.hitSlop.bottom >= 44);
+    assert.ok(avatar.resolved.minWidth >= 44 && avatar.resolved.minHeight >= 44, 'Avatar wrapper reaches 44x44');
+    assert.equal(avatar.hitSlop, undefined, 'Avatar does not rely on hitSlop');
+    const circle = views.find((v) => v.order > avatar.order).resolved;
+    assert.equal(circle.width, size, 'Avatar keeps its visual size');
+    assert.equal(circle.height, size, 'Avatar keeps its visual size');
   }
 
   render(React.createElement(ui.PickCard, {
