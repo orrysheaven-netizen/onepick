@@ -38,12 +38,22 @@ Claude 클라우드 세션은 네트워크 정책 때문에 `onepick-5cl.pages.d
 - `pass`는 High 발견 사항과 예산 초과가 모두 없을 때만 `true`다.
 - `QA_MODE=pr`일 때만 `pass`가 `false`면 프로세스 종료 코드가 1이 된다(전체 야간 실행은 항상 0으로 끝난다).
 
-ChatGPT/Codex의 PR 미리보기 워크플로(B-워크플로, 아직 미구현)는 Cloudflare 미리보기 배포가 끝난 뒤 다음처럼 실행해 결과를 PR 댓글로 남기면 된다. 필수 체크로 걸지 않으므로 종료 코드 1은 PR을 막지 않고, 댓글 내용으로만 알린다.
+ChatGPT/Codex의 B-워크플로는 `.github/workflows/pr-preview-qa.yml`이다. 같은 저장소의 Ready PR에서 Cloudflare branch alias를 계산하고, `deployment.json`의 `commitSha`가 PR head와 정확히 일치할 때만 **base(main)의 검증된 QA harness**로 `QA_MODE=pr`을 실행한다. PR 브랜치의 QA 스크립트를 댓글 권한이 있는 토큰으로 실행하지 않으며, fork PR·Draft PR은 건너뛴다.
+
+- 결과는 동일 PR의 `<!-- onepick-pr-preview-qa -->` 댓글 하나를 갱신한다.
+- preview가 제한 시간 안에 해당 commit에 도달하지 않으면 skip 댓글만 남기고 성공으로 끝난다.
+- High 발견 또는 예산 초과 시 workflow 자체는 실패로 표시하지만 **branch protection의 필수 체크에는 포함하지 않는다**.
+- 결과물은 `pr-preview-qa-<PR 번호>` artifact로 7일 보관한다.
+- 신규 Cloudflare API token/Secret은 사용하지 않는다. branch alias + 공개 `deployment.json`만 읽는다.
+
+로컬 수동 재현:
 
 ```bash
 cd tools/qa && npm ci && npx playwright install --with-deps chromium
 QA_MODE=pr QA_BASE_URL=<미리보기 URL> node live-qa.mjs   # 결과: tools/qa/qa-output/verdict.json
 ```
+
+`verify-web`의 `check:web`은 별도로 `index.html`이 직접 참조하는 초기 JS만 gzip 크기로 합산해 **1500KB** 상한을 검사한다. route-level async chunk 전체를 초기 로드 예산에 합치지 않는다.
 
 `tools/qa/logged-in-qa.mjs`는 QA 전용 일반 사용자 계정으로 로그인한 상태를 390×844 모바일 뷰포트에서 측정한다(job `logged-in`).
 
