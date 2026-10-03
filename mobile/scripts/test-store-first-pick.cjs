@@ -13,7 +13,7 @@ function load(file, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText, { exports, URL, require: (name) => {
+  }).outputText, { exports, URL, setTimeout: () => 0, clearTimeout() {}, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
@@ -26,9 +26,9 @@ const part = (tag) => ({ children }) => React.createElement(tag, null, children)
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
 
-let states, refs, stateIndex, refIndex, pressables, inputs, destination, uuidCounter, routeParams;
+let effectDeps, pendingEffects, effectIndex, scrollables, searchState, states, refs, stateIndex, refIndex, pressables, inputs, destination, uuidCounter, routeParams;
 const native = {
-  View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+  Keyboard: { dismiss() {} }, KeyboardAvoidingView: part('div'), View: part('div'), Text: part('span'), ScrollView: (props) => { scrollables.push(props); return React.createElement('main', { 'data-testid': props.testID }, props.children); }, Modal: part('div'), ActivityIndicator: () => null,
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
   TextInput: (props) => { inputs.push(props); return React.createElement('input', { 'aria-label': props.accessibilityLabel, placeholder: props.placeholder }); },
   Pressable: (props) => { pressables.push(props); return React.createElement('button', null, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children); },
@@ -40,6 +40,14 @@ const fakeReact = { ...React,
     if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial;
     return [states[i], (value) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }];
   },
+  useEffect: (effect, deps) => {
+    const i = effectIndex++;
+    const previous = effectDeps[i];
+    if (!previous || deps.some((dep, k) => !Object.is(dep, previous[k]))) {
+      effectDeps[i] = deps; pendingEffects.push(effect);
+    }
+  },
+  useCallback: (fn) => fn,
   useMemo: (compute) => compute(),
   useRef: (initial) => {
     const i = refIndex++;
@@ -69,7 +77,7 @@ const hooks = {
   useStoreSearch: (channel, query, enabled) => {
     storeSearchEnabled = enabled;
     return { data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
-      isWaiting: false, isFetching: false, isError: false, refetch() {} };
+      isWaiting: false, isFetching: false, isError: false, hasNextPage: false, refetch() {}, fetchNextPage() {}, ...searchState };
   },
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
   useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: false, isError: false }),
@@ -103,7 +111,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
 });
 
 function reset() {
-  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
+  effectDeps = []; searchState = {}; states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
     offline: [
@@ -128,8 +136,14 @@ function reset() {
   registerRun = (input) => ({ itemId: input.itemId ?? 'created-item', pickId: 'pick-1', published: Boolean(input.itemId), replacedPickId: null, retried: false });
 }
 function render() {
-  stateIndex = 0; refIndex = 0; pressables = []; inputs = [];
-  return renderToStaticMarkup(React.createElement(Screen));
+  let page;
+  for (let i = 0; i < 8; i++) {
+    stateIndex = 0; refIndex = 0; effectIndex = 0; pressables = []; inputs = []; scrollables = []; pendingEffects = [];
+    page = renderToStaticMarkup(React.createElement(Screen));
+    for (const effect of pendingEffects) effect();
+    if (!pendingEffects.length) break;
+  }
+  return page;
 }
 function press(label) {
   const found = pressables.find((props) => props.accessibilityLabel === label || textOf(props.children) === label || textOf(props.children).includes(label));
@@ -141,7 +155,7 @@ const input = (label) => { const found = inputs.find((props) => props.accessibil
 const step = (page) => /(\d) \/ 4/.exec(page)?.[1];
 
 async function chooseExistingOffline(name = '을밀대', menu = '평양냉면', menuLabel = '면 › 평양냉면') {
-  render(); input('매장명 검색').onChangeText(name); render(); press(`${name} 선택`); render();
+  render(); input('매장명 검색').onChangeText(name); render(); press(`${name} ${name === '우래옥' ? '서울 중구' : '서울 마포구'} 선택`); render();
   input('메뉴 이름').onChangeText(menu); render(); press(menuLabel); render(); press('다음'); await flush();
 }
 
@@ -154,25 +168,28 @@ async function main() {
   assert.equal(destination.params.action, 'store_pick');
   assert.equal(destination.params.providerId, undefined);
 
-  // Provider profile entry re-reads the ID and shows step 1 with a selected store until Next.
+  // A validated profile entry jumps directly to menu input. Back permits re-selection.
   reset();
   routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
-  render(); // first render binds the account-owned draft scope
-  page = render(); // next render may apply the validated entry prefill
-  assert.equal(input('매장명 검색').value, '서울집 성수점');
-  assert.match(page, /보고 있던 매장을 선택해 두었어요/);
-  assert.match(page, /서울집 · 성수점/);
-  press('다음'); page = render();
+  page = render();
   assert.equal(step(page), '2');
-
-  // Clearing a validated provider prefill falls back to ordinary search.
-  reset();
-  routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
-  render(); page = render();
-  press('매장명 지우기'); page = render();
+  assert.match(page, /2 \/ 4 메뉴 입력/);
+  assert.doesNotMatch(page, /서울집 성수점/);
+  input('메뉴 이름').onChangeText('작성 중 메뉴'); render();
+  press('선택한 매장 확인'); page = render();
+  assert.match(page, /서울집 성수점/);
+  press('닫기'); page = render();
+  assert.equal(input('메뉴 이름').value, '작성 중 메뉴');
+  press('선택한 매장 확인'); render(); press('매장 변경'); page = render();
+  assert.equal(step(page), '1');
+  input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); page = render();
+  input('메뉴 이름');
+  assert.ok(!inputs.some((p) => p.accessibilityLabel === '매장명 검색'));
+  press('이전 단계'); page = render();
+  assert.equal(step(page), '1');
   input('매장명 검색').onChangeText('을밀대'); page = render();
-  assert.equal(storeSearchEnabled, true, 'cleared provider prefill re-enables ordinary search');
-  assert.match(page, /검색 결과 2개/);
+  assert.equal(storeSearchEnabled, true);
+  assert.match(page, /을밀대/);
 
   // Menu detail entry keeps step 1, then prefills menu/category after a store is chosen.
   reset();
@@ -181,14 +198,14 @@ async function main() {
   ];
   selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
   routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); page = render();
   assert.equal(step(page), '2');
   assert.equal(input('메뉴 이름').value, '라멘');
   assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
   assert.match(page, /면 › 라멘/);
   input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
   press('이전 단계'); page = render();
-  input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
+  input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); page = render();
   assert.equal(input('메뉴 이름').value, '쇼유라멘', 'edited prefilled menu survives back + reselecting the store');
 
   // Fresh menu-prefill path still accepts the validated category on first use.
@@ -198,7 +215,7 @@ async function main() {
   ];
   selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
   routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); render();
   press('다음'); await flush();
   page = render(); assert.equal(step(page), '4', 'Existing photo skips the photo interaction from a valid menu prefill');
 
@@ -208,22 +225,44 @@ async function main() {
   reset();
   page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /상호명을 검색해 주세요/);
-  assert.match(page, /오프라인 매장/);
+  assert.match(page, /어느 매장을 찾으세요/);
+  assert.match(page, /매장 선택/);
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
   input('매장명 검색').onChangeText('을밀대'); page = render();
   assert.equal(storeSearchEnabled, true, 'normal entry enables store search even while disabled prefill query is pending');
-  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해 주세요/);
+  assert.match(page, /등록할 매장을 선택해 주세요/);
+
+  // Pagination: retain rows while loading/failing, retry the failed page, stop at the end.
+  const nearEnd = () => scrollables.find((p) => p.testID === 'store-search-results').onScroll({
+    nativeEvent: { layoutMeasurement: { height: 300 }, contentOffset: { y: 700 }, contentSize: { height: 1000 } },
+  });
+  let nextRequests = 0;
+  searchState = { hasNextPage: true, fetchNextPage: () => { nextRequests++; } };
+  page = render(); nearEnd(); assert.equal(nextRequests, 1);
+  assert.doesNotMatch(page, /매장을 더 불러오는 중이에요/);
+  searchState.isFetching = true; searchState.isFetchingNextPage = true;
+  page = render(); nearEnd(); assert.equal(nextRequests, 1);
+  assert.match(page, /매장을 더 불러오는 중이에요/); assert.match(page, /을밀대/);
+  searchState.isFetching = false; searchState.isFetchingNextPage = false;
+  searchState.isError = true; searchState.isFetchNextPageError = true;
+  page = render(); nearEnd(); assert.equal(nextRequests, 1);
+  assert.match(page, /을밀대/); press('다시 불러오기'); assert.equal(nextRequests, 2);
+  searchState = { hasNextPage: false };
+  page = render(); nearEnd(); assert.equal(nextRequests, 2);
+  assert.match(page, /검색 결과를 모두 확인했어요/);
+  assert.doesNotMatch(page, /상세 주소 표시|숭문길 24|지점과 주소/);
+  searchState = {};
 
   // Existing item: store -> menu -> photo -> review, then response ids.
   await chooseExistingOffline();
   page = render();
   assert.equal(step(page), '3');
+  press('선택한 매장 확인'); render(); press('닫기'); page = render();
   assert.doesNotMatch(page, /사진 없이 계속/);
   press('사진 선택'); await flush(); render(); press('다음');
   page = render();
   assert.equal(step(page), '4');
-  input('원픽 한줄평').onChangeText('육수가 깔끔해요'); render();
+  input('원픽 한줄평').onChangeText('육수가 깔끔해요'); render(); press('선택한 매장 확인'); render(); press('닫기'); render(); assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요'); render();
   press('원픽 등록하기'); await flush();
   const existingSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(existingSave.itemId, 'item-1');
@@ -262,7 +301,7 @@ async function main() {
     },
   };
   registerRun = () => ({ itemId: 'brand-pending', pickId: 'brand-pick', published: false, replacedPickId: null, retried: false });
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); render();
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
   page = render();
   assert.equal(step(page), '2');
@@ -282,10 +321,10 @@ async function main() {
   // AI recommendation remains inside the menu step.
   reset();
   selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
-  render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
+  render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 서울 중구 선택'); render();
   input('메뉴 이름').onChangeText('평양물냉'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
   assert.equal(step(page), '2');
-  assert.match(page, /카테고리 · AI 추천/);
+  assert.match(page, /카테고리 AI 추천/);
   assert.match(page, /평양냉면으로 유명한 곳이에요/);
   press('다음'); await flush(); page = render();
   assert.equal(step(page), '4', 'Existing photo skips the photo interaction');
@@ -295,7 +334,7 @@ async function main() {
   // Missing category cannot become a fake request-success state.
   reset();
   aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); render();
   input('메뉴 이름').onChangeText('할머니 비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
   assert.match(page, /카테고리를 추천하지 못했어요/);
   assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);

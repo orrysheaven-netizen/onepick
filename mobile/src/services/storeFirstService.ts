@@ -195,6 +195,25 @@ export class StoreFirstService {
     }));
   }
 
+  /** #701 owns global ordering. Never sort individual pages on the client. */
+  async searchStorePage(query: string, cursor: string | null, signal?: AbortSignal): Promise<{ items: StoreCandidate[]; nextCursor: string | null }> {
+    const q = cleanQuery(query);
+    if (q.length < 2 || q.length > 100) return { items: [], nextCursor: null };
+    let request = this.client.rpc('search_store_catalog_page', { p_query: q, p_cursor: cursor, p_limit: 20 });
+    if (signal) request = request.abortSignal(signal);
+    const { data, error } = await request;
+    if (error) throw mapSupabaseError(error);
+    return {
+      items: (data ?? []).map((row) => ({
+        kind: 'place' as const, catalogId: row.catalog_id, name: row.name,
+        branchName: row.branch_name,
+        region: [row.region_1?.replace(/^서울특별시$|^서울$/, '서울시'), row.region_2].filter(Boolean).join(' ') || null,
+        address: row.road_address ?? row.address, providerCategory: row.provider_category, mapUrl: row.map_url,
+      })),
+      nextCursor: data?.[0]?.next_cursor ?? null,
+    };
+  }
+
   async searchSellers(query: string, signal?: AbortSignal): Promise<StoreCandidate[]> {
     const q = cleanQuery(query);
     if (q.length < 1 || q.length > 100) return [];

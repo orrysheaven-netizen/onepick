@@ -210,7 +210,7 @@ const part = (tag) => ({ children }) => React.createElement(tag, null, children)
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
 const native = {
-  View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+  Keyboard: { dismiss() {} }, KeyboardAvoidingView: part('div'), View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
   TextInput: (props) => { inputs.push(props); return React.createElement('input', { 'aria-label': props.accessibilityLabel, placeholder: props.placeholder }); },
   Pressable: (props) => { pressables.push(props); return React.createElement('button', null, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children); },
@@ -222,6 +222,7 @@ const fakeReact = { ...React,
     if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial;
     return [states[i], (value) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }];
   },
+  useCallback: (fn) => fn,
   useMemo: (compute) => compute(),
   useRef: (initial) => {
     const i = refIndex++;
@@ -314,7 +315,7 @@ const count = (name) => calls.filter(([n]) => n === name).length;
 
 // Store -> menu -> photo -> review typed on the last step (not submitted).
 async function writeUntilReview() {
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 서울 마포구 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
   press('다음'); await flush(); await render();
   press('사진 선택'); await flush(); await render(); press('다음'); await render();
@@ -412,7 +413,7 @@ async function screenTests() {
   // 6. Item already has a photo: no photo request, review step returns directly.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 서울 마포구 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
   press('다음'); await flush(); await render();
   input('원픽 한줄평').onChangeText('또 가고 싶어요'); await render();
@@ -453,7 +454,7 @@ async function screenTests() {
   page = await render(); page = await render();
   assert.equal(stepOf(page), '1');
   assert.equal(input('매장명 검색').value, '을밀대');
-  assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
+  assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 서울 마포구 선택'),
     'restored step-1 draft may search normally');
 
   // 9. Explicit cancel clears the draft.
@@ -465,7 +466,7 @@ async function screenTests() {
 
   // 9. Early steps restore as they were (menu step keeps its selection).
   reset();
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 서울 마포구 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render();
   mount(); page = await render(); page = await render();
   assert.equal(stepOf(page), '2');
