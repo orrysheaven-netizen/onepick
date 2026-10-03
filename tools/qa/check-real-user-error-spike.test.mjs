@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { evaluateRows, runQuery } from './check-real-user-error-spike.mjs';
 
 function row(overrides = {}) {
@@ -145,4 +146,17 @@ test('reports a denied query without exposing the response body or credential', 
     json: async () => { throw new Error('response body must not be read'); },
   }));
   await assert.rejects(runQuery(), /^Error: Supabase Management API 403$/);
+});
+
+
+test('workflow wiring keeps QA reads on the repository token without Production shadowing', () => {
+  const hourly = fs.readFileSync(new URL('../../.github/workflows/real-user-error-alerts.yml', import.meta.url), 'utf8');
+  const daily = fs.readFileSync(new URL('../../.github/workflows/daily-qa.yml', import.meta.url), 'utf8');
+
+  assert.match(hourly, /SUPABASE_ACCESS_TOKEN:\s*\$\{\{ secrets\.SUPABASE_QA_ACCESS_TOKEN \}\}/);
+  assert.doesNotMatch(hourly, /environment:\s*Production/);
+
+  const dailyQaRefs = daily.match(/SUPABASE_ACCESS_TOKEN:\s*\$\{\{ secrets\.SUPABASE_QA_ACCESS_TOKEN \}\}/g) ?? [];
+  assert.equal(dailyQaRefs.length, 2);
+  assert.doesNotMatch(daily, /environment:\s*Production/);
 });
