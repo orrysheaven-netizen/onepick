@@ -60,7 +60,7 @@
 - **CI / QA 계약**
   - unrelated Ready PR required-check 회귀 방지 main 반영 완료.
   - #689 계측 보강 main 반영 완료.
-  - #698은 Ready 전환 완료, exact head 필수 CI green. main merge는 사용자 승인 게이트이며 병합 직후 Database/Advisors read 검증이 남아 있다.
+  - #698 main 병합 완료 (`d0fae5d`). QA read-only token과 Production deploy token 분리 계약이 main에 반영됐다. Database/Advisors endpoint의 main-only live 검증만 남아 있다.
 
 ## P2 — 점검 후 보완
 
