@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, StateCard } from '@/components/ui';
@@ -51,10 +51,9 @@ type FlowButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   accessibilityLabel?: string;
-  compact?: boolean;
 };
 
-function FlowButton({ label, onPress, variant = 'primary', disabled, loading, accessibilityLabel, compact }: FlowButtonProps) {
+function FlowButton({ label, onPress, variant = 'primary', disabled, loading, accessibilityLabel }: FlowButtonProps) {
   const inactive = Boolean(disabled || loading);
   return <Pressable
     accessibilityRole="button"
@@ -64,7 +63,6 @@ function FlowButton({ label, onPress, variant = 'primary', disabled, loading, ac
     onPress={onPress}
     style={({ pressed }) => [
       styles.flowButton,
-      compact && styles.flowButtonCompact,
       variant === 'secondary' && styles.flowButtonSecondary,
       variant === 'text' && styles.flowButtonText,
       inactive && variant !== 'text' && styles.flowButtonDisabled,
@@ -132,7 +130,6 @@ export default function NewPickScreen() {
   const user = auth.user;
   const [step, setStep] = useState<Step>(1);
   const [query, setQuery] = useState('');
-  const [storeSheetOpen, setStoreSheetOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [requestPart, setRequestPart] = useState<'name' | 'link'>('name');
   const [newName, setNewName] = useState('');
@@ -173,7 +170,6 @@ export default function NewPickScreen() {
   const drafts = pickDraftStore();
 
   const resetForm = () => {
-    setStoreSheetOpen(false);
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
@@ -490,17 +486,6 @@ export default function NewPickScreen() {
     }
   }, [providerPrefillStore, step, requesting, pickStore]);
 
-  const storeContextButton = <FlowButton compact variant="secondary" label="선택한 매장 확인"
-    disabled={saving || currentPickSlot.isPending || step === 6}
-    onPress={() => { Keyboard.dismiss(); setStoreSheetOpen(true); }} />;
-  const changeStore = () => {
-    if (saving || busy.current || currentPickSlot.isPending || step === 6) return;
-    setStoreSheetOpen(false);
-    setPrefillDismissed(true);
-    setRequesting(false);
-    setStep(1);
-  };
-
   const cancel = () => {
     if (saving || busy.current || done) return;
     drafts.clear();
@@ -643,7 +628,6 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>2 / 4 메뉴 입력</Text>
             <Text style={styles.title}>어떤 메뉴인가요?</Text>
-            {storeContextButton}
             <View style={styles.fieldBlock}>
               <FieldLabel label="메뉴명" />
               <View style={styles.inputWrap}>
@@ -752,7 +736,6 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>3 / 4 사진 추가</Text>
             <Text style={styles.title}>대표 사진을 올려주세요</Text>
-            {storeContextButton}
             <Text style={styles.helper}>{needsPhoto
               ? `이 메뉴에는 아직 사진이 없어요. 올린 사진은 관리자 검수 후 ${pickDisplayName} ${menu?.name ?? '메뉴'}의 대표 사진으로 쓰여요.`
               : '이미 대표 사진이 있어 사진 단계는 자동으로 건너뜁니다.'}</Text>
@@ -780,7 +763,6 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>4 / 4 한줄평 작성</Text>
             <Text style={styles.title}>한줄평을 남겨주세요</Text>
-            {storeContextButton}
             {pickChangedElsewhere
               ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체합니다.</Text></View>
               : !itemPending && replacingVisiblePick
@@ -801,24 +783,12 @@ export default function NewPickScreen() {
           </View>
         </> : null}
       </ScrollView>
-      {storeSheetOpen && store ? <Modal transparent animationType="slide" visible onRequestClose={() => setStoreSheetOpen(false)}>
-        <View style={styles.storeSheetOverlay}>
-          <SafeAreaView edges={['bottom']} style={styles.storeSheet} accessibilityViewIsModal>
-            <Text accessibilityRole="header" style={styles.title}>선택한 매장</Text>
-            <Text style={styles.helper}>{storeDisplayName}{store.kind === 'place' && store.region ? `  ${store.region}` : ''}</Text>
-            <FlowButton compact variant="secondary" label="매장 변경" disabled={saving || currentPickSlot.isPending || step === 6} onPress={changeStore} />
-            <FlowButton compact variant="secondary" label="닫기" onPress={() => setStoreSheetOpen(false)} />
-          </SafeAreaView>
-        </View>
-      </Modal> : null}
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  flowButtonCompact: { minHeight: 44 },
-  storeSheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: OnePick.bgOverlay },
-  storeSheet: { width: '100%', maxWidth: 390, alignSelf: 'center', backgroundColor: OnePick.bgDefault, borderTopLeftRadius: OnePickRadius.card, borderTopRightRadius: OnePickRadius.card, padding: OnePickSpace.lg, gap: OnePickSpace.lg },
   searchScreen: { flex: 1, width: '100%', maxWidth: 390, alignSelf: 'center' },
   searchBody: { flex: 1, minHeight: 0, gap: OnePickSpace.md, paddingTop: OnePickSpace.md, paddingHorizontal: OnePickSpace.gutter },
   searchField: { gap: OnePickSpace.sm, marginTop: OnePickSpace.xs },
