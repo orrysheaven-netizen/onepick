@@ -473,7 +473,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <ConfirmDialog
         visible={replaceConfirmOpen}
         title="이걸로 원픽을 바꿀까요?"
-        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 ${replacementItemName}이 새 원픽이 되고, 이전 선택은 기록으로 남아요.`}
+        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 새 원픽은 ${replacementItemName}으로 바뀌고, 이전 선택은 기록으로 남아요.`}
         confirmLabel="바꾸고 한줄평 쓰기"
         onCancel={() => setReplaceConfirmOpen(false)}
         onConfirm={() => {

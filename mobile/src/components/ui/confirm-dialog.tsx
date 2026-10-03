@@ -26,6 +26,8 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: Props) {
+  if (!visible) return null;
+
   return (
     <Modal
       animationType="fade"
@@ -33,7 +35,7 @@ export function ConfirmDialog({
       visible={visible}
       onRequestClose={() => { if (!busy) onCancel(); }}>
       <View style={styles.backdrop}>
-        <View accessibilityRole="alert" accessibilityLabel={title} style={styles.card}>
+        <View accessibilityRole="alert" accessibilityLabel={title} accessibilityViewIsModal style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
           <View style={styles.actions}>
