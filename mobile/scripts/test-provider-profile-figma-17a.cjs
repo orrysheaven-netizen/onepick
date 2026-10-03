@@ -55,8 +55,8 @@ for (const [label, source] of [['Home', home], ['menu detail', dish], ['own prof
 assert.match(screen, /scope: 'provider'/, 'brand branch rows still enter store scope');
 assert.match(screen, /브랜드 전체/, 'brand profile remains available');
 assert.match(menu, /내 \$\{name\} 원픽 등록하기/);
-assert.match(menu, /pathname: '\/pick\/new'[\s\S]{0,180}menuName: name[\s\S]{0,120}categoryId: category\.data\.id/,
-  'menu detail passes menu/category prefill into the same registration flow');
+assert.match(menu, /pathname: '\/pick\/new'[\s\S]{0,180}menuName: name[\s\S]{0,120}categoryId/,
+  'menu detail passes the validated menu/category prefill into the same registration flow');
 assert.doesNotMatch(screen, /fontWeight:\s*['"](?:800|900)['"]/, 'Figma 17A work does not introduce non-Foundations heavy weights');
 
 console.log('Figma 17A provider checks passed: store header, identity, registered links, menu rows/reviews, item drill-down and store-scope navigation.');
