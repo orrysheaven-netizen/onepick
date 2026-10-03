@@ -32,8 +32,9 @@
    - Security QA: Critical/High/Medium 신규 없음. L4는 #690으로 해결, L5·L7은 Low 추적 유지.
    - Daily QA: #689로 매장 검색 cold/warm 및 Home endpoint별 호출 수 계측을 main에 추가. 다음 Daily QA 측정값으로 검색 Medium 종료 여부를 판정한다.
    - Deployment Consistency #676의 `SUPABASE_QA_ACCESS_TOKEN` 401은 해결 완료.
-   - Hourly real-user error monitor #697은 기존 Production deploy token으로 read-only DB query를 호출해 HTTP 403이 발생. Draft #698에서 QA read-only token과 deploy token을 분리 중.
-   - #698의 QA token 권한은 **Edge Functions: Read + Database: Read + Advisors: Read**만 사용하며 Read-write는 주지 않는다.
+   - Hourly real-user error monitor #697은 기존 Production deploy token으로 read-only DB query를 호출해 HTTP 403이 발생. #698에서 QA read-only token과 deploy token을 분리했다.
+   - Repository `SUPABASE_QA_ACCESS_TOKEN` 재발급 완료. **Edge Functions: Read + Database: Read + Advisors: Read**만 부여했고 Read-write는 없다.
+   - 재발급 token으로 Edge Function status 조회를 실제 검증해 401/403 해소를 확인했다. Database/Advisors endpoint는 #698 병합 직후 main-only workflow에서 최종 검증한다.
 
 ## P1 — 현재 MVP 흐름 안정화
 
@@ -59,7 +60,7 @@
 - **CI / QA 계약**
   - unrelated Ready PR required-check 회귀 방지 main 반영 완료.
   - #689 계측 보강 main 반영 완료.
-  - #698은 secret 재발급·read-only 검증 전 Draft 유지.
+  - #698은 Ready 전환 완료, exact head 필수 CI green. main merge는 사용자 승인 게이트이며 병합 직후 Database/Advisors read 검증이 남아 있다.
 
 ## P2 — 점검 후 보완
 
