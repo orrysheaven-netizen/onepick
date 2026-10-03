@@ -14,10 +14,14 @@ assert.match(detail, /title="이걸로 원픽을 바꿀까요\?"/);
 assert.match(detail, /confirmLabel="바꾸고 한줄평 쓰기"/);
 assert.match(detail, /replaceConfirmed: '1'/);
 assert.match(dialog, /confirmVariant = 'primary'/, 'replacement confirmation is not destructive danger');
+assert.match(dialog, /variant="secondary"[\s\S]*?fullWidth[\s\S]*?variant=\{confirmVariant\}[\s\S]*?fullWidth/,
+  'confirmation actions fill their half-width columns');
+assert.match(detail, /consumePickResultToast\(focusPickId\)[\s\S]*?\[focusPickId\]/,
+  'item detail consumes the one-shot toast when dismissTo updates the focused Pick');
 assert.match(choose, /replacementConfirmed \? '원픽 바꾸기'/);
 assert.match(choose, /저장하면 \$\{categoryName\} 원픽이 이걸로 바뀌어요\. 이전 선택은 기록으로 남아요\./);
 assert.match(choose, /armPickChangedToast\(result\.id\)/);
-assert.match(choose, /router\.replace\(\{ pathname: '\/item\/\[itemId\]'/);
+assert.match(choose, /router\.dismissTo\(\{ pathname: '\/item\/\[itemId\]'/);
 assert.match(toast, /'원픽을 바꿨어요'/);
 assert.match(toast, /In-memory only/);
 

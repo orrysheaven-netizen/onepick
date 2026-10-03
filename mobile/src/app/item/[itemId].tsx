@@ -57,6 +57,15 @@ function revisionErrorMessage(error: unknown) {
   return '수정 내용을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
 }
 
+function subjectParticle(value: string) {
+  const text = value.trim();
+  const last = text.charAt(text.length - 1);
+  if (!last) return '이';
+  const syllable = last.charCodeAt(0) - 0xac00;
+  if (syllable >= 0 && syllable <= 0x2ba3) return syllable % 28 === 0 ? '가' : '이';
+  return '가';
+}
+
 type Params = {
   itemId?: string;
   pickId?: string;
@@ -103,10 +112,14 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  // Set only by a successful Pick flow right before it replaces itself with this screen.
+  // Set only by a successful Pick flow before returning to this detail screen.
   const [pickResultToast, setPickResultToast] = useState(() => consumePickResultToast(focusPickId));
   const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const itemLoaded = Boolean(query.data);
+  useEffect(() => {
+    const toast = consumePickResultToast(focusPickId);
+    if (toast) setPickResultToast(toast);
+  }, [focusPickId]);
   useEffect(() => {
     if (!pickResultToast || !itemLoaded) return;
     const timer = setTimeout(() => setPickResultToast(null), 2600);
@@ -343,6 +356,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   };
   const replaceCategoryName = category?.name ?? '이 카테고리';
   const replacementItemName = itemTitle(item.name, category?.name, isRestaurant);
+  const replacementSubjectParticle = subjectParticle(replacementItemName);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -473,7 +487,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <ConfirmDialog
         visible={replaceConfirmOpen}
         title="이걸로 원픽을 바꿀까요?"
-        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 새 원픽은 ${replacementItemName}으로 바뀌고, 이전 선택은 기록으로 남아요.`}
+        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 ${replacementItemName}${replacementSubjectParticle} 새 원픽이 되고, 이전 선택은 기록으로 남아요.`}
         confirmLabel="바꾸고 한줄평 쓰기"
         onCancel={() => setReplaceConfirmOpen(false)}
         onConfirm={() => {

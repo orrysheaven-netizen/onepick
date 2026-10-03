@@ -54,6 +54,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
   },
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({
     replace: (route) => destinations.push({ action: 'replace', route }),
+    dismissTo: (route) => destinations.push({ action: 'dismissTo', route }),
     push: (route) => destinations.push({ action: 'push', route }), back() {},
   }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
@@ -146,7 +147,7 @@ async function main() {
   submit('이걸로 바꾸기'); await flush();
   replacementPage = render();
   assert.doesNotMatch(replacementPage, /원픽을 정했어요/, 'confirmed replacement does not show the generic receipt');
-  assert.equal(destinations.at(-1).action, 'replace');
+  assert.equal(destinations.at(-1).action, 'dismissTo', 'confirmed replacement returns to the existing item detail instead of stacking another copy');
   assert.equal(destinations.at(-1).route.pathname, '/item/[itemId]');
   assert.equal(destinations.at(-1).route.params.itemId, result.itemId);
   assert.equal(destinations.at(-1).route.params.pickId, result.id);

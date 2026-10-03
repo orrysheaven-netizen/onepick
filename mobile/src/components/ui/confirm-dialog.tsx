@@ -42,6 +42,7 @@ export function ConfirmDialog({
             <Button
               variant="secondary"
               label={cancelLabel}
+              fullWidth
               disabled={busy}
               onPress={onCancel}
               style={styles.action}
@@ -49,6 +50,7 @@ export function ConfirmDialog({
             <Button
               variant={confirmVariant}
               label={confirmLabel}
+              fullWidth
               loading={busy}
               onPress={onConfirm}
               style={styles.action}

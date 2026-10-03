@@ -131,7 +131,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       submitPhase.current = 'saved';
       if (replacementConfirmed) {
         armPickChangedToast(result.id);
-        router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.id } });
+        router.dismissTo({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.id } });
         return;
       }
       setSavedChoice({ pick: result, item });
