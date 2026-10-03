@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { Avatar } from '@/components/ui';
+import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import { sharePick } from '@/lib/share/sharePick';
@@ -131,7 +132,9 @@ const styles = StyleSheet.create({
   footer: { minHeight: 18, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   metric: { ...OnePickType.captionMedium, color: OnePick.muted },
   separator: { ...OnePickType.captionMedium, color: OnePick.muted },
-  footerAction: { minHeight: 24, justifyContent: 'center' },
+  // 44×44 touch target. The negative margins (card gap above + card padding below = 20)
+  // keep the visible footer row at 24pt without overlapping the item body Pressable.
+  footerAction: { minHeight: MIN_TOUCH_TARGET, minWidth: MIN_TOUCH_TARGET, marginTop: -OnePickSpace.sm, marginBottom: -OnePickSpace.md, alignItems: 'center', justifyContent: 'center' },
   footerText: { ...OnePickType.captionMedium, color: OnePick.muted },
   notice: { ...OnePickType.caption, color: OnePick.success },
   error: { ...OnePickType.caption, color: OnePick.danger },

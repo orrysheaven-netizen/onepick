@@ -87,6 +87,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/home-feed-card': load('components/home-feed-card.tsx', {
     'react-native': native,
     '@/components/ui': ui,
+    '@/components/ui/touch': load('components/ui/touch.ts'),
     '@/constants/onepick': onepickConstants,
     '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
