@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   choiceCard: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, padding: 12, gap: 4 },
   choiceCardActive: { borderColor: OnePick.text, backgroundColor: OnePick.sunken },
   choiceTitle: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
-  meta: { color: OnePick.hint, fontSize: 11 },
+  meta: { color: OnePick.textSecondary, fontSize: 11 },
   choiceWrap: { gap: 8 },
   categoryChoice: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, padding: 12, gap: 4 },
   categoryChoiceActive: { backgroundColor: OnePick.text, borderColor: OnePick.text },

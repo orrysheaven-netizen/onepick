@@ -55,7 +55,7 @@ export async function sharePickCardImage(input: SharePickInput): Promise<SharePi
   ctx.font = '800 30px system-ui, sans-serif';
   ctx.fillText(`@${username}`, 130, 1090);
 
-  ctx.fillStyle = OnePick.hint;
+  ctx.fillStyle = OnePick.textSecondary;
   ctx.font = '500 22px system-ui, sans-serif';
   ctx.fillText(clean(shareUrl, 92), 130, 1160);
 

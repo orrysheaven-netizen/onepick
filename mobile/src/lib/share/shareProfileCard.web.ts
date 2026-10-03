@@ -68,7 +68,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
   });
 
   if (remaining > 0) {
-    ctx.fillStyle = OnePick.hint;
+    ctx.fillStyle = OnePick.textSecondary;
     ctx.font = '500 26px system-ui, sans-serif';
     ctx.fillText(`외 ${remaining}개`, 130, 828);
   }
@@ -82,7 +82,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
     drawLines(ctx, wrapLines(ctx, summary, 820, 3), 130, 955, 50);
   }
 
-  ctx.fillStyle = OnePick.hint;
+  ctx.fillStyle = OnePick.textSecondary;
   ctx.font = '500 22px system-ui, sans-serif';
   ctx.fillText(clean(shareUrl, 92), 130, 1160);
 
