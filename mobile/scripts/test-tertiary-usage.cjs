@@ -10,7 +10,7 @@ function visit(dir) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       const normalized = full.replaceAll('\\', '/');
-      if (normalized.includes('/app/admin/') || normalized.includes('/components/admin/')) continue;
+      if (/\/(?:app|components)\/admin(?:\/|$)/.test(normalized)) continue;
       visit(full);
       continue;
     }
