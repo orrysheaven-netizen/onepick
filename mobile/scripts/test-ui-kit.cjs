@@ -45,7 +45,10 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   assert.equal(visual('나도 이게 원픽').backgroundColor, OnePick.accentSoft);
 
   render(React.createElement(ui.Button, { label: '삭제', variant: 'danger' }));
-  assert.equal(visual('삭제').backgroundColor, 'transparent');
+  assert.equal(visual('삭제').backgroundColor, OnePick.danger);
+
+  render(React.createElement(ui.Button, { label: '삭제 링크', variant: 'dangerText' }));
+  assert.equal(visual('삭제 링크').backgroundColor, 'transparent');
 
   render(React.createElement(ui.Button, { label: '저장', disabled: true, accessibilityLabel: '원픽 저장' }));
   assert.equal(pressable('원픽 저장').disabled, true);
@@ -209,7 +212,7 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   wrapperReaches44('보통', 'Button md');
   render(React.createElement(ui.Button, { label: 'X', variant: 'secondary', size: 'sm' }));
   wrapperReaches44('X', 'Short-label Button (narrower than 44)');
-  for (const variant of ['ghost', 'danger']) {
+  for (const variant of ['ghost', 'dangerText']) {
     render(React.createElement(ui.Button, { label: '링크', variant, size: 'sm', style: { alignSelf: 'flex-start', marginLeft: -8 } }));
     wrapperReaches44('링크', `${variant} text link`);
     assert.equal(visual('링크').paddingHorizontal, 0, `${variant} text link keeps its padding-less look`);
