@@ -98,8 +98,8 @@ test('loading primary has on-action spinner and disabled/busy semantics', () => 
   assert.equal(button.props.accessibilityState.disabled, true);
   assert.equal(first(button, 'Text'), undefined);
 });
-test('secondary, soft and ghost labels remain readable off brand fills', () => {
-  for (const variant of ['secondary', 'soft', 'ghost']) {
+test('secondary, soft, ghost and dangerText labels remain readable off brand fills', () => {
+  for (const variant of ['secondary', 'soft', 'ghost', 'dangerText']) {
     const button = Button({ label: '보기', variant });
     const background = styleOf(first(button, 'View')).backgroundColor;
     const canvas = background === 'transparent' ? OnePick.surface : background;
@@ -109,9 +109,13 @@ test('secondary, soft and ghost labels remain readable off brand fills', () => {
     readable(foreground, canvas, styleOf(button, true).opacity ?? 1);
   }
 });
-test('danger loading spinner preserves semantic color', () => {
-  const button = Button({ label: '삭제', variant: 'danger', loading: true });
-  assert.equal(first(button, 'Spinner').props.color, OnePick.danger);
+test('danger uses semantic fill, white label and white loading spinner', () => {
+  const button = Button({ label: '삭제', variant: 'danger' });
+  assert.equal(styleOf(first(button, 'View')).backgroundColor, OnePick.danger);
+  assert.equal(styleOf(first(button, 'Text')).color, OnePick.onAction);
+  readable(styleOf(first(button, 'Text')).color, styleOf(first(button, 'View')).backgroundColor);
+  const loading = Button({ label: '삭제', variant: 'danger', loading: true });
+  assert.equal(first(loading, 'Spinner').props.color, OnePick.onAction);
 });
 test('button dimensions, callback, overrides and labels are preserved', () => {
   let pressed = 0;
@@ -152,6 +156,15 @@ test('unselected/dashed chip appearance and callback stay available', () => {
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
 });
+test('web inactive tab separates tertiary icon from readable secondary label', () => {
+  pathname = '/';
+  const tree = expand(AppTabs());
+  const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '탐색')[0];
+  assert.equal(first(tab, 'svg').props.stroke, OnePick.textTertiary);
+  assert.equal(styleOf(first(tab, 'Text')).color, OnePick.textSecondary);
+  readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
+});
+
 test('web active tab uses ink icon and label without a brand fill', () => {
   pathname = '/explore';
   const tree = expand(AppTabs());

@@ -7,3 +7,11 @@ export { Chip } from './chip';
 export { PickCard } from './pick-card';
 export { SectionHeader } from './section-header';
 export { StateCard } from './state-card';
+
+export { TabHeader } from './tab-header';
+export { MenuRow } from './menu-row';
+export { ReviewRow } from './review-row';
+export { CommentRow } from './comment-row';
+export { PickButton } from './pick-button';
+export type { PickButtonState } from './pick-button';
+export { LoadingState } from './loading-state';

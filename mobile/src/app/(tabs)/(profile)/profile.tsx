@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: OnePick.borderDefault,
   },
-  secondaryEyebrow: { ...OnePickType.captionMedium, color: OnePick.textTertiary },
+  secondaryEyebrow: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   secondaryTitle: { ...OnePickType.headline, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
   secondaryDescription: {
     ...OnePickType.caption,

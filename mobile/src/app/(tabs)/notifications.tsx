@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   message: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
   body: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  time: { ...OnePickType.caption, color: OnePick.textTertiary, marginTop: OnePickSpace.xs },
+  time: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
   empty: {
     paddingVertical: OnePickSpace.xxxl + OnePickSpace.lg,
     alignItems: 'center',

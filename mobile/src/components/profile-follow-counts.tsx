@@ -23,5 +23,5 @@ const styles = StyleSheet.create({
   label: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   number: { color: OnePick.text, fontSize: 17, fontWeight: '900' },
   divider: { width: 1, height: 16, backgroundColor: OnePick.border },
-  hint: { flex: 1, color: OnePick.hint, fontSize: 11, textAlign: 'right' },
+  hint: { flex: 1, color: OnePick.textSecondary, fontSize: 11, textAlign: 'right' },
 });
