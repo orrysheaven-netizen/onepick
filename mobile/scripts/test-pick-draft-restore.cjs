@@ -205,7 +205,7 @@ function nearQuotaTests(now) {
 // ---------------------------------------------------------------------------
 // Real screen with stubbed hooks; unlike the static store-first harness this one
 // runs effects (hydration, persistence, resume re-check) after each render.
-let states, refs, stateIndex, refIndex, effectIndex, effectDeps, pendingEffects, pressables, inputs, destination, uuidCounter;
+let states, refs, stateIndex, refIndex, effectIndex, effectDeps, pendingEffects, pressables, inputs, destination, uuidCounter, routeParams;
 const part = (tag) => ({ children }) => React.createElement(tag, null, children);
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
@@ -250,7 +250,10 @@ const mutation = (name, run) => ({ isPending: false, isError: false, error: null
 const { default: Screen } = load('app/pick/new.tsx', {
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
-  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() { destination = 'back'; }, canGoBack: () => true }) },
+  'expo-router': {
+    useLocalSearchParams: () => routeParams,
+    useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() { destination = 'back'; }, canGoBack: () => true }),
+  },
   '@/components/ui': ui, '@/errors/appError': { AppError },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
@@ -260,6 +263,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
   '@/hooks/useStoreFirst': {
+    useProviderStorePrefill: () => ({ data: null, isPending: false, isError: false }),
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
       { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
     ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
@@ -276,7 +280,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
 
 function mount() { states = []; refs = []; effectDeps = []; }
 function reset(backend = sessionBackend()) {
-  mount(); calls = []; destination = undefined; uuidCounter = 0;
+  mount(); calls = []; destination = undefined; uuidCounter = 0; routeParams = {};
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
