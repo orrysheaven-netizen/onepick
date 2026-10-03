@@ -1,0 +1,208 @@
+name: PR Preview QA
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview-qa:
+    # Cloudflare only creates Git-connected PR previews for branches in this
+    # repository. Fork PRs are skipped, and PR code is never executed with the
+    # comment-capable token.
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROJECT_SUBDOMAIN: onepick-5cl
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - name: Checkout trusted QA harness from base
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Resolve Cloudflare branch preview
+        id: preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Cloudflare Pages branch aliases are lowercase and replace every
+          # non-alphanumeric branch-name character with '-'.
+          slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')"
+          test -n "$slug" || { echo "::error::Could not derive Cloudflare branch alias"; exit 1; }
+          preview_url="https://${slug}.${PROJECT_SUBDOMAIN}.pages.dev"
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+
+          ready=false
+          deadline=$((SECONDS + 180))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            body="$(curl --fail --silent --show-error --max-time 5 "$preview_url/deployment.json" 2>/dev/null || true)"
+            if EXPECTED_SHA="$EXPECTED_SHA" HEAD_BRANCH="$HEAD_BRANCH" BODY="$body" python3 - <<'PY'
+          import json
+          import os
+
+          try:
+              data = json.loads(os.environ["BODY"])
+          except (json.JSONDecodeError, TypeError):
+              raise SystemExit(1)
+
+          if data.get("commitSha") != os.environ["EXPECTED_SHA"]:
+              raise SystemExit(1)
+          if data.get("branch") not in (None, os.environ["HEAD_BRANCH"]):
+              raise SystemExit(1)
+          PY
+            then
+              ready=true
+              break
+            fi
+            sleep 10
+          done
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          if [ "$ready" != "true" ]; then
+            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 3 minutes."
+          fi
+
+      - name: Setup Node
+        if: steps.preview.outputs.ready == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+
+      - name: Install Playwright
+        if: steps.preview.outputs.ready == 'true'
+        working-directory: tools/qa
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run read-only preview QA
+        if: steps.preview.outputs.ready == 'true'
+        id: qa
+        working-directory: tools/qa
+        shell: bash
+        env:
+          QA_MODE: pr
+          QA_BASE_URL: ${{ steps.preview.outputs.url }}
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+        run: |
+          set +e
+          node live-qa.mjs
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Render PR comment
+        if: always()
+        id: comment
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_READY: ${{ steps.preview.outputs.ready }}
+          QA_EXIT_CODE: ${{ steps.qa.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          marker = "<!-- onepick-pr-preview-qa -->"
+          preview = os.environ.get("PREVIEW_URL") or "(unknown)"
+          ready = os.environ.get("PREVIEW_READY") == "true"
+          sha = os.environ["EXPECTED_SHA"]
+          out = Path(os.environ["GITHUB_WORKSPACE"]) / "qa-output"
+          lines = [marker, "## Cloudflare PR Preview QA", "", f"- Preview: {preview}", f"- Commit: `{sha}`"]
+
+          if not ready:
+              lines += [
+                  "- Result: ⏭️ skipped — preview did not reach this commit within the wait window",
+                  "",
+                  "No app/DB/Production mutation was attempted by this check.",
+              ]
+          else:
+              verdict_path = out / "verdict.json"
+              report_path = out / "report.md"
+              if not verdict_path.exists():
+                  lines += ["- Result: ❌ QA result missing", "", "The preview was ready but `verdict.json` was not produced."]
+              else:
+                  verdict = json.loads(verdict_path.read_text(encoding="utf-8"))
+                  passed = bool(verdict.get("pass"))
+                  lines += [f"- Result: {'✅ pass' if passed else '❌ findings/budget exceeded'}"]
+                  violations = verdict.get("budgetViolations") or []
+                  findings = verdict.get("findings") or []
+                  if violations:
+                      lines += ["", "### Budget violations"]
+                      for item in violations[:12]:
+                          lines.append(
+                              f"- `{item.get('page', '?')}` · {item.get('metric', '?')}: "
+                              f"{item.get('value', '?')} > {item.get('limit', '?')}"
+                          )
+                  if findings:
+                      lines += ["", "### Findings"]
+                      for item in findings[:12]:
+                          evidence = str(item.get("evidence", "")).replace("\n", " ")[:300]
+                          lines.append(
+                              f"- **{item.get('severity', '?')}** · {item.get('where', '?')} · "
+                              f"{item.get('what', '?')} — {evidence}"
+                          )
+                  if report_path.exists():
+                      report = report_path.read_text(encoding="utf-8")
+                      lines += ["", "<details><summary>Full preview report</summary>", "", report[:30000], "", "</details>"]
+
+          path = Path(os.environ["RUNNER_TEMP"]) / "preview-qa-comment.md"
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(path)
+          PY
+
+      - name: Upsert PR comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          comment_file="$RUNNER_TEMP/preview-qa-comment.md"
+          marker='<!-- onepick-pr-preview-qa -->'
+          existing="$(
+            gh api --paginate "repos/$REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+              --jq '.[] | select(.user.type == "Bot" and (.body | contains("'"$marker"'"))) | .id' \
+              | tail -n 1
+          )"
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$REPOSITORY/issues/comments/$existing" -F "body=@$comment_file" >/dev/null
+          else
+            gh api --method POST "repos/$REPOSITORY/issues/$PR_NUMBER/comments" -F "body=@$comment_file" >/dev/null
+          fi
+
+      - name: Upload preview QA report
+        if: steps.preview.outputs.ready == 'true' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-preview-qa-${{ github.event.pull_request.number }}
+          path: qa-output
+          retention-days: 7
+
+      - name: Surface preview QA failure
+        if: steps.preview.outputs.ready == 'true' && steps.qa.outputs.exit_code != '0'
+        run: |
+          echo "::error::PR preview QA found a High issue or exceeded a configured budget. This workflow is advisory, not a required branch-protection check."
+          exit 1

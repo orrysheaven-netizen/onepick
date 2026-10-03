@@ -122,6 +122,11 @@ jobs:
         working-directory: .
         run: bash .github/scripts/test-ci-path-gate.sh
 
+      - name: Test PR preview QA workflow
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
+        working-directory: .
+        run: bash .github/scripts/test-pr-preview-qa.sh
+
       # AI handoff / PM routing control plane (#586). Only when those files change;
       # a changed workflow already forces this job to run, so no extra runner.
       - name: Test PM review queue control plane
