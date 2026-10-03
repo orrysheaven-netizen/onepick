@@ -1,7 +1,7 @@
 # OnePick 현재 상태
 
 기준일: 2026-10-03  
-기준 main: `66236f58bc08e91c91a897a8f63950aefd4e1273`
+기준 main: `d0fae5d2a817fbbdfd3918180f549e52e1384b62`
 
 ## PM 판정
 
@@ -54,7 +54,7 @@
 | #686 | open | 최신 Security QA. L4 해결, L5·L7 Low 추적 |
 | #687 | open | 최신 Daily QA. #689 계측 반영 후 다음 측정 대기 |
 | #697 | open / qa-alert | 기존 deploy token의 DB read 403 원인은 분리 완료. #698 병합 후 Database/Advisors endpoint 성공 확인 시 종료 |
-| #698 | Ready | Repository QA token과 Production deploy token 분리. Edge Read 실제 검증 + 필수 CI green, main merge 승인 대기 |
+| #698 | completed | QA read-only token과 Production deploy token 분리 main 반영 완료 (`d0fae5d`) |
 | #683 | blocked / P3 | Production `youtube-catalog`가 main보다 뒤처짐. recipe 공개 재개 전 사용자 승인 후 Edge deploy 필요 |
 
 UX/Figma #684/#685는 별도 병렬 작업으로 진행 중이며 위 QA credential·DB/data 작업과 파일 범위를 겹치지 않게 유지한다.
@@ -71,7 +71,7 @@ UX/Figma #684/#685는 별도 병렬 작업으로 진행 중이며 위 QA credent
 
 - **즉시 가능:** 읽기 전용 Production 검증, QA 재측정, 문서 정합화, superseded 정리, #698 코드 검증.
 - **사용자 직접 조치 필요:** 현재 없음.
-- **사용자 승인 후 가능:** #698 main 병합, #699 PM 문서 병합, #633 Production 사진 보충.
+- **사용자 승인 후 가능:** #699 PM 문서 병합, #633 Production 사진 보충.
 - **P3 재노출 전 승인 필요:** #683 `youtube-catalog` Production Edge deploy.
 - **보류:** P3 확장, 별도 유료 API, 불필요한 새 DB 인덱스/인프라.
 - **금지:** 기존 Pick/한줄평 자동 삭제, source-policy를 우회한 이미지 자동 채택, 승인 게이트 우회.
