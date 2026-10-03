@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-  issues: write
+  pull-requests: write
 
 concurrency:
   group: pr-preview-qa-${{ github.event.pull_request.number }}
@@ -49,8 +49,9 @@ jobs:
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
 
           ready=false
-          for attempt in $(seq 1 24); do
-            body="$(curl --fail --silent --show-error --max-time 8 "$preview_url/deployment.json" 2>/dev/null || true)"
+          deadline=$((SECONDS + 180))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            body="$(curl --fail --silent --show-error --max-time 5 "$preview_url/deployment.json" 2>/dev/null || true)"
             if EXPECTED_SHA="$EXPECTED_SHA" HEAD_BRANCH="$HEAD_BRANCH" BODY="$body" python3 - <<'PY'
           import json
           import os
@@ -69,12 +70,12 @@ jobs:
               ready=true
               break
             fi
-            sleep 15
+            sleep 10
           done
 
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           if [ "$ready" != "true" ]; then
-            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 6 minutes."
+            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 3 minutes."
           fi
 
       - name: Setup Node
