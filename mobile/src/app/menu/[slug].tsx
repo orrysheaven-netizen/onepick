@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DishPeoplePicks } from '@/components/dish-people-picks';
-import { StateCard } from '@/components/ui';
+import { Button, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
@@ -21,6 +21,7 @@ export default function MenuPeoplePicksScreen() {
   const slug = SLUG.test(rawSlug) ? rawSlug : undefined;
   const category = useCategoryBySlug(slug);
   const categoryOpen = Boolean(category.data?.status === 'open' && category.data.isVisible && category.data.isPickable);
+  const categoryId = categoryOpen ? category.data?.id : undefined;
   const name = category.data?.name;
   const notFound = !slug || (category.isSuccess && (!category.data || !categoryOpen));
 
@@ -47,11 +48,18 @@ export default function MenuPeoplePicksScreen() {
           text="현재 공개된 메뉴인지 확인해주세요."
           action={{ label: '탐색으로', onPress: () => router.replace('/explore') }} /> : null}
 
-        {categoryOpen && category.data && name ? (
-          <DishPeoplePicks categoryId={category.data.id} categoryName={name} userId={user?.id}
+        {categoryId && name ? (
+          <DishPeoplePicks categoryId={categoryId} categoryName={name} userId={user?.id}
             returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
         ) : null}
       </ScrollView>
+      {categoryId && name ? <View style={styles.registerFooter}>
+        <Button fullWidth label={`내 ${name} 원픽 등록하기`}
+          onPress={() => router.push({
+            pathname: '/pick/new',
+            params: { menuName: name, categoryId },
+          })} />
+      </View> : null}
     </SafeAreaView>
   );
 }
@@ -78,5 +86,14 @@ const styles = StyleSheet.create({
     paddingBottom: OnePickSpace.xxxl,
   },
   loading: { marginVertical: OnePickSpace.xxxl },
+  registerFooter: {
+    width: '100%',
+    maxWidth: 390,
+    alignSelf: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingTop: OnePickSpace.sm,
+    paddingBottom: OnePickSpace.sm,
+    backgroundColor: OnePick.bgDefault,
+  },
   pressed: { opacity: 0.65 },
 });

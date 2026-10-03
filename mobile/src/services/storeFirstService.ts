@@ -130,6 +130,52 @@ export class StoreFirstService {
     };
   }
 
+  async providerStore(providerId: string): Promise<Extract<StoreCandidate, { kind: 'place' }> | null> {
+    if (!UUID.test(providerId)) return null;
+
+    const { data: providerData, error: providerError } = await this.db().from('providers')
+      .select('id,kind,place_id,status')
+      .eq('id', providerId)
+      .maybeSingle();
+    if (providerError) throw mapSupabaseError(providerError);
+    const provider = providerData as { id?: string; kind?: string; place_id?: string | null; status?: string } | null;
+    if (!provider?.id || provider.status !== 'active' || provider.kind !== 'offline_branch' || !provider.place_id) return null;
+
+    const { data: placeData, error: placeError } = await this.db().from('places')
+      .select('id,place_provider,provider_place_id,map_url')
+      .eq('id', provider.place_id)
+      .maybeSingle();
+    if (placeError) throw mapSupabaseError(placeError);
+    const place = placeData as {
+      id?: string; place_provider?: string | null; provider_place_id?: string | null; map_url?: string | null;
+    } | null;
+    if (!place?.id || !place.place_provider || !place.provider_place_id) return null;
+
+    const { data: catalogData, error: catalogError } = await this.db().from('place_catalog')
+      .select('id,name,branch_name,road_address,address,region_1,region_2,provider_category,business_status')
+      .eq('place_provider', place.place_provider)
+      .eq('provider_place_id', place.provider_place_id)
+      .eq('business_status', 'open')
+      .maybeSingle();
+    if (catalogError) throw mapSupabaseError(catalogError);
+    const row = catalogData as {
+      id?: string; name?: string; branch_name?: string | null; road_address?: string | null; address?: string | null;
+      region_1?: string | null; region_2?: string | null; provider_category?: string | null; business_status?: string;
+    } | null;
+    if (!row?.id || !row.name || row.business_status !== 'open') return null;
+
+    return {
+      kind: 'place',
+      catalogId: row.id,
+      name: row.name,
+      branchName: row.branch_name ?? null,
+      region: [row.region_1, row.region_2].filter(Boolean).join(' ') || null,
+      address: row.road_address ?? row.address ?? null,
+      providerCategory: row.provider_category ?? null,
+      mapUrl: place.map_url ?? null,
+    };
+  }
+
   async searchStores(query: string, signal?: AbortSignal): Promise<StoreCandidate[]> {
     const q = cleanQuery(query);
     if (q.length < 2 || q.length > 100) return [];

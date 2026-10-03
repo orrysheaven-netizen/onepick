@@ -7,6 +7,17 @@ import { storeFirstService, type StoreCandidate, type StoreForSuggestion } from 
 
 const SEARCH_DELAY_MS = 250;
 
+/** Entry prefill from an existing store profile. Server IDs are re-read; names are never trusted as identity. */
+export function useProviderStorePrefill(providerId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['store-first', 'provider-prefill', providerId ?? 'missing'],
+    queryFn: () => storeFirstService.providerStore(providerId!),
+    enabled: enabled && Boolean(providerId),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
+
 /** Step 1: stores (매장, catalog) or online sellers by name, debounced. */
 export function useStoreSearch(channel: PickChannel, searchText: string, enabled: boolean) {
   const clean = searchText.trim().replace(/\s+/g, ' ');
