@@ -53,8 +53,8 @@
 | #633 | blocked | photo-less current Pick 8건. 게임 3건 exact IGDB cover 미확정 + Production 사진 반영 승인 대기 |
 | #686 | open | 최신 Security QA. L4 해결, L5·L7 Low 추적 |
 | #687 | open | 최신 Daily QA. #689 계측 반영 후 다음 측정 대기 |
-| #697 | open / qa-alert | Hourly real-user error monitor의 read-only DB query가 기존 deploy token에서 HTTP 403 |
-| #698 | Draft | QA read-only token과 Production deploy token 분리. secret 재발급 + read-only 검증 전 merge 금지 |
+| #697 | open / qa-alert | 기존 deploy token의 DB read 403 원인은 분리 완료. #698 병합 후 Database/Advisors endpoint 성공 확인 시 종료 |
+| #698 | Ready | Repository QA token과 Production deploy token 분리. Edge Read 실제 검증 + 필수 CI green, main merge 승인 대기 |
 | #683 | blocked / P3 | Production `youtube-catalog`가 main보다 뒤처짐. recipe 공개 재개 전 사용자 승인 후 Edge deploy 필요 |
 
 UX/Figma #684/#685는 별도 병렬 작업으로 진행 중이며 위 QA credential·DB/data 작업과 파일 범위를 겹치지 않게 유지한다.
@@ -62,15 +62,16 @@ UX/Figma #684/#685는 별도 병렬 작업으로 진행 중이며 위 QA credent
 ## QA credential 상태
 
 - Repository `SUPABASE_QA_ACCESS_TOKEN`: Deployment Consistency의 Edge Function 조회용으로 정상 동작 확인.
-- #698 병합 전 이 token을 OnePick 프로젝트 범위의 **Edge Functions: Read + Database: Read + Advisors: Read** 권한으로 다시 발급·교체해야 한다.
+- Repository `SUPABASE_QA_ACCESS_TOKEN`: OnePick 프로젝트 범위의 **Edge Functions: Read + Database: Read + Advisors: Read** 권한으로 재발급·교체 완료. Edge status read 실제 검증에서 401/403 없음 확인.
+- #698은 QA job에서 `Production` Environment를 제거해 동일 이름 Environment secret의 shadowing을 차단한다.
 - Production Environment `SUPABASE_ACCESS_TOKEN`: Edge Function 배포용 credential로 분리 유지하며 QA read-only 용도로 재사용하지 않는다.
 - secret 값은 코드·문서·로그·이슈에 기록하지 않는다.
 
 ## 현재 실행 정책
 
 - **즉시 가능:** 읽기 전용 Production 검증, QA 재측정, 문서 정합화, superseded 정리, #698 코드 검증.
-- **사용자 직접 조치 필요:** Repository `SUPABASE_QA_ACCESS_TOKEN`을 위 세 가지 Read 권한으로 재발급·교체.
-- **사용자 승인 후 가능:** #698 main 병합, #633 Production 사진 보충.
+- **사용자 직접 조치 필요:** 현재 없음.
+- **사용자 승인 후 가능:** #698 main 병합, #699 PM 문서 병합, #633 Production 사진 보충.
 - **P3 재노출 전 승인 필요:** #683 `youtube-catalog` Production Edge deploy.
 - **보류:** P3 확장, 별도 유료 API, 불필요한 새 DB 인덱스/인프라.
 - **금지:** 기존 Pick/한줄평 자동 삭제, source-policy를 우회한 이미지 자동 채택, 승인 게이트 우회.
