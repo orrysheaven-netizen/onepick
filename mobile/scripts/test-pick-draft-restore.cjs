@@ -452,7 +452,9 @@ async function screenTests() {
   mount();
   page = await render(); page = await render();
   assert.equal(stepOf(page), '1');
-  assert.match(page, /을밀대 선택/, 'restored step-1 draft may search normally');
+  assert.equal(input('매장명 검색').value, '을밀대');
+  assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
+    'restored step-1 draft may search normally');
 
   // 9. Explicit cancel clears the draft.
   reset();
