@@ -43,8 +43,9 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Read-only QA token is separate from the Production deploy token; see daily-qa.yml.
-    environment: Production
+    # Main-only read-only QA uses the repository-scoped QA token directly.
+    # Do not attach the Production environment here: an environment secret with
+    # the same name would override the repository secret.
     permissions:
       contents: read
       issues: write
