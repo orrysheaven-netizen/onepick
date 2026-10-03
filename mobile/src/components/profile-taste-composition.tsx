@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   dimensionTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   dimensionCopy: { flex: 1 },
   dimensionName: { color: OnePick.text, fontSize: 14, fontWeight: '900' },
-  dimensionMeta: { color: OnePick.hint, fontSize: 10, marginTop: 2 },
+  dimensionMeta: { color: OnePick.textSecondary, fontSize: 10, marginTop: 2 },
   percentage: { color: OnePick.accent, fontSize: 13, fontWeight: '900' },
   track: { height: 6, borderRadius: 999, backgroundColor: OnePick.sunken, overflow: 'hidden', marginTop: 8 },
   fill: { height: '100%', borderRadius: 999, backgroundColor: OnePick.accent },
@@ -140,5 +140,5 @@ const styles = StyleSheet.create({
   categoryText: { color: OnePick.muted, fontSize: 10, fontWeight: '700' },
   categoryMoreChip: { backgroundColor: OnePick.accentSoft },
   categoryMoreText: { color: OnePick.accent, fontWeight: '900' },
-  unmappedText: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 12 },
+  unmappedText: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 15, marginTop: 12 },
 });

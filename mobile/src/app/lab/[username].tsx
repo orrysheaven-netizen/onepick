@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 56 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  eyebrow: { color: OnePick.hint, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginTop: 8 },
+  eyebrow: { color: OnePick.textSecondary, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginTop: 8 },
   title: { color: OnePick.text, fontSize: 24, lineHeight: 30, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   description: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 8, marginBottom: 22 },
   sectionHeader: { marginBottom: 10 },
