@@ -20,6 +20,7 @@ function load(file, imports = {}) {
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
+    if (name === '@/lib/items/pickSavedToast') return load('lib/items/pickSavedToast.ts');
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);
   } });
