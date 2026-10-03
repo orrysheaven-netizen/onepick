@@ -15,7 +15,7 @@ export default function AppTabs() {
       tintColor={OnePick.actionPrimary}
       indicatorColor={OnePick.surface}
       labelStyle={{
-        default: { color: OnePick.textTertiary, fontSize: 12, fontWeight: '500' },
+        default: { color: OnePick.textSecondary, fontSize: 12, fontWeight: '500' },
         selected: { color: OnePick.actionPrimary, fontSize: 12, fontWeight: '500' },
       }}>
       <NativeTabs.Trigger name="index">

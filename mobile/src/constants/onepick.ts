@@ -13,7 +13,7 @@ export const OnePick = {
   // Ink
   text: '#141416', // approved ink
   muted: '#5C5C63', // approved secondary text
-  hint: '#8A909C', // placeholders and timestamps only — not body copy
+  hint: '#8A909C', // placeholders, inactive icons and chevrons only — never readable copy
 
   // Brand: fills/decorations only; never use brand for small text on white.
   brand: '#FF8A00',
@@ -33,7 +33,7 @@ export const OnePick = {
   onAction: '#FFFFFF',
   textPrimary: '#141416',
   textSecondary: '#6B6E78',
-  textTertiary: '#8A909C',
+  textTertiary: '#8A909C', // placeholders, inactive icons and chevrons only
   textAccent: '#B84F00',
   textDanger: '#B4432A',
   borderDefault: '#E8E8ED',

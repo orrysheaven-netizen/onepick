@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   consentButtonText: { color: OnePick.onAccent, fontSize: 12, lineHeight: 17, fontWeight: '800', textAlign: 'center' },
   label: { color: OnePick.text, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, paddingHorizontal: 15, color: OnePick.text, fontSize: 15 },
-  hint: { color: OnePick.hint, fontSize: 11, lineHeight: 17, marginTop: 7 },
+  hint: { color: OnePick.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 7 },
   loading: { marginTop: 18 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
   stateCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 18, padding: 18, marginTop: 16 },
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
   secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  attribution: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
 });

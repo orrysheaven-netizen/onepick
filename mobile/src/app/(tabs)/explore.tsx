@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   childPanel: { padding: OnePickSpace.lg, marginTop: OnePickSpace.lg, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderDefault },
   childHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: OnePickSpace.sm },
   childTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  childCount: { ...OnePickType.captionMedium, color: OnePick.textTertiary },
+  childCount: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   childList: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
   selectionLabel: { ...OnePickType.captionMedium, color: OnePick.textAccent, marginTop: OnePickSpace.lg },
   menuSection: { marginTop: OnePickSpace.xl, marginBottom: OnePickSpace.lg },

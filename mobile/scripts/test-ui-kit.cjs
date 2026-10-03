@@ -45,7 +45,10 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   assert.equal(visual('나도 이게 원픽').backgroundColor, OnePick.accentSoft);
 
   render(React.createElement(ui.Button, { label: '삭제', variant: 'danger' }));
-  assert.equal(visual('삭제').backgroundColor, 'transparent');
+  assert.equal(visual('삭제').backgroundColor, OnePick.danger);
+
+  render(React.createElement(ui.Button, { label: '삭제 링크', variant: 'dangerText' }));
+  assert.equal(visual('삭제 링크').backgroundColor, 'transparent');
 
   render(React.createElement(ui.Button, { label: '저장', disabled: true, accessibilityLabel: '원픽 저장' }));
   assert.equal(pressable('원픽 저장').disabled, true);
@@ -130,7 +133,11 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   render(React.createElement(ui.Avatar, { name: 'friend', size: 40, onPress: () => opened++ }));
   const link = pressable('@friend 프로필 보기');
   assert.ok(link, 'Pressable avatar gets a profile label by default');
-  assert.equal(link.resolved.width, 40);
+  assert.ok(link.resolved.minWidth >= 44 && link.resolved.minHeight >= 44, 'Interactive avatar uses a real 44x44 touch wrapper');
+  assert.equal(link.resolved.marginHorizontal, -2, '40px avatar keeps its original layout footprint');
+  const avatarVisual = views.find((v) => v.order > link.order).resolved;
+  assert.equal(avatarVisual.width, 40);
+  assert.equal(avatarVisual.height, 40);
   link.onPress(); assert.equal(opened, 1);
 }
 
@@ -209,7 +216,7 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   wrapperReaches44('보통', 'Button md');
   render(React.createElement(ui.Button, { label: 'X', variant: 'secondary', size: 'sm' }));
   wrapperReaches44('X', 'Short-label Button (narrower than 44)');
-  for (const variant of ['ghost', 'danger']) {
+  for (const variant of ['ghost', 'dangerText']) {
     render(React.createElement(ui.Button, { label: '링크', variant, size: 'sm', style: { alignSelf: 'flex-start', marginLeft: -8 } }));
     wrapperReaches44('링크', `${variant} text link`);
     assert.equal(visual('링크').paddingHorizontal, 0, `${variant} text link keeps its padding-less look`);
@@ -234,8 +241,12 @@ const visual = (label) => views.find((v) => v.order > pressable(label).order).re
   for (const size of [24, 32, 40]) {
     render(React.createElement(ui.Avatar, { name: 'a', size, onPress() {}, accessibilityLabel: `아바타${size}` }));
     const avatar = pressable(`아바타${size}`);
-    assert.equal(avatar.resolved.width, size, 'Avatar keeps its visual size');
-    assert.ok(size + avatar.hitSlop.left + avatar.hitSlop.right >= 44 && size + avatar.hitSlop.top + avatar.hitSlop.bottom >= 44);
+    assert.ok(avatar.resolved.minWidth >= 44 && avatar.resolved.minHeight >= 44, 'Avatar wrapper reaches 44x44');
+    assert.equal(avatar.hitSlop, undefined, 'Avatar does not rely on hitSlop');
+    assert.equal(avatar.resolved.marginHorizontal, -(44 - size) / 2, 'Avatar touch wrapper preserves visual footprint');
+    const circle = views.find((v) => v.order > avatar.order).resolved;
+    assert.equal(circle.width, size, 'Avatar keeps its visual size');
+    assert.equal(circle.height, size, 'Avatar keeps its visual size');
   }
 
   render(React.createElement(ui.PickCard, {

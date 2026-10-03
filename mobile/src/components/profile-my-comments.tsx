@@ -83,9 +83,9 @@ function MyCommentRow({ entry, onOpen }: { entry: MyCommentReadItem; onOpen: () 
 const styles = StyleSheet.create({
   row: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, paddingHorizontal: 15, paddingVertical: 13, marginBottom: 9 },
   context: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
-  review: { color: OnePick.hint, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  review: { color: OnePick.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 4 },
   body: { color: OnePick.text, fontSize: 14, lineHeight: 20, marginTop: 8 },
-  time: { color: OnePick.hint, fontSize: 11, marginTop: 8 },
+  time: { color: OnePick.textSecondary, fontSize: 11, marginTop: 8 },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 17, marginTop: 4 },
   more: { marginTop: 4 },
   pressed: { opacity: 0.7 },

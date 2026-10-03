@@ -133,7 +133,7 @@ export default function SettingsScreen() {
                     {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제 확인</Text>}
                   </Pressable>
                 ) : (
-                  <Button variant="danger" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
+                  <Button variant="dangerText" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
                 )}
                 {confirmDelete && !deleteAccount.isPending ? (
                   <Button variant="secondary" size="sm" label="취소" onPress={() => setConfirmDelete(false)} />

@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   secondaryButton: { alignSelf: 'flex-start', minHeight: 42, borderRadius: 13, backgroundColor: OnePick.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, marginTop: 13 },
   secondaryButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  attribution: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
 });

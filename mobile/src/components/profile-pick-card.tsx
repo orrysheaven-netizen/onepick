@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24, marginTop: -2 },
   name: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700', letterSpacing: -0.3, marginTop: 6 },
   review: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
-  status: { color: OnePick.hint, fontSize: 12, lineHeight: 16, marginTop: 4, fontWeight: '600' },
+  status: { color: OnePick.textSecondary, fontSize: 12, lineHeight: 16, marginTop: 4, fontWeight: '600' },
   itemAction: {
     minHeight: 36,
     flexDirection: 'row',

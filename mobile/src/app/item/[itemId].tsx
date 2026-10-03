@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     marginTop: -OnePickSpace.md,
     paddingHorizontal: OnePickSpace.xs,
   },
-  creditText: { ...OnePickType.caption, color: OnePick.textTertiary },
+  creditText: { ...OnePickType.caption, color: OnePick.textSecondary },
   photoContribution: { width: '100%' },
   uploadRow: {
     flexDirection: 'row',

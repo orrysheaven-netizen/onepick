@@ -129,6 +129,6 @@ const styles = StyleSheet.create({
   visibilityText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
-  previewNote: { color: OnePick.hint, fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
+  previewNote: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 16, marginTop: -2, marginBottom: 10 },
   error: { color: OnePick.danger, fontSize: 11, lineHeight: 17, marginTop: 10 },
 });

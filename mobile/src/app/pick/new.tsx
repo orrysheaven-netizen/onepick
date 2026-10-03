@@ -754,5 +754,5 @@ const styles = StyleSheet.create({
   },
   notice: { padding: OnePickSpace.md, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgAccentSubtle },
   noticeText: { ...OnePickType.caption, color: OnePick.textPrimary },
-  counter: { ...OnePickType.caption, alignSelf: 'stretch', color: OnePick.textTertiary, textAlign: 'right' },
+  counter: { ...OnePickType.caption, alignSelf: 'stretch', color: OnePick.textSecondary, textAlign: 'right' },
 });

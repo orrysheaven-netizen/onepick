@@ -505,6 +505,6 @@ const styles = StyleSheet.create({
   placeMarker: { width: 72, height: 72, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   placeMarkerText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   errorText: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 12 },
-  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  attribution: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 }, disabled: { opacity: 0.5 },
 });

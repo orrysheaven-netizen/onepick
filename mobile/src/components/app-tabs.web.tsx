@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: OnePick.bgAccent,
   },
-  label: { ...OnePickType.captionMedium, color: OnePick.textTertiary },
+  label: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   activeLabel: { color: OnePick.actionPrimary },
   pressed: { opacity: 0.9 },
 });

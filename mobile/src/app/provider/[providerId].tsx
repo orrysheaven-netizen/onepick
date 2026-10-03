@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   storeMenuCopy: { flex: 1, minWidth: 0, minHeight: 62, justifyContent: 'center', gap: 2 },
   storeMenuName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   storePickCount: { ...OnePickType.caption, color: OnePick.muted },
-  storeReview: { ...OnePickType.caption, color: OnePick.textTertiary },
+  storeReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   storeChevron: { ...OnePickType.title, color: OnePick.textTertiary, marginRight: 30 },
   loading: { marginVertical: 36 },
   identity: { alignItems: 'center', paddingVertical: 18 },

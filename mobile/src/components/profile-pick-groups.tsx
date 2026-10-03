@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 2 },
   sectionLabel: { color: OnePick.text, fontSize: 12, lineHeight: 16, fontWeight: '900', letterSpacing: 1.5 },
-  sectionCount: { color: OnePick.hint, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  sectionCount: { color: OnePick.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 1 },
   toolbarText: { color: OnePick.muted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   toolbarAction: { color: OnePick.accent, fontSize: 13, lineHeight: 18, fontWeight: '600' },

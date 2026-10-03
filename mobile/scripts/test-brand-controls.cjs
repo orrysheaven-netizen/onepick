@@ -42,6 +42,7 @@ function load(file) {
 mocks['./touch'] = load('src/components/ui/touch.ts');
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
+const { Avatar } = load('src/components/ui/avatar.tsx');
 const AppTabs = load('src/components/app-tabs.web.tsx').default;
 const { OnePickBrand } = load('src/components/onepick-brand.tsx');
 const flat = (style) => Array.isArray(style) ? style.flatMap(flat) : style ? [style] : [];
@@ -98,8 +99,8 @@ test('loading primary has on-action spinner and disabled/busy semantics', () => 
   assert.equal(button.props.accessibilityState.disabled, true);
   assert.equal(first(button, 'Text'), undefined);
 });
-test('secondary, soft and ghost labels remain readable off brand fills', () => {
-  for (const variant of ['secondary', 'soft', 'ghost']) {
+test('secondary, soft, ghost and dangerText labels remain readable off brand fills', () => {
+  for (const variant of ['secondary', 'soft', 'ghost', 'dangerText']) {
     const button = Button({ label: '보기', variant });
     const background = styleOf(first(button, 'View')).backgroundColor;
     const canvas = background === 'transparent' ? OnePick.surface : background;
@@ -109,9 +110,15 @@ test('secondary, soft and ghost labels remain readable off brand fills', () => {
     readable(foreground, canvas, styleOf(button, true).opacity ?? 1);
   }
 });
-test('danger loading spinner preserves semantic color', () => {
-  const button = Button({ label: '삭제', variant: 'danger', loading: true });
-  assert.equal(first(button, 'Spinner').props.color, OnePick.danger);
+test('danger uses semantic fill, white label and white loading spinner', () => {
+  const button = Button({ label: '삭제', variant: 'danger' });
+  assert.equal(styleOf(first(button, 'View')).backgroundColor, OnePick.danger);
+  assert.equal(styleOf(first(button, 'Text')).color, OnePick.onAction);
+  readable(styleOf(first(button, 'Text')).color, styleOf(first(button, 'View')).backgroundColor);
+  const loading = Button({ label: '삭제', variant: 'danger', loading: true });
+  assert.equal(first(loading, 'Spinner').props.color, OnePick.onAction);
+  assert.equal(styleOf(first(loading, 'View')).backgroundColor, OnePick.actionDisabled);
+  assert.equal(styleOf(loading).opacity, 1);
 });
 test('button dimensions, callback, overrides and labels are preserved', () => {
   let pressed = 0;
@@ -129,6 +136,17 @@ test('button dimensions, callback, overrides and labels are preserved', () => {
   assert.equal(override.props.accessibilityRole, 'button');
   assert.equal(override.props.disabled, true);
 });
+test('interactive avatar has a real 44x44 touch wrapper', () => {
+  const avatar = Avatar({ name: 'duck', size: 24, onPress: () => {} });
+  assert.equal(avatar.type, 'Pressable');
+  assert.ok(styleOf(avatar).minWidth >= 44 && styleOf(avatar).minHeight >= 44);
+  assert.equal(styleOf(avatar).marginHorizontal, -10);
+  assert.equal(styleOf(avatar).marginVertical, -10);
+  const circle = first(avatar, 'View');
+  assert.equal(styleOf(circle).width, 24);
+  assert.equal(styleOf(circle).height, 24);
+});
+
 test('selected chip uses Foundations ink fill and on-action label', () => {
   const chip = Chip({ label: '책', selected: true });
   assert.equal(styleOf(first(chip, 'View')).minHeight, 32);
@@ -152,6 +170,15 @@ test('unselected/dashed chip appearance and callback stay available', () => {
   assert.equal(chip.props.accessibilityState.selected, false);
   chip.props.onPress(); assert.equal(pressed, 1);
 });
+test('web inactive tab separates tertiary icon from readable secondary label', () => {
+  pathname = '/';
+  const tree = expand(AppTabs());
+  const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '탐색')[0];
+  assert.equal(first(tab, 'svg').props.stroke, OnePick.textTertiary);
+  assert.equal(styleOf(first(tab, 'Text')).color, OnePick.textSecondary);
+  readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
+});
+
 test('web active tab uses ink icon and label without a brand fill', () => {
   pathname = '/explore';
   const tree = expand(AppTabs());

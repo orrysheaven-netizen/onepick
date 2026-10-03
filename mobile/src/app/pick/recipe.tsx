@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   block: { marginTop: 16 },
   label: { color: OnePick.text, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 7 },
   input: { minHeight: 52, backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 12, paddingHorizontal: 16, color: OnePick.text, fontSize: 16 },
-  hint: { color: OnePick.hint, fontSize: 11, lineHeight: 17, marginTop: 7 },
+  hint: { color: OnePick.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 7 },
   loading: { marginTop: 18 },
   inlineState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 18 },
   stateTitle: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
@@ -357,6 +357,6 @@ const styles = StyleSheet.create({
   requestLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'center', marginTop: 6 },
   requestCard: { borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, padding: 14, marginTop: 16 },
   submit: { marginTop: 16 },
-  attribution: { color: OnePick.hint, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
+  attribution: { color: OnePick.textSecondary, fontSize: 10, lineHeight: 15, marginTop: 24, marginBottom: 10 },
   pressed: { opacity: 0.7 },
 });

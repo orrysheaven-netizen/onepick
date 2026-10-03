@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   placeholderInitial: { color: OnePick.accent, fontSize: 13, fontWeight: '800' },
   placeholderName: { width: '100%', color: OnePick.text, fontSize: 10, lineHeight: 14, fontWeight: '700', textAlign: 'center', marginTop: 5 },
   placeholderNameLarge: { fontSize: 14, lineHeight: 20, marginTop: 10 },
-  placeholderHint: { color: OnePick.hint, fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
+  placeholderHint: { color: OnePick.textSecondary, fontSize: 9, lineHeight: 12, textAlign: 'center', marginTop: 2 },
   fallback: { color: OnePick.muted, fontSize: 12, textAlign: 'center', padding: 8 },
   empty: { alignItems: 'center', justifyContent: 'center' },
   addButton: { minHeight: 44, minWidth: 76, alignItems: 'center', justifyContent: 'center' },
