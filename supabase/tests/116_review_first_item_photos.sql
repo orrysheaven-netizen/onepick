@@ -12,6 +12,7 @@ declare
   m3 uuid := gen_random_uuid(); m4 uuid := gen_random_uuid(); m5 uuid := gen_random_uuid();
   bare uuid := gen_random_uuid(); bare2 uuid := gen_random_uuid(); photo_item uuid := gen_random_uuid();
   mine_pending uuid := gen_random_uuid(); hidden_item uuid := gen_random_uuid(); lost_item uuid := gen_random_uuid();
+  swap_item uuid := gen_random_uuid(); id_a uuid; id_b uuid;
   res jsonb; v_item public.items%rowtype; v_pick public.picks%rowtype;
   v_cand public.item_photo_candidates%rowtype; c_alice uuid; c_bob uuid; c_carol uuid; c_new uuid;
   n integer; raised boolean; v_text text;
@@ -36,7 +37,8 @@ begin
     (photo_item,m2,'L4 사진있음','l4사진있음','active',null,'https://img.example.com/l4.jpg'),
     (mine_pending,m3,'L4 내 요청','l4내요청','pending',alice,null),
     (hidden_item,m5,'L4 숨김예정','l4숨김예정','active',null,null),
-    (lost_item,m5,'L4 파일분실','l4파일분실','active',null,null);
+    (lost_item,m5,'L4 파일분실','l4파일분실','active',null,null),
+    (swap_item,m5,'L4 사진교체','l4사진교체','active',null,null);
 
   insert into storage.objects(bucket_id,name,owner_id,metadata,created_at)
   select 'item-photos', u.id::text||'/'||f.name, u.id::text,
@@ -44,7 +46,8 @@ begin
   from unnest(array[alice,bob,carol,suspended]) u(id)
   cross join (values ('a.jpg',1024),('a-t.jpg',100),('b.jpg',1024),('b-t.jpg',100),
                      ('c.jpg',1024),('c-t.jpg',100),('d.jpg',1024),('d-t.jpg',100),
-                     ('e.jpg',1024),('e-t.jpg',100)) f(name,size);
+                     ('e.jpg',1024),('e-t.jpg',100),
+                     ('f.jpg',1024),('f-t.jpg',100)) f(name,size);
 
   assert not has_table_privilege('anon','public.item_photo_candidates','SELECT'), 'Guests cannot read candidates';
   assert not has_table_privilege('authenticated','public.item_photo_candidates','INSERT')
@@ -118,7 +121,7 @@ begin
   v_pick := public.change_pick(menu,bare,'밥 후보',null,null,'offline');
   assert v_pick.status='needs_review', 'change_pick on my candidate saves a waiting Pick';
   select id into c_bob from public.item_photo_candidates where item_id=bare;
-  -- A second photo replaces the member's own pending candidate.
+  -- A second photo supersedes the member's own pending candidate (new id).
   perform public.attach_item_photo(bare,bob::text||'/b.jpg',bob::text||'/b-t.jpg');
   select count(*) into n from public.item_photo_candidates where item_id=bare and status='pending';
   assert n=1, 'One pending candidate per member and product';
@@ -191,7 +194,9 @@ begin
   select count(*) into n from public.item_photo_credits where item_id=bare and user_id=alice;
   assert n=1, 'The uploader, not the admin, is credited';
   select count(*) into n from public.item_photo_candidates where item_id=bare and status='superseded';
-  assert n=2, 'Other pending candidates of the product are superseded';
+  assert n=3, 'Other pending candidates of the product are superseded (Bob''s replaced one already was)';
+  select count(*) into n from public.item_photo_candidates where item_id=bare and status='pending';
+  assert n=0, 'No pending candidate is left for the product';
   select count(*) into n from public.picks where item_id=bare and status='needs_review';
   assert n=0, 'Every Pick that waited for this product photo is published';
   select count(*) into n from public.picks where item_id=bare and status='active' and user_id in (alice,bob,carol);
@@ -272,6 +277,65 @@ begin
   reset role;
   select * into v_pick from public.picks where id=(res->>'pick_id')::uuid;
   assert v_pick.status='active', 'Approving the new photo publishes the kept Pick';
+
+  -- ------------------------------------------------ replacement never approves an unseen photo
+  -- 1. The admin looks at Alice's photo A under id-A.
+  perform set_config('request.jwt.claim.sub',alice::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',alice,'role','authenticated','aal','aal1')::text,true);
+  set local role authenticated;
+  perform public.attach_item_photo(swap_item,alice::text||'/e.jpg',alice::text||'/e-t.jpg');
+  reset role;
+  perform set_config('request.jwt.claim.sub',admin::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',admin,'role','authenticated','aal','aal2')::text,true);
+  set local role authenticated;
+  select c.candidate_id into id_a from public.admin_item_photo_candidates(200) c
+  where c.item_id=swap_item and c.image_path=alice::text||'/e.jpg';
+  assert id_a is not null, 'The admin sees photo A as id-A';
+  reset role;
+
+  -- 2. Alice replaces it with photo B.
+  perform set_config('request.jwt.claim.sub',alice::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',alice,'role','authenticated','aal','aal1')::text,true);
+  set local role authenticated;
+  perform public.attach_item_photo(swap_item,alice::text||'/f.jpg',alice::text||'/f-t.jpg');
+  reset role;
+
+  -- 3. id-A is superseded and still points at photo A.
+  select * into v_cand from public.item_photo_candidates where id=id_a;
+  assert v_cand.status='superseded' and v_cand.image_path=alice::text||'/e.jpg',
+    'A replacement supersedes id-A instead of rewriting it';
+  -- 5. Photo B is a new candidate with its own id.
+  select id into id_b from public.item_photo_candidates
+  where item_id=swap_item and user_id=alice and status='pending';
+  assert id_b is not null and id_b<>id_a, 'Photo B gets a new id-B';
+  select image_path into v_text from public.item_photo_candidates where id=id_b;
+  assert v_text=alice::text||'/f.jpg', 'id-B holds photo B';
+
+  perform set_config('request.jwt.claim.sub',admin::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',admin,'role','authenticated','aal','aal2')::text,true);
+  set local role authenticated;
+  -- 4. Approving id-A (what the admin saw) fails and publishes nothing.
+  raised := false;
+  begin
+    perform public.admin_review_item_photo_candidate(id_a,true);
+  exception when others then raised := sqlerrm = 'PHOTO_CANDIDATE_NOT_PENDING'; end;
+  assert raised, 'Approving the replaced id-A fails as not pending';
+  select count(*) into n from public.admin_item_photo_candidates(200) c where c.item_id=swap_item;
+  assert n=1, 'The queue shows only id-B for the product';
+  reset role;
+  select image_path into v_text from public.items where id=swap_item;
+  assert v_text is null, 'A failed approval of id-A publishes neither A nor B';
+
+  -- 6. Only id-B can be approved, and it publishes photo B.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',admin,'role','authenticated','aal','aal2')::text,true);
+  set local role authenticated;
+  v_cand := public.admin_review_item_photo_candidate(id_b,true);
+  assert v_cand.status='approved', 'id-B is approved';
+  reset role;
+  select image_path into v_text from public.items where id=swap_item;
+  assert v_text=alice::text||'/f.jpg', 'The product shows exactly the reviewed photo B';
+  select count(*) into n from public.stale_item_photo_paths(100) s where s.path=alice::text||'/e.jpg';
+  assert n=1, 'Replaced photo A becomes collectable';
 
   -- ------------------------------------------------ approval guards
   perform set_config('request.jwt.claim.sub',bob::text,true);

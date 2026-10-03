@@ -104,8 +104,10 @@ $$;
 revoke all on function private.has_pending_item_photo_candidate(uuid, uuid) from public, anon, authenticated;
 
 -- Callers lock the item row and validate the uploaded files first (same rules
--- as before this change). One pending candidate per uploader and item: a new
--- photo replaces it.
+-- as before this change). One pending candidate per uploader and item. A new
+-- photo never reuses the old candidate id: the waiting one is superseded and
+-- the new photo gets a new id, so an admin decision on an id always applies to
+-- the exact photo the admin saw (an older id fails as not pending).
 create or replace function private.submit_item_photo_candidate(
   p_user uuid,
   p_item_id uuid,
@@ -127,23 +129,18 @@ begin
   end if;
 
   update public.item_photo_candidates
-  set image_path = p_image_path,
-      thumbnail_path = p_thumbnail_path,
-      image_source_url = p_image_source_url,
+  set status = 'superseded',
       updated_at = now()
   where item_id = p_item_id
     and user_id = p_user
-    and status = 'pending'
-  returning id into v_id;
+    and status = 'pending';
 
-  if v_id is null then
-    insert into public.item_photo_candidates(
-      item_id, user_id, image_path, thumbnail_path, image_source_url
-    ) values (
-      p_item_id, p_user, p_image_path, p_thumbnail_path, p_image_source_url
-    )
-    returning id into v_id;
-  end if;
+  insert into public.item_photo_candidates(
+    item_id, user_id, image_path, thumbnail_path, image_source_url
+  ) values (
+    p_item_id, p_user, p_image_path, p_thumbnail_path, p_image_source_url
+  )
+  returning id into v_id;
 
   return v_id;
 end;
