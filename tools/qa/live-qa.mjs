@@ -233,6 +233,29 @@ function summarizeApi(api) {
   return { calls: api.length, p50: pick(0.5), p95: pick(0.95), max: times.at(-1) ?? null };
 }
 
+function endpointKey(safe) {
+  const slash = safe.indexOf('/');
+  const pathname = slash >= 0 ? safe.slice(slash + 1) : safe;
+  if (pathname.startsWith('storage/v1/object/public/item-photos/')) return 'storage/v1/object/public/item-photos/*';
+  if (pathname.startsWith('storage/v1/object/public/brand-logos/')) return 'storage/v1/object/public/brand-logos/*';
+  return pathname;
+}
+
+function endpointCounts(api) {
+  const counts = new Map();
+  for (const request of api) {
+    const key = endpointKey(request.url);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  // Keep this retired call visible as an explicit zero so Daily QA can prove it
+  // did not silently return after #658 removed the home editorial request.
+  const retiredEditorial = 'rest/v1/rpc/home_editorial_items';
+  if (!counts.has(retiredEditorial)) counts.set(retiredEditorial, 0);
+  return [...counts.entries()]
+    .map(([endpoint, calls]) => ({ endpoint, calls }))
+    .sort((a, b) => b.calls - a.calls || a.endpoint.localeCompare(b.endpoint));
+}
+
 // Open the first recommended card from home and time the in-app transition.
 async function homeToDetail(browser) {
   const { context, page } = await loadPage(browser, '/', { label: 'home→detail', screenshot: false });
@@ -316,6 +339,11 @@ function toMarkdown(report) {
     ...(sorted.length ? sorted.map((f) => `- **${f.severity}** · ${f.where} · ${f.what} — ${f.evidence}${f.count > 1 ? ` (×${f.count})` : ''}`) : ['- 없음']),
     '',
   ];
+  if (report.homeEndpointCounts?.length) {
+    lines.push('### 홈 Supabase 엔드포인트 호출 수', '',
+      '| 엔드포인트 | 호출 수 |', '| --- | ---: |',
+      ...report.homeEndpointCounts.map(({ endpoint, calls }) => `| \`${endpoint}\` | ${calls} |`), '');
+  }
   const slowest = report.pages.flatMap((p) => p.log.api.map((a) => ({ ...a, page: p.label })))
     .filter((a) => a.ms != null).sort((a, b) => b.ms - a.ms).slice(0, 8);
   if (slowest.length) {
@@ -395,6 +423,7 @@ async function main() {
         lcpMs: median(homeRuns.map((r) => r.metrics?.lcpMs)),
         readyMs: median(homeRuns.map((r) => r.readyMs)),
       },
+      homeEndpointCounts: endpointCounts(homeRuns[0]?.log?.api ?? []),
       pages,
       findings,
     };
