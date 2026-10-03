@@ -40,8 +40,14 @@ async function main() {
   const request = { action: 'request_item', itemName: '  신라면   더 레드  ', categoryId: ids[0] };
   const requestWithSource = { ...request, sourceUrl: 'https://shop.example/items/ramen' };
   const linkSuggestion = { action: 'suggest_link_category', linkUrl: 'https://naver.me/example', linkName: '  대성집  ' };
+  const storePrefill = { action: 'store_pick', providerId: ids[0], categoryId: ids[1], menuName: '  라멘  ' };
 
   assert.equal(getPostAuthRoute(getAuthIntent(register)).pathname, '/pick/register');
+  same(getAuthIntent(storePrefill), { action: 'store_pick', providerId: ids[0], categoryId: ids[1], menuName: '라멘' });
+  same(getPostAuthRoute(getAuthIntent(storePrefill)), {
+    pathname: '/pick/new', params: { providerId: ids[0], categoryId: ids[1], menuName: '라멘' },
+  });
+  same(getAuthIntent({ ...storePrefill, providerId: '../../bad', categoryId: ['bad'], menuName: ' '.repeat(41) }), { action: 'store_pick' });
   same(getAuthIntent({ action: 'register_pick', categoryId: '../../bad', itemId: [ids[0]] }), { action: 'register_pick' });
   same(getPostAuthRoute(getAuthIntent(choose)), { pathname: '/pick/choose', params: { itemId: ids[0], categoryId: ids[1] } });
   same(getPostAuthRoute(getAuthIntent(chooseMovie)), { pathname: '/pick/find', params: { categoryId: ids[1], externalMovieId: '157336' } });
@@ -98,7 +104,7 @@ async function main() {
     { action: 'https://example.com' }, { ...comment, pickId: '../../auth/login' },
   ]) assert.equal(getPostAuthRoute(getAuthIntent(params)), '/');
 
-  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'notifications' }, { action: 'home' }, { action: 'join_from_profile' }]) {
+  for (const original of [choose, chooseMovie, chooseGame, chooseBook, chooseYouTube, register, storePrefill, request, requestWithSource, linkSuggestion, comment, { action: 'profile' }, { action: 'notifications' }, { action: 'home' }, { action: 'join_from_profile' }]) {
     const onboarding = getPostAuthRoute(getAuthIntent(original), true);
     assert.equal(onboarding.pathname, '/auth/username');
     same(getPostAuthRoute(getAuthIntent(onboarding.params)), getPostAuthRoute(getAuthIntent(original)));
@@ -156,6 +162,9 @@ async function main() {
   same(callbackParams, comment);
   await login(choose, { profile: {} });
   same(destination, getPostAuthRoute(choose));
+  await login(storePrefill, { profile: {} });
+  same(destination, getPostAuthRoute(getAuthIntent(storePrefill)));
+  same(callbackParams, getAuthIntent(storePrefill));
   await login(request, { profile: {} });
   same(destination, getPostAuthRoute(getAuthIntent(request)));
   same(callbackParams, getAuthIntent(request));

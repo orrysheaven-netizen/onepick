@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DishPeoplePicks } from '@/components/dish-people-picks';
-import { StateCard } from '@/components/ui';
+import { Button, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
@@ -52,6 +52,13 @@ export default function MenuPeoplePicksScreen() {
             returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
         ) : null}
       </ScrollView>
+      {categoryOpen && category.data && name ? <View style={styles.registerFooter}>
+        <Button fullWidth label={`내 ${name} 원픽 등록하기`}
+          onPress={() => router.push({
+            pathname: '/pick/new',
+            params: { menuName: name, categoryId: category.data.id },
+          })} />
+      </View> : null}
     </SafeAreaView>
   );
 }
@@ -78,5 +85,14 @@ const styles = StyleSheet.create({
     paddingBottom: OnePickSpace.xxxl,
   },
   loading: { marginVertical: OnePickSpace.xxxl },
+  registerFooter: {
+    width: '100%',
+    maxWidth: 390,
+    alignSelf: 'center',
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingTop: OnePickSpace.sm,
+    paddingBottom: OnePickSpace.sm,
+    backgroundColor: OnePick.bgDefault,
+  },
   pressed: { opacity: 0.65 },
 });

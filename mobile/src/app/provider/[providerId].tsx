@@ -177,7 +177,13 @@ export default function ProviderProfileScreen() {
               </View>
               <Text style={styles.storeChevron}>›</Text>
             </Pressable>)}
-          </View> : <StateCard compact title="아직 공개된 원픽이 없어요" text="이 제공처에서 메뉴 원픽이 생기면 여기에 표시돼요." />}
+          </View> : <StateCard compact title="아직 공개된 원픽이 없어요"
+            text={query.data.kind === 'offline_branch' ? '이 매장에서 메뉴 원픽이 생기면 여기에 표시돼요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
+            action={query.data.kind === 'offline_branch' ? {
+              label: '이곳에서 원픽 등록하기',
+              variant: 'primary',
+              onPress: () => router.push({ pathname: '/pick/new', params: { providerId: query.data.id } }),
+            } : undefined} />}
         </> : null}
       </ScrollView>
     </SafeAreaView>

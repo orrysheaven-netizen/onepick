@@ -8,6 +8,7 @@ const screen = read('src/app/provider/[providerId].tsx');
 const service = read('src/services/providerProfileService.ts');
 const home = read('src/app/(tabs)/index.tsx');
 const dish = read('src/components/dish-people-picks.tsx');
+const menu = read('src/app/menu/[slug].tsx');
 const own = read('src/app/(tabs)/(profile)/profile.tsx');
 const pub = read('src/app/(tabs)/(profile)/u/[username].tsx');
 
@@ -36,6 +37,9 @@ assert.match(screen, /<Text numberOfLines=\{1\} style=\{styles\.storeMenuName\}>
 assert.match(screen, /원픽 \{item\.pickCount\.toLocaleString\(\)\}/);
 assert.match(screen, /item\.latestReview \? <Text numberOfLines=\{1\} style=\{styles\.storeReview\}>/);
 assert.match(screen, /pathname: '\/item\/\[itemId\]'/, 'store menu rows open item detail');
+assert.match(screen, /이곳에서 원픽 등록하기/);
+assert.match(screen, /pathname: '\/pick\/new'[\s\S]{0,140}providerId: query\.data\.id/,
+  'empty offline store profile passes providerId into registration');
 
 assert.match(service, /latestReview: string \| null/);
 assert.match(service, /select\('id,item_id,one_line_review,started_at'\)/);
@@ -50,6 +54,9 @@ for (const [label, source] of [['Home', home], ['menu detail', dish], ['own prof
 
 assert.match(screen, /scope: 'provider'/, 'brand branch rows still enter store scope');
 assert.match(screen, /브랜드 전체/, 'brand profile remains available');
+assert.match(menu, /내 \$\{name\} 원픽 등록하기/);
+assert.match(menu, /pathname: '\/pick\/new'[\s\S]{0,180}menuName: name[\s\S]{0,120}categoryId: category\.data\.id/,
+  'menu detail passes menu/category prefill into the same registration flow');
 assert.doesNotMatch(screen, /fontWeight:\s*['"](?:800|900)['"]/, 'Figma 17A work does not introduce non-Foundations heavy weights');
 
 console.log('Figma 17A provider checks passed: store header, identity, registered links, menu rows/reviews, item drill-down and store-scope navigation.');

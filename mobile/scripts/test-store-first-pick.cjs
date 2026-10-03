@@ -26,7 +26,7 @@ const part = (tag) => ({ children }) => React.createElement(tag, null, children)
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
 
-let states, refs, stateIndex, refIndex, pressables, inputs, destination, uuidCounter;
+let states, refs, stateIndex, refIndex, pressables, inputs, destination, uuidCounter, routeParams;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
@@ -55,10 +55,13 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun;
+let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
+  useProviderStorePrefill: (providerId, enabled) => ({
+    data: enabled && providerId ? providerPrefill : null, isPending: false, isError: false,
+  }),
   useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
     isWaiting: false, isFetching: false, isError: false, refetch() {} }),
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
@@ -69,7 +72,10 @@ const hooks = {
 const { default: Screen } = load('app/pick/new.tsx', {
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
-  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {}, canGoBack: () => true }) },
+  'expo-router': {
+    useLocalSearchParams: () => routeParams,
+    useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {}, canGoBack: () => true }),
+  },
   '@/components/ui': ui, '@/errors/appError': { AppError },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
@@ -90,7 +96,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
 });
 
 function reset() {
-  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0;
+  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {};
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
     offline: [
@@ -108,6 +114,10 @@ function reset() {
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
   currentSlotRun = () => null;
+  providerPrefill = {
+    kind: 'place', catalogId: 'cat-prefill', name: '서울집', branchName: '성수점',
+    region: '서울 성동구', address: '성수이로 1', providerCategory: '한식', mapUrl: 'https://naver.me/seoulzip',
+  };
   registerRun = (input) => ({ itemId: input.itemId ?? 'created-item', pickId: 'pick-1', published: Boolean(input.itemId), replacedPickId: null, retried: false });
 }
 function render() {
@@ -135,6 +145,32 @@ async function main() {
   press('로그인');
   assert.equal(destination.pathname, '/auth/login');
   assert.equal(destination.params.action, 'store_pick');
+  assert.equal(destination.params.providerId, undefined);
+
+  // Provider profile entry re-reads the ID and shows step 1 with a selected store until Next.
+  reset();
+  routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
+  page = render();
+  assert.equal(input('매장명 검색').value, '서울집 성수점');
+  assert.match(page, /보고 있던 매장을 선택해 두었어요/);
+  assert.match(page, /서울집 · 성수점/);
+  press('다음'); page = render();
+  assert.equal(step(page), '2');
+
+  // Menu detail entry keeps step 1, then prefills menu/category after a store is chosen.
+  reset();
+  menuOptions = [
+    { categoryId: '22222222-2222-2222-2222-222222222222', name: '라멘', groupName: '면', placeEnabled: true },
+  ];
+  selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
+  routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
+  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
+  assert.equal(step(page), '2');
+  assert.equal(input('메뉴 이름').value, '라멘');
+  assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+  assert.match(page, /면 › 라멘/);
+  press('다음'); await flush();
+  page = render(); assert.equal(step(page), '4', 'Existing photo skips the photo interaction from a valid menu prefill');
 
   // Public MVP starts directly at offline store search: no channel chooser.
   reset();
