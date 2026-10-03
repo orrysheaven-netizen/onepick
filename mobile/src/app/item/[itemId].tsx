@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useAttachItemPhoto, useChoosePhoto, useRevisePendingItem } from '@/hooks/useRegisterPick';
+import { useAttachItemPhoto, useChoosePhoto, useMyPendingItemPhoto, useRevisePendingItem } from '@/hooks/useRegisterPick';
 import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { ItemChannelLinks } from '@/components/item-channel-links';
 import { ItemPickCount } from '@/components/item-pick-count';
@@ -177,7 +177,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
-  const canContribute = Boolean(itemId && !query.isError && currentItem && ['active', 'discontinued'].includes(currentItem.status) && !hasPhoto);
+  const photoSlotOpen = Boolean(itemId && !query.isError && currentItem && ['active', 'discontinued'].includes(currentItem.status) && !hasPhoto);
+  // L4: my photo waiting for admin review is shown to me only, in place of the upload row.
+  const myPendingPhoto = useMyPendingItemPhoto(itemId, user?.id, photoSlotOpen);
+  const pendingPhoto = photoSlotOpen ? myPendingPhoto.data ?? null : null;
+  const canContribute = photoSlotOpen && !pendingPhoto && !(Boolean(user) && myPendingPhoto.isPending);
   const photoBusy = photoPicker.isPending || photoAttachment.isPending;
   const photoIntent = { action: 'add_item_photo', itemId: itemId ?? '' };
 
@@ -357,7 +361,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.heroCard}>
           {/* No photo yet: a one-line upload row instead of an empty square. */}
-          {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl} label={item.name} large={hasPhoto} logoUri={brand?.logoUrl} /> : null}
+          {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl ?? pendingPhoto?.imageUrl} label={item.name} large={hasPhoto || Boolean(pendingPhoto)} logoUri={brand?.logoUrl} /> : null}
+          {pendingPhoto ? <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>내가 올린 사진이에요. 관리자 검수 후 같은 걸 고른 사람들에게도 보여요. 지금은 나에게만 보여요.</Text> : null}
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
             onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username, returnTo: `/item/${item.id}` } })} style={styles.creditLink}>
             <Text style={styles.creditText}>사진 @{credit.username}</Text>
@@ -369,7 +374,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               {photo ? (
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
-                  <Text style={styles.photoContributionHint}>올린 사진은 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요.</Text>
+                  <Text style={styles.photoContributionHint}>올린 사진은 관리자 검수 후 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요.</Text>
                   <View style={styles.photoActions}>
                     <Button variant="secondary" label="다시 선택" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
                     <Button label="대표 이미지 등록" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />

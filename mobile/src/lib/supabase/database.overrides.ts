@@ -88,6 +88,22 @@ type UserFollowRow = {
   created_at: string;
 };
 
+// L4: a member's photo for a published product, waiting for admin review.
+// RLS returns only the caller's own rows; writes go through RPCs.
+export type ItemPhotoCandidateRow = {
+  id: string;
+  item_id: string;
+  user_id: string;
+  image_path: string;
+  thumbnail_path: string;
+  image_source_url: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'superseded';
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PublicFollowConnectionRow = {
   user_id: string;
   username: string;
@@ -230,6 +246,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       profile_ai_reviews: TableShape<ProfileAiReviewRow, never, { is_visible?: boolean }>;
       system_actors: TableShape<SystemActorRow, never, never>;
       user_follows: TableShape<UserFollowRow, { follower_id: string; followee_id: string; created_at?: string }, never>;
+      item_photo_candidates: TableShape<ItemPhotoCandidateRow, never, never>;
       pick_change_notifications: TableShape<PickChangeNotificationRow, never, { read_at?: string | null }>;
       item_review_notifications: TableShape<ItemReviewNotificationRow, never, { read_at?: string | null }>;
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;

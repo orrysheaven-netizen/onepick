@@ -32,6 +32,8 @@ export interface Item {
   channels?: PickChannel[];
   /** Public provider profile for store/online items. Legacy/catalog items may not have one. */
   providerId?: string | null;
+  /** L4: the photo shown is my own, still waiting for admin review (visible only to me). */
+  photoPendingReview?: boolean;
   status: ItemStatus;
   mergedIntoItemId: string | null;
   createdBy: string | null;

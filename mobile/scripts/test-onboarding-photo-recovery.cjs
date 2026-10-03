@@ -113,6 +113,7 @@ function setup(file, extra = {}) {
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => picker,
       useAttachItemPhoto: () => mutation,
+      useMyPendingItemPhoto: () => ({ data: null, isPending: false }),
       useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
     },
     '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },

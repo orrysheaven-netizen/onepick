@@ -6,6 +6,7 @@ import type {
   AttachItemPhotoInput,
   ItemRepository,
   ItemSearchInput,
+  PendingItemPhoto,
   SubmitItemInput,
   SubmitUnclassifiedItemInput,
   StageUserPlaceItemInput,
@@ -35,6 +36,28 @@ export class SupabaseItemRepository implements ItemRepository {
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');
     return this.mapRow(data);
+  }
+
+  async getMyPendingPhotos(userId: string, itemIds?: string[]) {
+    const photos = new Map<string, PendingItemPhoto>();
+    if (!userId || (itemIds && itemIds.length === 0)) return photos;
+    let query = this.client
+      .from('item_photo_candidates')
+      .select('item_id,image_path,thumbnail_path')
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+    if (itemIds) query = query.in('item_id', itemIds);
+    const { data, error } = await query;
+    if (error) throw mapSupabaseError(error);
+    const bucket = this.client.storage.from('item-photos');
+    for (const row of data ?? []) {
+      photos.set(row.item_id, {
+        itemId: row.item_id,
+        imageUrl: bucket.getPublicUrl(row.image_path).data.publicUrl,
+        thumbnailUrl: bucket.getPublicUrl(row.thumbnail_path).data.publicUrl,
+      });
+    }
+    return photos;
   }
 
   async getById(itemId: string) {

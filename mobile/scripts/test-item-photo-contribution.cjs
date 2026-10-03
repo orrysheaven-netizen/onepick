@@ -52,14 +52,21 @@ async function main() {
   assert.equal(attachCount, 1);
   assert.equal(removed.length, 0, 'Winning contribution remains referenced');
 
+  // L4: the server keeps the item photo-less while my photo waits for admin
+  // review; the upload is my pending candidate and must not be removed.
+  attachedItem = { ...blankItem };
+  const pending = await service.attachItemPhoto({ userId: 'user', itemId: 'item', photo });
+  assert.equal(pending.imagePath, null, 'The item stays photo-less before admin review');
+  assert.equal(removed.length, 0, 'A pending candidate upload is kept');
+
   attachedItem = { ...blankItem, imagePath: 'other/winner.jpg', thumbnailPath: 'other/winner-thumb.jpg' };
   await service.attachItemPhoto({ userId: 'user', itemId: 'item', photo });
   assert.deepEqual(removed.pop(), [uploaded.imagePath, uploaded.thumbnailPath], 'Concurrent losing upload is cleaned');
 
   currentItem = attachedItem;
   await service.attachItemPhoto({ userId: 'user', itemId: 'item', photo });
-  assert.equal(uploadCount, 2, 'Existing image skips another upload');
-  assert.equal(attachCount, 2, 'Existing image skips another RPC');
+  assert.equal(uploadCount, 3, 'Existing image skips another upload');
+  assert.equal(attachCount, 3, 'Existing image skips another RPC');
 
   currentItem = blankItem;
   itemRepository.attachPhoto = async () => { throw new AppError('NETWORK_ERROR'); };
@@ -67,7 +74,7 @@ async function main() {
   assert.deepEqual(removed.pop(), [uploaded.imagePath, uploaded.thumbnailPath], 'Failed attachment cleans the unused upload');
 
   await assert.rejects(() => service.attachItemPhoto({ userId: '', itemId: 'item', photo }), (error) => error.code === 'AUTH_REQUIRED');
-  console.log('Item photo contribution checks passed: first win, race cleanup, existing image reuse and failure cleanup.');
+  console.log('Item photo contribution checks passed: first win, pending review keeps the upload, race cleanup, existing image reuse and failure cleanup.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
