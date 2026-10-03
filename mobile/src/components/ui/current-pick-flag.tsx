@@ -4,8 +4,8 @@ import { OnePick, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 export function CurrentPickFlag() {
   return (
-    <View accessibilityLabel="현재 원픽" style={styles.flag}>
-      <Text accessibilityElementsHidden style={styles.icon}>⚑</Text>
+    <View accessible accessibilityLabel="현재 원픽" style={styles.flag}>
+      <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.icon}>⚑</Text>
       <Text style={styles.label}>원픽</Text>
     </View>
   );
