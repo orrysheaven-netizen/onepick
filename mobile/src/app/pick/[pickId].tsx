@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickReplies } from '@/components/pick-replies';
+import { ReviewRow } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
@@ -124,17 +124,12 @@ export default function PickDetailScreen() {
           </Pressable>
         </View>
         : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.review}>
-            <View style={styles.reviewMeta}>
-              <Text style={styles.author}>
-                {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
-              </Text>
-              {focused.pick.isCurrent ? <CurrentPickFlag /> : null}
-            </View>
-            {focused.pick.isDeleted
-              ? <Text style={styles.reviewText}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
-              : <Text style={styles.reviewText}>{'“' + focused.pick.oneLineReview + '”'}</Text>}
-          </View>
+          <ReviewRow
+            review={focused.pick.isDeleted ? '삭제된 한줄평입니다. 기존 대화만 남아 있어요.' : focused.pick.oneLineReview}
+            username={focused.profile?.username}
+            mine={focused.pick.userId === user?.id}
+            currentPick={Boolean(focused.pick.isCurrent)}
+          />
           <PickReplies
             pickId={focused.pick.id}
             canWrite={Boolean(focused.pick.canComment)}
@@ -161,10 +156,6 @@ const styles = StyleSheet.create({
   back: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
-  review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
-  reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
-  author: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
-  reviewText: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.sm },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: OnePickSpace.sm, padding: OnePickSpace.xxl },
   stateTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
   stateText: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center' },

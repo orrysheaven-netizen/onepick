@@ -121,3 +121,10 @@ async function main() {
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+
+
+const conversation = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
+const replies = fs.readFileSync(path.join(__dirname, '../src/components/pick-replies.tsx'), 'utf8');
+assert.match(conversation, /<ReviewRow/, '72 target review uses the shared ReviewRow');
+assert.match(replies, /<CommentRow/, '72 comments/replies use the shared CommentRow');
+assert.match(replies, /formatRelativeTime\(comment\.createdAt\)/, '72 comments show relative time');

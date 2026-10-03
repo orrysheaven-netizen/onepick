@@ -9,14 +9,15 @@ import {
   View,
 } from 'react-native';
 
-import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
+import { CommentRow } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
 import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { formatRelativeTime } from '@/lib/format/relativeTime';
 import type { CommentReadItem, ReadCursor } from '@/repositories/interfaces/readRepository';
 
 function getCommentErrorMessage(error: unknown) {
@@ -127,41 +128,41 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     const deleted = Boolean(comment.isDeleted);
     const canDelete = Boolean(comment.canDelete ?? (user && comment.userId === user.id));
     const username = author?.username ?? '사용자';
+    const beginReply = () => {
+      setReplyingTo({ id: comment.id, username });
+      setComposing(true);
+      createComment.reset();
+    };
 
     return <View key={comment.id} style={[
-      styles.commentRow,
-      isReply && styles.replyRow,
+      styles.commentEntry,
       comment.id === focusCommentId && styles.commentHighlight,
     ]}>
-      <View style={[styles.commentAvatar, isReply && styles.replyAvatar]}>
-        <Text style={styles.commentAvatarText}>{deleted ? '·' : username.slice(0, 1).toUpperCase()}</Text>
-      </View>
-      <View style={styles.commentCopy}>
-        {deleted ? <Text style={styles.commentAuthor}>삭제된 댓글</Text> : author ? <View style={styles.commentAuthorRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`@${author.username} 공개 프로필 보기`}
-            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username, returnTo: `/pick/${pickId}` } })}
-            style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
-            <Text style={styles.commentAuthor}>@{author.username} ›</Text>
-          </Pressable>
-          {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag /> : null}
-        </View> : <Text style={styles.commentAuthor}>사용자</Text>}
+      {deleted ? <View style={[styles.deletedComment, isReply && styles.deletedReply]}>
+        <Text style={styles.deletedAuthor}>삭제된 댓글</Text>
+        <Text style={styles.deletedBody}>삭제된 댓글입니다.</Text>
+        <Text style={styles.deletedTime}>{formatRelativeTime(comment.createdAt)}</Text>
+      </View> : <CommentRow
+        username={username}
+        body={comment.body}
+        time={formatRelativeTime(comment.createdAt)}
+        reply={isReply}
+        currentPick={Boolean(comment.authorCurrentPickMatchesItem)}
+        showReply={!isReply && canComment}
+        onReply={!isReply && canComment ? beginReply : undefined}
+        onProfilePress={author ? () => router.push({
+          pathname: '/u/[username]',
+          params: { username: author.username, returnTo: `/pick/${pickId}` },
+        }) : undefined}
+      />}
 
-        <Text style={[styles.commentBody, deleted && styles.deletedBody]}>{deleted ? '삭제된 댓글입니다.' : comment.body}</Text>
-
-        {!deleted && user && author && author.id !== user.id ? <View style={styles.commentSafety}>
+      {!deleted && (canDelete || (user && author && author.id !== user.id)) ? <View style={[
+        styles.commentControls,
+        isReply && styles.replyControls,
+      ]}>
+        {user && author && author.id !== user.id ? <View style={styles.commentSafety}>
           <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
         </View> : null}
-
-        {!isReply && canComment && !deleted ? <Pressable accessibilityRole="button"
-          accessibilityLabel={`@${username}에게 답글 달기`}
-          onPress={() => {
-            setReplyingTo({ id: comment.id, username });
-            setComposing(true);
-            createComment.reset();
-          }}
-          style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
-          <Text style={styles.textActionLabel}>답글</Text>
-        </Pressable> : null}
 
         {canDelete ? (confirmingDeleteId === comment.id ? <View style={styles.deleteConfirm}>
           <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 답글이 있으면 대화 자리는 남습니다.</Text>
@@ -183,7 +184,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
           style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
           <Text style={styles.textActionLabel}>삭제</Text>
         </Pressable>) : null}
-      </View>
+      </View> : null}
     </View>;
   };
 
@@ -319,8 +320,6 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
 }
 
 const styles = StyleSheet.create({
-  commentAuthorLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  commentAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   commentsCard: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 18, marginTop: 14 },
   commentsInline: { marginTop: 4 },
   commentsTitleCompact: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
@@ -332,15 +331,15 @@ const styles = StyleSheet.create({
   smallButton: { backgroundColor: OnePick.text, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
   smallButtonText: { color: OnePick.onAccent, fontSize: 12, fontWeight: '800' },
   emptyComments: { color: OnePick.muted, fontSize: 12, lineHeight: 18, paddingVertical: 17 },
-  commentRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
-  replyRow: { marginLeft: 34, paddingLeft: 10, backgroundColor: OnePick.background, borderRadius: 12, borderBottomWidth: 0, marginTop: 4 },
+  commentEntry: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.border },
   commentHighlight: { backgroundColor: OnePick.accentSoft, borderRadius: 12, paddingHorizontal: 8 },
-  commentAvatar: { width: 34, height: 34, borderRadius: 12, backgroundColor: OnePick.sunken, alignItems: 'center', justifyContent: 'center' },
-  replyAvatar: { width: 28, height: 28, borderRadius: 10 },
-  commentAvatarText: { color: OnePick.muted, fontSize: 13, fontWeight: '900' },
-  commentCopy: { flex: 1, marginLeft: 11 },
-  commentAuthor: { color: OnePick.text, fontSize: 12, fontWeight: '800' },
-  commentBody: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  commentControls: { marginLeft: 44, marginTop: -OnePickSpace.sm, paddingBottom: OnePickSpace.xs },
+  replyControls: { marginLeft: 84 },
+  deletedComment: { paddingVertical: OnePickSpace.md, paddingHorizontal: OnePickSpace.sm },
+  deletedReply: { marginLeft: 40 },
+  deletedAuthor: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
+  deletedBody: { ...OnePickType.body, color: OnePick.textSecondary, fontStyle: 'italic', marginTop: OnePickSpace.xs },
+  deletedTime: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
   deletedBody: { fontStyle: 'italic', color: OnePick.textSecondary },
   commentSafety: { marginTop: 8 },
   textAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingRight: 12 },

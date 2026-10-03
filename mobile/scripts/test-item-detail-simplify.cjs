@@ -145,7 +145,8 @@ assert.match(conversationSource, /useItemDetail\(itemId, user\?\.id, pickId/, 'C
 assert.match(conversationSource, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/, 'Reply notifications and exact comment links forward focus into the thread');
 assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/, 'Reply read receipt waits for the located comment to load');
 assert.match(conversationSource, /canWrite=\{Boolean\(focused\.pick\.canComment\)\}/, 'Conversation writing follows item_review_page can_comment');
-assert.match(conversationSource, /<CurrentPickFlag \/>/, 'Conversation detail uses the shared icon-only current-Pick flag');
+assert.match(conversationSource, /<ReviewRow/, 'Conversation detail uses the shared Foundations ReviewRow');
+assert.doesNotMatch(conversationSource, /<CurrentPickFlag \/>/, 'Conversation detail no longer hand-builds the current-Pick flag');
 assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conversation detail has no current-Pick text badge');
 
 // PickReplies keeps its existing CRUD/composer behavior.
@@ -153,8 +154,11 @@ const repliesSource = source('components/pick-replies.tsx');
 assert.match(repliesSource, /useState\(!compact\)/);
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /const canComment = canWrite && !isSessionLoading && !sessionError/);
-assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag \/> : null/,
+assert.match(repliesSource, /<CommentRow/, 'Conversation comments use the shared Foundations CommentRow');
+assert.match(repliesSource, /currentPick=\{Boolean\(comment\.authorCurrentPickMatchesItem\)\}/,
   'Visible comment authors get the flag only when the server says their current Pick matches this item/channel');
+assert.match(repliesSource, /formatRelativeTime\(comment\.createdAt\)/, 'Comment rows show the shared relative-time label');
+assert.doesNotMatch(repliesSource, /<CurrentPickFlag \/>/, 'Comment rows no longer hand-build the current-Pick flag');
 assert.doesNotMatch(repliesSource, /✓ 이 집 원픽|✓ 원픽/, 'Comment authors use no current-Pick text badge');
 
 console.log('Item detail simplify passed: compact review rows, server comment counts, dedicated conversations, share and management actions.');
