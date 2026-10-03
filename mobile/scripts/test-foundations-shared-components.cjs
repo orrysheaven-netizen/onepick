@@ -40,6 +40,15 @@ assert.ok(byLabel('댓글 3')); assert.ok(byLabel('공유')); assert.ok(byLabel(
 assert.ok(texts.some((t) => textValue(t) === '@duck' && t.resolved.fontSize === 14), 'Review username uses Body Medium');
 assert.ok(texts.some((t) => t.children === '원픽'), 'Review row exposes current-pick marker');
 
+const interactiveReview = render(React.createElement(ui.ReviewRow, {
+  username: 'duck', review: '눌러서 열기', onPress() {}, onComments() {}, onShare() {}, onReport() {},
+}));
+assert.doesNotMatch(
+  interactiveReview,
+  /<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/,
+  'Review summary pressable must not contain action buttons',
+);
+
 render(React.createElement(ui.ReviewRow, {
   mine: true, review: '내 한줄평', onEdit() {}, onRemovePick() {}, onDelete() {},
 }));
@@ -52,5 +61,14 @@ render(React.createElement(ui.CommentRow, {
 assert.ok(texts.some((t) => textValue(t) === '@duck' && t.resolved.fontSize === 14), 'Comment username uses Body Medium');
 assert.equal(byLabel('duck에게 답글').resolved.minHeight, 44);
 assert.equal(byLabel('duck에게 답글').resolved.marginVertical, undefined, 'Reply touch area does not overlap adjacent rows');
+
+render(React.createElement(ui.CommentRow, {
+  username: 'duck', body: '답글 없음', time: '방금', showReply: false,
+}));
+assert.equal(views.some((v) => v.resolved.minHeight === 44), false, 'Time-only comment meta row does not reserve a 44px action slot');
+
+render(React.createElement(ui.CurrentPickFlag));
+const decorativeFlag = texts.find((t) => t.children === '⚑');
+assert.equal(decorativeFlag.props.importantForAccessibility, 'no', 'Decorative current-pick glyph is hidden from TalkBack');
 
 console.log('Shared Foundations components passed: PickButton states, ReviewRow actions, CommentRow hierarchy and safe touch targets.');
