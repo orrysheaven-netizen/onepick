@@ -23,7 +23,7 @@ export function MenuRow({ title, meta, leading, onPress, accessibilityLabel }: P
         <Text numberOfLines={1} style={styles.title}>{title}</Text>
         {meta ? <Text numberOfLines={1} style={styles.meta}>{meta}</Text> : null}
       </View>
-      {onPress ? <Text accessibilityElementsHidden style={styles.chevron}>›</Text> : null}
+      {onPress ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>›</Text> : null}
     </Pressable>
   );
 }
