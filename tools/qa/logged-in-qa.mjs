@@ -332,40 +332,80 @@ async function main() {
       await page.waitForURL(/\/pick\/new/, { timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
     });
-    await check(flow, '매장 검색·선택 가능 (1/4 매장)', async () => {
+    await check(flow, '매장 검색 cold/warm + 선택 가능 (1/4 매장)', async () => {
       await page.getByText('1 / 4 · 오프라인 매장', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      // Step 1 searches stores/sellers by name (useStoreSearch → search_place_catalog
-      // or a seller search), scoped to the default "매장" channel. Selecting a row
-      // only sets local state (pickStore) and advances the step client-side — no
-      // network write, so a real click is safe here.
+      // Measure the exact store-search RPC twice with the same request payload.
+      // The first call comes from the UI and represents the cold path. The second
+      // call is replayed from the same browser page so it can reuse the connection
+      // and server caches without performing any write.
       const storeInput = page.getByRole('textbox', { name: '매장명 검색', exact: true });
       await storeInput.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const rpcCalls = [];
-      const onRpcResponse = (response) => {
-        const match = response.url().match(/\/rest\/v1\/rpc\/([^?]+)/);
-        if (!match || response.request().method() !== 'POST') return;
-        response.text().then((body) => {
-          let rows = '';
-          try { const json = JSON.parse(body); rows = Array.isArray(json) ? `${json.length}행` : JSON.stringify(json).slice(0, 40); } catch { rows = '?'; }
-          rpcCalls.push(`${match[1]} ${response.status()} ${rows}`);
-        }).catch(() => rpcCalls.push(`${match[1]} ${response.status()}`));
+      const rpcStarted = new WeakMap();
+      const onRpcRequest = (request) => {
+        const match = request.url().match(/\/rest\/v1\/rpc\/([^?]+)/);
+        if (!match || request.method() !== 'POST') return;
+        rpcStarted.set(request, {
+          name: match[1],
+          startedAt: Date.now(),
+          url: request.url(),
+          headers: request.headers(),
+          body: request.postData(),
+        });
       };
+      const onRpcResponse = (response) => {
+        const request = response.request();
+        const pending = rpcStarted.get(request);
+        if (!pending) return;
+        const call = { ...pending, status: response.status(), ms: Date.now() - pending.startedAt, rows: null };
+        rpcCalls.push(call);
+        response.json().then((body) => {
+          call.rows = Array.isArray(body) ? body.length : null;
+        }).catch(() => {});
+      };
+      page.on('request', onRpcRequest);
       page.on('response', onRpcResponse);
       try {
+        const coldUiStarted = Date.now();
         await storeInput.fill(STORE_QUERY);
         const result = page.getByRole('button', { name: /선택$/ });
         const noStore = page.getByText('매장을 찾지 못했어요', { exact: true });
         const searchError = page.getByText('검색하지 못했어요');
         await result.first().or(noStore).or(searchError).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
-          .catch(() => { throw new Error(`"${STORE_QUERY}" 검색 응답 없음 · rpc=[${rpcCalls.join(', ') || '없음'}]`); });
+          .catch(() => { throw new Error(`"${STORE_QUERY}" 검색 응답 없음 · rpc=[${rpcCalls.map((c) => `${c.name} ${c.status} ${c.ms}ms`).join(', ') || '없음'}]`); });
         if (!(await result.count())) {
           const state = await searchError.isVisible().catch(() => false) ? '검색 오류 카드' : '일치 매장 없음';
-          throw new Error(`"${STORE_QUERY}" ${state} · rpc=[${rpcCalls.join(', ') || '없음'}]`);
+          throw new Error(`"${STORE_QUERY}" ${state} · rpc=[${rpcCalls.map((c) => `${c.name} ${c.status} ${c.ms}ms`).join(', ') || '없음'}]`);
         }
+        const coldUiMs = Date.now() - coldUiStarted;
+        await page.waitForTimeout(50);
+
+        const searchable = new Set(['search_store_catalog', 'search_place_catalog']);
+        const coldCall = rpcCalls.find((call) => searchable.has(call.name)) ?? rpcCalls[0];
+        if (!coldCall) throw new Error(`"${STORE_QUERY}" 검색 RPC를 확인하지 못함`);
+
+        const replayHeaders = {};
+        for (const name of ['apikey', 'authorization', 'content-type', 'accept', 'prefer', 'x-client-info']) {
+          if (coldCall.headers[name]) replayHeaders[name] = coldCall.headers[name];
+        }
+        const warm = await page.evaluate(async ({ url, headers, body }) => {
+          const startedAt = performance.now();
+          const response = await fetch(url, { method: 'POST', headers, body });
+          const json = await response.json().catch(() => null);
+          return {
+            status: response.status,
+            rows: Array.isArray(json) ? json.length : null,
+            ms: Math.round(performance.now() - startedAt),
+          };
+        }, { url: coldCall.url, headers: replayHeaders, body: coldCall.body });
+
+        if (warm.status >= 400) throw new Error(`"${STORE_QUERY}" warm 검색 HTTP ${warm.status}`);
         await result.first().click();
         await noErrorCopy(page);
-        return `"${STORE_QUERY}" 선택 버튼 ${await result.count()}개 → 매장 선택 · rpc=[${rpcCalls.join(', ')}]`;
+        const rows = (value) => value == null ? '?' : value;
+        return `"${STORE_QUERY}" cold RPC ${coldCall.ms}ms / warm RPC ${warm.ms}ms · UI 첫 결과 ${coldUiMs}ms · cold ${coldCall.name} ${coldCall.status} ${rows(coldCall.rows)}행 · warm ${warm.status} ${rows(warm.rows)}행 · 매장 선택`;
       } finally {
+        page.off('request', onRpcRequest);
         page.off('response', onRpcResponse);
       }
     });
