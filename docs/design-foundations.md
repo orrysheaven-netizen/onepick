@@ -2,7 +2,7 @@
 
 기준 파일: 피그마 "OnePick Social UI"(`77VUmD5myMWbuISkIPz37W`)의 **Foundations** 페이지. 2026-10-03 빌드업 기준(주 버튼=잉크, 접근성/상태 규칙 포함)을 앱 공용 UI와 함께 유지합니다.
 
-2026-09-28 UI 안정화 단계에서는 **새 화면을 추가하지 않습니다.** 기존 "OnePick Social UI" 프레임만 다시 점검하며, 손대는 화면은 이 규칙과 공용 컴포넌트로 통일합니다.
+현재 UI 안정화 단계에서는 **새 기능 화면을 임의로 추가하지 않습니다.** 기존 프레임과 관리자 승인으로 확정된 파생 상태를 기준으로 점검하며, 손대는 화면은 이 규칙과 공용 컴포넌트로 통일합니다.
 
 ## 원칙
 
@@ -68,7 +68,7 @@
 | Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
-| App Header | Theme | 메인 탭 상단: 로고 + 테마 선택(bg/accent) |
+| App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
 | Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
 | Menu Tile | Name, Count | 홈 메뉴 2열 격자 한 칸, 사진 없으면 bg/placeholder |
 | Feed Card | Username, Item, Provider, Review, Meta | 피드 한 건, 채널 태그는 Tag/Soft |
@@ -78,7 +78,7 @@
 | Toast | Message | 짧은 완료 알림, 하단 가운데, action/primary 바탕 |
 | Notification Row | Actor, Message, Quote, Time, Unread (+ Kind 태그) | 알림 한 건, 안 읽음은 탠저린 점 |
 | Settings Row | Label, Show Chevron | 설정 목록 한 줄, 위험 동작은 text/danger |
-| My Pick Row | Item, Provider, Review (+ Channel 태그) | 내 프로필 원픽 한 줄 + ⋯ 관리 메뉴 |
+| My Pick Row | Item, Provider, Review (+ Channel 태그) | 내 프로필 원픽 한 줄. 행은 아이템 상세(36)로 이동하며 프로필에는 관리 ⋯ 메뉴를 두지 않음 |
 | Avatar | Size=24/32/40/64/68/72 × Tone=Subtle/Accent | 프로필/댓글/목록 공용 아바타. 이미지가 없으면 이니셜 대체 |
 | Tab Header | Title, Action, Show Action | 메인 탭 제목 + 오른쪽 텍스트 동작. 높이 56 |
 | Menu Row | Title, Meta, Leading | 사진/자리 56 + 메뉴명 + 보조 정보 + 셰브론. 행 최소 76 |
