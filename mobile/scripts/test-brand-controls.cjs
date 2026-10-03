@@ -42,6 +42,7 @@ function load(file) {
 mocks['./touch'] = load('src/components/ui/touch.ts');
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
+const { Avatar } = load('src/components/ui/avatar.tsx');
 const AppTabs = load('src/components/app-tabs.web.tsx').default;
 const { OnePickBrand } = load('src/components/onepick-brand.tsx');
 const flat = (style) => Array.isArray(style) ? style.flatMap(flat) : style ? [style] : [];
@@ -133,6 +134,15 @@ test('button dimensions, callback, overrides and labels are preserved', () => {
   assert.equal(override.props.accessibilityRole, 'button');
   assert.equal(override.props.disabled, true);
 });
+test('interactive avatar has a real 44x44 touch wrapper', () => {
+  const avatar = Avatar({ name: 'duck', size: 24, onPress: () => {} });
+  assert.equal(avatar.type, 'Pressable');
+  assert.ok(styleOf(avatar).minWidth >= 44 && styleOf(avatar).minHeight >= 44);
+  const circle = first(avatar, 'View');
+  assert.equal(styleOf(circle).width, 24);
+  assert.equal(styleOf(circle).height, 24);
+});
+
 test('selected chip uses Foundations ink fill and on-action label', () => {
   const chip = Chip({ label: '책', selected: true });
   assert.equal(styleOf(first(chip, 'View')).minHeight, 32);

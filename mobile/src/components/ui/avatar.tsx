@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickRadius } from '@/constants/onepick';
-import { PRESSED_OPACITY, touchSlop } from './touch';
+import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from './touch';
 
 type Size = 24 | 32 | 40 | 64 | 68 | 72;
 
@@ -18,19 +18,22 @@ const fontSizes: Record<Size, number> = { 24: 11, 32: 13, 40: 15, 64: 24, 68: 25
 
 export function Avatar({ name, size = 32, tone = 'accent', onPress, accessibilityLabel }: Props) {
   const initial = name.trim().slice(0, 1).toUpperCase();
-  const box = [styles.circle, tone === 'subtle' && styles.subtle, { width: size, height: size }];
-  const glyph = <Text style={[styles.initial, { fontSize: fontSizes[size], lineHeight: size }]}>{initial}</Text>;
-  if (!onPress) return <View style={box}>{glyph}</View>;
+  const visual = (
+    <View style={[styles.circle, tone === 'subtle' && styles.subtle, { width: size, height: size }]}>
+      <Text style={[styles.initial, { fontSize: fontSizes[size], lineHeight: size }]}>{initial}</Text>
+    </View>
+  );
+  if (!onPress) return visual;
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? `@${name} 프로필 보기`} onPress={onPress}
-      hitSlop={touchSlop(size, size)}
-      style={({ pressed }) => [box, pressed && styles.pressed]}>
-      {glyph}
+      style={({ pressed }) => [styles.touch, pressed && styles.pressed]}>
+      {visual}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  touch: { minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   circle: { borderRadius: OnePickRadius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.accentSoft },
   subtle: { backgroundColor: OnePick.bgSubtle },
   initial: { color: OnePick.accentDeep, fontWeight: '800' },
