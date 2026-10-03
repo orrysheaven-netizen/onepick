@@ -36,7 +36,7 @@ export function PickButton({ state = 'default', onPress, loading, fullWidth = tr
       <View style={[styles.visual, mine ? styles.mine : styles.selectable, fullWidth && styles.fullWidthVisual]}>
         {loading && !mine ? <ActivityIndicator color={OnePick.onAction} /> : (
           <>
-            {mine ? <Text accessibilityElementsHidden style={styles.mineIcon}>✓</Text> : <View accessibilityElementsHidden style={styles.circleIcon} />}
+            {mine ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.mineIcon}>✓</Text> : <View accessibilityElementsHidden importantForAccessibility="no" style={styles.circleIcon} />}
             <Text style={[styles.label, mine ? styles.mineLabel : styles.selectableLabel]}>{labels[state]}</Text>
           </>
         )}
