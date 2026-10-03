@@ -105,9 +105,9 @@ jobs:
 
   real-user-errors:
     runs-on: ubuntu-latest
-    # Reads Management API data with the deploy token (SUPABASE_ACCESS_TOKEN),
-    # which lives only in the Production environment (main only).
-    environment: Production
+    # Reads Management API data with the repository-scoped read-only QA token.
+    # Keep this main-only; do not attach Production because environment secrets
+    # override repository secrets with the same name.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 5
     steps:
@@ -121,7 +121,7 @@ jobs:
 
       - name: Summarize real-user errors
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/real-user-errors.mjs
 
@@ -138,9 +138,9 @@ jobs:
   # only. Without SUPABASE_ACCESS_TOKEN the script records a skip and exits 0.
   db-health:
     runs-on: ubuntu-latest
-    # Reads Management API data with the deploy token (SUPABASE_ACCESS_TOKEN),
-    # which lives only in the Production environment (main only).
-    environment: Production
+    # Reads Management API data with the repository-scoped read-only QA token.
+    # Keep this main-only; do not attach Production because environment secrets
+    # override repository secrets with the same name.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 5
     steps:
@@ -154,7 +154,7 @@ jobs:
 
       - name: Check DB health
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
         run: node tools/qa/db-health.mjs
 

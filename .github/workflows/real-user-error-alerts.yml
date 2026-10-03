@@ -43,8 +43,9 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Deploy token lives only in Production (main only); see daily-qa.yml.
-    environment: Production
+    # Main-only read-only QA uses the repository-scoped QA token directly.
+    # Do not attach the Production environment here: an environment secret with
+    # the same name would override the repository secret.
     permissions:
       contents: read
       issues: write
@@ -65,7 +66,7 @@ jobs:
         id: evaluate
         continue-on-error: true
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
         run: node tools/qa/check-real-user-error-spike.mjs
 
       - name: Open or update monitor-unavailable alert
