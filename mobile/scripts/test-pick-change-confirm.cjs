@@ -12,8 +12,12 @@ assert.match(detail, /myPickStatus\.type === 'selected_other'[\s\S]*?setReplaceC
   'selected_other opens confirmation instead of navigating directly');
 assert.match(detail, /title="이걸로 원픽을 바꿀까요\?"/);
 assert.match(detail, /confirmLabel="바꾸고 한줄평 쓰기"/);
+assert.match(detail, /대상은 \$\{replacementItemName\}입니다\. 바꾸면 이 항목이 새 원픽이 되고/,
+  '61-1 copy avoids name-dependent Korean particles');
 assert.match(detail, /replaceConfirmed: '1'/);
 assert.match(dialog, /confirmVariant = 'primary'/, 'replacement confirmation is not destructive danger');
+assert.match(dialog, /backgroundColor: OnePick\.bgOverlay/, 'shared dialog uses the Foundations overlay token');
+assert.doesNotMatch(dialog, /accessibilityRole="alert"/, 'confirmation dialog is modal content, not a live alert');
 assert.match(dialog, /variant="secondary"[\s\S]*?fullWidth[\s\S]*?variant=\{confirmVariant\}[\s\S]*?fullWidth/,
   'confirmation actions fill their half-width columns');
 assert.match(detail, /consumePickResultToast\(focusPickId\)[\s\S]*?\[focusPickId\]/,

@@ -356,7 +356,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   };
   const replaceCategoryName = category?.name ?? '이 카테고리';
   const replacementItemName = itemTitle(item.name, category?.name, isRestaurant);
-  const replacementSubjectParticle = subjectParticle(replacementItemName);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -487,7 +486,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <ConfirmDialog
         visible={replaceConfirmOpen}
         title="이걸로 원픽을 바꿀까요?"
-        body={`${replaceCategoryName} 원픽이 이미 있어요. 바꾸면 ${replacementItemName}${replacementSubjectParticle} 새 원픽이 되고, 이전 선택은 기록으로 남아요.`}
+        body={`${replaceCategoryName} 원픽이 이미 있어요. 대상은 ${replacementItemName}입니다. 바꾸면 이 항목이 새 원픽이 되고, 이전 선택은 기록으로 남아요.`}
         confirmLabel="바꾸고 한줄평 쓰기"
         onCancel={() => setReplaceConfirmOpen(false)}
         onConfirm={() => {

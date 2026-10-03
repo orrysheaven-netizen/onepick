@@ -32,11 +32,11 @@ export function ConfirmDialog({
     <Modal
       animationType="fade"
       transparent
-      visible={visible}
+      visible
       onRequestClose={() => { if (!busy) onCancel(); }}>
       <View style={styles.backdrop}>
-        <View accessibilityRole="alert" accessibilityLabel={title} accessibilityViewIsModal style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
+        <View accessibilityViewIsModal style={styles.card}>
+          <Text accessibilityRole="header" style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
           <View style={styles.actions}>
             <Button
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: OnePickSpace.xxl,
-    backgroundColor: 'rgba(20,20,22,0.38)',
+    backgroundColor: OnePick.bgOverlay,
   },
   card: {
     width: '100%',
