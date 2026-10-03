@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { PickCard } from '@/components/ui';
+import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickType } from '@/constants/onepick';
 import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import { sharePick } from '@/lib/share/sharePick';
@@ -88,7 +89,9 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
 
 const styles = StyleSheet.create({
   mine: { ...OnePickType.captionMedium, color: OnePick.text },
-  action: { minHeight: 32, justifyContent: 'center' },
+  // 44×44 touch target; the negative vertical margin keeps the visible footer row at 32pt
+  // (6 each side fits inside PickCard's 12 gap above and 16 padding below).
+  action: { minHeight: MIN_TOUCH_TARGET, minWidth: MIN_TOUCH_TARGET, marginVertical: -(MIN_TOUCH_TARGET - 32) / 2, alignItems: 'center', justifyContent: 'center' },
   actionText: { ...OnePickType.captionMedium, color: OnePick.muted },
   notice: { ...OnePickType.caption, color: OnePick.success },
   error: { ...OnePickType.caption, color: OnePick.danger },
