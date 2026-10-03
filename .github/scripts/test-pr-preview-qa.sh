@@ -16,7 +16,7 @@ grep -Fq 'QA_MODE: pr' "$workflow"
 grep -Fq 'deployment.json' "$workflow"
 grep -Fq 'EXPECTED_SHA' "$workflow"
 grep -Fq '<!-- onepick-pr-preview-qa -->' "$workflow"
-grep -Fq 'issues: write' "$workflow"
+grep -Fq 'pull-requests: write' "$workflow"
 if grep -Eq '\bsecrets\.' "$workflow"; then
   echo "preview QA must not read repository/environment secrets" >&2
   exit 1
