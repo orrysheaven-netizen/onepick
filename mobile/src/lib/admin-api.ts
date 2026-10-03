@@ -651,6 +651,36 @@ export function reviewItemLinkSuggestion(suggestionId: string, approve: boolean)
   });
 }
 
+/** L4: a member photo for a published product waiting for admin review. */
+export type AdminItemPhotoCandidate = {
+  candidate_id: string;
+  item_id: string;
+  item_name: string;
+  item_status: string;
+  category_name: string;
+  user_id: string;
+  username: string | null;
+  image_path: string;
+  thumbnail_path: string;
+  image_source_url: string | null;
+  created_at: string;
+};
+
+export function getItemPhotoCandidates(limit = 100) {
+  return adminRequest<AdminItemPhotoCandidate[]>('/rest/v1/rpc/admin_item_photo_candidates', {
+    method: 'POST',
+    body: JSON.stringify({ p_limit: limit }),
+  });
+}
+
+/** Approving publishes the photo on the item (and the Picks that waited for it); rejecting drops only the photo. */
+export function reviewItemPhotoCandidate(candidateId: string, approve: boolean) {
+  return adminRequest<unknown>('/rest/v1/rpc/admin_review_item_photo_candidate', {
+    method: 'POST',
+    body: JSON.stringify({ p_candidate_id: candidateId, p_approve: approve }),
+  });
+}
+
 export function getUnlinkedItems(query = '') {
   return adminRequest<AdminUnlinkedItem[]>('/rest/v1/rpc/admin_unlinked_items', {
     method: 'POST',

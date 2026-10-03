@@ -1,6 +1,8 @@
 import { AppError } from '@/errors/appError';
+import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 import type { ReadCursor, ReadRepository, RootCategoryScope } from '@/repositories/interfaces/readRepository';
+import type { Item } from '@/types/domain/item';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 
@@ -14,6 +16,7 @@ export class ProfileService {
   constructor(
     private readonly profileRepository: ProfileRepository,
     private readonly readRepository: ReadRepository,
+    private readonly itemRepository?: Pick<ItemRepository, 'getMyPendingPhotos'>,
   ) {}
 
   getById(userId: string) {
@@ -47,7 +50,30 @@ export class ProfileService {
       limit: 100,
     });
 
-    return { profile, currentPicks };
+    return { profile, currentPicks: await this.withMyPendingPhotos(userId, currentPicks) };
+  }
+
+  /**
+   * L4: a Pick waiting for its photo review shows my own candidate photo on my
+   * profile only. Others never get this overlay (the candidate rows are mine by RLS).
+   * A failed read keeps the profile usable without the overlay.
+   */
+  private async withMyPendingPhotos<T extends { item: Item | null }>(userId: string, rows: T[]) {
+    const itemIds = rows
+      .map((row) => row.item)
+      .filter((item): item is Item => Boolean(item && !item.imagePath && !item.imageUrl && !item.thumbnailUrl && !item.imageSourceUrl))
+      .map((item) => item.id);
+    if (!this.itemRepository || itemIds.length === 0) return rows;
+    const photos = await this.itemRepository.getMyPendingPhotos(userId, itemIds).catch(() => null);
+    if (!photos?.size) return rows;
+    return rows.map((row) => {
+      const photo = row.item ? photos.get(row.item.id) : undefined;
+      if (!row.item || !photo) return row;
+      return {
+        ...row,
+        item: { ...row.item, imageUrl: photo.imageUrl, thumbnailUrl: photo.thumbnailUrl, photoPendingReview: true },
+      };
+    });
   }
 
   async getMyPickHistory(userId: string, cursor: ReadCursor | null = null) {

@@ -8,8 +8,18 @@ export interface ItemSearchInput {
   signal?: AbortSignal;
 }
 
+/** L4: my own photo waiting for admin review (only I can read it). */
+export interface PendingItemPhoto {
+  itemId: string;
+  imageUrl: string;
+  thumbnailUrl: string;
+}
+
 export interface ItemRepository {
+  /** Saves the photo as my candidate; the item keeps no photo until an admin approves it. */
   attachPhoto(input: AttachItemPhotoInput): Promise<Item>;
+  /** My pending photo candidates, keyed by item id. RLS returns only my own rows. */
+  getMyPendingPhotos(userId: string, itemIds?: string[]): Promise<Map<string, PendingItemPhoto>>;
   submitItem(input: SubmitItemInput): Promise<Item>;
   submitUnclassifiedItem(input: SubmitUnclassifiedItemInput): Promise<Item>;
   stageUserPlaceItem(input: StageUserPlaceItemInput): Promise<Item>;

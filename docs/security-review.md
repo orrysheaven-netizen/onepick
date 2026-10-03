@@ -51,3 +51,13 @@ Reference: #604 (Security QA 2026-10-01, L6, Low, 참고).
 - **금지:** 어떤 자동화도 이 판정/marker를 병합·배포·시크릿 단계의 입력이나 승인 근거로 쓰지 않는다. 쓰려면 전용 PM identity(별도 계정 또는 App)와 보안 검토를 먼저 한다.
 - **재검토 조건:** 판정 기록을 자동 단계의 입력으로 쓰려 할 때, 소유자 계정을 여러 사람/에이전트가 공유하게 될 때.
 - **완료 기준 충족:** #604 L6의 완료 기준 중 "`docs/pm/README.md`·`docs/security-review.md`에 계정 단위 신뢰 수용 기록"을 이 문서화로 충족한다. 워크플로가 전용 신원만 인정하도록 바꾸는 선택지는 택하지 않았다.
+
+## 공개 상품 첫 사진 관리자 검수 (L4, 2026-10-02)
+
+Reference: #640 (Security QA 2026-10-02, L4, Low). 사용자 결정: 위험 수용(#665)이 아니라 검수 방식으로 변경.
+
+- **원칙.** 승인된 대표사진이 없는 공개(active/discontinued) 상품에 사용자가 처음 올린 사진은 관리자(AAL2) 검수를 거친다. 승인 전에는 올린 본인에게만 보이고(내 프로필·상품 상세), 다른 사용자에게는 보이지 않는다.
+- **구현.** `20261002210000_review_first_item_photos.sql`. 사진은 `items`가 아니라 `item_photo_candidates`(본인 행만 RLS select, 쓰기는 RPC만)에 저장된다. 이 사진으로 새로 만든 원픽은 `needs_review`(기존 picks RLS상 본인만 보임)로 두고, 승인하면 상품 대표사진이 되면서 그 상품을 기다리던 `needs_review` 원픽이 `active`로 바뀐다. 거절하면 사진만 빠지고 원픽은 `needs_review`로 남아 다시 올릴 수 있다. 새 상품 요청(pending item)은 기존대로 요청 전체(사진 포함)가 검수된다.
+- **승인 RPC.** `admin_review_item_photo_candidate`는 `is_admin_mfa()`(AAL2) 필수, 상품 행 → 후보 행 순서로 잠근다(사용자 쓰기 경로와 같은 순서). 같은 결정을 반복하면 기존 행을 그대로 돌려주고(idempotent), 이미 처리된 후보·대표사진이 이미 있는 상품·비공개 상품·파일이 맞지 않는 후보는 거부한다. 서로 다른 두 후보의 동시 승인은 상품 행 잠금으로 직렬화되어 두 번째가 `PHOTO_CANDIDATE_NOT_PENDING`으로 끝난다.
+- **Storage는 그대로다.** `item-photos` 버킷은 public을 유지한다(사용자 결정). 승인 전 제한은 앱/API 노출 기준이며, Storage URL 자체의 비공개는 보장하지 않는다(경로는 추측하기 어려운 업로드 경로). pending 후보 파일은 소유자 삭제 정책(`is_unused_item_photo`)과 일일 정리(`stale_item_photo_paths`) 대상에서 빠지고, 반려·대체된 후보 파일은 다시 정리 대상이 된다.
+- **Production 적용은 별도 사용자 승인 게이트다.**

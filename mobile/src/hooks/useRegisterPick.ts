@@ -25,6 +25,17 @@ export function useAttachItemPhoto() {
   });
 }
 
+/** L4: my own photo for this item waiting for admin review (only I can read it). */
+export function useMyPendingItemPhoto(itemId: string | undefined, userId: string | undefined, enabled = true) {
+  return useQuery({
+    // Under the items prefix, so invalidatePickData refreshes it after an upload.
+    queryKey: ['items', 'my-pending-photo', itemId ?? 'missing', userId ?? 'missing'],
+    queryFn: () => registrationService.getMyPendingItemPhoto(userId!, itemId!),
+    enabled: enabled && Boolean(itemId && userId),
+    retry: false,
+  });
+}
+
 export function useRevisePendingItem() {
   const client = useQueryClient();
   return useMutation({

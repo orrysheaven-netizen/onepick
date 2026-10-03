@@ -183,6 +183,7 @@ async function main() {
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => ({ isPending: false }),
       useAttachItemPhoto: () => ({ isPending: false }),
+      useMyPendingItemPhoto: () => ({ data: null, isPending: false }),
       useRevisePendingItem: () => ({ isPending: false, mutateAsync: async () => ({}) }),
     },
     '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },
@@ -201,7 +202,7 @@ async function main() {
   query.data.item = { ...baseItem };
   page = view.render(); assert.match(page, /사진을 올려주세요/, 'A missing photo is a one-line upload row');
   assert.doesNotMatch(page, /이름이 잘 보이는 사진이면|사진 없이도/, 'The upload row carries no extra guidance before a photo is chosen');
-  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /올린 사진은 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요/, 'The chosen-photo preview keeps a one-line sharing notice');
+  assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /올린 사진은 관리자 검수 후 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요/, 'The chosen-photo preview keeps a one-line sharing notice (after admin review, L4)');
   view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 0, 'Photo entry stays on uploader instead of jumping to the saved review');
   params.photo = undefined; view.render(); view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });

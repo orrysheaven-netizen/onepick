@@ -4,10 +4,13 @@ select no_plan();
 
 insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at) values
 ('55555555-5555-5555-5555-555555555555','authenticated','authenticated','shared-a@example.com','',now(),now()),
-('66666666-6666-6666-6666-666666666666','authenticated','authenticated','shared-b@example.com','',now(),now());
+('66666666-6666-6666-6666-666666666666','authenticated','authenticated','shared-b@example.com','',now(),now()),
+('77777777-7777-7777-7777-777777777777','authenticated','authenticated','shared-admin@example.com','',now(),now());
 insert into public.profiles(id,username,onboarding_completed) values
 ('55555555-5555-5555-5555-555555555555','shared_a',true),
-('66666666-6666-6666-6666-666666666666','shared_b',true);
+('66666666-6666-6666-6666-666666666666','shared_b',true),
+('77777777-7777-7777-7777-777777777777','shared_admin',true);
+insert into private.admin_users(user_id) values('77777777-7777-7777-7777-777777777777');
 
 select is((select count(*)::int from public.categories where slug in ('ramen','beer','soju','snacks') and is_pickable and is_visible and status='open'),4,'four initial selectable categories');
 select is((select count(*)::int from public.categories c join public.categories p on p.id=c.parent_id where c.slug in ('beer','soju') and p.slug='alcohol' and not p.is_pickable),2,'alcohol is only a grouping');
@@ -63,6 +66,21 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','55555555-5555-5555-5555-555555555555',true);
 select lives_ok($$select public.register_pick((select category_id from shared_state),(select item_id from shared_state),'테스트라면','사진 추가',
   '55555555-5555-5555-5555-555555555555/full.jpg','55555555-5555-5555-5555-555555555555/thumb.jpg','https://www.otoki.com/item')$$,'approved item can be picked with first shared image');
+-- L4: the first photo waits for admin review, and so does the Pick on it.
+select is((select image_path from public.items where id=(select item_id from shared_state)),null,'first photo is not published before review');
+select is((select status from public.picks where user_id=auth.uid() and item_id=(select item_id from shared_state)),'needs_review','pick waits for its photo review');
+reset role;
+select set_config('request.jwt.claim.sub','77777777-7777-7777-7777-777777777777',true);
+select set_config('request.jwt.claims','{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated","aal":"aal2"}',true);
+set local role authenticated;
+select lives_ok($$select public.admin_review_item_photo_candidate(
+  (select c.candidate_id from public.admin_item_photo_candidates(200) c where c.item_id=(select item_id from shared_state)),true)$$,
+  'admin approves the first photo');
+reset role;
+select set_config('request.jwt.claims','',true);
+set local role authenticated;
+select set_config('request.jwt.claim.sub','55555555-5555-5555-5555-555555555555',true);
+select is((select status from public.picks where user_id=auth.uid() and item_id=(select item_id from shared_state)),'active','approval publishes the waiting pick');
 select ok(not private.is_unused_item_photo('55555555-5555-5555-5555-555555555555/full.jpg'),'referenced full image protected');
 select ok(not private.is_unused_item_photo('55555555-5555-5555-5555-555555555555/thumb.jpg'),'referenced thumbnail protected');
 select ok(private.is_unused_item_photo('55555555-5555-5555-5555-555555555555/unused.jpg'),'owner can clean unused file');

@@ -81,6 +81,7 @@ export const placeCatalogService = new PlaceCatalogService(placeCatalogRepositor
 export const profileService = new ProfileService(
   profileRepository,
   readRepository,
+  itemRepository,
 );
 
 export {

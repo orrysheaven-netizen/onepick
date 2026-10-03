@@ -39,14 +39,21 @@ select lives_ok(
   )$$,
   'authenticated user can fill an empty active item image'
 );
-select is(
-  (select image_path from public.items where id='fb300000-0000-4000-8000-000000000001'),
-  'fb100000-0000-4000-8000-000000000001/full.jpg',
-  'first contribution becomes the shared image'
+-- L4: a contribution waits for admin review; the shared item stays photo-less.
+select ok(
+  (select image_path is null from public.items where id='fb300000-0000-4000-8000-000000000001')
+  and exists(
+    select 1 from public.item_photo_candidates
+    where item_id='fb300000-0000-4000-8000-000000000001'
+      and user_id='fb100000-0000-4000-8000-000000000001'
+      and image_path='fb100000-0000-4000-8000-000000000001/full.jpg'
+      and status='pending'
+  ),
+  'first contribution waits as a candidate, not the shared image'
 );
 select ok(
   not private.is_unused_item_photo('fb100000-0000-4000-8000-000000000001/full.jpg'),
-  'winning contribution is protected from deletion'
+  'pending contribution is protected from deletion'
 );
 
 select set_config('request.jwt.claim.sub','fb100000-0000-4000-8000-000000000002',true);
@@ -56,16 +63,17 @@ select lives_ok(
     'fb100000-0000-4000-8000-000000000002/full.jpg',
     'fb100000-0000-4000-8000-000000000002/thumb.jpg'
   )$$,
-  'later contribution loses without overwriting the shared image'
-);
-select is(
-  (select image_path from public.items where id='fb300000-0000-4000-8000-000000000001'),
-  'fb100000-0000-4000-8000-000000000001/full.jpg',
-  'existing shared image stays unchanged'
+  'later contribution is accepted as its own candidate'
 );
 select ok(
-  private.is_unused_item_photo('fb100000-0000-4000-8000-000000000002/full.jpg'),
-  'losing contribution can be cleaned up by its owner'
+  (select image_path is null from public.items where id='fb300000-0000-4000-8000-000000000001')
+  and (select count(*) from public.item_photo_candidates
+       where item_id='fb300000-0000-4000-8000-000000000001') = 1,
+  'shared image stays empty and each member sees only their own candidate'
+);
+select ok(
+  not private.is_unused_item_photo('fb100000-0000-4000-8000-000000000002/full.jpg'),
+  'later pending contribution is protected from deletion too'
 );
 select throws_ok(
   $$select public.attach_item_photo(

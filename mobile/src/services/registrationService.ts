@@ -127,7 +127,10 @@ export class RegistrationService {
         ...uploaded,
         imageSourceUrl: input.photo.sourceUrl,
       });
-      if (item.imagePath !== uploaded.imagePath) {
+      // L4: a photo-less answer means my upload is now a candidate waiting for
+      // admin review; keep its files. Only an item that already had a photo
+      // (someone else's, approved earlier) leaves my upload unused.
+      if (hasPhoto(item) && item.imagePath !== uploaded.imagePath) {
         await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       }
       return item;
@@ -135,6 +138,12 @@ export class RegistrationService {
       await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       throw error;
     }
+  }
+
+  /** L4: my own photo for this item that is still waiting for admin review. */
+  async getMyPendingItemPhoto(userId: string, itemId: string) {
+    if (!userId || !itemId) return null;
+    return (await this.itemRepository.getMyPendingPhotos(userId, [itemId])).get(itemId) ?? null;
   }
 
   async getCurrentPickSlot(userId: string, categoryId: string, channel: PickChannel): Promise<Pick | null> {
