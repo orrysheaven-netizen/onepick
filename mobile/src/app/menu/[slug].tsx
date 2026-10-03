@@ -21,6 +21,7 @@ export default function MenuPeoplePicksScreen() {
   const slug = SLUG.test(rawSlug) ? rawSlug : undefined;
   const category = useCategoryBySlug(slug);
   const categoryOpen = Boolean(category.data?.status === 'open' && category.data.isVisible && category.data.isPickable);
+  const categoryId = categoryOpen ? category.data?.id : undefined;
   const name = category.data?.name;
   const notFound = !slug || (category.isSuccess && (!category.data || !categoryOpen));
 
@@ -47,16 +48,16 @@ export default function MenuPeoplePicksScreen() {
           text="현재 공개된 메뉴인지 확인해주세요."
           action={{ label: '탐색으로', onPress: () => router.replace('/explore') }} /> : null}
 
-        {categoryOpen && category.data && name ? (
-          <DishPeoplePicks categoryId={category.data.id} categoryName={name} userId={user?.id}
+        {categoryId && name ? (
+          <DishPeoplePicks categoryId={categoryId} categoryName={name} userId={user?.id}
             returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
         ) : null}
       </ScrollView>
-      {categoryOpen && category.data && name ? <View style={styles.registerFooter}>
+      {categoryId && name ? <View style={styles.registerFooter}>
         <Button fullWidth label={`내 ${name} 원픽 등록하기`}
           onPress={() => router.push({
             pathname: '/pick/new',
-            params: { menuName: name, categoryId: category.data.id },
+            params: { menuName: name, categoryId },
           })} />
       </View> : null}
     </SafeAreaView>
