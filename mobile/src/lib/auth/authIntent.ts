@@ -17,6 +17,8 @@ export type AuthReturnParams = {
   externalVideoId?: string | string[];
   externalPokemonId?: string | string[];
   placeCatalogId?: string | string[];
+  providerId?: string | string[];
+  menuName?: string | string[];
   linkUrl?: string | string[];
   linkName?: string | string[];
   sourceUrl?: string | string[];
@@ -25,7 +27,7 @@ export type AuthReturnParams = {
 
 export type AuthIntent =
   | { action: 'register_pick'; categoryId?: string; itemId?: string }
-  | { action: 'store_pick' }
+  | { action: 'store_pick'; providerId?: string; categoryId?: string; menuName?: string }
   | { action: 'request_item'; itemName: string; categoryId?: string; sourceUrl?: string; channel?: 'online'; oneLineReview?: string }
   | { action: 'choose_pick'; itemId: string; categoryId: string; channel?: PickChannel }
   | { action: 'choose_movie'; externalId: string; categoryId: string }
@@ -60,6 +62,11 @@ function getItemName(value: string | string[] | undefined) {
   if (typeof value !== 'string') return null;
   const name = value.trim().replace(/\s+/g, ' ');
   return name.length >= 1 && name.length <= 100 ? name : null;
+}
+function getMenuName(value: string | string[] | undefined) {
+  if (typeof value !== 'string') return null;
+  const name = value.trim().replace(/\s+/g, ' ');
+  return name.length >= 1 && name.length <= 40 ? name : null;
 }
 function getExternalId(value: string | string[] | undefined) {
   return typeof value === 'string' && /^\d{1,12}$/.test(value) ? value : null;
@@ -158,7 +165,15 @@ export function getAuthIntent(params: AuthReturnParams): AuthIntent {
   if (params.action === 'view_profile' && isUsername(params.username)) return { action: 'view_profile', username: params.username };
   if (params.action === 'follow_profile' && isUsername(params.username)) return { action: 'follow_profile', username: params.username };
   if (params.action === 'join_from_profile') return { action: 'join_from_profile' };
-  if (params.action === 'store_pick') return { action: 'store_pick' };
+  if (params.action === 'store_pick') {
+    const menuName = getMenuName(params.menuName);
+    return {
+      action: 'store_pick',
+      ...(isId(params.providerId) ? { providerId: params.providerId } : {}),
+      ...(isId(params.categoryId) ? { categoryId: params.categoryId } : {}),
+      ...(menuName ? { menuName } : {}),
+    };
+  }
   if (params.action === 'my_comments') return { action: 'my_comments' };
   if (params.action === 'notifications') return { action: 'notifications' };
   return { action: params.action === 'profile' ? 'profile' : 'home' };
@@ -168,7 +183,16 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
   if (needsUsername) return { pathname: '/auth/username', params: { ...intent } };
   switch (intent.action) {
     case 'register_pick': return { pathname: '/pick/register', params: { ...intent } };
-    case 'store_pick': return '/pick/new';
+    case 'store_pick': return intent.providerId || intent.categoryId || intent.menuName
+      ? {
+          pathname: '/pick/new',
+          params: {
+            ...(intent.providerId ? { providerId: intent.providerId } : {}),
+            ...(intent.categoryId ? { categoryId: intent.categoryId } : {}),
+            ...(intent.menuName ? { menuName: intent.menuName } : {}),
+          },
+        }
+      : '/pick/new';
     case 'request_item': return {
       pathname: '/pick/request',
       params: {
