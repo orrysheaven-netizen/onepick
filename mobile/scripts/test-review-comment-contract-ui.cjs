@@ -92,7 +92,9 @@ async function main() {
   assert.match(replies, /const canComment = canWrite && !isSessionLoading && !sessionError/);
   assert.match(replies, /parentCommentId: replyingTo\?\.id \?\? null/);
   assert.match(replies, /\(entry\.replies \?\? \[\]\)\.map\(\(reply\) => renderComment\(reply, true\)\)/);
-  assert.match(replies, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag \/> : null/);
+  assert.match(replies, /<CommentRow/);
+  assert.match(replies, /currentPick=\{Boolean\(comment\.authorCurrentPickMatchesItem\)\}/);
+  assert.match(replies, /formatRelativeTime\(comment\.createdAt\)/);
   assert.doesNotMatch(replies, /✓ 이 집 원픽|✓ 원픽/);
   assert.match(replies, /삭제된 댓글입니다\./);
 
@@ -109,7 +111,7 @@ async function main() {
   assert.match(pickDetail, /usePickDetail\(pickId, user\?\.id, needsPickLookup\)/);
   assert.match(pickDetail, /const itemId = routeItemId \?\? pickQuery\.data\?\.pick\.itemId/);
   assert.match(pickDetail, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/);
-  assert.match(pickDetail, /<CurrentPickFlag \/>/);
+  assert.match(pickDetail, /<ReviewRow/);
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
 
   const myComments = source('components/profile-my-comments.tsx');

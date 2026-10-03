@@ -18,6 +18,7 @@ function loadSource(relativePath, imports = {}) {
       if (name in imports) return imports[name];
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
+    if (name === '@/lib/format/relativeTime') return loadSource('lib/format/relativeTime.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
