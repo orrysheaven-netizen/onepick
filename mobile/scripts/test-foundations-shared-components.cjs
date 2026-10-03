@@ -21,6 +21,7 @@ const native = {
 const ui = loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
 const render = (element) => { pressables=[]; views=[]; texts=[]; seq=0; return renderToStaticMarkup(element); };
 const byLabel = (label) => pressables.find((p) => p.accessibilityLabel === label);
+const textValue = (node) => Array.isArray(node.children) ? node.children.join('') : node.children;
 
 render(React.createElement(ui.PickButton, { state: 'default' }));
 assert.equal(views.find((v) => v.resolved.backgroundColor === OnePick.actionPrimary)?.resolved.backgroundColor, OnePick.actionPrimary);
@@ -36,7 +37,7 @@ render(React.createElement(ui.ReviewRow, {
   onComments() {}, onShare() {}, onReport() {},
 }));
 assert.ok(byLabel('댓글 3')); assert.ok(byLabel('공유')); assert.ok(byLabel('신고'));
-assert.ok(texts.some((t) => t.children === '@duck' && t.resolved.fontSize === 14), 'Review username uses Body Medium');
+assert.ok(texts.some((t) => textValue(t) === '@duck' && t.resolved.fontSize === 14), 'Review username uses Body Medium');
 assert.ok(texts.some((t) => t.children === '원픽'), 'Review row exposes current-pick marker');
 
 render(React.createElement(ui.ReviewRow, {
@@ -48,7 +49,7 @@ assert.ok(texts.some((t) => t.children === '한줄평 삭제' && t.resolved.colo
 render(React.createElement(ui.CommentRow, {
   username: 'duck', body: '댓글', time: '3분 전', currentPick: true, onReply() {},
 }));
-assert.ok(texts.some((t) => t.children === '@duck' && t.resolved.fontSize === 14), 'Comment username uses Body Medium');
+assert.ok(texts.some((t) => textValue(t) === '@duck' && t.resolved.fontSize === 14), 'Comment username uses Body Medium');
 assert.equal(byLabel('duck에게 답글').resolved.minHeight, 44);
 assert.equal(byLabel('duck에게 답글').resolved.marginVertical, undefined, 'Reply touch area does not overlap adjacent rows');
 
