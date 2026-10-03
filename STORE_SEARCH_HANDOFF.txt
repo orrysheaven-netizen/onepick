@@ -1,0 +1,62 @@
+OnePick #685 — 75-1 implementation handoff (Codex, not a Claude execution)
+
+Worktree: C:/Users/orrys/.codex/worktrees/store-search-75-1/onepick
+Branch: codex/store-search-75-1
+Implementation HEAD (app code): 0f0565a1e66995b5c8f54a61307e865c2c34a73c
+Base: d0fae5d2a817fbbdfd3918180f549e52e1384b62 (origin/main)
+Publication scope: publish this preserved implementation branch as a Draft PR, with this handoff document committed. The publication commit changes documentation only; the PR body records the exact publication HEAD. No app implementation expansion, merge, DB application or manual deployment is authorized by this publication task.
+
+Final implemented scope:
+- #701 paged RPC client contract, 20-row pages, opaque cursors, server ordering retained.
+- Fixed search field/footer; only result list scrolls. Name + branch and city/district on one line.
+- Fetch-in-progress indicator, append failure/retry, terminal message, stale-query results hidden.
+- Store selection and validated profile entry go directly to menu; Back allows re-selection.
+- New-store name / Naver-map-link branch and draft restoration retained.
+- Current-task stage labels; middle dots removed from registration screen.
+- Latest cancellation applied: no selected-store confirmation button or sheet remains.
+
+Changed files (all committed):
+mobile/src/app/pick/new.tsx
+mobile/src/hooks/useStoreFirst.ts
+mobile/src/services/storeFirstService.ts
+mobile/src/lib/supabase/database.overrides.ts
+mobile/scripts/test-store-first-pick.cjs
+mobile/scripts/test-pick-draft-restore.cjs
+mobile/scripts/test-store-search-pages.cjs
+
+Validation:
+- Typecheck passed.
+- Final web export passed using non-production placeholder configuration.
+- Final full regressions: 173/174 passed. Only test-brand-assets fails because Windows checkout converted approved SVG bytes to CRLF; origin/main blob matches approved hash.
+- Page tests cover 20/20/1, preserving server order, failure/retry cursor, final cursor, query changes and stale-row masking.
+- Flow/draft tests pass including direct profile entry, back/reselection, no cancelled confirmation UI, existing/new store registration and draft restoration.
+- Real-screen SSR fixture at 390x844: search/footer positions unchanged after list scrolling. 320x640 has no horizontal overflow. Local-only geometry evidence: store-search-geometry.json (not included in this PR; rerun visual checks before readiness).
+
+Remaining before readiness:
+1. Native iOS/Android keyboard + touch tests and live #701 integration (DB RPC is not on main yet). No production queries made.
+2. Final visual review uses an SSR fixture with mocked rows; no authenticated end-to-end claim, native fonts/keyboard not verified.
+3. #696 (618df2fd) virtual merge preserves wrappers, but conflicts in one import block of pick/new.tsx. Keep BOTH KeyboardAvoidingForm import and Button, StateCard import; retain its outer form wrapper for later steps and this PR's first-step keyboard container. No actual merge performed.
+4. Other-screen dot removal is OUT OF SCOPE: 51 static candidates recorded locally in store-search-dot-impact.txt (not included in this PR). This is a static candidate list including admin/legal text; review displayed separators individually, not blind punctuation replacement.
+5. Draft PR is for handoff, not readiness. Required CI has not passed for this publication; Ready transition and review remain pending.
+6. Post-implementation requirement: remove menu explanatory copy. This request arrived AFTER implementation HEAD 0f0565a1 and is NOT implemented. Confirm its precise approved scope before the next code change.
+
+Local untracked files are validation artifacts and intentionally retained; primary checkout untouched. No new executor/thread created and no automatic handoff claimed.
+
+별도 후속: 실제 링크 접근/지점일치/메뉴 자료 및 이용조건 검증 후 UI 협의, Claude 수락 전 미착수. 현재 매장선택 즉시 메뉴 이동은 인계 기준선이며 새 네이버 지도 링크 단계는 구현·운영 반영하지 않았습니다.
+
+Claude 수락 회신 양식 (작성 대기 — Codex가 대신 수락하지 않음)
+원문: https://github.com/orrysheaven-netizen/onepick/issues/685#issuecomment-5971009882
+- 인계 수락: 미확인 (#685, 실제 Claude 회신 대기)
+- 실행 담당: Claude 예정 / 실제 담당 수락 미확인
+- 실행 위치: 미확인 (Claude 작업 대화·세션·독립 worktree를 실제 담당이 기재)
+- 확인할 인계: 이 문서를 포함하는 Draft PR (번호 및 게시 HEAD는 PR 본문 참조) / 브랜치 codex/store-search-75-1
+- 정확한 앱 코드 commit head: 0f0565a1e66995b5c8f54a61307e865c2c34a73c (문서 게시 커밋 HEAD는 PR 본문 참조)
+- 인계 문서(원격): https://github.com/orrysheaven-netizen/onepick/blob/codex/store-search-75-1/STORE_SEARCH_HANDOFF.txt
+- 로컬 사본: C:/Users/orrys/.codex/worktrees/store-search-75-1/onepick/STORE_SEARCH_HANDOFF.txt
+- 보존 코드 위치: C:/Users/orrys/.codex/worktrees/store-search-75-1/onepick
+- 잔여 범위 후보(수락 아님): #701 API 실환경 대조, #696 import 충돌 조정과 키보드 래퍼 보존, iOS/Android 실기기·최종 시각 검증, 메뉴 설명 삭제 요구 대조·적용, Draft PR 검토 및 필수 CI.
+- 제외·대기 범위: 운영 병합·DB 반영·배포·추가 과금. 다른 화면 구분점 제거는 51개 정적 후보 목록 검토 후 별도 범위 결정. 네이버 지도 메뉴 가져오기는 실제 접근/지점일치/자료/이용조건 검증 및 UI 협의 전 구현 미착수.
+- 현재 상태: Claude 상태 미확인. Codex는 로컬 코드·검증·인계 자료 보존 완료.
+- 다음 행동: 실제 Claude가 위 head와 중복 진행 여부를 확인하고 #685에 수락 범위·실행 위치를 직접 회신.
+- 실제 수정 시작 후 별도 회신: 코드 수정 착수: <대상 파일·작업 한 줄>
+Head 변경 또는 같은 범위의 다른 실행자를 확인하면 중복 착수하지 않고 PM에 알립니다. 네이버 지도 후속은 기존 검색 인계 수락에 포함하지 않습니다.
