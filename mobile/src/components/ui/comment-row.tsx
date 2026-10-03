@@ -17,6 +17,7 @@ type Props = {
 };
 
 export function CommentRow({ username, body, time, reply, currentPick, showReply = true, onReply, onProfilePress }: Props) {
+  const canReply = Boolean(showReply && onReply);
   return (
     <View style={[styles.row, reply && styles.reply]}>
       <Avatar name={username} size={reply ? 24 : 32} tone="subtle" onPress={onProfilePress} />
@@ -26,9 +27,9 @@ export function CommentRow({ username, body, time, reply, currentPick, showReply
           {currentPick ? <CurrentPickFlag /> : null}
         </View>
         <Text style={styles.body}>{body}</Text>
-        <View style={styles.metaRow}>
+        <View style={[styles.metaRow, canReply && styles.metaRowInteractive]}>
           <Text style={styles.time}>{time}</Text>
-          {showReply && onReply ? (
+          {canReply ? (
             <Pressable accessibilityRole="button" accessibilityLabel={username + '에게 답글'}
               onPress={onReply} style={({ pressed }) => [styles.replyAction, pressed && styles.pressed]}>
               <Text style={styles.replyLabel}>답글</Text>
@@ -47,7 +48,8 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: OnePickSpace.sm },
   username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   body: { ...OnePickType.body, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
-  metaRow: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
+  metaRowInteractive: { minHeight: MIN_TOUCH_TARGET },
   time: { ...OnePickType.caption, color: OnePick.textSecondary },
   replyAction: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center', paddingHorizontal: OnePickSpace.xs },
   replyLabel: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
