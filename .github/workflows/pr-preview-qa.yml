@@ -21,7 +21,7 @@ jobs:
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PROJECT_SUBDOMAIN: onepick-5cl
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
@@ -51,7 +51,9 @@ jobs:
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
 
           ready=false
-          deadline=$((SECONDS + 180))
+          # The Cloudflare build runs npm ci, typecheck and the full test suite
+          # (~5.5 min on 2026-10-04, longer when queued behind other branches).
+          deadline=$((SECONDS + 720))
           while [ "$SECONDS" -lt "$deadline" ]; do
             body="$(curl --fail --silent --show-error --max-time 5 "$preview_url/deployment.json" 2>/dev/null || true)"
             if EXPECTED_SHA="$EXPECTED_SHA" HEAD_BRANCH="$HEAD_BRANCH" BODY="$body" python3 - <<'PY'
@@ -77,7 +79,7 @@ jobs:
 
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           if [ "$ready" != "true" ]; then
-            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 3 minutes."
+            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 12 minutes."
           fi
 
       - name: Setup Node
