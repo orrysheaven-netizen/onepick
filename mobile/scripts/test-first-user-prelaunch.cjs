@@ -34,7 +34,7 @@ async function main() {
   const userId = 'first-user';
   const username = 'first_user';
 
-  // 1) Login -> username -> onboarding.
+  // 1) Login -> username -> original task.
   const intents = load('src/lib/auth/authIntent.ts');
   const firstUserIntent = intents.getAuthIntent({ action: 'home' });
   const usernameRoute = intents.getPostAuthRoute(firstUserIntent, true);
@@ -55,26 +55,6 @@ async function main() {
     'saving the first username must return to the original task',
   );
   assert.doesNotMatch(usernameSource, /'\/onboarding'/, 'username creation must not divert to taste onboarding');
-
-  // 2) Onboarding -> Pick finder -> choose screen.
-  const onboardingSource = read('src/app/onboarding.tsx');
-  const findSource = read('src/app/pick/find.tsx');
-  const chooseSource = read('src/app/pick/choose.tsx');
-  assert.match(
-    onboardingSource,
-    /pathname: '\/pick\/find'[\s\S]*?categoryId: current\.id, onboarding: '1'/,
-    'onboarding must hand its selected category to Pick finder',
-  );
-  assert.match(
-    findSource,
-    /pathname: '\/pick\/choose'[\s\S]*?onboarding: '1'/,
-    'Pick finder must preserve onboarding intent into the choose screen',
-  );
-  assert.match(
-    chooseSource,
-    /onboardingService\.recordAction\(item\.categoryId, 'picked'\)/,
-    'a successful onboarding Pick must be recorded as picked',
-  );
 
   // 3) The tenth Pick must make cached AI eligibility stale so READY_FIRST can be refetched.
   const { queryKeys } = load('src/lib/query/queryKeys.ts');
@@ -234,7 +214,7 @@ async function main() {
   }
 
   cache.clear();
-  console.log('First-user pre-launch journey passed: login -> username -> onboarding -> tenth Pick -> AI request -> public profile share.');
+  console.log('First-user pre-launch journey passed: login -> username -> tenth Pick -> AI request -> public profile share.');
 }
 
 main().catch((error) => {
