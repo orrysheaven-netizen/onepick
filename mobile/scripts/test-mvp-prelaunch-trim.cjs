@@ -33,7 +33,7 @@ function home(count = 20, followingCount = 0) {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeMenuRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -43,7 +43,7 @@ function home(count = 20, followingCount = 0) {
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
-    '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/pick-photo': names('PickPhoto'),
+    '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'), '@/components/pick-photo': names('PickPhoto'),
   });
   view.render(); return { view, q, following, followCounts, auth, calls };
 }

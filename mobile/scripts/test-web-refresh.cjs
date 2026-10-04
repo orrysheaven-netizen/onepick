@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
+    'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
@@ -44,7 +44,7 @@ function fixture(kind, platform = 'web') {
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeMenuRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },

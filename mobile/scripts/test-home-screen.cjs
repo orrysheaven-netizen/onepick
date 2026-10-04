@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, menuRankingGroupArg, menuRankingChannelArg;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -51,24 +51,17 @@ const onepickConstants = load('constants/onepick.ts', {
   './font-family': load('constants/font-family.web.ts'),
 });
 const followCountsQuery = { data: { followingCount: 0, followerCount: 0 }, isPending: false, isError: false };
+// Store×menu 7-day ranking (food_item_recent_ranking).
 const rankingQuery = {
   data: [
-    { categoryId: 'ramen', categoryName: '라면', groupCategoryId: 'noodles', pickCount: 7, rank: 1, isTied: false,
-      coverItemId: 'jin', thumbnailUrl: 'https://onepick.test/ramen.jpg' },
-    { categoryId: 'legacy-photo-less', categoryName: '사진없는메뉴', groupCategoryId: 'noodles', pickCount: 6, rank: 2, isTied: false,
-      coverItemId: null, thumbnailUrl: null },
-    { categoryId: 'snacks', categoryName: '과자', groupCategoryId: 'food', pickCount: 2, rank: 3, isTied: false,
-      coverItemId: 'snack', thumbnailUrl: 'https://onepick.test/snack.jpg' },
-    { categoryId: 'soup-a', categoryName: '미역국', groupCategoryId: 'soup', pickCount: 5, rank: 4, isTied: false,
-      coverItemId: 'soup-a-item', thumbnailUrl: 'https://onepick.test/soup-a.jpg' },
-    { categoryId: 'soup-b', categoryName: '곰탕', groupCategoryId: 'soup', pickCount: 4, rank: 5, isTied: false,
-      coverItemId: 'soup-b-item', thumbnailUrl: 'https://onepick.test/soup-b.jpg' },
-    { categoryId: 'soup-c', categoryName: '순두부', groupCategoryId: 'soup', pickCount: 3, rank: 6, isTied: false,
-      coverItemId: 'soup-c-item', thumbnailUrl: 'https://onepick.test/soup-c.jpg' },
-    { categoryId: 'noodle-b', categoryName: '냉면', groupCategoryId: 'noodles', pickCount: 3, rank: 7, isTied: false,
-      coverItemId: 'noodle-b-item', thumbnailUrl: 'https://onepick.test/noodle-b.jpg' },
-    { categoryId: 'overflow', categoryName: '초과메뉴', groupCategoryId: 'food', pickCount: 3, rank: 8, isTied: false,
-      coverItemId: 'overflow-item', thumbnailUrl: 'https://onepick.test/overflow.jpg' },
+    { itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://onepick.test/ramen.jpg' },
+    { itemId: 'legacy', itemName: '사진없는집', categoryId: 'x', categoryName: '사진없는메뉴', pickCount: 6, rank: 2, isTied: false, thumbnailUrl: null },
+    { itemId: 'snack', itemName: '과자가게', categoryId: 'snacks', categoryName: '과자', pickCount: 2, rank: 3, isTied: false, thumbnailUrl: 'https://onepick.test/snack.jpg' },
+    { itemId: 'soup-a', itemName: '서울집', categoryId: 'soup-a', categoryName: '미역국', pickCount: 5, rank: 4, isTied: false, thumbnailUrl: 'https://onepick.test/soup-a.jpg' },
+    { itemId: 'soup-b', itemName: '곰탕집', categoryId: 'soup-b', categoryName: '곰탕', pickCount: 4, rank: 5, isTied: false, thumbnailUrl: 'https://onepick.test/soup-b.jpg' },
+    { itemId: 'soup-c', itemName: '두부집', categoryId: 'soup-c', categoryName: '순두부', pickCount: 3, rank: 6, isTied: false, thumbnailUrl: 'https://onepick.test/soup-c.jpg' },
+    { itemId: 'noodle-b', itemName: '냉면집', categoryId: 'noodle-b', categoryName: '냉면', pickCount: 3, rank: 7, isTied: false, thumbnailUrl: 'https://onepick.test/noodle-b.jpg' },
+    { itemId: 'overflow', itemName: '초과집', categoryId: 'overflow', categoryName: '초과메뉴', pickCount: 3, rank: 8, isTied: false, thumbnailUrl: 'https://onepick.test/overflow.jpg' },
   ],
   isPending: false, isError: false, isFetching: false,
   refetch: async () => {},
@@ -87,6 +80,12 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
+  '@/components/recent-item-card': load('components/recent-item-card.tsx', {
+    react: React,
+    'expo-image': { Image: component('img') },
+    'react-native': native,
+    '@/constants/onepick': onepickConstants,
+  }),
   '@/components/home-pick-row': load('components/home-pick-row.tsx', {
     'react-native': native,
     '@/components/ui': ui,
@@ -113,7 +112,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
-  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeMenuRanking: (groupId, channel) => { menuRankingGroupArg = groupId; menuRankingChannelArg = channel; return rankingQuery; } },
+  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; } },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
@@ -148,20 +147,20 @@ assert.doesNotMatch(allFirstPage, /최근 7일 많이 고른 메뉴/, 'Figma 30-
 assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under the tabs names the 7-day window');
 assert.match(allFirstPage, /원픽 7/);
 assert.doesNotMatch(allFirstPage, /사진없는메뉴/, 'Legacy ranking rows without a cover are never rendered as photo-less cards');
-const rankingButtons = presses.filter((p) => / 메뉴 원픽 보기$/.test(p.accessibilityLabel ?? ''));
+const rankingButtons = presses.filter((p) => /^\S+ \S+ 보기$/.test(p.accessibilityLabel ?? '') && !/상세 보기|프로필 보기/.test(p.accessibilityLabel));
 assert.equal(rankingButtons.length, 6, 'Photo-less legacy rows are backfilled so Home still shows six ranking cards (2×3)');
 assert.doesNotMatch(allFirstPage, /초과메뉴/, 'Home caps the visible recent ranking at six cards');
 const rankingCardStyle = rankingButtons[0].style({ pressed: false })[0];
 assert.equal(rankingCardStyle.width, '48%', 'Two columns');
 assert.equal(rankingCardStyle.flexGrow, undefined, 'An odd last row keeps the two-column card width');
-const lowSampleMenu = presses.find((p) => p.accessibilityLabel === '과자 메뉴 원픽 보기');
+const lowSampleMenu = presses.find((p) => p.accessibilityLabel === '과자가게 과자 보기');
 assert.ok(lowSampleMenu, 'Low-sample menu stays browsable');
 assert.doesNotMatch(textOf(lowSampleMenu.children), /원픽 2/, 'A menu below the 3-person exposure threshold hides its recent count');
 assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 원픽/);
-assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Recent ranking exposes the menu-detail route');
+assert.match(allFirstPage, /서울집<\/span> 미역국/, 'Cards show the store (bold) then the menu (10-05)');
+press('인기 메뉴 더보기'); assert.equal(destination, '/popular', 'Popular 더보기 opens the ordered popular screen');
 assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
-assert.equal(menuRankingGroupArg, null, 'Home ranking starts from all food groups');
-assert.equal(menuRankingChannelArg, 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
+assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
 
 // The following-feed implementation remains available behind its separate rollout gate.
 onepickConstants.OnePickFeatures.followingFeed = true;
@@ -204,7 +203,7 @@ for (width of [390, 800, 1200]) {
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
   press('사람들의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
-  assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
+  assert.ok(presses.find((p) => p.accessibilityLabel === '라면집 라면 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
   assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');
   assert.equal(destination.params.itemId, 'jin');
@@ -241,8 +240,8 @@ assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), unde
 assert.match(publicPage, /최근 7일 원픽 많은 순/);
 assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home ranking cards show only the leaf name');
 assert.doesNotMatch(publicPage, /영화|>책<|>유튜브</, 'MVP Home ranking is food only');
-press('라면 메뉴 원픽 보기'); assert.equal(destination.pathname, '/menu/[slug]');
-assert.equal(destination.params.slug, 'ramen', 'A Home menu card opens the production Figma 16A menu detail');
+press('라면집 라면 보기'); assert.equal(destination.pathname, '/item/[itemId]');
+assert.equal(destination.params.itemId, 'jin', 'A Home store×menu card opens that item');
 const rankingData = rankingQuery.data;
 rankingQuery.data = [];
 const fallbackPage = render();

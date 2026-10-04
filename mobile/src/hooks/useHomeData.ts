@@ -16,6 +16,16 @@ export function useHomeMenuRanking(groupCategoryId: string | null = null, channe
   });
 }
 
+/** Store×menu 7-day ranking: Home shows the first six, 더보기 shows up to 50 in order. */
+export function useHomeItemRanking(channel: PickChannel | null = null, limit = 20, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.itemRanking(channel, limit),
+    queryFn: () => homeService.getRecentItemRanking(channel, limit),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
 /**
  * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
  * so the list never drops rows it already showed, each Pick shown once.
