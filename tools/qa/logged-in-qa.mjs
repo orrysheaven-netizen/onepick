@@ -23,7 +23,8 @@ import path from 'node:path';
 import { chromium, devices } from 'playwright';
 import {
   SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
-  openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
+  openHomeSearch, submitHomeSearch, openOwnComments, openNotificationsTab,
+  assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
 } from './logged-in-contract.mjs';
 
@@ -276,7 +277,7 @@ async function main() {
     flow = '홈';
     await check(flow, '홈 화면 로드', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await page.getByRole('textbox', { name: '항목명 검색' }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('button', { name: '메뉴 검색', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
     for (const label of ['홈', '탐색', '알림', '프로필']) {
@@ -297,25 +298,20 @@ async function main() {
     await shot(page, 'home');
 
     flow = '검색';
-    await check(flow, `홈 검색 "${SEARCH_QUERY}" 즉시 결과`, async () => {
-      await page.getByRole('textbox', { name: '항목명 검색' }).first().fill(SEARCH_QUERY);
-      const count = page.getByText(/^검색 결과/).first();
-      await count.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await noErrorCopy(page);
-      return await count.innerText();
+    let homeSearchResults = null;
+    await check(flow, '검색 버튼 → 다이얼로그 열기', async () => {
+      await openHomeSearch(page, STEP_TIMEOUT_MS);
+      return '홈 검색 다이얼로그 표시';
     });
-    await check(flow, '검색 실행 → 탐색 검색 화면', async () => {
-      await page.getByRole('button', { name: '검색 실행' }).click();
-      await page.waitForURL(/\/explore/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByText(/^검색 결과/).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+    await check(flow, `홈 검색 "${SEARCH_QUERY}" → 결과`, async () => {
+      homeSearchResults = await submitHomeSearch(page, SEARCH_QUERY, STEP_TIMEOUT_MS);
+      const count = await homeSearchResults.count();
       await noErrorCopy(page);
+      return `검색 결과 ${count}개`;
     });
     await check(flow, '검색 결과 → 제품 상세 이동', async () => {
-      const results = page.getByRole('button', { name: / 상세 보기$/ });
-      const labels = await results.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
-      const index = labels.findIndex((label) => !label.endsWith('제품 상세 보기'));
-      if (index < 0) return { status: 'warn', detail: '검색 결과 0개' };
-      await results.nth(index).click();
+      if (!homeSearchResults) throw new Error('검색 결과 단계가 완료되지 않음');
+      await homeSearchResults.first().click({ timeout: STEP_TIMEOUT_MS });
       await page.waitForURL(/\/item\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
       await noErrorCopy(page);
