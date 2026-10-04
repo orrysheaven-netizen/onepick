@@ -54,15 +54,4 @@ assert.equal(fallback.length, 2, 'catalog failure keeps selectable leaves visibl
 assert.equal(fallback.every((group) => group.directlySelectable), true);
 assert.deepEqual(Array.from(fallback, (group) => group.category.name), ['라면', '과자']);
 
-// Pick registration is product-first on main: /pick/find no longer offers a
-// category picker, so only the shared taxonomy helpers and onboarding are checked here.
-const onboarding = read('src/app/onboarding.tsx');
-
-assert.match(onboarding, /useExploreCategories\(Boolean\(categories\.data\)\)/);
-assert.match(onboarding, /categoryPath\(current, categoryCatalog\.data \?\? \[\]\)/);
-assert.match(onboarding, /parentPill/);
-assert.match(onboarding, /currentParentName/);
-assert.match(onboarding, /currentCategoryName/);
-assert.doesNotMatch(onboarding, /<Text style=\{styles\.categoryName\}>\{current\.label \?\? current\.name\}<\/Text>/);
-
-console.log('Registration category hierarchy checks passed: shared parent-child taxonomy, fallback leaves, and onboarding path display.');
+console.log('Registration category hierarchy checks passed: shared parent-child taxonomy and fallback leaves.');

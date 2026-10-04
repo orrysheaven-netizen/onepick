@@ -75,10 +75,6 @@ export const queryKeys = {
     requests: (userId?: string) => ['profiles', 'requests', userId ?? 'anonymous', 'cursor'] as const,
     byUsername: (username: string, userId?: string) => ['profiles', 'username', username, userId ?? 'public'] as const,
   },
-  onboarding: {
-    all: ['onboarding'] as const,
-    progress: (userId: string) => ['onboarding', 'progress', userId] as const,
-  },
   profileAi: {
     all: ['profile-ai'] as const,
     status: (userId: string) => ['profile-ai', 'status', userId] as const,

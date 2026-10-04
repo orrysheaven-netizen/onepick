@@ -146,7 +146,7 @@ export function ItemSearch({
         </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
-      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요</Text></View> : null}
+      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요.</Text></View> : null}
       {query.hasSearchText && !isLoading && query.isError ? <View style={styles.state}>
         <Text style={styles.description}>검색 결과를 불러오지 못했어요.</Text>
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>

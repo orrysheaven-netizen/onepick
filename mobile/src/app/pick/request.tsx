@@ -214,14 +214,14 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
   };
 
   if (auth.isLoading) {
-    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
+    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요." /></View></SafeAreaView>;
   }
 
   if (auth.error) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '로그인 상태 다시 확인', variant: 'secondary', onPress: () => void auth.retry() }} />
+          <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요." action={{ label: '로그인 상태 다시 확인', variant: 'secondary', onPress: () => void auth.retry() }} />
         </View>
       </SafeAreaView>
     );
@@ -231,7 +231,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <StateCard title="사용자명을 먼저 정해주세요" text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
+          <StateCard title="사용자명을 먼저 정해주세요." text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
             action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: intent }) }} />
         </View>
       </SafeAreaView>
@@ -243,7 +243,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="등록 요청을 보냈어요" text={`${submittedItem.name}\n관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="등록 요청을 보냈어요." text={`${submittedItem.name}\n관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -255,7 +255,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리를 적용했어요" text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
+            <StateCard title="카테고리를 적용했어요." text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -267,7 +267,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리 힌트를 남겼어요" text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
+            <StateCard title="카테고리 힌트를 남겼어요." text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -280,14 +280,14 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>AI가 카테고리를 추천했어요</Text>
+          <Text style={styles.title}>AI가 카테고리를 추천했어요.</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
           <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않습니다.</Text>
 
           {categorySuggestions.isPending ? (
-            <View style={styles.block}><StateCard loading title="이름과 기존 카테고리를 비교하고 있어요" /></View>
+            <View style={styles.block}><StateCard loading title="이름과 기존 카테고리를 비교하고 있어요." /></View>
           ) : categorySuggestions.isError ? (
-            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요" text="등록 요청은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
+            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요." text="등록 요청은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
               action={{ label: 'AI 추천 다시 받기', onPress: () => void categorySuggestions.refetch() }} /></View>
           ) : categorySuggestions.data ? (
             <View style={styles.suggestionCard}>
@@ -424,7 +424,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
               autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" style={[styles.input, styles.linkInput]} />
             <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting || !imageLink.trim()} label="링크에서 이미지 가져오기" onPress={() => void getPhoto(true)} />
           </> : <Button variant="soft" fullWidth label="로그인하고 사진 추가" onPress={() => router.push({ pathname: '/auth/login', params: intent })} style={styles.photoButton} />}
-          {photoPicker.isPending || imageImport.isPending ? <View style={styles.photoLoading}><ActivityIndicator /><Text style={styles.helper}>사진을 준비하고 있어요</Text></View> : null}
+          {photoPicker.isPending || imageImport.isPending ? <View style={styles.photoLoading}><ActivityIndicator /><Text style={styles.helper}>사진을 준비하고 있어요.</Text></View> : null}
           {photoPicker.isError || imageImport.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(photoPicker.error ?? imageImport.error)}</Text> : null}
           {photo ? <>
             <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="대표 이미지 미리보기" />
@@ -439,7 +439,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </View>
         ) : null}
 
-        {auth.user && profile.isPending ? <Text style={styles.helper}>프로필을 확인하고 있어요</Text> : null}
+        {auth.user && profile.isPending ? <Text style={styles.helper}>프로필을 확인하고 있어요.</Text> : null}
         {auth.user && profile.isError ? (
           <View>
             <Text style={styles.error}>프로필을 불러오지 못했어요. 다시 확인한 뒤 요청해주세요.</Text>

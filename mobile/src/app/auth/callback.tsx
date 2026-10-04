@@ -46,7 +46,7 @@ export default function AuthCallbackScreen() {
       <View style={styles.content}>
         {completeOAuth.isError ? (
           <>
-            <Text style={styles.title}>로그인을 완료하지 못했어요</Text>
+            <Text style={styles.title}>로그인을 완료하지 못했어요.</Text>
             <Text style={styles.subtitle}>다시 로그인하면 하려던 작업을 이어갈 수 있어요.</Text>
             <Pressable
               accessibilityRole="button"
@@ -58,7 +58,7 @@ export default function AuthCallbackScreen() {
         ) : (
           <>
             <ActivityIndicator />
-            <Text style={styles.title}>로그인을 마무리하고 있어요</Text>
+            <Text style={styles.title}>로그인을 마무리하고 있어요.</Text>
             <Text style={styles.subtitle}>잠시 후 하려던 작업으로 돌아갑니다.</Text>
           </>
         )}
