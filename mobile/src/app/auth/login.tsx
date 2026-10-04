@@ -9,7 +9,7 @@ import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { getAuthIntent, getPostAuthRoute, type AuthReturnParams } from '@/lib/auth/authIntent';
 import { observabilityService } from '@/services';
 import { OnePickBrand } from '@/components/onepick-brand';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 
 const PROVIDER_LABEL: Record<SocialAuthProvider, string> = {
@@ -59,90 +59,62 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기"
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
         <View style={styles.brand}><OnePickBrand /></View>
-        <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
-        <Text style={styles.subtitle}>
-          {intent.action === 'join_from_profile'
-            ? '로그인하면 카테고리마다 하나씩 고른 나의 원픽 프로필을 만들 수 있어요.'
-            : intent.action === 'request_item'
-            ? '검색한 이름과 카테고리를 기억해두고 로그인 뒤 원픽 등록 요청을 이어갑니다.'
-            : intent.action === 'register_pick'
-              ? '로그인 뒤 사진을 올리고 나의 원픽을 직접 등록할 수 있어요.'
-              : intent.action === 'choose_pick'
-                ? '선택한 원픽을 기억해두고 로그인 뒤 한줄평 화면으로 돌아옵니다.'
-                : intent.action === 'choose_movie'
-                  ? '선택한 영화를 기억해두고 로그인 뒤 원픽 등록을 이어갑니다.'
-                  : intent.action === 'choose_book'
-                    ? '선택한 책을 기억해두고 로그인 뒤 원픽 등록을 이어갑니다.'
-                  : intent.action === 'choose_recipe'
-                    ? '붙여넣은 레시피 영상을 기억해두고 로그인 뒤 원픽 등록을 이어갑니다.'
-                  : intent.action === 'comment_pick'
-                    ? '로그인 뒤 보고 있던 원픽으로 돌아가 댓글을 남길 수 있어요.'
-                    : intent.action === 'notifications'
-                      ? '로그인 뒤 알림 화면으로 돌아가 새 댓글과 원픽 소식을 확인할 수 있어요.'
-                      : '로그인하면 나의 원픽을 모으고 사람들과 선택을 나눌 수 있어요.'}
-        </Text>
+        <Text accessibilityRole="header" style={styles.title}>로그인하고 계속하기</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>간편 로그인</Text>
-          <View style={styles.providerStack}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="카카오로 계속하기"
-              disabled={socialSignIn.isPending}
-              onPress={() => void handleProvider('kakao')}
-              style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
-              <Text style={styles.kakaoButtonText}>{socialSignIn.isPending && activeProvider === 'kakao' ? '카카오 로그인 중...' : '카카오로 계속하기'}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Apple로 계속하기"
-              disabled={socialSignIn.isPending}
-              onPress={() => void handleProvider('apple')}
-              style={({ pressed }) => [styles.providerButton, styles.appleButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
-              <Text style={styles.appleButtonText}>{socialSignIn.isPending && activeProvider === 'apple' ? 'Apple 로그인 중...' : 'Apple로 계속하기'}</Text>
-            </Pressable>
-          </View>
-
-          {socialSignIn.isError ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{getMessage(socialSignIn.error, activeProvider)}</Text>
-            </View>
-          ) : null}
-          {socialSignIn.isSuccess && !socialSignIn.data ? (
-            <Text style={styles.note}>{Platform.OS === 'web' ? `${pendingLabel} 로그인 화면으로 이동합니다.` : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
-          ) : null}
+        <View style={styles.providerStack}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="카카오로 계속하기"
+            disabled={socialSignIn.isPending}
+            onPress={() => void handleProvider('kakao')}
+            style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+            <Text style={styles.kakaoButtonText}>{socialSignIn.isPending && activeProvider === 'kakao' ? '카카오 로그인 중...' : '카카오로 계속하기'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Apple로 계속하기"
+            disabled={socialSignIn.isPending}
+            onPress={() => void handleProvider('apple')}
+            style={({ pressed }) => [styles.providerButton, styles.appleButton, pressed && styles.pressed, socialSignIn.isPending && styles.disabled]}>
+            <Text style={styles.appleButtonText}>{socialSignIn.isPending && activeProvider === 'apple' ? 'Apple 로그인 중...' : 'Apple로 계속하기'}</Text>
+          </Pressable>
         </View>
 
-        <Text style={styles.note}>처음 로그인하면 사용할 사용자명만 정하면 됩니다. 기존 계정은 처음 사용한 로그인 방식을 계속 사용해주세요.</Text>
+        {socialSignIn.isError ? (
+          <View style={styles.errorBox}>
+            <Text accessibilityRole="alert" style={styles.errorText}>{getMessage(socialSignIn.error, activeProvider)}</Text>
+          </View>
+        ) : null}
+        {socialSignIn.isSuccess && !socialSignIn.data ? (
+          <Text style={styles.note}>{Platform.OS === 'web' ? `${pendingLabel} 로그인 화면으로 이동합니다.` : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20 },
-  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginTop: 5 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
-  brand: { marginTop: 28, marginBottom: 4 },
-  title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 10 },
-  subtitle: { color: OnePick.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
-  card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 20, padding: 20, marginTop: 28 },
-  cardTitle: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
-  providerStack: { gap: 10, marginTop: 14 },
-  providerButton: { minHeight: 52, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
+  content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter },
+  backButton: { width: 44, height: 56, justifyContent: 'center' },
+  backText: { color: OnePick.textPrimary, fontSize: 28, lineHeight: 30 },
+  brand: { marginTop: 10 },
+  title: { ...OnePickType.pageTitle, color: OnePick.textPrimary, marginTop: 24 },
+  providerStack: { gap: OnePickSpace.md, marginTop: OnePickSpace.xxl },
+  providerButton: { minHeight: 52, borderRadius: OnePickRadius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: OnePickSpace.lg },
   kakaoButton: { backgroundColor: OnePick.kakao },
-  kakaoButtonText: { color: OnePick.kakaoText, fontSize: 15, fontWeight: '700' },
+  kakaoButtonText: { ...OnePickType.bodyMedium, color: OnePick.kakaoText },
   appleButton: { backgroundColor: OnePick.apple },
-  appleButtonText: { color: OnePick.appleText, fontSize: 15, fontWeight: '700' },
-  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: 12, padding: 14, marginTop: 14 },
-  errorText: { color: OnePick.danger, fontSize: 13, lineHeight: 18 },
-  note: { color: OnePick.muted, fontSize: 12, lineHeight: 16, textAlign: 'center', marginTop: 16 },
+  appleButtonText: { ...OnePickType.bodyMedium, color: OnePick.appleText },
+  errorBox: { backgroundColor: OnePick.dangerSoft, borderRadius: OnePickRadius.md, padding: 14, marginTop: OnePickSpace.lg },
+  errorText: { ...OnePickType.caption, color: OnePick.textDanger },
+  note: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', marginTop: OnePickSpace.lg },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.7 },
 });
