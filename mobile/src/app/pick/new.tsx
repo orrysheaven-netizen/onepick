@@ -150,6 +150,8 @@ export default function NewPickScreen() {
   // Step 1 can start from a Naver map link instead of a name search.
   const [linkEntry, setLinkEntry] = useState(false);
   const [entryLink, setEntryLink] = useState('');
+  // The link could not give a name: only the name is asked, the pasted link is kept.
+  const [nameOnlyFromLink, setNameOnlyFromLink] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
@@ -188,7 +190,7 @@ export default function NewPickScreen() {
 
   const resetForm = () => {
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
-    setLinkEntry(false); setEntryLink('');
+    setLinkEntry(false); setEntryLink(''); setNameOnlyFromLink(false);
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
@@ -329,6 +331,7 @@ export default function NewPickScreen() {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     if (step === 1 && linkEntry) { setLinkEntry(false); return; }
+    if (step === 1 && requesting && nameOnlyFromLink) { setRequesting(false); setNameOnlyFromLink(false); setLinkEntry(true); return; }
     if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
     if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
@@ -364,7 +367,7 @@ export default function NewPickScreen() {
   const registerFromLink = () => {
     const url = entryLink.trim();
     if (linkName) { pickStore({ kind: 'new', name: linkName, channel: 'offline', mapUrl: url }); return; }
-    setLinkEntry(false); setRequesting(true); setRequestPart('name'); setNewName(''); setMapLink(url);
+    setLinkEntry(false); setRequesting(true); setRequestPart('name'); setNewName(''); setMapLink(url); setNameOnlyFromLink(true);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validMapLink = isNaverMapUrl(mapLink);
@@ -693,12 +696,15 @@ export default function NewPickScreen() {
               : !requesting
                 ? <>
                   <FlowButton variant="secondary" label="찾는 매장이 없어요."
-                    onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); }} />
+                    onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); setNameOnlyFromLink(false); }} />
                   <FlowButton variant="text" label="네이버 지도 링크로 찾기"
                     onPress={() => { setLinkEntry(true); setEntryLink(''); linkLookup.reset(); }} />
                 </>
               : requestPart === 'name'
-                ? <FlowButton label="다음" disabled={!validNewName} onPress={() => setRequestPart('link')} />
+                ? <FlowButton label="다음" disabled={!validNewName} onPress={() => {
+                    if (nameOnlyFromLink && validMapLink) pickStore({ kind: 'new', name: newStoreName, channel: 'offline', mapUrl: mapLink.trim() });
+                    else setRequestPart('link');
+                  }} />
                 : <FlowButton label="다음" disabled={!canRequest}
                     onPress={() => pickStore({ kind: 'new', name: newStoreName, channel: 'offline', mapUrl: mapLink.trim() })} />}
           </View>
