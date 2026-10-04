@@ -58,6 +58,13 @@ function norm(value: string) {
 function placeSearchName(value: string) {
   return value.trim().replace(/\s+/g, '').toLowerCase().replace(/[%_\\]/g, '');
 }
+// Branch names are stored without the trailing 점 that Naver titles add.
+function branchKey(value: string) {
+  return placeSearchName(value).replace(/점$/, '');
+}
+function placeFullName(place: Pick<PlaceRow, 'name' | 'branch_name'>) {
+  return branchKey(place.name + (place.branch_name ?? ''));
+}
 function naverHost(hostname: string) {
   const host = hostname.toLowerCase();
   return host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com');
@@ -298,7 +305,22 @@ async function findPlaces(client: SupabaseClient, name: string, placeCatalogId: 
   const result = await client.from('place_catalog').select(columns)
     .eq('business_status', 'open').ilike('normalized_name', '%' + q + '%').limit(20);
   if (result.error) throw new Error('PLACE_READ_FAILED');
-  return sortPlaces((result.data ?? []) as PlaceRow[], name);
+  let rows = (result.data ?? []) as PlaceRow[];
+  // Naver titles carry the branch ("스타벅스 강남우성점") while the catalog keeps it
+  // apart (name 스타벅스, branch_name 강남우성), so a full-title miss retries each
+  // brand / branch split of the title's words.
+  const words = name.trim().split(/\s+/);
+  for (let i = 1; rows.length === 0 && i < words.length && i <= 3; i++) {
+    const head = placeSearchName(words.slice(0, i).join(''));
+    const branch = branchKey(words.slice(i).join(''));
+    if (head.length < 2 || !branch) continue;
+    const split = await client.from('place_catalog').select(columns)
+      .eq('business_status', 'open').eq('normalized_name', head)
+      .ilike('branch_name', '%' + branch + '%').limit(20);
+    if (split.error) throw new Error('PLACE_READ_FAILED');
+    rows = (split.data ?? []) as PlaceRow[];
+  }
+  return sortPlaces(rows, name);
 }
 
 Deno.serve(async (req: Request) => {
@@ -378,7 +400,8 @@ Deno.serve(async (req: Request) => {
     const places = kind === 'place' ? await findPlaces(admin, resolvedName, placeCatalogId) : [];
     const selectedPlace = placeCatalogId ? places[0] : undefined;
     const exactPlace = !selectedPlace && resolvedName
-      ? places.find((place) => placeSearchName(place.name) === placeSearchName(resolvedName))
+      ? places.find((place) => placeSearchName(place.name) === placeSearchName(resolvedName)
+        || placeFullName(place) === branchKey(resolvedName))
       : undefined;
     const contextPlace = selectedPlace ?? exactPlace;
 
