@@ -305,6 +305,8 @@ async function main() {
   const brandSelect = calls.find(([name]) => name === 'select')[1];
   assert.deepEqual(brandSelect.store, brandResults[0], 'the item is looked up for the brand, not a branch');
   page = render(); assert.equal(step(page), '3', 'A new brand-wide product still needs its photo');
+  assert.match(page, /을밀대 평양냉면의 대표 사진/, 'the chosen brand is shown by its name');
+  assert.doesNotMatch(page, /을밀대 전체/, 'the chosen brand is not shown as "을밀대 전체"');
   press('사진 선택'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('어느 지점이든 좋아요'); render(); press('원픽 등록하기'); await flush();
   const brandSave = calls.find(([name]) => name === 'register')[1];

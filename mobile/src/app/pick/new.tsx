@@ -219,8 +219,8 @@ export default function NewPickScreen() {
 
   // 브랜드 전체 is chosen on step 1; there is no scope choice later.
   const pickScope: 'branch' | 'brand' | null = store ? (store.kind === 'brand' ? 'brand' : 'branch') : null;
-  const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}`
-    : store.kind === 'brand' ? `${store.name} 전체` : store.name) : '';
+  // A brand-wide store shows the brand name alone (e.g. 카페인중독).
+  const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name) : '';
   const pickDisplayName = storeDisplayName;
   const storeChannel: PickChannel = store?.kind === 'seller' ? 'online' : 'offline';
   const search = useStoreSearch(
