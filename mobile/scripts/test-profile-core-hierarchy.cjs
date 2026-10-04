@@ -10,7 +10,8 @@ const owner = read('src/app/(tabs)/(profile)/profile.tsx');
 const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 
-const headerIndex = owner.indexOf('<View style={styles.profileHeader}>');
+// Figma 68-1 (10-04): the profile starts with the identity row; there is no header row.
+const headerIndex = owner.indexOf('{/* Figma 68-1');
 const primaryIndex = owner.indexOf('<View style={styles.profileBody}>');
 const identityIndex = owner.indexOf('<View style={styles.identity}>');
 const picksIndex = owner.indexOf('visibleProfilePicks.map');
@@ -36,7 +37,7 @@ assert.doesNotMatch(owner, /refreshButton/);
 assert.match(owner, /profileQuery\.isRefetchError \? <Button variant="ghost" size="sm"/, 'header retry remains an error-only kit text button');
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
-assert.match(owner, /<Text style={styles\.statNumber}>{currentPicks\.length}<\/Text>/, 'Figma 03 owner count uses the complete current Pick collection');
+assert.match(owner, /<Text style={styles\.statNumber}>{currentPicks\.length}<\/Text>/, 'Figma 68-1 owner count uses the complete current Pick collection');
 assert.match(owner, /<Chip label="음식"/);
 assert.match(owner, /<Chip label="기타"/);
 assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Figma 03 collection is a direct row list');
