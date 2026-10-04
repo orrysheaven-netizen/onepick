@@ -197,6 +197,13 @@ async function main() {
   assert.equal(placeSearchName(' 을지로 (본점) '), '을지로(본점)');
   assert.equal(placeSearchName('A&B Pizza'), 'a&bpizza');
   assert.equal(placeSearchName('100%_\\맛집'), '100맛집');
+  const branchSource = /function branchKey[\s\S]*?\n}/.exec(edge)?.[0];
+  assert.ok(branchSource);
+  const branchKey = new Function(placeSearchSource.replace(/: string/g, '') + branchSource.replace(/: string/g, '') + '; return branchKey;')();
+  assert.equal(branchKey('스타벅스 강남우성점'), '스타벅스강남우성', 'Naver titles drop the trailing 점 the catalog branch lacks');
+  assert.match(edge, /\.eq\('normalized_name', head\)\s*\.ilike\('branch_name', '%' \+ branch \+ '%'\)/,
+    'A full-title miss retries brand name + branch');
+  assert.match(edge, /placeFullName\(place\) === branchKey\(resolvedName\)/);
   assert.match(edge, /body\.action === 'attach_pending_link'/);
   assert.match(edge, /itemResult\.data\.created_by !== auth\.data\.user\.id/);
   assert.match(edge, /\.eq\('created_by', auth\.data\.user\.id\)\.eq\('status', 'pending'\)/,

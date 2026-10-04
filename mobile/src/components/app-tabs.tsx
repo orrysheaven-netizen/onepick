@@ -34,8 +34,8 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="register" disabled listeners={{ tabPress: () => router.push('/pick/new') }}>
         <NativeTabs.Trigger.Label>원픽 등록</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          sf="plus.circle.fill"
-          md="add_circle"
+          sf="plus.circle"
+          md="add_circle_outline"
         />
       </NativeTabs.Trigger>
 

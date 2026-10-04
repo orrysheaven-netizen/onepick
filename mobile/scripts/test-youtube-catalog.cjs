@@ -328,8 +328,6 @@ async function main() {
   assert.match(screen,/slice\(0, 1000\)/);
   assert.match(screen,/maxLength=\{1000\}/);
   assert.match(screen,/autoFocus=\{Platform\.OS !== 'web'\}/);
-  assert.match(screen,/onboarding\?: string \| string\[\]/);
-  assert.match(screen,/scalar\(params\.onboarding\) === '1'[\s\S]*?onboarding: '1'/);
   assert.doesNotMatch(screen,/구독자 수.*toLocaleString|subscriberCount/);
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/youtube-catalog/index.ts'),'utf8');

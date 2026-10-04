@@ -18,7 +18,6 @@ type Params = {
   categoryId?: string | string[];
   externalYouTubeId?: string | string[];
   query?: string | string[];
-  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -45,7 +44,7 @@ function youtubeErrorMessage(error: unknown) {
 export default function YouTubePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalYouTubeId ?? null, params.query ?? null]);
   return <YouTubePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -121,7 +120,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
     navigating.current = true;
     const route = {
       pathname: '/pick/choose' as const,
-      params: { itemId, categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) },
+      params: { itemId, categoryId },
     };
     if (replace) router.replace(route); else router.push(route);
   };
@@ -187,7 +186,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
-      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
+      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}</Text>
       {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
@@ -200,19 +199,19 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계합니다.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
-        <Text style={styles.stateTitle}>YouTube 검색 전 확인이 필요해요</Text>
+        <Text style={styles.stateTitle}>YouTube 검색 전 확인이 필요해요.</Text>
         <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용합니다. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
         <Pressable disabled={consentSaving} onPress={() => void acceptConsent()} style={[styles.consentButton, consentSaving && styles.disabled]}>
-          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다</Text>}
+          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다.</Text>}
         </Pressable>
       </View> : null}
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>유튜브 카테고리를 사용할 수 없어요</Text>
+        <Text style={styles.stateTitle}>유튜브 카테고리를 사용할 수 없어요.</Text>
         <Text style={styles.stateText}>카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
@@ -227,16 +226,16 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줍니다. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용합니다.</Text>
         {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
-        {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 채널과 YouTube를 함께 찾고 있어요</Text></View> : null}
-        {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 채널 검색을 불러오지 못했어요</Text>
+        {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 채널과 YouTube를 함께 찾고 있어요.</Text></View> : null}
+        {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 채널 검색을 불러오지 못했어요.</Text>
           <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
         {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>외부 YouTube DB를 불러오지 못했어요</Text>
+          <Text style={styles.stateTitle}>외부 YouTube DB를 불러오지 못했어요.</Text>
           <Text style={styles.stateText}>{youtubeErrorMessage(catalog.error)}</Text>
           <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>YouTube 다시 검색</Text></Pressable>
         </View> : null}
 
-        {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 채널 정보를 확인하고 있어요</Text></View> : null}
+        {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 채널 정보를 확인하고 있어요.</Text></View> : null}
         {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
           <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
             {selection.phase === 'failed' ? youtubeErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 채널 정보가 준비됐어요.' : '이전 채널 선택을 다시 이어갈 수 있어요.'}
@@ -276,7 +275,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           </View>
         </Pressable>)}
 
-        {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 채널을 찾지 못했어요</Text>
+        {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 채널을 찾지 못했어요.</Text>
           <Text style={styles.stateText}>채널명을 다시 입력하거나, 해당 채널의 YouTube 영상/채널 링크를 붙여넣어보세요.</Text></View> : null}
       </> : null}
 

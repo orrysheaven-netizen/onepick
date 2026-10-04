@@ -76,7 +76,6 @@ const labIndex = read('src/app/lab/index.tsx');
 const owner = read('src/app/(tabs)/(profile)/profile.tsx');
 const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const explore = read('src/app/(tabs)/explore.tsx');
-const onboarding = read('src/app/onboarding.tsx');
 const find = read('src/app/pick/find.tsx');
 
 assert.match(lab, /usePublicProfile\(username, user\?\.id\)/);
@@ -100,9 +99,7 @@ assert.match(publicProfile, /filterMainProfileByChannel\(mainPicks, profileCateg
 assert.match(publicProfile, /const currentPicks = publicMainPicks;/, 'the share card carries only publicly exposed FOOD Picks');
 assert.doesNotMatch(explore, /router\.push\('\/lab'\)/, 'Explore no longer duplicates the 다른 취향 entry with a 실험실 door');
 assert.doesNotMatch(explore, /ProfileLabEntry/, 'Explore does not render the legacy lab entry component');
-assert.match(onboarding, /!isLabCategory\(category\.id, categoryCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'onboarding offers only main-theme categories');
-assert.match(onboarding, /catalogReady = !OnePickFeatures\.lab \|\| Boolean\(categoryCatalog\.data\) \|\| categoryCatalog\.isError/, 'onboarding waits for themes but falls back on a catalog error');
 assert.match(find, /: !isLabCategory\(item\.categoryId, themeCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'unscoped search hides 실험실 results');
 assert.match(find, /\? item\.categoryId === selectedCategory\.id/, 'a category-scoped (실험실) search is unaffected');
 
-console.log('실험실 checks passed: main/lab split, profile taste tabs, hidden Explore entry, legacy routes, onboarding and search scope.');
+console.log('실험실 checks passed: main/lab split, profile taste tabs, hidden Explore entry, legacy routes and search scope.');

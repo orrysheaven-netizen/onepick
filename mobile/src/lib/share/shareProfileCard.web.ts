@@ -54,7 +54,7 @@ export async function shareProfileCardImage(input: ShareProfileCardInput): Promi
   if (picks.length === 0) {
     ctx.fillStyle = OnePick.muted;
     ctx.font = '500 36px system-ui, sans-serif';
-    ctx.fillText('아직 고른 원픽이 없어요', 130, 460);
+    ctx.fillText('아직 고른 원픽이 없어요.', 130, 460);
   }
 
   picks.forEach((pick, index) => {

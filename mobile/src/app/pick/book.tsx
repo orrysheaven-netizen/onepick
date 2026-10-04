@@ -11,14 +11,12 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalBookId?: string | string[];
   query?: string | string[];
   author?: string | string[];
-  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -45,7 +43,7 @@ function bookErrorMessage(error: unknown) {
 export default function BookPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null]);
   return <BookPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -100,7 +98,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
+    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
 
@@ -165,7 +163,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
-      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
+      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}</Text>
       {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
@@ -178,7 +176,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있습니다.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요</Text>
+        <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요.</Text>
         <Text style={styles.stateText}>카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
@@ -198,16 +196,16 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         placeholder="예: 조정래" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
       <Text style={styles.helperText}>작가를 알고 있다면 함께 입력하면 더 정확한 결과를 찾을 수 있어요.</Text>
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{cleanAuthor ? '책 제목과 작가 이름으로 찾고 있어요' : '책 제목으로 찾고 있어요'}</Text></View> : null}
-      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 책 검색을 불러오지 못했어요</Text>
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{cleanAuthor ? '책 제목과 작가 이름으로 찾고 있어요.' : '책 제목으로 찾고 있어요.'}</Text></View> : null}
+      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 책 검색을 불러오지 못했어요.</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>외부 도서 DB를 불러오지 못했어요</Text>
+        <Text style={styles.stateTitle}>외부 도서 DB를 불러오지 못했어요.</Text>
         <Text style={styles.stateText}>{bookErrorMessage(catalog.error)}</Text>
         <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Google Books 다시 검색</Text></Pressable>
       </View> : null}
 
-      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 책 정보를 준비하고 있어요</Text></View> : null}
+      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 책 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
           {selection.phase === 'failed' ? bookErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 책 정보가 준비됐어요.' : '이전 책 선택을 다시 이어갈 수 있어요.'}
@@ -252,7 +250,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         </View>
       </Pressable>)}
 
-      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요</Text>
+      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
       <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인합니다.</Text>

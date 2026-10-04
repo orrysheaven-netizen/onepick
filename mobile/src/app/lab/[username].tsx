@@ -53,10 +53,10 @@ export default function LabScreen() {
           원픽은 지금 맛집에 집중하고 있어요. 콘텐츠·테크·스타일 같은 다른 취향은 여기에 모아두고 계속 실험해요.
         </Text>
 
-        {!OnePickFeatures.lab ? <View style={styles.stateArea}><StateCard title="실험실이 닫혀 있어요" text="모든 원픽은 프로필에서 볼 수 있어요." /></View> : null}
-        {OnePickFeatures.lab && query.isPending ? <View style={styles.stateArea}><StateCard loading title="실험실을 불러오고 있어요" /></View> : null}
+        {!OnePickFeatures.lab ? <View style={styles.stateArea}><StateCard title="실험실이 닫혀 있어요." text="모든 원픽은 프로필에서 볼 수 있어요." /></View> : null}
+        {OnePickFeatures.lab && query.isPending ? <View style={styles.stateArea}><StateCard loading title="실험실을 불러오고 있어요." /></View> : null}
         {OnePickFeatures.lab && !query.isPending && query.isError ? <View style={styles.stateArea}>
-          <StateCard tone="danger" title="실험실을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+          <StateCard tone="danger" title="실험실을 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
             action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => { if (!query.isFetching) void query.refetch(); } }} />
         </View> : null}
 
@@ -64,7 +64,7 @@ export default function LabScreen() {
           <View style={styles.sectionHeader}>
             <SectionHeader title={isMine ? '내 실험실 원픽' : `@${query.data.profile.username}의 실험실 원픽`} count={labPicks.length} />
           </View>
-          {categoriesQuery.isPending ? <StateCard loading title="카테고리를 확인하고 있어요" /> : labPicks.length > 0 ? (
+          {categoriesQuery.isPending ? <StateCard loading title="카테고리를 확인하고 있어요." /> : labPicks.length > 0 ? (
             <ProfilePickGroups
               picks={labPicks}
               categories={categories}
@@ -72,7 +72,7 @@ export default function LabScreen() {
               onPressItem={openItem}
             />
           ) : (
-            <StateCard title="아직 실험실 원픽이 없어요" text={isMine ? '아래 카테고리에서 하나씩 골라볼 수 있어요.' : '이 사용자가 맛집 외 취향을 고르면 여기에 표시됩니다.'} />
+            <StateCard title="아직 실험실 원픽이 없어요." text={isMine ? '아래 카테고리에서 하나씩 골라볼 수 있어요.' : '이 사용자가 맛집 외 취향을 고르면 여기에 표시됩니다.'} />
           )}
 
           {startable.length > 0 ? <View style={styles.startArea}>
