@@ -48,7 +48,8 @@ begin
   assert public.comment_notification_count(author_id)=0, 'Explicit user filter prevents account-switch cache leakage';
   select count(*) into n from public.comment_notification_page(owner_id) page where page.body='새 댓글';
   assert n=1, 'Inbox resolves live comment body';
-  insert into public.comments(id,pick_id,user_id,body) values(own_comment_id,pick_id,owner_id,'내 댓글');
+  -- A review author only replies on their own review; their reply still must not notify themselves.
+  insert into public.comments(id,pick_id,user_id,body,parent_comment_id) values(own_comment_id,pick_id,owner_id,'내 댓글',comment_id);
   assert public.comment_notification_count(owner_id)=1, 'Self-comments excluded';
   update public.comment_notifications set read_at=now();
   assert public.comment_notification_count(owner_id)=0, 'Reading clears unread count';

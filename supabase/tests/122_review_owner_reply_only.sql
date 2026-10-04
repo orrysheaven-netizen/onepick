@@ -25,8 +25,8 @@ begin
 
   insert into public.profiles(id,username,onboarding_completed)
   values
-    (owner_u,'review_owner_reply_only',true),
-    (other_u,'review_other_reply_only',true);
+    (owner_u,'reply_only_owner',true),
+    (other_u,'reply_only_other',true);
 
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable,sort_order)
     select food_group, food.id, '작성자 답글 테스트', 'review-owner-reply-only-group', 'open', true, false, 990
