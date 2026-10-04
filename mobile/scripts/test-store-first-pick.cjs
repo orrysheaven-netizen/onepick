@@ -194,7 +194,7 @@ async function main() {
   render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 서울 마포구 선택'); page = render();
   assert.equal(step(page), '2');
   assert.equal(input('메뉴 이름').value, '라멘');
-  assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+  assert.doesNotMatch(page, /메뉴명을 미리 채웠어요|매장에서 부르는 메뉴 이름/, 'prefilled menu step adds no helper copy');
   assert.match(page, /면 › 라멘/);
   input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
   press('이전 단계'); page = render();

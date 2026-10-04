@@ -16,7 +16,7 @@ assert.match(service, /from\('place_catalog'\)[\s\S]*?\.eq\('place_provider', pl
 assert.match(hook, /useProviderStorePrefill/);
 assert.match(screen, /!restoredDraftRef\.current/, 'a restored account draft wins over entry prefill');
 assert.match(screen, /providerPrefill\.data \?\? null/);
-assert.match(screen, /메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+assert.doesNotMatch(screen, /메뉴명을 미리 채웠어요|매장에서 부르는 메뉴 이름/, 'menu step shows no explanatory helper copy');
 assert.match(screen, /prefilledCategoryOption/);
 assert.match(screen, /관리자 검수 후 \$\{pickDisplayName\}/, 'photo copy reflects the current first-photo review policy');
 assert.match(screen, /borderStyle: 'dashed'/);

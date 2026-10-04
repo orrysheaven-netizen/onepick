@@ -651,9 +651,6 @@ export default function NewPickScreen() {
                   <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.clearText}>×</Text>
                 </Pressable> : null}
               </View>
-              <Text style={styles.helper}>{menuPrefilled && entryMenuName
-                ? `${entryMenuName} 메뉴에서 시작해 메뉴명을 미리 채웠어요. 매장에서 부르는 이름으로 고쳐 써도 돼요.`
-                : '매장에서 부르는 메뉴 이름 그대로 적어 주세요. 카테고리는 입력한 이름으로 추천해 드려요.'}</Text>
             </View>
 
             {menus.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
