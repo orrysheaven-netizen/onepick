@@ -29,7 +29,7 @@ function fixture(kind, platform = 'web') {
   const top = query([{ itemId: 'item', name: '선택된 라면', rank: 1, pickCount: 2, isTied: false, channels: [] }]);
   const calls = {};
   const components = {
-    'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
+    'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton', 'pick-management': 'PickManagement',
     'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',

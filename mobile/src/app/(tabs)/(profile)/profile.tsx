@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PickManagement, type PickManagementMode } from '@/components/pick-management';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
@@ -113,13 +114,19 @@ function ProfileCurrentPickRow({
   onOpenPick,
   onOpenItem,
   onOpenProvider,
+  onRemoved,
 }: {
   item: PickReadItem;
   isFood: boolean;
-  onOpenPick: (pickId: string) => void;
+  onOpenPick: (pickId: string, itemId?: string) => void;
   onOpenItem: (itemId: string) => void;
   onOpenProvider: (providerId: string) => void;
+  onRemoved: () => void;
 }) {
+  // Figma 68-1 (10-04): row ⋯ → 한줄평 수정 / 원픽 해제, reusing the item-detail panels.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
+  const openManage = (mode: 'edit' | 'remove') => { setMenuOpen(false); setManageMode(mode); };
   const channel = item.item?.channels?.[0];
   const channelLabel = channel ? PROFILE_CHANNEL_LABELS[channel] : null;
   const title = isFood
@@ -142,10 +149,11 @@ function ProfileCurrentPickRow({
       : styles.currentPickBadgeRecipe;
 
   return (
+    <View>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${title} 원픽 상세 보기`}
-      onPress={() => onOpenPick(item.pick.id)}
+      onPress={() => onOpenPick(item.pick.id, item.item?.id)}
       style={({ pressed }) => [styles.currentPickRow, pressed && styles.pressed]}>
       <PickPhoto
         size={64}
@@ -188,7 +196,23 @@ function ProfileCurrentPickRow({
         {item.pick.oneLineReview ? <Text numberOfLines={1} style={styles.currentPickReview}>“{item.pick.oneLineReview}”</Text> : null}
         {photoReviewText ? <Text numberOfLines={1} style={styles.currentPickPhotoReview}>{photoReviewText}</Text> : null}
       </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${title} 원픽 관리`} accessibilityState={{ expanded: menuOpen }}
+        onPress={(event) => { event.stopPropagation(); setMenuOpen((value) => !value); }}
+        style={({ pressed }) => [styles.currentPickMore, pressed && styles.pressed]}>
+        <Text style={styles.currentPickMoreText}>⋯</Text>
+      </Pressable>
     </Pressable>
+    {menuOpen ? <View style={styles.currentPickMenu}>
+      <Pressable accessibilityRole="button" onPress={() => openManage('edit')} style={({ pressed }) => [styles.currentPickMenuItem, pressed && styles.pressed]}>
+        <Text style={styles.currentPickMenuText}>한줄평 수정</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => openManage('remove')} style={({ pressed }) => [styles.currentPickMenuItem, pressed && styles.pressed]}>
+        <Text style={styles.currentPickMenuText}>원픽 해제</Text>
+      </Pressable>
+    </View> : null}
+    <PickManagement pick={item.pick} categoryName={item.category?.name ?? '카테고리'} onRemoved={onRemoved}
+      mode={manageMode} onModeChange={setManageMode} />
+    </View>
   );
 }
 
@@ -244,9 +268,6 @@ export default function ProfileScreen() {
   }
 
   const { profile, currentPicks } = profileQuery.data;
-  // The profile contract currently stores username rather than a separate display name.
-  // Use it in the Figma 03 identity slot until that field exists server-side.
-  const displayName = profile.username;
   const loadedCommentCount = commentsQuery.data?.length ?? 0;
   const commentCountLabel = commentsQuery.hasNextPage ? `${loadedCommentCount}+` : String(loadedCommentCount);
   const profileCategories = categoriesQuery.data ?? [];
@@ -271,7 +292,10 @@ export default function ProfileScreen() {
       commentsQuery.refetch({ cancelRefetch: false }),
     ]);
   };
-  const openPick = (pickId: string) => router.push({ pathname: '/pick/[pickId]', params: { pickId } });
+  // A pick row opens its item detail (Figma 65/68: row → 36), scrolled to my review.
+  const openPick = (pickId: string, itemId?: string) => router.push(itemId
+    ? { pathname: '/item/[itemId]', params: { itemId, pickId } }
+    : { pathname: '/pick/[pickId]', params: { pickId } });
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: '/profile' } });
   const openLab = () => router.push('/lab');
@@ -292,39 +316,32 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor={OnePick.accent} />}>
-        <View style={styles.profileHeader}>
-          <Text numberOfLines={1} style={styles.profileHeaderTitle}>{profile.username}</Text>
-          <View style={styles.profileHeaderActions}>
-            {profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
-              accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
-              disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
-            <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
-              style={({ pressed }) => [styles.profileHeaderMenuButton, pressed && styles.pressed]}>
-              <Text style={styles.profileHeaderMenu}>⋯</Text>
-            </Pressable>
-          </View>
-        </View>
-
+        {/* Figma 68-1 (10-04): no header row — ID beside the profile image, 설정 top-right. */}
         <View style={styles.profileBody}>
           <View style={styles.identity}>
-            <Avatar name={displayName} size={72} tone="subtle" />
-            <View style={styles.stats}>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{currentPicks.length}</Text>
-                <Text style={styles.statLabel}>원픽</Text>
+            <Avatar name={profile.username} size={64} tone="subtle" />
+            <View style={styles.identityCopy}>
+              <Text numberOfLines={1} style={styles.identityName}>{profile.username}</Text>
+              <View style={styles.stats}>
+                <Text style={styles.statLabel}>원픽 <Text style={styles.statNumber}>{currentPicks.length}</Text></Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 보기"
+                  onPress={() => router.push('/comments')} style={({ pressed }) => [styles.statLink, pressed && styles.pressed]}>
+                  <Text style={styles.statLabel}>댓글 <Text style={styles.statNumber}>{commentCountLabel} ›</Text></Text>
+                </Pressable>
               </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 보기"
-                onPress={() => router.push('/comments')} style={({ pressed }) => [styles.stat, pressed && styles.pressed]}>
-                <Text style={styles.statNumber}>{commentCountLabel}</Text>
-                <Text style={styles.statLabel}>댓글</Text>
+            </View>
+            <View style={styles.identityActions}>
+              {profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
+                accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
+                disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '다시 불러오기'} /> : null}
+              <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
+                style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}>
+                <Text style={styles.settingsText}>설정</Text>
               </Pressable>
             </View>
           </View>
 
-          <View style={styles.bioBlock}>
-            <Text numberOfLines={1} style={styles.bioName}>{displayName}</Text>
-            <Text numberOfLines={2} style={styles.bioText}>{profile.bio?.trim() || '자기소개를 추가해보세요.'}</Text>
-          </View>
+          <Text numberOfLines={2} style={styles.bioText}>{profile.bio?.trim() || '자기소개를 추가해보세요.'}</Text>
 
           {profileQuery.isRefetchError ? <Text accessibilityRole="alert" style={styles.refreshError}>최신 상태를 불러오지 못했어요. 마지막으로 확인한 내용을 표시하고 있어요. 다시 새로고침해주세요.</Text> : null}
 
@@ -341,6 +358,7 @@ export default function ProfileScreen() {
               onOpenPick={openPick}
               onOpenItem={openItem}
               onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
+              onRemoved={() => void profileQuery.refetch()}
             />)}
           </View> : (
             <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요' : '아직 다른 취향 원픽이 없어요'}
@@ -434,24 +452,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: OnePickSpace.gutter,
     paddingBottom: OnePickSpace.xxxl,
   },
-  profileHeader: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  profileHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
-  profileHeaderActions: { flexDirection: 'row', alignItems: 'center' },
-  profileHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  profileHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  profileBody: { minHeight: 724, paddingTop: 10, gap: OnePickSpace.md },
-  identity: { height: 82, flexDirection: 'row', alignItems: 'center', gap: 18 },
-  stats: { flexDirection: 'row', alignItems: 'flex-start', gap: 22 },
-  stat: { alignItems: 'center' },
-  statNumber: { ...OnePickType.headline, color: OnePick.textPrimary },
-  statLabel: { ...OnePickType.caption, color: OnePick.textSecondary },
-  bioBlock: { gap: 2 },
-  bioName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  profileBody: { minHeight: 724, paddingTop: OnePickSpace.lg, gap: OnePickSpace.lg },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.lg },
+  identityCopy: { flex: 1, minWidth: 0, gap: 6 },
+  identityName: { ...OnePickType.headline, color: OnePick.textPrimary },
+  identityActions: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' },
+  settingsButton: { minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  settingsText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  stats: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md },
+  statLink: { minHeight: 44, justifyContent: 'center' },
+  statNumber: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  statLabel: { ...OnePickType.body, color: OnePick.textSecondary },
   bioText: { ...OnePickType.body, color: OnePick.textSecondary },
   listControl: { marginTop: OnePickSpace.md },
   refreshError: { ...OnePickType.body, color: OnePick.textDanger, marginBottom: OnePickSpace.sm },
@@ -471,6 +482,20 @@ const styles = StyleSheet.create({
     borderBottomColor: OnePick.borderDefault,
   },
   currentPickCopy: { flex: 1, minWidth: 0, height: 82, gap: 2 },
+  currentPickMore: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  currentPickMoreText: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
+  currentPickMenu: {
+    alignSelf: 'flex-end',
+    marginTop: -OnePickSpace.sm,
+    marginBottom: OnePickSpace.sm,
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    borderRadius: OnePickRadius.md,
+    backgroundColor: OnePick.bgDefault,
+    overflow: 'hidden',
+  },
+  currentPickMenuItem: { minWidth: 160, minHeight: 44, justifyContent: 'center', paddingHorizontal: OnePickSpace.lg },
+  currentPickMenuText: { ...OnePickType.body, color: OnePick.textPrimary },
   currentPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
   currentPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
   currentPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },

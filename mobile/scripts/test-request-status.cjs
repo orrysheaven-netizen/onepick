@@ -72,6 +72,7 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/pick-management': { PickManagement: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-pick-card': {
       ProfilePickCard: (props) => React.createElement(
@@ -142,6 +143,7 @@ async function main() {
     'react-native': native,
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
+    '@/components/pick-management': { PickManagement: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/format/relativeTime': { formatRelativeTime: () => '방금' },
     '@/services': { commentService: { locateComment: async (commentId) => commentId === 'c1' ? {
