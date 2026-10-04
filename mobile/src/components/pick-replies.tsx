@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -11,12 +12,13 @@ import {
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
+import { Button } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
 import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { CommentReadItem, ReadCursor } from '@/repositories/interfaces/readRepository';
 
 function getCommentErrorMessage(error: unknown) {
@@ -36,7 +38,8 @@ function getCommentErrorMessage(error: unknown) {
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
- * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet.
+ * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet:
+ * "댓글 남기기" then asks in a popup whether to pick this menu first.
  */
 export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
@@ -72,6 +75,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCom
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
+  const [pickFirstOpen, setPickFirstOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
   // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
@@ -319,14 +323,25 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCom
               : user && onPickFirst ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={onPickFirst}
+                  onPress={() => setPickFirstOpen(true)}
                   style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
-                  <Text style={styles.loginPromptTitle}>이 메뉴 원픽 먼저 고르기</Text>
+                  <Text style={styles.loginPromptTitle}>댓글 남기기</Text>
                   <Text style={styles.loginPromptText}>같은 메뉴를 원픽으로 고른 사람끼리 댓글을 남길 수 있어요.</Text>
                 </Pressable>
               ) : (
                 <Text style={styles.historyCommentNotice}>현재 댓글을 남길 수 없는 한줄평입니다.</Text>
               )}
+              {onPickFirst ? <Modal visible={pickFirstOpen} transparent animationType="fade" onRequestClose={() => setPickFirstOpen(false)}>
+                <View style={styles.popupBackdrop}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 안내 닫기" onPress={() => setPickFirstOpen(false)} style={StyleSheet.absoluteFill} />
+                  <View accessibilityViewIsModal style={styles.popup}>
+                    <Text style={styles.popupTitle}>원픽으로 등록해야 댓글을 남길 수 있어요</Text>
+                    <Text style={styles.popupText}>이 메뉴를 내 원픽으로 등록할까요?</Text>
+                    <Button fullWidth label="원픽으로 등록하기" onPress={() => { setPickFirstOpen(false); onPickFirst(); }} />
+                    <Button variant="ghost" size="sm" label="취소" onPress={() => setPickFirstOpen(false)} />
+                  </View>
+                </View>
+              </Modal> : null}
             </View>
 
   );
@@ -374,6 +389,18 @@ const styles = StyleSheet.create({
   commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   commentButtonDisabled: { opacity: 0.4 },
   commentButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  popupBackdrop: { flex: 1, justifyContent: 'center', padding: OnePickSpace.gutter, backgroundColor: OnePick.bgOverlay },
+  popup: {
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
+    gap: OnePickSpace.md,
+    padding: OnePickSpace.xl,
+    borderRadius: OnePickRadius.xl,
+    backgroundColor: OnePick.bgDefault,
+  },
+  popupTitle: { ...OnePickType.headline, color: OnePick.textPrimary, textAlign: 'center' },
+  popupText: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center', marginBottom: OnePickSpace.sm },
   loginPrompt: { backgroundColor: OnePick.background, borderRadius: 15, padding: 14, marginTop: 16 },
   loginPromptTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   loginPromptText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
