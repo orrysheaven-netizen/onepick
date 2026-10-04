@@ -28,15 +28,21 @@ assert.match(people, /<MenuDetailPickCard/);
 assert.match(people, /onOpenComments=\{\(\) => router\.push\(\{ pathname: '\/pick\/\[pickId\]'/, 'menu comments open the dedicated review conversation');
 assert.match(people, /fixedChannel/);
 
-assert.match(row, /<Avatar name=\{pick\.username\} size=\{32\}/);
+// Figma 45: photo left; @아이디 → [매장] 매장명 (menu not repeated) → 지역 › → 한줄평; "원픽 N  댓글 N  공유".
+assert.match(row, /<Avatar name=\{pick\.username\} size=\{24\}/);
 assert.match(row, /<PickPhoto size=\{64\} compactRadius=\{12\}/);
-const menuNameIndex = row.indexOf('<Text numberOfLines={1} style={styles.menuName}>{menuName}</Text>');
-const providerIndex = row.indexOf('<View style={styles.providerRow}>');
+const photoIndex = row.indexOf('<PickPhoto size={64}');
+const personIndex = row.indexOf('>@{pick.username}</Text>');
+const titleIndex = row.indexOf('{providerName ?? menuName}');
+const regionIndex = row.indexOf('{region} ›');
 const reviewIndex = row.indexOf('<Text numberOfLines={2} style={styles.review}>');
-assert.ok(menuNameIndex >= 0 && providerIndex > menuNameIndex && reviewIndex > providerIndex,
-  'Figma 16A row order is menu → channel/provider → one-line review');
-assert.match(row, /personRow: \{ height: 36[\s\S]*?gap: 10/);
-assert.match(row, /body: \{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10 \}/);
+assert.ok(photoIndex >= 0 && personIndex > photoIndex && titleIndex > personIndex && regionIndex > titleIndex && reviewIndex > regionIndex,
+  'Figma 45 row order is photo → @아이디 → 매장명 → 지역 › → 한줄평');
+assert.match(row, /commentCount \? `댓글 \$\{commentCount\}` : '댓글'/);
+assert.doesNotMatch(row, /styles\.separator/, 'footer has no "·" separators');
+assert.match(people, /최근 고른 순 누가 어느 집을 왜 골랐는지 볼 수 있어요\./);
+assert.match(people, /action=\{onRegister \? \{ label: `\$\{categoryName\} 원픽 등록하기`/, '45-2 empty state registers the menu');
+assert.match(menu, /categoryId && name && !empty \? <View style=\{styles\.registerFooter\}>/, 'no fixed footer on the empty state');
 assert.match(row, /channelBadge:[\s\S]*?height: 28[\s\S]*?paddingHorizontal: 9[\s\S]*?borderRadius: OnePickRadius\.full/);
 assert.match(row, /review: \{ \.\.\.OnePickType\.body, color: OnePick\.textPrimary \}/);
 assert.match(row, /sharePick\(/);
