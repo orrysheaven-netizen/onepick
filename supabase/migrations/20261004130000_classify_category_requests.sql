@@ -75,6 +75,9 @@ begin
     raise exception 'PICK_CONFLICT' using errcode = 'P0001';
   end if;
 
+  -- picks reference (item, category); move both together like admin_move_item_category.
+  set constraints public.picks_item_category_fk deferred;
+
   update public.items
   set category_id = p_category_id,
       external_source = 'onepick_place',
@@ -90,7 +93,9 @@ begin
 
   update public.picks
   set category_id = p_category_id, channel = 'offline', updated_at = now()
-  where item_id = v_item.id and status in ('active', 'needs_review');
+  where item_id = v_item.id;
+
+  set constraints public.picks_item_category_fk immediate;
 
   delete from private.category_request_places where item_id = v_item.id;
 end;
