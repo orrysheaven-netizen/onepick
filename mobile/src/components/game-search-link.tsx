@@ -2,10 +2,9 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam, type OnboardingParam } from '@/lib/categories/registrationRoute';
 
 /** Optional external lookup after local search; never blocks the primary item search. */
-export function GameSearchLink({ query, categoryId, onboarding }: { query: string; categoryId?: string; onboarding?: OnboardingParam }) {
+export function GameSearchLink({ query, categoryId }: { query: string; categoryId?: string }) {
   const router = useRouter();
   const categories = useRegistrationCategories();
   const game = !categories.isError && !categories.isPending
@@ -13,7 +12,7 @@ export function GameSearchLink({ query, categoryId, onboarding }: { query: strin
   const text = query.trim().replace(/\s+/g, ' ');
   if (!game || (categoryId && categoryId !== game.id) || text.length < 1 || text.length > 100) return null;
   return <Pressable accessibilityRole="button" accessibilityLabel={`${text} 게임 DB에서 검색`}
-    onPress={() => router.push({ pathname: '/pick/game', params: withOnboardingParam({ categoryId: game.id, query: text }, onboarding) })}
+    onPress={() => router.push({ pathname: '/pick/game', params: { categoryId: game.id, query: text } })}
     style={({ pressed }) => [styles.button, pressed && styles.pressed]}><Text style={styles.label}>게임 DB에서 찾아보기</Text></Pressable>;
 }
 const styles = StyleSheet.create({

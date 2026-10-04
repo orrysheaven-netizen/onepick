@@ -107,7 +107,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                         : undefined;
                       const menuName = isFoodChannel
                         ? item.category?.name ?? '카테고리'
-                        : item.item?.name ?? '정보를 확인할 수 없어요';
+                        : item.item?.name ?? '정보를 확인할 수 없어요.';
                       return <ProfilePickCard
                         key={item.pick.id}
                         layout="row"

@@ -24,9 +24,9 @@ export default function RankingIndexScreen() {
         <Text style={styles.subtitle}>카테고리마다 하나씩만 고른 원픽을 모아, 지금 가장 많이 선택된 순서로 보여드려요.</Text>
 
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" style={styles.loading} /> : null}
-        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
+        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
           action={{ label: '다시 불러오기', onPress: () => void categories.refetch() }} /> : null}
-        {categories.data?.length === 0 ? <StateCard title="아직 공개된 랭킹이 없어요" text="카테고리가 열리면 이곳에 표시돼요." /> : null}
+        {categories.data?.length === 0 ? <StateCard title="아직 공개된 랭킹이 없어요." text="카테고리가 열리면 이곳에 표시돼요." /> : null}
 
         <View style={styles.list}>
           {categories.data?.map((category) => <Pressable key={category.categoryId} accessibilityRole="link"
