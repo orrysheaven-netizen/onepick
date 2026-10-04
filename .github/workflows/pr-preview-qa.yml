@@ -41,9 +41,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Cloudflare Pages branch aliases are lowercase and replace every
-          # non-alphanumeric branch-name character with '-'.
-          slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')"
+          # Cloudflare Pages branch aliases are lowercase, replace every
+          # non-alphanumeric branch-name character with '-' and are cut to 28
+          # characters (claude/comment-needs-pick-first ->
+          # claude-comment-needs-pick-fi). A DNS label cannot end in '-'.
+          slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | cut -c1-28 | sed 's/-*$//')"
           test -n "$slug" || { echo "::error::Could not derive Cloudflare branch alias"; exit 1; }
           preview_url="https://${slug}.${PROJECT_SUBDOMAIN}.pages.dev"
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
