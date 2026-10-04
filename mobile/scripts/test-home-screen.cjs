@@ -130,7 +130,7 @@ assert.doesNotMatch(allFirstPage, /data-notification-user=/, 'Home header is log
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Home header is logo only: the profile lives in the bottom tab');
 assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home stays on the public feed while follow is hidden');
-assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer remains visible');
+assert.doesNotMatch(allFirstPage, /원픽 더 둘러보기|모아보기/, 'Figma 30-1: no explore/my-picks links under the feed');
 assert.equal(homeDataArgs[2], true, 'Hidden following-feed mode enables the public feed');
 assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
@@ -194,8 +194,7 @@ for (width of [390, 800, 1200]) {
   assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
   assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
   assert.deepEqual(Object.keys(homeHeaderProps), ['onOpenItem'], 'Home header search only opens existing items');
-  assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
-  assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
+  assert.doesNotMatch(page, /원픽 더 둘러보기|내 원픽 \d+개 모아보기/, 'Signed-in Home has no footer links either');
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
@@ -205,8 +204,6 @@ for (width of [390, 800, 1200]) {
   press('진라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.pickId, 'other');
   press('신라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'ramen'); assert.equal(destination.params.pickId, 'same-as-mine');
   assert.ok(presses.find((p) => p.accessibilityLabel === '진라면 공유'), 'Each Home Pick exposes the existing deep-link share action');
-  press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
-  press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
   assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');

@@ -277,12 +277,6 @@ export default function HomeScreen() {
           {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 원픽을 불러오지 못했어요."
             action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }} /> : null}
           {!homeQuery.hasNextPage && data.picks.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
-          <View style={styles.moreRow}><Button variant="ghost" label="원픽 더 둘러보기  ↗" accessibilityLabel="원픽 더 둘러보기" onPress={() => router.push('/explore')} /></View>
-
-          {user ? <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽 ${data.currentPicks.length}개 모아보기`} onPress={() => router.push('/profile')} style={styles.profileLink}>
-            <Text style={styles.actionText}>내 원픽 {data.currentPicks.length}개 모아보기</Text><Text style={styles.arrow}>↗</Text>
-          </Pressable> : null}
-
           <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>
         </> : null}
       />}
@@ -299,7 +293,6 @@ const styles = StyleSheet.create({
   signinText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: 2 },
   categorySection: { marginBottom: OnePickSpace.xxl },
   sectionHeader: { marginBottom: OnePickSpace.sm },
-  moreRow: { alignItems: 'center', paddingVertical: OnePickSpace.sm },
   editorialSection: { marginBottom: OnePickSpace.xxl },
   editorialList: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
   editorialCard: { padding: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
@@ -333,10 +326,7 @@ const styles = StyleSheet.create({
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
-  profileLink: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: OnePickSpace.lg, marginTop: OnePickSpace.xl, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgAccentSubtle },
   itemName: { ...OnePickType.headline, color: OnePick.textPrimary },
-  actionText: { ...OnePickType.bodyMedium, color: OnePick.actionPrimary },
-  arrow: { ...OnePickType.title, color: OnePick.actionPrimary },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.md },
   categoryCard: { width: '46%', flexGrow: 1, minHeight: 88, justifyContent: 'space-between', padding: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   categoryName: { ...OnePickType.headline, color: OnePick.textPrimary },
