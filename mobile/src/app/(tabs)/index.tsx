@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { OnePickBrand } from '@/components/onepick-brand';
 import { HomeFeedCard } from '@/components/home-feed-card';
-import { ItemSearch } from '@/components/item-search';
+import { HomeHeader } from '@/components/home-header';
 import { BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -128,13 +127,7 @@ export default function HomeScreen() {
   </View>;
 
   const listHeader = <>
-    <View style={styles.nativeHeader}>
-      <OnePickBrand />
-    </View>
-
-    <ItemSearch compact
-      onSubmitSearch={(query) => router.push({ pathname: '/explore', params: { search: '1', query } })}
-      onSelect={openItem} />
+    <HomeHeader onOpenItem={openItem} />
 
     {OnePickFeatures.followingFeed && user && !followDefaultPending ? <View style={styles.scopeRow}>
       {(['following', 'all'] as const).map((scope) => {
@@ -217,7 +210,6 @@ export default function HomeScreen() {
         </View>}
 
         {ready ? <View style={styles.rankingSection}>
-          <View style={styles.nextSection}><SectionHeader title="최근 7일 많이 고른 메뉴" /></View>
           {rankingGroups.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.rankingFilterRow}>
             <Chip label="전체" selected={selectedMenuRankingGroupId === null} accessibilityLabel="전체 인기 메뉴 보기"
@@ -231,7 +223,7 @@ export default function HomeScreen() {
             text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있습니다."
             action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
           {!menuRankingQuery.isPending && !menuRankingQuery.isError && rankedMenus.length ? <>
-            <Text style={styles.rankingSort}>원픽 많은 순</Text>
+            <Text style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
             <View style={styles.menuGrid}>
             {rankedMenus.map((menu) => <RecentMenuCard key={menu.categoryId} menu={menu}
               onOpen={categoryById.has(menu.categoryId) ? () => openMenu(menu.categoryId) : undefined} />)}
@@ -301,7 +293,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
-  nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56 },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, padding: OnePickSpace.lg, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
@@ -346,7 +337,6 @@ const styles = StyleSheet.create({
   itemName: { ...OnePickType.headline, color: OnePick.textPrimary },
   actionText: { ...OnePickType.bodyMedium, color: OnePick.actionPrimary },
   arrow: { ...OnePickType.title, color: OnePick.actionPrimary },
-  nextSection: { marginBottom: OnePickSpace.md },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.md },
   categoryCard: { width: '46%', flexGrow: 1, minHeight: 88, justifyContent: 'space-between', padding: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   categoryName: { ...OnePickType.headline, color: OnePick.textPrimary },

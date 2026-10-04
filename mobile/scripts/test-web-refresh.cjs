@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
+    'home-feed-card': 'HomeFeedCard', 'home-header': 'HomeHeader', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',

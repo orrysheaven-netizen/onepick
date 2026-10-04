@@ -22,8 +22,8 @@ const mocks = {
   'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
   'expo-image': { Image: 'Image' },
-  '../../public/brand/onepick-logo-horizontal.svg': 'logo-light.svg',
-  '../../public/brand/onepick-logo-horizontal-white.svg': 'logo-dark.svg',
+  '../../public/brand/onepick-wordmark.svg': 'logo-light.svg',
+  '../../public/brand/onepick-wordmark-white.svg': 'logo-dark.svg',
 };
 function load(file) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
@@ -243,6 +243,7 @@ test('brand home link passes one style object through Link asChild', () => {
     const image = first(pressable, 'Image');
     assert.equal(image.props.source, source);
     assert.equal(image.props.style.height, height);
+    assert.equal(image.props.alt, 'onepick', 'Screens show the English wordmark only (no Korean 원픽 beside it)');
   }
 });
 console.log(`Brand control checks: ${passed}/${passed + failures.length} passed.`);

@@ -43,7 +43,7 @@ function home(count = 20, followingCount = 0) {
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
-    '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
+    '@/components/home-feed-card': names('HomeFeedCard'), '@/components/home-header': names('HomeHeader'), '@/components/pick-photo': names('PickPhoto'),
   });
   view.render(); return { view, q, following, followCounts, auth, calls };
 }
@@ -176,7 +176,8 @@ async function main() {
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0); // header is logo only for members too
     auth.user = null; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
-    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴'), undefined); // Figma 30-1: no ranking title
+    assert.equal(view.all('HomeHeader').length, 1);
     assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽'), undefined);
   });
   await test('Home normal refresh hidden; pull, initial error, stale error and pagination retries survive', () => {

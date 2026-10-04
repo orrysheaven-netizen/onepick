@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, itemSearchProps, homeDataArgs, followingFeedArgs, menuRankingGroupArg, menuRankingChannelArg;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, menuRankingGroupArg, menuRankingChannelArg;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -80,7 +80,6 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
-  '@/components/onepick-brand': { OnePickBrand: () => null },
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
@@ -97,7 +96,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     useFollowingFeed: (...args) => { followingFeedArgs = args; return followingQuery; },
   },
   '@/components/item-pick-count': { ItemPickCount: () => null },
-  '@/components/item-search': { ItemSearch: (props) => { itemSearchProps = props; return null; } },
+  '@/components/home-header': { HomeHeader: (props) => { homeHeaderProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
@@ -141,7 +140,8 @@ assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the 
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
-assert.match(allFirstPage, /최근 7일 많이 고른 메뉴/);
+assert.doesNotMatch(allFirstPage, /최근 7일 많이 고른 메뉴/, 'Figma 30-1 drops the ranking title');
+assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under the tabs names the 7-day window');
 assert.match(allFirstPage, /원픽 7/);
 assert.doesNotMatch(allFirstPage, /사진없는메뉴/, 'Legacy ranking rows without a cover are never rendered as photo-less cards');
 const rankingButtons = presses.filter((p) => / 메뉴 원픽 보기$/.test(p.accessibilityLabel ?? ''));
@@ -193,10 +193,7 @@ for (width of [390, 800, 1200]) {
   assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
   assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'Two loaded Picks do not show category filters');
   assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined);
-  for (const shortcut of ['onSearchMovie', 'onSearchDrama', 'onSearchMusic', 'onSearchGame', 'onSearchBook', 'onSearchYouTube', 'onSearchPokemon']) {
-    assert.equal(itemSearchProps[shortcut], undefined, `MVP Home (food only) hides the ${shortcut} search shortcut`);
-  }
-  assert.equal(typeof itemSearchProps.onSubmitSearch, 'function');
+  assert.deepEqual(Object.keys(homeHeaderProps), ['onOpenItem'], 'Home header search only opens existing items');
   assert.ok(page.indexOf('신라면') < page.indexOf('원픽 더 둘러보기'));
   assert.ok(page.indexOf('원픽 더 둘러보기') < page.indexOf('내 원픽 2개 모아보기'));
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
@@ -211,10 +208,9 @@ for (width of [390, 800, 1200]) {
   press('원픽 더 둘러보기'); assert.equal(destination, '/explore');
   press('내 원픽 2개 모아보기'); assert.equal(destination, '/profile');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
-  itemSearchProps.onSubmitSearch('최재천의 아마존');
-  assert.equal(destination.pathname, '/explore');
-  assert.equal(destination.params.search, '1');
-  assert.equal(destination.params.query, '최재천의 아마존');
+  homeHeaderProps.onOpenItem('jin');
+  assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');
+  assert.equal(destination.params.itemId, 'jin');
 }
 
 // Test the actual boundary using unique loaded records, without changing thresholds.
@@ -242,7 +238,7 @@ const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
 assert.doesNotMatch(publicPage, /data-notification-user=/, 'Signed-out Home does not render a user notification entry');
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Signed-out Home hides the own-profile avatar');
-assert.match(publicPage, /최근 7일 많이 고른 메뉴/);
+assert.match(publicPage, /최근 7일 원픽 많은 순/);
 assert.doesNotMatch(publicPage, /먹을것 › 면류 › 라면/, 'Home ranking cards show only the leaf name');
 assert.doesNotMatch(publicPage, /영화|>책<|>유튜브</, 'MVP Home ranking is food only');
 press('라면 메뉴 원픽 보기'); assert.equal(destination.pathname, '/menu/[slug]');
