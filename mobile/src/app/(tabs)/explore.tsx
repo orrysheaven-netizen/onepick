@@ -6,7 +6,7 @@ import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollVi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemSearch } from '@/components/item-search';
-import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
+import { useCategoryTopItems, useExploreCategories, useFoodMenuPickCounts, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -44,6 +44,23 @@ export default function ExploreScreen() {
     const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
     return scope.leafIds.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category));
   }, [categoryCatalog, scope.leafIds]);
+  // Figma 31 (MVP): group chips over the food menus, menus by current Picks.
+  const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
+  const menuCounts = useFoodMenuPickCounts(OnePickMvp.publicPickChannel, !scope.showChips);
+  const menuGroups = useMemo(() => {
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    const ids = [...new Set(menuCategories.map((category) => category.parentId).filter((id): id is string => Boolean(id)))];
+    return ids.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category))
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ko'));
+  }, [categoryCatalog, menuCategories]);
+  const visibleMenus = useMemo(() => {
+    const counts = menuCounts.data;
+    return menuCategories
+      .filter((category) => !menuGroupId || category.parentId === menuGroupId)
+      .map((category, index) => ({ category, index, count: counts?.get(category.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.index - b.index);
+  }, [menuCategories, menuCounts.data, menuGroupId]);
+  const menuLoadFailed = categories.isError || (!scope.showChips && menuCounts.isError);
   // External catalogs (movie, book...) are offered only for categories being browsed.
   const inScope = (category?: Category) =>
     category && (scope.leafIds === null || scope.leafIds.includes(category.id)) ? category : undefined;
@@ -89,6 +106,7 @@ export default function ExploreScreen() {
 
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
+    if (!scope.showChips && !menuCounts.isFetching) void menuCounts.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
     if (scope.showChips && !selectedCategoryId && categories.data && !recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false });
   };
@@ -97,24 +115,28 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || menuCounts.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{scope.showChips ? '카테고리 탐색' : '탐색'}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
+          {/* Figma 31: the search box is always there in the MVP; the toggle is chip mode only. */}
+          {scope.showChips ? <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
             {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
-          </Pressable>
+          </Pressable> : null}
         </View>
-        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '메뉴를 누르면 그 메뉴를 고른 사람들의 현재 원픽을 볼 수 있어요.'}</Text>
-        {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
-          <Text style={styles.searchHint}>
-            {hasExternalSearch
-              ? '찾는 항목이 없으면 외부 카탈로그에서 이어서 검색할 수 있어요.'
-              : '원픽에 등록된 항목을 검색해요.'}
-          </Text>
+        {scope.showChips ? <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text> : null}
+        {searchOpen || !scope.showChips ? <View style={styles.searchPanel}>
+          {scope.showChips ? <>
+            <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
+            <Text style={styles.searchHint}>
+              {hasExternalSearch
+                ? '찾는 항목이 없으면 외부 카탈로그에서 이어서 검색할 수 있어요.'
+                : '원픽에 등록된 항목을 검색해요.'}
+            </Text>
+          </> : null}
           <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
+            placeholder={scope.showChips ? undefined : '메뉴나 매장 이름으로 검색'}
             initialQuery={incomingQuery} showExternalActionsWithResults
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
@@ -135,7 +157,9 @@ export default function ExploreScreen() {
         </View> : null}
         {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
-        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
+        {scope.showChips && categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
+        {!scope.showChips && menuLoadFailed ? <StateCard tone="danger" title="메뉴를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해 주세요."
+          action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
         {scope.showChips && !categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
           <Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected={!parentId}
             onPress={() => { setParentId(undefined); setChildId(undefined); }} />
@@ -157,10 +181,16 @@ export default function ExploreScreen() {
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
         </View> : null}
-        {!scope.showChips && !selectedCategoryId && categories.data ? <View style={styles.menuSection}>
-          <SectionHeader title="메뉴" description="메뉴를 누르면 사람들의 현재 원픽과 한줄평을 볼 수 있어요." />
+        {!scope.showChips && !selectedCategoryId && categories.data && !menuLoadFailed && menuCounts.data ? <View style={styles.menuSection}>
+          {menuGroups.length > 1 ? <View style={styles.parentRow}>
+            <Chip label="전체" accessibilityLabel="전체 메뉴 보기" selected={!menuGroupId} onPress={() => setMenuGroupId(null)} />
+            {menuGroups.map((groupCategory) => <Chip key={groupCategory.id} label={groupCategory.name}
+              accessibilityLabel={`${groupCategory.name} 메뉴 보기`} selected={menuGroupId === groupCategory.id}
+              onPress={() => setMenuGroupId(groupCategory.id)} />)}
+          </View> : null}
+          <SectionHeader title={`메뉴 ${visibleMenus.length}`} description="원픽 많은 순 · 메뉴를 누르면 사람들의 원픽과 한줄평을 볼 수 있어요." />
           <View style={styles.menuList}>
-            {menuCategories.map((category) => <Pressable key={category.id} accessibilityRole="button"
+            {visibleMenus.map(({ category, count }) => <Pressable key={category.id} accessibilityRole="button"
               accessibilityLabel={`${category.name} 메뉴 원픽 보기`}
               onPress={() => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } })}
               style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
@@ -169,12 +199,12 @@ export default function ExploreScreen() {
                 : <View style={styles.menuFallback} accessible={false}><Text style={styles.menuInitial}>{category.name.slice(0, 1)}</Text></View>}
               <View style={styles.menuCopy}>
                 <Text style={styles.menuName}>{category.name}</Text>
-                <Text style={styles.menuHint}>원픽 보기</Text>
+                <Text style={styles.menuHint}>{count >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${count}` : '원픽을 모으고 있어요.'}</Text>
               </View>
               <Text style={styles.menuArrow}>›</Text>
             </Pressable>)}
           </View>
-          {!menuCategories.length ? <StateCard title="아직 공개된 메뉴가 없어요" text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
+          {!visibleMenus.length ? <StateCard title="아직 공개된 메뉴가 없어요" text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
         </View> : null}
         {!selectedCategoryId && categories.data && scope.showChips ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
