@@ -32,26 +32,34 @@ function getCommentErrorMessage(error: unknown) {
   return '댓글을 저장하지 못했어요. 다시 시도해주세요.';
 }
 
+/** Inline thread under a review: first `limit` threads, then "댓글 N개 더 보기". */
+export type RepliesPreview = { limit: number; totalCount: number };
+
 /**
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
+ * `preview` (item detail, 10-04) shows the composer right away and, without write
+ * permission, `readOnlyNotice` instead of the composer.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded, preview, readOnlyNotice }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
   focusCommentId?: string;
   initialCursor?: ReadCursor | null;
   onFocusLoaded?: () => void;
+  preview?: RepliesPreview;
+  readOnlyNotice?: string;
 }) {
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact || Boolean(preview)} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor}
+    onFocusLoaded={onFocusLoaded} preview={preview} readOnlyNotice={readOnlyNotice} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded, preview, readOnlyNotice }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
@@ -59,6 +67,8 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   focusCommentId?: string;
   initialCursor: ReadCursor | null;
   onFocusLoaded?: () => void;
+  preview?: RepliesPreview;
+  readOnlyNotice?: string;
 }) {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
@@ -68,7 +78,9 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   // One inline confirmation at a time; native Alert does not exist on web.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
-  const [composing, setComposing] = useState(!compact);
+  const [composing, setComposing] = useState(!compact || Boolean(preview));
+  // A notification/comment-list target may sit past the preview, so show everything then.
+  const [showAll, setShowAll] = useState(!preview || Boolean(focusCommentId) || Boolean(initialCursor));
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
   // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
@@ -97,7 +109,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       });
       setCommentBody('');
       setReplyingTo(null);
-      if (compact) setComposing(false);
+      if (compact && !preview) setComposing(false);
     } catch {
       // Keep the draft; mutation state shows the failure and allows retry.
     } finally {
@@ -116,11 +128,15 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     }
   };
 
-  const threadCount = (commentsQuery.data ?? []).reduce((sum, entry) => {
+  const visibleCount = (entries: CommentReadItem[]) => entries.reduce((sum, entry) => {
     const replies = entry.replies ?? [];
     return sum + (entry.comment.isDeleted ? 0 : 1)
       + replies.filter((reply) => !reply.comment.isDeleted).length;
   }, 0);
+  const threadCount = visibleCount(commentsQuery.data ?? []);
+  const shownThreads = showAll || !preview ? (commentsQuery.data ?? []) : (commentsQuery.data ?? []).slice(0, preview.limit);
+  const hiddenLoaded = (commentsQuery.data?.length ?? 0) > shownThreads.length;
+  const remainingCount = preview ? Math.max(0, preview.totalCount - visibleCount(shownThreads)) : 0;
 
   const renderComment = (entry: CommentReadItem, isReply: boolean) => {
     const { comment, author } = entry;
@@ -196,7 +212,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   </View>;
   return (
             <View style={compact ? styles.commentsInline : styles.commentsCard}>
-              {!compact || commentsQuery.data?.length ? <View style={styles.commentsHeader}>
+              {!preview && (!compact || commentsQuery.data?.length) ? <View style={styles.commentsHeader}>
                 <Text style={compact ? styles.commentsTitleCompact : styles.commentsTitle}>댓글</Text>
                 <Text style={styles.commentsCount}>{threadCount}개{commentsQuery.hasNextPage ? '+' : ''}</Text>
               </View> : null}
@@ -224,16 +240,23 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                 <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
-              {commentsQuery.data?.map((entry) => <View key={entry.comment.id}>
+              {shownThreads.map((entry) => <View key={entry.comment.id}>
                 {renderComment(entry, false)}
                 {(entry.replies ?? []).map((reply) => renderComment(reply, true))}
               </View>)}
+
+              {preview && !showAll && (hiddenLoaded || commentsQuery.hasNextPage) ? (
+                <Pressable accessibilityRole="button" onPress={() => setShowAll(true)}
+                  style={({ pressed }) => [styles.textAction, styles.previewMore, pressed && styles.pressed]}>
+                  <Text style={styles.textActionLabel}>{remainingCount > 0 ? `댓글 ${remainingCount}개 더 보기` : '댓글 더 보기'}</Text>
+                </Pressable>
+              ) : null}
 
               {commentsQuery.isFetchNextPageError ? (
                 <Text accessibilityRole="alert" style={styles.commentsStateText}>다음 댓글을 불러오지 못했어요. 다시 시도해주세요.</Text>
               ) : null}
 
-              {commentsQuery.hasNextPage ? (
+              {showAll && commentsQuery.hasNextPage ? (
                 <Pressable
                   accessibilityRole="button"
                   disabled={commentsQuery.isFetching}
@@ -310,6 +333,8 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                     <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
                   </Pressable>
                 )
+              ) : preview && readOnlyNotice ? (
+                <Text style={styles.historyCommentNotice}>{readOnlyNotice}</Text>
               ) : compact ? null : (
                 <Text style={styles.historyCommentNotice}>현재 댓글을 남길 수 없는 한줄평입니다.</Text>
               )}
@@ -344,6 +369,7 @@ const styles = StyleSheet.create({
   deletedBody: { fontStyle: 'italic', color: OnePick.textSecondary },
   commentSafety: { marginTop: 8 },
   textAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingRight: 12 },
+  previewMore: { marginLeft: 45 },
   textActionLabel: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   replyCancel: { minHeight: 32, alignSelf: 'flex-start', justifyContent: 'center', marginBottom: 4 },
   deleteConfirm: { marginTop: 8, padding: 12, borderRadius: 12, backgroundColor: OnePick.background },

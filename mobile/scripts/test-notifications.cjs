@@ -187,9 +187,12 @@ async function main() {
   const notificationSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/notifications.tsx'), 'utf8');
   assert.doesNotMatch(notificationSource, /useReadNotificationGroup|markGroupRead/, 'inbox open must not mark read');
   const itemSource = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
-  const conversationSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
-  assert.match(conversationSource, /useReadNotificationGroup/);
-  assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/);
+  // /pick/[pickId] only forwards to the item detail (inline threads, 10-04), so
+  // the item detail is the one destination that acknowledges comment/reply groups.
+  const pickRouteSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
+  assert.doesNotMatch(pickRouteSource, /useReadNotificationGroup/, 'the hand-off route must not mark read before the thread is shown');
+  assert.match(itemSource, /useReadNotificationGroup/);
+  assert.match(itemSource, /notificationKind === 'reply' && !replyTargetLoaded/);
   assert.match(itemSource, /useRevisePendingItem/);
   assert.match(itemSource, /수정 내용 보내기/);
 

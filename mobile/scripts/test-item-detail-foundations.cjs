@@ -10,8 +10,12 @@ assert.match(source, /OnePickSpace\.gutter/, 'item detail must use the shared gu
 assert.match(source, /OnePickRadius\.(?:md|lg|full)/, 'item detail must use the shared radius scale');
 assert.match(source, /OnePick\.borderDefault/, 'item detail must use semantic borders');
 assert.doesNotMatch(source, /fontWeight:\s*['"](?:800|900)['"]/, 'item detail must not use 800/900 weights');
-assert.doesNotMatch(legacy, /<Redirect href=\{\{ pathname: '\/item\/\[itemId\]'/, 'pick detail is now the dedicated review conversation');
-assert.match(legacy, /useItemDetail\(itemId, user\?\.id, pickId/, 'conversation detail resolves viewer-scoped review permissions');
-assert.match(legacy, /<PickReplies/, 'conversation detail owns the comment thread');
+// 10-04: no separate conversation screen. /pick/[pickId] hands off to the item
+// detail, whose review cards expand their own comment thread.
+assert.match(legacy, /<Redirect href=\{\{ pathname: '\/item\/\[itemId\]', params: \{ itemId, pickId, thread: '1'/, 'pick route opens the review thread on the item detail');
+assert.doesNotMatch(legacy, /<PickReplies/, 'pick route no longer renders its own thread');
+const card = fs.readFileSync(path.join(__dirname, '../src/components/item-review-card.tsx'), 'utf8');
+assert.match(card, /<PickReplies pickId=\{pick\.id\} canWrite=\{Boolean\(pick\.canComment\)\}/, 'review card owns the inline thread with viewer-scoped write permission');
+assert.match(card, /preview=\{\{ limit: 3, totalCount: commentCount \}\}/, 'inline thread previews three recent comments');
 
-console.log('Item detail Foundations checks passed: item list + dedicated review conversation use shared visual tokens.');
+console.log('Item detail Foundations checks passed: item list + inline review threads use shared visual tokens.');
