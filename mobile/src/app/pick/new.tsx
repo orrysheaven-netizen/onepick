@@ -217,7 +217,7 @@ export default function NewPickScreen() {
   );
   const providerPrefillStore = !restoredDraftRef.current && !query && !store && !prefillDismissed ? providerPrefill.data ?? null : null;
 
-  // 브랜드 전체 매장 is chosen on step 1; there is no scope choice later.
+  // 브랜드 전체 is chosen on step 1; there is no scope choice later.
   const pickScope: 'branch' | 'brand' | null = store ? (store.kind === 'brand' ? 'brand' : 'branch') : null;
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}`
     : store.kind === 'brand' ? `${store.name} 전체` : store.name) : '';
@@ -579,10 +579,11 @@ export default function NewPickScreen() {
             {ready && searchBrands.isError ? <StateCard compact tone="danger" title="브랜드를 불러오지 못했어요"
               action={{ label: '다시 불러오기', onPress: () => { void searchBrands.refetch(); } }} /> : null}
             {brandRows.map((candidate) => <Pressable key={`brand:${candidate.brandId}`} accessibilityRole="button"
+              // Visible copy is the brand name alone; the label keeps it apart from a branch row.
               accessibilityLabel={`${candidate.name} 전체 매장 선택`}
               onPress={() => pickStore(candidate)}
               style={({ pressed }) => [styles.searchResult, pressed && styles.searchPressed]}>
-              <Text style={styles.resultTitle} numberOfLines={1}>{`${candidate.name} 전체 매장`}</Text>
+              <Text style={styles.resultTitle} numberOfLines={1}>{candidate.name}</Text>
             </Pressable>)}
             {rows.map((candidate) => {
               const label = [candidate.name, candidate.branchName].filter(Boolean).join(' ');

@@ -6,7 +6,7 @@ import type { PickChannel } from '@/lib/items/pickChannel';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** A store found on step 1: a catalog place (매장), a whole brand without a branch
- * (브랜드 전체 매장), or an online seller (온라인). */
+ * (브랜드 전체, shown as the brand name), or an online seller (온라인). */
 export type StoreCandidate =
   | { kind: 'place'; catalogId: string; name: string; branchName: string | null; region: string | null;
       address: string | null; providerCategory: string | null; mapUrl: string | null }
@@ -79,7 +79,7 @@ export class StoreFirstService {
     return logoPath ? this.client.storage.from('brand-logos').getPublicUrl(logoPath).data.publicUrl : null;
   }
 
-  /** Step 1 brand rows (브랜드 전체 매장): active brands whose name matches the search.
+  /** Step 1 brand rows (브랜드 전체, shown as the brand name): active brands whose name matches the search.
    * Read once per search, independent of the branch pages, so the row never waits for
    * a branch to be paged in.
    */

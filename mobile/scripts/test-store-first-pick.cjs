@@ -153,6 +153,7 @@ function render() {
   }
   return page;
 }
+const labelIndex = (label) => pressables.findIndex((props) => props.accessibilityLabel === label);
 function press(label) {
   const found = pressables.find((props) => props.accessibilityLabel === label || textOf(props.children) === label || textOf(props.children).includes(label));
   assert.ok(found, `Expected control: ${label}`);
@@ -282,18 +283,20 @@ async function main() {
   assert.equal(savedToast.consumePickSavedToast('pick-1'), false, 'the toast is shown only once');
   assert.ok(pressables.find((props) => textOf(props.children) === '원픽 등록하기').disabled, 'a saved flow cannot submit again');
 
-  // 브랜드 전체 is chosen on step 1: the search lists one "{브랜드명} 전체 매장"
-  // row per brand above its branches, and picking it skips the branch entirely.
+  // 브랜드 전체 is chosen on step 1: the search lists one row per brand, titled with
+  // the brand name alone, above its branches, and picking it skips the branch entirely.
   reset();
   brandResults = [{ kind: 'brand', brandId: 'brand-1', name: '을밀대', logoUrl: null }];
   selectResult = { itemId: null, categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
   registerRun = () => ({ itemId: 'brand-pending', pickId: 'brand-pick', published: false, replacedPickId: null, retried: false });
   render(); input('매장명 검색').onChangeText('을밀대'); page = render();
   assert.deepEqual(brandLookups.at(-1), { searchedText: '을밀대', enabled: true }, 'brands are read for the search text, not the branch page');
-  const brandIndex = page.indexOf('을밀대 전체 매장');
-  assert.ok(brandIndex >= 0, 'the brand row is listed');
+  const brandRow = pressables.find((props) => props.accessibilityLabel === '을밀대 전체 매장 선택');
+  assert.ok(brandRow, 'the brand row is listed');
+  assert.equal(textOf(brandRow.children), '을밀대', 'the brand row shows the brand name only');
+  assert.doesNotMatch(page, /전체 매장/, 'no 전체 매장 copy is shown');
   assert.doesNotMatch(page, /지점 선택 안 함|·/, 'the brand row has no middle dot or 지점 선택 안 함 helper');
-  assert.ok(brandIndex < page.indexOf('서울 마포구'), 'the brand row comes before the branch list');
+  assert.ok(labelIndex('을밀대 전체 매장 선택') < labelIndex('을밀대 서울 마포구 선택'), 'the brand row comes before the branch list');
   press('을밀대 전체 매장 선택'); page = render();
   assert.equal(step(page), '2', 'choosing the brand goes straight to the menu step');
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); page = render();
@@ -324,7 +327,7 @@ async function main() {
   press('다시 불러오기'); assert.equal(brandRefetches, 1, 'the brand read can be retried');
   brandState = {}; page = render();
   assert.doesNotMatch(page, /브랜드를 불러오지 못했어요/);
-  assert.ok(page.indexOf('을밀대 전체 매장') < page.indexOf('서울 마포구'), 'after retry the brand row is first');
+  assert.ok(labelIndex('을밀대 전체 매장 선택') >= 0 && labelIndex('을밀대 전체 매장 선택') < labelIndex('을밀대 서울 마포구 선택'), 'after retry the brand row is first');
 
   // A branch row is still a branch-only Pick even when its brand is listed above it.
   reset();
@@ -455,6 +458,6 @@ async function main() {
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: offline four-step flow, brand-first search (전체 매장, pending/error states), visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
+  console.log('Store-first v6 checks passed: offline four-step flow, brand-first search (brand-name row, pending/error states), visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

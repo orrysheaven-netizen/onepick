@@ -1,4 +1,4 @@
-// 매장 검색의 "{브랜드명} 전체 매장" 행: 검색어로 활성 브랜드를 직접 읽는다(지점 페이지와 무관).
+// 매장 검색의 브랜드 전체 행("{브랜드명}"만 표시): 검색어로 활성 브랜드를 직접 읽는다(지점 페이지와 무관).
 // Also checks that a brand candidate looks up its brand-wide item (item_brand_scopes),
 // never a branch item.
 const assert = require('node:assert/strict');

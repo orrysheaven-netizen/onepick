@@ -49,7 +49,7 @@ export function useStoreSearch(channel: PickChannel, searchText: string, enabled
   };
 }
 
-/** Step 1: 브랜드 전체 매장 rows for the settled search text, read apart from the branch pages.
+/** Step 1: 브랜드 전체 rows for the settled search text, read apart from the branch pages.
  * A failure stays an error (with refetch); it is never shown as "no brand". */
 export function useStoreSearchBrands(searchedText: string, enabled: boolean) {
   return useQuery({
