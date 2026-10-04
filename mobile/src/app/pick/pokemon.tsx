@@ -159,7 +159,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
-      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
+      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}</Text>
       {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
@@ -172,7 +172,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않습니다.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>포켓몬 카테고리를 사용할 수 없어요</Text>
+        <Text style={styles.stateTitle}>포켓몬 카테고리를 사용할 수 없어요.</Text>
         <Text style={styles.stateText}>포켓몬 카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
@@ -184,16 +184,16 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
         placeholder="예: 피카츄, Pikachu, #25" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 포켓몬과 PokéAPI 색인을 함께 찾고 있어요</Text></View> : null}
-      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 포켓몬 검색을 불러오지 못했어요</Text>
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 포켓몬과 PokéAPI 색인을 함께 찾고 있어요.</Text></View> : null}
+      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 포켓몬 검색을 불러오지 못했어요.</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>PokéAPI를 불러오지 못했어요</Text>
+        <Text style={styles.stateTitle}>PokéAPI를 불러오지 못했어요.</Text>
         <Text style={styles.stateText}>{pokemonErrorMessage(catalog.error)}</Text>
         <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>PokéAPI 다시 검색</Text></Pressable>
       </View> : null}
 
-      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 포켓몬 정보를 확인하고 있어요</Text></View> : null}
+      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 포켓몬 정보를 확인하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
           {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보가 준비됐어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
@@ -235,7 +235,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         </View>
       </Pressable>)}
 
-      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 포켓몬을 찾지 못했어요</Text>
+      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 포켓몬을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>한국어·영문 이름이나 도감 번호를 바꿔서 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
       <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토합니다. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시합니다.</Text>

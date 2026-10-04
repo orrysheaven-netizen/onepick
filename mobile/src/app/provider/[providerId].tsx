@@ -48,7 +48,7 @@ export default function ProviderProfileScreen() {
           </Pressable>
 
           {brandQuery.isPending ? <ActivityIndicator accessibilityLabel="브랜드 프로필 불러오는 중" style={styles.loading} color={OnePick.brand} /> : null}
-          {brandQuery.isError ? <StateCard tone="danger" title="브랜드 프로필을 불러오지 못했어요"
+          {brandQuery.isError ? <StateCard tone="danger" title="브랜드 프로필을 불러오지 못했어요."
             action={{ label: brandQuery.isFetching ? '불러오는 중…' : '다시 불러오기', disabled: brandQuery.isFetching,
               onPress: () => { if (!brandQuery.isFetching) void brandQuery.refetch(); } }} /> : null}
 
@@ -79,7 +79,7 @@ export default function ProviderProfileScreen() {
             <View style={styles.menuSection}>
               <Text style={styles.sectionTitle}>지점</Text>
               {branchesQuery.isError && branchItems.length === 0
-                ? <StateCard compact tone="danger" title="지점 목록을 불러오지 못했어요"
+                ? <StateCard compact tone="danger" title="지점 목록을 불러오지 못했어요."
                     action={{ label: '다시 불러오기', onPress: () => void branchesQuery.refetch() }} />
                 : branchItems.length > 0 ? <View style={styles.menuList}>
                     {branchItems.map((branch) => <Pressable key={branch.providerId} accessibilityRole="button"
@@ -95,7 +95,7 @@ export default function ProviderProfileScreen() {
                     </Pressable>)}
                   </View>
                 : branchesQuery.isPending ? <ActivityIndicator accessibilityLabel="지점 목록 불러오는 중" color={OnePick.brand} />
-                : <StateCard compact title="아직 원픽이 있는 지점이 없어요" />}
+                : <StateCard compact title="아직 원픽이 있는 지점이 없어요." />}
               {branchesQuery.hasNextPage ? <Pressable accessibilityRole="button" accessibilityLabel="브랜드 지점 더 보기"
                 disabled={branchesQuery.isFetching} onPress={() => { if (!branchesQuery.isFetching) void branchesQuery.fetchNextPage(); }}
                 style={({ pressed }) => [styles.more, pressed && styles.pressed]}>
@@ -121,7 +121,7 @@ export default function ProviderProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.storeContent} showsVerticalScrollIndicator={false}>
         {query.isPending ? <ActivityIndicator accessibilityLabel="제공처 프로필 불러오는 중" style={styles.loading} color={OnePick.brand} /> : null}
-        {query.isError ? <StateCard tone="danger" title="제공처 프로필을 불러오지 못했어요"
+        {query.isError ? <StateCard tone="danger" title="제공처 프로필을 불러오지 못했어요."
           text="존재하지 않거나 현재 공개되지 않는 제공처일 수 있어요."
           action={{ label: query.isFetching ? '불러오는 중…' : '다시 불러오기', disabled: query.isFetching,
             onPress: () => { if (!query.isFetching) void query.refetch(); } }} /> : null}
@@ -177,7 +177,7 @@ export default function ProviderProfileScreen() {
               </View>
               <Text style={styles.storeChevron}>›</Text>
             </Pressable>)}
-          </View> : <StateCard compact title="아직 공개된 원픽이 없어요"
+          </View> : <StateCard compact title="아직 공개된 원픽이 없어요."
             text={query.data.kind === 'offline_branch' ? '이 매장에서 메뉴 원픽이 생기면 여기에 표시돼요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
             action={query.data.kind === 'offline_branch' ? {
               label: '이곳에서 원픽 등록하기',

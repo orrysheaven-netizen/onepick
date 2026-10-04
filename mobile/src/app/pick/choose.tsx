@@ -170,7 +170,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.stateArea}>
-        <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
+        <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요." action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
       </View>
     </SafeAreaView>;
   }
@@ -180,15 +180,15 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
-        {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요" /></View> : null}
+        {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요." /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
-          <StateCard tone="danger" title="정보를 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
+          <StateCard tone="danger" title="정보를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
             action={params.itemId && routeMatchesItem ? { label: itemQuery.isFetching ? '다시 불러오는 중…' : '정보 다시 불러오기', accessibilityLabel: '정보 다시 불러오기', variant: 'secondary', disabled: itemQuery.isFetching, onPress: retryItem } : undefined} />
           <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />
         </View> : null}
         {hasItem && item && !canSubmit && !isSuccess ? <View style={styles.stateArea}>
           <StateCard
-            title={isOwnRequest ? '관리자 확인 중이에요' : '지금은 선택할 수 없어요'}
+            title={isOwnRequest ? '관리자 확인 중이에요.' : '지금은 선택할 수 없어요.'}
             text={isOwnRequest ? '승인돼도 원픽으로 자동 등록되지 않아요. 확인이 끝난 뒤 직접 원픽으로 선택할 수 있고, 수정이 필요할 때만 알려드려요.' : '지금은 여기서 새 원픽을 선택할 수 없어요.'}
             action={isOwnRequest
               ? { label: '내 등록 요청 보기', variant: 'secondary', onPress: () => router.replace('/(tabs)/profile') }
@@ -198,7 +198,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         </View> : null}
         {hasItem && item && canChoose && !user ? <View style={styles.panel}>
           {itemPhoto}
-          <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요</Text>
+          <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요.</Text>
           <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
           <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
@@ -236,7 +236,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <View style={styles.tipAskRow}>
               <Button size="sm" variant={tipAnswer === 'yes' ? 'primary' : 'soft'} label="있어요"
                 disabled={saving} onPress={() => setTipAnswer('yes')} />
-              <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 판매 링크예요"
+              <Button size="sm" variant={tipAnswer === 'no' ? 'primary' : 'soft'} label="그냥 판매 링크예요."
                 disabled={saving} onPress={() => { setTipAnswer('no'); setDraftTip(''); }} />
             </View>
           </View> : null}
@@ -244,7 +244,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <View style={styles.inputHeader}><Text style={styles.inputLabel}>살 때 팁</Text><Text style={styles.counter}>{(draftTip ?? '').length}/100</Text></View>
             <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!saving}
               onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftTip(value); }}
-              placeholder="예: 6개입이 낱개보다 싸요" placeholderTextColor={OnePick.hint}
+              placeholder="예: 6개입이 낱개보다 싸요." placeholderTextColor={OnePick.hint}
               style={styles.linkInput} value={draftTip ?? ''} />
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}
@@ -262,7 +262,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         </> : null}
         {!isLoading && item && user && savedChoice ? <View style={styles.successCard}>
           <BrandMark size="lg" soft />
-          <Text style={[styles.title, styles.successTitle]}>원픽을 정했어요</Text>
+          <Text style={[styles.title, styles.successTitle]}>원픽을 정했어요.</Text>
           <Text style={styles.successItem}>{item.name}</Text><Text style={styles.savedReview}>“{savedChoice.pick.oneLineReview}”</Text>
           <View style={styles.successPhoto}>{itemPhoto}</View>
           <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
