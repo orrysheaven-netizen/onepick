@@ -9,12 +9,19 @@ begin;
 -- Requests on different menus must not collide, so the pending-product slot is
 -- exempt from "one current Pick per category". Request items do not get an
 -- item_places row (unique per place × category) until an admin classifies
--- them; the store is kept in items.requested_place_id instead.
+-- them; the store is kept in private.category_request_places instead.
+-- (A new public.items column would change its row type and break the SQL
+-- functions that return public.items, so the store lives in its own table.)
 
-alter table public.items
-  add column requested_place_id uuid references public.places(id);
-
-comment on column public.items.requested_place_id is
+create table private.category_request_places (
+  item_id uuid primary key references public.items(id) on delete cascade,
+  place_id uuid not null references public.places(id),
+  created_at timestamptz not null default now()
+);
+create index category_request_places_place_idx on private.category_request_places(place_id);
+revoke all on private.category_request_places from public, anon, authenticated;
+grant all on private.category_request_places to service_role;
+comment on table private.category_request_places is
   'Store of a member category request (pending-product item). Review hint only: the item becomes a place item when an admin classifies it.';
 
 -- Exempt the pending-product category from the one-current-Pick slot. Its id
@@ -172,10 +179,11 @@ begin
 
   select i.* into v_item
   from public.items i
+  join private.category_request_places r on r.item_id = i.id
   where i.category_id = v_category_id
     and i.created_by = v_user
     and i.status = 'pending'
-    and i.requested_place_id = v_place.id
+    and r.place_id = v_place.id
     and lower(i.requested_category_label) = lower(v_label)
   order by i.created_at, i.id
   limit 1
@@ -213,14 +221,14 @@ begin
 
     insert into public.items(
       category_id, name, normalized_name, status, created_by,
-      image_path, thumbnail_path, image_source_url,
-      requested_category_label, requested_place_id
+      image_path, thumbnail_path, image_source_url, requested_category_label
     ) values (
       v_category_id, btrim(v_place.name), lower(regexp_replace(btrim(v_place.name), '[[:space:]]+', '', 'g')),
       'pending', v_user,
-      p_image_path, p_thumbnail_path, p_image_source_url,
-      v_label, v_place.id
+      p_image_path, p_thumbnail_path, p_image_source_url, v_label
     ) returning * into v_item;
+
+    insert into private.category_request_places(item_id, place_id) values (v_item.id, v_place.id);
   end if;
 
   insert into public.picks(
@@ -263,6 +271,6 @@ grant execute on function private.register_category_request_pick_impl(text, text
 revoke all on function public.register_category_request_pick(text, text, uuid, text, text, text, text, text, uuid) from public, anon;
 grant execute on function public.register_category_request_pick(text, text, uuid, text, text, text, text, text, uuid) to authenticated, service_role;
 comment on function public.register_category_request_pick(text, text, uuid, text, text, text, text, text, uuid) is
-  'Save a store Pick whose category the member typed (no fitting category). Store = p_catalog_id, or p_place_name + Naver p_map_url. Creates the member''s pending request item in pending-product with requested_category_label/requested_place_id and a needs_review Pick (owner-only). Requests on different stores or labels never replace each other; repeating the same store+label updates the review. p_request_id makes retries idempotent.';
+  'Save a store Pick whose category the member typed (no fitting category). Store = p_catalog_id, or p_place_name + Naver p_map_url. Creates the member''s pending request item in pending-product with requested_category_label (store in private.category_request_places) and a needs_review Pick (owner-only). Requests on different stores or labels never replace each other; repeating the same store+label updates the review. p_request_id makes retries idempotent.';
 
 commit;

@@ -82,7 +82,11 @@ begin
   select * into v_item from public.items where id=first_item;
   assert v_item.category_id=pending_id and v_item.status='pending' and v_item.created_by=alice, 'A pending-product request item';
   assert v_item.requested_category_label='와플', 'The typed category is kept, trimmed';
-  assert v_item.requested_place_id is not null and v_item.name='큐와플집', 'The store is kept on the request';
+  assert v_item.name='큐와플집', 'The request is named after the store';
+  reset role;
+  assert exists(select 1 from private.category_request_places r join public.places pl on pl.id=r.place_id
+                where r.item_id=first_item and pl.map_url='https://naver.me/cr1'), 'The store is kept with the request';
+  set local role authenticated;
   assert v_item.image_path=alice::text||'/a.jpg', 'The photo is part of the request';
   select count(*) into n from public.item_places where item_id=first_item;
   assert n=0, 'No place × category row until an admin classifies it';
