@@ -5,10 +5,9 @@ import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Scrol
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OnePickBrand } from '@/components/onepick-brand';
-import { NotificationButton } from '@/components/notification-button';
 import { HomeFeedCard } from '@/components/home-feed-card';
 import { ItemSearch } from '@/components/item-search';
-import { Avatar, BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
+import { BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -131,10 +130,6 @@ export default function HomeScreen() {
   const listHeader = <>
     <View style={styles.nativeHeader}>
       <OnePickBrand />
-      <View style={styles.headerActions}>
-        {user ? <NotificationButton userId={user.id} /> : null}
-        {user ? <Avatar name="나" size={40} accessibilityLabel="내 프로필" onPress={() => router.push('/profile')} /> : null}
-      </View>
     </View>
 
     <ItemSearch compact
@@ -307,7 +302,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
   nativeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.xs },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, padding: OnePickSpace.lg, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },

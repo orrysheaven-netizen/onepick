@@ -172,7 +172,8 @@ async function main() {
   await test('Home restoration threshold and signed-out header stay compatible with recent ranking', () => {
     flags.categoryChips = true;
     thresholds.homeCategoryFilterMinPicks = 0;
-    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
+    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3);
+    assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0); // header is logo only for members too
     auth.user = null; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
     assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴').description, undefined);

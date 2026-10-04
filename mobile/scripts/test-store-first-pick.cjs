@@ -360,7 +360,7 @@ async function main() {
   detail.myPickStatus = { type: 'selected_other' };
   currentSlotRun = () => ({ id: 'visible-old-pick', channel: 'offline' });
   await chooseExistingOffline(); page = render();
-  assert.match(page, /저장하면 이 메뉴의 매장 원픽이 이걸로 바뀝니다/);
+  assert.match(page, /저장하면 이 메뉴의 매장 원픽이 바뀌어요/);
   assert.doesNotMatch(page, /기록으로 남아요/);
 
   // PICK_CHANGED_ELSEWHERE needs a second explicit submit with the same request id.

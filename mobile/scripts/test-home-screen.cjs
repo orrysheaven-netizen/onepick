@@ -127,8 +127,8 @@ const press = (label) => {
 // Initial MVP keeps the following feed hidden even though profile follow is enabled.
 const allFirstPage = render();
 assert.doesNotMatch(allFirstPage, /팔로잉/, 'Initial MVP hides the Following scope');
-assert.match(allFirstPage, /알림/, 'Signed-in Home exposes the notifications entry in the header');
-assert.match(allFirstPage, /data-notification-user="owner"/, 'Notification entry is scoped to the signed-in user');
+assert.doesNotMatch(allFirstPage, /data-notification-user=/, 'Home header is logo only: notifications live in the bottom tab');
+assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Home header is logo only: the profile lives in the bottom tab');
 assert.match(allFirstPage, /@friend/);
 assert.match(allFirstPage, /@neighbor/, 'Member Home stays on the public feed while follow is hidden');
 assert.match(allFirstPage, /원픽 더 둘러보기/, 'The public-feed footer remains visible');

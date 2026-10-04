@@ -126,7 +126,7 @@ function checkSavedNavigation() {
 async function main() {
   for (const [status, label] of [
     [{ type: 'not_selected' }, '내 원픽으로 선택'],
-    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '이걸로 바꾸기'],
+    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '바꾸기'],
     [{ type: 'selected_this', pickId: newPickId, oneLineReview: '이전 한줄평' }, '한줄평 저장'],
   ]) {
     arrange(status); noSuccess(render()); submit(label); await flush();
