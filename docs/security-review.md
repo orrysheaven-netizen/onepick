@@ -75,3 +75,59 @@ Reference: #640 (Security QA 2026-10-02, L4, Low). 사용자 결정: 위험 수�
 - **승인 RPC.** `admin_review_item_photo_candidate`는 `is_admin_mfa()`(AAL2) 필수, 상품 행 → 후보 행 순서로 잠근다(사용자 쓰기 경로와 같은 순서). 같은 결정을 반복하면 기존 행을 그대로 돌려주고(idempotent), 이미 처리된 후보·대표사진이 이미 있는 상품·비공개 상품·파일이 맞지 않는 후보는 거부한다. 서로 다른 두 후보의 동시 승인은 상품 행 잠금으로 직렬화되어 두 번째가 `PHOTO_CANDIDATE_NOT_PENDING`으로 끝난다. 사용자가 사진을 다시 올리면 기존 pending 후보는 `superseded`가 되고 새 사진은 새 후보 id로 저장된다. 따라서 관리자가 본 id를 승인하면 그 id의 사진만 반영되고, 교체된 옛 id 승인은 `PHOTO_CANDIDATE_NOT_PENDING`으로 실패한다(교체와 승인이 동시에 와도 같은 상품 행 잠금으로 직렬화).
 - **Storage는 그대로다.** `item-photos` 버킷은 public을 유지한다(사용자 결정). 승인 전 제한은 앱/API 노출 기준이며, Storage URL 자체의 비공개는 보장하지 않는다(경로는 추측하기 어려운 업로드 경로). pending 후보 파일은 소유자 삭제 정책(`is_unused_item_photo`)과 일일 정리(`stale_item_photo_paths`) 대상에서 빠지고, 반려·대체된 후보 파일은 다시 정리 대상이 된다.
 - **Production 적용은 별도 사용자 승인 게이트다.**
+
+## Dependency advisory: braces build-tool chain (L9, 2026-10-04)
+
+Reference: #703 (Security QA 2026-10-04, L9, Low).
+Advisory: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm (CVE-2026-93687).
+
+### Compatible update verification
+
+At `main@d0fae5d2a817fbbdfd3918180f549e52e1384b62`, `mobile/package-lock.json`
+resolves `braces@3.0.3` and `micromatch@4.0.8`; micromatch requires
+`braces: ^3.0.3`. `mobile/package.json` has no overrides. The existing range
+already permits a compatible 3.0.x patch, so a major Expo/React Native change
+is not needed to accept a future patch.
+
+However, the npm registry on 2026-10-04 reports `latest: 3.0.3`, and its
+published version list contains no 3.0.4 or later release.
+`npm view braces@3.0.4 version` returns E404 ("No match found for version 3.0.4").
+The upstream package manifest also remains 3.0.3, and the GitHub advisory
+lists no patched version. An override cannot supply an unpublished patch.
+Do not add a non-resolving override, fabricate a lock entry, pin an unreviewed
+Git commit/fork, or apply the breaking Expo/React Native downgrade proposed
+by audit merely to reduce the advisory count.
+
+Verification sources:
+- https://registry.npmjs.org/braces
+- https://github.com/micromatch/braces/blob/master/package.json
+- https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+
+### Temporary MVP residual-risk handling
+
+Accept this **build/development-only residual risk** until a reviewed,
+compatible patched npm release is available. The affected path is
+`micromatch -> braces` in Metro/Expo file matching and bundling; #703 traces
+the propagated findings through React Native and Expo. The advisory concerns
+stack exhaustion from deeply nested brace patterns. Exposure is developer/CI
+Node processes processing malicious glob patterns, potentially interrupting
+a build or file watcher. This does not make the upstream High advisory
+harmless; the project-level Low classification reflects the confined exposure.
+
+No shipped app-runtime use was identified in #703: the web export,
+Cloudflare Pages Functions and Supabase Edge Functions are outside the
+reported path. This runtime assessment relies on #703's inspection, not a
+new full bundle analysis. Do not introduce direct application use of braces
+or route untrusted user input into build-tool glob configuration. Existing
+repository-controlled build inputs and CI trust boundaries remain in place.
+
+**Re-review:** during subsequent dependency audits and immediately when
+braces publishes a patched npm release, the advisory changes, untrusted
+patterns reach the tool chain, or braces becomes shipped runtime code.
+Then update only the compatible transitive dependency (lock refresh first;
+a narrow override only if required), run npm audit, typecheck/regressions
+and web export checks, and verify the required CI results before merge.
+
+This record satisfies #703 L9's documented-risk alternative; it does not
+claim the vulnerability is patched or the audit is clean. No dependency,
+application, workflow, DB permission or Production change is made.
