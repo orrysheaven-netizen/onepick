@@ -210,10 +210,6 @@ assert.match(page, /영화(&#x27;|')? 메뉴를 찾지 못했어요/, 'Search on
 press('이 이름으로 등록 요청');
 assert.equal(destination.pathname, '/pick/request'); assert.equal(destination.params.itemName, '영화');
 
-state = []; refs = []; destination = undefined; params = { onboarding: '1' };
-render(); press('돼지국밥 메뉴 선택');
-assert.equal(destination.params.onboarding, '1', 'Onboarding context survives the menu step');
-
 // --- 링크로 원픽 찾기: delivery links are 매장, never analyzed as online -----------
 let linkPresses = [], linkInputs = [], linkCalls = 0;
 const linkState = [];

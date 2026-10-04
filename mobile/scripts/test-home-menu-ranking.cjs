@@ -54,6 +54,19 @@ async function main() {
   assert.equal(calls[1].args.p_group_category_id, null);
   assert.equal(calls[1].args.p_limit, 50, 'Client mirrors the RPC max limit');
 
+  // Store×menu ranking (10-05): same public client, store name + menu name per row.
+  const itemCalls = [];
+  const itemRepository = new SupabaseReadRepository(client, { rpc: async (name, args) => {
+    itemCalls.push({ name, args });
+    return { data: [{ item_id: 'seoul', item_name: '서울집', category_id: 'soup', category_name: '미역국',
+      pick_count: '23', rank: 1, is_tied: false, thumbnail_path: 'item/seoul.jpg', image_path: null, image_source_url: null }], error: null };
+  } });
+  const items = await itemRepository.getFoodItemRecentRanking('offline', 999);
+  assert.equal(itemCalls[0].name, 'food_item_recent_ranking');
+  assert.deepEqual({ ...itemCalls[0].args }, { p_channel: 'offline', p_limit: 50 }, 'Channel scope and the RPC max limit');
+  assert.deepEqual({ ...items[0] }, { itemId: 'seoul', itemName: '서울집', categoryId: 'soup', categoryName: '미역국',
+    pickCount: 23, rank: 1, isTied: false, thumbnailUrl: 'https://onepick.test/item/seoul.jpg' });
+
   let hookArgs;
   const hookModule = load('hooks/useHomeData.ts', {
     '@tanstack/react-query': {

@@ -108,6 +108,20 @@ export interface FoodMenuRecentRankingItem {
   thumbnailUrl: string | null;
 }
 
+/** One store's menu in the 7-day ranking (Home 인기 메뉴 and its 더보기 screen). */
+export interface FoodItemRecentRankingItem {
+  itemId: string;
+  /** Store name (the item is named for its provider). */
+  itemName: string;
+  categoryId: string;
+  /** Menu name. */
+  categoryName: string;
+  pickCount: number;
+  rank: number;
+  isTied: boolean;
+  thumbnailUrl: string | null;
+}
+
 /** A leaf category that has a public ranking page (/ranking/<slug>). */
 export interface RankingCategory {
   categoryId: string;
@@ -221,6 +235,7 @@ export interface ReadRepository {
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
   getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
+  getFoodItemRecentRanking(channel?: PickChannel | null, limit?: number): Promise<FoodItemRecentRankingItem[]>;
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
