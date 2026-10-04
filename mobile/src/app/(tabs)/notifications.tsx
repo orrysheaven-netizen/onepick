@@ -140,7 +140,7 @@ export default function NotificationsScreen() {
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
           : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽의 새 한줄평과 댓글, 팔로우한 사람의 새 원픽, 수정 필요 알림을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push({ pathname: '/auth/login', params: { action: 'notifications' } })}><Text style={styles.link}>로그인</Text></Pressable></>
           : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
-          : <><Text style={styles.sender}>아직 알림이 없어요</Text><Text style={styles.message}>내 원픽에 새 한줄평이나 댓글이 생기면 여기에 알려드려요.</Text></>}
+          : <><Text style={styles.sender}>아직 알림이 없어요.</Text><Text style={styles.message}>내 원픽에 새 한줄평이나 댓글이 생기면 여기에 알려드려요.</Text></>}
       </View>}
       ListFooterComponent={ready && query.hasNextPage ? <Pressable accessibilityRole="button" disabled={query.isFetching} style={styles.more} onPress={() => { if (!query.isFetching) void query.fetchNextPage(); }}><Text style={styles.link}>{query.isFetchingNextPage ? '불러오는 중…' : '이전 알림 더 보기'}</Text></Pressable> : null}
     />

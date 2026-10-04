@@ -113,7 +113,7 @@ async function checkQuestionOnlyAfterALink() {
   assert.equal(field('살 때 팁'), undefined, '묻기만 하고 팁 칸을 먼저 열지 않는다');
 
   // "그냥 판매 링크예요"를 고르면 팁 없이 링크만 저장된다.
-  render(); button('그냥 판매 링크예요').onPress();
+  render(); button('그냥 판매 링크예요.').onPress();
   render(); button('내 원픽으로 선택').onPress(); await flush();
   assert.equal(attempts[0].purchaseUrl, 'https://www.coupang.com/vp/products/1');
   assert.equal(attempts[0].purchaseTip, '', '팁 없음은 빈 문자열로 보내 이전 팁을 지운다');

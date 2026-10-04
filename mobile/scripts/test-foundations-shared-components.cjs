@@ -29,8 +29,8 @@ render(React.createElement(ui.PickButton, { state: 'change' }));
 assert.equal(views.find((v) => v.resolved.backgroundColor === OnePick.actionPrimary)?.resolved.backgroundColor, OnePick.actionPrimary);
 render(React.createElement(ui.PickButton, { state: 'mine' }));
 assert.equal(views.find((v) => v.resolved.backgroundColor === OnePick.bgAccent)?.resolved.backgroundColor, OnePick.bgAccent);
-assert.equal(byLabel('내 원픽이에요').disabled, true);
-assert.equal(byLabel('내 원픽이에요').resolved.opacity, undefined, 'Mine state is disabled without visual dimming');
+assert.equal(byLabel('내 원픽이에요.').disabled, true);
+assert.equal(byLabel('내 원픽이에요.').resolved.opacity, undefined, 'Mine state is disabled without visual dimming');
 
 render(React.createElement(ui.ReviewRow, {
   username: 'duck', review: '한줄평', currentPick: true, commentsLabel: '댓글 3',

@@ -53,7 +53,7 @@ assert.equal(load('src/lib/supabase/storage.web.ts').authStorage, undefined, 'st
 const item = read('src/app/item/[itemId].tsx');
 assert.match(item, /if \(!itemId \|\| !query\.data\) \{/);
 assert.doesNotMatch(item, /if \(!itemId \|\| query\.isError \|\| !query\.data\)/);
-assert.match(item, /query\.isError \? <StateCard compact tone="danger"[^>]*title="최신 정보를 불러오지 못했어요"/);
+assert.match(item, /query\.isError \? <StateCard compact tone="danger"[^>]*title="최신 정보를 불러오지 못했어요\."/);
 
 // Unblock failures are shown, not swallowed as unhandled rejections.
 const settings = read('src/app/settings.tsx');

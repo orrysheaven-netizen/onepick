@@ -101,17 +101,17 @@ export default function OnboardingScreen() {
   };
 
   if (signedOut) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
-    <StateCard title="로그인하고 취향을 골라보세요" text="카테고리마다 가장 좋아하는 하나를 고르면 내 프로필에 모여요."
+    <StateCard title="로그인하고 취향을 골라보세요." text="카테고리마다 가장 좋아하는 하나를 고르면 내 프로필에 모여요."
       action={{ label: '로그인하기', variant: 'primary', onPress: () => router.replace('/auth/login') }} />
   </View></SafeAreaView>;
   if (loadFailed) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
-    <StateCard tone="danger" accessibilityRole="alert" title="취향 카테고리를 불러오지 못했어요" text="연결 상태를 확인하고 다시 시도해주세요."
+    <StateCard tone="danger" accessibilityRole="alert" title="취향 카테고리를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해주세요."
       action={{ label: '다시 불러오기', variant: 'primary', onPress: retryLoad }} />
     <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} />
   </View></SafeAreaView>;
   if (loading) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="취향 카테고리를 준비하고 있어요." /></View></SafeAreaView>;
   if (profileMissing || !profile.data) return <SafeAreaView style={styles.safeArea}><View style={styles.center}>
-    <StateCard title="사용자명을 먼저 만들어주세요" action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.replace('/auth/username') }} />
+    <StateCard title="사용자명을 먼저 만들어주세요." action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.replace('/auth/username') }} />
   </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -143,7 +143,7 @@ export default function OnboardingScreen() {
         <Button variant="ghost" style={styles.skip} disabled={setCurrent.isPending || recordAction.isPending} onPress={() => void skip()}
           label={setCurrent.isPending ? '준비 중…' : recordAction.isPending ? '넘기는 중…' : '넘기기'} />
       </View> : <View style={styles.categoryCard}>
-        <Text style={styles.categoryName}>지금 보여드릴 카테고리를 모두 봤어요</Text>
+        <Text style={styles.categoryName}>지금 보여드릴 카테고리를 모두 봤어요.</Text>
         <Text style={styles.cardText}>새 카테고리가 열리면 다시 이어서 고를 수 있어요.</Text>
         <Button size="lg" fullWidth style={styles.primary} label="프로필로 이동" onPress={() => void finish()} />
       </View>}

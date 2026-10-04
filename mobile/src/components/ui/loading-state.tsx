@@ -10,7 +10,7 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-export function LoadingState({ label = '불러오고 있어요', mode = 'page', delayMs = 300, accessibilityLabel }: Props) {
+export function LoadingState({ label = '불러오고 있어요.', mode = 'page', delayMs = 300, accessibilityLabel }: Props) {
   const [visible, setVisible] = useState(delayMs <= 0);
 
   useEffect(() => {

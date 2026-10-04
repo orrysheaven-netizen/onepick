@@ -42,9 +42,9 @@ export default function MenuPeoplePicksScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {category.isPending ? <ActivityIndicator accessibilityLabel="메뉴 불러오는 중" style={styles.loading} /> : null}
-        {category.isError ? <StateCard compact tone="danger" title="메뉴를 불러오지 못했어요"
+        {category.isError ? <StateCard compact tone="danger" title="메뉴를 불러오지 못했어요."
           action={{ label: '다시 불러오기', onPress: () => void category.refetch() }} /> : null}
-        {notFound && !category.isPending ? <StateCard title="이 메뉴를 찾을 수 없어요"
+        {notFound && !category.isPending ? <StateCard title="이 메뉴를 찾을 수 없어요."
           text="현재 공개된 메뉴인지 확인해주세요."
           action={{ label: '탐색으로', onPress: () => router.replace('/explore') }} /> : null}
 
