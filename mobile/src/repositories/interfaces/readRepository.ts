@@ -222,6 +222,8 @@ export interface ReadRepository {
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
   getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
+  /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
+  getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */

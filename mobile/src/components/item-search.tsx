@@ -13,6 +13,8 @@ type ItemSearchProps = {
   categoryId?: string;
   compact?: boolean;
   initialQuery?: string;
+  /** Defaults to the home wording; explore asks for a menu or store name (Figma 31). */
+  placeholder?: string;
   onSubmitSearch?: (query: string) => void;
   onSearchMovie?: (query: string) => void;
   onSearchDrama?: (query: string) => void;
@@ -38,6 +40,7 @@ export function ItemSearch({
   categoryId,
   compact = false,
   initialQuery = '',
+  placeholder = '어떤 원픽을 찾으세요?',
   onSubmitSearch,
   onSearchMovie,
   onSearchDrama,
@@ -134,7 +137,7 @@ export function ItemSearch({
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
           onChangeText={setSearchText} onSubmitEditing={submitSearch}
-          placeholder="어떤 원픽을 찾으세요?" placeholderTextColor={OnePick.hint}
+          placeholder={placeholder} placeholderTextColor={OnePick.hint}
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>

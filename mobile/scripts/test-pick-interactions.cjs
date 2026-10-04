@@ -265,7 +265,7 @@ async function main() {
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useFoodMenuPickCounts: () => ({ data: new Map(), isError: false, isFetching: false, isRefetching: false, refetch() {} }), useCategoryTopItems: () => rankingQuery,
       useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);

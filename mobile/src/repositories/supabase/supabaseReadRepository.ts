@@ -295,6 +295,14 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getFoodMenuPickCounts(channel: PickChannel | null = null) {
+    // Public aggregate (like the menu ranking): personal blocks must not change it.
+    const { data, error } = await (this.countClient as any).rpc('food_menu_pick_counts', channel ? { p_channel: channel } : {});
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    return new Map<string, number>(data.map((row: any) => [String(row.category_id), Number(row.pick_count) || 0]));
+  }
+
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. Optional channel scope is server-side before limiting.

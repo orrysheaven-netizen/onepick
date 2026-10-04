@@ -58,7 +58,8 @@ function explore({ chips = true } = {}) {
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
     '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
-      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; } },
+      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; },
+      useFoodMenuPickCounts: (channel, enabled) => { calls.menuCounts = { channel, enabled }; return query(new Map([['ramen', 5]])); } },
     '@/lib/categories/categoryTree': tree, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
@@ -164,7 +165,12 @@ async function main() {
     assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
     assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: false, storesOnly: false }), 'MVP does not load an unused recent-provider feed');
     assert.equal(calls.categoryId, undefined, 'Product rankings stay idle without a chosen category');
-    assert.match(view.text(), /메뉴/); assert.match(view.text(), /ramen/); assert.match(view.text(), /원픽 보기/);
+    // Figma 31: menus by current Picks, "원픽 N" from the 3-person threshold, always-open search.
+    assert.equal(JSON.stringify(calls.menuCounts), JSON.stringify({ channel: 'offline', enabled: true }), 'Menu counts use the public store channel');
+    assert.match(view.text(), /메뉴 1/); assert.match(view.text(), /ramen/); assert.match(view.text(), /원픽 5/);
+    assert.doesNotMatch(view.text(), /원픽 보기|전체 항목 검색|원픽에 등록된 항목을 검색해요/);
+    assert.equal(view.find('ItemSearch').placeholder, '메뉴나 매장 이름으로 검색');
+    assert.equal(view.all('Pressable').some((p) => p.accessibilityLabel === '검색 열기' || p.accessibilityLabel === '검색 닫기'), false, 'No search toggle in the MVP');
     view.find('Pressable', (p) => p.accessibilityLabel === 'ramen 메뉴 원픽 보기').onPress();
     assert.equal(calls.route.pathname, '/menu/[slug]'); assert.equal(calls.route.params.slug, 'ramen');
     assert.doesNotMatch(view.text(), /Recent place/, 'Menu discovery replaces the old recent-provider landing list');
