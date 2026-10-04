@@ -10,7 +10,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { useChoosePhoto, useReadCurrentPickSlot, useRegisterItemPick } from '@/hooks/useRegisterPick';
-import { useMenuOptions, useMenuSuggestions, useProviderStorePrefill, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
+import { useMenuOptions, useMenuSuggestions, useProviderStorePrefill, useSelectStoreItem, useStoreSearch, useStoreSearchBrands } from '@/hooks/useStoreFirst';
 import { type PickChannel } from '@/lib/items/pickChannel';
 import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
@@ -33,6 +33,9 @@ type EntryParams = {
   categoryId?: string | string[];
   menuName?: string | string[];
 };
+const storeKeyOf = (candidate: Store) => candidate.kind === 'place' ? `place:${candidate.catalogId}`
+  : candidate.kind === 'brand' ? `brand:${candidate.brandId}`
+  : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 const entryId = (value: string | string[] | undefined) => {
@@ -144,7 +147,6 @@ export default function NewPickScreen() {
   const [itemHadPhoto, setItemHadPhoto] = useState(false);
   const [itemPending, setItemPending] = useState(false);
   const [preflight, setPreflight] = useState<StoreSelection | null>(null);
-  const [pickScope, setPickScope] = useState<'branch' | 'brand' | null>(null);
   const [mapLink, setMapLink] = useState('');
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
   const [review, setReview] = useState('');
@@ -172,7 +174,7 @@ export default function NewPickScreen() {
   const resetForm = () => {
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
-    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     setResumeStep(null); setPhotoReselect(false); setPrefillDismissed(false); setMenuPrefilled(false);
@@ -185,12 +187,17 @@ export default function NewPickScreen() {
     setPrefillDismissed(true);
     setMenuPrefilled(false);
     setQuery(draft.query); setRequesting(draft.requesting); setRequestPart(draft.requestPart ?? 'name'); setNewName(draft.newName);
-    setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
+    // Older drafts chose 브랜드 전체 inside the menu step on a branch; that branch is not
+    // the brand, so the store is asked again instead of silently saving the branch.
+    const legacyBrandScope = draft.pickScope === 'brand' && (draft.store as Store | null)?.kind !== 'brand';
+    const restoredStore = legacyBrandScope ? null : draft.store as Store | null;
+    setMapLink(draft.mapLink); setStore(restoredStore); setMenuQuery(draft.menuQuery);
     setManualCategory(draft.manualCategory); setCategoryQuery(draft.categoryQuery); setMenu(draft.menu);
-    setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
+    setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
     // Item, photo requirement and the current Pick slot come from the server again:
     // later steps resume only after the menu step's own checks pass (never auto-submit).
-    if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
+    if (legacyBrandScope) setStep(1);
+    else if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
     else setStep(draft.step >= 4 ? (draft.store ? 2 : 1) : draft.step);
   };
   // Load once per resolved account. Nothing is read while the session is still being
@@ -210,14 +217,24 @@ export default function NewPickScreen() {
   );
   const providerPrefillStore = !restoredDraftRef.current && !query && !store && !prefillDismissed ? providerPrefill.data ?? null : null;
 
-  const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}` : store.name) : '';
-  const pickDisplayName = pickScope === 'brand' && preflight?.brand ? `${preflight.brand.name} 전체` : storeDisplayName;
+  // 브랜드 전체 is chosen on step 1 (지점 선택 안 함); there is no scope choice later.
+  const pickScope: 'branch' | 'brand' | null = store ? (store.kind === 'brand' ? 'brand' : 'branch') : null;
+  const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}`
+    : store.kind === 'brand' ? `${store.name} 전체` : store.name) : '';
+  const pickDisplayName = storeDisplayName;
   const storeChannel: PickChannel = store?.kind === 'seller' ? 'online' : 'offline';
   const search = useStoreSearch(
     'offline',
     query,
     Boolean(user) && step === 1 && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
   );
+  const searchRows = useMemo(() => (search.data ?? [])
+    .filter((candidate): candidate is Extract<StoreCandidate, { kind: 'place' }> => candidate.kind === 'place'), [search.data]);
+  const searchBrands = useStoreSearchBrands(
+    searchRows.map((candidate) => candidate.catalogId),
+    Boolean(user) && step === 1 && !requesting && search.valid && !search.isWaiting,
+  );
+  const brandRows = search.valid && !search.isWaiting ? searchBrands.data ?? [] : [];
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const suggestionStore = useMemo(() => store ? {
     name: store.name,
@@ -226,7 +243,7 @@ export default function NewPickScreen() {
     region: store.kind === 'place' ? store.region : null,
     channel: storeChannel,
   } : null, [store, storeChannel]);
-  const storeKey = store ? (store.kind === 'place' ? `place:${store.catalogId}` : store.kind === 'seller' ? `seller:${store.providerId}` : `new:${storeChannel}:${store.name}`) : '';
+  const storeKey = store ? storeKeyOf(store) : '';
   const requestedMenu = menuQuery.trim().replace(/\s+/g, ' ');
   const availableMenus = useMemo(() => (menus.data ?? []).filter((option) => option.placeEnabled), [menus.data]);
   const compactMenuName = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
@@ -301,8 +318,8 @@ export default function NewPickScreen() {
     setStep(previousFrom(step));
   };
   const pickStore = useCallback((candidate: Store) => {
-    if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`)) {
-      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null); setPhoto(null);
+    if (store && storeKey !== storeKeyOf(candidate)) {
+      setMenu(null); setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPhoto(null);
       setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     }
     setStore(candidate);
@@ -341,7 +358,7 @@ export default function NewPickScreen() {
     try {
       if (store.kind === 'new') {
         await readCurrentSlotSnapshot(effectiveMenu.categoryId);
-        setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(photoStep(4));
+        setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setStep(photoStep(4));
         return;
       }
 
@@ -350,14 +367,11 @@ export default function NewPickScreen() {
         selected = await selectItem.mutateAsync({ categoryId: effectiveMenu.categoryId, store });
         setPreflight(selected);
       }
-      if (selected.brand && !pickScope) return;
-
-      const target = pickScope === 'brand' && selected.brand ? selected.brand : selected;
       await readCurrentSlotSnapshot(effectiveMenu.categoryId);
-      setItemId(target.itemId);
-      setItemHadPhoto(target.hasPhoto);
-      setItemPending(target.pending);
-      setStep(target.hasPhoto ? 5 : photoStep(4));
+      setItemId(selected.itemId);
+      setItemHadPhoto(selected.hasPhoto);
+      setItemPending(selected.pending);
+      setStep(selected.hasPhoto ? 5 : photoStep(4));
     } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
   };
@@ -401,9 +415,9 @@ export default function NewPickScreen() {
         requestId,
         expectedPreviousPickId: expected,
         itemId: itemId ?? undefined,
-        catalogId: pickScope !== 'brand' && store.kind === 'place' && !itemId ? store.catalogId : undefined,
+        catalogId: store.kind === 'place' && !itemId ? store.catalogId : undefined,
         providerId: store.kind === 'seller' && !itemId ? store.providerId : undefined,
-        brandId: pickScope === 'brand' && !itemId ? preflight?.brand?.brandId : undefined,
+        brandId: store.kind === 'brand' && !itemId ? store.brandId : undefined,
         newPlace: store.kind === 'new' ? {
           name: store.name,
           mapUrl: store.mapUrl,
@@ -473,7 +487,7 @@ export default function NewPickScreen() {
     : availableMenus).slice(0, 20);
   const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
     if (menu?.categoryId !== option.categoryId) {
-      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
       setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
     }
     setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
@@ -530,7 +544,7 @@ export default function NewPickScreen() {
   // Preserve this keyboard container when reconciling #696's other form steps.
   if (step === 1 && !requesting) {
     const ready = search.valid && !search.isWaiting;
-    const rows = (search.data ?? []).filter((candidate) => candidate.kind === 'place');
+    const rows = searchRows;
     return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.searchScreen} behavior="padding">
         {header}
@@ -560,6 +574,13 @@ export default function NewPickScreen() {
                 void search.fetchNextPage({ cancelRefetch: false });
               }
             }}>
+            {brandRows.map((candidate) => <Pressable key={`brand:${candidate.brandId}`} accessibilityRole="button"
+              accessibilityLabel={`${candidate.name} 전체, 지점 선택 안 함, 선택`}
+              onPress={() => pickStore(candidate)}
+              style={({ pressed }) => [styles.searchResult, pressed && styles.searchPressed]}>
+              <Text style={styles.resultTitle} numberOfLines={1}>{`${candidate.name} 전체`}
+                <Text style={styles.resultMeta}>{'  지점 선택 안 함'}</Text></Text>
+            </Pressable>)}
             {rows.map((candidate) => {
               const label = [candidate.name, candidate.branchName].filter(Boolean).join(' ');
               return <Pressable key={candidate.catalogId} accessibilityRole="button"
@@ -635,7 +656,7 @@ export default function NewPickScreen() {
                   onChangeText={(value) => {
                     setMenuPrefilled(false);
                     setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
-                    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+                    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
                   onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && !prefilledMenu) setAiMenuName(requestedMenu); }}
@@ -644,7 +665,7 @@ export default function NewPickScreen() {
                   onPress={() => {
                     setMenuPrefilled(false);
                     setMenuQuery(''); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
-                    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+                    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
                   style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
@@ -705,26 +726,12 @@ export default function NewPickScreen() {
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried && !prefilledMenu ? <View style={styles.loadingRow}>
               <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요</Text>
             </View> : null}
-            {preflight?.brand ? <View style={styles.fieldBlock}>
-              <FieldLabel label="원픽 범위" />
-              <Text style={styles.helper}>지점을 고르면 이 매장만, 브랜드 전체를 고르면 모든 지점과 별개의 원픽이 됩니다.</Text>
-              <View style={styles.chips}>
-                <FlowChip label="이 지점" selected={pickScope === 'branch'} onPress={() => {
-                  setPickScope('branch'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
-                  setPhoto(null); setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
-                }} />
-                <FlowChip label={`${preflight.brand.name} 전체`} selected={pickScope === 'brand'} onPress={() => {
-                  setPickScope('brand'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
-                  setPhoto(null); setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
-                }} />
-              </View>
-            </View> : null}
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
             {currentPickSlot.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(currentPickSlot.error)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
-              disabled={!effectiveMenu || suggestions.isFetching || Boolean(preflight?.brand && !pickScope)}
+            <FlowButton label="다음"
+              disabled={!effectiveMenu || suggestions.isFetching}
               loading={selectItem.isPending} onPress={() => void confirmMenu()} />
           </View>
         </> : null}

@@ -48,6 +48,24 @@ export function useStoreSearch(channel: PickChannel, searchText: string, enabled
   };
 }
 
+/** Step 1: one 브랜드 전체 row per brand behind the branches found so far.
+ * Optional: a failure only hides the brand rows, never the branch results. */
+export function useStoreSearchBrands(catalogIds: string[], enabled: boolean) {
+  const key = catalogIds.join(',');
+  return useQuery({
+    queryKey: ['store-first', 'search-brands', key],
+    queryFn: ({ signal }) => storeFirstService.brandsForCatalog(catalogIds, signal),
+    enabled: enabled && catalogIds.length > 0,
+    staleTime: 10 * 60_000,
+    // Keep the rows while the next page of the same search is resolved; a new search starts empty.
+    placeholderData: (previous, previousQuery) => {
+      const previousKey = previousQuery?.queryKey[2];
+      return typeof previousKey === 'string' && previousKey && key.startsWith(`${previousKey},`) ? previous : undefined;
+    },
+    retry: false,
+  });
+}
+
 /** Step 2: every food menu the user may choose by hand. */
 export function useMenuOptions(enabled: boolean) {
   return useQuery({

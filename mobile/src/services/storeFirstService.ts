@@ -5,32 +5,25 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/** A store found on step 1: a catalog place (매장) or an online seller (온라인). */
+/** A store found on step 1: a catalog place (매장), a whole brand without a branch
+ * (브랜드 전체, 지점 선택 안 함), or an online seller (온라인). */
 export type StoreCandidate =
   | { kind: 'place'; catalogId: string; name: string; branchName: string | null; region: string | null;
       address: string | null; providerCategory: string | null; mapUrl: string | null }
+  | { kind: 'brand'; brandId: string; name: string; logoUrl: string | null }
   | { kind: 'seller'; providerId: string; name: string; host: string; officialUrl: string };
+
+export type BrandCandidate = Extract<StoreCandidate, { kind: 'brand' }>;
 
 export type MenuOption = { categoryId: string; name: string; groupName: string | null; placeEnabled: boolean };
 
 export type MenuSuggestion = { categoryId: string; label: string; reason: string; confidence: 'high' | 'medium' | 'low' };
-
-export type StoreBrandScope = {
-  providerId: string;
-  brandId: string;
-  name: string;
-  logoUrl: string | null;
-  itemId: string | null;
-  hasPhoto: boolean;
-  pending: boolean;
-};
 
 export type StoreSelection = {
   itemId: string | null;
   categoryId: string;
   hasPhoto: boolean;
   pending: boolean;
-  brand: StoreBrandScope | null;
 };
 
 export type StoreForSuggestion = {
@@ -80,54 +73,77 @@ export class StoreFirstService {
     };
   }
 
-  private async placeBrandScope(
-    categoryId: string,
-    placeRef: { place_provider: string; provider_place_id: string },
-  ): Promise<StoreBrandScope | null> {
-    const { data: placeData, error: placeError } = await this.db().from('places')
-      .select('id')
-      .eq('place_provider', placeRef.place_provider)
-      .eq('provider_place_id', placeRef.provider_place_id)
-      .maybeSingle();
-    if (placeError) throw mapSupabaseError(placeError);
-    const place = placeData as { id?: string } | null;
-    if (!place?.id) return null;
+  private brandLogoUrl(logoPath: string | null | undefined) {
+    return logoPath ? this.client.storage.from('brand-logos').getPublicUrl(logoPath).data.publicUrl : null;
+  }
 
-    const { data: providerData, error: providerError } = await this.db().from('providers')
-      .select('id,brand_id')
-      .eq('place_id', place.id)
-      .eq('status', 'active')
-      .maybeSingle();
-    if (providerError) throw mapSupabaseError(providerError);
-    const provider = providerData as { id?: string; brand_id?: string | null } | null;
-    if (!provider?.id || !provider.brand_id) return null;
+  /** Brands behind the catalog rows found on step 1, in the order their branches appear.
+   * catalog row -> visible place -> active offline branch -> active brand. Rows without
+   * a brand link are simply not represented; nothing is sorted or summed here.
+   */
+  async brandsForCatalog(catalogIds: string[], signal?: AbortSignal): Promise<BrandCandidate[]> {
+    const ids = [...new Set(catalogIds.filter((id) => UUID.test(id)))];
+    if (ids.length === 0) return [];
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
 
-    const { data: brandData, error: brandError } = await this.db().from('brands')
-      .select('id,name,logo_path,is_active')
-      .eq('id', provider.brand_id)
-      .eq('is_active', true)
-      .maybeSingle();
+    const withSignal = <T extends { abortSignal(signal: AbortSignal): T }>(request: T) => signal ? request.abortSignal(signal) : request;
+    const catalogRows: { id: string; place_provider: string; provider_place_id: string }[] = [];
+    for (const chunk of chunks) {
+      const { data, error } = await withSignal(this.db().from('place_catalog')
+        .select('id,place_provider,provider_place_id').in('id', chunk));
+      if (error) throw mapSupabaseError(error);
+      catalogRows.push(...((data ?? []) as typeof catalogRows));
+    }
+    if (catalogRows.length === 0) return [];
+
+    const placeKey = (provider: string, providerPlaceId: string) => `${provider}\u0000${providerPlaceId}`;
+    const wanted = new Set(catalogRows.map((row) => placeKey(row.place_provider, row.provider_place_id)));
+    const providerPlaceIds = [...new Set(catalogRows.map((row) => row.provider_place_id))];
+    const placeByKey = new Map<string, string>();
+    for (let i = 0; i < providerPlaceIds.length; i += 100) {
+      const { data, error } = await withSignal(this.db().from('places')
+        .select('id,place_provider,provider_place_id').in('provider_place_id', providerPlaceIds.slice(i, i + 100)));
+      if (error) throw mapSupabaseError(error);
+      for (const row of (data ?? []) as { id: string; place_provider: string; provider_place_id: string }[]) {
+        const key = placeKey(row.place_provider, row.provider_place_id);
+        if (wanted.has(key)) placeByKey.set(key, row.id);
+      }
+    }
+    const placeIds = [...new Set(placeByKey.values())];
+    if (placeIds.length === 0) return [];
+
+    const brandByPlace = new Map<string, string>();
+    for (let i = 0; i < placeIds.length; i += 100) {
+      const { data, error } = await withSignal(this.db().from('providers')
+        .select('place_id,brand_id').in('place_id', placeIds.slice(i, i + 100))
+        .eq('kind', 'offline_branch').eq('status', 'active').not('brand_id', 'is', null));
+      if (error) throw mapSupabaseError(error);
+      for (const row of (data ?? []) as { place_id: string; brand_id: string }[]) brandByPlace.set(row.place_id, row.brand_id);
+    }
+    const brandIds = [...new Set(brandByPlace.values())];
+    if (brandIds.length === 0) return [];
+
+    const { data: brandData, error: brandError } = await withSignal(this.db().from('brands')
+      .select('id,name,logo_path').in('id', brandIds.slice(0, 100)).eq('is_active', true));
     if (brandError) throw mapSupabaseError(brandError);
-    const brand = brandData as { id?: string; name?: string; logo_path?: string | null } | null;
-    if (!brand?.id || !brand.name) return null;
+    const brands = new Map(((brandData ?? []) as { id: string; name: string; logo_path: string | null }[])
+      .filter((row) => row.id && row.name).map((row) => [row.id, row]));
 
-    const { data: scopeData, error: scopeError } = await this.db().from('item_brand_scopes')
-      .select('item_id')
-      .eq('brand_id', brand.id)
-      .eq('category_id', categoryId)
-      .maybeSingle();
-    if (scopeError) throw mapSupabaseError(scopeError);
-    const scope = scopeData as { item_id?: string } | null;
-    const state = await this.itemState(scope?.item_id ?? null, categoryId);
-    return {
-      providerId: provider.id,
-      brandId: brand.id,
-      name: brand.name,
-      logoUrl: brand.logo_path
-        ? this.client.storage.from('brand-logos').getPublicUrl(brand.logo_path).data.publicUrl
-        : null,
-      ...state,
-    };
+    // Keep the server's branch order: a brand is listed where its first branch is.
+    const catalogById = new Map(catalogRows.map((row) => [row.id, row]));
+    const result: BrandCandidate[] = [];
+    const seen = new Set<string>();
+    for (const id of catalogIds) {
+      const row = catalogById.get(id);
+      const placeId = row ? placeByKey.get(placeKey(row.place_provider, row.provider_place_id)) : undefined;
+      const brandId = placeId ? brandByPlace.get(placeId) : undefined;
+      const brand = brandId ? brands.get(brandId) : undefined;
+      if (!brand || seen.has(brand.id)) continue;
+      seen.add(brand.id);
+      result.push({ kind: 'brand', brandId: brand.id, name: brand.name, logoUrl: this.brandLogoUrl(brand.logo_path) });
+    }
+    return result;
   }
 
   async providerStore(providerId: string): Promise<Extract<StoreCandidate, { kind: 'place' }> | null> {
@@ -264,9 +280,19 @@ export class StoreFirstService {
     if (!UUID.test(categoryId)) throw new AppError('CATEGORY_NOT_FOUND');
 
     let itemId: string | null = null;
-    let brand: StoreBrandScope | null = null;
 
-    if (store.kind === 'place') {
+    if (store.kind === 'brand') {
+      // 브랜드 전체 is brand x menu (item_brand_scopes), separate from every branch.
+      const { data, error } = await this.db().from('item_brand_scopes')
+        .select('item_id')
+        .eq('brand_id', store.brandId)
+        .eq('category_id', categoryId)
+        .maybeSingle();
+      if (error) throw mapSupabaseError(error);
+      itemId = typeof (data as { item_id?: string } | null)?.item_id === 'string'
+        ? (data as { item_id: string }).item_id
+        : null;
+    } else if (store.kind === 'place') {
       const { data, error } = await this.client.rpc('search_place_catalog', {
         p_category_id: categoryId,
         p_query: store.name,
@@ -275,12 +301,6 @@ export class StoreFirstService {
       if (error) throw mapSupabaseError(error);
       const row = (data ?? []).find((entry) => entry.catalog_id === store.catalogId);
       itemId = row?.existing_item_id ?? null;
-      if (row) {
-        brand = await this.placeBrandScope(categoryId, {
-          place_provider: row.place_provider,
-          provider_place_id: row.provider_place_id,
-        });
-      }
     } else {
       const { data, error } = await this.db().from('item_providers')
         .select('item_id')
@@ -294,7 +314,7 @@ export class StoreFirstService {
     }
 
     const state = await this.itemState(itemId, categoryId);
-    return { ...state, categoryId, brand };
+    return { ...state, categoryId };
   }
 
   async suggestMapLink(itemId: string, url: string) {

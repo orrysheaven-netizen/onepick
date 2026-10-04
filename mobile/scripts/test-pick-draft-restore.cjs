@@ -268,6 +268,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
       { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
     ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
+    useStoreSearchBrands: () => ({ data: [] }),
     useMenuOptions: () => ({ data: [{ categoryId: 'cat-naengmyeon', name: '평양냉면', groupName: '면', placeEnabled: true }], isSuccess: true, isError: false, refetch() {} }),
     useMenuSuggestions: () => ({ data: undefined, isPending: true, isFetching: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => { if (selectFails) throw new AppError('ITEM_NOT_FOUND'); return selectResult; }),
@@ -492,9 +493,30 @@ async function signOutTests() {
   assert.equal(cleared.length, 1, 'a failed sign-out keeps the draft (session still active)');
 }
 
+// A draft saved before 브랜드 전체 moved to step 1 chose the brand on a branch store.
+// The branch is not the brand: ask for the store again instead of saving the branch.
+async function legacyBrandScopeDraftTest() {
+  reset();
+  assert.equal(draftStore.save('owner', fields({ pickScope: 'brand' })), true);
+  let page = await render(); page = await render();
+  assert.equal(stepOf(page), '1', 'returns to store search');
+  assert.equal(input('매장명 검색').value, '을밀대', 'the search text is kept');
+  assert.equal(count('select'), 0, 'the branch item is not looked up');
+  assert.equal(count('register'), 0);
+
+  // A brand chosen on step 1 restores like any other store.
+  reset();
+  assert.equal(draftStore.save('owner', fields({
+    step: 2, pickScope: 'brand', store: { kind: 'brand', brandId: 'brand-1', name: '을밀대', logoUrl: null },
+  })), true);
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'a brand-first draft returns to the menu step');
+}
+
 async function main() {
   unitTests();
   await screenTests();
+  await legacyBrandScopeDraftTest();
   await signOutTests();
   console.log('pick draft restore checks passed');
 }
