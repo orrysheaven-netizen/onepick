@@ -1,6 +1,7 @@
 import { withSupabase } from '@supabase/server';
 
 const ITEM_BUCKET = 'item-photos';
+const PROFILE_IMAGE_BUCKET = 'profile-images';
 const DELETE_REQUEST_STATUSES = ['pending', 'rejected', 'merged'];
 
 function jsonError(code: string, status = 500) {
@@ -36,10 +37,10 @@ async function preserveItemAsset(
   return destination;
 }
 
-async function removeUserFolder(admin: any, userId: string) {
+async function removeUserFolder(admin: any, userId: string, bucket = ITEM_BUCKET) {
   for (;;) {
     const { data, error } = await admin.storage
-      .from(ITEM_BUCKET)
+      .from(bucket)
       .list(userId, { limit: 1000, offset: 0, sortBy: { column: 'name', order: 'asc' } });
     if (error) throw new Error('ACCOUNT_ASSET_LIST_FAILED');
     if (!data?.length) return;
@@ -49,7 +50,7 @@ async function removeUserFolder(admin: any, userId: string) {
       .map((item: { name: string }) => `${userId}/${item.name}`);
     if (!paths.length) return;
 
-    const { error: removeError } = await admin.storage.from(ITEM_BUCKET).remove(paths);
+    const { error: removeError } = await admin.storage.from(bucket).remove(paths);
     if (removeError) throw new Error('ACCOUNT_ASSET_DELETE_FAILED');
   }
 }
@@ -100,6 +101,8 @@ export default {
       }
 
       await removeUserFolder(ctx.supabaseAdmin, userId);
+      // Profile photos are personal; none are preserved for the service.
+      await removeUserFolder(ctx.supabaseAdmin, userId, PROFILE_IMAGE_BUCKET);
 
       const { error: deleteError } = await ctx.supabaseAdmin.auth.admin.deleteUser(userId);
       if (deleteError) throw new Error('ACCOUNT_AUTH_DELETE_FAILED');
