@@ -415,7 +415,6 @@ export default function ProfileScreen() {
           </> : null}
         </View> : null}
 
-        <View style={styles.signOutArea}><SignOutButton /></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -581,12 +580,6 @@ const styles = StyleSheet.create({
   requestAction: { ...OnePickType.captionMedium, color: OnePick.textAccent, marginTop: OnePickSpace.sm },
   chevron: { ...OnePickType.title, color: OnePick.textTertiary, paddingHorizontal: OnePickSpace.xs },
   noHistory: { ...OnePickType.caption, color: OnePick.textSecondary, paddingVertical: OnePickSpace.sm },
-  signOutArea: {
-    marginTop: OnePickSpace.xxl,
-    paddingTop: OnePickSpace.lg,
-    borderTopWidth: 1,
-    borderTopColor: OnePick.borderDefault,
-  },
   centerState: {
     flex: 1,
     width: '100%',

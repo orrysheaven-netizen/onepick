@@ -30,4 +30,7 @@ assert.doesNotMatch(source, /fontWeight:\s*['"](?:800|900)['"]/, 'settings must 
 console.log('Settings Foundations checks passed: visual tokens changed without changing account/safety behavior.');
 
 assert.doesNotMatch(source, /SignOutButton/, 'settings shows sign-out as its own row, not the profile button stack');
+assert.match(source, /adminAccess\.data === true \? <>[\s\S]*"운영 현황 · 감사 로그"[\s\S]*"신고 관리"/, 'admin console links moved from the profile into settings, admins only');
+const profileScreen = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
+assert.doesNotMatch(profileScreen, /signOutArea/, 'the loaded profile has no sign-out button at the bottom (Figma 68-1)');
 assert.match(signOut, /showSettingsLink \? <Pressable[\s\S]*router\.push\('\/settings'\)/, 'other screens may still expose the settings shortcut');

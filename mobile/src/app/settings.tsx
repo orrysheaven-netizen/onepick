@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
+import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
@@ -22,6 +23,7 @@ function deletionError(error: unknown) {
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
+  const adminAccess = useAdminAccess(user?.id);
   const deleteAccount = useDeleteAccount();
   const signOut = useSignOut();
   const preferences = useNotificationPreferences(OnePickFeatures.followNotifications ? user?.id : undefined);
@@ -101,6 +103,14 @@ export default function SettingsScreen() {
             {signOut.isError ? <Text accessibilityRole="alert" style={styles.error}>로그아웃하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text> : null}
             <SettingsRow label="계정 삭제" danger pending={deleteAccount.isPending} onPress={() => void handleDeleteAccount()} />
             {deleteAccount.isError ? <Text accessibilityRole="alert" style={styles.error}>{deletionError(deleteAccount.error)}</Text> : null}
+
+            {/* Admins only: the console links that used to sit under the profile's sign-out button. */}
+            {adminAccess.data === true ? <>
+              <View style={styles.sectionGap} />
+              <Text style={styles.sectionLabel}>관리자</Text>
+              <SettingsRow label="운영 현황 · 감사 로그" onPress={() => router.push({ pathname: '/admin/data', params: { tab: 'audit' } })} />
+              <SettingsRow label="신고 관리" onPress={() => router.push({ pathname: '/admin/data', params: { tab: 'reports' } })} />
+            </> : null}
           </>
         ) : null}
       </ScrollView>

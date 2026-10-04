@@ -222,7 +222,7 @@ async function main() {
   await test('Owner profile hides confirmed-empty activity but continues both queries', () => {
     const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|원픽 활동|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
     assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
+    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 0, 'Sign-out lives in settings (Figma 68), not under the profile');
     assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('새로고침')), undefined);
   });
   await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
