@@ -4,17 +4,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HomeFeedCard } from '@/components/home-feed-card';
+import { HomePickRow } from '@/components/home-pick-row';
 import { HomeHeader } from '@/components/home-header';
-import { BrandMark, Button, Chip, SectionHeader, StateCard } from '@/components/ui';
+import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData, useHomeMenuRanking } from '@/hooks/useHomeData';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
-import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG, homeMenuRankingGroups } from '@/lib/home/homeCategoryFilters';
+import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 import type { FoodMenuRecentRankingItem, HomeFeedPick } from '@/repositories/interfaces/readRepository';
+
+const HOME_FEED_LIMIT = 10;
+const HOME_MENU_LIMIT = 6;
 
 function RecentMenuCard({ menu, onOpen }: { menu: FoodMenuRecentRankingItem; onOpen?: () => void }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
@@ -30,9 +33,11 @@ function RecentMenuCard({ menu, onOpen }: { menu: FoodMenuRecentRankingItem; onO
             <Text style={styles.menuPhotoPlaceholderText}>사진을 불러올 수 없어요.</Text>
           </View>}
     </View>
+    {/* Figma 30-1 shows 매장명 + 메뉴명 here; the current 7-day aggregate is per menu, so only the menu name is available. */}
     <View style={styles.menuCardCopy}>
       <Text numberOfLines={1} style={styles.menuCardName}>{menu.categoryName}</Text>
-      <Text style={styles.menuCardCount}>{menu.pickCount >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${menu.pickCount.toLocaleString()}` : '사람들의 원픽 보기'}</Text>
+      {menu.pickCount >= OnePickThresholds.exploreRankingMinPicks
+        ? <Text style={styles.menuCardCount}>원픽 {menu.pickCount.toLocaleString()}</Text> : null}
     </View>
   </Pressable>;
 }
@@ -78,8 +83,9 @@ export default function HomeScreen() {
   const selectedCategoryGroup = showCategoryFilters
     ? categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null
     : null;
+  // Home shows only the newest ten Picks and never loads more; 더보기 opens the full feed.
   const visiblePicks = useMemo(
-    () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup),
+    () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup).slice(0, HOME_FEED_LIMIT),
     [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
@@ -87,11 +93,10 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  const rankingGroups = useMemo(() => homeMenuRankingGroups(categoryCatalog), [categoryCatalog]);
-  const [selectedMenuRankingGroupId, setSelectedMenuRankingGroupId] = useState<string | null>(null);
-  const menuRankingQuery = useHomeMenuRanking(selectedMenuRankingGroupId, mvpChannel, !isSessionLoading && !sessionError);
+  // Figma 30-1 (10-04): no group chips; the top six menus in a 2×3 grid.
+  const menuRankingQuery = useHomeMenuRanking(null, mvpChannel, !isSessionLoading && !sessionError);
   // The product contract never displays a photo-less Pick card. Legacy ranking rows without a cover stay hidden; only URL load failure uses the fixed placeholder.
-  const rankedMenus = (menuRankingQuery.data ?? []).filter((menu) => Boolean(menu.thumbnailUrl)).slice(0, 4);
+  const rankedMenus = (menuRankingQuery.data ?? []).filter((menu) => Boolean(menu.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
   const categoryById = useMemo(() => new Map(categoryCatalog.map((category) => [category.id, category])), [categoryCatalog]);
   const openMenu = (categoryId: string) => {
     const category = categoryById.get(categoryId);
@@ -114,21 +119,14 @@ export default function HomeScreen() {
     if (!homeQuery.isFetching) void homeQuery.refetch({ cancelRefetch: false });
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
-  const isMyItem = (itemId: string) => Boolean(user && data?.currentPicks.some(({ pick }) =>
-    pick.itemId === itemId && pick.status === 'active' && pick.channel === mvpChannel));
-  // Both feed scopes render the same current-Pick card. Home is for reading
-  // someone's choice and reason; choosing my own Pick stays in the registration flow.
-  const renderFeedCard = (pick: HomeFeedPick) => <View style={styles.productCell}>
-    <HomeFeedCard pick={pick} mine={isMyItem(pick.itemId)}
-      onOpenItem={() => openItem(pick.itemId)}
-      onOpenProfile={() => openProfile(pick.username)}
-      onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
-      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
-  </View>;
+  // Both feed scopes render the same current-Pick row (Figma 30-1D): no comments/share on Home.
+  const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id}
+    onOpenItem={() => openItem(pick.itemId)}
+    onOpenProfile={() => openProfile(pick.username)}
+    onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
+  const feedGap = () => <View style={styles.feedGap} />;
 
   const listHeader = <>
-    <HomeHeader onOpenItem={openItem} />
-
     {OnePickFeatures.followingFeed && user && !followDefaultPending ? <View style={styles.scopeRow}>
       {(['following', 'all'] as const).map((scope) => {
         const selected = feedScope === scope;
@@ -144,10 +142,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* The header stays fixed; Home scrolls as one list below it. */}
+      <View style={styles.fixedHeader}><HomeHeader onOpenItem={openItem} /></View>
       {showFollowing ? <FlatList
         data={followingItems}
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
+        ItemSeparatorComponent={feedGap}
         onEndReached={() => {
           if (followingQuery.hasNextPage && !followingQuery.isFetching && !followingQuery.isFetchNextPageError) {
             void followingQuery.fetchNextPage({ cancelRefetch: false });
@@ -184,12 +185,7 @@ export default function HomeScreen() {
         data={ready ? visiblePicks : []}
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
-        onEndReached={() => {
-          if (ready && homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
-            void homeQuery.fetchNextPage({ cancelRefetch: false });
-          }
-        }}
-        onEndReachedThreshold={0.6}
+        ItemSeparatorComponent={feedGap}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -210,32 +206,28 @@ export default function HomeScreen() {
         </View>}
 
         {ready ? <View style={styles.rankingSection}>
-          {rankingGroups.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.rankingFilterRow}>
-            <Chip label="전체" selected={selectedMenuRankingGroupId === null} accessibilityLabel="전체 인기 메뉴 보기"
-              onPress={() => setSelectedMenuRankingGroupId(null)} />
-            {rankingGroups.map((group) => <Chip key={group.id} label={group.name}
-              selected={selectedMenuRankingGroupId === group.id} accessibilityLabel={`${group.name} 인기 메뉴 보기`}
-              onPress={() => setSelectedMenuRankingGroupId(group.id)} />)}
-          </ScrollView> : null}
+          {/* 더보기 for this section waits for a decided destination (see PR #709). */}
+          <Text style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
           {menuRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {menuRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
             text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있습니다."
             action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
-          {!menuRankingQuery.isPending && !menuRankingQuery.isError && rankedMenus.length ? <>
-            <Text style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
-            <View style={styles.menuGrid}>
+          {!menuRankingQuery.isPending && !menuRankingQuery.isError && rankedMenus.length ? <View style={styles.menuGrid}>
             {rankedMenus.map((menu) => <RecentMenuCard key={menu.categoryId} menu={menu}
               onOpen={categoryById.has(menu.categoryId) ? () => openMenu(menu.categoryId) : undefined} />)}
-            </View>
-          </> : null}
+          </View> : null}
           {!menuRankingQuery.isPending && !menuRankingQuery.isError && !rankedMenus.length ? <StateCard compact
             title="최근 7일 원픽이 아직 없어요." text="원픽이 쌓이면 많이 고른 메뉴를 보여드릴게요."
             action={{ label: '전체 메뉴 보기', onPress: () => router.push('/explore') }} /> : null}
         </View> : null}
 
-        <View style={styles.sectionHeader}>
-          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 다른 사람의 취향을 참고하고 나만의 하나를 발견해요." />
+        <View style={styles.sectionDivider} />
+        <View style={styles.feedHeader}>
+          <Text accessibilityRole="header" style={styles.feedTitle}>사람들의 원픽</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="사람들의 원픽 더보기" onPress={() => router.push('/feed')}
+            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
+            <Text style={styles.moreText}>더보기</Text>
+          </Pressable>
         </View>
 
         {ready && showCategoryFilters ? <ScrollView
@@ -273,10 +265,6 @@ export default function HomeScreen() {
             ? { label: '다음 원픽 더 불러오기', accessibilityLabel: selectedCategoryGroup.name + ' 다음 원픽 더 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }
             : { label: '전체 보기', accessibilityLabel: '전체 카테고리 보기', onPress: () => setSelectedCategoryGroupId(null) }} /> : null}
         ListFooterComponent={ready && data ? <>
-          {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 원픽 불러오는 중" color={OnePick.accent} /> : null}
-          {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 원픽을 불러오지 못했어요."
-            action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }} /> : null}
-          {!homeQuery.hasNextPage && data.picks.length > 0 ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
           <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>
         </> : null}
       />}
@@ -292,7 +280,6 @@ const styles = StyleSheet.create({
   signinTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   signinText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: 2 },
   categorySection: { marginBottom: OnePickSpace.xxl },
-  sectionHeader: { marginBottom: OnePickSpace.sm },
   editorialSection: { marginBottom: OnePickSpace.xxl },
   editorialList: { gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
   editorialCard: { padding: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
@@ -309,20 +296,27 @@ const styles = StyleSheet.create({
   scopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   scopeTextSelected: { color: OnePick.onAction },
   categoryFilterRow: { gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, paddingRight: OnePickSpace.xs, marginBottom: OnePickSpace.sm },
-  rankingSection: { marginTop: OnePickSpace.md, marginBottom: OnePickSpace.xxl },
-  rankingFilterRow: { gap: OnePickSpace.sm, paddingBottom: OnePickSpace.md, paddingRight: OnePickSpace.xs },
-  rankingSort: { ...OnePickType.caption, color: OnePick.textSecondary, marginBottom: OnePickSpace.md },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.md },
-  menuCard: { width: '46%', overflow: 'hidden', borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgDefault },
-  menuPhoto: { width: '100%', aspectRatio: 173 / 118, overflow: 'hidden', backgroundColor: OnePick.bgPlaceholder },
+  fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.background },
+  rankingSection: { marginTop: OnePickSpace.sm },
+  rankingSort: { ...OnePickType.bodyMedium, color: OnePick.textSecondary, marginBottom: OnePickSpace.md },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: OnePickSpace.lg },
+  menuCard: { width: '48%' },
+  menuPhoto: { width: '100%', aspectRatio: 173 / 118, overflow: 'hidden', borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgPlaceholder },
   menuImage: { width: '100%', height: '100%' },
   menuPhotoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgPlaceholder },
   menuPhotoPlaceholderText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  menuCardCopy: { padding: OnePickSpace.md },
-  menuCardName: { ...OnePickType.headline, color: OnePick.textPrimary },
-  menuCardCount: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  // Image → text 8px; name and count on one line.
+  menuCardCopy: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingTop: 8, minWidth: 0 },
+  menuCardName: { ...OnePickType.bodyMedium, fontWeight: '700', color: OnePick.textPrimary, flexShrink: 1 },
+  menuCardCount: { ...OnePickType.caption, color: OnePick.textSecondary, flexShrink: 0 },
+  // Light gray rule between 인기 메뉴 and 사람들의 원픽, 24px above and below.
+  sectionDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: 24 },
+  feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.sm },
+  feedTitle: { ...OnePickType.headline, fontSize: 18, color: OnePick.textPrimary },
+  moreButton: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  moreText: { ...OnePickType.body, color: OnePick.textSecondary },
+  feedGap: { height: 12 },
   menuPressed: { opacity: 0.9 },
-  productCell: { marginBottom: OnePickSpace.md },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },

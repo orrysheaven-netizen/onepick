@@ -63,7 +63,11 @@ const rankingQuery = {
       coverItemId: 'soup-a-item', thumbnailUrl: 'https://onepick.test/soup-a.jpg' },
     { categoryId: 'soup-b', categoryName: '곰탕', groupCategoryId: 'soup', pickCount: 4, rank: 5, isTied: false,
       coverItemId: 'soup-b-item', thumbnailUrl: 'https://onepick.test/soup-b.jpg' },
-    { categoryId: 'overflow', categoryName: '초과메뉴', groupCategoryId: 'food', pickCount: 3, rank: 6, isTied: false,
+    { categoryId: 'soup-c', categoryName: '순두부', groupCategoryId: 'soup', pickCount: 3, rank: 6, isTied: false,
+      coverItemId: 'soup-c-item', thumbnailUrl: 'https://onepick.test/soup-c.jpg' },
+    { categoryId: 'noodle-b', categoryName: '냉면', groupCategoryId: 'noodles', pickCount: 3, rank: 7, isTied: false,
+      coverItemId: 'noodle-b-item', thumbnailUrl: 'https://onepick.test/noodle-b.jpg' },
+    { categoryId: 'overflow', categoryName: '초과메뉴', groupCategoryId: 'food', pickCount: 3, rank: 8, isTied: false,
       coverItemId: 'overflow-item', thumbnailUrl: 'https://onepick.test/overflow.jpg' },
   ],
   isPending: false, isError: false, isFetching: false,
@@ -83,13 +87,13 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
   '@/components/pick-photo': pickPhoto,
   '@/components/ui': ui,
-  '@/components/home-feed-card': load('components/home-feed-card.tsx', {
+  '@/components/home-pick-row': load('components/home-pick-row.tsx', {
     'react-native': native,
     '@/components/ui': ui,
-    '@/components/ui/touch': load('components/ui/touch.ts'),
+    '@/components/pick-photo': pickPhoto,
+    '@/components/current-pick-flag': load('components/current-pick-flag.tsx', { 'react-native': native, '@/constants/onepick': onepickConstants }),
     '@/constants/onepick': onepickConstants,
     '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
-    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   }),
   '@/hooks/useFollow': {
     useFollowCounts: () => followCountsQuery,
@@ -145,18 +149,17 @@ assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under
 assert.match(allFirstPage, /원픽 7/);
 assert.doesNotMatch(allFirstPage, /사진없는메뉴/, 'Legacy ranking rows without a cover are never rendered as photo-less cards');
 const rankingButtons = presses.filter((p) => / 메뉴 원픽 보기$/.test(p.accessibilityLabel ?? ''));
-assert.equal(rankingButtons.length, 4, 'Photo-less legacy rows are backfilled so Home still shows four ranking cards');
-assert.doesNotMatch(allFirstPage, /초과메뉴/, 'Home caps the visible recent ranking at four cards');
+assert.equal(rankingButtons.length, 6, 'Photo-less legacy rows are backfilled so Home still shows six ranking cards (2×3)');
+assert.doesNotMatch(allFirstPage, /초과메뉴/, 'Home caps the visible recent ranking at six cards');
 const rankingCardStyle = rankingButtons[0].style({ pressed: false })[0];
-assert.equal(rankingCardStyle.width, '46%');
+assert.equal(rankingCardStyle.width, '48%', 'Two columns');
 assert.equal(rankingCardStyle.flexGrow, undefined, 'An odd last row keeps the two-column card width');
 const lowSampleMenu = presses.find((p) => p.accessibilityLabel === '과자 메뉴 원픽 보기');
 assert.ok(lowSampleMenu, 'Low-sample menu stays browsable');
 assert.doesNotMatch(textOf(lowSampleMenu.children), /원픽 2/, 'A menu below the 3-person exposure threshold hides its recent count');
-assert.match(textOf(lowSampleMenu.children), /사람들의 원픽 보기/, 'Low-sample menu uses the non-numeric fallback copy');
 assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 원픽/);
 assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Recent ranking exposes the menu-detail route');
-assert.ok(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), 'Home ranking uses second-level food groups as chips');
+assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
 assert.equal(menuRankingGroupArg, null, 'Home ranking starts from all food groups');
 assert.equal(menuRankingChannelArg, 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
 
@@ -178,9 +181,9 @@ for (width of [390, 800, 1200]) {
   const page = render();
   assert.match(page, /@friend/); assert.match(page, /“다른 사람의 이유”/, 'Each card quotes that person’s own reason');
   assert.match(page, /@neighbor/); assert.match(page, /이웃도 신라면/);
-  assert.match(page, /✓ 내 원픽/, 'A card for the exact item I already picked shows the current-Pick state');
+  assert.doesNotMatch(page, /✓ 내 원픽/, 'Figma 30 (10-04): no "✓ 내 원픽" text on feed rows');
   assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
-  assert.match(page, /댓글/); assert.match(page, /공유/);
+  assert.equal(presses.find((p) => / (댓글 보기|공유)$/.test(p.accessibilityLabel ?? '')), undefined, 'Home rows drop comments/share (10-04)');
   assert.doesNotMatch(page, /새로 고름|9\/21|2시간/, 'Home keeps Pick ordering but never renders time/status text');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the provider/menu content');
@@ -200,10 +203,7 @@ for (width of [390, 800, 1200]) {
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
-  press('진라면 제공처 프로필 보기'); assert.equal(destination.pathname, '/provider/[providerId]'); assert.equal(destination.params.providerId, '11111111-1111-4111-8111-111111111111');
-  press('진라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'jin'); assert.equal(destination.params.pickId, 'other');
-  press('신라면 댓글 보기'); assert.equal(destination.pathname, '/item/[itemId]'); assert.equal(destination.params.itemId, 'ramen'); assert.equal(destination.params.pickId, 'same-as-mine');
-  assert.ok(presses.find((p) => p.accessibilityLabel === '진라면 공유'), 'Each Home Pick exposes the existing deep-link share action');
+  press('사람들의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면 메뉴 원픽 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
   assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');
@@ -223,13 +223,16 @@ render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 �
 assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
-render(); endReached(); assert.equal(pageCalls, 1);
-query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1);
-query.isFetching = false; query.isFetchNextPageError = true;
-assert.match(render(), /다음 원픽을 불러오지 못했어요/); endReached(); assert.equal(pageCalls, 1, 'Do not repeatedly retry a failed next page');
-press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 2);
-query.isFetchNextPageError = false; query.hasNextPage = false; render(); endReached(); assert.equal(pageCalls, 2);
-assert.match(render(), /모두 확인했어요/);
+// Home (10-04): the newest ten only, no automatic or manual next page; the full feed pages.
+query.data.picks = Array.from({ length: 20 }, (_, i) => ({ ...smallFeed[0], pickId: `ten-${i}`, itemId: `ten-item-${i}`, username: `user${i}` }));
+const capped = render();
+assert.match(capped, /@user9</); assert.doesNotMatch(capped, /@user10</, 'Home shows at most ten Picks');
+assert.equal(endReached, undefined, 'Home never loads more on scroll');
+query.isFetchNextPageError = true;
+assert.doesNotMatch(render(), /다음 원픽을 불러오지 못했어요|모두 확인했어요/);
+assert.equal(pageCalls, 0);
+query.isFetchNextPageError = false; query.hasNextPage = false;
+query.data.picks = smallFeed;
 auth.user = null;
 const publicPage = render();
 assert.match(publicPage, /진라면/); assert.match(publicPage, /신라면/);
@@ -248,7 +251,7 @@ assert.ok(presses.find((p) => p.children?.props?.children === '전체 메뉴 보
 rankingQuery.data = rankingData;
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|✓ 내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.doesNotMatch(publicPage, /나도 이게 원픽/, 'Home no longer promotes copying someone else’s Pick');
-assert.match(publicPage, /댓글/); assert.match(publicPage, /공유/);
+assert.doesNotMatch(publicPage, />댓글<|>공유</, 'Visitors also get rows without comments/share');
 press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');

@@ -129,7 +129,7 @@ export default function PickDetailScreen() {
               <Text style={styles.author}>
                 {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
               </Text>
-              {focused.pick.isCurrent ? <CurrentPickFlag /> : null}
+              {focused.pick.isCurrent ? <CurrentPickFlag mine={focused.pick.userId === user?.id} /> : null}
             </View>
             {focused.pick.isDeleted
               ? <Text style={styles.reviewText}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>

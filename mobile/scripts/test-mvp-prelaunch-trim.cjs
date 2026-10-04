@@ -43,7 +43,7 @@ function home(count = 20, followingCount = 0) {
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
-    '@/components/home-feed-card': names('HomeFeedCard'), '@/components/home-header': names('HomeHeader'), '@/components/pick-photo': names('PickPhoto'),
+    '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/pick-photo': names('PickPhoto'),
   });
   view.render(); return { view, q, following, followCounts, auth, calls };
 }
@@ -137,9 +137,9 @@ async function main() {
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render();
     assert.equal(view.find('FlatList').data.length, 1); assert.equal(categoryChips(view).length, 3);
     q.data.picks = picks(19); view.render();
-    assert.equal(view.find('FlatList').data.length, 19, 'No invisible filtering before effects flush');
+    assert.equal(view.find('FlatList').data.length, 10, 'No invisible filtering before effects flush; Home caps at ten');
     assert.equal(categoryChips(view).length, 0); view.flushEffects();
-    q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
+    q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 10);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
   await test('MVP Home exposes food + offline only while future channels stay internal', () => {
@@ -154,7 +154,8 @@ async function main() {
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
-    assert.equal(view.find('FlatList').data.length, 20, 'Hidden chips never filter the feed');
+    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home shows the newest ten');
+    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never loads more on scroll');
   });
   await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
     const { view, calls } = explore({ chips: false });
@@ -187,7 +188,8 @@ async function main() {
     q.isFetching = true; view.render(); const retry = view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'); assert.equal(retry.disabled, true); retry.onPress(); assert.equal(q.refetches, 2);
     q.isFetching = false; q.data = undefined; view.render(); view.find('StateCard', (p) => p.tone === 'danger').action.onPress(); assert.equal(q.refetches, 3);
     q.data = { picks: picks(2), currentPicks: [] }; q.isFetchNextPageError = true; view.render();
-    view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기').action.onPress(); assert.equal(q.nextPages, 1);
+    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined, 'Home has no next page to retry');
+    assert.equal(q.nextPages, 0);
   });
   await test('Explore hides tied counts, emphasis and accessible rank; keeps detail routes', () => {
     const { view, calls } = explore(); assert.equal(calls.categoryId, 'ramen');
