@@ -59,6 +59,7 @@ begin
   reset role;
 
   -- A deleted latest comment drops out of the events; the group previews the one before it.
+  perform set_config('request.jwt.claim.sub',other::text,true);
   update public.comments set deleted_at = now(), body = '' where id = c_other;
   perform set_config('request.jwt.claim.sub',viewer::text,true);
   set local role authenticated;
