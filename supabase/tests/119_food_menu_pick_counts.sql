@@ -19,7 +19,6 @@ begin
   insert into public.profiles(id,username,onboarding_completed)
     select id,'fpc_'||substr(replace(id::text,'-',''),1,12),true from unnest(array[u1,u2,u3,u4,bad,admin]) id;
   insert into private.admin_users(user_id) values(admin);
-  insert into private.user_moderation(user_id,reason,suspended_by) values(bad,'counts fixture',admin);
 
   insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable)
     select grp,c.id,'FPC 그룹','fpc-grp-'||substr(replace(grp::text,'-',''),1,8),'open',true,false
@@ -50,6 +49,8 @@ begin
     (u2,noodle,noodle_a,'online','fpc','active',now()-interval '1 day',null),
     (u3,hidden,hidden_a,'offline','fpc','active',now()-interval '1 day',null);
   update public.categories set status='closed' where id=hidden;
+  -- Suspend after the fixture Picks exist (suspension blocks new writes).
+  insert into private.user_moderation(user_id,reason,suspended_by) values(bad,'counts fixture',admin);
 
   assert has_function_privilege('anon','public.food_menu_pick_counts(text)','execute'), 'Guests can read the public counts';
 
