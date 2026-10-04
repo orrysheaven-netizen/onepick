@@ -175,13 +175,13 @@ async function main() {
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
   assert.match(featureSource, /profileFollow: true/, 'MVP exposes the public-profile follow relationship');
   assert.match(featureSource, /followingFeed: false/, 'MVP keeps the following feed hidden behind its own gate');
-  assert.match(featureSource, /followNotifications: false/, 'MVP keeps follow-change notifications hidden behind their own gate');
+  assert.match(featureSource, /followNotifications: true/, 'Follow-change notification switch is on in settings (사용자 결정 10-05)');
   assert.match(featureSource, /followCounts: false/, 'Legacy own-profile count component remains separately hidden');
   const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
   assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.followNotifications \? user\?\.id : undefined\)/,
-    'Hidden follow mode does not start the follow-notification preference query');
+    'The follow-notification preference query stays behind its gate');
   assert.match(settings, /\{OnePickFeatures\.followNotifications \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
-    'Follow notification settings remain implemented but hidden behind the same gate');
+    'Follow notification settings stay behind the same gate');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
   assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
     'Own profile only renders follower/following numbers behind the dedicated count gate');

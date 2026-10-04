@@ -107,7 +107,7 @@ async function main() {
     assert.equal(flags.tasteComposition, false); assert.equal(flags.profileAi, false); assert.equal(flags.exploreRankingDetail, true);
     assert.equal(flags.profileFollow, true, 'MVP exposes the approved public-profile follow CTA');
     assert.equal(flags.followingFeed, false, 'MVP keeps the following feed separately deferred');
-    assert.equal(flags.followNotifications, false, 'MVP keeps follow-change notifications separately deferred');
+    assert.equal(flags.followNotifications, true, 'The follow-change notification switch is shown in settings (user decision 10-05); the notifications themselves already reach the 알림 tab');
     assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
     assert.equal(flags.foodChannelPicker, false, 'Initial MVP keeps online/recipe food registration entries hidden');
     assert.equal(constants.OnePickMvp.publicPickChannel, 'offline'); assert.equal(constants.OnePickMvp.browseGroupSlug, 'food');
