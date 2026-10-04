@@ -96,7 +96,7 @@ export function FollowConnectionsView({
           <View style={styles.headerSide} />
         </View>
         <View style={styles.stateArea}>
-          <StateCard title="프로필을 볼 수 없어요" text="존재하지 않거나 현재 공개되지 않는 프로필입니다." />
+          <StateCard title="프로필을 볼 수 없어요." text="존재하지 않거나 현재 공개되지 않는 프로필입니다." />
         </View>
       </View>
     );
@@ -142,14 +142,14 @@ export function FollowConnectionsView({
 
       {firstLoad ? (
         <View style={styles.stateArea}>
-          <StateCard loading title={direction === 'followers' ? '팔로워를 불러오고 있어요' : '팔로잉을 불러오고 있어요'} />
+          <StateCard loading title={direction === 'followers' ? '팔로워를 불러오고 있어요.' : '팔로잉을 불러오고 있어요.'} />
         </View>
       ) : firstError ? (
         <View style={styles.stateArea}>
           <StateCard
             tone="danger"
             accessibilityRole="alert"
-            title={direction === 'followers' ? '팔로워를 불러오지 못했어요' : '팔로잉을 불러오지 못했어요'}
+            title={direction === 'followers' ? '팔로워를 불러오지 못했어요.' : '팔로잉을 불러오지 못했어요.'}
             text="연결 상태를 확인한 뒤 다시 시도해주세요."
             action={{
               label: '다시 불러오기',
@@ -169,7 +169,7 @@ export function FollowConnectionsView({
           onEndReachedThreshold={0.6}
           ListEmptyComponent={
             <StateCard
-              title={direction === 'followers' ? '아직 팔로워가 없어요' : '아직 팔로잉한 사람이 없어요'}
+              title={direction === 'followers' ? '아직 팔로워가 없어요.' : '아직 팔로잉한 사람이 없어요.'}
               text={direction === 'followers'
                 ? `@${ownerUsername}님을 팔로우한 사람이 생기면 여기에 표시됩니다.`
                 : `@${ownerUsername}님이 다른 사람을 팔로우하면 여기에 표시됩니다.`}

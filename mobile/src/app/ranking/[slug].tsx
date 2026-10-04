@@ -86,10 +86,10 @@ export default function CategoryRankingScreen() {
 
         {loading ? <ActivityIndicator accessibilityLabel="랭킹 불러오는 중" style={styles.loading} /> : null}
 
-        {notFound && !loading ? <StateCard title="이 카테고리의 랭킹은 아직 없어요" text="카테고리가 열리면 이곳에서 원픽 랭킹을 볼 수 있어요."
+        {notFound && !loading ? <StateCard title="이 카테고리의 랭킹은 아직 없어요." text="카테고리가 열리면 이곳에서 원픽 랭킹을 볼 수 있어요."
           action={{ label: '카테고리 탐색으로', onPress: () => router.replace('/explore') }} /> : null}
 
-        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요"
+        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
           action={{ label: '다시 불러오기', onPress: () => void categories.refetch() }} /> : null}
 
         {categoryOpen && categoryName ? <>
@@ -101,7 +101,7 @@ export default function CategoryRankingScreen() {
               : '아직 순위를 매기기엔 원픽이 적어요. 원픽이 더 모이면 순위가 표시돼요.'}
           </Text>
 
-          {ranking.isError ? <StateCard compact tone="danger" title="랭킹을 불러오지 못했어요"
+          {ranking.isError ? <StateCard compact tone="danger" title="랭킹을 불러오지 못했어요."
             text={ranking.data ? '마지막으로 불러온 내용을 표시하고 있어요.' : '연결 상태를 확인한 뒤 다시 시도해주세요.'}
             action={{ label: ranking.isFetching ? '불러오는 중…' : '다시 불러오기', disabled: ranking.isFetching,
               onPress: () => { if (!ranking.isFetching) void ranking.refetch({ cancelRefetch: false }); } }} /> : null}
@@ -127,7 +127,7 @@ export default function CategoryRankingScreen() {
               </Pressable>
             </View>)}
           </View>
-          {ranking.isSuccess && rows.length === 0 ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {ranking.isSuccess && rows.length === 0 ? <StateCard title="아직 선택된 원픽이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {showRankingDetail && rows.length > 0 ? <Text style={styles.footnote}>같은 선택 수는 공동 순위 · 최대 {RANKING_PAGE_SIZE}개</Text> : null}
 
           {category && slug ? <DishPeoplePicks categoryId={category.categoryId} categoryName={categoryName} userId={user?.id}

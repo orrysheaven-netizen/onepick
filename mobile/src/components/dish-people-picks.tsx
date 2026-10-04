@@ -72,10 +72,10 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
       <View accessibilityLabel={`${categoryName} 사람들의 원픽`} style={[styles.container, styles.menuDetailContainer]}>
         <Text accessibilityRole="header" style={styles.menuDetailCount}>원픽 {totalPickCountLabel}</Text>
 
-        {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요" /> : null}
-        {query.isError && !loadedPicks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요"
+        {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요." /> : null}
+        {query.isError && !loadedPicks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요."
           action={{ label: '다시 불러오기', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} /> : null}
-        {query.isSuccess && !loadedPicks.length ? <StateCard compact title={`아직 ${categoryName} 원픽이 없어요`}
+        {query.isSuccess && !loadedPicks.length ? <StateCard compact title={`아직 ${categoryName} 원픽이 없어요.`}
           text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
 
         {mine.map(renderMenuDetailCard)}
@@ -90,16 +90,16 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
   return (
     <View accessibilityLabel={`${categoryName} 사람들의 원픽`} style={styles.container}>
       <SectionHeader title={menuContext ? '사람들의 원픽' : `사람들의 ${categoryName} 원픽`}
-        description="최근 고른 순 · 누가 어디를 왜 골랐는지 볼 수 있어요" />
+        description="최근 고른 순 · 누가 어디를 왜 골랐는지 볼 수 있어요." />
       {!fixedChannel ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelRow}>
         {HOME_CHANNEL_TABS.map((tab) => <Chip key={tab.label} label={tab.label} selected={tab.channel === channel}
           accessibilityLabel={`${categoryName} ${tab.label} 원픽 보기`} onPress={() => setChannel(tab.channel)} />)}
       </ScrollView> : null}
 
-      {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요" /> : null}
-      {query.isError && !picks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요"
+      {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요." /> : null}
+      {query.isError && !picks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요."
         action={{ label: '다시 불러오기', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} /> : null}
-      {query.isSuccess && !picks.length ? <StateCard compact title={`아직 다른 사람의 ${categoryName} 원픽이 없어요`}
+      {query.isSuccess && !picks.length ? <StateCard compact title={`아직 다른 사람의 ${categoryName} 원픽이 없어요.`}
         text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
 
       {mine.map((pick) => renderDefaultCard(pick, true))}
