@@ -9,6 +9,7 @@ import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/o
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { useLinkCategorySuggestions } from '@/hooks/useLinkCategorySuggestions';
 import { useChoosePhoto, useReadCurrentPickSlot, useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useProviderStorePrefill, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
@@ -16,6 +17,7 @@ import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
+import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
 // 원픽 등록 4단계: 매장 → 메뉴 → 사진 → 한줄평. 지도 링크는 매장 단계 안에서 받는다.
@@ -39,6 +41,18 @@ const entryId = (value: string | string[] | undefined) => {
   const candidate = scalar(value);
   return candidate && UUID.test(candidate) ? candidate : undefined;
 };
+// Naver titles read "스타벅스 강남우성점"; the catalog keeps name 스타벅스 + branch 강남우성.
+const placeKey = (value: string) => value.replace(/\s+/g, '').toLocaleLowerCase('ko-KR').replace(/점$/, '');
+const linkCandidate = (place: LinkPlaceMatch): Extract<StoreCandidate, { kind: 'place' }> => ({
+  kind: 'place',
+  catalogId: place.catalogId,
+  name: place.name,
+  branchName: place.branchName,
+  region: [place.region1, place.region2].filter(Boolean).join(' ') || null,
+  address: place.roadAddress ?? place.address,
+  providerCategory: place.providerCategory,
+  mapUrl: null,
+});
 const entryMenu = (value: string | string[] | undefined) => {
   const candidate = scalar(value)?.trim().replace(/\s+/g, ' ') ?? '';
   return candidate.length >= 1 && candidate.length <= 40 ? candidate : undefined;
@@ -133,6 +147,9 @@ export default function NewPickScreen() {
   const [requesting, setRequesting] = useState(false);
   const [requestPart, setRequestPart] = useState<'name' | 'link'>('name');
   const [newName, setNewName] = useState('');
+  // Step 1 can start from a Naver map link instead of a name search.
+  const [linkEntry, setLinkEntry] = useState(false);
+  const [entryLink, setEntryLink] = useState('');
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
@@ -171,6 +188,7 @@ export default function NewPickScreen() {
 
   const resetForm = () => {
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
+    setLinkEntry(false); setEntryLink('');
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
@@ -223,6 +241,17 @@ export default function NewPickScreen() {
     Boolean(user) && step === 1 && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
   );
   const menus = useMenuOptions(Boolean(user) && step === 2);
+  const linkLookup = useLinkCategorySuggestions();
+  const validEntryLink = isNaverMapUrl(entryLink);
+  const linkResult = linkLookup.data?.kind === 'place' ? linkLookup.data : null;
+  const linkName = linkResult?.resolvedName?.trim().replace(/\s+/g, ' ').slice(0, 100) ?? '';
+  const linkMatches = (linkResult?.places ?? []).map(linkCandidate);
+  const linkExact = linkName
+    ? linkMatches.filter((candidate) => placeKey(candidate.name + (candidate.branchName ?? '')) === placeKey(linkName)
+        || placeKey(candidate.name) === placeKey(linkName))
+    : [];
+  // A store is chosen for the person only when exactly one catalog row has the link's name.
+  const linkSelected = linkExact.length === 1 ? linkExact[0] : null;
   const suggestionStore = useMemo(() => store ? {
     name: store.name,
     branchName: store.kind === 'place' ? store.branchName : null,
@@ -299,6 +328,7 @@ export default function NewPickScreen() {
   const goBack = () => {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 1 && linkEntry) { setLinkEntry(false); return; }
     if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
     if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
@@ -325,6 +355,16 @@ export default function NewPickScreen() {
     setCategoryQuery('');
     applyEntryMenuPrefill();
     setStep(2);
+  };
+  const findByLink = () => {
+    if (!validEntryLink || linkLookup.isPending) return;
+    linkLookup.mutate({ url: entryLink.trim() });
+  };
+  // No catalog match: register the store under the name read from the link, with the link itself.
+  const registerFromLink = () => {
+    const url = entryLink.trim();
+    if (linkName) { pickStore({ kind: 'new', name: linkName, channel: 'offline', mapUrl: url }); return; }
+    setLinkEntry(false); setRequesting(true); setRequestPart('name'); setNewName(''); setMapLink(url);
   };
   const newStoreName = newName.trim().replace(/\s+/g, ' ');
   const validMapLink = isNaverMapUrl(mapLink);
@@ -537,9 +577,43 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>1 / 4 · {requesting && requestPart === 'link' ? newStoreName : '오프라인 매장'}</Text>
             <Text style={styles.title}>
-              {!requesting ? '상호명을 검색해 주세요.' : requestPart === 'name' ? '매장 이름을 알려 주세요.' : '네이버 지도 링크를 붙여넣어 주세요.'}
+              {linkEntry ? '네이버 지도 링크를 넣어 주세요.'
+                : !requesting ? '상호명을 검색해 주세요.' : requestPart === 'name' ? '매장 이름을 알려 주세요.' : '네이버 지도 링크를 넣어 주세요.'}
             </Text>
-            {!requesting ? <>
+            {linkEntry ? <>
+              <View style={styles.fieldBlock}>
+                <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
+                  value={entryLink} onChangeText={(value) => { setEntryLink(value); linkLookup.reset(); }}
+                  onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
+                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
+                {entryLink.trim() && !validEntryLink
+                  ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
+                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러 주세요.{'\n'}링크의 매장 이름으로 같은 매장을 찾아 드려요.</Text>}
+              </View>
+              {linkLookup.isPending ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
+              {linkLookup.isError ? <Text accessibilityRole="alert" style={styles.error}>{linkLookup.error instanceof AppError && linkLookup.error.code === 'RATE_LIMITED'
+                ? errorMessage(linkLookup.error) : '링크로 매장을 찾지 못했어요. 링크를 확인하거나 상호명으로 검색해 주세요.'}</Text> : null}
+              {linkLookup.isSuccess && !linkResult
+                ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도의 매장 링크인지 확인해주세요.</Text> : null}
+              {linkResult ? <View style={styles.results}>
+                <Text style={styles.helper}>{linkSelected
+                  ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해 주세요.'
+                  : linkMatches.length > 0
+                    ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라 주세요.`
+                    : linkName ? `${linkName}은(는) 아직 목록에 없어요. 새 매장으로 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
+                {(linkSelected ? [linkSelected] : linkMatches).map((candidate) => <Pressable key={candidate.catalogId}
+                  accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
+                  style={({ pressed }) => [styles.resultCard, candidate === linkSelected && styles.resultCardSelected, pressed && styles.flowPressed]}>
+                  <View style={styles.resultCardRow}>
+                    <View style={styles.resultCopy}>
+                      <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
+                      <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
+                    </View>
+                    {candidate === linkSelected ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text> : null}
+                  </View>
+                </Pressable>)}
+              </View> : null}
+            </> : !requesting ? <>
               <View style={styles.fieldBlock}>
                 <FieldLabel label="상호명" />
                 <View style={styles.inputWrap}>
@@ -596,7 +670,6 @@ export default function NewPickScreen() {
                 placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
               <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어 주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
-              <FieldLabel label="네이버 지도 링크" />
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                 value={mapLink} onChangeText={setMapLink} style={styles.input}
                 placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
@@ -606,11 +679,24 @@ export default function NewPickScreen() {
             </View>}
           </View>
           <View style={styles.footer}>
-            {!requesting && providerPrefillStore
+            {linkEntry
+              ? !linkResult
+                ? <FlowButton label="매장 찾기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
+                : <>
+                  {linkSelected ? <FlowButton label="다음" onPress={() => pickStore(linkSelected)} /> : null}
+                  <FlowButton variant={linkSelected || linkMatches.length > 0 ? 'secondary' : 'primary'}
+                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '새 매장으로 등록' : '매장 이름 입력하기'}
+                    onPress={registerFromLink} />
+                </>
+              : !requesting && providerPrefillStore
               ? <FlowButton label="다음" onPress={() => pickStore(providerPrefillStore)} />
               : !requesting
-                ? <FlowButton variant="secondary" label="찾는 매장이 없어요."
+                ? <>
+                  <FlowButton variant="secondary" label="찾는 매장이 없어요."
                     onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); }} />
+                  <FlowButton variant="text" label="네이버 지도 링크로 찾기"
+                    onPress={() => { setLinkEntry(true); setEntryLink(''); linkLookup.reset(); }} />
+                </>
               : requestPart === 'name'
                 ? <FlowButton label="다음" disabled={!validNewName} onPress={() => setRequestPart('link')} />
                 : <FlowButton label="다음" disabled={!canRequest}
