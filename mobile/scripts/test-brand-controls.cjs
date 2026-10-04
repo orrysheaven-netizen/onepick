@@ -22,8 +22,8 @@ const mocks = {
   'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
   'expo-image': { Image: 'Image' },
-  '../../public/brand/onepick-logo-horizontal.svg': 'logo-light.svg',
-  '../../public/brand/onepick-logo-horizontal-white.svg': 'logo-dark.svg',
+  '../../public/brand/onepick-wordmark.svg': 'logo-light.svg',
+  '../../public/brand/onepick-wordmark-white.svg': 'logo-dark.svg',
 };
 function load(file) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
@@ -190,12 +190,14 @@ test('web active tab uses ink icon and label without a brand fill', () => {
   readable(iconColor, OnePick.surface, styleOf(tab, true).opacity ?? 1);
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
-test('web register control uses white on ink and preserves route', () => {
+test('web register control is an ink-outlined white circle with an ink plus and preserves route', () => {
   const tree = expand(AppTabs());
   const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
   const icon = first(button, 'View');
-  assert.equal(styleOf(icon).backgroundColor, OnePick.actionPrimary);
-  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.onAction);
+  assert.equal(styleOf(icon).backgroundColor, OnePick.surface);
+  assert.equal(styleOf(icon).borderColor, OnePick.actionPrimary);
+  assert.equal(styleOf(icon).borderRadius * 2, styleOf(icon).width, 'Figma 30-1: round register button');
+  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.actionPrimary);
   readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
   button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
@@ -243,6 +245,7 @@ test('brand home link passes one style object through Link asChild', () => {
     const image = first(pressable, 'Image');
     assert.equal(image.props.source, source);
     assert.equal(image.props.style.height, height);
+    assert.equal(image.props.alt, 'onepick', 'Screens show the English wordmark only (no Korean 원픽 beside it)');
   }
 });
 console.log(`Brand control checks: ${passed}/${passed + failures.length} passed.`);

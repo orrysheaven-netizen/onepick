@@ -2,12 +2,17 @@ import { StyleSheet, View } from 'react-native';
 
 import { OnePick } from '@/constants/onepick';
 
-/** Figma 30 / node 113:20: icon-only marker for a person's current Pick. */
-export function CurrentPickFlag() {
+/**
+ * Figma 30 / node 113:20: icon-only marker for a person's current Pick.
+ * The viewer's own current Pick is orange; anyone else's is dark gray (10-04).
+ * Callers render it only while the Pick is current, so changed/removed Picks show no flag.
+ */
+export function CurrentPickFlag({ mine = false }: { mine?: boolean }) {
+  const color = mine ? OnePick.flagMine : OnePick.flagOther;
   return (
-    <View accessible accessibilityLabel="현재 원픽" style={styles.root}>
-      <View style={styles.pole} />
-      <View style={styles.body}>
+    <View accessible accessibilityLabel={mine ? '내 현재 원픽' : '현재 원픽'} style={styles.root}>
+      <View style={[styles.pole, { backgroundColor: color }]} />
+      <View style={[styles.body, { backgroundColor: color }]}>
         <View style={styles.notch} />
       </View>
     </View>
@@ -30,7 +35,6 @@ const styles = StyleSheet.create({
     top: 5,
     width: 2,
     height: 14,
-    backgroundColor: OnePick.brand,
   },
   body: {
     position: 'absolute',
@@ -38,7 +42,6 @@ const styles = StyleSheet.create({
     top: 5,
     width: 10,
     height: 8,
-    backgroundColor: OnePick.brand,
   },
   notch: {
     position: 'absolute',

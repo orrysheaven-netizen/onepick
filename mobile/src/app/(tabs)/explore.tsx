@@ -174,14 +174,14 @@ export default function ExploreScreen() {
               <Text style={styles.menuArrow}>›</Text>
             </Pressable>)}
           </View>
-          {!menuCategories.length ? <StateCard title="아직 공개된 메뉴가 없어요" text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
+          {!menuCategories.length ? <StateCard title="아직 공개된 메뉴가 없어요." text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
         </View> : null}
         {!selectedCategoryId && categories.data && scope.showChips ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
             <SectionHeader title={recentTitle} description="가장 최근에 누군가의 원픽이 된 순서예요." />
           </View>
           {recentItems.isPending ? <ActivityIndicator accessibilityLabel="최근 원픽 불러오는 중" style={styles.rankingLoading} /> : null}
-          {recentItems.isError && !recentItems.isFetchNextPageError ? <StateCard compact tone="danger" title="최근 원픽을 불러오지 못했어요"
+          {recentItems.isError && !recentItems.isFetchNextPageError ? <StateCard compact tone="danger" title="최근 원픽을 불러오지 못했어요."
             text={recentItems.data?.length ? '마지막으로 불러온 내용을 표시하고 있어요.' : '연결 상태를 확인한 뒤 다시 시도해주세요.'}
             action={{ label: recentItems.isFetching ? '불러오는 중…' : '다시 불러오기', accessibilityLabel: '최근 원픽 다시 불러오기', disabled: recentItems.isFetching,
               onPress: () => { if (!recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false }); } }} /> : null}
@@ -196,7 +196,7 @@ export default function ExploreScreen() {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>)}
-          {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽된 곳이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽된 곳이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {recentItems.isFetchNextPageError ? <Text style={styles.refreshError}>다음 목록을 불러오지 못했어요. 더 보기를 다시 눌러주세요.</Text> : null}
           {recentItems.hasNextPage ? <Button variant="secondary" label={recentItems.isFetchingNextPage ? '불러오는 중…' : '더 보기'}
             accessibilityLabel="최근 원픽 더 보기" disabled={recentItems.isFetchingNextPage}
@@ -213,7 +213,7 @@ export default function ExploreScreen() {
               } : undefined} />
           </View>
           {topItems.isPending ? <ActivityIndicator accessibilityLabel="원픽 불러오는 중" style={styles.rankingLoading} /> : null}
-          {topItems.isError ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요"
+          {topItems.isError ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요."
             text={topItems.data ? '최신 원픽을 확인하지 못했어요. 마지막으로 불러온 내용을 표시하고 있어요.' : '연결 상태를 확인한 뒤 다시 시도해주세요.'}
             action={{ label: topItems.isFetching ? '불러오는 중…' : '다시 불러오기', accessibilityLabel: '카테고리 원픽 다시 불러오기', disabled: topItems.isFetching,
               onPress: () => { if (!topItems.isFetching) void topItems.refetch({ cancelRefetch: false }); } }} /> : null}
@@ -236,7 +236,7 @@ export default function ExploreScreen() {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
           </View>)}
-          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요" text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {showRankingDetail && topItems.data && topItems.data.length > 0 ? <Text style={styles.rankingFootnote}>같은 선택 수는 공동 순위 · 최대 3개</Text> : null}
           {selectedCategory && topItems.data && topItems.data.length > 0 ? <View style={styles.rankingLinkRow}>
             <Button variant="ghost" size="sm" label="전체 랭킹 보기 ›" accessibilityLabel={`${selectedCategoryLabel} 전체 원픽 랭킹 보기`}

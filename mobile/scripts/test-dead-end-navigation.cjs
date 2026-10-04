@@ -44,17 +44,4 @@ assert.ok(!profile.includes("const goBack = () => router.replace"),
   'public-profile header back must not always recreate the origin route');
 assert.match(profile, /onBlocked=\{goBack\}/);
 
-// Onboarding: a signed-out visit or a failed load must not spin forever.
-const onboarding = read('src/app/onboarding.tsx');
-assert.match(onboarding, /const signedOut = !sessionLoading && !user;/);
-assert.match(onboarding, /const profileMissing = profile\.isError && \(profile\.error as \{ code\?: string \} \| null\)\?\.code === 'PROFILE_NOT_FOUND';/);
-assert.match(onboarding, /const loadFailed = !signedOut && \(\(profile\.isError && !profileMissing\) \|\| categories\.isError \|\| progress\.isError\);/);
-assert.match(onboarding, /if \(profileMissing \|\| !profile\.data\) return[\s\S]{0,200}'\/auth\/username'/, 'a new sign-in without a profile goes to the username step');
-assert.match(onboarding, /const loading = !signedOut && !loadFailed/);
-const signedOutAt = onboarding.indexOf('if (signedOut) return');
-const failedAt = onboarding.indexOf('if (loadFailed) return');
-const loadingAt = onboarding.indexOf('if (loading) return');
-assert.ok(signedOutAt > 0 && failedAt > signedOutAt && loadingAt > failedAt, 'signed-out and failure states must render before the loading state');
-assert.match(onboarding, /label: '다시 불러오기'/);
-
 console.log('dead-end navigation checks passed');

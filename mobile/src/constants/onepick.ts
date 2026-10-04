@@ -38,6 +38,9 @@ export const OnePick = {
   textDanger: '#B4432A',
   borderDefault: '#E8E8ED',
   borderStrong: '#D5D7DE',
+  // Current-Pick flag (10-04): the viewer's own current Pick vs anyone else's.
+  flagMine: '#FF8500',
+  flagOther: '#555555',
 
   // Legacy accent serves both links and fills. Keep its text/fill pair readable
   // until individual components opt into brand/onBrand together.
