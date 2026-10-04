@@ -95,10 +95,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+  const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
-    if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
+    if (pickStatus?.type === 'selected_other') return '바꾸기';
     if (pickStatus?.type === 'selected_this') return '한줄평 저장';
     return '내 원픽으로 선택';
   }, [pickStatus]);
@@ -210,10 +210,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 바뀌어요.` : '저장하면 이 카테고리의 원픽이 바뀌어요.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>

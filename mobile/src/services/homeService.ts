@@ -29,6 +29,10 @@ export class HomeService {
     };
   }
 
+  getRecentItemRanking(channel: PickChannel | null = null, limit = 20) {
+    return this.readRepository.getFoodItemRecentRanking(channel, limit);
+  }
+
   getRecentMenuRanking(groupCategoryId: string | null = null, channel: PickChannel | null = null, limit = 4) {
     return this.readRepository.getFoodMenuRecentRanking(groupCategoryId, channel, limit);
   }

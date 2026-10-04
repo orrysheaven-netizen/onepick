@@ -423,7 +423,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ) : canChoose ? (
             <Pressable accessibilityRole="button" onPress={openPickAction}
-              accessibilityLabel={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '원픽으로 고르기'}
+              accessibilityLabel={myPickStatus.type === 'selected_other' ? '원픽 바꾸기' : '원픽으로 고르기'}
               style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
               <View style={styles.pickDot} />
               <Text style={styles.pickMarkText}>원픽</Text>
