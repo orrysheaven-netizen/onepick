@@ -12,7 +12,6 @@ import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
-import { onboardingService } from '@/services/onboardingService';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
 import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
@@ -35,7 +34,7 @@ function getErrorMessage(error: unknown) {
   }
 }
 
-type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string };
+type Params = { itemId?: string; categoryId?: string; channel?: string };
 type SavedChoice = { pick: Pick; item: Item };
 
 export default function ChoosePickScreen() {
@@ -43,7 +42,7 @@ export default function ChoosePickScreen() {
   const params = useLocalSearchParams<Params>();
   // A saved result and its draft belong to one account/product only. Pending
   // requests from an unmounted form cannot populate the next account's result.
-  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.onboarding ?? ''}:${params.channel ?? ''}`} auth={auth} params={params} />;
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.channel ?? ''}`} auth={auth} params={params} />;
 }
 
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -122,8 +121,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         ...(draftUrl === null && draftTip === null ? {}
           : { purchaseTip: showTipInput ? trimmedTip : '' }),
       });
-      // A later normal pick overrides an earlier onboarding skip signal too.
-      await onboardingService.recordAction(item.categoryId, 'picked').catch(() => {});
       submitPhase.current = 'saved';
       setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
@@ -270,13 +267,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <View style={styles.successPhoto}>{itemPhoto}</View>
           <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
           <View style={styles.successActions}>
-            {params.onboarding === '1' ? <>
-              <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
-              <Button variant="ghost" label="나중에 이어하기" accessibilityLabel="온보딩을 나중에 이어서 하기" onPress={() => router.replace('/profile')} style={styles.centered} />
-            </> : <>
-              <Button size="lg" fullWidth label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.submit} />
-              <Button variant="ghost" label="다른 사람의 원픽 계속 보기" onPress={() => router.replace('/')} style={styles.centered} />
-            </>}
+            <Button size="lg" fullWidth label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.submit} />
+            <Button variant="ghost" label="다른 사람의 원픽 계속 보기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
           {canOfferPhoto && photoCandidate ? <View style={styles.photoOffer}>
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>

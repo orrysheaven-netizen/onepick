@@ -6,7 +6,6 @@ const profile = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile
 
 const picksIndex = profile.indexOf('visibleProfilePicks.map');
 const managementIndex = profile.indexOf('내 프로필 관리');
-const onboardingIndex = profile.indexOf('취향 고르기 이어가기');
 const publicIndex = profile.indexOf('공개 프로필 보기');
 const adminIndex = profile.indexOf('관리자 데이터 관리');
 const activityIndex = profile.indexOf('활동 기록');
@@ -15,8 +14,9 @@ const historyIndex = profile.indexOf('<Text style={styles.activitySectionTitle}>
 
 assert.ok(picksIndex >= 0, 'core category picks are missing');
 assert.ok(managementIndex > picksIndex, 'profile tools must follow the core profile story');
-assert.ok(onboardingIndex > managementIndex, 'taste continuation belongs inside profile tools');
-assert.ok(publicIndex > onboardingIndex, 'public profile action belongs inside profile tools');
+assert.ok(publicIndex > managementIndex, 'public profile action belongs inside profile tools');
+// MVP: taste onboarding is not reachable from the profile (Figma [최종결정] 가입 여정).
+assert.doesNotMatch(profile, /'\/onboarding'/, 'the profile must not link to taste onboarding');
 assert.ok(adminIndex > publicIndex, 'admin tools stay after user-facing profile tools');
 assert.ok(activityIndex > adminIndex, 'activity records must be separated from profile tools');
 assert.ok(requestIndex > activityIndex, 'item requests belong inside activity records');
@@ -27,7 +27,7 @@ assert.doesNotMatch(profile, /ACTIVITY/);
 assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.activitySection\}>/);
 assert.match(profile, /showRequests \? <>/);
 assert.match(profile, /showHistory \? <>/);
-assert.match(profile, /취향 선택을 이어가거나 공개 프로필을 확인해요\./);
+assert.match(profile, /소개를 고치거나 공개 프로필을 확인해요\./);
 assert.match(profile, /managementSection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
 assert.match(profile, /activitySection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
 assert.match(profile, /activitySectionTitle: \{ \.\.\.OnePickType\.headline, color: OnePick\.textPrimary \}/);

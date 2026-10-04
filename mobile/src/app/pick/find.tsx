@@ -32,7 +32,6 @@ type Params = {
   /** Restaurant categories only: 'online' opens the 온라인 판매처 flow; anything else is 매장. */
   channel?: string | string[];
   query?: string | string[];
-  onboarding?: string | string[];
 };
 type Selection = { externalId: string; replace: boolean } & (
   | { phase: 'loading' | 'paused' }
@@ -70,7 +69,7 @@ function placeErrorMessage(error: unknown) {
 export default function FindPickItemScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.placeCatalogId ?? null, params.channel ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMovieId ?? null, params.externalDramaId ?? null, params.placeCatalogId ?? null, params.channel ?? null, params.query ?? null]);
   return <FindPickItemContent key={key} auth={auth} params={params} />;
 }
 
@@ -173,7 +172,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     if (latest.current.categoryId && latest.current.categoryId !== categoryId) return;
     navigating.current = true;
     // A food menu keeps one Pick per channel; the chosen 매장/온라인 decides which one this replaces.
-    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(isPlaceCategory ? { channel } : {}), ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } });
+    router.push({ pathname: '/pick/choose', params: { itemId, categoryId, ...(isPlaceCategory ? { channel } : {}) } });
   };
   const requestItem = () => {
     if (!canAct() || !hasQuery) return;
@@ -189,7 +188,6 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     navigating.current = true;
     router.push({ pathname: '/pick/recipe', params: {
       ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
-      ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
     } });
   };
   const requestPlace = () => {
@@ -213,13 +211,13 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const continueMovie = (item: ImportedMovieItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
   const continuePlace = (item: ImportedPlaceItem, replace: boolean) => {
     if (!canAct() || !latest.current.userId || item.categoryId !== latest.current.categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, channel: 'offline', ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) } };
+    const route = { pathname: '/pick/choose' as const, params: { itemId: item.itemId, categoryId: item.categoryId, channel: 'offline' } };
     if (replace) router.replace(route); else router.push(route);
   };
   const loadMovie = async (externalId: string, replace = false) => {
@@ -293,7 +291,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
   const chooseMenu = (menu: { id: string; slug: string }) => {
     if (!focused.current || navigating.current) return;
     navigating.current = true;
-    const route = registrationRoute(menu, params.onboarding);
+    const route = registrationRoute(menu);
     router.push(route);
   };
   const requestMenu = () => {
@@ -312,7 +310,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
 
   // Recipe Picks are YouTube videos registered from a link, never a name search.
   if (selectedCategory?.slug === 'recipe') {
-    const route = registrationRoute(selectedCategory, params.onboarding);
+    const route = registrationRoute(selectedCategory);
     return <Redirect href={route} />;
   }
 
@@ -450,11 +448,11 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요.</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>
-        <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} onboarding={params.onboarding} />
+        <MusicSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
       </View> : null}
       {noResults && isGameCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 게임에서 찾지 못했어요.</Text><Text style={styles.stateText}>IGDB에서 게임 이름으로 더 찾아볼 수 있어요.</Text>
-        <GameSearchLink query={normalizedQuery} categoryId={selectedCategory.id} onboarding={params.onboarding} />
+        <GameSearchLink query={normalizedQuery} categoryId={selectedCategory.id} />
       </View> : null}
       {noResults && isYoutubeCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 채널에서 찾지 못했어요.</Text><Text style={styles.stateText}>YouTube에서 채널명으로 더 찾아볼 수 있어요.</Text>

@@ -11,14 +11,12 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalBookId?: string | string[];
   query?: string | string[];
   author?: string | string[];
-  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -45,7 +43,7 @@ function bookErrorMessage(error: unknown) {
 export default function BookPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalBookId ?? null, params.query ?? null, params.author ?? null]);
   return <BookPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -100,7 +98,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
+    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
 

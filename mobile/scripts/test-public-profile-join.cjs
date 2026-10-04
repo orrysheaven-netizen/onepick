@@ -6,7 +6,6 @@ const read = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relati
 
 const profile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const username = read('src/app/auth/username.tsx');
-const login = read('src/app/auth/login.tsx');
 
 // A visitor arriving from a shared link must have a way in that is not "follow this stranger".
 const joinIndex = profile.indexOf('styles.joinCard');
@@ -43,31 +42,9 @@ assert.doesNotMatch(
   'a pending follow must not be diverted to onboarding after username creation',
 );
 
-// Intents with an action still in flight must keep resuming it instead of onboarding.
-for (const action of ['comment_pick', 'choose_pick', 'request_item', 'add_item_photo']) {
-  assert.doesNotMatch(
-    username,
-    new RegExp(`const ONBOARDING_INTENTS = new Set<AuthIntent\\['action'\\]>\\(\\[[^\\]]*'${action}'`),
-    `${action} carries an action in flight and must not be diverted to onboarding`,
-  );
-}
+// MVP sign-up (Figma [최종결정] 가입 여정): every intent, join_from_profile included, returns
+// to the original task after the username step instead of entering taste onboarding.
+assert.doesNotMatch(username, /'\/onboarding'/, 'username creation must not divert to taste onboarding');
+assert.match(username, /router\.replace\(getPostAuthRoute\(intent\)\)/, 'username creation returns to the original task');
 
-// A brand-new account from that intent starts taste onboarding, like the home intent does.
-assert.match(
-  username,
-  /const ONBOARDING_INTENTS = new Set<AuthIntent\['action'\]>\(\[[^\]]*'join_from_profile'[^\]]*\]\)/,
-  'join_from_profile must enter taste onboarding after username creation',
-);
-assert.match(
-  username,
-  /const ONBOARDING_INTENTS = new Set<AuthIntent\['action'\]>\(\[[^\]]*'home'[^\]]*\]\)/,
-  'the home intent must stay an onboarding entry intent',
-);
-
-assert.match(
-  login,
-  /intent\.action === 'join_from_profile'\s*\n\s*\? '[^']+'/,
-  'the login screen must explain what the visitor gets for this intent',
-);
-
-console.log('Public profile join checks passed: a logged-out visitor gets a sign-up entry after the picks, and a new account from it enters onboarding.');
+console.log('Public profile join checks passed: a logged-out visitor gets a sign-up entry after the picks, and a new account from it returns to the feed without onboarding.');
