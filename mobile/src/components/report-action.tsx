@@ -76,7 +76,7 @@ export function ReportAction({
       </Pressable>
       {open ? (
         <View style={styles.panel}>
-          <Text style={styles.title}>신고 사유를 선택해주세요</Text>
+          <Text style={styles.title}>신고 사유를 선택해주세요.</Text>
           <View style={styles.reasons}>
             {REASONS.map((reason) => (
               <Pressable

@@ -6,6 +6,8 @@ export const queryKeys = {
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
     menuRanking: (groupCategoryId: string | null = null, channel: string | null = null) =>
       ['home', 'menu-ranking', groupCategoryId ?? 'all', channel ?? 'all-channels'] as const,
+    itemRanking: (channel: string | null = null, limit = 20) =>
+      ['home', 'item-ranking', channel ?? 'all-channels', limit] as const,
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
@@ -74,10 +76,6 @@ export const queryKeys = {
     history: (userId?: string) => ['profiles', 'history', userId ?? 'anonymous', 'cursor'] as const,
     requests: (userId?: string) => ['profiles', 'requests', userId ?? 'anonymous', 'cursor'] as const,
     byUsername: (username: string, userId?: string) => ['profiles', 'username', username, userId ?? 'public'] as const,
-  },
-  onboarding: {
-    all: ['onboarding'] as const,
-    progress: (userId: string) => ['onboarding', 'progress', userId] as const,
   },
   profileAi: {
     all: ['profile-ai'] as const,

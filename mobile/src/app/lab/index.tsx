@@ -22,11 +22,11 @@ export default function MyLabRedirect() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.center}>
-        {signedOut ? <StateCard title="실험실은 로그인 후 열 수 있어요" text="맛집 외 취향(콘텐츠·테크·스타일)을 따로 모아두는 공간이에요."
+        {signedOut ? <StateCard title="실험실은 로그인 후 열 수 있어요." text="맛집 외 취향(콘텐츠·테크·스타일)을 따로 모아두는 공간이에요."
           action={{ label: '로그인하기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'profile' } }) }} />
-          : failed ? <StateCard tone="danger" title="실험실을 불러오지 못했어요"
+          : failed ? <StateCard tone="danger" title="실험실을 불러오지 못했어요."
             action={{ label: '다시 불러오기', variant: 'secondary', onPress: () => void profileQuery.refetch() }} />
-          : <StateCard loading title="실험실을 여는 중이에요" />}
+          : <StateCard loading title="실험실을 여는 중이에요." />}
       </View>
     </SafeAreaView>
   );

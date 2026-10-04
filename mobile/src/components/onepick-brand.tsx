@@ -4,10 +4,11 @@ import { Pressable, StyleSheet } from 'react-native';
 
 type Props = { compact?: boolean; appearance?: 'light' | 'dark' };
 
-// Approved outlined originals. Do not rebuild the wordmark with live fonts.
+// Approved outlined originals with the Korean 원픽 glyphs removed (10-04 decision:
+// screens show the English wordmark only). Do not rebuild the wordmark with live fonts.
 const logos = {
-  light: require('../../public/brand/onepick-logo-horizontal.svg'),
-  dark: require('../../public/brand/onepick-logo-horizontal-white.svg'),
+  light: require('../../public/brand/onepick-wordmark.svg'),
+  dark: require('../../public/brand/onepick-wordmark-white.svg'),
 };
 
 export function OnePickBrand({ compact = false, appearance = 'light' }: Props) {
@@ -19,8 +20,8 @@ export function OnePickBrand({ compact = false, appearance = 'light' }: Props) {
       {/* Slot merges child style as `{ ...style }`: an array crashes web, a function is dropped. Pass one object. */}
       <Pressable accessibilityRole="link" accessibilityLabel="원픽 홈"
         style={StyleSheet.flatten([styles.brand, { padding: clearSpace }])}>
-        <Image source={logos[appearance]} alt="onepick 원픽" contentFit="contain"
-          style={{ height, width: height * 4883.77 / 931 }} />
+        <Image source={logos[appearance]} alt="onepick" contentFit="contain"
+          style={{ height, width: height * 3331 / 931 }} />
       </Pressable>
     </Link>
   );

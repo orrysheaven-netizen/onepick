@@ -12,7 +12,7 @@ export function ProfileFollowCounts({ userId }: { userId: string }) {
       <View style={styles.cell}><Text style={styles.label}>팔로잉</Text><Text style={styles.number}>{query.data.followingCount}명</Text></View>
       <View style={styles.divider} />
       <View style={styles.cell}><Text style={styles.label}>팔로워</Text><Text style={styles.number}>{query.data.followerCount}명</Text></View>
-      <Text style={styles.hint}>나에게만 보여요</Text>
+      <Text style={styles.hint}>나에게만 보여요.</Text>
     </View>
   );
 }

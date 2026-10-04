@@ -263,7 +263,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   if (!isSessionLoading && sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
-      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
+      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요." action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
     </View></SafeAreaView>;
   }
 
@@ -271,7 +271,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard loading title="정보를 불러오고 있어요" />
+          <StateCard loading title="정보를 불러오고 있어요." />
         </View>
       </SafeAreaView>
     );
@@ -283,7 +283,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요' : '정보를 볼 수 없어요'}
+          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요.' : '정보를 볼 수 없어요.'}
             text={savedItem
               ? '서버의 처리 응답은 받았지만 최신 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
               : '연결 상태를 확인한 뒤 다시 시도해주세요. 없어졌거나 공개되지 않은 링크일 수도 있어요.'}
@@ -315,7 +315,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
   if (!itemSupportsPublicChannel) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
-      <StateCard title="현재 공개 중인 원픽이 아니에요" text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
+      <StateCard title="현재 공개 중인 원픽이 아니에요." text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
       <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
     </View></SafeAreaView>;
   }
@@ -333,11 +333,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <Text style={styles.backText}>‹</Text>
         </Pressable>
 
-        {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요" text="마지막으로 불러온 내용을 표시하고 있어요."
+        {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
           action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => void retryItem() }} /> : null}
 
         {notificationKind === 'fix_needed' ? <View style={styles.revisionPanel}>
-          <Text style={styles.revisionTitle}>수정이 필요해요</Text>
+          <Text style={styles.revisionTitle}>수정이 필요해요.</Text>
           <Text style={styles.revisionText}>{notificationReason || '등록한 매장 정보를 확인하고 필요한 부분을 수정해주세요.'}</Text>
           <TextInput
             accessibilityLabel="수정할 네이버 지도 링크"
@@ -383,7 +383,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                 </>
               ) : (
                 <View style={styles.uploadRow}>
-                  <Text numberOfLines={1} style={styles.uploadText}>사진을 올려주세요</Text>
+                  <Text numberOfLines={1} style={styles.uploadText}>사진을 올려주세요.</Text>
                   <Button size="sm" label="사진 업로드" accessibilityLabel={`${item.name} 사진 업로드`}
                     disabled={Boolean(user) && photoBusy && !photoPicker.isPending} loading={photoPicker.isPending}
                     onPress={() => user ? void choosePhoto() : router.push({ pathname: '/auth/login', params: photoIntent })} />
@@ -423,7 +423,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ) : canChoose ? (
             <Pressable accessibilityRole="button" onPress={openPickAction}
-              accessibilityLabel={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '원픽으로 고르기'}
+              accessibilityLabel={myPickStatus.type === 'selected_other' ? '원픽 바꾸기' : '원픽으로 고르기'}
               style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
               <View style={styles.pickDot} />
               <Text style={styles.pickMarkText}>원픽</Text>
@@ -449,11 +449,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요" text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
+          <StateCard title="아직 다른 사람의 한줄평이 없어요." text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Text style={styles.toastText}>원픽을 정했어요</Text>
+        <Text style={styles.toastText}>원픽을 정했어요.</Text>
       </View> : null}
     </SafeAreaView>
   );

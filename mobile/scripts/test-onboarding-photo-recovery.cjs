@@ -50,8 +50,8 @@ function harness(file, imports) {
       });
     },
   };
-  const native = { StyleSheet: { create: (s) => s, hairlineWidth: 1 } };
-  for (const n of ['View','Text','TextInput','ScrollView','ActivityIndicator','Image','Pressable']) native[n] = n;
+  const native = { StyleSheet: { create: (s) => s, hairlineWidth: 1 }, Platform: { OS: 'ios' } };
+  for (const n of ['View','Text','TextInput','ScrollView','ActivityIndicator','Image','Pressable','KeyboardAvoidingView']) native[n] = n;
   const Screen = load(file, {
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/errors/appError': { AppError }, '@/lib/auth/authIntent': intents,
@@ -146,7 +146,7 @@ async function main() {
   });
   await check('Username saving blocks same-frame duplicates, freezes input, and preserves return target', async () => {
     const c = setup('app/auth/username.tsx'); c.view.render(); c.view.input().onChangeText('  valid_name  '); c.view.render();
-    const save = c.view.button('이 사용자명으로 시작').onPress; save(); save();
+    const save = c.view.button('이 아이디로 시작').onPress; save(); save();
     assert.equal(c.attempts.length, 1); assert.equal(c.attempts[0], 'valid_name');
     c.mutation.isPending = true; c.view.render(); assert.equal(c.view.input().editable, false);
     c.pending[0].resolve({ id: 'owner', username: 'valid_name' }); await flush(); save();
@@ -159,17 +159,17 @@ async function main() {
     assert.equal(c.attempts.length, 0); c.auth.error = null; c.auth.isLoading = true;
     c.view.render(); assert.equal(c.view.input(), undefined); c.auth.isLoading = false;
     c.view.render(); assert.equal(c.view.input().value, 'my_name');
-    c.view.button('이 사용자명으로 시작').onPress(); c.pending[0].reject(new AppError('USERNAME_TAKEN')); await flush();
+    c.view.button('이 아이디로 시작').onPress(); c.pending[0].reject(new AppError('USERNAME_TAKEN')); await flush();
     c.view.render(); assert.equal(c.view.input().value, 'my_name');
-    c.view.button('이 사용자명으로 시작').onPress(); assert.equal(c.attempts.length, 2);
+    c.view.button('이 아이디로 시작').onPress(); assert.equal(c.attempts.length, 2);
     c.pending[1].resolve({ id: 'owner', username: 'my_name' }); await flush();
   });
   await check('Username drafts and late completions cannot navigate another account or an unmounted form', async () => {
     const c = setup('app/auth/username.tsx'); c.view.render(); c.view.input().onChangeText('owner_draft'); c.view.render();
-    c.view.button('이 사용자명으로 시작').onPress(); c.auth.user = { id: 'other' };
+    c.view.button('이 아이디로 시작').onPress(); c.auth.user = { id: 'other' };
     c.view.render(); assert.equal(c.view.input().value, '');
     c.pending[0].resolve({ id: 'owner', username: 'owner_draft' }); await flush(); assert.equal(c.destinations.length, 0);
-    c.view.input().onChangeText('new_draft'); c.view.render(); c.view.button('이 사용자명으로 시작').onPress();
+    c.view.input().onChangeText('new_draft'); c.view.render(); c.view.button('이 아이디로 시작').onPress();
     c.view.unmount(); c.pending[1].resolve({ id: 'other', username: 'new_draft' }); await flush(); assert.equal(c.destinations.length, 0);
   });
   await check('Photo confirmation survives a later read failure without stale content or duplicate upload', async () => {

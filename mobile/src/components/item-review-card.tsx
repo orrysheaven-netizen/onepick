@@ -45,7 +45,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
             ) : <Text style={styles.username}>사용자</Text>}
           </View>
         </>}
-        {isCurrent ? <CurrentPickFlag /> : null}
+        {isCurrent ? <CurrentPickFlag mine={isMine} /> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />

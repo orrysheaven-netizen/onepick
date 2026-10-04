@@ -11,13 +11,11 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { GameCatalogEntry, ImportedGameItem } from '@/types/domain/gameCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalGameId?: string | string[];
   query?: string | string[];
-  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -44,7 +42,7 @@ function gameErrorMessage(error: unknown) {
 export default function GamePickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalGameId ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalGameId ?? null, params.query ?? null]);
   return <GamePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -96,7 +94,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
+    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
 
@@ -161,7 +159,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
-      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
+      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}</Text>
       {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
@@ -174,7 +172,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <Text style={styles.notice}>플랫폼별 동일 게임은 하나로 보고, 일반판·컬렉터스 에디션 같은 버전은 제외해요. 리메이크·리마스터·확장팩은 IGDB에서 별도 게임이면 따로 선택할 수 있어요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>게임 카테고리를 사용할 수 없어요</Text>
+        <Text style={styles.stateTitle}>게임 카테고리를 사용할 수 없어요.</Text>
         <Text style={styles.stateText}>카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
@@ -187,16 +185,16 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         placeholder="예: Minecraft" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
       {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 게임과 IGDB를 함께 찾고 있어요</Text></View> : null}
-      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 게임 검색을 불러오지 못했어요</Text>
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 게임과 IGDB를 함께 찾고 있어요.</Text></View> : null}
+      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 게임 검색을 불러오지 못했어요.</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>외부 게임 DB를 불러오지 못했어요</Text>
+        <Text style={styles.stateTitle}>외부 게임 DB를 불러오지 못했어요.</Text>
         <Text style={styles.stateText}>{gameErrorMessage(catalog.error)}</Text>
         <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>IGDB 다시 검색</Text></Pressable>
       </View> : null}
 
-      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 게임 정보를 준비하고 있어요</Text></View> : null}
+      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 게임 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
           {selection.phase === 'failed' ? gameErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 게임 정보가 준비됐어요.' : '이전 게임 선택을 다시 이어갈 수 있어요.'}
@@ -240,7 +238,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
         </View>
       </Pressable>)}
 
-      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 게임을 찾지 못했어요</Text>
+      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 게임을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>게임 이름 철자를 바꿔서 검색해보세요.</Text></View> : null}
 
       <Text style={styles.attribution}>게임 메타데이터·커버: IGDB.com · 상업 운영 전 IGDB 파트너십 및 사용자 표시 출처 조건을 다시 확인합니다.</Text>

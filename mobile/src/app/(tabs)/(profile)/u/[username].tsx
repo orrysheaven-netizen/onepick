@@ -311,15 +311,15 @@ export default function PublicProfileScreen() {
         />
       ) : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable> : null}
-        {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요" /></View> : null}
+        {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요." /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
-          <StateCard title="프로필을 찾을 수 없어요" text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
+          <StateCard title="프로필을 찾을 수 없어요." text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
             action={{ label: '홈으로', variant: 'primary', onPress: () => router.replace('/') }} />
         </View> : null}
         {!query.isPending && query.isError && !isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard
             tone="danger"
-            title="프로필을 불러오지 못했어요"
+            title="프로필을 불러오지 못했어요."
             text="연결 상태를 확인한 뒤 다시 시도해주세요."
             action={{
               label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기',
@@ -409,7 +409,7 @@ export default function PublicProfileScreen() {
                 onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
                 onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
               />)}
-            </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요' : '아직 공개된 다른 취향 원픽이 없어요'}
+            </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요.' : '아직 공개된 다른 취향 원픽이 없어요.'}
               text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
           </View>
 
@@ -438,7 +438,7 @@ export default function PublicProfileScreen() {
             </View>
           </View> : null}
           <View style={styles.shareCard}>
-            <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요</Text>
+            <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요.</Text>
             <Text style={styles.shareText}>원픽이 담긴 카드 이미지와 프로필 링크를 함께 보낼 수 있어요.</Text>
             {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
             {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
@@ -447,12 +447,12 @@ export default function PublicProfileScreen() {
           {query.data.isMine ? <View style={styles.mineRow}><Button variant="ghost" size="sm" label="내 프로필 관리로 이동" onPress={() => router.replace('/profile')} /></View> : null}
         </> : null}
       </ScrollView>}
-      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요</Text></View> : null}
+      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요.</Text></View> : null}
       <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={closeFollowLogin}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={closeFollowLogin} style={StyleSheet.absoluteFill} />
           <View style={styles.loginSheet}>
-            <Text style={styles.loginSheetTitle}>로그인하고 @{loginTargetUsername ?? query.data?.profile.username ?? username}님을 팔로우하세요</Text>
+            <Text style={styles.loginSheetTitle}>로그인하고 @{loginTargetUsername ?? query.data?.profile.username ?? username}님을 팔로우하세요.</Text>
             <Text style={styles.loginSheetText}>로그인하면 바로 팔로우되고 이 프로필로 돌아와요.</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="카카오로 계속하기" disabled={socialSignIn.isPending}
               onPress={() => void continueProfileLogin('kakao')} style={({ pressed }) => [styles.providerButton, styles.kakaoButton, pressed && styles.pressed]}>
