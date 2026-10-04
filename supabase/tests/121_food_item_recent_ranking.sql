@@ -57,7 +57,7 @@ join fir_ids i on i.key=v.ikey
 join fir_ids c on c.key=v.ckey;
 
 -- Age rows explicitly: now() is constant inside the test transaction.
---   noodle_a: u1 offline + u1 online (same person once), u2, u3 offline → 3 (offline 3)
+--   noodle_a: u1, u2, u3 offline → 3 (picks_one_current_per_item: one current Pick per person per item)
 --   soup_b:   u1 online (2d), u3 online (6d) → 2 (offline 0)
 --   soup_c:   u2 offline (1d); u4 too old (8d); u5 replaced → 1
 --   rice_a:   u4 offline (1h) → 1
@@ -68,7 +68,6 @@ select u.id, i.category_id, i.id, v.channel, 'fir', v.status, now() - v.age,
   case when v.status = 'active' then null else now() - interval '1 hour' end
 from (values
   ('u1','noodle_a','offline','active',interval '1 hour'),
-  ('u1','noodle_a','online','active',interval '2 hours'),
   ('u2','noodle_a','offline','active',interval '3 hours'),
   ('u3','noodle_a','offline','active',interval '4 hours'),
   ('u1','soup_b','online','active',interval '2 days'),
@@ -91,7 +90,7 @@ set local role anon;
 select is(
   (select array_agg(item_name || ' ' || category_name || ':' || pick_count order by item_name) from public.food_item_recent_ranking(null, 50) r where r.item_id in (select id from fir_ids) ),
   array['FIR 국집 B FIR 국:2','FIR 국집 C FIR 국:1','FIR 면집 A FIR 면:3','FIR 밥집 A FIR 밥:1'],
-  'each store menu counts people with a current Pick from the last 7 days; old, replaced, photo-less and double-channel Picks do not add'
+  'each store menu counts people with a current Pick from the last 7 days; old, replaced and photo-less Picks do not add'
 );
 
 select ok(
