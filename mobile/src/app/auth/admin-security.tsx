@@ -65,7 +65,7 @@ function SecurityForm({ userId }: { userId: string }) {
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {busy ? <ActivityIndicator /> : null}
     {!status ? button('상태 다시 확인', refresh) : !status.emailReady ? <View style={styles.card}>
-      <Text style={styles.heading}>먼저 관리자 이메일을 연결해주세요</Text>
+      <Text style={styles.heading}>먼저 관리자 이메일을 연결해주세요.</Text>
       <Text style={styles.text}>카카오 로그인에 이메일이 포함되지 않아 인증 앱 등록에 필요한 정보가 없습니다. 본인이 받을 수 있는 이메일을 연결하고 확인해야 합니다.</Text>
       <TextInput accessibilityLabel="관리자 이메일" placeholder="이메일 주소" value={email} onChangeText={(value) => { setEmail(value); setEmailSent(false); }} editable={!busy} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={styles.emailInput} />
       {button('확인 메일 보내기', async () => {
@@ -88,7 +88,7 @@ function SecurityForm({ userId }: { userId: string }) {
         <Text selectable style={styles.secret}>{enrollment.secret}</Text>
         <Text style={styles.text}>이 키와 QR 코드는 다른 사람에게 보내지 마세요.</Text>
       </> : status.verified.length ? <>
-        <Text style={styles.heading}>인증 앱을 열어주세요</Text>
+        <Text style={styles.heading}>인증 앱을 열어주세요.</Text>
         {status.verified.map((factor) => <Pressable key={factor.id} disabled={busy} onPress={() => setFactorId(factor.id)}><Text style={styles.link}>{factorId === factor.id ? '● ' : '○ '}{factor.friendly_name ?? '등록된 인증 앱'}</Text></Pressable>)}
       </> : <>
         <Text style={styles.heading}>인증 앱 등록하기</Text>

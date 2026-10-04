@@ -22,10 +22,10 @@ assert.match(register, /Redirect href="\/pick\/new"/, 'register tab must use sto
 
 const choose = read('src/app/pick/choose.tsx');
 const storeFirst = read('src/app/pick/new.tsx');
-assert.match(choose, />원픽을 정했어요<\/Text>/, 'choose completion copy is unified');
+assert.match(choose, />원픽을 정했어요\.<\/Text>/, 'choose completion copy is unified');
 const itemDetail = read('src/app/item/[itemId].tsx');
 assert.match(storeFirst, /armPickSavedToast\(result\.pickId\)/, 'store-first completion hands off to the item detail toast');
-assert.match(itemDetail, /<Text style={styles\.toastText}>원픽을 정했어요<\/Text>/, 'store-first completion toast copy is unified');
+assert.match(itemDetail, /<Text style={styles\.toastText}>원픽을 정했어요\.<\/Text>/, 'store-first completion toast copy is unified');
 assert.doesNotMatch(storeFirst, /등록 요청을 보냈어요|승인 대기/, 'store-first completion has no pending-request success state');
 
 const book = read('src/app/pick/book.tsx');

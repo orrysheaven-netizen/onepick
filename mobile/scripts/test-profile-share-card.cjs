@@ -105,7 +105,7 @@ async function main() {
 
   const empty = loadWeb(silentNavigator());
   await empty.exports.shareProfileCardImage({ username: 'tester', picks: [], aiComment: null });
-  assert.ok(empty.drawn.includes('아직 고른 원픽이 없어요'), 'a profile with no Picks still gets a card');
+  assert.ok(empty.drawn.includes('아직 고른 원픽이 없어요.'), 'a profile with no Picks still gets a card');
   assert.ok(!empty.drawn.some((line) => line.startsWith('외 ')));
 
   // File sharing: the link rides in the text too, because some targets drop `url`.

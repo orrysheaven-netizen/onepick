@@ -157,7 +157,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
 
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.centerState}>
-      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}</Text>
+      <Text style={styles.stateTitle}>{sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}</Text>
       {sessionError ? <Pressable onPress={retrySession} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 확인하기</Text></Pressable> : <ActivityIndicator />}
     </View>
   </SafeAreaView>;
@@ -170,7 +170,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       <Text style={styles.notice}>같은 곡의 여러 앨범 수록은 하나의 녹음으로 묶고, 라이브·리믹스·다른 가수의 녹음은 별도로 구분해요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>음악 카테고리를 사용할 수 없어요</Text>
+        <Text style={styles.stateTitle}>음악 카테고리를 사용할 수 없어요.</Text>
         <Text style={styles.stateText}>카테고리가 공개·선택 가능 상태인지 확인해주세요.</Text>
       </View> : null}
       {categories.isPending ? <ActivityIndicator style={styles.loading} /> : null}
@@ -188,16 +188,16 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
         placeholder="예: 아이유" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
       {cleanTitle.length === 1 && cleanArtist.length < 2 ? <Text style={styles.stateText}>한 글자 곡명은 가수명을 함께 입력해주세요.</Text> : null}
 
-      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 노래와 MusicBrainz를 함께 찾고 있어요</Text></View> : null}
-      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 노래 검색을 불러오지 못했어요</Text>
+      {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 노래와 MusicBrainz를 함께 찾고 있어요.</Text></View> : null}
+      {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 노래 검색을 불러오지 못했어요.</Text>
         <Pressable disabled={local.isFetching} onPress={() => void local.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>다시 검색</Text></Pressable></View> : null}
       {catalog.valid && catalog.isError ? <View style={styles.stateCard}>
-        <Text style={styles.stateTitle}>외부 음악 DB를 불러오지 못했어요</Text>
+        <Text style={styles.stateTitle}>외부 음악 DB를 불러오지 못했어요.</Text>
         <Text style={styles.stateText}>이미 원픽에 등록된 노래 검색은 계속 사용할 수 있어요.</Text>
         <Pressable disabled={catalog.isFetching} onPress={() => void catalog.refetch()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>MusicBrainz 다시 검색</Text></Pressable>
       </View> : null}
 
-      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 노래 정보를 준비하고 있어요</Text></View> : null}
+      {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 노래 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
           {selection.phase === 'failed' ? musicErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 노래 정보가 준비됐어요.' : '이전 노래 선택을 다시 이어갈 수 있어요.'}
@@ -240,7 +240,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
         </View>
       </Pressable>)}
 
-      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 노래를 찾지 못했어요</Text>
+      {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 노래를 찾지 못했어요.</Text>
         <Text style={styles.stateText}>곡명 철자나 가수명을 바꿔서 검색해보세요.</Text></View> : null}
 
       <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용합니다.</Text>

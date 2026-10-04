@@ -85,7 +85,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.content}>
         <View style={styles.brand}><OnePickBrand /></View>
-        <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
+        <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요.</Text>
         <Text style={styles.subtitle}>원픽과 공개 프로필에 표시할 고유한 이름입니다.</Text>
 
         {isLoading ? <Text style={styles.statusText}>로그인 상태 확인 중...</Text> : null}
