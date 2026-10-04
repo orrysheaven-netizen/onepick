@@ -608,7 +608,7 @@ export default function NewPickScreen() {
                   <View style={styles.resultCardRow}>
                     <View style={styles.resultCopy}>
                       <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
-                      <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ?? candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
+                      <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
                     </View>
                     {candidate === linkSelected ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text> : null}
                   </View>
