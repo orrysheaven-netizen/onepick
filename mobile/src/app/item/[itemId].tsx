@@ -1,5 +1,5 @@
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -68,22 +68,13 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  focusCommentId?: string;
+  /** Set by /pick/[pickId]: open that review's comment thread expanded. */
+  thread?: string;
 };
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  if ((params.notificationKind === 'comment' || params.notificationKind === 'reply') && typeof params.pickId === 'string') {
-    return <Redirect href={{ pathname: '/pick/[pickId]', params: {
-      pickId: params.pickId,
-      ...(typeof params.itemId === 'string' ? { itemId: params.itemId } : {}),
-      ...(typeof params.notificationGroupId === 'string' ? { notificationGroupId: params.notificationGroupId } : {}),
-      ...(typeof params.notificationSnapshot === 'string' ? { notificationSnapshot: params.notificationSnapshot } : {}),
-      ...(typeof params.notificationKind === 'string' ? { notificationKind: params.notificationKind } : {}),
-      ...(typeof params.rootCommentId === 'string' ? { rootCommentId: params.rootCommentId } : {}),
-      ...(typeof params.commentAfterTime === 'string' ? { commentAfterTime: params.commentAfterTime } : {}),
-      ...(typeof params.commentAfterId === 'string' ? { commentAfterId: params.commentAfterId } : {}),
-    } }} />;
-  }
   // A file selected for one item/account must never be submitted for another.
   return <ItemDetailContent key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}`} auth={auth} params={params} />;
 }
@@ -128,8 +119,26 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     });
   }, [focusPickId, query.data?.item.categoryId, query.data?.item.id]);
 
+  // Comment/reply notifications, comment-list entries and shared review links open
+  // the focused review's thread inline (no separate conversation screen, 10-04).
+  const isThreadNotification = notificationKind === 'comment' || notificationKind === 'reply';
+  const openThread = Boolean(focusPickId) && (params.thread === '1' || isThreadNotification || typeof params.focusCommentId === 'string');
+  const rootCommentId = typeof params.rootCommentId === 'string' ? params.rootCommentId : undefined;
+  const routeFocusCommentId = typeof params.focusCommentId === 'string' ? params.focusCommentId : undefined;
+  const commentAfterTime = typeof params.commentAfterTime === 'string' ? params.commentAfterTime : undefined;
+  const commentAfterId = typeof params.commentAfterId === 'string' ? params.commentAfterId : undefined;
+  const [replyTargetLoaded, setReplyTargetLoaded] = useState(false);
+  const onReplyTargetLoaded = useCallback(() => setReplyTargetLoaded(true), []);
+  const threadFocus = useMemo(() => ({
+    commentId: notificationKind === 'reply' ? rootCommentId : routeFocusCommentId,
+    initialCursor: notificationKind === 'reply' && commentAfterTime && commentAfterId ? { timestamp: commentAfterTime, id: commentAfterId } : null,
+    onLoaded: notificationKind === 'reply' ? onReplyTargetLoaded : undefined,
+  }), [notificationKind, rootCommentId, routeFocusCommentId, commentAfterTime, commentAfterId, onReplyTargetLoaded]);
+
   useEffect(() => {
     if (!user || !query.data || !notificationGroupId || !notificationSnapshot) return;
+    // A reply notification is read only once its reply is actually on screen.
+    if (notificationKind === 'reply' && !replyTargetLoaded) return;
     const receipt = `${notificationGroupId}:${notificationSnapshot}`;
     if (acknowledgedNotification.current === receipt) return;
     acknowledgedNotification.current = receipt;
@@ -137,7 +146,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       .catch(() => {
         if (acknowledgedNotification.current === receipt) acknowledgedNotification.current = undefined;
       });
-  }, [notificationGroupId, notificationSnapshot, query.data?.item.id, user?.id]);
+  }, [notificationGroupId, notificationSnapshot, notificationKind, replyTargetLoaded, query.data?.item.id, user?.id]);
 
   const scroll = useRef<ScrollView>(null);
   const reviewPositions = useRef<Record<string, number>>({});
@@ -445,6 +454,8 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
                 itemName={item.name} itemId={item.id} highlighted={pick.id === highlightedId}
+                initiallyExpanded={openThread && pick.id === focusPickId}
+                threadFocus={pick.id === focusPickId ? threadFocus : undefined}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))

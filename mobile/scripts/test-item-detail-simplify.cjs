@@ -62,7 +62,7 @@ assert.match(detail, />사진 @\{credit\.username\}</);
 assert.doesNotMatch(detail, /사진 등록 · @|아래에서 함께 볼 수 있어요|내 원픽 한줄평 보기\/수정|title="원픽 한줄평"|각 한줄평에서 댓글로 대화해요/);
 assert.match(detail, /itemTitle\(item\.name, category\?\.name, isRestaurant\)/);
 
-// Review cards stay compact: review/comment count open the dedicated conversation route; share stays on every card.
+// Review cards start compact; review body / comment count expand the thread inline (10-04); share stays on every card.
 const native = {
   Pressable: nativeComponent('button'), Text: nativeComponent('span'), View: nativeComponent('div'),
   StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
@@ -78,12 +78,14 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
   },  '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
   '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
+  '@/components/pick-replies': { PickReplies: ({ pickId, preview, canWrite, readOnlyNotice, focusCommentId }) =>
+    React.createElement('i', null, `thread:${pickId}:${preview.limit}/${preview.totalCount}:${canWrite ? 'write' : 'read'}:${readOnlyNotice}:${focusCommentId ?? '-'}`) },
 });
-const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
-  pick, profile, categoryName: '내장탕', itemName: '중앙해장', itemId: 'item-1', focused: false, highlighted: false, onRemoved() {},
+const card = (pick, profile, extra = {}) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
+  pick, profile, categoryName: '내장탕', itemName: '중앙해장', itemId: 'item-1', focused: false, highlighted: false, onRemoved() {}, ...extra,
 }));
 const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다', commentCount: 3 }, { username: 'someone' });
-assert.doesNotMatch(other, /thread:o1/, "Item detail no longer expands comment threads inline");
+assert.doesNotMatch(other, /thread:o1/, 'Threads start collapsed');
 assert.match(other, /댓글 3/);
 assert.match(other, /share:o1/);
 assert.match(other, /@someone/);
@@ -114,6 +116,15 @@ assert.match(card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: 'x'
 const endedMine = card({ id: 'm-old', userId: 'me', status: 'removed', oneLineReview: '예전 이유' }, { username: 'me' });
 assert.match(endedMine, /내 한줄평/);
 assert.doesNotMatch(endedMine, /내 이전 한줄평|이전 원픽|현재 선택이 종료된|aria-label="현재 원픽"|✓ 이 집 원픽|수정 · 해제/, 'My ended review does not expose history state or current-only management');
+
+// A notification / comment-list / shared-link target opens with its thread expanded.
+const expanded = card({ id: 'o2', userId: 'someone', status: 'active', oneLineReview: '맛있다', commentCount: 6, canComment: true }, { username: 'someone' },
+  { initiallyExpanded: true, threadFocus: { commentId: 'c9' } });
+assert.match(expanded, /thread:o2:3\/6:write:/, 'Inline thread previews 3 comments of the server count and follows can_comment');
+assert.match(expanded, /:c9/, 'The focused comment is forwarded to the thread');
+assert.match(expanded, /댓글 6 · 접기/, 'An open thread offers to fold');
+const readOnly = card({ id: 'o3', userId: 'someone', status: 'active', oneLineReview: '맛있다', commentCount: 1 }, { username: 'someone' }, { initiallyExpanded: true });
+assert.match(readOnly, /thread:o3:3\/1:read:이 지점의 메뉴를 원픽으로 고르면 댓글과 답글을 쓸 수 있어요\./, 'Without can_comment the thread is read-only with one guidance line');
 assert.match(endedMine, /댓글 0/, 'My ended review keeps a conversation entry');
 
 session = { user: { id: 'me' }, isLoading: true };
@@ -134,27 +145,25 @@ assert.match(currentFlagSource, /OnePick\.brand/, 'Shared flag uses the Figma br
 assert.doesNotMatch(currentFlagSource, /✓ 이 집 원픽|✓ 원픽/, 'Shared flag stays icon-only');
 
 const reviewCardSource = source('components/item-review-card.tsx');
-assert.doesNotMatch(reviewCardSource, /PickReplies/, 'Item review cards never mount comment threads inline');
-assert.match(reviewCardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review body and count use the dedicated conversation route');
-assert.match(reviewCardSource, /params: \{ pickId: pick\.id, itemId \}/, 'Conversation route carries item identity for ended reviews');
+assert.doesNotMatch(reviewCardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review cards no longer open a separate conversation screen');
+assert.match(reviewCardSource, /onPress=\{toggleThread\}/, 'Review body and count toggle the inline thread');
 assert.match(reviewCardSource, /pick\.commentCount \?\? 0/, 'Review cards show the server-provided comment count');
 assert.match(reviewCardSource, /<CurrentPickFlag \/>/, 'Review rows use the shared Figma flag');
 
-const conversationSource = source('app/pick/[pickId].tsx');
-assert.match(conversationSource, /useItemDetail\(itemId, user\?\.id, pickId/, 'Conversation detail resolves the review through item_review_page');
-assert.match(conversationSource, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/, 'Reply notifications and exact comment links forward focus into the thread');
-assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/, 'Reply read receipt waits for the located comment to load');
-assert.match(conversationSource, /canWrite=\{Boolean\(focused\.pick\.canComment\)\}/, 'Conversation writing follows item_review_page can_comment');
-assert.match(conversationSource, /<CurrentPickFlag \/>/, 'Conversation detail uses the shared icon-only current-Pick flag');
-assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conversation detail has no current-Pick text badge');
+const pickRouteSource = source('app/pick/[pickId].tsx');
+assert.match(pickRouteSource, /params: \{ itemId, pickId, thread: '1', \.\.\.forwarded \}/, 'The pick route hands off to the item detail with the thread open');
+assert.match(pickRouteSource, /'focusCommentId', 'notificationGroupId', 'notificationSnapshot', 'notificationKind',\s*'rootCommentId', 'commentAfterTime', 'commentAfterId'/, 'Notification and focus params are forwarded');
+const detailSource = source('app/item/[itemId].tsx');
+assert.match(detailSource, /commentId: notificationKind === 'reply' \? rootCommentId : routeFocusCommentId/, 'Reply notifications and exact comment links forward focus into the thread');
+assert.match(detailSource, /notificationKind === 'reply' && !replyTargetLoaded/, 'Reply read receipt waits for the located comment to load');
 
 // PickReplies keeps its existing CRUD/composer behavior.
 const repliesSource = source('components/pick-replies.tsx');
-assert.match(repliesSource, /useState\(!compact\)/);
+assert.match(repliesSource, /useState\(!compact \|\| Boolean\(preview\)\)/, 'Inline item threads show the composer right away');
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /const canComment = canWrite && !isSessionLoading && !sessionError/);
 assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag \/> : null/,
   'Visible comment authors get the flag only when the server says their current Pick matches this item/channel');
 assert.doesNotMatch(repliesSource, /✓ 이 집 원픽|✓ 원픽/, 'Comment authors use no current-Pick text badge');
 
-console.log('Item detail simplify passed: compact review rows, server comment counts, dedicated conversations, share and management actions.');
+console.log('Item detail simplify passed: compact review rows, server comment counts, inline threads, share and management actions.');

@@ -3,21 +3,31 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickManagement, PickManagementActions, type PickManagementMode } from '@/components/pick-management';
+import { PickReplies } from '@/components/pick-replies';
 import { PickShareActions } from '@/components/pick-share-actions';
 import { Avatar } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
 
 
+/** Where an inline thread should open: a notification or comment-list target. */
+export type ReviewThreadFocus = {
+  commentId?: string;
+  initialCursor?: ReadCursor | null;
+  onLoaded?: () => void;
+};
+
 /**
- * One review row on an item. The list stays compact: review body and comment
- * count open the dedicated conversation route instead of expanding replies here.
+ * One review row on an item. Review body and comment count expand the thread
+ * right here — recent comments, "댓글 N개 더 보기" and the composer — instead
+ * of opening a separate conversation screen (user decision 2026-10-04).
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved }: {
+export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved, initiallyExpanded = false, threadFocus }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string; itemId: string;
-  highlighted: boolean; onRemoved: () => void;
+  highlighted: boolean; onRemoved: () => void; initiallyExpanded?: boolean; threadFocus?: ReviewThreadFocus;
 }) {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
@@ -27,7 +37,8 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
   const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const commentCount = pick.commentCount ?? 0;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const toggleThread = () => setExpanded((value) => !value);
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -50,7 +61,8 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={itemName + ' 한줄평 대화 보기'} onPress={openConversation}
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
+        accessibilityLabel={itemName + (expanded ? ' 한줄평 댓글 접기' : ' 한줄평 댓글 펼치기')} onPress={toggleThread}
         style={({ pressed }) => pressed && styles.pressed}>
         {isDeleted ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
           : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
@@ -58,10 +70,17 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
       {canManage ? (
         <PickManagement pick={pick} categoryName={categoryName} onRemoved={onRemoved} mode={manageMode} onModeChange={setManageMode} />
       ) : null}
-      <Pressable accessibilityRole="button" accessibilityLabel={itemName + ' 댓글 ' + commentCount + '개 보기'} onPress={openConversation}
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
+        accessibilityLabel={itemName + ' 댓글 ' + commentCount + (expanded ? '개 접기' : '개 보기')} onPress={toggleThread}
         style={({ pressed }) => [styles.commentLink, pressed && styles.pressed]}>
-        <Text style={styles.commentLinkText}>{'댓글 ' + commentCount}</Text>
+        <Text style={styles.commentLinkText}>{'댓글 ' + commentCount + (expanded ? ' · 접기' : '')}</Text>
       </Pressable>
+      {expanded ? (
+        <PickReplies pickId={pick.id} canWrite={Boolean(pick.canComment)}
+          preview={{ limit: 3, totalCount: commentCount }}
+          readOnlyNotice="이 지점의 메뉴를 원픽으로 고르면 댓글과 답글을 쓸 수 있어요."
+          focusCommentId={threadFocus?.commentId} initialCursor={threadFocus?.initialCursor ?? null} onFocusLoaded={threadFocus?.onLoaded} />
+      ) : null}
     </View>
   );
 }

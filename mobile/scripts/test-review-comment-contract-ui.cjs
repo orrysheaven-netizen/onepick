@@ -96,20 +96,23 @@ async function main() {
   assert.doesNotMatch(replies, /✓ 이 집 원픽|✓ 원픽/);
   assert.match(replies, /삭제된 댓글입니다\./);
 
+  // 10-04: threads expand inline on the item detail; /pick/[pickId] only hands off.
   const reviewCard = source('components/item-review-card.tsx');
-  assert.match(reviewCard, /params: \{ pickId: pick\.id, itemId \}/,
-    'Review conversation links carry item id');
+  assert.match(reviewCard, /<PickReplies pickId=\{pick\.id\} canWrite=\{Boolean\(pick\.canComment\)\}/,
+    'Inline threads follow the viewer-scoped can_comment of the review');
+  assert.match(reviewCard, /focusCommentId=\{threadFocus\?\.commentId\}/, 'Inline threads accept a focused comment');
 
   const itemDetail = source('app/item/[itemId].tsx');
-  assert.match(itemDetail, /pickId: params\.pickId,[\s\S]*itemId: params\.itemId/,
-    'Comment notification redirect preserves item identity');
+  assert.doesNotMatch(itemDetail, /<Redirect href=\{\{ pathname: '\/pick\/\[pickId\]'/,
+    'Comment notifications stay on the item detail instead of bouncing to a conversation screen');
+  assert.match(itemDetail, /commentId: notificationKind === 'reply' \? rootCommentId : routeFocusCommentId/);
+  assert.match(itemDetail, /initiallyExpanded=\{openThread && pick\.id === focusPickId\}/);
 
   const pickDetail = source('app/pick/[pickId].tsx');
   assert.match(pickDetail, /const routeItemId = typeof params\.itemId === 'string'/);
   assert.match(pickDetail, /usePickDetail\(pickId, user\?\.id, needsPickLookup\)/);
   assert.match(pickDetail, /const itemId = routeItemId \?\? pickQuery\.data\?\.pick\.itemId/);
-  assert.match(pickDetail, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/);
-  assert.match(pickDetail, /<CurrentPickFlag \/>/);
+  assert.match(pickDetail, /pathname: '\/item\/\[itemId\]', params: \{ itemId, pickId, thread: '1'/);
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
 
   const myComments = source('components/profile-my-comments.tsx');
@@ -117,7 +120,7 @@ async function main() {
   assert.match(myComments, /focusCommentId: entry\.comment\.id/);
   assert.match(myComments, /commentAfterTime: location\.pageCursor\.timestamp/);
 
-  console.log('Review comment contract checks passed: server can_comment, replies, flag UI, item-aware conversation routing and exact my-comment location.');
+  console.log('Review comment contract checks passed: server can_comment, replies, flag UI, item-aware inline threads and exact my-comment location.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
