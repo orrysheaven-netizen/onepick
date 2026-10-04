@@ -83,8 +83,12 @@ const hooks = {
   useStoreSearchBrands: (searchedText, enabled) => {
     brandLookups.push({ searchedText, enabled });
     const on = enabled && searchedText.length >= 2;
-    return { data: on && !brandState.isPending && !brandState.isError ? brandResults : undefined,
-      isPending: !on || brandState.isPending, isError: on && brandState.isError,
+    // TanStack v5 shape: a retry after an error keeps status 'error' while isFetching.
+    const isPending = !on || Boolean(brandState.isPending);
+    const isError = on && Boolean(brandState.isError);
+    return { data: on && !isPending && !isError ? brandResults : undefined,
+      isPending, isError, isSuccess: on && !isPending && !isError,
+      isFetching: on && (isPending || Boolean(brandState.isFetching)),
       refetch() { brandRefetches += 1; } };
   },
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
@@ -323,13 +327,32 @@ async function main() {
   render(); input('매장명 검색').onChangeText('을밀대'); page = render();
   assert.doesNotMatch(page, /서울 마포구/, 'no branch can be chosen before the brand row is known');
   assert.match(page, /매장을 불러오는 중이에요/);
+  const endLine = /검색 결과를 모두 확인했어요|검색한 이름의 매장을 찾지 못했어요/;
+  assert.doesNotMatch(page, endLine, 'no end line while the brand read is pending');
   brandState = { isError: true }; page = render();
   assert.match(page, /브랜드를 불러오지 못했어요/, 'a failed brand read is shown, not treated as no brand');
   assert.match(page, /서울 마포구/, 'branch results stay usable while the brand read failed');
+  assert.doesNotMatch(page, endLine, 'branches finished but the brand read failed: the search is not complete');
   press('다시 불러오기'); assert.equal(brandRefetches, 1, 'the brand read can be retried');
+  brandState = { isError: true, isFetching: true }; page = render();
+  assert.doesNotMatch(page, /브랜드를 불러오지 못했어요/, 'the error card gives way while retrying');
+  assert.match(page, /매장을 불러오는 중이에요/, 'retrying shows loading');
+  assert.match(page, /서울 마포구/, 'branch results are kept while retrying');
+  assert.doesNotMatch(page, endLine, 'no end line while retrying');
   brandState = {}; page = render();
   assert.doesNotMatch(page, /브랜드를 불러오지 못했어요/);
   assert.ok(labelIndex('을밀대 전체 매장 선택') >= 0 && labelIndex('을밀대 전체 매장 선택') < labelIndex('을밀대 서울 마포구 선택'), 'after retry the brand row is first');
+  assert.match(page, /검색 결과를 모두 확인했어요/, 'the end line returns once the brand read succeeded');
+
+  // Error -> retry -> the brand read succeeds with no brand: only then "not found" is final.
+  reset();
+  results.offline = [];
+  brandState = { isError: true };
+  render(); input('매장명 검색').onChangeText('없는가게'); page = render();
+  assert.match(page, /브랜드를 불러오지 못했어요/);
+  assert.doesNotMatch(page, endLine, 'no "not found" while the brand read failed');
+  press('다시 불러오기'); brandState = {}; brandResults = []; page = render();
+  assert.match(page, /검색한 이름의 매장을 찾지 못했어요/, 'an empty, successful brand read ends the search');
 
   // A branch row is still a branch-only Pick even when its brand is listed above it.
   reset();

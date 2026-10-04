@@ -546,6 +546,10 @@ export default function NewPickScreen() {
     // The brand row is the first row: branches wait until the brand read settles.
     const ready = search.valid && !search.isWaiting;
     const brandsPending = ready && searchBrands.isPending;
+    // The end line means the whole result is known: branches done AND the brand read
+    // succeeded. A failed or retrying brand read is never reported as "all checked".
+    const brandsRetrying = ready && searchBrands.isError && searchBrands.isFetching;
+    const brandsSettled = ready && searchBrands.isSuccess && !searchBrands.isFetching;
     const rows = brandsPending ? [] : searchRows;
     return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.searchScreen} behavior="padding">
@@ -576,7 +580,7 @@ export default function NewPickScreen() {
                 void search.fetchNextPage({ cancelRefetch: false });
               }
             }}>
-            {ready && searchBrands.isError ? <StateCard compact tone="danger" title="브랜드를 불러오지 못했어요"
+            {ready && searchBrands.isError && !searchBrands.isFetching ? <StateCard compact tone="danger" title="브랜드를 불러오지 못했어요"
               action={{ label: '다시 불러오기', onPress: () => { void searchBrands.refetch(); } }} /> : null}
             {brandRows.map((candidate) => <Pressable key={`brand:${candidate.brandId}`} accessibilityRole="button"
               // Visible copy is the brand name alone; the label keeps it apart from a branch row.
@@ -595,14 +599,14 @@ export default function NewPickScreen() {
                   ? <Text style={styles.resultMeta}>{`  ${candidate.region}`}</Text> : null}</Text>
               </Pressable>;
             })}
-            {ready && (search.isFetching || brandsPending) ? <View style={styles.loading} accessibilityLiveRegion="polite">
+            {ready && (search.isFetching || brandsPending || brandsRetrying) ? <View style={styles.loading} accessibilityLiveRegion="polite">
               <ActivityIndicator color={OnePick.textPrimary} />
               <Text style={styles.helper}>{search.isFetchingNextPage ? '매장을 더 불러오는 중이에요' : '매장을 불러오는 중이에요'}</Text>
             </View> : null}
             {ready && search.isError && !search.isFetching ? <StateCard compact tone="danger" title="검색하지 못했어요"
               action={{ label: '다시 불러오기', onPress: () => { void (search.isFetchNextPageError
                 ? search.fetchNextPage({ cancelRefetch: false }) : search.refetch()); } }} /> : null}
-            {ready && !search.isFetching && !brandsPending && !search.isError && !search.hasNextPage
+            {ready && !search.isFetching && brandsSettled && !search.isError && !search.hasNextPage
               ? <Text style={styles.searchEnd}>{rows.length || brandRows.length ? '검색 결과를 모두 확인했어요' : '검색한 이름의 매장을 찾지 못했어요.'}</Text> : null}
           </ScrollView>
         </View>

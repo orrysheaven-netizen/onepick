@@ -268,7 +268,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
       { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
     ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
-    useStoreSearchBrands: () => ({ data: [] }),
+    useStoreSearchBrands: () => ({ data: [], isPending: false, isError: false, isSuccess: true, isFetching: false, refetch() {} }),
     useMenuOptions: () => ({ data: [{ categoryId: 'cat-naengmyeon', name: '평양냉면', groupName: '면', placeEnabled: true }], isSuccess: true, isError: false, refetch() {} }),
     useMenuSuggestions: () => ({ data: undefined, isPending: true, isFetching: false, isError: false }),
     useSelectStoreItem: () => mutation('select', () => { if (selectFails) throw new AppError('ITEM_NOT_FOUND'); return selectResult; }),
