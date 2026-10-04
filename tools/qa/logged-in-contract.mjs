@@ -43,7 +43,7 @@ export async function checkMenuSelection(page, menuName, timeout = 15_000, allow
 export async function assertNotifications(page, timeout = 15_000) {
   await page.getByRole('heading', { name: '알림', exact: true }).waitFor({ state: 'visible', timeout });
   const rows = page.getByRole('button', { name: /^(새|읽은) 알림, / });
-  const empty = page.getByText('아직 알림이 없어요', { exact: true });
+  const empty = page.getByText(/^아직 알림이 없어요\.?$/);
   const login = page.getByRole('button', { name: '로그인', exact: true });
   await rows.first().or(empty).or(login).first().waitFor({ state: 'visible', timeout });
   if (await login.isVisible()) throw new Error('알림 화면이 비로그인 상태로 보임');

@@ -78,7 +78,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         await set(`<h1>알림</h1><button>새로고침</button><button>${row}</button>`);
         assert.equal(await api.assertNotifications(page, timeout), 1);
       }
-      await set('<h1>알림</h1><button>새로고침</button><div>아직 알림이 없어요</div>');
+      await set('<h1>알림</h1><button>새로고침</button><div>아직 알림이 없어요.</div>');
       assert.equal(await api.assertNotifications(page, timeout), 0);
       await set('<h1>알림</h1><button>로그인</button>');
       await assert.rejects(api.assertNotifications(page, timeout), /비로그인/);
