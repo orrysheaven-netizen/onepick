@@ -128,6 +128,7 @@ export default function NotificationsScreen() {
             {unread ? <Text style={styles.newLabel}>{copy.badge}{item.unread_count > 1 ? ` ${item.unread_count}` : ''}</Text> : null}
           </View>
           <Text style={styles.message}>{copy.message}</Text>
+          {(item.kind === 'comment' || item.kind === 'reply') && item.preview ? <Text style={styles.body} numberOfLines={1}>“{item.preview}”</Text> : null}
           {item.kind === 'fix_needed' && item.reason ? <Text style={styles.body} numberOfLines={3}>사유: {item.reason}</Text> : null}
           <Text style={styles.time}>{formatRelativeTime(item.latest_at)}</Text>
         </Pressable>;

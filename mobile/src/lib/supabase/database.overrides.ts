@@ -163,6 +163,8 @@ export type NotificationGroupRow = {
     user_id: string | null;
   };
   reason: string | null;
+  /** comment/reply groups: latest comment text (<=120 chars); absent before the preview migration. */
+  preview?: string | null;
 };
 
 export type NotificationPageRow = {
