@@ -11,8 +11,27 @@ import type {
   RegisterPickRecordInput,
   RegisterItemPickInput,
   RegisterItemPickResult,
+  RegisterCategoryRequestPickInput,
 } from '@/repositories/interfaces/pickRepository';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
+
+/** register_item_pick / register_category_request_pick share one jsonb answer. */
+function parseRegisterResult(data: unknown): RegisterItemPickResult {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+  const row = data as Record<string, unknown>;
+  if (typeof row.item_id !== 'string' || typeof row.pick_id !== 'string'
+    || typeof row.published !== 'boolean' || typeof row.retried !== 'boolean'
+    || (row.replaced_pick_id !== null && row.replaced_pick_id !== undefined && typeof row.replaced_pick_id !== 'string')) {
+    throw new AppError('INTERNAL_ERROR');
+  }
+  return {
+    itemId: row.item_id,
+    pickId: row.pick_id,
+    published: row.published,
+    replacedPickId: typeof row.replaced_pick_id === 'string' ? row.replaced_pick_id : null,
+    retried: row.retried,
+  };
+}
 
 // An omitted argument is not the same as an empty one. The RPC keeps what is
 // stored when a field is absent and clears it on '', so a caller that only
@@ -56,22 +75,23 @@ export class SupabasePickRepository implements PickRepository {
       p_request_id: input.requestId,
     });
     if (error) throw mapSupabaseError(error);
-    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    return parseRegisterResult(data);
+  }
 
-    const row = data as Record<string, unknown>;
-    if (typeof row.item_id !== 'string' || typeof row.pick_id !== 'string'
-      || typeof row.published !== 'boolean' || typeof row.retried !== 'boolean'
-      || (row.replaced_pick_id !== null && row.replaced_pick_id !== undefined && typeof row.replaced_pick_id !== 'string')) {
-      throw new AppError('INTERNAL_ERROR');
-    }
-
-    return {
-      itemId: row.item_id,
-      pickId: row.pick_id,
-      published: row.published,
-      replacedPickId: typeof row.replaced_pick_id === 'string' ? row.replaced_pick_id : null,
-      retried: row.retried,
-    };
+  async registerCategoryRequestPick(input: RegisterCategoryRequestPickInput): Promise<RegisterItemPickResult> {
+    const { data, error } = await this.client.rpc('register_category_request_pick', {
+      p_category_label: input.categoryLabel,
+      p_one_line_review: input.oneLineReview,
+      p_catalog_id: input.catalogId ?? undefined,
+      p_place_name: input.placeName ?? undefined,
+      p_map_url: input.mapUrl ?? undefined,
+      p_image_path: input.imagePath ?? undefined,
+      p_thumbnail_path: input.thumbnailPath ?? undefined,
+      p_image_source_url: input.imageSourceUrl ?? undefined,
+      p_request_id: input.requestId,
+    });
+    if (error) throw mapSupabaseError(error);
+    return parseRegisterResult(data);
   }
 
   async getById(pickId: string) {

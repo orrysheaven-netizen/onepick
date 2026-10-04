@@ -56,6 +56,19 @@ export interface RegisterItemPickResult {
   retried: boolean;
 }
 
+/** A store Pick whose category the member typed (no fitting category, 10-04). */
+export interface RegisterCategoryRequestPickInput {
+  categoryLabel: string;
+  oneLineReview: string;
+  catalogId?: string | null;
+  placeName?: string | null;
+  mapUrl?: string | null;
+  imagePath?: string | null;
+  thumbnailPath?: string | null;
+  imageSourceUrl?: string | null;
+  requestId: string;
+}
+
 export interface RecentPicksInput {
   excludeUserId?: string;
   categoryId?: string;
@@ -74,6 +87,7 @@ export interface PickRepository {
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   registerItemPick(input: RegisterItemPickInput): Promise<RegisterItemPickResult>;
+  registerCategoryRequestPick(input: RegisterCategoryRequestPickInput): Promise<RegisterItemPickResult>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
   removePick(categoryId: string, channel?: PickChannel | null): Promise<void>;
   deleteReview(pickId: string): Promise<void>;

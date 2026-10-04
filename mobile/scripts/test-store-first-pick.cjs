@@ -92,6 +92,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     })),
     useReadCurrentPickSlot: () => mutation('currentSlot', () => currentSlotRun()),
     useRegisterItemPick: () => mutation('register', (input) => registerRun(input)),
+    useRegisterCategoryRequestPick: () => mutation('categoryRequest', () => ({ itemId: 'request-item', pickId: 'request-pick', published: false, replacedPickId: null, retried: false })),
   },
   '@/hooks/useStoreFirst': hooks,
   '@/lib/items/pickChannel': pickChannel,
@@ -298,7 +299,33 @@ async function main() {
   render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
   input('메뉴 이름').onChangeText('할머니 비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
   assert.match(page, /카테고리를 추천하지 못했어요/);
-  assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);
+  assert.equal(pressables.find((props) => textOf(props.children) === '다음')?.disabled, true, 'No category, no next');
+
+  // No fitting category (10-04): the member types one and the Pick is saved as
+  // their own request — photo always, no review notice anywhere.
+  press('찾는 카테고리가 없어요 · 직접 입력'); page = render();
+  assert.equal(step(page), '2');
+  assert.match(page, /카테고리를 직접 입력해 주세요/);
+  assert.equal(input('카테고리 직접 입력').value, '할머니 비법 국수', 'The typed menu name seeds the category');
+  input('카테고리 직접 입력').onChangeText('  '); page = render();
+  assert.equal(pressables.find((props) => textOf(props.children) === '다음')?.disabled, true, 'An empty category cannot continue');
+  press('이전 단계'); page = render();
+  assert.match(page, /어떤 메뉴인가요\?/, 'Back from the direct input returns to the menu step');
+  press('찾는 카테고리가 없어요 · 직접 입력'); render();
+  input('카테고리 직접 입력').onChangeText('잔치국수'); render(); press('다음'); page = render();
+  assert.equal(step(page), '3', 'A typed category is a new product: photo step');
+  assert.doesNotMatch(page, /관리자|검수/, 'No review notice for a typed category');
+  press('사진 선택'); await flush(); render(); press('다음'); page = render();
+  assert.equal(step(page), '4');
+  input('원픽 한줄평').onChangeText('면이 부드러워요'); render(); press('원픽 등록하기'); await flush();
+  assert.equal(calls.filter(([name]) => name === 'register').length, 0, 'The normal registration is not used');
+  const requestSave = calls.find(([name]) => name === 'categoryRequest')?.[1];
+  assert.ok(requestSave, 'The typed category is saved as a request');
+  assert.equal(requestSave.categoryLabel, '잔치국수');
+  assert.equal(requestSave.oneLineReview, '면이 부드러워요');
+  assert.ok(requestSave.catalogId && !requestSave.newPlace, 'A catalog store is sent by id');
+  assert.ok(requestSave.photo, 'The photo goes with the request');
+  assert.equal(destination.params.itemId, 'request-item');
 
   // Catalog-missing store identity is collected inside step 1, one input per
   // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".

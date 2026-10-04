@@ -27,6 +27,16 @@ export interface AttachItemPhotoInput {
   photo: PickPhotoDraft;
 }
 
+export interface CategoryRequestPickInput {
+  userId: string;
+  categoryLabel: string;
+  oneLineReview: string;
+  requestId: string;
+  catalogId?: string | null;
+  newPlace?: { name: string; mapUrl: string };
+  photo: PickPhotoDraft | null;
+}
+
 export interface ImmediatePickRegistrationInput {
   userId: string;
   categoryId: string;
@@ -213,6 +223,41 @@ export class RegistrationService {
       if (uploaded) {
         await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
       }
+    }
+  }
+
+  /**
+   * No fitting category (10-04): save the store Pick with the category the
+   * member typed. The server keeps it as their own pending request; it is
+   * always a new product, so a photo is required.
+   */
+  async registerCategoryRequestPick(input: CategoryRequestPickInput): Promise<ImmediatePickRegistrationResult> {
+    if (!input.userId) throw new AppError('AUTH_REQUIRED');
+    const review = input.oneLineReview.trim();
+    if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
+    const label = input.categoryLabel.trim().replace(/\s+/g, ' ');
+    if (!label || label.length > 60) throw new AppError('CATEGORY_LABEL_INVALID');
+    if (!input.requestId) throw new AppError('INTERNAL_ERROR');
+    if (!input.catalogId && !input.newPlace) throw new AppError('ITEM_SELECTION_REQUIRED');
+    if (!input.photo) throw new AppError('PHOTO_REQUIRED');
+
+    await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+    const uploaded = await this.photoRepository.upload(input.userId, input.photo);
+    try {
+      return await this.pickRepository.registerCategoryRequestPick({
+        categoryLabel: label,
+        oneLineReview: review,
+        catalogId: input.catalogId,
+        placeName: input.newPlace?.name,
+        mapUrl: input.newPlace?.mapUrl,
+        imagePath: uploaded.imagePath,
+        thumbnailPath: uploaded.thumbnailPath,
+        imageSourceUrl: input.photo.sourceUrl,
+        requestId: input.requestId,
+      });
+    } finally {
+      // Same as registerImmediatePick: attached paths survive (storage RLS).
+      await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
     }
   }
 

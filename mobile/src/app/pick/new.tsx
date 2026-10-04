@@ -9,7 +9,7 @@ import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/o
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useChoosePhoto, useReadCurrentPickSlot, useRegisterItemPick } from '@/hooks/useRegisterPick';
+import { useChoosePhoto, useReadCurrentPickSlot, useRegisterCategoryRequestPick, useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useMenuOptions, useMenuSuggestions, useProviderStorePrefill, useSelectStoreItem, useStoreSearch } from '@/hooks/useStoreFirst';
 import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel';
 import { armPickSavedToast } from '@/lib/items/pickSavedToast';
@@ -96,6 +96,7 @@ function errorMessage(error: unknown) {
       case 'AUTH_REQUIRED': return '로그인이 만료됐어요. 다시 로그인한 뒤 이어가주세요.';
       case 'PROFILE_NOT_FOUND': return '원픽을 남기려면 사용자명을 먼저 정해주세요.';
       case 'CATEGORY_NOT_PICKABLE': return '이 메뉴는 지금 고를 수 없어요. 다른 메뉴를 골라주세요.';
+      case 'CATEGORY_LABEL_INVALID': return '카테고리 이름을 1~60자로 적어 주세요.';
       case 'ITEM_NOT_ELIGIBLE':
       case 'ITEM_NOT_FOUND': return '지금은 이 매장을 원픽으로 고를 수 없어요.';
       case 'ITEM_ALREADY_PENDING': return '다른 사람이 먼저 등록한 항목이에요. 잠시 후 다시 확인해주세요.';
@@ -137,6 +138,9 @@ export default function NewPickScreen() {
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
   const [manualCategory, setManualCategory] = useState(false);
+  // No fitting category (10-04): the member types one; the Pick is saved as their own request.
+  const [categoryRequest, setCategoryRequest] = useState(false);
+  const [requestedCategory, setRequestedCategory] = useState('');
   const [categoryQuery, setCategoryQuery] = useState('');
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -280,13 +284,16 @@ export default function NewPickScreen() {
   const choosePhoto = useChoosePhoto();
   const currentPickSlot = useReadCurrentPickSlot();
   const registration = useRegisterItemPick();
+  const categoryRequestRegistration = useRegisterCategoryRequestPick();
 
   const item = itemDetail.data?.item;
   const itemHasPhoto = Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
   const needsPhoto = !(itemHadPhoto || itemHasPhoto);
   const trimmedReview = review.trim();
   const reviewValid = trimmedReview.length >= 1 && trimmedReview.length <= 100;
-  const saving = registration.isPending;
+  const saving = registration.isPending || categoryRequestRegistration.isPending;
+  const requestedCategoryLabel = requestedCategory.trim().replace(/\s+/g, ' ');
+  const validRequestedCategory = requestedCategoryLabel.length >= 1 && requestedCategoryLabel.length <= 60;
   const replacingVisiblePick = expectedPreviousPickId !== undefined && expectedPreviousPickId !== null
     && itemDetail.data?.myPickStatus?.type !== 'selected_this';
 
@@ -302,6 +309,7 @@ export default function NewPickScreen() {
     if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
     if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
+    if (step === 2 && categoryRequest) { setCategoryRequest(false); return; }
     setStep(previousFrom(step));
   };
   const applyEntryMenuPrefill = () => {
@@ -391,7 +399,11 @@ export default function NewPickScreen() {
   const save = async (expectedOverride?: string | null) => {
     if (!user || !store || !menu || busy.current || saving) return;
     if (!reviewValid) { setShowReviewError(true); return; }
-    if (!menu.categoryId) { setSaveError(new AppError('CATEGORY_NOT_PICKABLE')); return; }
+    if (!menu.categoryId) {
+      if (categoryRequest && validRequestedCategory) await saveCategoryRequest();
+      else setSaveError(new AppError('CATEGORY_NOT_PICKABLE'));
+      return;
+    }
     if (needsPhoto && !photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
     const expected = expectedOverride !== undefined ? expectedOverride : expectedPreviousPickId;
     if (expected === undefined) { setSaveError(new AppError('INTERNAL_ERROR')); return; }
@@ -436,6 +448,41 @@ export default function NewPickScreen() {
         setSaveError(error);
       }
     } finally { busy.current = false; }
+  };
+
+  const saveCategoryRequest = async () => {
+    if (!user || !store || store.kind === 'seller' || busy.current) return;
+    if (!photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
+    busy.current = true;
+    setSaveError(null);
+    const requestId = requestIdRef.current ?? Crypto.randomUUID();
+    requestIdRef.current = requestId;
+    try {
+      const result = await categoryRequestRegistration.mutateAsync({
+        userId: user.id,
+        categoryLabel: requestedCategoryLabel,
+        oneLineReview: trimmedReview,
+        requestId,
+        catalogId: store.kind === 'place' ? store.catalogId : undefined,
+        newPlace: store.kind === 'new' ? { name: store.name, mapUrl: store.mapUrl } : undefined,
+        photo,
+      });
+      drafts.clear();
+      setDone({ pickId: result.pickId, itemId: result.itemId });
+      setStep(6);
+      armPickSavedToast(result.pickId);
+      router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.pickId } });
+    } catch (error) {
+      if (isPhotoFailure(error)) showPhotoFailure(error, 'store_pick_photo_upload');
+      setSaveError(error);
+    } finally { busy.current = false; }
+  };
+  const startCategoryRequest = () => {
+    if (!validRequestedCategory) return;
+    setMenu({ categoryId: null, name: requestedMenu || requestedCategoryLabel });
+    setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
+    setPickChangedElsewhere(false); setExpectedPreviousPickId(null); requestIdRef.current = null;
+    setStep(4);
   };
 
   const confirmChangedPickAndSave = async () => {
@@ -618,7 +665,25 @@ export default function NewPickScreen() {
           </View>
         </> : null}
 
-        {step === 2 && store ? <>
+        {step === 2 && store && categoryRequest ? <>
+          {/* Figma 75 · 2단계-a: no fitting category, the member types one. */}
+          <View style={styles.body}>
+            <Text style={styles.stepMeta}>2 / 4 · {storeDisplayName}</Text>
+            <Text style={styles.title}>카테고리를 직접 입력해 주세요</Text>
+            <View style={styles.fieldBlock}>
+              <FieldLabel label="카테고리" />
+              <TextInput accessibilityLabel="카테고리 직접 입력" maxLength={60} value={requestedCategory}
+                onChangeText={(value) => { setRequestedCategory(value); requestIdRef.current = null; }}
+                onSubmitEditing={startCategoryRequest} returnKeyType="next"
+                style={styles.input} placeholder="예: 와플" placeholderTextColor={OnePick.textTertiary} />
+            </View>
+          </View>
+          <View style={styles.footer}>
+            <FlowButton label="다음" disabled={!validRequestedCategory} onPress={startCategoryRequest} />
+          </View>
+        </> : null}
+
+        {step === 2 && store && !categoryRequest ? <>
           <View style={styles.body}>
             <Text style={styles.stepMeta}>2 / 4 · {storeDisplayName}</Text>
             <Text style={styles.title}>어떤 메뉴인가요?</Text>
@@ -628,7 +693,7 @@ export default function NewPickScreen() {
                 <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery}
                   onChangeText={(value) => {
                     setMenuPrefilled(false);
-                    setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                    setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setCategoryRequest(false); setRequestedCategory('');
                     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
@@ -637,7 +702,7 @@ export default function NewPickScreen() {
                 {menuQuery ? <Pressable accessibilityRole="button" accessibilityLabel="메뉴명 지우기"
                   onPress={() => {
                     setMenuPrefilled(false);
-                    setMenuQuery(''); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                    setMenuQuery(''); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setCategoryRequest(false); setRequestedCategory('');
                     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
@@ -684,6 +749,8 @@ export default function NewPickScreen() {
                 {aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)
                   ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)?.reason}</Text> : null}
                 <FlowButton variant="text" label="다른 카테고리 찾기" onPress={() => { setManualCategory(true); setMenu(null); }} />
+                {store.kind !== 'seller' ? <FlowButton variant="text" label="찾는 카테고리가 없어요 · 직접 입력"
+                  onPress={() => { setRequestedCategory((value) => value || requestedMenu); setCategoryRequest(true); }} /> : null}
               </View> : null}
 
             {showManualCategory ? <View style={styles.fieldBlock}>
@@ -696,7 +763,8 @@ export default function NewPickScreen() {
                   label={[option.groupName, option.name].filter(Boolean).join(' › ')}
                   selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
               </View>
-              <Text style={styles.helper}>원픽을 바로 저장하려면 현재 등록 가능한 카테고리 중 하나를 골라주세요.</Text>
+              {store.kind !== 'seller' ? <FlowButton variant="text" label="찾는 카테고리가 없어요 · 직접 입력"
+                onPress={() => { setRequestedCategory((value) => value || categoryQuery.trim() || requestedMenu); setCategoryRequest(true); }} /> : null}
             </View> : null}
 
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried && !prefilledMenu ? <View style={styles.loadingRow}>
@@ -730,7 +798,10 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>3 / 4 · {pickDisplayName} · {menu?.name ?? '사진'}</Text>
             <Text style={styles.title}>대표 사진을 올려주세요</Text>
-            <Text style={styles.helper}>{needsPhoto
+            <Text style={styles.helper}>{needsPhoto && categoryRequest
+              // A typed-category request never mentions review (user decision 10-04).
+              ? `올린 사진은 ${pickDisplayName} ${menu?.name ?? '메뉴'}의 대표 사진으로 쓰여요.`
+              : needsPhoto
               ? `이 메뉴에는 아직 사진이 없어요. 올린 사진은 관리자 검수 후 ${pickDisplayName} ${menu?.name ?? '메뉴'}의 대표 사진으로 쓰여요.`
               : '이미 대표 사진이 있어 사진 단계는 자동으로 건너뜁니다.'}</Text>
             {needsPhoto ? <View style={styles.photoPanel}>

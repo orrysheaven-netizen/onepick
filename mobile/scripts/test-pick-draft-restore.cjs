@@ -261,6 +261,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useChoosePhoto: () => mutation('choosePhoto', () => choosePhotoResult),
     useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
+    useRegisterCategoryRequestPick: () => mutation('categoryRequest', () => ({ itemId: 'request-item', pickId: 'request-pick', published: false, replacedPickId: null, retried: false })),
   },
   '@/hooks/useStoreFirst': {
     useProviderStorePrefill: () => ({ data: null, isPending: true, isLoading: false, isError: false }),

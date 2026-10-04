@@ -319,6 +319,20 @@ export type AppDatabase = Omit<Database, 'public'> & {
         };
         Returns: Json;
       };
+      register_category_request_pick: {
+        Args: {
+          p_category_label: string;
+          p_one_line_review: string;
+          p_catalog_id?: string;
+          p_place_name?: string;
+          p_map_url?: string;
+          p_image_path?: string;
+          p_thumbnail_path?: string;
+          p_image_source_url?: string;
+          p_request_id?: string;
+        };
+        Returns: Json;
+      };
       store_menu_options: {
         Args: never;
         Returns: { category_id: string; name: string; group_name: string | null; place_enabled: boolean }[];
