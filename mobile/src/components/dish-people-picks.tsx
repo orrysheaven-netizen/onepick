@@ -78,7 +78,7 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
     return (
       <View accessibilityLabel={`${categoryName} 사람들의 원픽`} style={[styles.container, styles.menuDetailContainer]}>
         <Text accessibilityRole="header" style={styles.menuDetailCount}>원픽 {totalPickCountLabel}</Text>
-        <Text style={styles.menuDetailHint}>최근 고른 순 누가 어느 집을 왜 골랐는지 볼 수 있어요.</Text>
+        {loadedPicks.length ? <Text style={styles.menuDetailHint}>최근 고른 순 누가 어느 집을 왜 골랐는지 볼 수 있어요.</Text> : null}
 
         {query.isPending ? <StateCard compact loading title="원픽을 불러오고 있어요." /> : null}
         {query.isError && !loadedPicks.length ? <StateCard compact tone="danger" title="원픽을 불러오지 못했어요."
