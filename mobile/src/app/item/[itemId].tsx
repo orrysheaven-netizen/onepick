@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { useItemPickCount } from '@/hooks/useItemPickCount';
+import { useItemStore } from '@/hooks/useItemStore';
 import { useAttachItemPhoto, useChoosePhoto, useMyPendingItemPhoto, useRevisePendingItem } from '@/hooks/useRegisterPick';
 import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { ItemChannelLinks } from '@/components/item-channel-links';
@@ -13,7 +15,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { YouTubeVideoLink } from '@/components/youtube-video-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, StateCard } from '@/components/ui';
+import { Button, PickButton, SectionHeader, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -99,6 +101,9 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
   const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError, publicFoodChannel);
+  // Figma 36 top: store link + region and the current Pick count of a store item.
+  const store = useItemStore(itemId ?? '', Boolean(query.data?.isRestaurant));
+  const pickCount = useItemPickCount(itemId ?? '');
   const readNotificationGroup = useReadNotificationGroup(user?.id);
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
@@ -399,39 +404,42 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               </> : null}
             </View>
           ) : null}
-          {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
-          {isRestaurant
-            ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
-            : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
+          {/* Figma 36: [매장] tag + "매장명 ›" (store profile) → 매장명 Bold + 메뉴명 → 원픽 N · 지역. */}
+          {isRestaurant ? <View style={styles.storeRow}>
+            {homeChannelLabel(displayChannels) ? <View style={styles.channelTag}><Text style={styles.channelTagText}>{homeChannelLabel(displayChannels)}</Text></View> : null}
+            {store.data?.providerId ? <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 매장 프로필 보기`}
+              onPress={() => router.push({ pathname: '/provider/[providerId]', params: { providerId: store.data!.providerId!, scope: 'provider' } })}
+              style={({ pressed }) => [styles.storeLink, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.storeLinkText}>{item.name} ›</Text>
+            </Pressable> : <Text numberOfLines={1} style={styles.storeLinkText}>{item.name}</Text>}
+          </View> : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
           {brand ? <View style={styles.brandRow}>
             {brand.logoUrl ? <View style={styles.brandLogo}>
               <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
             </View> : null}
             <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
           </View> : null}
-          <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
+          {isRestaurant && category?.name && itemTitle(item.name, category.name, true) !== item.name.trim()
+            ? <Text accessibilityRole="header" style={styles.itemName}>{item.name.trim()} <Text style={styles.itemMenu}>{category.name.trim()}</Text></Text>
+            : <Text accessibilityRole="header" style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>}
+          {isRestaurant && (pickCount.data || store.data?.region)
+            ? <Text style={styles.itemMeta}>{[pickCount.data ? `원픽 ${pickCount.data}` : null, store.data?.region].filter(Boolean).join(' ')}</Text>
+            : null}
           <YouTubeVideoLink item={item} />
           {!mvpFoodScope ? <ItemPickCount itemId={item.id} /> : null}
           {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 
-          {/* One shape for the Pick state: filled brand color when it is my Pick, no color
-              otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
-          {myPickStatus.type === 'selected_this' ? (
-            <View accessible accessibilityLabel="내 원픽이에요" style={[styles.pickMark, styles.pickMarkMine]}>
-              <View style={[styles.pickDot, styles.pickDotMine]}><Text style={styles.pickCheck}>✓</Text></View>
-              <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
+          {/* Figma 36: one Pick Button — 원픽으로 고르기 / 원픽 바꾸기 / 내 원픽이에요 (not pressable).
+              My own Pick is edited on its review card below. */}
+          {myPickStatus.type === 'selected_this' ? <View style={styles.pickButtonRow}><PickButton state="mine" /></View>
+            : canChoose ? <View style={styles.pickButtonRow}>
+              <PickButton state={myPickStatus.type === 'selected_other' ? 'change' : 'default'} onPress={openPickAction} />
             </View>
-          ) : canChoose ? (
-            <Pressable accessibilityRole="button" onPress={openPickAction}
-              accessibilityLabel={myPickStatus.type === 'selected_other' ? '이걸로 원픽 바꾸기' : '원픽으로 고르기'}
-              style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
-              <View style={styles.pickDot} />
-              <Text style={styles.pickMarkText}>원픽</Text>
-            </Pressable>
-          ) : <Text style={styles.itemMeta}>지금은 여기서 새 원픽을 선택할 수 없어요.</Text>}
+            : <Text style={styles.itemMeta}>지금은 여기서 새 원픽을 선택할 수 없어요.</Text>}
         </View>
 
         <View style={styles.sectionGap} />
+        <SectionHeader title={picks.length ? `한줄평 ${picks.length}` : '한줄평'} />
 
         {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 현재 공개 범위에 없어요.</Text> : null}
         {picks.length > 0 ? (
@@ -449,7 +457,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요." text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
+          <StateCard title="아직 한줄평이 없어요." text={canChoose ? '이 메뉴를 원픽으로 고르면 첫 한줄평을 남길 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
@@ -586,8 +594,15 @@ const styles = StyleSheet.create({
   },
   brandLogoImage: { width: '100%', height: '100%' },
   brandName: { ...OnePickType.bodyMedium, color: OnePick.textSecondary, flexShrink: 1 },
-  itemName: { ...OnePickType.pageTitle, color: OnePick.textPrimary, textAlign: 'center', marginTop: OnePickSpace.sm },
-  itemMeta: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', marginTop: OnePickSpace.sm },
+  itemName: { ...OnePickType.pageTitle, color: OnePick.textPrimary, marginTop: OnePickSpace.sm },
+  itemMenu: { fontWeight: '400' },
+  itemMeta: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
+  storeRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm, marginTop: OnePickSpace.lg },
+  channelTag: { borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle, paddingHorizontal: OnePickSpace.sm, paddingVertical: 2 },
+  channelTagText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
+  storeLink: { minHeight: 44, justifyContent: 'center', flexShrink: 1 },
+  storeLinkText: { ...OnePickType.body, color: OnePick.textPrimary, flexShrink: 1 },
+  pickButtonRow: { marginTop: OnePickSpace.lg, alignSelf: 'stretch' },
   pickMark: {
     flexDirection: 'row',
     alignItems: 'center',

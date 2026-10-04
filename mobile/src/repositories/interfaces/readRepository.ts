@@ -232,6 +232,8 @@ export interface ReadRepository {
    */
   getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
+  /** Item detail (Figma 36): store profile id for "매장명 ›" and the store's short region. */
+  getItemStore(itemId: string): Promise<{ providerId: string | null; region: string | null }>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   /** Item-scoped reviews include current and ended Picks without exposing lifecycle history. */

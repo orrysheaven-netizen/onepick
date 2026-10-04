@@ -390,6 +390,18 @@ export class SupabaseReadRepository implements ReadRepository {
     };
   }
 
+  async getItemStore(itemId: string) {
+    const [providerIds, place] = await Promise.all([
+      fetchItemProviderIds(this.client, [itemId]),
+      // places/item_places are public reads; an item without a store simply has none.
+      (this.client as any).from('item_places').select('places(region_1, region_2)').eq('item_id', itemId).maybeSingle(),
+    ]);
+    const row = place?.data?.places as { region_1?: string | null; region_2?: string | null } | null | undefined;
+    const short = (value?: string | null) => value?.trim().replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') || null;
+    const region = [short(row?.region_1), row?.region_2?.trim() || null].filter(Boolean).join(' ') || null;
+    return { providerId: providerIds.get(itemId) ?? null, region };
+  }
+
   async countActivePicks(itemId: string) {
     // One current pick per user/category plus the item/category FK prevents duplicate people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.

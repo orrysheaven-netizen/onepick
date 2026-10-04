@@ -86,6 +86,7 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false }) },
     '@/errors/appError': { AppError },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ data: detail }) },
+    '@/hooks/useItemPickCount': { useItemPickCount: () => ({ data: 0 }) }, '@/hooks/useItemStore': { useItemStore: () => ({ data: null }) },
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null }),
       useAttachItemPhoto: () => ({ isPending: false, isError: false, mutateAsync: async () => null, reset() {} }),
@@ -111,7 +112,7 @@ async function main() {
   assert.doesNotMatch(ownDetail, /새 원픽을 선택할 수 없어요/);
   assert.equal(destination, undefined, 'Own review stays on the product page');
   // The Pick state is one shape: colored when it is my Pick (not pressable), uncolored otherwise.
-  assert.ok(!presses.some((p) => p.accessibilityLabel === '원픽으로 고르기' || p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'My own Pick mark is not a button');
+  assert.ok(!presses.some((p) => p.accessibilityLabel === '원픽으로 고르기' || p.accessibilityLabel === '원픽 바꾸기'), 'My own Pick mark is not a button');
   detail.myPickStatus = { type: 'not_selected' };
   render(Item);
   const chooseMark = presses.find((p) => p.accessibilityLabel === '원픽으로 고르기');
@@ -121,7 +122,7 @@ async function main() {
   destination = undefined;
   detail.myPickStatus = { type: 'selected_other', currentPickId: 'previous', currentItemId: 'previous-item' };
   render(Item);
-  assert.ok(presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
+  assert.ok(presses.find((p) => p.accessibilityLabel === '원픽 바꾸기'), 'Another Pick in the category shows the Pick Button with the change label');
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   detail.canChoose = false;
 

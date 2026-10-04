@@ -105,7 +105,7 @@ async function main() {
     },
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useItemPickCount': { useItemPickCount: () => ({ data: 5 }) }, '@/hooks/useItemStore': { useItemStore: () => ({ data: { providerId: 'prov-1', region: '서울 강남구' } }) },
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => picker,
       useAttachItemPhoto: () => attachment,

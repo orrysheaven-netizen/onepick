@@ -166,6 +166,10 @@ export class ItemService {
       : Promise.resolve(null);
   }
 
+  getStore(itemId: string) {
+    return this.readRepository.getItemStore(itemId);
+  }
+
   getPickCount(itemId: string) {
     return this.readRepository.countActivePicks(itemId);
   }
