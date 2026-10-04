@@ -299,7 +299,7 @@ export default function NewPickScreen() {
   const goBack = () => {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
+    if (step === 1 && requesting && requestPart === 'link' && !query.trim()) { setRequestPart('name'); return; }
     if (step === 1 && requesting) { setRequesting(false); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
@@ -610,7 +610,11 @@ export default function NewPickScreen() {
               ? <FlowButton label="다음" onPress={() => pickStore(providerPrefillStore)} />
               : !requesting
                 ? <FlowButton variant="secondary" label="찾는 매장이 없어요"
-                    onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); }} />
+                    onPress={() => {
+                      // The search term is the new store's name; only an empty search still asks for one (10-04).
+                      setRequesting(true); setNewName(query); setMapLink('');
+                      setRequestPart(query.trim() ? 'link' : 'name');
+                    }} />
               : requestPart === 'name'
                 ? <FlowButton label="다음" disabled={!validNewName} onPress={() => setRequestPart('link')} />
                 : <FlowButton label="다음" disabled={!canRequest}

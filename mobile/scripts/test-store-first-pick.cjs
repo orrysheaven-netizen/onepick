@@ -300,33 +300,26 @@ async function main() {
   assert.match(page, /카테고리를 추천하지 못했어요/);
   assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);
 
-  // Catalog-missing store identity is collected inside step 1, one input per
-  // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".
+  // Catalog-missing store identity is collected inside step 1 (10-04): the
+  // search term becomes the store name, so only the Naver map link is asked.
+  // No road address, no "다시 검색하기".
   reset();
   registerRun = () => ({ itemId: 'pending-place-item', pickId: 'needs-review-pick', published: false, replacedPickId: null, retried: false });
   // Starting over from search must not carry the previous store's link (Codex review on #596).
   render(); input('매장명 검색').onChangeText('옛 냉면집'); render(); press('찾는 매장이 없어요'); render();
-  press('다음'); render(); input('네이버 지도 링크').onChangeText('https://naver.me/oldstore'); render();
-  press('이전 단계'); render(); press('이전 단계'); render();
-  input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); render();
-  assert.equal(input('등록 요청 이름').value, '새 냉면집');
-  press('다음'); render();
+  input('네이버 지도 링크').onChangeText('https://naver.me/oldstore'); render();
+  press('이전 단계'); page = render();
+  assert.match(page, /상호명을 검색해 주세요/, 'Back from the link returns to the search');
+  input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); page = render();
+  assert.equal(step(page), '1');
+  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/, 'A search term skips the name screen');
+  assert.doesNotMatch(page, /매장 이름을 알려 주세요/);
+  assert.match(page, /새 냉면집/, 'The search term is shown as the new store name');
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'No separate name input');
   assert.equal(input('네이버 지도 링크').value, '', 'A new direct registration starts without the previous link');
   assert.ok(pressables.find((props) => textOf(props.children) === '다음')?.disabled, 'No link, no next');
-  press('이전 단계'); page = render();
-  assert.equal(step(page), '1');
-  assert.match(page, /매장 이름을 알려 주세요/);
   assert.doesNotMatch(page, /도로명 주소/);
   assert.doesNotMatch(page, /다시 검색하기/);
-  assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'), 'The link has its own screen');
-  input('등록 요청 이름').onChangeText('새 냉면집');
-  render(); press('다음'); page = render();
-  assert.equal(step(page), '1');
-  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
-  assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
-  press('이전 단계'); page = render();
-  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
-  press('다음'); render();
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore');
   render(); press('다음'); page = render();
   assert.equal(step(page), '2');
@@ -344,6 +337,16 @@ async function main() {
   assert.doesNotMatch(page, /등록 요청을 보냈어요/);
   assert.equal(destination.params.itemId, 'pending-place-item');
   assert.equal(destination.params.pickId, 'needs-review-pick');
+
+  // An empty search has no name to reuse, so it still asks for one first.
+  reset();
+  render(); press('찾는 매장이 없어요'); page = render();
+  assert.match(page, /매장 이름을 알려 주세요/, 'Empty search falls back to the name screen');
+  input('등록 요청 이름').onChangeText('이름만 아는 집'); render(); press('다음'); page = render();
+  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
+  press('이전 단계'); page = render();
+  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the typed name');
+  assert.equal(input('등록 요청 이름').value, '이름만 아는 집');
 
   // Own pending item is still a current Pick target, not a separate success mode.
   reset();
