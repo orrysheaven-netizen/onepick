@@ -62,13 +62,19 @@ Cloudflare의 “Production branch”는 이 **테스트 사이트의 기본 주
 Supabase Authentication → URL Configuration에 저장한 값:
 
 - Site URL: `https://onepick-5cl.pages.dev`.
-- Redirect URLs: 기존 Vercel 관리자 주소를 보존하고 아래 두 패턴을 추가했다.
+- Redirect URLs: 기존 Vercel 관리자 주소를 보존하고 아래 패턴을 추가했다.
   - `https://onepick-5cl.pages.dev/auth/callback`
   - `https://onepick-5cl.pages.dev/auth/callback?*`
+  - `https://*.onepick-5cl.pages.dev/auth/callback` (2026-10-05, PR 미리보기)
+  - `https://*.onepick-5cl.pages.dev/auth/callback?*`
 
-두 번째 패턴은 로그인 후 원픽 선택/댓글 화면으로 돌아가는 query parameter를
+`?*` 패턴은 로그인 후 원픽 선택/댓글 화면으로 돌아가는 query parameter를
 허용하기 위한 것이다. 실제 주소에서 홈 로그인과 아이템 선택 후 로그인을 각각
 검증한다. 다른 프로젝트까지 허용하는 `https://**.pages.dev/**`는 추가하지 않는다.
+
+`*.onepick-5cl.pages.dev`는 이 Cloudflare 프로젝트의 PR 미리보기 주소만 허용한다.
+이 패턴이 없으면 미리보기에서 로그인해도 Supabase가 Site URL(운영 주소)로 돌려보내,
+미리보기 주소는 계속 로그아웃 상태로 남는다(로그인 정보는 주소마다 따로 저장된다).
 
 Kakao Developers의 OAuth Redirect URI는 원픽 화면 주소와 다르다. 기존 값인
 `https://ygoipwzakzdnkaaxyrgb.supabase.co/auth/v1/callback`을 사용한다.
