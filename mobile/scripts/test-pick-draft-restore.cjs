@@ -248,7 +248,7 @@ let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStor
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const { default: Screen } = load('app/pick/new.tsx', {
-  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
     useLocalSearchParams: () => routeParams,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAvoidingForm } from '@/components/keyboard-avoiding-form';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
@@ -83,6 +84,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <KeyboardAvoidingForm>
       <View style={styles.content}>
         <View style={styles.brand}><OnePickBrand /></View>
         <Text style={styles.title}>사용자명만{ '\n' }정하면 끝이에요</Text>
@@ -134,6 +136,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
           </>
         ) : null}
       </View>
+    </KeyboardAvoidingForm>
     </SafeAreaView>
   );
 }

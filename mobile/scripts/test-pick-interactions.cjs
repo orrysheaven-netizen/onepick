@@ -82,7 +82,7 @@ async function main() {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
-    'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
+    'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: nativeComponent('section') },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'owner' }, isLoading: false }) },
     '@/errors/appError': { AppError },
     '@/hooks/useItemDetail': { useItemDetail: () => ({ data: detail }) },

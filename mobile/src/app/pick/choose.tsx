@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAvoidingForm } from '@/components/keyboard-avoiding-form';
 import { PickPhoto } from '@/components/pick-photo';
 import { PickPhotoStep } from '@/components/pick-photo-step';
 import { BrandMark, Button, StateCard } from '@/components/ui';
@@ -180,6 +181,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <KeyboardAvoidingForm>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
@@ -287,6 +289,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           </View> : null}
         </View> : null}
       </ScrollView>
+    </KeyboardAvoidingForm>
     </SafeAreaView>
   );
 }

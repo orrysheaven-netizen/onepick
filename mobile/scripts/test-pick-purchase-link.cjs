@@ -53,7 +53,7 @@ const { default: Choose } = load('app/pick/choose.tsx', {
     useRef: () => ({ current: { focus() {} } }),
   },
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ replace() {}, push() {}, back() {}, canGoBack: () => true }) },
-  'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') }, '@/components/keyboard-avoiding-form': { KeyboardAvoidingForm: part('section') },
   '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null }, '@/errors/appError': { AppError },
   '@/constants/onepick': { ...require('./design-tokens.cjs'), OnePickFeatures: { follow: false, purchaseLinks: true } },
   '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
