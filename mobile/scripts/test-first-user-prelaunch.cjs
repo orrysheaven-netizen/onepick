@@ -48,11 +48,13 @@ async function main() {
     /router\.replace\(getPostAuthRoute\(intent, !result\.profile\)\)/,
     'login must route missing-profile users through username creation',
   );
+  // MVP sign-up (Figma [최종결정] 가입 여정): no taste onboarding after the username step.
   assert.match(
     usernameSource,
-    /ONBOARDING_INTENTS\.has\(intent\.action\) \? '\/onboarding' : getPostAuthRoute\(intent\)/,
-    'saving the first username from an onboarding intent must enter onboarding',
+    /router\.replace\(getPostAuthRoute\(intent\)\)/,
+    'saving the first username must return to the original task',
   );
+  assert.doesNotMatch(usernameSource, /'\/onboarding'/, 'username creation must not divert to taste onboarding');
 
   // 2) Onboarding -> Pick finder -> choose screen.
   const onboardingSource = read('src/app/onboarding.tsx');
