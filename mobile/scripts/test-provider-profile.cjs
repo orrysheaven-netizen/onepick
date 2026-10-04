@@ -179,7 +179,7 @@ async function main() {
   assert.match(screen, /storeHeaderSide: \{ width: 48, minHeight: 44, justifyContent: 'center' \}/);
   assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\s\S]*?paddingHorizontal: OnePickSpace\.gutter[\s\S]*?paddingTop: OnePickSpace\.sm/);
   assert.match(screen, /query\.data\.brandLogoUrl \?/, 'registered brand logo is used when available');
-  assert.match(screen, /accessibilityLabel="로고 미등록"/, 'missing logo keeps the Figma 64px placeholder');
+  assert.match(screen, /style=\{styles\.storeLogoPlaceholder\}/, 'missing logo keeps the Figma 64px placeholder (first letter)');
   assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
   assert.match(screen, /query\.data\.link \? <View style=\{styles\.storeLinks\}>/, 'only registered external links render');
   assert.match(screen, /지도 링크 ↗/, 'offline store exposes its registered map action');

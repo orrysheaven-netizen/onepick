@@ -15,15 +15,19 @@ const pub = read('src/app/(tabs)/(profile)/u/[username].tsx');
 assert.match(screen, /<View style=\{styles\.storeHeader\}>/);
 assert.match(screen, /storeHeader:[\s\S]*?height: 56/);
 assert.match(screen, /storeHeaderSide: \{ width: 48, minHeight: 44, justifyContent: 'center' \}/);
-assert.match(screen, /storeHeaderTitle: \{ \.\.\.OnePickType\.headline[\s\S]*?textAlign: 'center'/);
+// Figma 17 rule 1: the header keeps only ‹; the store name is the body title, once.
+assert.doesNotMatch(screen, /storeHeaderTitle/);
+assert.match(screen, /<Text accessibilityRole="header" numberOfLines=\{1\} style=\{styles\.storeName\}>/);
 assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\s\S]*?paddingHorizontal: OnePickSpace\.gutter[\s\S]*?paddingTop: OnePickSpace\.sm[\s\S]*?gap: OnePickSpace\.md/);
 
 assert.match(screen, /query\.data\.brandLogoUrl \?/);
 assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
-assert.match(screen, /로고\{"\\n"\}미등록/);
+// Rule 2: no logo → the store name's first letter, never a "로고 미등록" system label.
+assert.doesNotMatch(screen, /로고 미등록|미등록/);
+assert.match(screen, /\{query\.data\.name\.trim\(\)\.slice\(0, 1\)\}/);
 assert.match(screen, /storeChannelBadge:[\s\S]*?height: 28[\s\S]*?paddingHorizontal: 9[\s\S]*?borderRadius: OnePickRadius\.full/);
 assert.match(screen, /storeName: \{ \.\.\.OnePickType\.title/);
-assert.match(screen, /\[query\.data\.branchName, query\.data\.subtitle\]\.filter\(Boolean\)\.join\(' · '\)/);
+assert.match(screen, /\[query\.data\.branchName, query\.data\.subtitle\]\.filter\(Boolean\)\.join\(' '\)/, '"성수동 서울 성동구"');
 
 assert.match(screen, /query\.data\.link \? <View style=\{styles\.storeLinks\}>/, 'external links are conditional');
 assert.match(screen, /지도 링크 ↗/);
@@ -31,6 +35,7 @@ assert.doesNotMatch(screen, />SNS</, 'unregistered SNS is not invented');
 assert.match(screen, /storeLinkButton:[\s\S]*?minHeight: 41[\s\S]*?paddingHorizontal: 14[\s\S]*?paddingVertical: 9/);
 
 assert.match(screen, /storeSectionTitle[\s\S]*?이곳의 원픽/);
+assert.match(screen, /query\.data\.items\.length \? ` \$\{query\.data\.items\.length\}` : ''/, 'Rule 5: "이곳의 원픽 N"');
 assert.match(screen, /storeMenuRow:[\s\S]*?minHeight: 72/);
 assert.match(screen, /storeMenuCopy:[\s\S]*?minHeight: 62[\s\S]*?gap: 2/);
 assert.match(screen, /<Text numberOfLines=\{1\} style=\{styles\.storeMenuName\}>\{item\.menuName\}<\/Text>/);
