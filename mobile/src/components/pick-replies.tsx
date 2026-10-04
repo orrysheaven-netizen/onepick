@@ -39,13 +39,15 @@ function getCommentErrorMessage(error: unknown) {
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
  * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet:
- * "댓글 남기기" then asks in a popup whether to pick this menu first.
+ * "댓글 남기기" then asks in a popup whether to pick this menu first. `autoOpenPickFirst` (back from
+ * login/signup) opens that popup once on arrival.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, autoOpenPickFirst = false, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
   onPickFirst?: () => void;
+  autoOpenPickFirst?: boolean;
   focusCommentId?: string;
   initialCursor?: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -53,15 +55,16 @@ export function PickReplies({ pickId, compact = false, canWrite = true, onPickFi
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} onPickFirst={onPickFirst} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpenPickFirst, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
   canWrite: boolean;
   onPickFirst?: () => void;
+  autoOpenPickFirst: boolean;
   focusCommentId?: string;
   initialCursor: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -76,6 +79,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCom
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
   const [pickFirstOpen, setPickFirstOpen] = useState(false);
+  const pickFirstAutoOpened = useRef(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
   // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
@@ -86,6 +90,13 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCom
   useEffect(() => {
     if (focusedCommentLoaded) onFocusLoaded?.();
   }, [focusedCommentLoaded, onFocusLoaded]);
+
+  const canPickFirst = Boolean(onPickFirst && user && !compact);
+  useEffect(() => {
+    if (!autoOpenPickFirst || !canPickFirst || pickFirstAutoOpened.current) return;
+    pickFirstAutoOpened.current = true;
+    setPickFirstOpen(true);
+  }, [autoOpenPickFirst, canPickFirst]);
 
   const loginPrompt = (
     <Pressable

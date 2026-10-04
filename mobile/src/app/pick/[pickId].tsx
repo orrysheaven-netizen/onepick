@@ -23,6 +23,7 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  afterAuth?: string;
 };
 
 
@@ -143,6 +144,7 @@ export default function PickDetailScreen() {
           <PickReplies
             pickId={focused.pick.id}
             canWrite={Boolean(focused.pick.canComment)}
+            autoOpenPickFirst={params.afterAuth === '1'}
             onPickFirst={canPickFirst ? () => router.push({ pathname: '/pick/choose', params: {
               itemId: focused.pick.itemId, categoryId: focused.pick.categoryId,
               ...(focused.pick.channel ? { channel: focused.pick.channel } : {}), returnPickId: focused.pick.id,

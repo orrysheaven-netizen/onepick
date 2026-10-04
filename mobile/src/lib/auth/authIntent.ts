@@ -214,7 +214,8 @@ export function getPostAuthRoute(intent: AuthIntent, needsUsername = false): Hre
     case 'choose_pokemon': return { pathname: '/pick/pokemon', params: { categoryId: intent.categoryId, externalPokemonId: intent.externalPokemonId } };
     case 'choose_place': return { pathname: '/pick/find', params: { categoryId: intent.categoryId, placeCatalogId: intent.placeCatalogId } };
     case 'suggest_link_category': return { pathname: '/pick/link', params: { url: intent.linkUrl, ...(intent.linkName ? { name: intent.linkName } : {}) } };
-    case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId } };
+    // afterAuth: a viewer still without a Pick of this menu gets the pick-first popup on arrival.
+    case 'comment_pick': return { pathname: '/pick/[pickId]', params: { pickId: intent.pickId, afterAuth: '1' } };
     case 'add_item_photo': return { pathname: '/item/[itemId]', params: { itemId: intent.itemId, photo: '1' } };
     case 'view_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
     case 'follow_profile': return { pathname: '/u/[username]', params: { username: intent.username } };
