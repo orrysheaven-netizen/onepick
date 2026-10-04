@@ -11,14 +11,12 @@ import { useImportMusicCatalogItem, useMusicCatalogSearch } from '@/hooks/useMus
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMusicItem, MusicCatalogEntry } from '@/types/domain/musicCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalMusicId?: string | string[];
   title?: string | string[];
   artist?: string | string[];
-  onboarding?: string | string[];
 };
 type Selection = { externalId: string; replace: boolean } & (
   | { phase: 'loading' | 'paused' }
@@ -42,7 +40,7 @@ function musicErrorMessage(error: unknown) {
 export default function MusicPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMusicId ?? null, params.title ?? null, params.artist ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalMusicId ?? null, params.title ?? null, params.artist ?? null]);
   return <MusicPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -96,7 +94,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
+    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
   const loginForMusic = (externalMusicId: string) => {

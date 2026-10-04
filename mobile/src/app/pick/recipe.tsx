@@ -20,7 +20,6 @@ type Params = {
   categoryId?: string | string[];
   externalVideoId?: string | string[];
   url?: string | string[];
-  onboarding?: string | string[];
 };
 
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
@@ -49,10 +48,9 @@ export default function RecipePickScreen() {
     const categoryId = scalar(params.categoryId);
     return <Redirect href={{ pathname: '/pick/find', params: {
       ...(categoryId ? { categoryId } : {}),
-      ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}),
     } }} />;
   }
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalVideoId ?? null, params.url ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalVideoId ?? null, params.url ?? null]);
   return <RecipePickContent key={key} auth={auth} params={params} />;
 }
 
@@ -140,7 +138,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     navigating.current = true;
     router.push({
       pathname: '/pick/choose',
-      params: { itemId, categoryId, channel: 'recipe', ...(scalar(params.onboarding) === '1' ? { onboarding: '1' } : {}) },
+      params: { itemId, categoryId, channel: 'recipe' },
     });
   };
 

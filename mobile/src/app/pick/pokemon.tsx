@@ -11,13 +11,11 @@ import { useImportPokemonCatalogItem, usePokemonCatalogSearch } from '@/hooks/us
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedPokemonItem, PokemonCatalogEntry } from '@/types/domain/pokemonCatalog';
 import { OnePick } from '@/constants/onepick';
-import { withOnboardingParam } from '@/lib/categories/registrationRoute';
 
 type Params = {
   categoryId?: string | string[];
   externalPokemonId?: string | string[];
   query?: string | string[];
-  onboarding?: string | string[];
 };
 
 type Selection = { externalId: string; replace: boolean } & (
@@ -44,7 +42,7 @@ function pokemonErrorMessage(error: unknown) {
 export default function PokemonPickScreen() {
   const auth = useAuthSession();
   const params = useLocalSearchParams<Params>();
-  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalPokemonId ?? null, params.query ?? null, params.onboarding ?? null]);
+  const key = JSON.stringify([auth.user?.id ?? null, params.categoryId ?? null, params.externalPokemonId ?? null, params.query ?? null]);
   return <PokemonPickContent key={key} auth={auth} params={params} />;
 }
 
@@ -96,7 +94,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
   const chooseItem = (itemId: string, categoryId: string, replace = false) => {
     if (!canAct() || latest.current.categoryId !== categoryId) return;
     navigating.current = true;
-    const route = { pathname: '/pick/choose' as const, params: withOnboardingParam({ itemId, categoryId }, params.onboarding) };
+    const route = { pathname: '/pick/choose' as const, params: { itemId, categoryId } };
     if (replace) router.replace(route); else router.push(route);
   };
 
