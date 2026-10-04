@@ -263,10 +263,10 @@ async function main() {
     assert.equal(view.all('FollowButton').length, 1); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
     flags.profileFollow = false; view.render(); assert.equal(view.all('FollowButton').length, 0, 'Profile follow can still be independently disabled');
     flags.profileFollow = true; view.render(); assert.equal(view.all('FollowButton').length, 1);
-    view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
+    view.find('Button', (p) => p.label === '공유').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
     auth.user = null; view.render(); assert.doesNotMatch(view.text(), /AI 취향평가도/); assert.match(view.text(), /내 원픽 만들기/);
     flags.profileAi = true; view.render(); assert.match(view.text(), /AI 취향평가도/);
-    view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment.text, 'cached AI comment');
+    view.find('Button', (p) => p.label === '공유').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment.text, 'cached AI comment');
   });
   await test('Actual AI comment hook disables automatic requests without a profile ID', () => {
     let calls = 0;

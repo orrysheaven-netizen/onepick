@@ -329,15 +329,14 @@ export default function PublicProfileScreen() {
           />
         </View> : null}
         {query.data ? <>
+          {/* Figma 40-1: ‹ + centered ID; sharing lives only beside 팔로우. */}
           <View style={styles.publicHeader}>
             <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
               style={({ pressed }) => [styles.publicHeaderBack, pressed && styles.pressed]}>
-              <Text numberOfLines={1} style={styles.publicHeaderTitle}>{query.data.profile.username}</Text>
+              <Text style={styles.publicHeaderBackGlyph}>‹</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="프로필 공유" disabled={isSharing}
-              onPress={() => void handleShare()} style={({ pressed }) => [styles.publicHeaderMenuButton, pressed && styles.pressed]}>
-              <Text style={styles.publicHeaderMenu}>공유</Text>
-            </Pressable>
+            <Text numberOfLines={1} accessibilityRole="header" style={styles.publicHeaderTitle}>{query.data.profile.username}</Text>
+            <View style={styles.publicHeaderBack} />
           </View>
 
           <View style={styles.publicBody}>
@@ -392,11 +391,13 @@ export default function PublicProfileScreen() {
                 style={styles.followShareButton}
               />
             </View> : null}
+            {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
+            {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
 
             {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
               <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'}
                 onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
-              <Chip label="다른 취향" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'}
+              <Chip label="기타" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'}
                 onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
             </View> : null}
 
@@ -409,8 +410,7 @@ export default function PublicProfileScreen() {
                 onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
                 onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
               />)}
-            </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요.' : '아직 공개된 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
+            </View> : <StateCard title="아직 고른 원픽이 없어요." />}
           </View>
 
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
@@ -437,13 +437,6 @@ export default function PublicProfileScreen() {
               <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={goBack} />
             </View>
           </View> : null}
-          <View style={styles.shareCard}>
-            <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요.</Text>
-            <Text style={styles.shareText}>원픽이 담긴 카드 이미지와 프로필 링크를 함께 보낼 수 있어요.</Text>
-            {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
-            {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
-            <Button variant="secondary" fullWidth style={styles.shareButton} label="프로필 공유하기" loading={isSharing} onPress={() => void handleShare()} />
-          </View>
           {query.data.isMine ? <View style={styles.mineRow}><Button variant="ghost" size="sm" label="내 프로필 관리로 이동" onPress={() => router.replace('/profile')} /></View> : null}
         </> : null}
       </ScrollView>}
@@ -495,10 +488,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  publicHeaderBack: { flexShrink: 1, minWidth: 0, minHeight: 44, justifyContent: 'center' },
-  publicHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary },
-  publicHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  publicHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  publicHeaderBack: { width: 44, minHeight: 44, justifyContent: 'center' },
+  publicHeaderBackGlyph: { ...OnePickType.headline, color: OnePick.textPrimary },
+  publicHeaderTitle: { ...OnePickType.headline, flex: 1, textAlign: 'center', color: OnePick.textPrimary },
   publicBody: { minHeight: 675, paddingTop: 10, gap: OnePickSpace.md },
   publicIdentity: { height: 78, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.lg },
   publicIdentityCopy: { flex: 1, minWidth: 0, gap: 2 },
@@ -597,18 +589,8 @@ const styles = StyleSheet.create({
   joinTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
   joinText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
   joinButton: { marginTop: OnePickSpace.md },
-  shareCard: {
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    borderRadius: OnePickRadius.lg,
-    padding: OnePickSpace.lg,
-    marginTop: OnePickSpace.xxl,
-  },
-  shareTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  shareText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
-  shareNotice: { ...OnePickType.caption, color: OnePick.textAccent, marginTop: OnePickSpace.sm },
-  shareError: { ...OnePickType.caption, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
-  shareButton: { marginTop: OnePickSpace.md },
+  shareNotice: { ...OnePickType.caption, color: OnePick.textAccent },
+  shareError: { ...OnePickType.caption, color: OnePick.textDanger },
   mineRow: { alignItems: 'center', marginTop: OnePickSpace.sm },
   stateArea: { marginTop: OnePickSpace.xxxl },
   pressed: { opacity: 0.72 },
