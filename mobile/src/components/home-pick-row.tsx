@@ -38,7 +38,7 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
       <View style={styles.personRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={`@${pick.username} 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-          <Avatar name={pick.username} size={24} tone="subtle" />
+          <Avatar name={pick.username} size={24} tone="subtle" imageUrl={pick.profileImageUrl} />
           <Text numberOfLines={1} style={styles.username}>@{pick.username}</Text>
         </Pressable>
         <CurrentPickFlag mine={mine} />

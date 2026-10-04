@@ -55,7 +55,7 @@ export function MenuDetailPickCard({
   return (
     <View style={styles.card}>
       <View style={styles.personRow}>
-        <Avatar name={pick.username} size={32} onPress={onOpenProfile} accessibilityLabel={`@${pick.username} 공개 프로필 보기`} />
+        <Avatar name={pick.username} size={32} imageUrl={pick.profileImageUrl} onPress={onOpenProfile} accessibilityLabel={`@${pick.username} 공개 프로필 보기`} />
         <Pressable accessibilityRole="button" accessibilityLabel={`@${pick.username} 공개 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.personAction, pressed && styles.pressed]}>
           <Text numberOfLines={1} style={styles.personName}>{pick.username}</Text>

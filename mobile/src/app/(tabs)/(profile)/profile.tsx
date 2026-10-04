@@ -11,6 +11,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
+import { ProfilePhotoControl } from '@/components/profile-photo-control';
 import { Avatar, Button, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
@@ -307,7 +308,7 @@ export default function ProfileScreen() {
 
         <View style={styles.profileBody}>
           <View style={styles.identity}>
-            <Avatar name={displayName} size={72} tone="subtle" />
+            <ProfilePhotoControl userId={profile.id} name={displayName} imageUrl={profile.profileImageUrl} />
             <View style={styles.stats}>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{currentPicks.length}</Text>

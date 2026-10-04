@@ -7,7 +7,7 @@ const photo = fs.readFileSync(path.join(__dirname, '../src/components/pick-photo
 const avatar = fs.readFileSync(path.join(__dirname, '../src/components/ui/avatar.tsx'), 'utf8');
 
 assert.match(profile, /03|profileHeader/);
-assert.match(profile, /<Avatar name=\{displayName\} size=\{72\} tone="subtle" \/>/);
+assert.match(profile, /<ProfilePhotoControl userId=\{profile\.id\} name=\{displayName\} imageUrl=\{profile\.profileImageUrl\} \/>/);
 assert.match(profile, /<Chip label="음식"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
 assert.match(profile, /<Chip label="기타"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
 assert.match(profile, /useMyComments\(listUserId\)/);

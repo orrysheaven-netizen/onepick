@@ -86,6 +86,7 @@ async function main() {
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
     '@/components/profile-follow-counts': { ProfileFollowCounts: () => null },
     '@/components/sign-out-button': { SignOutButton: () => null },
+    '@/components/profile-photo-control': { ProfilePhotoControl: () => null },
     '@/errors/appError': { AppError },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },

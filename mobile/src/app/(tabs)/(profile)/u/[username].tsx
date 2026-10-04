@@ -342,7 +342,7 @@ export default function PublicProfileScreen() {
 
           <View style={styles.publicBody}>
             <View style={styles.publicIdentity}>
-              <Avatar name={query.data.profile.username} size={68} tone="subtle" />
+              <Avatar name={query.data.profile.username} size={68} tone="subtle" imageUrl={query.data.profile.profileImageUrl} />
               <View style={styles.publicIdentityCopy}>
                 <Text numberOfLines={1} style={styles.publicDisplayName}>{query.data.profile.username}</Text>
                 <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>
