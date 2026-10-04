@@ -63,7 +63,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, results, brandResults, brandLookups, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled;
+let auth, results, brandResults, brandLookups, brandState, brandRefetches, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
@@ -77,11 +77,15 @@ const hooks = {
   useStoreSearch: (channel, query, enabled) => {
     storeSearchEnabled = enabled;
     return { data: enabled && query.trim() ? results[channel] : [], valid: enabled && query.trim().length > 0,
-      isWaiting: false, isFetching: false, isError: false, hasNextPage: false, refetch() {}, fetchNextPage() {}, ...searchState };
+      isWaiting: false, isFetching: false, isError: false, hasNextPage: false, refetch() {}, fetchNextPage() {},
+      searchedText: query.trim(), ...searchState };
   },
-  useStoreSearchBrands: (catalogIds, enabled) => {
-    brandLookups.push({ catalogIds, enabled });
-    return { data: enabled && catalogIds.length ? brandResults : undefined };
+  useStoreSearchBrands: (searchedText, enabled) => {
+    brandLookups.push({ searchedText, enabled });
+    const on = enabled && searchedText.length >= 2;
+    return { data: on && !brandState.isPending && !brandState.isError ? brandResults : undefined,
+      isPending: !on || brandState.isPending, isError: on && brandState.isError,
+      refetch() { brandRefetches += 1; } };
   },
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
   useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: false, isError: false }),
@@ -115,7 +119,7 @@ const { default: Screen } = load('app/pick/new.tsx', {
 });
 
 function reset() {
-  effectDeps = []; searchState = {}; brandResults = []; brandLookups = []; states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
+  effectDeps = []; searchState = {}; brandResults = []; brandLookups = []; brandState = {}; brandRefetches = 0; states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
     offline: [
@@ -278,19 +282,19 @@ async function main() {
   assert.equal(savedToast.consumePickSavedToast('pick-1'), false, 'the toast is shown only once');
   assert.ok(pressables.find((props) => textOf(props.children) === '원픽 등록하기').disabled, 'a saved flow cannot submit again');
 
-  // 브랜드 전체 is chosen on step 1: the search lists one "○○ 전체 · 지점 선택 안 함"
+  // 브랜드 전체 is chosen on step 1: the search lists one "{브랜드명} 전체 매장"
   // row per brand above its branches, and picking it skips the branch entirely.
   reset();
   brandResults = [{ kind: 'brand', brandId: 'brand-1', name: '을밀대', logoUrl: null }];
   selectResult = { itemId: null, categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
   registerRun = () => ({ itemId: 'brand-pending', pickId: 'brand-pick', published: false, replacedPickId: null, retried: false });
   render(); input('매장명 검색').onChangeText('을밀대'); page = render();
-  assert.deepEqual(brandLookups.at(-1), { catalogIds: ['cat-1', 'cat-2'], enabled: true }, 'brands are looked up for the branch rows found');
-  const brandIndex = page.indexOf('을밀대 전체');
+  assert.deepEqual(brandLookups.at(-1), { searchedText: '을밀대', enabled: true }, 'brands are read for the search text, not the branch page');
+  const brandIndex = page.indexOf('을밀대 전체 매장');
   assert.ok(brandIndex >= 0, 'the brand row is listed');
-  assert.match(page, /지점 선택 안 함/);
+  assert.doesNotMatch(page, /지점 선택 안 함|·/, 'the brand row has no middle dot or 지점 선택 안 함 helper');
   assert.ok(brandIndex < page.indexOf('서울 마포구'), 'the brand row comes before the branch list');
-  press('을밀대 전체, 지점 선택 안 함, 선택'); page = render();
+  press('을밀대 전체 매장 선택'); page = render();
   assert.equal(step(page), '2', 'choosing the brand goes straight to the menu step');
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); page = render();
   assert.doesNotMatch(page, /원픽 범위|이 지점|범위 선택하기/, 'no scope choice is left in the menu step');
@@ -305,6 +309,22 @@ async function main() {
   assert.equal(brandSave.itemId, undefined);
   assert.equal(brandSave.catalogId, undefined, 'Brand-wide registration must not also select a branch catalog');
   assert.equal(destination.params.itemId, 'brand-pending', 'brand-wide save opens the saved product');
+
+  // The brand row is page-independent and first: branches wait for the brand read,
+  // and a failed brand read is an error with a retry, never an empty brand list.
+  reset();
+  brandResults = [{ kind: 'brand', brandId: 'brand-1', name: '을밀대', logoUrl: null }];
+  brandState = { isPending: true };
+  render(); input('매장명 검색').onChangeText('을밀대'); page = render();
+  assert.doesNotMatch(page, /서울 마포구/, 'no branch can be chosen before the brand row is known');
+  assert.match(page, /매장을 불러오는 중이에요/);
+  brandState = { isError: true }; page = render();
+  assert.match(page, /브랜드를 불러오지 못했어요/, 'a failed brand read is shown, not treated as no brand');
+  assert.match(page, /서울 마포구/, 'branch results stay usable while the brand read failed');
+  press('다시 불러오기'); assert.equal(brandRefetches, 1, 'the brand read can be retried');
+  brandState = {}; page = render();
+  assert.doesNotMatch(page, /브랜드를 불러오지 못했어요/);
+  assert.ok(page.indexOf('을밀대 전체 매장') < page.indexOf('서울 마포구'), 'after retry the brand row is first');
 
   // A branch row is still a branch-only Pick even when its brand is listed above it.
   reset();
@@ -435,6 +455,6 @@ async function main() {
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
 
-  console.log('Store-first v6 checks passed: offline four-step flow, brand-first search (지점 선택 안 함), visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
+  console.log('Store-first v6 checks passed: offline four-step flow, brand-first search (전체 매장, pending/error states), visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

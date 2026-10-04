@@ -6,7 +6,7 @@ import type { PickChannel } from '@/lib/items/pickChannel';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** A store found on step 1: a catalog place (매장), a whole brand without a branch
- * (브랜드 전체, 지점 선택 안 함), or an online seller (온라인). */
+ * (브랜드 전체 매장), or an online seller (온라인). */
 export type StoreCandidate =
   | { kind: 'place'; catalogId: string; name: string; branchName: string | null; region: string | null;
       address: string | null; providerCategory: string | null; mapUrl: string | null }
@@ -43,6 +43,8 @@ export function isNaverMapUrl(value: string) {
   return url.length > 0 && url.length <= 2048 && !/\s/.test(url) && NAVER_MAP_URL.test(url);
 }
 
+const BRAND_ROW_LIMIT = 5;
+
 function cleanQuery(query: string) {
   return query.trim().replace(/\s+/g, ' ');
 }
@@ -77,73 +79,23 @@ export class StoreFirstService {
     return logoPath ? this.client.storage.from('brand-logos').getPublicUrl(logoPath).data.publicUrl : null;
   }
 
-  /** Brands behind the catalog rows found on step 1, in the order their branches appear.
-   * catalog row -> visible place -> active offline branch -> active brand. Rows without
-   * a brand link are simply not represented; nothing is sorted or summed here.
+  /** Step 1 brand rows (브랜드 전체 매장): active brands whose name matches the search.
+   * Read once per search, independent of the branch pages, so the row never waits for
+   * a branch to be paged in.
    */
-  async brandsForCatalog(catalogIds: string[], signal?: AbortSignal): Promise<BrandCandidate[]> {
-    const ids = [...new Set(catalogIds.filter((id) => UUID.test(id)))];
-    if (ids.length === 0) return [];
-    const chunks: string[][] = [];
-    for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
-
-    const withSignal = <T extends { abortSignal(signal: AbortSignal): T }>(request: T) => signal ? request.abortSignal(signal) : request;
-    const catalogRows: { id: string; place_provider: string; provider_place_id: string }[] = [];
-    for (const chunk of chunks) {
-      const { data, error } = await withSignal(this.db().from('place_catalog')
-        .select('id,place_provider,provider_place_id').in('id', chunk));
-      if (error) throw mapSupabaseError(error);
-      catalogRows.push(...((data ?? []) as typeof catalogRows));
-    }
-    if (catalogRows.length === 0) return [];
-
-    const placeKey = (provider: string, providerPlaceId: string) => `${provider}\u0000${providerPlaceId}`;
-    const wanted = new Set(catalogRows.map((row) => placeKey(row.place_provider, row.provider_place_id)));
-    const providerPlaceIds = [...new Set(catalogRows.map((row) => row.provider_place_id))];
-    const placeByKey = new Map<string, string>();
-    for (let i = 0; i < providerPlaceIds.length; i += 100) {
-      const { data, error } = await withSignal(this.db().from('places')
-        .select('id,place_provider,provider_place_id').in('provider_place_id', providerPlaceIds.slice(i, i + 100)));
-      if (error) throw mapSupabaseError(error);
-      for (const row of (data ?? []) as { id: string; place_provider: string; provider_place_id: string }[]) {
-        const key = placeKey(row.place_provider, row.provider_place_id);
-        if (wanted.has(key)) placeByKey.set(key, row.id);
-      }
-    }
-    const placeIds = [...new Set(placeByKey.values())];
-    if (placeIds.length === 0) return [];
-
-    const brandByPlace = new Map<string, string>();
-    for (let i = 0; i < placeIds.length; i += 100) {
-      const { data, error } = await withSignal(this.db().from('providers')
-        .select('place_id,brand_id').in('place_id', placeIds.slice(i, i + 100))
-        .eq('kind', 'offline_branch').eq('status', 'active').not('brand_id', 'is', null));
-      if (error) throw mapSupabaseError(error);
-      for (const row of (data ?? []) as { place_id: string; brand_id: string }[]) brandByPlace.set(row.place_id, row.brand_id);
-    }
-    const brandIds = [...new Set(brandByPlace.values())];
-    if (brandIds.length === 0) return [];
-
-    const { data: brandData, error: brandError } = await withSignal(this.db().from('brands')
-      .select('id,name,logo_path').in('id', brandIds.slice(0, 100)).eq('is_active', true));
-    if (brandError) throw mapSupabaseError(brandError);
-    const brands = new Map(((brandData ?? []) as { id: string; name: string; logo_path: string | null }[])
-      .filter((row) => row.id && row.name).map((row) => [row.id, row]));
-
-    // Keep the server's branch order: a brand is listed where its first branch is.
-    const catalogById = new Map(catalogRows.map((row) => [row.id, row]));
-    const result: BrandCandidate[] = [];
-    const seen = new Set<string>();
-    for (const id of catalogIds) {
-      const row = catalogById.get(id);
-      const placeId = row ? placeByKey.get(placeKey(row.place_provider, row.provider_place_id)) : undefined;
-      const brandId = placeId ? brandByPlace.get(placeId) : undefined;
-      const brand = brandId ? brands.get(brandId) : undefined;
-      if (!brand || seen.has(brand.id)) continue;
-      seen.add(brand.id);
-      result.push({ kind: 'brand', brandId: brand.id, name: brand.name, logoUrl: this.brandLogoUrl(brand.logo_path) });
-    }
-    return result;
+  async searchBrands(query: string, signal?: AbortSignal): Promise<BrandCandidate[]> {
+    const q = cleanQuery(query);
+    if (q.length < 2 || q.length > 100) return [];
+    const pattern = `%${q.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+    let request = this.db().from('brands')
+      .select('id,name,logo_path').eq('is_active', true).ilike('name', pattern)
+      .order('name').limit(BRAND_ROW_LIMIT);
+    if (signal) request = request.abortSignal(signal);
+    const { data, error } = await request;
+    if (error) throw mapSupabaseError(error);
+    return ((data ?? []) as { id: string; name: string; logo_path: string | null }[])
+      .filter((row) => row.id && row.name)
+      .map((row) => ({ kind: 'brand' as const, brandId: row.id, name: row.name, logoUrl: this.brandLogoUrl(row.logo_path) }));
   }
 
   async providerStore(providerId: string): Promise<Extract<StoreCandidate, { kind: 'place' }> | null> {

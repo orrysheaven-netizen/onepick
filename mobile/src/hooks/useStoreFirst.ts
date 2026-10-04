@@ -45,23 +45,18 @@ export function useStoreSearch(channel: PickChannel, searchText: string, enabled
     // Hide old-query rows immediately, including during debounce/clear.
     data: valid && !isWaiting ? query.data?.pages.flatMap((page) => page.items) : undefined,
     valid, isWaiting, minimum,
+    searchedText: settled,
   };
 }
 
-/** Step 1: one 브랜드 전체 row per brand behind the branches found so far.
- * Optional: a failure only hides the brand rows, never the branch results. */
-export function useStoreSearchBrands(catalogIds: string[], enabled: boolean) {
-  const key = catalogIds.join(',');
+/** Step 1: 브랜드 전체 매장 rows for the settled search text, read apart from the branch pages.
+ * A failure stays an error (with refetch); it is never shown as "no brand". */
+export function useStoreSearchBrands(searchedText: string, enabled: boolean) {
   return useQuery({
-    queryKey: ['store-first', 'search-brands', key],
-    queryFn: ({ signal }) => storeFirstService.brandsForCatalog(catalogIds, signal),
-    enabled: enabled && catalogIds.length > 0,
+    queryKey: ['store-first', 'search-brands', searchedText],
+    queryFn: ({ signal }) => storeFirstService.searchBrands(searchedText, signal),
+    enabled: enabled && searchedText.length >= 2,
     staleTime: 10 * 60_000,
-    // Keep the rows while the next page of the same search is resolved; a new search starts empty.
-    placeholderData: (previous, previousQuery) => {
-      const previousKey = previousQuery?.queryKey[2];
-      return typeof previousKey === 'string' && previousKey && key.startsWith(`${previousKey},`) ? previous : undefined;
-    },
     retry: false,
   });
 }

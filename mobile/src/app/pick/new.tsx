@@ -217,7 +217,7 @@ export default function NewPickScreen() {
   );
   const providerPrefillStore = !restoredDraftRef.current && !query && !store && !prefillDismissed ? providerPrefill.data ?? null : null;
 
-  // 브랜드 전체 is chosen on step 1 (지점 선택 안 함); there is no scope choice later.
+  // 브랜드 전체 매장 is chosen on step 1; there is no scope choice later.
   const pickScope: 'branch' | 'brand' | null = store ? (store.kind === 'brand' ? 'brand' : 'branch') : null;
   const storeDisplayName = store ? (store.kind === 'place' && store.branchName ? `${store.name} ${store.branchName}`
     : store.kind === 'brand' ? `${store.name} 전체` : store.name) : '';
@@ -231,7 +231,7 @@ export default function NewPickScreen() {
   const searchRows = useMemo(() => (search.data ?? [])
     .filter((candidate): candidate is Extract<StoreCandidate, { kind: 'place' }> => candidate.kind === 'place'), [search.data]);
   const searchBrands = useStoreSearchBrands(
-    searchRows.map((candidate) => candidate.catalogId),
+    search.searchedText,
     Boolean(user) && step === 1 && !requesting && search.valid && !search.isWaiting,
   );
   const brandRows = search.valid && !search.isWaiting ? searchBrands.data ?? [] : [];
@@ -543,8 +543,10 @@ export default function NewPickScreen() {
   // 75-1: only the results scroll. Keep the field and footer fixed.
   // Preserve this keyboard container when reconciling #696's other form steps.
   if (step === 1 && !requesting) {
+    // The brand row is the first row: branches wait until the brand read settles.
     const ready = search.valid && !search.isWaiting;
-    const rows = searchRows;
+    const brandsPending = ready && searchBrands.isPending;
+    const rows = brandsPending ? [] : searchRows;
     return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.searchScreen} behavior="padding">
         {header}
@@ -574,12 +576,13 @@ export default function NewPickScreen() {
                 void search.fetchNextPage({ cancelRefetch: false });
               }
             }}>
+            {ready && searchBrands.isError ? <StateCard compact tone="danger" title="브랜드를 불러오지 못했어요"
+              action={{ label: '다시 불러오기', onPress: () => { void searchBrands.refetch(); } }} /> : null}
             {brandRows.map((candidate) => <Pressable key={`brand:${candidate.brandId}`} accessibilityRole="button"
-              accessibilityLabel={`${candidate.name} 전체, 지점 선택 안 함, 선택`}
+              accessibilityLabel={`${candidate.name} 전체 매장 선택`}
               onPress={() => pickStore(candidate)}
               style={({ pressed }) => [styles.searchResult, pressed && styles.searchPressed]}>
-              <Text style={styles.resultTitle} numberOfLines={1}>{`${candidate.name} 전체`}
-                <Text style={styles.resultMeta}>{'  지점 선택 안 함'}</Text></Text>
+              <Text style={styles.resultTitle} numberOfLines={1}>{`${candidate.name} 전체 매장`}</Text>
             </Pressable>)}
             {rows.map((candidate) => {
               const label = [candidate.name, candidate.branchName].filter(Boolean).join(' ');
@@ -591,15 +594,15 @@ export default function NewPickScreen() {
                   ? <Text style={styles.resultMeta}>{`  ${candidate.region}`}</Text> : null}</Text>
               </Pressable>;
             })}
-            {ready && search.isFetching ? <View style={styles.loading} accessibilityLiveRegion="polite">
+            {ready && (search.isFetching || brandsPending) ? <View style={styles.loading} accessibilityLiveRegion="polite">
               <ActivityIndicator color={OnePick.textPrimary} />
               <Text style={styles.helper}>{search.isFetchingNextPage ? '매장을 더 불러오는 중이에요' : '매장을 불러오는 중이에요'}</Text>
             </View> : null}
             {ready && search.isError && !search.isFetching ? <StateCard compact tone="danger" title="검색하지 못했어요"
               action={{ label: '다시 불러오기', onPress: () => { void (search.isFetchNextPageError
                 ? search.fetchNextPage({ cancelRefetch: false }) : search.refetch()); } }} /> : null}
-            {ready && !search.isFetching && !search.isError && !search.hasNextPage
-              ? <Text style={styles.searchEnd}>{rows.length ? '검색 결과를 모두 확인했어요' : '검색한 이름의 매장을 찾지 못했어요.'}</Text> : null}
+            {ready && !search.isFetching && !brandsPending && !search.isError && !search.hasNextPage
+              ? <Text style={styles.searchEnd}>{rows.length || brandRows.length ? '검색 결과를 모두 확인했어요' : '검색한 이름의 매장을 찾지 못했어요.'}</Text> : null}
           </ScrollView>
         </View>
         <View style={styles.searchFooter}>
