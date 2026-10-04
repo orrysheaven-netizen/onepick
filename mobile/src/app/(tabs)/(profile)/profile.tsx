@@ -358,7 +358,7 @@ export default function ProfileScreen() {
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
-          <Text style={styles.secondaryDescription}>취향 선택을 이어가거나 공개 프로필을 확인해요.</Text>
+          <Text style={styles.secondaryDescription}>소개를 고치거나 공개 프로필을 확인해요.</Text>
 
           <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
@@ -374,10 +374,6 @@ export default function ProfileScreen() {
             accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} /> : null}
 
-          <Pressable onPress={() => router.push('/onboarding')} style={({ pressed }) => [styles.managementRow, styles.managementRowAccent, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.managementTitle}>취향 고르기 이어가기</Text><Text style={styles.managementText}>아직 고르지 않은 카테고리의 원픽을 더 채워보세요.</Text></View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
           <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
             <Text style={styles.chevron}>›</Text>
@@ -519,7 +515,6 @@ const styles = StyleSheet.create({
     paddingVertical: OnePickSpace.md,
     marginBottom: OnePickSpace.sm,
   },
-  managementRowAccent: { borderColor: OnePick.bgAccentSubtle, backgroundColor: OnePick.bgAccentSubtle },
   managementTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   managementText: {
     ...OnePickType.caption,
