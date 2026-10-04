@@ -108,16 +108,16 @@ export default function PickDetailScreen() {
         <View style={styles.headerSide} />
       </View>
 
-      {loading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.stateText}>한줄평 대화를 불러오고 있어요</Text></View>
+      {loading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.stateText}>한줄평 대화를 불러오고 있어요.</Text></View>
         : hiddenFutureChannel ? <View style={styles.state}>
-          <Text style={styles.stateTitle}>현재 공개 중인 원픽이 아니에요</Text>
+          <Text style={styles.stateTitle}>현재 공개 중인 원픽이 아니에요.</Text>
           <Text style={styles.stateText}>지금은 매장에서 고른 음식 원픽만 공개하고 있어요.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.retry}>
             <Text style={styles.retryText}>홈으로</Text>
           </Pressable>
         </View>
         : failed || !focused ? <View style={styles.state}>
-          <Text style={styles.stateTitle}>한줄평을 볼 수 없어요</Text>
+          <Text style={styles.stateTitle}>한줄평을 볼 수 없어요.</Text>
           <Text style={styles.stateText}>삭제되었거나 공개되지 않은 한줄평일 수 있어요.</Text>
           <Pressable accessibilityRole="button" onPress={() => { if (needsPickLookup) void pickQuery.refetch(); if (itemId) void itemQuery.refetch(); }} style={styles.retry}>
             <Text style={styles.retryText}>다시 불러오기</Text>

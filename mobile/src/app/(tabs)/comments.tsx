@@ -28,18 +28,18 @@ export default function MyCommentsScreen() {
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard loading title="로그인 상태를 확인하고 있어요" />
+      <StateCard loading title="로그인 상태를 확인하고 있어요." />
     </View></SafeAreaView>;
   }
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+      <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
         action={{ label: '다시 확인하기', onPress: retrySession, variant: 'secondary' }} />
     </View></SafeAreaView>;
   }
   if (!user) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="내가 남긴 댓글을 모아보세요" text="로그인하면 한줄평에 남긴 댓글을 한곳에서 볼 수 있어요."
+      <StateCard title="내가 남긴 댓글을 모아보세요." text="로그인하면 한줄평에 남긴 댓글을 한곳에서 볼 수 있어요."
         action={{ label: '로그인하기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/login', params: { action: 'my_comments' } }) }} />
     </View></SafeAreaView>;
   }

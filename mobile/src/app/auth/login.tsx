@@ -64,7 +64,7 @@ export default function LoginScreen() {
         </Pressable>
 
         <View style={styles.brand}><OnePickBrand /></View>
-        <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요</Text>
+        <Text style={styles.title}>로그인하고{ '\n' }원픽을 이어가세요.</Text>
         <Text style={styles.subtitle}>
           {intent.action === 'join_from_profile'
             ? '로그인하면 카테고리마다 하나씩 고른 나의 원픽 프로필을 만들 수 있어요.'

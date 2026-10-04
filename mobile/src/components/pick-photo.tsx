@@ -83,7 +83,7 @@ export function PickPhoto({ uri, label, large = false, size = 86, compactRadius,
       : canAdd ? <View style={styles.empty}>
         <AddPhotoButton itemId={itemId!} label={label} />
       </View>
-      : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요</Text>
+      : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요.</Text>
       : compact ? <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.compactPlaceholder} />
       : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.placeholder}>
           <View style={styles.placeholderMark}><Text style={styles.placeholderInitial}>{initial}</Text></View>

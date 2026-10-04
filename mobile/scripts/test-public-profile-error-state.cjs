@@ -11,7 +11,7 @@ assert.match(
 );
 assert.match(source, /isProfileNotFound[^]*프로필을 찾을 수 없어요/);
 assert.match(source, /query\.isError && !isProfileNotFound[^]*tone="danger"/);
-assert.match(source, /title="프로필을 불러오지 못했어요"/);
+assert.match(source, /title="프로필을 불러오지 못했어요."/);
 assert.match(source, /label: query\.isFetching \? '다시 불러오는 중…' : '다시 불러오기'/);
 assert.match(source, /void query\.refetch\(\)/, 'Recoverable profile errors expose refetch');
 

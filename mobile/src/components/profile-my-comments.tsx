@@ -17,13 +17,13 @@ export function ProfileMyComments({ query, emptyText }: { query: ReturnType<type
   const router = useRouter();
   const comments = query.data ?? [];
 
-  if (query.isPending) return <StateCard loading title="댓글을 불러오고 있어요" />;
+  if (query.isPending) return <StateCard loading title="댓글을 불러오고 있어요." />;
   if (query.isError && !query.data) {
-    return <StateCard tone="danger" title="댓글을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+    return <StateCard tone="danger" title="댓글을 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
       action={{ label: '다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} />;
   }
   if (comments.length === 0) {
-    return <StateCard title="아직 남긴 댓글이 없어요" text={emptyText ?? '상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요.'} />;
+    return <StateCard title="아직 남긴 댓글이 없어요." text={emptyText ?? '상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요.'} />;
   }
 
   const openReview = async (entry: MyCommentReadItem) => {

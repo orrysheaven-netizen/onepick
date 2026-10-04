@@ -27,7 +27,7 @@ function RecentMenuCard({ menu, onOpen }: { menu: FoodMenuRecentRankingItem; onO
         style={styles.menuImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={menu.thumbnailUrl}
         onError={() => setFailedImage(menu.thumbnailUrl)} />
         : <View accessibilityLabel={`${menu.categoryName} 이미지 로딩 실패`} style={styles.menuPhotoPlaceholder}>
-            <Text style={styles.menuPhotoPlaceholderText}>사진을 불러올 수 없어요</Text>
+            <Text style={styles.menuPhotoPlaceholderText}>사진을 불러올 수 없어요.</Text>
           </View>}
     </View>
     <View style={styles.menuCardCopy}>
@@ -165,11 +165,11 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="팔로잉 원픽 새로고침" disabled={followingQuery.isFetching} onPress={refresh}
               label={followingQuery.isFetching ? '새로고침 중…' : followingQuery.isError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {followingQuery.isPending ? <StateCard loading title="팔로우한 사람들의 원픽을 불러오고 있어요" /> : null}
-          {followingQuery.isError && !followingQuery.data ? <StateCard tone="danger" title="팔로잉 원픽을 불러오지 못했어요" text="연결 상태를 확인한 뒤 다시 시도해주세요."
+          {followingQuery.isPending ? <StateCard loading title="팔로우한 사람들의 원픽을 불러오고 있어요." /> : null}
+          {followingQuery.isError && !followingQuery.data ? <StateCard tone="danger" title="팔로잉 원픽을 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
             action={{ label: '다시 불러오기', disabled: followingQuery.isFetching, onPress: refresh }} /> : null}
           {followingQuery.data && !followingItems.length ? <View style={styles.followingEmpty}>
-            <StateCard title="아직 팔로잉 원픽이 없어요" text="프로필에서 팔로우한 사람이 원픽을 고르면 여기에 이유와 함께 보여요. 친구에게 내 프로필을 공유해 원픽으로 초대해보세요."
+            <StateCard title="아직 팔로잉 원픽이 없어요." text="프로필에서 팔로우한 사람이 원픽을 고르면 여기에 이유와 함께 보여요. 친구에게 내 프로필을 공유해 원픽으로 초대해보세요."
               action={{ label: '전체 원픽 보기', onPress: () => chooseFeedScope('all') }} />
             <Button variant="ghost" size="sm" label="내 프로필 공유하기" accessibilityLabel="내 프로필 공유하러 가기" onPress={() => router.push('/profile')} />
           </View> : null}
@@ -203,7 +203,7 @@ export default function HomeScreen() {
           <BrandMark soft />
           <View style={styles.signinCopy}>
             <Text style={styles.signinTitle}>하나만 추천한다면 무엇인가요?</Text>
-            <Text style={styles.signinText}>카테고리마다 하나를 고르고 이유를 남겨보세요</Text>
+            <Text style={styles.signinText}>카테고리마다 하나를 고르고 이유를 남겨보세요.</Text>
           </View>
           <Button size="sm" label="시작하기" accessibilityLabel="로그인하고 내 추천 원픽 만들기"
             onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} />
@@ -218,8 +218,8 @@ export default function HomeScreen() {
               selected={selectedMenuRankingGroupId === group.id} accessibilityLabel={`${group.name} 인기 메뉴 보기`}
               onPress={() => setSelectedMenuRankingGroupId(group.id)} />)}
           </ScrollView> : null}
-          {menuRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요" /> : null}
-          {menuRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요"
+          {menuRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
+          {menuRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
             text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있습니다."
             action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
           {!menuRankingQuery.isPending && !menuRankingQuery.isError && rankedMenus.length ? <>
@@ -230,12 +230,12 @@ export default function HomeScreen() {
             </View>
           </> : null}
           {!menuRankingQuery.isPending && !menuRankingQuery.isError && !rankedMenus.length ? <StateCard compact
-            title="최근 7일 원픽이 아직 없어요" text="원픽이 쌓이면 많이 고른 메뉴를 보여드릴게요."
+            title="최근 7일 원픽이 아직 없어요." text="원픽이 쌓이면 많이 고른 메뉴를 보여드릴게요."
             action={{ label: '전체 메뉴 보기', onPress: () => router.push('/explore') }} /> : null}
         </View> : null}
 
         <View style={styles.sectionHeader}>
-          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 다른 사람의 취향을 참고하고 나만의 하나를 발견해요" />
+          <SectionHeader title="사람들의 원픽" description="최근 고른 순 · 다른 사람의 취향을 참고하고 나만의 하나를 발견해요." />
         </View>
 
         {ready && showCategoryFilters ? <ScrollView
@@ -250,9 +250,9 @@ export default function HomeScreen() {
           })}
         </ScrollView> : null}
 
-        {isLoading ? <StateCard loading title="원픽을 불러오고 있어요" /> : null}
+        {isLoading ? <StateCard loading title="원픽을 불러오고 있어요." /> : null}
         {sessionError || (!isSessionLoading && homeQuery.isError && !data) ? <StateCard tone="danger"
-          title={sessionError ? '로그인 상태를 확인하지 못했어요' : '원픽을 불러오지 못했어요'}
+          title={sessionError ? '로그인 상태를 확인하지 못했어요.' : '원픽을 불러오지 못했어요.'}
           text="연결 상태를 확인한 뒤 다시 시도해주세요."
           action={{ label: '다시 불러오기', disabled: !sessionError && homeQuery.isFetching, onPress: sessionError ? retrySession : refresh }} /> : null}
 
@@ -262,12 +262,12 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {!data.picks.length ? <StateCard title="아직 공개된 매장 원픽이 없어요" text="누군가 매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
+          {!data.picks.length ? <StateCard title="아직 공개된 매장 원픽이 없어요." text="누군가 매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
             action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/new') } : undefined} /> : null}
         </> : null}
         </>}
         ListEmptyComponent={ready && data && data.picks.length > 0 && selectedCategoryGroup ? <StateCard
-          title={`${selectedCategoryGroup.name}에서 아직 표시할 원픽이 없어요`}
+          title={`${selectedCategoryGroup.name}에서 아직 표시할 원픽이 없어요.`}
           text="현재 불러온 원픽에는 없지만 다음 페이지에 더 있을 수 있어요."
           action={homeQuery.hasNextPage
             ? { label: '다음 원픽 더 불러오기', accessibilityLabel: selectedCategoryGroup.name + ' 다음 원픽 더 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }
