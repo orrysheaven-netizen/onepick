@@ -20,10 +20,13 @@ export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => voi
   const close = () => setDialog(null);
   return <View style={styles.header}>
     <View style={styles.side}><OnePickBrand /></View>
-    <Pressable accessibilityRole="button" accessibilityLabel="테마 선택, 현재 맛집" onPress={() => setDialog('theme')}
-      style={({ pressed }) => [styles.themeTouch, pressed && styles.pressed]}>
-      <View style={styles.themeButton}><Text style={styles.themeText}>맛집 ▾</Text></View>
-    </Pressable>
+    {/* Centered on the screen (Figma 30-1), independent of the logo's width. */}
+    <View pointerEvents="box-none" style={styles.center}>
+      <Pressable accessibilityRole="button" accessibilityLabel="테마 선택, 현재 맛집" onPress={() => setDialog('theme')}
+        style={({ pressed }) => [styles.themeTouch, pressed && styles.pressed]}>
+        <View style={styles.themeButton}><Text style={styles.themeText}>맛집 ▾</Text></View>
+      </Pressable>
+    </View>
     <View style={[styles.side, styles.sideEnd]}>
       <Pressable accessibilityRole="button" accessibilityLabel="메뉴 검색" onPress={() => setDialog('search')}
         style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
@@ -105,7 +108,8 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: OnePickSpace.sm },
+  header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: OnePickSpace.sm, position: 'relative' },
+  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   side: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   sideEnd: { alignItems: 'flex-end' },
   themeTouch: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center' },
