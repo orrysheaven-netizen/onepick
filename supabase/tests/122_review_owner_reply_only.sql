@@ -75,9 +75,10 @@ begin
   values(owner_pick, owner_u, '다른 사람 댓글에 답글', other_root);
   reset role;
 
-  -- Simulate a pre-migration owner root comment. The author still must not be
-  -- able to reply to their own root after the new rule is installed.
-  perform set_config('request.jwt.claim.sub', '', true);
+  -- Simulate a pre-migration owner root comment (seeded without RLS; the
+  -- write-limit trigger still needs the author as auth.uid()). The author
+  -- still must not be able to reply to their own root after the new rule.
+  perform set_config('request.jwt.claim.sub', owner_u::text, true);
   insert into public.comments(id,pick_id,user_id,body)
   values(owner_legacy_root, owner_pick, owner_u, '기존 작성자 최상위 댓글');
 

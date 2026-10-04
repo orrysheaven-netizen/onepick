@@ -85,6 +85,9 @@ begin
   set local role authenticated;
   select count(*) into n from public.comment_notification_page(owner_id) page where page.body='수정한 댓글';
   assert n=1, 'Inbox does not retain stale body snapshots';
+  -- Remove the owner's reply first so deleting the comment below is a real
+  -- delete, not a tombstone kept for its reply.
+  delete from public.comments where id=own_comment_id;
   reset role;
   perform set_config('request.jwt.claim.sub',author_id::text,true);
   set local role authenticated;
