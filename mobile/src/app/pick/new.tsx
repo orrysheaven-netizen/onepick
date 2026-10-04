@@ -582,7 +582,6 @@ export default function NewPickScreen() {
             </Text>
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
-                <FieldLabel label="네이버 지도 링크" />
                 <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
                   value={entryLink} onChangeText={(value) => { setEntryLink(value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
@@ -671,7 +670,6 @@ export default function NewPickScreen() {
                 placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
               <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어 주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
-              <FieldLabel label="네이버 지도 링크" />
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                 value={mapLink} onChangeText={setMapLink} style={styles.input}
                 placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
