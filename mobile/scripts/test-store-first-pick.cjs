@@ -333,7 +333,7 @@ async function main() {
   input('등록 요청 이름').onChangeText('새 냉면집');
   render(); press('다음'); page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
   press('이전 단계'); page = render();
   assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
@@ -411,7 +411,7 @@ async function main() {
     linkPlace('cat-sb-2', '스타벅스', '강남역'),
   ]);
   render(); press('네이버 지도 링크로 찾기'); page = render();
-  assert.match(page, /네이버 지도 링크를 붙여넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
   assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'No link, no lookup');
   input('매장 찾기 네이버 지도 링크').onChangeText('https://blog.naver.com/x'); page = render();
   assert.match(page, /네이버 지도 링크를 확인해주세요/);

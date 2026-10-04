@@ -577,8 +577,8 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>1 / 4 · {requesting && requestPart === 'link' ? newStoreName : '오프라인 매장'}</Text>
             <Text style={styles.title}>
-              {linkEntry ? '네이버 지도 링크를 붙여넣어 주세요'
-                : !requesting ? '상호명을 검색해 주세요' : requestPart === 'name' ? '매장 이름을 알려 주세요' : '네이버 지도 링크를 붙여넣어 주세요'}
+              {linkEntry ? '네이버 지도 링크를 넣어 주세요'
+                : !requesting ? '상호명을 검색해 주세요' : requestPart === 'name' ? '매장 이름을 알려 주세요' : '네이버 지도 링크를 넣어 주세요'}
             </Text>
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
