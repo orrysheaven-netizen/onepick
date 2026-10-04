@@ -124,7 +124,7 @@ export const OnePickFeatures = {
   profileFollow: true,
   profileFollowConnections: true,
   followingFeed: false,
-  followNotifications: false,
+  followNotifications: true,
   followCounts: false,
   purchaseLinks: false,
   // Keep both profile features implemented, but unmounted during the early MVP.

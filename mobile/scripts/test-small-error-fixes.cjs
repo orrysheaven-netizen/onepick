@@ -56,8 +56,8 @@ assert.doesNotMatch(item, /if \(!itemId \|\| query\.isError \|\| !query\.data\)/
 assert.match(item, /query\.isError \? <StateCard compact tone="danger"[^>]*title="최신 정보를 불러오지 못했어요\."/);
 
 // Unblock failures are shown, not swallowed as unhandled rejections.
-const settings = read('src/app/settings.tsx');
-assert.match(settings, /unblockUser\.mutateAsync\(\{[\s\S]*?\}\)\.catch\(\(\) => undefined\)/);
+const settings = read('src/app/blocked-users.tsx');
+assert.match(settings, /unblockUser\.mutateAsync\(\{[\s\S]*?\}\)[\s\S]*?\.catch\(\(\) => undefined\)/);
 assert.match(settings, /unblockUser\.isError \? <Text accessibilityRole="alert"/);
 
 // OAuth: a profile lookup failure after a successful exchange is "unknown", not "missing".
