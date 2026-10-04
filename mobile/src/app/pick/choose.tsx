@@ -35,7 +35,9 @@ function getErrorMessage(error: unknown) {
   }
 }
 
-type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type Params = { itemId?: string; categoryId?: string; onboarding?: string; channel?: string; returnPickId?: string };
 type SavedChoice = { pick: Pick; item: Item };
 
 export default function ChoosePickScreen() {
@@ -168,6 +170,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     photoOfferClosed.current = true;
     router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id, photo: '1' } });
   };
+  // Came from a review's comments (pick-first prompt): go back there to comment.
+  const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
+  const backToComments = () => {
+    if (!returnPickId) return;
+    if (router.canGoBack()) router.back();
+    else router.replace({ pathname: '/pick/[pickId]', params: { pickId: returnPickId } });
+  };
   const skipPhoto = () => { photoOfferClosed.current = true; setPhotoOfferSkipped(true); };
 
   if (sessionError) {
@@ -273,6 +282,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {params.onboarding === '1' ? <>
               <Button size="lg" fullWidth label="다음 카테고리" accessibilityLabel="다음 카테고리로 이동" onPress={() => router.replace('/onboarding')} style={styles.submit} />
               <Button variant="ghost" label="나중에 이어하기" accessibilityLabel="온보딩을 나중에 이어서 하기" onPress={() => router.replace('/profile')} style={styles.centered} />
+            </> : returnPickId ? <>
+              <Button size="lg" fullWidth label="댓글 남기러 가기" onPress={backToComments} style={styles.submit} />
+              <Button variant="ghost" label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.centered} />
             </> : <>
               <Button size="lg" fullWidth label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.submit} />
               <Button variant="ghost" label="다른 사람의 원픽 계속 보기" onPress={() => router.replace('/')} style={styles.centered} />

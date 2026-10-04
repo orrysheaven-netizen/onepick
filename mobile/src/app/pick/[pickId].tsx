@@ -92,6 +92,11 @@ export default function PickDetailScreen() {
     ? itemTitle(itemQuery.data.item.name, itemQuery.data.category?.name, itemQuery.data.isRestaurant)
     : pickQuery.data?.item?.name ?? '한줄평 대화';
 
+  // Comments are open only to members who picked the same menu (server rule); a viewer
+  // without that Pick, e.g. right after signing up from here, is sent to pick it first.
+  const canPickFirst = Boolean(user && focused && !focused.pick.canComment && !focused.pick.isDeleted
+    && itemQuery.data?.canChoose && itemQuery.data.myPickStatus.type !== 'selected_this');
+
   const goBack = () => {
     if (router.canGoBack()) router.back();
     else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId } });
@@ -138,6 +143,10 @@ export default function PickDetailScreen() {
           <PickReplies
             pickId={focused.pick.id}
             canWrite={Boolean(focused.pick.canComment)}
+            onPickFirst={canPickFirst ? () => router.push({ pathname: '/pick/choose', params: {
+              itemId: focused.pick.itemId, categoryId: focused.pick.categoryId,
+              ...(focused.pick.channel ? { channel: focused.pick.channel } : {}), returnPickId: focused.pick.id,
+            } }) : undefined}
             focusCommentId={notificationKind === 'reply' ? rootCommentId : routeFocusCommentId}
             initialCursor={notificationKind === 'reply' ? commentInitialCursor : null}
             onFocusLoaded={notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}

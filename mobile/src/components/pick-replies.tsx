@@ -36,11 +36,13 @@ function getCommentErrorMessage(error: unknown) {
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
+ * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
+  onPickFirst?: () => void;
   focusCommentId?: string;
   initialCursor?: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -48,14 +50,15 @@ export function PickReplies({ pickId, compact = false, canWrite = true, focusCom
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} onPickFirst={onPickFirst} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
   canWrite: boolean;
+  onPickFirst?: () => void;
   focusCommentId?: string;
   initialCursor: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -79,6 +82,16 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   useEffect(() => {
     if (focusedCommentLoaded) onFocusLoaded?.();
   }, [focusedCommentLoaded, onFocusLoaded]);
+
+  const loginPrompt = (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId } })}
+      style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
+      <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
+      <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
+    </Pressable>
+  );
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
@@ -301,16 +314,17 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       )}
                     </Pressable>
                   </View>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId } })}
-                    style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
-                    <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
-                    <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
-                  </Pressable>
-                )
-              ) : compact ? null : (
+                ) : loginPrompt
+              ) : compact ? null : !user && !isSessionLoading && !sessionError ? loginPrompt
+              : user && onPickFirst ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onPickFirst}
+                  style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
+                  <Text style={styles.loginPromptTitle}>이 메뉴 원픽 먼저 고르기</Text>
+                  <Text style={styles.loginPromptText}>같은 메뉴를 원픽으로 고른 사람끼리 댓글을 남길 수 있어요.</Text>
+                </Pressable>
+              ) : (
                 <Text style={styles.historyCommentNotice}>현재 댓글을 남길 수 없는 한줄평입니다.</Text>
               )}
             </View>
