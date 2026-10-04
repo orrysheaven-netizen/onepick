@@ -86,7 +86,7 @@ function choice() {
   const mutation = { isPending: false, isError: false, mutateAsync: (p) => { writes.push(p); return new Promise((resolve, reject) => pending.push({ resolve, reject })); } };
   const view = harness('app/pick/choose.tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => destinations.push(r), replace: (r) => destinations.push(r), canGoBack: () => true, back() {} }) },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useItemPickCount': { useItemPickCount: () => ({ data: 5 }) }, '@/hooks/useItemStore': { useItemStore: () => ({ data: { providerId: 'prov-1', region: '서울 강남구' } }) },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('한줄평 저장').onPress(); };
@@ -179,7 +179,7 @@ async function main() {
     picks: [{ pick: { id: pickId }, profile: null }], myPickStatus: { type: 'not_selected' }, canChoose: true }, photoCredit: credit };
   const view = harness('app/item/[itemId].tsx', {
     'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ push: (r) => routes.push(r), replace() {}, canGoBack: () => true, back() {} }) },
-    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: (...args) => { itemDetailArgs = args; return query; } }, '@/hooks/useItemPickCount': { useItemPickCount: () => ({ data: 5 }) }, '@/hooks/useItemStore': { useItemStore: () => ({ data: { providerId: 'prov-1', region: '서울 강남구' } }) },
     '@/hooks/useRegisterPick': {
       useChoosePhoto: () => ({ isPending: false }),
       useAttachItemPhoto: () => ({ isPending: false }),

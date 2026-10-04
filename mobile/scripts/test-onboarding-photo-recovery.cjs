@@ -107,7 +107,7 @@ function setup(file, extra = {}) {
   const view = harness(file, {
     'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useItemDetail': { useItemDetail: () => query }, '@/hooks/useItemPickCount': { useItemPickCount: () => ({ data: 5 }) }, '@/hooks/useItemStore': { useItemStore: () => ({ data: { providerId: 'prov-1', region: '서울 강남구' } }) },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
     '@/hooks/useCreateProfile': { useCreateProfile: () => mutation },
     '@/hooks/useRegisterPick': {
