@@ -122,11 +122,11 @@ export default function LinkCategorySuggestionScreen() {
   };
 
   if (auth.isLoading) {
-    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요" /></View></SafeAreaView>;
+    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard loading title="로그인 상태를 확인하고 있어요." /></View></SafeAreaView>;
   }
 
   if (auth.error) {
-    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard tone="danger" title="로그인 상태를 확인하지 못했어요"
+    return <SafeAreaView style={styles.safeArea}><View style={styles.center}><StateCard tone="danger" title="로그인 상태를 확인하지 못했어요."
       action={{ label: '다시 확인', variant: 'secondary', onPress: () => void auth.retry() }} /></View></SafeAreaView>;
   }
 
@@ -186,7 +186,7 @@ export default function LinkCategorySuggestionScreen() {
           />
         </View>
 
-        {suggestion.isPending ? <View style={styles.inline}><ActivityIndicator /><Text style={styles.muted}>링크와 카테고리를 확인하고 있어요</Text></View> : null}
+        {suggestion.isPending ? <View style={styles.inline}><ActivityIndicator /><Text style={styles.muted}>링크와 카테고리를 확인하고 있어요.</Text></View> : null}
         {suggestion.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorText(suggestion.error)}</Text> : null}
 
         {result ? (

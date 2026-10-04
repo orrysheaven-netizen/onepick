@@ -262,6 +262,9 @@ const { default: Screen } = load('app/pick/new.tsx', {
     useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
+  '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
+    data: undefined, isPending: false, isError: false, isSuccess: false, error: null, mutate() {}, reset() {},
+  }) },
   '@/hooks/useStoreFirst': {
     useProviderStorePrefill: () => ({ data: null, isPending: true, isLoading: false, isError: false }),
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [

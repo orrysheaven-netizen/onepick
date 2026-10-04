@@ -84,7 +84,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
         </Pressable>
 
         <View style={styles.body}>
-          <Text accessibilityRole="header" style={styles.title}>아이디를 정해주세요</Text>
+          <Text accessibilityRole="header" style={styles.title}>아이디를 정해주세요.</Text>
 
           {isLoading ? <Text style={styles.statusText}>로그인 상태 확인 중...</Text> : null}
           {!isLoading && (sessionError || !user) ? (

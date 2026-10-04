@@ -205,7 +205,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   if (!authReady) return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <View style={styles.gate}>
       <StateCard loading={!sessionError} tone={sessionError ? 'danger' : 'default'}
-        title={sessionError ? '로그인 상태를 확인하지 못했어요' : '로그인 상태를 확인하고 있어요'}
+        title={sessionError ? '로그인 상태를 확인하지 못했어요.' : '로그인 상태를 확인하고 있어요.'}
         action={sessionError ? { label: '다시 확인하기', variant: 'secondary', onPress: retrySession } : undefined} />
       <Button variant="ghost" label="돌아가기" onPress={back} style={styles.centered} />
     </View>
@@ -222,13 +222,13 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거합니다.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
-        <Text style={styles.stateTitle}>YouTube 영상 확인 전 동의가 필요해요</Text>
+        <Text style={styles.stateTitle}>YouTube 영상 확인 전 동의가 필요해요.</Text>
         <Text style={styles.stateText}>레시피 영상 정보는 YouTube Data API Services로 확인합니다. 아래 안내와 약관을 확인한 뒤 동의해야 등록할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
-        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다" loading={consentSaving}
+        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다." loading={consentSaving}
           disabled={consentSaving} onPress={() => void acceptConsent()} style={styles.consentButton} />
       </View> : null}
 
@@ -247,7 +247,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         {videoId && !user ? <View style={styles.block}><StateCard compact text="레시피 영상을 확인하고 등록하려면 로그인이 필요해요."
           action={{ label: '로그인하고 레시피 등록 계속', variant: 'secondary', onPress: login }} /></View> : null}
 
-        {lookupEnabled && lookup.isFetching && !video ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>YouTube에서 영상 정보를 확인하고 있어요</Text></View> : null}
+        {lookupEnabled && lookup.isFetching && !video ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>YouTube에서 영상 정보를 확인하고 있어요.</Text></View> : null}
         {lookupEnabled && lookup.isError && !lookup.isFetching ? <View style={styles.block}><StateCard compact tone="danger" accessibilityRole="alert"
           text={recipeErrorMessage(lookup.error)}
           action={lookup.error instanceof AppError && lookup.error.code === 'AUTH_REQUIRED'
@@ -289,7 +289,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             {dishQuery.trim() && !dishMatches.length ? <Text style={styles.hint}>&apos;{dishQuery.trim()}&apos; 요리를 찾지 못했어요.</Text> : null}
 
             {!requestMode ? <>
-              <Button fullWidth size="lg" label={selectedDish ? `${selectedDish.name} 레시피로 원픽 등록` : '요리를 먼저 골라주세요'}
+              <Button fullWidth size="lg" label={selectedDish ? `${selectedDish.name} 레시피로 원픽 등록` : '요리를 먼저 골라주세요.'}
                 loading={importVideo.isPending} disabled={busy || !selectedDish}
                 accessibilityLabel={selectedDish ? `${video.title}을 ${selectedDish.name} 레시피로 원픽 등록` : '요리를 먼저 골라주세요'}
                 onPress={() => void register(video)} style={styles.submit} />
@@ -312,7 +312,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         </View> : null}
       </> : null}
 
-      {requested ? <View style={styles.block}><StateCard title="등록을 요청했어요"
+      {requested ? <View style={styles.block}><StateCard title="등록을 요청했어요."
         text={`관리자가 '${requested}' 요리를 확인해요. 승인돼도 자동으로 원픽이 되거나 승인 알림이 오지 않아요. 확인이 끝난 뒤 직접 선택할 수 있어요.`}
         action={{ label: '홈으로', variant: 'secondary', onPress: () => router.replace('/') }} /></View> : null}
 

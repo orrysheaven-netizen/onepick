@@ -51,10 +51,10 @@ export default function SettingsScreen() {
         </Pressable>
         <Text style={styles.title}>설정</Text>
 
-        {isLoading ? <StateCard loading title="로그인 상태를 확인하고 있어요" /> : null}
+        {isLoading ? <StateCard loading title="로그인 상태를 확인하고 있어요." /> : null}
 
         {!isLoading && !user ? (
-          <StateCard title="로그인이 필요해요" text="차단 목록과 계정 설정은 로그인 후 관리할 수 있습니다."
+          <StateCard title="로그인이 필요해요." text="차단 목록과 계정 설정은 로그인 후 관리할 수 있습니다."
             action={{ label: '로그인', variant: 'primary', onPress: () => router.push('/auth/login') }} />
         ) : null}
 

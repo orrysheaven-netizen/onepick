@@ -7,7 +7,7 @@ const style = { color: OnePick.accent, fontSize: 13, fontWeight: '500', marginVe
 export function ItemPickCount({ itemId }: { itemId: string }) {
   const query = useItemPickCount(itemId);
   if (query.isError || query.data === undefined) {
-    const label = query.isError ? '원픽 인원을 확인하지 못했어요' : '원픽 인원 확인 중…';
+    const label = query.isError ? '원픽 인원을 확인하지 못했어요.' : '원픽 인원 확인 중…';
     return <Text style={style} accessibilityLabel={label}>{label}</Text>;
   }
   const count = query.data.toLocaleString('ko-KR');

@@ -42,7 +42,7 @@ export function isPhotoFailure(error: unknown) {
   ].includes(error.code);
 }
 
-const PHOTO_FAILURE_TITLE = '사진을 업로드하지 못했어요';
+const PHOTO_FAILURE_TITLE = '사진을 업로드하지 못했어요.';
 
 export function showPhotoFailure(error: unknown, context: string) {
   void observabilityService.captureError(error, context);

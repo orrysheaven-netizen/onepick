@@ -204,7 +204,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
               {commentsQuery.isPending ? (
                 <View style={styles.commentsState}>
                   <ActivityIndicator />
-                  <Text style={styles.commentsStateText}>댓글을 불러오고 있어요</Text>
+                  <Text style={styles.commentsStateText}>댓글을 불러오고 있어요.</Text>
                 </View>
               ) : null}
 
@@ -269,7 +269,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       maxLength={300}
                       multiline
                       onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
-                      placeholder={replyingTo ? '답글을 남겨보세요' : '이 원픽에 대해 이야기해보세요'}
+                      placeholder={replyingTo ? '답글을 남겨보세요.' : '이 원픽에 대해 이야기해보세요.'}
                       placeholderTextColor={OnePick.hint}
                       style={styles.commentInput}
                       value={commentBody}
