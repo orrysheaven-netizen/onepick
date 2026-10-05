@@ -16,6 +16,16 @@ export function useExploreCategories(enabled = true) {
   });
 }
 
+/** Explore menu list (Figma 31): current Pick count per food menu. */
+export function useFoodMenuPickCounts(channel: PickChannel | null = null, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.explore.menuPickCounts(channel),
+    queryFn: () => exploreService.getFoodMenuPickCounts(channel),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useCategoryTopItems(categoryId?: string, channel: PickChannel | null = null) {
   return useQuery({
     queryKey: queryKeys.explore.topItems(categoryId, channel),

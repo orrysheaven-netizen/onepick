@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
+    'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
@@ -50,7 +50,7 @@ function fixture(kind, platform = 'web') {
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
-      useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
+      useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
