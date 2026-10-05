@@ -204,15 +204,15 @@ test('web register control matches Figma Add Button 287:261 and preserves route'
   assert.equal(styleOf(first(button, 'Text')).color, OnePick.textPrimary, 'Figma: the register label is text/primary');
   button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
-test('web active tab icons are filled; inactive icons are outlines', () => {
-  for (const [path, label] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
+test('web active fill is reserved for Home; other active tabs stay outlined', () => {
+  for (const [path, activeLabel] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
     pathname = path;
     const tree = expand(AppTabs());
-    for (const other of ['홈', '탐색', '알림', '프로필']) {
-      const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === other)[0];
+    for (const label of ['홈', '탐색', '알림', '프로필']) {
+      const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
       const fills = all(first(tab, 'svg'), (n) => n.props && n.props.fill !== undefined).map((n) => n.props.fill);
-      if (other === label) assert.ok(fills.includes(OnePick.actionPrimary), `${other} active icon is filled`);
-      else assert.ok(!fills.includes(OnePick.actionPrimary), `${other} inactive icon is an outline`);
+      if (label === '홈' && activeLabel === '홈') assert.ok(fills.includes(OnePick.actionPrimary), 'Home is filled when active');
+      else assert.ok(!fills.includes(OnePick.actionPrimary), `${label} does not use an active fill`);
     }
   }
 });
