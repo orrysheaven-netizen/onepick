@@ -46,11 +46,8 @@ assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
   'Native back/swipe stays owned by the native stack');
 assert.ok(!publicSource.includes('router.dismissTo(returnHref);'),
   'Native swipe does not trigger a competing dismissal during the pop transition');
-assert.match(publicSource, /Platform\.OS === 'web' \|\| connectionDirection \|\| typeof username !== 'string' \|\| !returnHref/);
-assert.match(publicSource, /if \(!state \|\| state\.index > 0\) return;/);
-assert.match(publicSource, /\{ name: 'profile', params: \{ returnTo: returnHref \} \}/,
-  'Direct native public-profile entry seeds a real route below it for swipe-back');
-assert.match(publicSource, /\{ name: 'u\/\[username\]', params: \{ username, returnTo \} \}/);
+assert.ok(!publicSource.includes("{ name: 'profile', params: { returnTo: returnHref } }"),
+  'Swipe-back must never synthesize own Profile as a fake previous screen');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
