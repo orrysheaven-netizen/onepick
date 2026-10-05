@@ -99,7 +99,7 @@ class PreviewWorkflowTests(unittest.TestCase):
                 (root / f'{index}.body').write_bytes(body)
                 (root / f'{index}.http').write_text(response.get('http', '200') + '\n')
                 (root / f'{index}.exit').write_text(str(response.get('exit', 0)) + '\n')
-            env = dict(os.environ, HEAD_BRANCH=branch, EXPECTED_SHA=SHA,
+            env = dict(os.environ, HEAD_BRANCH=branch, EXPECTED_SHA=SHA, LC_ALL='C.UTF-8',
                        PROJECT_SUBDOMAIN='onepick-5cl', RUNNER_TEMP=directory,
                        GITHUB_OUTPUT=str(root / 'output'), MOCK_DIR=directory,
                        MOCK_URL=f'https://{alias}.onepick-5cl.pages.dev/deployment.json',
@@ -129,6 +129,7 @@ class PreviewWorkflowTests(unittest.TestCase):
         self.assertIn('deadline=$((SECONDS + 720))', resolve)
         self.assertIn('--max-time 5', resolve)
         self.assertNotIn('${{', resolve, 'Untrusted expressions must enter through env')
+        self.assertNotIn('export LC_ALL=C\n', resolve, 'Do not change UTF-8 characters into bytes')
         self.assertNotIn('GH_TOKEN', resolve)
         self.assertNotIn('BODY=', resolve)
         self.assertIn('PREVIEW_REASON: ${{ steps.preview.outputs.reason }}', workflow)
@@ -151,6 +152,15 @@ class PreviewWorkflowTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(output['url'], f'https://{alias}.onepick-5cl.pages.dev')
                 self.assertEqual((output['ready'], output['reason'], calls), ('true', 'matched', 1))
+
+    def test_preserves_existing_utf8_normalization(self):
+        # Preserve the existing UTF-8 runner behavior; a C locale would replace
+        # each UTF-8 byte rather than each character and derive another host.
+        for branch, alias in [('feat/맛집-test', 'feat----test'), ('Feat/Äpi_1', 'feat--pi-1')]:
+            with self.subTest(branch=branch):
+                result, output, calls = self.probe([manifest(branch)], branch, alias)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((output['ready'], calls), ('true', 1))
 
     def test_empty_alias_fails_before_network(self):
         for branch in ('', '___', '---'):

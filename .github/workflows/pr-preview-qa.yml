@@ -41,7 +41,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export LC_ALL=C
           # Cloudflare Pages branch aliases are lowercase, replace every
           # non-alphanumeric branch-name character with '-' and are cut to 28
           # characters (claude/comment-needs-pick-first ->
