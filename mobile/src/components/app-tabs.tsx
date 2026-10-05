@@ -55,12 +55,12 @@ function BottomBar() {
 function NativeIcon({ name, active, unread = false }: { name: TabIcon; active: boolean; unread?: boolean }) {
   const tintColor = active ? OnePick.actionPrimary : OnePick.textTertiary;
   const symbolName = name === 'home'
-    ? { ios: active ? 'house.fill' : 'house', android: active ? 'home_filled' : 'home' }
+    ? ({ ios: active ? 'house.fill' : 'house', android: active ? 'home_filled' : 'home' } as const)
     : name === 'explore'
-      ? { ios: active ? 'square.grid.2x2.fill' : 'square.grid.2x2', android: 'grid_view' }
+      ? ({ ios: active ? 'square.grid.2x2.fill' : 'square.grid.2x2', android: 'grid_view' } as const)
       : name === 'notifications'
-        ? { ios: active ? 'bell.fill' : 'bell', android: active ? 'notifications' : 'notifications_none' }
-        : { ios: active ? 'person.fill' : 'person', android: active ? 'person' : 'person_outline' };
+        ? ({ ios: active ? 'bell.fill' : 'bell', android: active ? 'notifications' : 'notifications_none' } as const)
+        : ({ ios: active ? 'person.fill' : 'person', android: active ? 'person' : 'person_outline' } as const);
 
   return (
     <View style={styles.icon}>
