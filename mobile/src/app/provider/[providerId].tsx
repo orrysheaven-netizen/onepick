@@ -115,8 +115,8 @@ export default function ProviderProfileScreen() {
           style={({ pressed }) => [styles.storeHeaderSide, pressed && styles.pressed]}>
           <Text style={styles.storeBackText}>‹</Text>
         </Pressable>
-        <Text accessibilityRole="header" numberOfLines={1} style={styles.storeHeaderTitle}>{query.data?.name ?? '매장'}</Text>
-        <View style={styles.storeHeaderSide} />
+        {/* Figma 17: the header keeps only ‹; the store name is the body's page title. */}
+        <View style={styles.storeHeaderSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.storeContent} showsVerticalScrollIndicator={false}>
@@ -134,17 +134,17 @@ export default function ProviderProfileScreen() {
                   accessibilityLabel={`${query.data.brandName ?? query.data.name} 로고`} />
               </View>
             ) : (
-              <View accessibilityLabel="로고 미등록" style={styles.storeLogoPlaceholder}>
-                <Text style={styles.storeLogoPlaceholderText}>로고{"\n"}미등록</Text>
+              <View accessible={false} style={styles.storeLogoPlaceholder}>
+                <Text style={styles.storeLogoPlaceholderText}>{query.data.name.trim().slice(0, 1)}</Text>
               </View>
             )}
             <View style={styles.storeNameRow}>
               <View style={styles.storeChannelBadge}><Text style={styles.storeChannelText}>{query.data.channelLabel}</Text></View>
-              <Text numberOfLines={1} style={styles.storeName}>{query.data.name}</Text>
+              <Text accessibilityRole="header" numberOfLines={1} style={styles.storeName}>{query.data.name}</Text>
             </View>
             {query.data.branchName || query.data.subtitle ? (
               <Text style={styles.storeLocation}>
-                {[query.data.branchName, query.data.subtitle].filter(Boolean).join(' · ')}
+                {[query.data.branchName, query.data.subtitle].filter(Boolean).join(' ')}
               </Text>
             ) : null}
           </View>
@@ -163,7 +163,7 @@ export default function ProviderProfileScreen() {
           </View> : null}
 
           <View style={styles.storeDivider} />
-          <Text style={styles.storeSectionTitle}>{query.data.kind === 'offline_branch' ? '이곳의 원픽' : '이 판매처의 원픽'}</Text>
+          <Text style={styles.storeSectionTitle}>{query.data.kind === 'offline_branch' ? '이곳의 원픽' : '이 판매처의 원픽'}{query.data.items.length ? ` ${query.data.items.length}` : ''}</Text>
 
           {query.data.items.length ? <View style={styles.storeMenuList}>
             {query.data.items.map((item) => <Pressable key={item.itemId} accessibilityRole="button"
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   storeHeaderSide: { width: 48, minHeight: 44, justifyContent: 'center' },
   storeBackText: { ...OnePickType.headline, color: OnePick.textPrimary },
-  storeHeaderTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, color: OnePick.textPrimary, textAlign: 'center' },
+  storeHeaderSpacer: { flex: 1 },
   storeContent: {
     width: '100%',
     maxWidth: 390,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   storeLogo: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: OnePickRadius.lg,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,12 +229,12 @@ const styles = StyleSheet.create({
   storeLogoPlaceholder: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: OnePickRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: OnePick.bgSubtle,
   },
-  storeLogoPlaceholderText: { ...OnePickType.caption, width: 56, color: OnePick.textSecondary, textAlign: 'center' },
+  storeLogoPlaceholderText: { ...OnePickType.headline, color: OnePick.textPrimary, textAlign: 'center' },
   storeNameRow: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7 },
   storeChannelBadge: {
     height: 28,
