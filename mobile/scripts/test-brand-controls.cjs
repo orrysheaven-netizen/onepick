@@ -190,6 +190,27 @@ test('web active tab uses ink icon and label without a brand fill', () => {
   readable(iconColor, OnePick.surface, styleOf(tab, true).opacity ?? 1);
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
+test('web bottom nav keeps the Figma 64px visual area and adds only the safe area below it', () => {
+  pathname = '/';
+  const tree = expand(AppTabs());
+  const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).borderTopWidth === 1)[0];
+  assert.ok(bar, 'Bottom Nav bar exists');
+  assert.equal(styleOf(bar).height, 84, '64px visual bar + mocked 20px safe area');
+  assert.equal(styleOf(bar).paddingTop, 8);
+  assert.equal(styleOf(bar).paddingBottom, 20);
+
+  const home = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '홈')[0];
+  assert.equal(styleOf(home).height, 56);
+  assert.equal(styleOf(home).gap, 4);
+  const homeIcon = first(home, 'View');
+  assert.equal(styleOf(homeIcon).width, 23);
+  assert.equal(styleOf(homeIcon).height, 23);
+
+  const register = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
+  const registerIcon = first(register, 'View');
+  assert.equal(styleOf(registerIcon).width, 32);
+  assert.equal(styleOf(registerIcon).height, 32);
+});
 test('web register control matches Figma Add Button 287:261 and preserves route', () => {
   const tree = expand(AppTabs());
   const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
@@ -224,7 +245,7 @@ test('web Link tabs pass one layout style object through Link asChild', () => {
     assert.ok(tab, label);
     assert.ok(tab.props.style && typeof tab.props.style === 'object' && !Array.isArray(tab.props.style), 'Link tab style must be a plain object');
     assert.equal(tab.props.style.flex, 1);
-    assert.equal(tab.props.style.minHeight, 56);
+    assert.equal(tab.props.style.height, 56);
     assert.equal(tab.props.style.alignItems, 'center');
     assert.equal(tab.props.style.justifyContent, 'center');
     assert.equal(typeof tab.props.onPressIn, 'function');
