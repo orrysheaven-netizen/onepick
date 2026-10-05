@@ -4,7 +4,7 @@ import { BodyFont } from './font-family';
 // Roles: surfaces → ink (text) → accent → status. See docs/design-mvp.md.
 export const OnePick = {
   // Surfaces
-  background: '#FAFAF7', // approved paper canvas
+  background: '#FFFFFF', // app canvas and screen background
   surface: '#FFFFFF', // cards, sheets, inputs
   sunken: '#EEF0F4', // image placeholders, disabled fills, quiet chips
   border: '#E3E5EA',
