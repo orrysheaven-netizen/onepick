@@ -28,6 +28,7 @@ function AppStack() {
       <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="u/[username]" options={{ presentation: 'card', gestureEnabled: true, fullScreenGestureEnabled: true, animationMatchesGesture: true }} />
         <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
         <Stack.Screen name="feed" options={{ presentation: 'card' }} />
