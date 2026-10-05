@@ -337,15 +337,17 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 
   async getDailyQuestionCategoryId() {
-    // One public display setting row (same table as the showcase threshold). Until the
-    // column is deployed PostgREST reports it missing; that means "no question", not an error.
+    // One public display setting row (same table as the showcase threshold). Read the whole row
+    // so the request never names a column that is not deployed yet: naming it would make every
+    // Home load fail with a 400 until the migration lands (PR #777 preview QA). A row without the
+    // field means "no question", not an error.
     const { data, error } = await (this.countClient as any).from('home_settings')
-      .select('daily_question_category_id').eq('id', true).maybeSingle();
+      .select('*').eq('id', true).maybeSingle();
     if (error) {
       if (missingSettingColumn(error)) return null;
       throw mapSupabaseError(error);
     }
-    const value = data?.daily_question_category_id;
+    const value = (data as Record<string, unknown> | null)?.daily_question_category_id;
     return typeof value === 'string' && value ? value : null;
   }
 

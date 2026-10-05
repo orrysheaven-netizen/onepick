@@ -144,6 +144,35 @@ test('Only successful saves arm the handoff (cancel/failure never reach onSucces
   assert.equal(typeof register.useRegisterItemPick().onError, 'undefined', 'No failure path arms it');
 });
 
+// Repository: the settings read must not name an undeployed column (PR #777 preview QA saw a 400).
+async function repositoryChecks() {
+  const { AppError } = load('errors/appError.ts');
+  const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
+  const imports = {
+    '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
+  };
+  for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
+  const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
+  const settings = (result) => {
+    const seen = {};
+    const chain = { select(cols) { seen.select = cols; return chain; }, eq(col, val) { seen.eq = [col, val]; return chain; }, maybeSingle: async () => result };
+    const client = { from(table) { seen.table = table; return chain; } };
+    return { repo: new SupabaseReadRepository(client, client), seen };
+  };
+  const before = settings({ data: { id: true, minimum_pick_count: 3, updated_at: 'x' }, error: null });
+  assert.equal(await before.repo.getDailyQuestionCategoryId(), null, 'Before the migration the row has no field → no question');
+  assert.equal(before.seen.table, 'home_settings');
+  assert.equal(before.seen.select, '*', 'Never name the new column (would 400 before deploy)');
+  deepEq(before.seen.eq, ['id', true]);
+  assert.equal(await settings({ data: { id: true, daily_question_category_id: null }, error: null }).repo.getDailyQuestionCategoryId(), null, 'Unset → no question');
+  assert.equal(await settings({ data: { id: true, daily_question_category_id: 'naengmyeon' }, error: null }).repo.getDailyQuestionCategoryId(), 'naengmyeon');
+  assert.equal(await settings({ data: null, error: { code: '42703', message: 'column does not exist' } }).repo.getDailyQuestionCategoryId(), null);
+  await assert.rejects(() => settings({ data: null, error: { code: '500', message: 'boom' } }).repo.getDailyQuestionCategoryId(), 'Real failures still surface as errors');
+  passed++; console.log('PASS Daily question setting read is safe before and after the DB column ships');
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rendered Home
 // ---------------------------------------------------------------------------------------------
@@ -335,4 +364,6 @@ test('Feed card keeps offline Store Badge and online label', () => {
   assert.ok(JSON.stringify(online.map((n) => n.props?.children)).includes('온라인'), 'Online card keeps its text label');
 });
 
-console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);
+repositoryChecks().then(() => {
+  console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);
+}).catch((error) => { console.error(error); process.exitCode = 1; });
