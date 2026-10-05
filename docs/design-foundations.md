@@ -64,7 +64,7 @@
 | Input | Type=Single/Multiline × State=Empty/Filled, Value | 높이 52/120, bg/subtle, 테두리 없음 |
 | Header | Title, Action, Show Back, Show Action | 높이 56, 뒤로 ‹ + 가운데 제목 + 오른쪽 텍스트 동작 |
 | List Row | Title, Meta | 썸네일 36 + 제목 + 보조 정보 |
-| Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필 |
+| Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필. 시각 영역 64(상단 8 + 탭 56), 5등분, 일반 아이콘 23, 아이콘-라벨 간격 4, 등록 버튼 32/테두리 1.5. 기기 하단 safe area는 64 아래에 같은 흰 배경으로만 연장 |
 | Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
@@ -115,6 +115,7 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 - `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자는 `color/text/secondary` 이상을 사용합니다. tertiary는 플레이스홀더·비활성 아이콘·셰브론에만 사용합니다.
 - 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다.
 - 하단 탭의 비활성 **라벨은 secondary**, 비활성 **아이콘은 tertiary**를 사용합니다.
+- 하단 탭의 시각 규격은 Figma `Tab Bar`를 그대로 사용합니다: 콘텐츠 영역 64px(상단 8px + 탭 56px), 5개 동일 폭, 일반 아이콘 23px, 아이콘-라벨 간격 4px, 가운데 등록 버튼 32px/테두리 1.5px. 기기 bottom safe area는 별도 흰 배경으로 아래쪽에만 더하며 탭 콘텐츠 위치를 밀어 올리지 않습니다.
 - 탭 안 화면(40·41·67 포함)은 하단 탭을 유지하고, 36·45·68·75 같은 하위 흐름 화면은 하단 탭을 숨깁니다.
 - 첫 불러오기는 기존 화면 틀을 유지한 채 가운데 스피너와 `{무엇}을 불러오고 있어요` 문구를 표시합니다. 0.3초 미만의 짧은 로딩은 표시하지 않습니다.
 - 다음 페이지 로딩은 목록 끝 최소 44 영역에 스피너만 둡니다. 저장·삭제는 누른 버튼 자체만 로딩 상태로 바꿔 중복 제출을 막습니다.
