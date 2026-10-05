@@ -30,6 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
+    'home-early-sections': 'HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus',
     'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
@@ -40,11 +41,16 @@ function fixture(kind, platform = 'web') {
     ? 'app/(tabs)/(profile)/profile.tsx'
     : `app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`;
   const view = screen(screenPath, {
-    'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}) },
+    'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}), useFocusEffect: () => {} },
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]),
+      useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
+    '@/hooks/useNotifications': { useNotifications: () => query(undefined) },
+    '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },

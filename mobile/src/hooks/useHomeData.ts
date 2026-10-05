@@ -26,6 +26,26 @@ export function useHomeItemRanking(channel: PickChannel | null = null, limit = 2
   });
 }
 
+/** Figma 30E "오늘의 질문": the admin-set category id, or null when none is set. */
+export function useDailyQuestionCategory(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.dailyQuestion(),
+    queryFn: () => homeService.getDailyQuestionCategoryId(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
+/** Figma 30E "함께하는 사람들": current public Picks read with the viewer's visibility rules. */
+export function useHomeParticipantPicks(userId: string | undefined, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.participants(userId),
+    queryFn: () => homeService.getParticipantPicks(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
 /**
  * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
  * so the list never drops rows it already showed, each Pick shown once.

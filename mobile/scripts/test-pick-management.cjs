@@ -61,6 +61,7 @@ async function main() {
   const hookImports = {
     '@tanstack/react-query': { useMutation: (options) => options, useQueryClient: () => queryClient },
     '@/lib/query/invalidatePickData': { invalidatePickData },
+    '@/lib/home/firstPickNotice': loadSource('lib/home/firstPickNotice.ts'),
     '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);

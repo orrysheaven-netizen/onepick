@@ -30,15 +30,22 @@ function home(count = 20, followingCount = 0) {
   const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
   const view = screen('app/(tabs)/index.tsx', {
-    'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
+    'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }), useFocusEffect: () => {} },
     '@/constants/onepick': constants,
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]),
+      useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
+    '@/hooks/useNotifications': { useNotifications: () => query(undefined) },
+    '@/components/home-early-sections': names('HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus'),
+    '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
+    '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },

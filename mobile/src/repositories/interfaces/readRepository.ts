@@ -239,6 +239,11 @@ export interface ReadRepository {
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
   getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
+  /**
+   * Admin-chosen category for Home's "오늘의 질문" (Figma 30E), from `home_settings`.
+   * null when no category is set or the setting does not exist yet in this database.
+   */
+  getDailyQuestionCategoryId(): Promise<string | null>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */

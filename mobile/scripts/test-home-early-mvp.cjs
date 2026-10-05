@@ -1,0 +1,338 @@
+// Figma 30E early-MVP Home (#758 / #762): boundary rules and the rendered Home states.
+// Uses mock query results only; this proves the screen logic, not live database wiring.
+const assert = require('node:assert/strict');
+const { load, screen, names } = require('./mvp-screen-harness.cjs');
+
+const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
+const tree = load('lib/categories/categoryTree.ts');
+const early = load('lib/home/earlyHome.ts');
+const notice = load('lib/home/firstPickNotice.ts');
+let passed = 0;
+// Values built inside the vm context carry another realm's prototypes; compare plain data.
+const plain = (value) => JSON.parse(JSON.stringify(value));
+const deepEq = (actual, expected, message) => assert.deepEqual(plain(actual), plain(expected), message);
+function test(name, run) { run(); passed++; console.log(`PASS ${name}`); }
+
+// ---- Catalog: food › 면류 › {라면, 냉면, 칼국수}, food › 내장류 › {곱창, 막창, 대창}, culture › 영화 --
+const cat = (id, parentId, name, sortOrder, isPickable = true) =>
+  ({ id, parentId, name, slug: id, status: 'open', isVisible: true, isPickable, rankingMinSample: 3, sortOrder, imageUrl: null });
+const catalog = [
+  cat('food', null, '먹을것', 1, false), cat('culture', null, '문화', 2, false),
+  cat('noodles', 'food', '면류', 1, false), cat('offal', 'food', '내장류', 2, false),
+  cat('ramen', 'noodles', '라면', 1), cat('naengmyeon', 'noodles', '냉면', 2), cat('kalguksu', 'noodles', '칼국수', 3),
+  cat('gopchang', 'offal', '곱창', 1), cat('makchang', 'offal', '막창', 2), cat('daechang', 'offal', '대창', 3),
+  cat('movie', 'culture', '영화', 1),
+];
+const menuOrder = ['ramen', 'naengmyeon', 'kalguksu', 'gopchang', 'makchang', 'daechang'];
+const menus = menuOrder.map((id) => catalog.find((c) => c.id === id));
+const countsOf = (entries) => new Map(Object.entries(entries));
+
+let seq = 0;
+const row = (userId, categoryId, startedAt, extra = {}) => ({
+  pick: { id: extra.id ?? `p${++seq}`, userId, categoryId, itemId: `item-${categoryId}-${userId}`, channel: extra.channel === undefined ? 'offline' : extra.channel,
+    oneLineReview: '이유', status: extra.status ?? 'active', startedAt },
+  profile: extra.noProfile ? null : { id: userId, username: userId, profileImageUrl: null },
+  item: { name: `${categoryId} 가게` }, category: { name: categoryId },
+});
+const group = (id, kind, unread, latest, pickId = `pick-${id}`) => ({
+  group_id: id, kind, latest_at: latest, snapshot: latest, unread_count: unread, total_count: Math.max(unread, 1), actor_count: 1,
+  actor: null, target: { pick_id: pickId, item_id: null, item_name: null, category_id: null, category_name: null, channel: null, comment_id: null, root_comment_id: null, user_id: null },
+});
+
+// ---------------------------------------------------------------------------------------------
+// Pure rules
+// ---------------------------------------------------------------------------------------------
+test('Total Pick count: 0·29 → unpicked chips, 30·31 → 많이 고른 메뉴, unknown → neither', () => {
+  assert.equal(early.EARLY_HOME_POPULAR_MIN_TOTAL_PICKS, 30);
+  for (const [total, expected] of [[0, 'unpicked'], [29, 'unpicked'], [30, 'popular'], [31, 'popular']]) {
+    assert.equal(early.earlyHomeDiscovery(early.totalPickCount(countsOf({ ramen: total }))), expected, `total ${total}`);
+  }
+  assert.equal(early.earlyHomeDiscovery(early.totalPickCount(undefined)), null, 'Unknown total never guesses a section');
+  assert.equal(early.totalPickCount(countsOf({ ramen: 20, gopchang: 9, bad: -4, nan: NaN })), 29, 'Sums every menu; ignores invalid rows');
+  assert.equal(early.earlyHomeDiscovery(early.totalPickCount(countsOf({ ramen: 20, gopchang: 10 }))), 'popular', 'Counts add up across menus');
+});
+
+test('Unpicked menus: catalog order, exclude today’s question, cap five, fewer when fewer exist', () => {
+  const none = countsOf({});
+  deepEq(early.unpickedCategories(menus, none, null).map((c) => c.id), ['ramen', 'naengmyeon', 'kalguksu', 'gopchang', 'makchang']);
+  deepEq(early.unpickedCategories(menus, none, 'naengmyeon').map((c) => c.id), ['ramen', 'kalguksu', 'gopchang', 'makchang', 'daechang'],
+    'Question category is skipped and the next candidate fills the slot');
+  const mostPicked = countsOf({ ramen: 1, naengmyeon: 2, kalguksu: 1, gopchang: 4 });
+  deepEq(early.unpickedCategories(menus, mostPicked, 'makchang').map((c) => c.id), ['daechang'], 'Only one candidate left');
+  deepEq(early.unpickedCategories(menus, countsOf({ ramen: 1, naengmyeon: 1, kalguksu: 1, gopchang: 1, makchang: 1, daechang: 1 }), null), []);
+});
+
+test('Participants: ≥1 eligible Pick, newest activity first; 2 hidden, 3 shown', () => {
+  const eligible = new Set(menuOrder);
+  const rows = [
+    row('amy', 'ramen', '2026-10-05T10:00:00Z'), row('amy', 'gopchang', '2026-10-01T10:00:00Z'),
+    row('ben', 'naengmyeon', '2026-10-04T10:00:00Z'),
+    row('ben', 'movie', '2026-10-06T10:00:00Z'), // not a food menu
+    row('cat', 'kalguksu', '2026-10-06T09:00:00Z', { channel: 'online' }), // hidden channel
+    row('dan', 'makchang', '2026-10-06T08:00:00Z', { status: 'needs_review' }),
+    row('eve', 'ramen', '2026-10-06T07:00:00Z', { noProfile: true }),
+  ];
+  const two = early.homeParticipants(rows, eligible, 'offline');
+  deepEq(two.map((p) => [p.username, p.pickCount]), [['amy', 2], ['ben', 1]], 'Only eligible public Picks count; newest activity first');
+  assert.equal(early.showParticipants(two), false, 'Two participants keep the section hidden');
+  const three = early.homeParticipants([...rows, row('fay', 'daechang', '2026-10-03T00:00:00Z', { channel: null })], eligible, 'offline');
+  deepEq(three.map((p) => p.username), ['amy', 'ben', 'fay']);
+  assert.equal(early.showParticipants(three), true, 'Three participants show the section');
+  const dup = row('gus', 'ramen', '2026-10-02T00:00:00Z', { id: 'same' });
+  assert.equal(early.homeParticipants([dup, dup], eligible, 'offline')[0].pickCount, 1, 'A Pick is counted once even if read twice');
+});
+
+test('Question card states: unanswered/answered, 0 Picks, N Picks, first-Pick completion once', () => {
+  const ids = new Set(menuOrder);
+  const mine = [row('me', 'ramen', '2026-10-05T00:00:00Z', { id: 'r1' }), row('me', 'movie', '2026-10-05T00:00:00Z', { id: 'm1' }),
+    row('me', 'kalguksu', '2026-10-05T00:00:00Z', { id: 'k1', status: 'needs_review' })];
+  const scoped = early.myScopedPicks(mine, ids, 'offline');
+  deepEq(scoped.map((r) => r.pick.id), ['r1', 'k1'], 'Own current food Picks (incl. awaiting review), outside menus excluded');
+  assert.equal(early.myQuestionAnswer(scoped, 'ramen').pick.id, 'r1', 'Answered → 내 답 보기 target');
+  assert.equal(early.myQuestionAnswer(scoped, 'naengmyeon'), null, 'Unanswered → 답하기');
+  assert.equal(early.myQuestionAnswer(scoped, null), null);
+  deepEq(early.questionFooter([], null), { kind: 'none-yet' });
+  deepEq(early.questionFooter(scoped, null), { kind: 'has-picks', count: 2 });
+  const only = scoped.slice(0, 1);
+  assert.equal(early.questionFooter(only, 'r1').kind, 'first-pick-done', 'Just-saved first Pick shows the completion line');
+  assert.equal(early.questionFooter(scoped, 'r1').kind, 'has-picks', 'Not the first Pick → normal line');
+  assert.equal(early.questionFooter(only, 'other').kind, 'has-picks', 'A different saved Pick never claims completion');
+});
+
+test('Unread replies: 0, 1, many; latest destination; other kinds untouched', () => {
+  assert.equal(early.replyBanner([]), null);
+  assert.equal(early.replyBanner([group('c1', 'comment', 0, '2026-10-05T00:00:00Z')]), null, 'Read groups do not count');
+  const one = early.replyBanner([group('c1', 'comment', 1, '2026-10-05T00:00:00Z', 'pick-a')]);
+  deepEq(one, { count: 1, target: { groupId: 'c1', snapshot: '2026-10-05T00:00:00Z', pickId: 'pick-a' } });
+  const many = early.replyBanner([
+    group('c1', 'comment', 2, '2026-10-04T00:00:00Z', 'pick-a'),
+    group('c2', 'comment', 1, '2026-10-06T00:00:00Z', 'pick-b'),
+    group('c2', 'comment', 1, '2026-10-06T00:00:00Z', 'pick-b'), // repeated page row
+    group('r1', 'reply', 5, '2026-10-07T00:00:00Z'), group('v1', 'pick_review', 3, '2026-10-07T00:00:00Z'),
+    group('f1', 'fix_needed', 1, '2026-10-07T00:00:00Z'),
+  ]);
+  assert.equal(many.count, 3, 'Only unread comment groups on the viewer’s Picks count, each group once');
+  assert.equal(many.target.pickId, 'pick-b', 'Several → the Pick with the most recent reply');
+  assert.equal(many.target.groupId, 'c2', 'Only that group is handed to the read contract');
+});
+
+test('First-Pick handoff: one viewer, one Pick, consumed once', () => {
+  assert.equal(notice.peekFirstPickNotice('me'), null);
+  notice.armFirstPickNotice('me', 'p1');
+  assert.equal(notice.peekFirstPickNotice('someone'), null, 'Another account never sees it');
+  assert.equal(notice.peekFirstPickNotice('me'), 'p1');
+  assert.equal(notice.consumeFirstPickNotice('me', 'other'), false);
+  assert.equal(notice.consumeFirstPickNotice('me', 'p1'), true);
+  assert.equal(notice.peekFirstPickNotice('me'), null, 'Consumed: never replayed');
+});
+
+test('Only successful saves arm the handoff (cancel/failure never reach onSuccess)', () => {
+  const armed = [];
+  const imports = {
+    '@tanstack/react-query': { useMutation: (options) => options, useQuery: () => ({}), useQueryClient: () => ({}) },
+    '@/lib/query/invalidatePickData': { invalidatePickData: () => {} },
+    '@/lib/home/firstPickNotice': { armFirstPickNotice: (userId, pickId) => armed.push(`${userId}:${pickId}`) },
+    '@/services': { pickService: {}, registrationService: {}, observabilityService: { captureProductEvent: async () => {} } },
+  };
+  const register = load('hooks/useRegisterPick.ts', imports);
+  const choose = load('hooks/useChoosePick.ts', imports);
+  register.useRegisterItemPick().onSuccess({ pickId: 'p-store', itemId: 'i' }, { userId: 'me', categoryId: 'ramen' });
+  register.useRegisterPick().onSuccess({ type: 'pick', pick: { id: 'p-reg', userId: 'me', itemId: 'i', categoryId: 'ramen' } });
+  register.useRegisterPick().onSuccess({ type: 'pending_item', item: { id: 'pending' } });
+  choose.useChoosePick().onSuccess({ id: 'p-choose', userId: 'me', itemId: 'i', categoryId: 'ramen' });
+  deepEq(armed, ['me:p-store', 'me:p-reg', 'me:p-choose'], 'Pending item requests and errors never arm completion');
+  assert.equal(typeof register.useRegisterItemPick().onError, 'undefined', 'No failure path arms it');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Rendered Home
+// ---------------------------------------------------------------------------------------------
+function query(data, extra = {}) {
+  return { data, isSuccess: data !== undefined, isPending: data === undefined && !extra.isError, isError: false, isFetching: false,
+    isRefetching: false, hasNextPage: false, isFetchNextPageError: false, refetch: () => Promise.resolve(), ...extra };
+}
+const native = { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image Modal TextInput'),
+  Platform: { OS: 'ios' }, StyleSheet: { create: (value) => value, absoluteFill: {} } };
+const ui = names('Avatar BrandMark Button Chip SectionHeader StateCard');
+// Same element shape the screen harness renders.
+const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
+const jsxRuntime = { jsx, jsxs: jsx, Fragment: 'Fragment' };
+const sections = load('components/home-early-sections.tsx', {
+  'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': constants,
+});
+
+function home(options = {}) {
+  const {
+    user = { id: 'me' }, counts = countsOf({ ramen: 3 }), question = 'naengmyeon', currentPicks = [], participants = [],
+    groups = [], countsQuery, questionQuery, participantsComplete = true,
+  } = options;
+  const calls = { routes: [], shares: [] };
+  const view = screen('app/(tabs)/index.tsx', {
+    'expo-router': { useRouter: () => ({ push: (route) => calls.routes.push(route) }), useFocusEffect: (fn) => { calls.focus = fn; } },
+    '@/constants/onepick': constants,
+    '@/components/ui': ui,
+    '@/hooks/useAuthSession': { useAuthSession: () => ({ user, isLoading: false, error: null, retry: () => {} }) },
+    '@/hooks/useHomeData': {
+      useHomeData: () => query({ currentPicks, picks: [] }),
+      useHomeItemRanking: () => query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }]),
+      useDailyQuestionCategory: () => questionQuery ?? query(question),
+      useHomeParticipantPicks: () => query({ rows: participants, complete: participantsComplete }),
+    },
+    '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
+    '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
+    '@/hooks/useNotifications': { useNotifications: (userId, enabled) => { calls.notifications = { userId, enabled }; return query(enabled ? { pages: [{ items: groups }] } : undefined); } },
+    '@/lib/categories/categoryTree': tree,
+    '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
+    '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => [], filterHomeFeedByCategory: (items) => items },
+    '@/lib/home/earlyHome': early,
+    '@/lib/home/firstPickNotice': notice,
+    '@/lib/share/sharePick': { sharePick: async (input) => { calls.shares.push(input); return 'shared'; } },
+    '@/components/home-early-sections': sections,
+    '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'),
+  });
+  view.render();
+  const press = (label) => {
+    const target = view.find('Pressable', (p) => p.accessibilityLabel === label) ?? view.find('Button', (p) => p.accessibilityLabel === label || p.label === label)
+      ?? view.find('Chip', (p) => p.accessibilityLabel === label);
+    assert.ok(target, `pressable ${label}`);
+    target.onPress();
+    return calls.routes.at(-1);
+  };
+  return { view, calls, press, text: () => view.text() };
+}
+
+test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)', () => {
+  for (const total of [0, 29]) {
+    const { text } = home({ counts: countsOf(total ? { ramen: total } : {}) });
+    assert.match(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
+    assert.doesNotMatch(text(), /최근 7일 원픽 많은 순/, `total ${total} hides 많이 고른 메뉴`);
+  }
+  for (const total of [30, 31]) {
+    const { text } = home({ counts: countsOf({ ramen: total }) });
+    assert.doesNotMatch(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
+    assert.match(text(), /최근 7일 원픽 많은 순/, `total ${total} restores 많이 고른 메뉴`);
+  }
+  const chips = home({ counts: countsOf({ ramen: 2 }) });
+  deepEq(chips.view.all('Chip').map((c) => c.label), ['+ 칼국수', '+ 곱창', '+ 막창', '+ 대창'],
+    'Unpicked menus skip picked 라면 and today’s 냉면; only four remain');
+  const route = chips.press('곱창 첫 원픽 남기기');
+  deepEq(route, { pathname: '/pick/new', params: { categoryId: 'gopchang', menuName: '곱창' } }, 'Chip opens the existing registration flow');
+});
+
+test('Loading and error keep the discovery slot honest', () => {
+  const loading = home({ countsQuery: query(undefined) });
+  assert.doesNotMatch(loading.text(), /아직 아무도 안 골랐어요|최근 7일 원픽 많은 순/, 'Unknown total shows neither section');
+  assert.doesNotMatch(loading.text(), /명이 답했어요/, 'Answer count waits for the shared counts');
+  const failed = home({ countsQuery: query(undefined, { isError: true, isPending: false }) });
+  assert.match(failed.text(), /메뉴별 원픽 수를 불러오지 못했어요/);
+  const questionFailed = home({ questionQuery: query(undefined, { isError: true, isPending: false }) });
+  assert.match(questionFailed.text(), /오늘의 질문을 불러오지 못했어요/);
+  assert.doesNotMatch(questionFailed.text(), /당신의/);
+});
+
+test('Today’s question: admin category only, answer count, 답하기 / 내 답 보기', () => {
+  const none = home({ question: null });
+  assert.doesNotMatch(none.text(), /오늘의 질문|당신의/, 'No admin category → no question card (nothing is picked for it)');
+  const closed = home({ question: 'movie' });
+  assert.doesNotMatch(closed.text(), /당신의/, 'A category outside the open food menus is not asked');
+  const open = home({ counts: countsOf({ naengmyeon: 4 }) });
+  assert.match(open.text(), /당신의 냉면 원픽은\?/);
+  assert.match(open.text(), /4명이 답했어요/);
+  assert.match(open.text(), /첫 원픽을 남겨보세요/, '0 Picks');
+  deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
+  assert.equal(open.press('첫 원픽을 남겨보세요'), '/pick/new');
+  const answered = home({ currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' }), row('me', 'ramen', '2026-10-04T00:00:00Z', { id: 'r1' })] });
+  assert.match(answered.text(), /내 원픽 2개 · 다른 원픽 남기기/, '1+ Picks');
+  deepEq(answered.press('내 냉면 원픽 보기'), { pathname: '/item/[itemId]', params: { itemId: 'item-naengmyeon-me' } }, 'Answered → existing item detail');
+  const zeroAnswers = home({ counts: countsOf({ ramen: 1 }) });
+  assert.match(zeroAnswers.text(), /0명이 답했어요/, 'A menu nobody answered shows 0, not a made-up number');
+});
+
+test('First Pick: success shows the completion line once; cancel/failure never do', () => {
+  const first = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'new-1' })];
+  const cancelled = home({ currentPicks: [] });
+  assert.match(cancelled.text(), /첫 원픽을 남겨보세요/, 'Cancelled registration (no save) keeps the 0-Pick line');
+  notice.armFirstPickNotice('me', 'new-1');
+  const shown = home({ currentPicks: first });
+  shown.view.flushEffects(); shown.view.render();
+  assert.match(shown.text(), /원픽 완료 · 친구에게 공유하기/, 'Just after the first successful save');
+  shown.press('원픽 완료 · 친구에게 공유하기');
+  assert.equal(shown.calls.shares[0].pickId, 'new-1', 'Shares the new Pick through the existing share path');
+  assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed');
+  const leave = shown.calls.focus(); leave(); shown.view.render();
+  assert.doesNotMatch(shown.text(), /원픽 완료/, 'Leaving Home ends the one-time line');
+  assert.match(shown.text(), /내 원픽 1개 · 다른 원픽 남기기/);
+  const again = home({ currentPicks: first }); again.view.flushEffects(); again.view.render();
+  assert.doesNotMatch(again.text(), /원픽 완료/, 'Never shown a second time');
+  notice.armFirstPickNotice('me', 'new-2');
+  const notFirst = home({ currentPicks: [...first, row('me', 'gopchang', '2026-10-06T01:00:00Z', { id: 'new-2' })] });
+  notFirst.view.flushEffects(); notFirst.view.render();
+  assert.doesNotMatch(notFirst.text(), /원픽 완료/, 'A second Pick is not a first Pick');
+  assert.equal(notice.peekFirstPickNotice('me'), null);
+});
+
+test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
+  const people = (n) => Array.from({ length: n }, (_, i) => row(`user${i}`, 'ramen', `2026-10-0${i + 1}T00:00:00Z`));
+  assert.doesNotMatch(home({ participants: people(2) }).text(), /함께하는 사람들/);
+  const three = home({ participants: people(3) });
+  assert.match(three.text(), /함께하는 사람들/);
+  assert.match(three.text(), /3명/);
+  deepEq(three.press('@user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
+  assert.doesNotMatch(home({ participants: people(3), participantsComplete: false }).text(), /함께하는 사람들/,
+    'Partial reads never show undercounted people');
+});
+
+test('Reply banner: 0 hidden, 1 and many route to the latest group with read params only', () => {
+  assert.doesNotMatch(home().text(), /새 답글/);
+  const one = home({ groups: [group('c1', 'comment', 1, '2026-10-05T00:00:00Z', 'pick-a')] });
+  assert.match(one.text(), /내 원픽에 새 답글 1개/);
+  const many = home({ groups: [group('c1', 'comment', 2, '2026-10-04T00:00:00Z', 'pick-a'), group('c2', 'comment', 1, '2026-10-06T00:00:00Z', 'pick-b'), group('r1', 'reply', 4, '2026-10-07T00:00:00Z')] });
+  assert.match(many.text(), /내 원픽에 새 답글 3개/);
+  deepEq(many.press('내 원픽에 새 답글 3개 보기'), { pathname: '/pick/[pickId]', params: {
+    pickId: 'pick-b', notificationGroupId: 'c2', notificationSnapshot: '2026-10-06T00:00:00Z', notificationKind: 'comment',
+  } }, 'Same destination + per-group snapshot the notifications tab uses; nothing else is marked read');
+});
+
+test('Signed-out Home: no reply/invite, question still asks, login handled by registration', () => {
+  const guest = home({ user: null });
+  assert.equal(guest.calls.notifications.enabled, false, 'Notifications are never queried signed out');
+  assert.doesNotMatch(guest.text(), /새 답글|친구 초대 링크/);
+  assert.match(guest.text(), /당신의 냉면 원픽은\?/);
+  assert.match(guest.text(), /첫 원픽을 남겨보세요/);
+  const member = home();
+  assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
+  assert.match(member.text(), /친구 초대 링크/);
+  assert.equal(member.press('친구 초대 링크 공유하러 가기'), '/profile', 'Invite reuses the existing profile share path');
+  assert.doesNotMatch(member.text(), /의견 보내기/, 'No in-app feedback destination exists yet; not invented');
+});
+
+test('Hidden early-MVP entries stay hidden; feed is the single 모두의 원픽', () => {
+  const { text, view } = home();
+  assert.match(text(), /모두의 원픽/);
+  assert.equal(view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined, 'No following scope');
+  assert.equal(view.find('Chip', (p) => / 카테고리 보기$/.test(p.accessibilityLabel ?? '')), undefined, 'No category filter');
+  assert.doesNotMatch(text(), /랭킹|단골|AI/, 'No ranking/단골모임/AI entry on early Home');
+});
+
+// Feed Card channel badge (main's current rule): offline → Store Badge, online → text label.
+test('Feed card keeps offline Store Badge and online label', () => {
+  const row = load('components/home-pick-row.tsx', {
+    'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/pick-photo': names('PickPhoto'),
+    '@/components/current-pick-flag': names('CurrentPickFlag'), '@/components/store-badge': names('StoreBadge'),
+    '@/constants/onepick': constants, '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
+  });
+  const visitTree = (channels) => {
+    const nodes = [];
+    const visit = (n) => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(visit);
+      if (typeof n.type === 'function') return visit(n.type(n.props)); nodes.push(n); visit(n.props?.children); };
+    visit(row.HomePickRow({ pick: { pickId: 'x', userId: 'u', username: 'u', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels }, mine: false, onOpenItem: () => {}, onOpenProfile: () => {} }));
+    return nodes;
+  };
+  const offline = visitTree(['offline']);
+  assert.ok(offline.some((n) => n.type === 'StoreBadge'), 'Offline card shows the Store Badge');
+  const online = visitTree(['online']);
+  assert.equal(online.some((n) => n.type === 'StoreBadge'), false, 'Online card never shows the store badge');
+  assert.ok(JSON.stringify(online.map((n) => n.props?.children)).includes('온라인'), 'Online card keeps its text label');
+});
+
+console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);

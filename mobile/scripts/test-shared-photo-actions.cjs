@@ -157,6 +157,7 @@ async function main() {
   const hooks = load('hooks/useRegisterPick.ts', {
     '@tanstack/react-query': { useMutation: (options) => options, useQuery: () => {}, useQueryClient: () => cache },
     '@/lib/query/invalidatePickData': { invalidatePickData }, '@/services': { registrationService: service },
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
   });
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));

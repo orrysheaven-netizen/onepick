@@ -28,6 +28,11 @@ type ItemRow = Database['public']['Tables']['items']['Row'];
 type CommentRow = Database['public']['Tables']['comments']['Row'];
 type RpcErrorLike = { code?: string; message?: string } | null | undefined;
 
+// 42703: undefined column (Postgres); PGRST204: column not in the schema cache (PostgREST).
+function missingSettingColumn(error: RpcErrorLike) {
+  return error?.code === '42703' || error?.code === 'PGRST204';
+}
+
 function missingScopedHomeRpc(error: RpcErrorLike, rpc: 'home_following_feed_page' | 'home_editorial_items') {
   if (!error) return false;
   if (error.code === 'PGRST202' || error.code === '42883') return true;
@@ -329,6 +334,19 @@ export class SupabaseReadRepository implements ReadRepository {
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     return new Map<string, number>(data.map((row: any) => [String(row.category_id), Number(row.pick_count) || 0]));
+  }
+
+  async getDailyQuestionCategoryId() {
+    // One public display setting row (same table as the showcase threshold). Until the
+    // column is deployed PostgREST reports it missing; that means "no question", not an error.
+    const { data, error } = await (this.countClient as any).from('home_settings')
+      .select('daily_question_category_id').eq('id', true).maybeSingle();
+    if (error) {
+      if (missingSettingColumn(error)) return null;
+      throw mapSupabaseError(error);
+    }
+    const value = data?.daily_question_category_id;
+    return typeof value === 'string' && value ? value : null;
   }
 
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {

@@ -72,9 +72,21 @@ const followingQuery = {
   hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false,
   refetch: async () => {}, fetchNextPage: async () => {},
 };
+// Figma 30E (#762): this suite covers the 30+ total-Pick Home, where "많이 고른 메뉴" is back.
+// Below-30 states live in test-home-early-mvp.cjs.
+const menuCountsQuery = { data: new Map([['ramen', 30]]), isPending: false, isError: false, isFetching: false, refetch: async () => {} };
+const emptyQuery = (data) => ({ data, isPending: false, isError: false, isFetching: false, refetch: async () => {} });
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-image': { Image: component('img') },
-  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }), useFocusEffect: () => {} },
+  '@/components/home-early-sections': load('components/home-early-sections.tsx', {
+    'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': onepickConstants,
+  }),
+  '@/hooks/useNotifications': { useNotifications: () => emptyQuery(undefined) },
+  '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') }),
+  '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+  '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+  '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
@@ -104,7 +116,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/home-header': { HomeHeader: (props) => { homeHeaderProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [
+  '@/hooks/useExploreData': { useFoodMenuPickCounts: () => menuCountsQuery, useExploreCategories: () => ({ data: [
     { id: 'food', parentId: null, name: '먹을것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
     { id: 'noodles', parentId: 'food', name: '면류', slug: 'noodles', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
     { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
@@ -114,7 +126,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }) },
-  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; } },
+  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; },
+    useDailyQuestionCategory: () => emptyQuery(null), useHomeParticipantPicks: () => emptyQuery({ rows: [], complete: true }) },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
@@ -204,7 +217,9 @@ for (width of [390, 800, 1200]) {
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('@friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
-  press('사람들의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
+  press('모두의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
+  assert.match(page, /모두의 원픽/, 'Figma 30E names the single newest-first feed 모두의 원픽');
+  assert.doesNotMatch(page, /아직 아무도 안 골랐어요/, 'At 30+ total Picks the unpicked chips give way to 많이 고른 메뉴');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면집 라면 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
   assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');
