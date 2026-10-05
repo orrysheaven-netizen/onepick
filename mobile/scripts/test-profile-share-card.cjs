@@ -222,7 +222,7 @@ async function main() {
   assert.match(nativeSource, /throw new Error\('IMAGE_CARD_UNSUPPORTED'\)/);
 
   // Screen wiring: a saved card with no copied link still sends the link by text share.
-  const screen = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
+  const screen = fs.readFileSync(path.join(__dirname, '../src/app/u/[username].tsx'), 'utf8');
   assert.match(screen, /needsLink = result === 'downloaded'/);
   assert.match(screen, /if \(!needsLink\) return;\s*\n\s*await shareProfile\(/);
   assert.match(screen, /name === 'AbortError'\) return;/, 'a cancelled share must not fall through to the text share');
