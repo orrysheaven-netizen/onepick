@@ -130,7 +130,7 @@ const currentFlagSource = source('components/current-pick-flag.tsx');
 assert.match(currentFlagSource, /accessibilityLabel=\{mine \? '내 현재 원픽' : '현재 원픽'\}/);
 assert.match(currentFlagSource, /width: 24/);
 assert.match(currentFlagSource, /height: 24/);
-assert.match(currentFlagSource, /mine \? OnePick\.flagMine : OnePick\.flagOther/, 'Shared flag: my current Pick orange, anyone else dark gray (10-04)');
+assert.match(currentFlagSource, /source=\{mine \? flags\.mine : flags\.other\}/, 'Shared flag: my current Pick orange, anyone else dark gray (Figma 752:4349)');
 assert.doesNotMatch(currentFlagSource, /✓ 이 집 원픽|✓ 원픽/, 'Shared flag stays icon-only');
 
 const reviewCardSource = source('components/item-review-card.tsx');
