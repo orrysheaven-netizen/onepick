@@ -460,7 +460,7 @@ async function main() {
   assert.equal(linkSave.newPlace.name, '골목 냉면');
   assert.equal(linkSave.newPlace.mapUrl, 'https://naver.me/golmok');
 
-  // The name could not be read: fall back to the name step with the link kept.
+  // The name could not be read: only the name is asked; the pasted link is not asked again.
   reset();
   linkResponse = (input) => linkResult(input.url, null, []);
   render(); press('네이버 지도 링크로 찾기'); render();
@@ -468,8 +468,25 @@ async function main() {
   assert.match(page, /링크에서 매장 이름을 읽지 못했어요/);
   press('매장 이름 입력하기'); page = render();
   assert.match(page, /매장 이름을 알려 주세요/);
-  input('등록 요청 이름').onChangeText('이름 모를 집'); render(); press('다음'); render();
-  assert.equal(input('네이버 지도 링크').value, 'https://naver.me/unknown', 'The pasted link is kept for the new store');
+  press('이전 단계'); page = render();
+  assert.match(page, /링크에서 매장 이름을 읽지 못했어요/, 'Back from the name returns to the link result');
+  press('매장 이름 입력하기'); render();
+  input('등록 요청 이름').onChangeText('이름 모를 집'); render(); press('다음'); page = render();
+  assert.equal(step(page), '2', 'The link screen is not shown again');
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'));
+  assert.match(page, /2 \/ 4 · 이름 모를 집/);
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
+  render(); press('사진 선택'); await flush(); render(); press('다음'); render();
+  input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
+  const namedSave = calls.find(([name]) => name === 'register')[1];
+  assert.equal(namedSave.newPlace.name, '이름 모를 집');
+  assert.equal(namedSave.newPlace.mapUrl, 'https://naver.me/unknown');
+
+  // The ordinary "찾는 매장이 없어요" path still asks the name, then the link.
+  reset();
+  render(); input('매장명 검색').onChangeText('없는 집'); render(); press('찾는 매장이 없어요'); render();
+  press('다음'); page = render();
+  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
 
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
