@@ -75,7 +75,7 @@ Figma: `OnePick Social UI` › Foundations › `OnePick / Channel Badge` (compon
 
 - 공용 컴포넌트: `mobile/src/components/ui/channel-badge.tsx` (`<ChannelBadge channel="offline" | "online" | "recipe" />`), 아이콘은 `ui/channel-glyph.web.tsx`.
 - 기존에 화면마다 따로 그리던 채널 배지 7곳(홈 피드 카드·홈 행·메뉴 상세 카드·프로필 카드·내 프로필·공개 프로필·제공처 프로필)을 모두 이 컴포넌트로 교체했다. 채널별로 다르던 배경색은 없앴다.
-- 문구는 `오프라인 / 온라인 / 레시피`. 등록 화면의 선택지 문구(`매장/온라인`, `PICK_CHANNEL_OPTIONS`)는 이번 범위에서 바꾸지 않았다.
+- 문구는 `오프라인 / 온라인 / 레시피`. 사용자 요청(2026-10-05)으로 원픽 등록 선택지(`PICK_CHANNEL_OPTIONS`), 홈·메뉴 채널 탭(`HOME_CHANNEL_TABS`), "배달앱 주문은 오프라인으로 골라주세요" 안내도 같은 문구로 맞췄다. 매장 검색·지역 안내처럼 실제 가게를 가리키는 문구는 "매장"을 유지한다.
 - 레시피는 확정된 아이콘이 없어 같은 스타일의 글자 배지로 둔다.
 - 네이티브 빌드는 SVG 렌더러가 없어 글자만 보이고, 웹 빌드에서 아이콘을 그린다.
 - 회귀 테스트: `mobile/scripts/test-channel-badge.cjs`

@@ -23,7 +23,7 @@ function load(file, imports = {}) {
 const channels = load('lib/items/pickChannel.ts');
 const constants = require('./design-tokens.cjs');
 assert.equal(constants.OnePickFeatures.foodChannelPicker, false, 'Initial MVP hides future food channel choices');
-assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['매장', '온라인', '레시피']);
+assert.deepEqual(Array.from(channels.PICK_CHANNEL_OPTIONS, (option) => option.label), ['오프라인', '온라인', '레시피']);
 assert.equal(channels.parsePickChannel('recipe'), 'offline', 'Search state never becomes recipe; the recipe chip opens the link flow instead');
 const findScreen = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
 assert.match(findScreen, /if \(option\.channel === 'recipe'\) \{ openRecipe\(\); return; \}/, 'the 레시피 chip opens the recipe link flow');
@@ -125,7 +125,7 @@ const { default: Find } = load('app/pick/find.tsx', {
 });
 const render = () => { stateIndex = 0; refIndex = 0; presses = []; inputs = []; return renderToStaticMarkup(React.createElement(Find)); };
 const press = (label) => { const button = presses.find((p) => p.accessibilityLabel === label || textOf(p.children) === label); assert.ok(button, label); button.onPress(); };
-const storeChip = () => presses.find((p) => String(p.accessibilityLabel).startsWith('매장:'));
+const storeChip = () => presses.find((p) => String(p.accessibilityLabel).startsWith('오프라인:'));
 const onlineChip = () => presses.find((p) => String(p.accessibilityLabel).startsWith('온라인:'));
 
 // Initial public MVP: food is pinned to 매장 even if a crafted route asks for online.
@@ -151,7 +151,7 @@ assert.match(page, /어디서 주문했나요/);
 assert.equal(storeChip().accessibilityState?.selected, true, 'Restaurant registration starts on 매장');
 assert.equal(placeSearchArgs[2], true, '매장 searches the place catalog');
 assert.match(page, /○○곰탕 본점/); assert.doesNotMatch(page, /온라인몰|예전 도가니탕/, '매장 lists only place-backed items');
-assert.match(page, /배달앱 주문은 매장으로/);
+assert.match(page, /배달앱 주문은 오프라인으로/);
 assert.match(page, /매장 등록은 현재 서울·경기·인천 음식점만 가능해요/, '매장 search states which regions are covered');
 assert.equal(channels.PLACE_COVERAGE_NOTICE, '매장 등록은 현재 서울·경기·인천 음식점만 가능해요.');
 
@@ -194,7 +194,7 @@ const suggestionLabels = presses.map((p) => p.accessibilityLabel).filter((label)
 assert.deepEqual(suggestionLabels.slice(0, 3), ['돼지국밥 메뉴 선택', '평양냉면 메뉴 선택', '도가니탕 메뉴 선택'], 'Curated restaurant menus come first');
 assert.ok(presses.find((p) => p.accessibilityLabel === '평양냉면 메뉴 선택'));
 assert.equal(presses.find((p) => p.accessibilityLabel === '영화 메뉴 선택'), undefined, 'Non-food categories are not offered');
-assert.equal(presses.find((p) => String(p.accessibilityLabel).startsWith('매장:')), undefined, 'Channel choice waits for a menu');
+assert.equal(presses.find((p) => String(p.accessibilityLabel).startsWith('오프라인:')), undefined, 'Channel choice waits for a menu');
 inputs.find((input) => input.accessibilityLabel === '메뉴 검색').onChangeText('도가 니');
 page = render();
 assert.match(page, /검색한 메뉴/);

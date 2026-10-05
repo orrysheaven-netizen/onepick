@@ -373,7 +373,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
               setChannel(option.channel); setSelection(null); setPlaceSelection(null);
             }} />)}
         </View>
-        <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 매장으로 골라주세요.</Text>
+        <Text style={styles.stateText}>{PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.description}. 배달앱 주문은 오프라인으로 골라주세요.</Text>
         {isPlaceSearch ? <Text accessibilityRole="text" style={styles.coverageNotice}>{PLACE_COVERAGE_NOTICE} 다른 지역은 차례로 추가할게요.</Text> : null}
       </View> : null}
       {requestedCategoryId && categories.isError ? <View style={styles.block}><StateCard compact tone="danger" title="선택한 카테고리를 확인하지 못했어요." text="전체 검색으로 바꾸지 않고, 기존 검색 범위를 다시 확인합니다."
@@ -444,7 +444,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         action={{ label: '이 이름으로 등록하기', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isPlaceSearch ? <View style={styles.block}><StateCard compact title="아직 등록된 가게가 없어요." text={`가게 이름이나 지점명을 바꿔서 검색해보세요. ${PLACE_COVERAGE_NOTICE} 장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다.`}
         action={{ label: '가게 등록 요청하기', variant: 'secondary', onPress: requestPlace }} /></View> : null}
-      {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요." text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 매장으로 골라주세요."
+      {noResults && isOnlineChannel ? <View style={styles.block}><StateCard title="등록된 온라인 판매처가 없어요." text="판매처 링크와 함께 등록을 요청하면 확인 후 원픽으로 고를 수 있어요. 배달앱 주문은 오프라인으로 골라주세요."
         action={{ label: '온라인 판매처 등록 요청', variant: 'primary', onPress: requestItem }} /></View> : null}
       {noResults && isMusicCategory && selectedCategory ? <View style={styles.requestCard}>
         <Text style={styles.stateTitle}>등록된 노래에서 찾지 못했어요.</Text><Text style={styles.stateText}>MusicBrainz에서 곡명과 가수명으로 더 찾아볼 수 있어요.</Text>

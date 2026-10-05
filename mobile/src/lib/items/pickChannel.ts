@@ -18,7 +18,7 @@ export function parseChannelParam(value: unknown): PickChannel | undefined {
 }
 
 export const PICK_CHANNEL_OPTIONS: readonly { channel: PickChannel; label: string; description: string }[] = [
-  { channel: 'offline', label: '매장', description: '매장에서 먹었거나 배달로 주문했어요.' },
+  { channel: 'offline', label: '오프라인', description: '매장에서 먹었거나 배달로 주문했어요.' },
   { channel: 'online', label: '온라인', description: '택배·온라인몰로 주문했어요.' },
   { channel: 'recipe', label: '레시피', description: '영상 레시피를 보고 직접 만들었어요.' },
 ];

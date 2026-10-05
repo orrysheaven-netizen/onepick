@@ -14,7 +14,7 @@ function load(file, imports = {}) {
 
 async function main() {
   const channels = load('lib/home/homeChannels.ts');
-  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '매장'], ['online', '온라인'], ['recipe', '레시피']]);
+  assert.deepEqual(Array.from(channels.HOME_CHANNEL_TABS, (tab) => [tab.channel, tab.label]), [[null, '전체'], ['offline', '오프라인'], ['online', '온라인'], ['recipe', '레시피']]);
   assert.equal(channels.objectParticle('오프라인 맛집'), '을');
   assert.equal(channels.objectParticle('레시피'), '를');
   assert.equal(channels.homeChannelLabel(['offline']), '오프라인 맛집');
