@@ -54,6 +54,7 @@ export interface RevisePendingItemInput {
   linkUrl?: string | null;
   photo?: PickPhotoDraft | null;
   removePhoto?: boolean;
+  name?: string | null;
 }
 
 export interface ImmediatePickRegistrationResult {
@@ -234,6 +235,7 @@ export class RegistrationService {
         thumbnailPath: uploaded?.thumbnailPath,
         imageSourceUrl: uploaded ? input.photo?.sourceUrl : undefined,
         removePhoto: input.removePhoto,
+        name: input.name,
       });
       return item;
     } finally {

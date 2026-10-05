@@ -174,10 +174,11 @@ async function main() {
   assert.equal(destination.params.commentAfterTime, '2026-09-28T23:59:00Z');
   assert.equal(destination.params.commentAfterId, 'cursor-root');
 
-  const fixButton = buttons.find((button) => button.accessibilityLabel?.includes('수정해주세요'));
+  // Figma 22: OnePick · "…의 매장 정보를 수정해 주세요." opens the 정보 수정 screen.
+  const fixButton = buttons.find((button) => button.accessibilityLabel?.includes('매장 정보를 수정해 주세요.'));
   assert.ok(fixButton);
   await fixButton.onPress();
-  assert.equal(destination.pathname, '/item/[itemId]');
+  assert.equal(destination.pathname, '/pick/fix');
   assert.equal(destination.params.itemId, 'item-4');
   assert.equal(destination.params.notificationKind, 'fix_needed');
   assert.equal(destination.params.notificationReason, '지도 링크를 다시 확인해주세요.');
@@ -190,8 +191,18 @@ async function main() {
   const conversationSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
   assert.match(conversationSource, /useReadNotificationGroup/);
   assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/);
-  assert.match(itemSource, /useRevisePendingItem/);
-  assert.match(itemSource, /수정 내용 보내기/);
+  // Figma 22-2: the 정보 수정 screen owns the revision (상호명 + 매장 링크) and the read receipt.
+  const fixSource = fs.readFileSync(path.join(__dirname, '../src/app/pick/fix.tsx'), 'utf8');
+  assert.doesNotMatch(itemSource, /useRevisePendingItem|수정 내용 보내기/, 'the item detail no longer carries the revision panel');
+  assert.match(fixSource, /useRevisePendingItem/);
+  assert.match(fixSource, /useReadNotificationGroup/);
+  assert.match(fixSource, /label="수정 내용 보내기"/);
+  assert.match(fixSource, /accessibilityLabel="상호명"/);
+  assert.match(fixSource, /accessibilityLabel="매장 링크"/);
+  assert.match(fixSource, /메뉴는 그대로 유지/);
+  assert.doesNotMatch(fixSource, /사진/, 'Figma 22 has no photo field');
+  assert.match(fixSource, /\.\.\.\(nameChanged \? \{ name: nextName \} : \{\}\)/, 'only a changed name is sent');
+  assert.match(fixSource, /close\(\);\s*\} catch/, 'no completion screen: back to the previous flow');
 
   auth.user = null;
   buttons = [];

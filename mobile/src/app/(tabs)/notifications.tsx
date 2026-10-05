@@ -46,8 +46,8 @@ function describe(item: AppNotificationGroup) {
       return { sender, badge: '새 원픽', message, label: `${sender}, ${message}` };
     }
     case 'fix_needed': {
-      const message = `${name} 정보를 수정해주세요.`;
-      return { sender: '원픽 수정 필요', badge: '수정 필요', message, label: item.reason ? `${message} 사유: ${item.reason}` : message };
+      const message = `${name}의 매장 정보를 수정해 주세요.`;
+      return { sender: 'OnePick', badge: '수정 필요', message, label: item.reason ? `${message} ${item.reason}` : message };
     }
   }
 }
@@ -95,7 +95,10 @@ export default function NotificationsScreen() {
       ...(commentAfterTime ? { commentAfterTime } : {}),
       ...(commentAfterId ? { commentAfterId } : {}),
     };
-    if ((item.kind === 'comment' || item.kind === 'reply') && pickId) {
+    if (item.kind === 'fix_needed' && itemId) {
+      // Figma 22: straight to the 정보 수정 screen with the reason.
+      router.push({ pathname: '/pick/fix', params: { ...params, itemId } });
+    } else if ((item.kind === 'comment' || item.kind === 'reply') && pickId) {
       router.push({ pathname: '/pick/[pickId]', params });
     } else if (itemId) {
       router.push({ pathname: '/item/[itemId]', params: { ...params, itemId } });
@@ -128,7 +131,7 @@ export default function NotificationsScreen() {
             {unread ? <Text style={styles.newLabel}>{copy.badge}{item.unread_count > 1 ? ` · ${item.unread_count}` : ''}</Text> : null}
           </View>
           <Text style={styles.message}>{copy.message}</Text>
-          {item.kind === 'fix_needed' && item.reason ? <Text style={styles.body} numberOfLines={3}>사유: {item.reason}</Text> : null}
+          {item.kind === 'fix_needed' && item.reason ? <Text style={styles.body} numberOfLines={3}>{item.reason}</Text> : null}
           <Text style={styles.time}>{formatNotificationTime(item.latest_at)}</Text>
         </Pressable>;
       }}

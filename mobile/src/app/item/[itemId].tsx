@@ -1,12 +1,12 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
-import { useAttachItemPhoto, useChoosePhoto, useMyPendingItemPhoto, useRevisePendingItem } from '@/hooks/useRegisterPick';
+import { useAttachItemPhoto, useChoosePhoto, useMyPendingItemPhoto } from '@/hooks/useRegisterPick';
 import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { ItemChannelLinks } from '@/components/item-channel-links';
 import { ItemPickCount } from '@/components/item-pick-count';
@@ -19,7 +19,6 @@ import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import { itemTitle } from '@/lib/items/itemTitle';
 import { consumePickSavedToast } from '@/lib/items/pickSavedToast';
-import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -36,25 +35,6 @@ function photoErrorMessage(error: unknown) {
     }
   }
   return '대표 이미지를 추가하지 못했어요. 잠시 후 다시 시도해주세요.';
-}
-
-function revisionErrorMessage(error: unknown) {
-  if (error instanceof AppError) {
-    if (error.code === 'ITEM_LINK_REQUIRED' || error.code === 'LINK_INVALID') {
-      return '네이버 지도 링크를 확인해주세요.';
-    }
-    if (error.code === 'PLACE_ALREADY_REGISTERED') {
-      return '같은 이름과 링크로 등록 요청된 매장이 이미 있어요. 링크를 다시 확인해주세요.';
-    }
-    if (error.code === 'ITEM_NOT_FOUND' || error.code === 'ITEM_NOT_ELIGIBLE') {
-      return '지금은 이 요청을 수정할 수 없어요.';
-    }
-    if (error.code === 'AUTH_REQUIRED') return '로그인 상태를 다시 확인해주세요.';
-    if (error.code === 'PHOTO_INVALID' || error.code === 'PHOTO_TOO_LARGE' || error.code === 'PHOTO_UPLOAD_FAILED') {
-      return photoErrorMessage(error);
-    }
-  }
-  return '수정 내용을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
 }
 
 type Params = {
@@ -94,13 +74,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const focusPickId = typeof params.pickId === 'string' ? params.pickId : undefined;
   const notificationGroupId = typeof params.notificationGroupId === 'string' ? params.notificationGroupId : undefined;
   const notificationSnapshot = typeof params.notificationSnapshot === 'string' ? params.notificationSnapshot : undefined;
-  const notificationKind = typeof params.notificationKind === 'string' ? params.notificationKind : undefined;
-  const notificationReason = typeof params.notificationReason === 'string' ? params.notificationReason : undefined;
   const { user, isLoading: isSessionLoading, error: sessionError, retry: retrySession } = auth;
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
   const query = useItemDetail(itemId, user?.id, focusPickId, true, !isSessionLoading && !sessionError, publicFoodChannel);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
-  const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
   // Set only by /pick/new right before it replaces itself with this screen.
@@ -171,9 +148,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const photoAcknowledged = useRef(false);
   const refreshing = useRef(false);
   const [photo, setPhoto] = useState<PickPhotoDraft | null>(null);
-  const [revisionPhoto, setRevisionPhoto] = useState<PickPhotoDraft | null>(null);
-  const [revisionLink, setRevisionLink] = useState('');
-  const [revisionError, setRevisionError] = useState<string | null>(null);
   const [savedItem, setSavedItem] = useState<Item | null>(null);
   const currentItem = savedItem ?? query.data?.item;
   const hasPhoto = Boolean(currentItem?.imagePath || currentItem?.imageUrl || currentItem?.thumbnailUrl || currentItem?.imageSourceUrl);
@@ -216,41 +190,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       showPhotoFailure(error, 'item_photo_upload');
     }
     finally { busy.current = false; }
-  };
-  const chooseRevisionPhoto = async () => {
-    if (!user || photoPicker.isPending || revisionMutation.isPending) return;
-    setRevisionError(null);
-    try {
-      const selected = await photoPicker.mutateAsync();
-      if (selected) setRevisionPhoto(selected);
-    } catch (error) {
-      setRevisionError(photoErrorMessage(error));
-    }
-  };
-
-  const saveRevision = async () => {
-    if (!user || !itemId || revisionMutation.isPending || photoPicker.isPending) return;
-    const link = revisionLink.trim();
-    if (link && !isNaverMapUrl(link)) {
-      setRevisionError('네이버 지도 링크를 확인해주세요.');
-      return;
-    }
-    if (!link && !revisionPhoto) {
-      setRevisionError('수정할 지도 링크나 사진을 입력해주세요.');
-      return;
-    }
-    setRevisionError(null);
-    try {
-      await revisionMutation.mutateAsync({
-        userId: user.id,
-        itemId,
-        linkUrl: link || undefined,
-        photo: revisionPhoto,
-      });
-      router.replace('/');
-    } catch (error) {
-      setRevisionError(revisionErrorMessage(error));
-    }
   };
 
   const retryItem = async () => {
@@ -335,29 +274,6 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
           action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => void retryItem() }} /> : null}
-
-        {notificationKind === 'fix_needed' ? <View style={styles.revisionPanel}>
-          <Text style={styles.revisionTitle}>수정이 필요해요.</Text>
-          <Text style={styles.revisionText}>{notificationReason || '등록한 매장 정보를 확인하고 필요한 부분을 수정해주세요.'}</Text>
-          <TextInput
-            accessibilityLabel="수정할 네이버 지도 링크"
-            autoCapitalize="none"
-            keyboardType="url"
-            value={revisionLink}
-            onChangeText={(value) => { setRevisionLink(value); setRevisionError(null); }}
-            placeholder="새 네이버 지도 링크가 있으면 입력"
-            placeholderTextColor={OnePick.textTertiary}
-            style={styles.revisionInput}
-          />
-          {revisionPhoto ? <Image source={{ uri: revisionPhoto.uri }} style={styles.revisionPreview} resizeMode="contain" accessibilityLabel="수정할 대표 이미지 미리보기" /> : null}
-          <View style={styles.revisionActions}>
-            <Button variant="secondary" label={revisionPhoto ? '사진 다시 선택' : '사진 수정'} loading={photoPicker.isPending}
-              disabled={revisionMutation.isPending} onPress={() => void chooseRevisionPhoto()} style={styles.revisionAction} />
-            <Button label="수정 내용 보내기" loading={revisionMutation.isPending}
-              disabled={photoPicker.isPending} onPress={() => void saveRevision()} style={styles.revisionAction} />
-          </View>
-          {revisionError ? <Text accessibilityRole="alert" style={styles.photoError}>{revisionError}</Text> : null}
-        </View> : null}
 
         <View style={styles.heroCard}>
           {/* No photo yet: a one-line upload row instead of an empty square. */}
@@ -488,36 +404,6 @@ const styles = StyleSheet.create({
     marginLeft: -OnePickSpace.sm,
   },
   backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
-  revisionPanel: {
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    borderRadius: OnePickRadius.lg,
-    backgroundColor: OnePick.bgAccentSubtle,
-    padding: OnePickSpace.lg,
-    marginBottom: OnePickSpace.md,
-  },
-  revisionTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  revisionText: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  revisionInput: {
-    ...OnePickType.body,
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    borderRadius: OnePickRadius.md,
-    backgroundColor: OnePick.bgDefault,
-    color: OnePick.textPrimary,
-    paddingHorizontal: OnePickSpace.md,
-    marginTop: OnePickSpace.md,
-  },
-  revisionPreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: OnePickRadius.md,
-    backgroundColor: OnePick.bgSubtle,
-    marginTop: OnePickSpace.md,
-  },
-  revisionActions: { flexDirection: 'row', gap: OnePickSpace.sm, marginTop: OnePickSpace.md },
-  revisionAction: { flex: 1 },
   heroCard: {
     alignItems: 'center',
     borderWidth: 1,
