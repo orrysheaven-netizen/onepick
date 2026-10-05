@@ -180,7 +180,7 @@ async function main() {
   assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\s\S]*?paddingHorizontal: OnePickSpace\.gutter[\s\S]*?paddingTop: OnePickSpace\.sm/);
   assert.match(screen, /query\.data\.brandLogoUrl \?/, 'registered brand logo is used when available');
   assert.match(screen, /style=\{styles\.storeLogoPlaceholder\}/, 'missing logo keeps the Figma 64px placeholder (first letter)');
-  assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
+  assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: OnePickRadius\\.lg/);
   assert.match(screen, /query\.data\.link \? <View style=\{styles\.storeLinks\}>/, 'only registered external links render');
   assert.match(screen, /지도 링크 ↗/, 'offline store exposes its registered map action');
   assert.doesNotMatch(screen, />SNS</, 'SNS area stays hidden until an SNS data contract exists');
