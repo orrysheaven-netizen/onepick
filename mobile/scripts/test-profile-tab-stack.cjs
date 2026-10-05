@@ -16,7 +16,7 @@ assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile lives i
 assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false, 'Old own-profile route is removed');
 assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Old public-profile Stack route is removed');
 
-assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
+assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);\nassert.match(profileLayout, /<Stack\\.Screen name=\"u\\/\\[username\\]\" options=\{\{ gestureEnabled: false \}\} \\/>/,\n  'Public profile disables native-stack swipe so only the safe edge handler owns the gesture');
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
 assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
