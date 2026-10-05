@@ -31,8 +31,8 @@ export default function AppTabs() {
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
           style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
-          <View style={styles.icon}><RegisterIcon /></View>
-          <Text style={styles.label}>원픽 등록</Text>
+          <View style={[styles.icon, styles.registerIcon]}><RegisterIcon /></View>
+          <Text style={[styles.label, styles.registerLabel]}>원픽 등록</Text>
         </Pressable>
         <TabLink href="/notifications" icon="notifications" label="알림" active={isActive(pathname, '/notifications')} unread={hasUnreadNotifications} />
         <TabLink href="/profile" icon="profile" label="프로필" active={isActive(pathname, '/profile')} />
@@ -54,11 +54,11 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
 }
 
 // Register is an action, not a selectable tab: 30px ink outline circle with a drawn plus.
+// Figma Add Button (287:261): 32px white circle, 1.5 ink border, bold ink plus.
 function RegisterIcon() {
-  return <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke={OnePick.actionPrimary}
-    strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-    <circle cx="15" cy="15" r="14" fill={OnePick.surface} />
-    <path d="M15 9.5v11M9.5 15h11" />
+  return <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke={OnePick.actionPrimary} strokeLinecap="round" aria-hidden="true">
+    <circle cx="16" cy="16" r="15.25" fill={OnePick.surface} strokeWidth="1.5" />
+    <path d="M16 10.5v11M10.5 16h11" strokeWidth="2" />
   </svg>;
 }
 
@@ -92,5 +92,8 @@ const styles = StyleSheet.create({
   },
   label: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   activeLabel: { color: OnePick.actionPrimary },
+  // Figma 30-1 Add: the register label is always text/primary.
+  registerIcon: { height: 32 },
+  registerLabel: { color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });

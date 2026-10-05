@@ -190,17 +190,18 @@ test('web active tab uses ink icon and label without a brand fill', () => {
   readable(iconColor, OnePick.surface, styleOf(tab, true).opacity ?? 1);
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
-test('web register control is an ink-outlined white circle with an ink plus and preserves route', () => {
+test('web register control matches Figma Add Button 287:261 and preserves route', () => {
   const tree = expand(AppTabs());
   const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
   const svg = first(button, 'svg');
-  assert.equal(Number(svg.props.width), 30, 'register icon keeps the 30px circle');
+  assert.equal(Number(svg.props.width), 32, 'Figma: 32px circle');
   assert.equal(svg.props.stroke, OnePick.actionPrimary);
   const circle = first(svg, 'circle');
   assert.equal(circle.props.fill, OnePick.surface);
+  assert.equal(String(circle.props.strokeWidth), '1.5', 'Figma: 1.5 border');
   assert.ok(first(svg, 'path'), 'plus is drawn as a path, not a text glyph');
   readable(svg.props.stroke, circle.props.fill, styleOf(button, true).opacity ?? 1);
-  assert.equal(styleOf(first(button, 'Text')).color, OnePick.textSecondary, 'only the active tab label is ink');
+  assert.equal(styleOf(first(button, 'Text')).color, OnePick.textPrimary, 'Figma: the register label is text/primary');
   button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
 test('web active tab icons are filled; inactive icons are outlines', () => {
