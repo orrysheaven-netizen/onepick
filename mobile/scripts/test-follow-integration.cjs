@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const profile = read('src/app/u/[username].tsx');
+const profile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const constants = read('src/constants/onepick.ts');
 const safety = read('src/hooks/useSafety.ts');
 const follow = read('src/components/follow-button.tsx');
