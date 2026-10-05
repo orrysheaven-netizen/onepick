@@ -166,7 +166,7 @@ async function main() {
   assert.doesNotMatch(home, /home_following_feed_page/, 'Screen never names the RPC');
 
   // Public profile: follow sits in the header for other people's profiles only.
-  const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
+  const publicProfile = fs.readFileSync(path.join(root, 'src/app/u/[username].tsx'), 'utf8');
   assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followActions\}>/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => openFollowLogin\(query\.data\.profile\.username\)\}[\s\S]*?fullWidth \/>/,
     'Figma 40 keeps the Follow relationship in the primary action');
