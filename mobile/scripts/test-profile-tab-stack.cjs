@@ -9,16 +9,14 @@ const nativeTabs = read('src/components/app-tabs.tsx');
 const webTabs = read('src/components/app-tabs.web.tsx');
 const profileLayout = read('src/app/(tabs)/(profile)/_layout.tsx');
 const ownProfile = 'src/app/(tabs)/(profile)/profile.tsx';
-const publicProfile = 'src/app/(tabs)/(profile)/u/[username].tsx';
+const publicProfile = 'src/app/u/[username].tsx';
 
 assert.ok(fs.existsSync(path.join(root, ownProfile)), 'Own profile lives inside the Profile tab stack');
-assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile lives inside the Profile tab stack');
+assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile lives above tabs in the root stack');
 assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false, 'Old own-profile route is removed');
-assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Old public-profile Stack route is removed');
+assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx')), false, 'Nested public-profile route is removed');
 
-assert.match(profileLayout, /gestureEnabled: true/);
-assert.match(profileLayout, /fullScreenGestureEnabled: true/);
-assert.match(profileLayout, /animationMatchesGesture: true/);
+assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
 assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
@@ -29,6 +27,9 @@ assert.match(webTabs,
   /href === '\/profile'\) return pathname === '\/profile' \|\| pathname\.startsWith\('\/profile\/'\) \|\| pathname\.startsWith\('\/u\/'\)/,
   'Web public-profile URLs keep the Profile tab selected');
 
+const rootLayout = read('src/app/_layout.tsx');
+assert.match(rootLayout, /<Stack\.Screen name="u\/\[username\]" options=\{\{ presentation: 'card', gestureEnabled: true, fullScreenGestureEnabled: true, animationMatchesGesture: true \}\} \/>/,
+  'Public profile is pushed above tabs so native swipe-back returns to the actual previous screen');
 const publicSource = read(publicProfile);
 assert.match(publicSource, /router\.replace\('\/profile'\)/,
   'Own public profile can still return to the Profile tab root');
