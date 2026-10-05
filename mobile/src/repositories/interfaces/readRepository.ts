@@ -247,6 +247,8 @@ export interface ReadRepository {
    */
   getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   countActivePicks(itemId: string): Promise<number>;
+  /** Menu detail cards (Figma 45): store region per item and visible comment count per Pick. */
+  getMenuPickCardMeta(itemIds: string[], pickIds: string[]): Promise<{ regions: Record<string, string | null>; commentCounts: Record<string, number> }>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   /** Item-scoped reviews include current and ended Picks without exposing lifecycle history. */

@@ -412,6 +412,27 @@ export class SupabaseReadRepository implements ReadRepository {
     };
   }
 
+  async getMenuPickCardMeta(itemIds: string[], pickIds: string[]) {
+    const items = [...new Set(itemIds)];
+    const picks = [...new Set(pickIds)];
+    const regions: Record<string, string | null> = {};
+    const commentCounts: Record<string, number> = {};
+    for (const id of picks) commentCounts[id] = 0;
+    const [places, comments] = await Promise.all([
+      // places/item_places are public reads; an item without a store simply has no region.
+      items.length ? (this.countClient as any).from('item_places').select('item_id, places(region_1, region_2)').in('item_id', items) : null,
+      // RLS returns only comments this viewer may see (blocks, hidden Picks).
+      picks.length ? this.countClient.from('comments').select('pick_id').in('pick_id', picks).is('deleted_at', null) : null,
+    ]);
+    if (comments?.error) throw mapSupabaseError(comments.error);
+    for (const row of (places?.data ?? []) as { item_id: string; places: { region_1?: string | null; region_2?: string | null } | null }[]) {
+      const first = row.places?.region_1?.trim().replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') || null;
+      regions[row.item_id] = [first, row.places?.region_2?.trim() || null].filter(Boolean).join(' ') || null;
+    }
+    for (const row of (comments?.data ?? []) as { pick_id: string }[]) commentCounts[row.pick_id] = (commentCounts[row.pick_id] ?? 0) + 1;
+    return { regions, commentCounts };
+  }
+
   async countActivePicks(itemId: string) {
     // One current pick per user/category plus the item/category FK prevents duplicate people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.

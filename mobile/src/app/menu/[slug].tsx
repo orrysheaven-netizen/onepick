@@ -7,6 +7,7 @@ import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { Button, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useDishPicks, useMyDishPicks } from '@/hooks/useDishPicks';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
@@ -24,6 +25,12 @@ export default function MenuPeoplePicksScreen() {
   const categoryId = categoryOpen ? category.data?.id : undefined;
   const name = category.data?.name;
   const notFound = !slug || (category.isSuccess && (!category.data || !categoryOpen));
+
+  // Same query as the list: with no Pick at all, the empty state carries the register button (Figma 45-2).
+  const picks = useDishPicks(categoryId, OnePickMvp.publicPickChannel, user?.id);
+  const mine = useMyDishPicks(categoryId, user?.id);
+  const empty = picks.isSuccess && !picks.data?.length && !mine.data?.length;
+  const register = () => router.push({ pathname: '/pick/new', params: { menuName: name ?? '', categoryId: categoryId ?? '' } });
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
 
@@ -50,15 +57,11 @@ export default function MenuPeoplePicksScreen() {
 
         {categoryId && name ? (
           <DishPeoplePicks categoryId={categoryId} categoryName={name} userId={user?.id}
-            returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
+            returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" onRegister={register} />
         ) : null}
       </ScrollView>
-      {categoryId && name ? <View style={styles.registerFooter}>
-        <Button fullWidth label={`내 ${name} 원픽 등록하기`}
-          onPress={() => router.push({
-            pathname: '/pick/new',
-            params: { menuName: name, categoryId },
-          })} />
+      {categoryId && name && !empty ? <View style={styles.registerFooter}>
+        <Button fullWidth label={`내 ${name} 원픽 등록하기`} onPress={register} />
       </View> : null}
     </SafeAreaView>
   );

@@ -166,6 +166,10 @@ export class ItemService {
       : Promise.resolve(null);
   }
 
+  getMenuPickCardMeta(itemIds: string[], pickIds: string[]) {
+    return this.readRepository.getMenuPickCardMeta(itemIds, pickIds);
+  }
+
   getPickCount(itemId: string) {
     return this.readRepository.countActivePicks(itemId);
   }

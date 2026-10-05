@@ -27,6 +27,7 @@ const view = screen('app/menu/[slug].tsx', {
   'expo-router/head': { default: 'Head' },
   '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: { id: 'viewer' } }) },
+  '@/hooks/useDishPicks': { useDishPicks: () => ({ isSuccess: false, data: [] }), useMyDishPicks: () => ({ data: [] }) },
   '@/hooks/useExploreData': { useCategoryBySlug: (slug) => { calls.slug = slug; return query(category); } },
   '@/components/dish-people-picks': names('DishPeoplePicks'),
 });
