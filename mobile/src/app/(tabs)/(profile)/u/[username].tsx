@@ -157,6 +157,28 @@ export default function PublicProfileScreen() {
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
   const returnHref = profileReturnHref(returnTo);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || connectionDirection || typeof username !== 'string' || !returnHref) return;
+
+    const state = navigation.getState();
+    if (!state || state.index > 0) return;
+
+    // A public profile can be the first route of the nested Profile stack even
+    // when it was opened from Home/item/pick. Native swipe-back needs a real
+    // route below it; synthesize the validated origin before the gesture starts.
+    navigation.dispatch({
+      type: 'RESET',
+      payload: {
+        index: 1,
+        routes: [
+          { name: 'profile', params: { returnTo: returnHref } },
+          { name: 'u/[username]', params: { username, returnTo } },
+        ],
+      },
+    });
+  }, [connectionDirection, navigation, returnHref, returnTo, username]);
+
   const goBack = () => {
     if (router.canGoBack()) { router.back(); return; }
     router.replace(returnHref ?? '/');
