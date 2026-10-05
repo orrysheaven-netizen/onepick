@@ -98,12 +98,12 @@ export function ReportAction({
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'flex-start' },
-  reportButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border },
+  reportButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border },
   reportButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   panel: { backgroundColor: OnePick.background, borderRadius: 14, padding: 12, marginTop: 8, maxWidth: 360 },
   title: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  reasonButton: { minHeight: 38, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 12 },
+  reasonButton: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 12 },
   reasonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   loading: { marginTop: 10 },
   done: { color: OnePick.success, fontSize: 12, fontWeight: '700' },
