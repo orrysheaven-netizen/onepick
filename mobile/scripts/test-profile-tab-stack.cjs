@@ -9,12 +9,12 @@ const nativeTabs = read('src/components/app-tabs.tsx');
 const webTabs = read('src/components/app-tabs.web.tsx');
 const profileLayout = read('src/app/(tabs)/(profile)/_layout.tsx');
 const ownProfile = 'src/app/(tabs)/(profile)/profile.tsx';
-const publicProfile = 'src/app/u/[username].tsx';
+const publicProfile = 'src/app/(tabs)/(profile)/u/[username].tsx';
 
 assert.ok(fs.existsSync(path.join(root, ownProfile)), 'Own profile lives inside the Profile tab stack');
-assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile lives above tabs in the root stack');
+assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile stays inside the Profile tab stack so the bottom tabs remain mounted');
 assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false, 'Old own-profile route is removed');
-assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx')), false, 'Nested public-profile route is removed');
+assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Duplicate root public-profile route is not introduced');
 
 assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
@@ -27,9 +27,6 @@ assert.match(webTabs,
   /href === '\/profile'\) return pathname === '\/profile' \|\| pathname\.startsWith\('\/profile\/'\) \|\| pathname\.startsWith\('\/u\/'\)/,
   'Web public-profile URLs keep the Profile tab selected');
 
-const rootLayout = read('src/app/_layout.tsx');
-assert.match(rootLayout, /<Stack\.Screen name="u\/\[username\]" options=\{\{ presentation: 'card', gestureEnabled: true, fullScreenGestureEnabled: true, animationMatchesGesture: true \}\} \/>/,
-  'Public profile is pushed above tabs so native swipe-back returns to the actual previous screen');
 const publicSource = read(publicProfile);
 assert.match(publicSource, /router\.replace\('\/profile'\)/,
   'Own public profile can still return to the Profile tab root');
@@ -45,8 +42,14 @@ assert.ok(publicSource.includes('const returnHref = profileReturnHref(returnTo)'
 assert.ok(publicSource.includes('useNavigation()'));
 assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
   'Native back/swipe stays owned by the native stack');
-assert.ok(!publicSource.includes('router.dismissTo(returnHref);'),
-  'Native swipe does not trigger a competing dismissal during the pop transition');
+assert.ok(publicSource.includes('router.dismissTo(returnHref);'),
+  'Safe edge swipe restores the validated origin after its own gesture completes');
+assert.match(profileLayout, /<Stack\.Screen name="u\/\[username\]" options=\{\{ gestureEnabled: false \}\} \/>/,
+  'Native-stack swipe is disabled only for public profile to avoid competing with the safe edge gesture');
+assert.match(publicSource, /PanResponder\.create/);
+assert.match(publicSource, /gesture\.x0 <= 32/);
+assert.match(publicSource, /gesture\.dx < 72 \|\| gesture\.vx <= 0/);
+assert.match(publicSource, /\.\.\.swipeBackResponder\.panHandlers/);
 assert.ok(!publicSource.includes("{ name: 'profile', params: { returnTo: returnHref } }"),
   'Swipe-back must never synthesize own Profile as a fake previous screen');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
