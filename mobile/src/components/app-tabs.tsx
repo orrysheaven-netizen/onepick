@@ -53,7 +53,8 @@ function BottomBar() {
 }
 
 function NativeIcon({ name, active, unread = false }: { name: TabIcon; active: boolean; unread?: boolean }) {
-  const tintColor = active ? OnePick.actionPrimary : OnePick.textTertiary;
+  const inactiveIconColor = OnePick.textTertiary;
+  const tintColor = active ? OnePick.actionPrimary : inactiveIconColor;
   const symbolName = name === 'home'
     ? ({ ios: active ? 'house.fill' : 'house', android: active ? 'home_filled' : 'home' } as const)
     : name === 'explore'
