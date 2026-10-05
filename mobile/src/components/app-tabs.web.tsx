@@ -26,7 +26,7 @@ export default function AppTabs() {
   return (
     <View style={styles.tabs}>
       <View style={styles.slot}><Slot /></View>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.bar, { height: 64 + insets.bottom, paddingBottom: insets.bottom }]}>
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
@@ -78,13 +78,13 @@ const styles = StyleSheet.create({
   tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.bgDefault },
   slot: { flex: 1, minHeight: 0 },
   bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
-  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tab: { flex: 1, height: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  icon: { width: 23, height: 23, alignItems: 'center', justifyContent: 'center' },
   active: { backgroundColor: 'transparent' },
   unreadDot: {
     position: 'absolute',
-    top: 3,
-    right: 12,
+    top: -2,
+    right: -3,
     width: 7,
     height: 7,
     borderRadius: 4,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   label: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   activeLabel: { color: OnePick.actionPrimary },
   // Figma 30-1 Add: the register label is always text/primary.
-  registerIcon: { height: 32 },
+  registerIcon: { width: 32, height: 32 },
   registerLabel: { color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });

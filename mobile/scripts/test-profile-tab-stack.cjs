@@ -19,9 +19,16 @@ assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 
 assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
-assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
-  'Native Profile tab owns the nested Stack and an explicit tab press returns to the own-profile root');
-assert.doesNotMatch(nativeTabs, /<NativeTabs\.Trigger name="profile">/);
+assert.match(nativeTabs, /<Tabs[^>]*tabBar=\{\(\) => <BottomBar \/>\}/,
+  'Native tabs use the custom BottomBar instead of the platform NativeTabs chrome');
+assert.match(nativeTabs, /href="\/profile"/,
+  'Profile tab returns to the own-profile root');
+assert.match(nativeTabs, /pathname\.startsWith\('\/u\/'\)/,
+  'Public-profile URLs keep the Profile tab selected on native');
+assert.doesNotMatch(nativeTabs, /NativeTabs/,
+  'Platform NativeTabs must not reintroduce system spacing or icon geometry over the Figma Bottom Nav');
+assert.match(nativeTabs, /height: 64 \+ insets\.bottom/,
+  'Figma 64px visual tab bar extends only by the device bottom safe area');
 
 assert.match(webTabs,
   /href === '\/profile'\) return pathname === '\/profile' \|\| pathname\.startsWith\('\/profile\/'\) \|\| pathname\.startsWith\('\/u\/'\)/,
