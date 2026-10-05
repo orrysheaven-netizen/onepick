@@ -164,7 +164,7 @@ async function main() {
 
   // 5) Profile -> public profile -> native share payload with a stable public URL.
   const profileSource = read('src/app/(tabs)/(profile)/profile.tsx');
-  const publicProfileSource = read('src/app/u/[username].tsx');
+  const publicProfileSource = read('src/app/(tabs)/(profile)/u/[username].tsx');
   assert.match(
     profileSource,
     /openPublicProfile = \(\) => router\.push\({ pathname: '\/u\/\[username\]'[\s\S]*?username: profile\.username/,
