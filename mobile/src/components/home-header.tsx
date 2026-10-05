@@ -27,7 +27,7 @@ export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => voi
         <View style={styles.themeButton}><Text style={styles.themeText}>맛집 ▾</Text></View>
       </Pressable>
     </View>
-    <View style={[styles.side, styles.sideEnd]}>
+    <View pointerEvents="box-none" style={[styles.side, styles.sideEnd]}>
       <Pressable accessibilityRole="button" accessibilityLabel="메뉴 검색" onPress={() => setDialog('search')}
         style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
         <Image source={searchIcon} alt="" style={styles.icon} contentFit="contain" />
