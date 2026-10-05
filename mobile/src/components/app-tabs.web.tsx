@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OnePick, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickLayout, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotificationCount } from '@/hooks/useNotifications';
 
@@ -26,7 +26,8 @@ export default function AppTabs() {
   return (
     <View style={styles.tabs}>
       <View style={styles.slot}><Slot /></View>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, OnePickLayout.safeAreaBottom) }]}>
+        <View pointerEvents="none" accessibilityElementsHidden style={styles.barDivider} />
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
@@ -53,11 +54,11 @@ function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
   </svg>;
 }
 
-// Register is an action, not a selectable tab: 30px ink outline circle with a drawn plus.
+// Register is an action, not a selectable tab: 32px ink outline circle with a drawn plus.
 // Figma Add Button (287:261): 32px white circle, 1.5 ink border, bold ink plus.
 function RegisterIcon() {
   return <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke={OnePick.actionPrimary} strokeLinecap="round" aria-hidden="true">
-    <circle cx="16" cy="16" r="15.25" fill={OnePick.surface} strokeWidth="1.5" />
+    <circle cx="16" cy="16" r="15.25" fill={OnePick.bgDefault} strokeWidth="1.5" />
     <path d="M16 10.5v11M10.5 16h11" strokeWidth="2" />
   </svg>;
 }
@@ -77,8 +78,10 @@ function TabLink({ href, icon, label, active, unread = false }: { href: Href; ic
 const styles = StyleSheet.create({
   tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.bgDefault },
   slot: { flex: 1, minHeight: 0 },
-  bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
-  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  bar: { position: 'relative', flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.bgDefault, paddingTop: OnePickLayout.tabBarTopPadding },
+  // Figma draws this line inside the 98px frame; an in-flow border adds a 99th pixel.
+  barDivider: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: OnePick.borderDefault },
+  tab: { flex: 1, minHeight: OnePickLayout.tabBarContentHeight, alignItems: 'center', justifyContent: 'center', gap: 4 },
   icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   active: { backgroundColor: 'transparent' },
   unreadDot: {
