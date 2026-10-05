@@ -163,15 +163,16 @@ export default function PublicProfileScreen() {
   };
 
   const swipeBackResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => Boolean(returnHref)
+    onMoveShouldSetPanResponderCapture: (_, gesture) => !connectionDirection
       && gesture.x0 <= 32
       && gesture.dx > 12
       && Math.abs(gesture.dy) < 24,
     onPanResponderRelease: (_, gesture) => {
-      if (!returnHref || gesture.dx < 72 || gesture.vx <= 0) return;
-      router.dismissTo(returnHref);
+      if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
+      if (returnHref) router.dismissTo(returnHref);
+      else router.replace('/');
     },
-  }), [returnHref, router]);
+  }), [connectionDirection, returnHref, router]);
 
   // Let the native stack own iOS swipe-back and Android back transitions.
   // Intercepting native-stack removal with beforeRemove + preventDefault can
