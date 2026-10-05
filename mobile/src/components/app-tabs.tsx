@@ -11,9 +11,9 @@ export default function AppTabs() {
   const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
   return (
     <NativeTabs
-      backgroundColor={OnePick.surface}
+      backgroundColor={OnePick.bgDefault}
       tintColor={OnePick.actionPrimary}
-      indicatorColor={OnePick.surface}
+      indicatorColor={OnePick.bgDefault}
       labelStyle={{
         default: { color: OnePick.textSecondary, fontSize: 12, fontWeight: '500' },
         selected: { color: OnePick.actionPrimary, fontSize: 12, fontWeight: '500' },

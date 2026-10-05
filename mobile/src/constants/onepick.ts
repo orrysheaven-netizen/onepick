@@ -4,7 +4,7 @@ import { BodyFont } from './font-family';
 // Roles: surfaces → ink (text) → accent → status. See docs/design-mvp.md.
 export const OnePick = {
   // Surfaces
-  background: '#FAFAF7', // approved paper canvas
+  background: '#FFFFFF', // legacy screen-canvas alias; keep equal to bgDefault
   surface: '#FFFFFF', // cards, sheets, inputs
   sunken: '#EEF0F4', // image placeholders, disabled fills, quiet chips
   border: '#E3E5EA',
@@ -106,6 +106,16 @@ export const OnePickSpace = {
   xxl: 24,
   xxxl: 32,
   gutter: 16,
+} as const;
+
+// Layout values that are not ordinary content spacing. Figma uses a 390×844
+// reference frame with a 34px bottom safe area; real native devices still use
+// their platform-provided inset when it is larger or otherwise different.
+export const OnePickLayout = {
+  safeAreaBottom: 34,
+  tabBarContentHeight: 56,
+  tabBarTopPadding: 8,
+  tabBarReferenceHeight: 98,
 } as const;
 
 

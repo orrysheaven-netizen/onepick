@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const tokens = require('./design-tokens.cjs');
-const { OnePick } = tokens;
+const { OnePick, OnePickLayout } = tokens;
 const root = path.resolve(__dirname, '..');
 const jsx = (type, props) => ({ type, props: props ?? {} });
 const flattenStyle = (style) => Array.isArray(style) ? Object.assign({}, ...style.map(flattenStyle)) : style ?? {};
@@ -179,6 +179,24 @@ test('web inactive tab separates tertiary icon from readable secondary label', (
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
 
+test('screen canvas is white and web tab bar keeps the 34px Figma safe-area minimum', () => {
+  assert.equal(OnePick.background, '#FFFFFF');
+  assert.equal(OnePick.background, OnePick.bgDefault);
+  assert.equal(OnePickLayout.safeAreaBottom, 34);
+  assert.equal(
+    OnePickLayout.tabBarContentHeight + OnePickLayout.tabBarTopPadding + OnePickLayout.safeAreaBottom,
+    OnePickLayout.tabBarReferenceHeight,
+  );
+  pathname = '/';
+  const tree = expand(AppTabs());
+  const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).borderTopWidth === 1)[0];
+  const style = styleOf(bar);
+  assert.equal(style.backgroundColor, OnePick.bgDefault);
+  assert.equal(style.borderTopColor, OnePick.borderDefault);
+  assert.equal(style.paddingTop, OnePickLayout.tabBarTopPadding);
+  assert.equal(style.paddingBottom, OnePickLayout.safeAreaBottom, 'mocked inset is 20px, so Figma minimum 34px wins');
+});
+
 test('web active tab uses ink icon and label without a brand fill', () => {
   pathname = '/explore';
   const tree = expand(AppTabs());
@@ -197,7 +215,7 @@ test('web register control matches Figma Add Button 287:261 and preserves route'
   assert.equal(Number(svg.props.width), 32, 'Figma: 32px circle');
   assert.equal(svg.props.stroke, OnePick.actionPrimary);
   const circle = first(svg, 'circle');
-  assert.equal(circle.props.fill, OnePick.surface);
+  assert.equal(circle.props.fill, OnePick.bgDefault);
   assert.equal(String(circle.props.strokeWidth), '1.5', 'Figma: 1.5 border');
   assert.ok(first(svg, 'path'), 'plus is drawn as a path, not a text glyph');
   readable(svg.props.stroke, circle.props.fill, styleOf(button, true).opacity ?? 1);
