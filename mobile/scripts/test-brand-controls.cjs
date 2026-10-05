@@ -193,13 +193,27 @@ test('web active tab uses ink icon and label without a brand fill', () => {
 test('web register control is an ink-outlined white circle with an ink plus and preserves route', () => {
   const tree = expand(AppTabs());
   const button = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === '원픽 등록')[0];
-  const icon = first(button, 'View');
-  assert.equal(styleOf(icon).backgroundColor, OnePick.surface);
-  assert.equal(styleOf(icon).borderColor, OnePick.actionPrimary);
-  assert.equal(styleOf(icon).borderRadius * 2, styleOf(icon).width, 'Figma 30-1: round register button');
-  assert.equal(styleOf(first(icon, 'Text')).color, OnePick.actionPrimary);
-  readable(styleOf(first(icon, 'Text')).color, styleOf(icon).backgroundColor, styleOf(button, true).opacity ?? 1);
+  const svg = first(button, 'svg');
+  assert.equal(Number(svg.props.width), 30, 'register icon keeps the 30px circle');
+  assert.equal(svg.props.stroke, OnePick.actionPrimary);
+  const circle = first(svg, 'circle');
+  assert.equal(circle.props.fill, OnePick.surface);
+  assert.ok(first(svg, 'path'), 'plus is drawn as a path, not a text glyph');
+  readable(svg.props.stroke, circle.props.fill, styleOf(button, true).opacity ?? 1);
+  assert.equal(styleOf(first(button, 'Text')).color, OnePick.textSecondary, 'only the active tab label is ink');
   button.props.onPress(); assert.equal(navigated, '/pick/new');
+});
+test('web active tab icons are filled; inactive icons are outlines', () => {
+  for (const [path, label] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
+    pathname = path;
+    const tree = expand(AppTabs());
+    for (const other of ['홈', '탐색', '알림', '프로필']) {
+      const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === other)[0];
+      const fills = all(first(tab, 'svg'), (n) => n.props && n.props.fill !== undefined).map((n) => n.props.fill);
+      if (other === label) assert.ok(fills.includes(OnePick.actionPrimary), `${other} active icon is filled`);
+      else assert.ok(!fills.includes(OnePick.actionPrimary), `${other} inactive icon is an outline`);
+    }
+  }
 });
 test('web Link tabs pass one layout style object through Link asChild', () => {
   pathname = '/';
