@@ -42,9 +42,9 @@ export default function AppTabs() {
   );
 }
 
-// Inactive tabs are tertiary outlines; the active tab is filled ink (Foundations tab bar rule).
+// User decision: only Home uses a filled active icon; other active tabs keep outline shapes.
 function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
-  const fill = active ? OnePick.actionPrimary : 'none';
+  const fill = name === 'home' && active ? OnePick.actionPrimary : 'none';
   return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={active ? OnePick.actionPrimary : OnePick.textTertiary}
     strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" fill={fill} />
