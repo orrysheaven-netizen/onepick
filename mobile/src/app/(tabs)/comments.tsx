@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileMyComments } from '@/components/profile-my-comments';
-import { Button, StateCard } from '@/components/ui';
-import { OnePick } from '@/constants/onepick';
+import { StateCard } from '@/components/ui';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyComments } from '@/hooks/useMyProfileLists';
 import { HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
@@ -25,6 +26,10 @@ export default function MyCommentsScreen() {
   const [tab, setTab] = useState<CommentTab>('theme');
   const scope = HOME_FEED_ROOT_SLUG ? { rootSlug: HOME_FEED_ROOT_SLUG, inside: tab === 'theme' } : null;
   const query = useMyComments(!isSessionLoading && !sessionError ? user?.id : undefined, scope);
+  // "서울집 미역국": rows name the store with its menu.
+  const categories = useExploreCategories();
+  const menuNames = new Map((categories.data ?? []).map((category) => [category.id, category.name]));
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/profile'));
 
   if (isSessionLoading) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
@@ -53,9 +58,12 @@ export default function MyCommentsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.header}>
+          <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={goBack}
+            style={({ pressed }) => [styles.headerSide, pressed && styles.pressed]}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
           <Text accessibilityRole="header" style={styles.title}>댓글</Text>
-          {Platform.OS === 'web' && query.data ? <Button variant="ghost" size="sm" accessibilityLabel="댓글 새로고침"
-            disabled={query.isFetching} onPress={refresh} label={query.isFetching ? '확인 중…' : '새로고침'} /> : null}
+          <View style={styles.headerSide} />
         </View>
         {scope ? <View accessibilityRole="tablist" style={styles.tabRow}>
           {COMMENT_TABS.map(({ key, label }) => {
@@ -66,7 +74,8 @@ export default function MyCommentsScreen() {
             </Pressable>;
           })}
         </View> : null}
-        <ProfileMyComments query={query} emptyText={scope ? COMMENT_TABS.find(({ key }) => key === tab)?.empty : undefined} />
+        <ProfileMyComments query={query} menuNames={menuNames} restaurant={tab === 'theme'}
+          emptyText={scope ? COMMENT_TABS.find(({ key }) => key === tab)?.empty : undefined} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -74,14 +83,16 @@ export default function MyCommentsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16 },
-  tabRow: { flexDirection: 'row', gap: 6, padding: 4, marginBottom: 16, borderRadius: 14, backgroundColor: OnePick.sunken, alignSelf: 'flex-start' },
-  tab: { minHeight: 36, minWidth: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 14 },
-  tabSelected: { backgroundColor: OnePick.surface },
-  tabText: { color: OnePick.muted, fontSize: 13, fontWeight: '700' },
-  tabTextSelected: { color: OnePick.text, fontWeight: '900' },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
+  header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', marginHorizontal: -OnePickSpace.sm },
+  headerSide: { width: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  title: { ...OnePickType.headline, flex: 1, textAlign: 'center', color: OnePick.textPrimary },
+  tabRow: { flexDirection: 'row', gap: OnePickSpace.sm, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.sm },
+  tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
+  tabSelected: { backgroundColor: OnePick.actionPrimary },
+  tabText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  tabTextSelected: { color: OnePick.onAction },
   pressed: { opacity: 0.7 },
-  title: { color: OnePick.text, fontSize: 22, lineHeight: 28, fontWeight: '800', letterSpacing: -0.5 },
   centerState: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 20 },
 });

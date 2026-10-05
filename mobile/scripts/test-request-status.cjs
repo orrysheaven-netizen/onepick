@@ -120,6 +120,7 @@ async function main() {
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food' },
     '@/hooks/useMyProfileLists': { useMyComments: (userId, scope) => { commentsUser = userId; commentsScope = scope; return commentsQuery; } },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: [{ id: 'ramen', name: '라면' }] }) },
   });
   const renderMyComments = () => { presses = []; commentsProps = undefined; return renderToStaticMarkup(React.createElement(MyComments)); };
   const profileSource = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
@@ -132,6 +133,9 @@ async function main() {
     [['음식 댓글 보기', true], ['기타 댓글 보기', false]]);
   assert.deepEqual({ ...commentsScope }, { rootSlug: 'food', inside: true });
   assert.match(commentsProps.emptyText, /음식 한줄평/);
+  // Figma 67-2: "‹ 댓글" header; the 음식 tab names stores with their menu.
+  assert.ok(presses.find((props) => props.accessibilityLabel === '뒤로'), 'The list has a back button');
+  assert.equal(commentsProps.menuNames.get('ramen'), '라면'); assert.equal(commentsProps.restaurant, true);
   auth.user = null;
   assert.match(renderMyComments(), /로그인하기/); assert.equal(commentsUser, undefined); assert.equal(commentsProps, undefined);
   button('로그인하기').onPress(); assert.equal(loginRoute.params.action, 'my_comments');
@@ -144,6 +148,7 @@ async function main() {
     '@/components/pick-photo': { PickPhoto: () => null },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/format/relativeTime': { formatRelativeTime: () => '방금' },
+    '@/lib/items/itemTitle': { itemTitle: (name, menu, restaurant) => restaurant && menu ? `${name} ${menu}` : name },
     '@/services': { commentService: { locateComment: async (commentId) => commentId === 'c1' ? {
       rootCommentId: 'c1', pickId: 'p1', itemId: 'i1', categoryId: 'ramen', channel: 'offline',
       reviewIsCurrent: false, reviewIsDeleted: false,
@@ -151,14 +156,14 @@ async function main() {
     } : null } },
   });
   const myComments = listQuery();
-  const renderComments = () => { presses = []; return renderToStaticMarkup(React.createElement(ProfileMyComments, { query: myComments })); };
+  const renderComments = () => { presses = []; return renderToStaticMarkup(React.createElement(ProfileMyComments, { query: myComments, menuNames: new Map([['ramen', '라면']]), restaurant: true })); };
   assert.match(renderComments(), /아직 남긴 댓글이 없어요/);
   myComments.data = [
-    { comment: { id: 'c1', body: '저도 이거 좋아요', createdAt: '2026-09-26T00:00:00Z' }, pick: { id: 'p1', itemId: 'i1', oneLineReview: '국물이 좋아요' }, pickAuthor: { username: 'friend' }, item: { name: '신라면' } },
+    { comment: { id: 'c1', body: '저도 이거 좋아요', createdAt: '2026-09-26T00:00:00Z' }, pick: { id: 'p1', itemId: 'i1', oneLineReview: '국물이 좋아요' }, pickAuthor: { username: 'friend' }, item: { name: '신라면', categoryId: 'ramen' } },
     { comment: { id: 'c2', body: '숨겨진 곳의 댓글', createdAt: '2026-09-25T00:00:00Z' }, pick: null, pickAuthor: null, item: null },
   ];
   const list = renderComments();
-  assert.match(list, /신라면 · @friend의 한줄평/); assert.match(list, /국물이 좋아요/); assert.match(list, /저도 이거 좋아요/);
+  assert.match(list, /신라면 라면 @friend의 한줄평/); assert.match(list, /방금 댓글 보기 ›/); assert.match(list, /국물이 좋아요/); assert.match(list, /저도 이거 좋아요/);
   assert.match(list, /볼 수 없는 한줄평/); assert.match(list, /숨겨진 곳의 댓글/);
   assert.equal(presses.length, 1, 'Only rows with a visible review are pressable');
   presses[0].onPress(); await flush();
