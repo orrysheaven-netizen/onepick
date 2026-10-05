@@ -131,7 +131,7 @@ assert.deepEqual(Array.from(grouping.buildFoodLaneGroups(lanePicks.slice(0, 1), 
 
 const component = read('src/components/profile-pick-groups.tsx');
 const owner = read('src/app/(tabs)/(profile)/profile.tsx');
-const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
+const publicProfile = read('src/app/u/[username].tsx');
 const exploreHook = read('src/hooks/useExploreData.ts');
 const queryKeys = read('src/lib/query/queryKeys.ts');
 
