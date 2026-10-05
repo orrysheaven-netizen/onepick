@@ -21,7 +21,7 @@ assert.match(screen, /<Text accessibilityRole="header" numberOfLines=\{1\} style
 assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\s\S]*?paddingHorizontal: OnePickSpace\.gutter[\s\S]*?paddingTop: OnePickSpace\.sm[\s\S]*?gap: OnePickSpace\.md/);
 
 assert.match(screen, /query\.data\.brandLogoUrl \?/);
-assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
+assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: OnePickRadius\\.lg/);
 // Rule 2: no logo → the store name's first letter, never a "로고 미등록" system label.
 assert.doesNotMatch(screen, /로고 미등록|미등록/);
 assert.match(screen, /\{query\.data\.name\.trim\(\)\.slice\(0, 1\)\}/);
