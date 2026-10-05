@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
@@ -162,6 +162,18 @@ export default function PublicProfileScreen() {
     router.replace(returnHref ?? '/');
   };
 
+  const swipeBackResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => !connectionDirection
+      && gesture.x0 <= 32
+      && gesture.dx > 12
+      && Math.abs(gesture.dy) < 24,
+    onPanResponderRelease: (_, gesture) => {
+      if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
+      if (returnHref) router.dismissTo(returnHref);
+      else goBack();
+    },
+  }), [connectionDirection, returnHref, router]);
+
   // Let the native stack own iOS swipe-back and Android back transitions.
   // Intercepting native-stack removal with beforeRemove + preventDefault can
   // desynchronize the native view controller from JS navigation state.
@@ -290,7 +302,7 @@ export default function PublicProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']} {...swipeBackResponder.panHandlers}>
       {query.data && OnePickFeatures.profileFollowConnections && connectionDirection ? (
         <FollowConnectionsView
           profileId={query.data.profile.id}
