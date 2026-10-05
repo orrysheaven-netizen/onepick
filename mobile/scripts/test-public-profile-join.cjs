@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const read = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
 
-const profile = read('src/app/u/[username].tsx');
+const profile = read('src/app/(tabs)/(profile)/u/[username].tsx');
 const username = read('src/app/auth/username.tsx');
 
 // A visitor arriving from a shared link must have a way in that is not "follow this stranger".
