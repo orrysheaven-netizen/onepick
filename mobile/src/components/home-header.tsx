@@ -11,22 +11,15 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 const searchIcon = require('../../public/icons/search.svg');
 
 /**
- * Home header (Figma 30-1): English wordmark, the 맛집 theme button and a search button.
- * 맛집 is the only theme for now; the theme dialog just says so. Search reuses the
- * existing item search and opens a result the same way the old home search did.
+ * Home header: English wordmark and search button.
+ * The theme selector stays hidden while only one public theme is available; re-expose
+ * it when members can actually choose between at least two public themes.
  */
 export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => void }) {
-  const [dialog, setDialog] = useState<'theme' | 'search' | null>(null);
+  const [dialog, setDialog] = useState<'search' | null>(null);
   const close = () => setDialog(null);
   return <View style={styles.header}>
     <View style={styles.side}><OnePickBrand /></View>
-    {/* Centered on the screen (Figma 30-1), independent of the logo's width. */}
-    <View pointerEvents="box-none" style={styles.center}>
-      <Pressable accessibilityRole="button" accessibilityLabel="테마 선택, 현재 맛집" onPress={() => setDialog('theme')}
-        style={({ pressed }) => [styles.themeTouch, pressed && styles.pressed]}>
-        <View style={styles.themeButton}><Text style={styles.themeText}>맛집 ▾</Text></View>
-      </Pressable>
-    </View>
     <View pointerEvents="box-none" style={[styles.side, styles.sideEnd]}>
       <Pressable accessibilityRole="button" accessibilityLabel="메뉴 검색" onPress={() => setDialog('search')}
         style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
@@ -34,19 +27,7 @@ export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => voi
       </Pressable>
     </View>
 
-    <Modal visible={dialog === 'theme'} transparent animationType="fade" onRequestClose={close}>
-      <View style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel="테마 선택 닫기" onPress={close} style={StyleSheet.absoluteFill} />
-        <View style={styles.dialog}>
-          <Text accessibilityRole="header" style={styles.title}>테마 선택</Text>
-          <Text style={styles.text}>다른 테마는 준비 중입니다.</Text>
-          <View accessibilityRole="radio" accessibilityState={{ selected: true }} style={styles.themeOption}>
-            <Text style={styles.themeOptionText}>맛집 ✓</Text>
-          </View>
-          <Button variant="ghost" label="닫기" onPress={close} fullWidth />
-        </View>
-      </View>
-    </Modal>
+
 
     {dialog === 'search' ? <HomeSearchDialog onClose={close} onOpenItem={(itemId) => { close(); onOpenItem(itemId); }} /> : null}
   </View>;
@@ -109,12 +90,8 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: OnePickSpace.sm, position: 'relative' },
-  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   side: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   sideEnd: { alignItems: 'flex-end' },
-  themeTouch: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center' },
-  themeButton: { minHeight: 36, justifyContent: 'center', paddingHorizontal: OnePickSpace.md, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgMuted },
-  themeText: { ...OnePickType.headline, color: OnePick.textPrimary },
   iconButton: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   icon: { width: 24, height: 24 },
   pressed: { opacity: 0.65 },
@@ -122,8 +99,6 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 420, maxHeight: '90%', alignSelf: 'center', gap: OnePickSpace.md, padding: OnePickSpace.xl, borderRadius: OnePickRadius.xl, backgroundColor: OnePick.bgDefault },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
   text: { ...OnePickType.body, color: OnePick.textSecondary },
-  themeOption: { minHeight: 48, justifyContent: 'center', paddingHorizontal: OnePickSpace.lg, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgMuted },
-  themeOptionText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   inputRow: { flexDirection: 'row', alignItems: 'center', borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgMuted },
   input: { ...OnePickType.body, flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: OnePickSpace.lg, color: OnePick.textPrimary },
   clear: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
