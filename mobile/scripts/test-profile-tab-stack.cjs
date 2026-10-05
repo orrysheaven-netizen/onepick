@@ -16,7 +16,9 @@ assert.ok(fs.existsSync(path.join(root, publicProfile)), 'Public profile lives i
 assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false, 'Old own-profile route is removed');
 assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Old public-profile Stack route is removed');
 
-assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
+assert.match(profileLayout, /gestureEnabled: true/);
+assert.match(profileLayout, /fullScreenGestureEnabled: true/);
+assert.match(profileLayout, /animationMatchesGesture: true/);
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
 assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
@@ -44,6 +46,11 @@ assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
   'Native back/swipe stays owned by the native stack');
 assert.ok(!publicSource.includes('router.dismissTo(returnHref);'),
   'Native swipe does not trigger a competing dismissal during the pop transition');
+assert.match(publicSource, /Platform\.OS === 'web' \|\| connectionDirection \|\| typeof username !== 'string' \|\| !returnHref/);
+assert.match(publicSource, /if \(!state \|\| state\.index > 0\) return;/);
+assert.match(publicSource, /\{ name: 'profile', params: \{ returnTo: returnHref \} \}/,
+  'Direct native public-profile entry seeds a real route below it for swipe-back');
+assert.match(publicSource, /\{ name: 'u\/\[username\]', params: \{ username, returnTo \} \}/);
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
