@@ -137,8 +137,8 @@ async function main() {
   review().onChangeText('이걸로 바꿀래요');
   render();
   assert.ok(photoStep, 'Switching to a photo-less item shows the photo step');
-  assert.equal(submit('이걸로 바꾸기').disabled, true, 'Switching is disabled before the photo is saved');
-  submit('이걸로 바꾸기').onPress();
+  assert.equal(submit('바꾸기').disabled, true, 'Switching is disabled before the photo is saved');
+  submit('바꾸기').onPress();
   await flush();
   assert.equal(saves.length, 0, 'No switch is saved without a photo');
 

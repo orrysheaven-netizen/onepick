@@ -21,7 +21,7 @@ jobs:
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PROJECT_SUBDOMAIN: onepick-5cl
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
@@ -41,32 +41,57 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Cloudflare Pages branch aliases are lowercase and replace every
-          # non-alphanumeric branch-name character with '-'.
-          slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')"
+          # Cloudflare Pages branch aliases are lowercase, replace every
+          # non-alphanumeric branch-name character with '-' and are cut to 28
+          # characters (claude/comment-needs-pick-first ->
+          # claude-comment-needs-pick-fi). A DNS label cannot end in '-'.
+          slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | cut -c1-28 | sed 's/-*$//')"
           test -n "$slug" || { echo "::error::Could not derive Cloudflare branch alias"; exit 1; }
           preview_url="https://${slug}.${PROJECT_SUBDOMAIN}.pages.dev"
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
 
+          # Keep response content out of the environment, logs and PR comments.
+          body_file="$(mktemp "$RUNNER_TEMP/preview-manifest.XXXXXX")"
+          trap 'rm -f "$body_file"' EXIT
           ready=false
-          deadline=$((SECONDS + 180))
+          last_reason=not_checked
+          attempts=0
+          # This is a bounded observation window, not a Cloudflare build timeout.
+          deadline=$((SECONDS + 720))
           while [ "$SECONDS" -lt "$deadline" ]; do
-            body="$(curl --fail --silent --show-error --max-time 5 "$preview_url/deployment.json" 2>/dev/null || true)"
-            if EXPECTED_SHA="$EXPECTED_SHA" HEAD_BRANCH="$HEAD_BRANCH" BODY="$body" python3 - <<'PY'
+            attempts=$((attempts + 1))
+            curl_exit=0
+            http_code="$(curl --fail --silent --show-error --max-time 5 --output "$body_file" --write-out '%{http_code}' "$preview_url/deployment.json" 2>/dev/null)" || curl_exit=$?
+            if [ "$curl_exit" -eq 0 ] && [ "$http_code" = "200" ]; then
+              last_reason="$(python3 - "$body_file" <<'PY'
           import json
           import os
+          import sys
 
           try:
-              data = json.loads(os.environ["BODY"])
-          except (json.JSONDecodeError, TypeError):
-              raise SystemExit(1)
-
-          if data.get("commitSha") != os.environ["EXPECTED_SHA"]:
-              raise SystemExit(1)
-          if data.get("branch") not in (None, os.environ["HEAD_BRANCH"]):
-              raise SystemExit(1)
+              with open(sys.argv[1], encoding="utf-8") as response:
+                  data = json.load(response)
+          except (OSError, ValueError, UnicodeError):
+              print("invalid_json")
+          else:
+              if not isinstance(data, dict):
+                  print("invalid_manifest")
+              elif data.get("commitSha") != os.environ["EXPECTED_SHA"]:
+                  print("commit_mismatch")
+              elif data.get("branch") not in (None, os.environ["HEAD_BRANCH"]):
+                  print("branch_mismatch")
+              else:
+                  print("matched")
           PY
-            then
+              )"
+            elif [ "$curl_exit" -ne 0 ] && [ "$curl_exit" -ne 22 ]; then
+              last_reason="curl_exit_${curl_exit}"
+            elif [[ "$http_code" =~ ^[0-9]{3}$ ]]; then
+              last_reason="http_${http_code}"
+            else
+              last_reason=invalid_http_status
+            fi
+            if [ "$last_reason" = "matched" ]; then
               ready=true
               break
             fi
@@ -74,8 +99,10 @@ jobs:
           done
 
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "reason=$last_reason" >> "$GITHUB_OUTPUT"
+          echo "attempts=$attempts" >> "$GITHUB_OUTPUT"
           if [ "$ready" != "true" ]; then
-            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 3 minutes."
+            echo "::warning::Cloudflare preview did not reach expected commit $EXPECTED_SHA within 12 minutes (last probe: $last_reason; attempts: $attempts). This does not identify the Cloudflare build state."
           fi
 
       - name: Setup Node
@@ -117,6 +144,7 @@ jobs:
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
           PREVIEW_READY: ${{ steps.preview.outputs.ready }}
+          PREVIEW_REASON: ${{ steps.preview.outputs.reason }}
           QA_EXIT_CODE: ${{ steps.qa.outputs.exit_code }}
         run: |
           set -euo pipefail
@@ -128,6 +156,7 @@ jobs:
           marker = "<!-- onepick-pr-preview-qa -->"
           preview = os.environ.get("PREVIEW_URL") or "(unknown)"
           ready = os.environ.get("PREVIEW_READY") == "true"
+          reason = os.environ.get("PREVIEW_REASON") or "unknown"
           sha = os.environ["EXPECTED_SHA"]
           out = Path(os.environ["GITHUB_WORKSPACE"]) / "qa-output"
           lines = [marker, "## Cloudflare PR Preview QA", "", f"- Preview: {preview}", f"- Commit: `{sha}`"]
@@ -135,6 +164,7 @@ jobs:
           if not ready:
               lines += [
                   "- Result: ⏭️ skipped — preview did not reach this commit within the wait window",
+                  f"- Last probe: `{reason}`. QA was not executed; Cloudflare build state is unverified.",
                   "",
                   "No app/DB/Production mutation was attempted by this check.",
               ]

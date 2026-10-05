@@ -7,7 +7,10 @@ const read = (file) => fs.readFileSync(path.join(root, file));
 const originals = {
   'public/brand/onepick-logo-horizontal.svg': 'b12dd2b60544b001bf520e45b43bc067ec16c8abf103d965ee8d7066a89d22e8',
   'public/brand/onepick-logo-horizontal-white.svg': '131eff84afb46e11ac1517a73bf7e0e6e26b829e7934889270302c9a86cce8e7',
-  'public/brand/onepick-logo-stacked.svg': '29af26405914dbf8430bdbc8e27cc3717fb876c8ffc3fe02dfd6986ca7f66db0',
+  // The originals above minus the Korean 원픽 glyph paths (10-04: screens show the English wordmark only).
+  'public/brand/onepick-wordmark.svg': 'c50a2ebcb4a428b644199253dcfee19fbdc5579515bdc9bb65bf53353e57df6d',
+  'public/brand/onepick-wordmark-white.svg': '77a1f384551eda31e2d26511e8251ecc66d63cddc460f68d6b8a9d9ddcbec08b',
+  'public/brand/onepick-logo-stacked.svg':'29af26405914dbf8430bdbc8e27cc3717fb876c8ffc3fe02dfd6986ca7f66db0',
   'public/brand/onepick-app-icon.svg': '9870ade641a67244f66e29a563989030e8a8724e8827a860266679652f1b8ce9',
   'public/brand/onepick-app-icon-dark.svg': '918bfcaaec038b69615851f8beaaf05f7d4513f31b822582d97f16589b135b5f',
   'public/onepick-favicon.svg': '4979dd666b4e735131f1acbfb2e525dca80a50cf11bc9125ef542f8b6b3ca5bc',
@@ -52,7 +55,8 @@ for (const asset of ['/favicon.ico', '/onepick-favicon.svg', '/apple-touch-icon-
 assert.match(html, /name="theme-color" content="#FFFFFF"/);
 assert.doesNotMatch(html, /href="https:\/\/fonts\./, 'Do not weaken or bypass the existing font CSP');
 const logo = read('src/components/onepick-brand.tsx').toString();
-assert.match(logo, /onepick-logo-horizontal-white\.svg/);
+assert.match(logo, /onepick-wordmark-white\.svg/);
+assert.doesNotMatch(logo, /onepick-logo-horizontal/, 'Screen headers use the English-only wordmark');
 assert.match(logo, /accessibilityLabel="원픽 홈"/);
 assert.doesNotMatch(logo, /<Text\b|fontFamily|fontWeight/, 'Use outlined logo assets, not live typography');
 const tokens = read('src/constants/onepick.ts').toString();

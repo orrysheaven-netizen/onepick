@@ -40,10 +40,30 @@ export async function checkMenuSelection(page, menuName, timeout = 15_000, allow
   await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
 }
 
+function homeSearchDialog(page) {
+  return page.getByRole('heading', { name: '어떤 메뉴를 찾으세요?', exact: true }).locator('..');
+}
+
+export async function openHomeSearch(page, timeout = 15_000) {
+  await page.getByRole('button', { name: '메뉴 검색', exact: true }).click({ timeout });
+  const dialog = homeSearchDialog(page);
+  await dialog.getByRole('textbox', { name: '메뉴명', exact: true }).waitFor({ state: 'visible', timeout });
+  return dialog;
+}
+
+export async function submitHomeSearch(page, searchText, timeout = 15_000) {
+  const dialog = homeSearchDialog(page);
+  await dialog.getByRole('textbox', { name: '메뉴명', exact: true }).fill(searchText, { timeout });
+  await dialog.getByRole('button', { name: '검색', exact: true }).click({ timeout });
+  const results = dialog.getByRole('button', { name: / 상세 보기$/ });
+  await results.first().waitFor({ state: 'visible', timeout });
+  return results;
+}
+
 export async function assertNotifications(page, timeout = 15_000) {
   await page.getByRole('heading', { name: '알림', exact: true }).waitFor({ state: 'visible', timeout });
   const rows = page.getByRole('button', { name: /^(새|읽은) 알림, / });
-  const empty = page.getByText('아직 알림이 없어요', { exact: true });
+  const empty = page.getByText(/^아직 알림이 없어요[.!?…]?$/);
   const login = page.getByRole('button', { name: '로그인', exact: true });
   await rows.first().or(empty).or(login).first().waitFor({ state: 'visible', timeout });
   if (await login.isVisible()) throw new Error('알림 화면이 비로그인 상태로 보임');

@@ -143,7 +143,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
             style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
             <Text style={styles.commentAuthor}>@{author.username} ›</Text>
           </Pressable>
-          {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag /> : null}
+          {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag mine={author.id === user?.id} /> : null}
         </View> : <Text style={styles.commentAuthor}>사용자</Text>}
 
         <Text style={[styles.commentBody, deleted && styles.deletedBody]}>{deleted ? '삭제된 댓글입니다.' : comment.body}</Text>

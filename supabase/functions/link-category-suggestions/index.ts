@@ -104,12 +104,23 @@ function titleFromHtml(html: string) {
   return m?.[1] ? decodeHtml(m[1]).trim() : '';
 }
 function cleanNaverTitle(value: string) {
-  return value
-    .replace(/\s*[:|\-]\s*네이버(?:\s*지도)?\s*$/i, '')
-    .replace(/\s*네이버(?:\s*지도)?\s*$/i, '')
+  const title = value
+    // Naver pages can append invisible control characters (seen: U+001C) to og:title.
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s*[:|\-]\s*네이버(?:\s*(?:지도|플레이스))?\s*$/i, '')
+    .replace(/\s*네이버(?:\s*(?:지도|플레이스))?\s*$/i, '')
     .trim()
     .slice(0, 100);
+  // Generic page titles ("네이버 지도", "네이버 플레이스", "NAVER") are not a store name.
+  return /^(?:naver)?$/i.test(title) ? '' : title;
 }
+// naver.me share links land on map.naver.com/p/entry/place/<id>, a script-rendered page
+// without a title; the mobile place page for the same id carries og:title.
+function naverPlaceId(url: URL) {
+  return /\/(?:place|restaurant|cafe)\/(\d{3,15})(?:[/?#]|$)/.exec(url.pathname)?.[1] ?? null;
+}
+const LINK_USER_AGENT = 'Mozilla/5.0 OnePick-LinkResolver/1.0';
+const MOBILE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
 async function limitedText(response: Response, maxBytes = 160000) {
   if (!response.body) return '';
   const reader = response.body.getReader();
@@ -148,8 +159,7 @@ async function reserveNaver(client: SupabaseClient, userId: string) {
   if (!await reserveSlot(client, naverUserSlot(userId), 1500, 3000)) return false;
   return reserveSlot(client, 'naver_link', 800, 2500);
 }
-async function resolveNaver(input: URL, client: SupabaseClient, userId: string) {
-  if (!await reserveNaver(client, userId)) throw new Error('RATE_LIMITED');
+async function fetchNaverPage(input: URL, userAgent: string) {
   let current = input;
   let html = '';
   let loaded = false;
@@ -158,7 +168,7 @@ async function resolveNaver(input: URL, client: SupabaseClient, userId: string) 
     const response = await fetch(current, {
       method: 'GET',
       redirect: 'manual',
-      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': 'Mozilla/5.0 OnePick-LinkResolver/1.0' },
+      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': userAgent },
       signal: AbortSignal.timeout(6000),
     });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
@@ -179,11 +189,22 @@ async function resolveNaver(input: URL, client: SupabaseClient, userId: string) 
     break;
   }
   if (!loaded) throw new Error('LINK_RESOLVE_FAILED');
-  return {
-    canonicalUrl: current.toString(),
-    title: cleanNaverTitle(titleFromHtml(html)),
-    description: cleanText(meta(html, 'og:description'), 240),
-  };
+  return { url: current, html };
+}
+async function resolveNaver(input: URL, client: SupabaseClient, userId: string) {
+  if (!await reserveNaver(client, userId)) throw new Error('RATE_LIMITED');
+  const page = await fetchNaverPage(input, LINK_USER_AGENT);
+  let title = cleanNaverTitle(titleFromHtml(page.html));
+  let description = cleanText(meta(page.html, 'og:description'), 240);
+  const placeId = title ? null : naverPlaceId(page.url);
+  if (placeId) {
+    try {
+      const place = await fetchNaverPage(new URL('https://m.place.naver.com/place/' + placeId + '/home'), MOBILE_USER_AGENT);
+      title = cleanNaverTitle(titleFromHtml(place.html));
+      description = description || cleanText(meta(place.html, 'og:description'), 240);
+    } catch { /* The name step stays available when the place page cannot be read. */ }
+  }
+  return { canonicalUrl: page.url.toString(), title, description };
 }
 
 // PostgREST caps each response at max_rows (1000), so read reference tables page by page
@@ -319,6 +340,15 @@ async function findPlaces(client: SupabaseClient, name: string, placeCatalogId: 
       .ilike('branch_name', '%' + branch + '%').limit(20);
     if (split.error) throw new Error('PLACE_READ_FAILED');
     rows = (split.data ?? []) as PlaceRow[];
+  }
+  // Naver names can add a word the catalog lacks ("을밀대 평양냉면" vs 을밀대): list the
+  // first word's stores so the person can pick; none of them is an exact match.
+  const first = placeSearchName(words[0] ?? '');
+  if (rows.length === 0 && words.length > 1 && first.length >= 2) {
+    const brand = await client.from('place_catalog').select(columns)
+      .eq('business_status', 'open').eq('normalized_name', first).limit(20);
+    if (brand.error) throw new Error('PLACE_READ_FAILED');
+    rows = (brand.data ?? []) as PlaceRow[];
   }
   return sortPlaces(rows, name);
 }
