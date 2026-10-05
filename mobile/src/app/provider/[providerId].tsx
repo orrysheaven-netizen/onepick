@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   storeLogo: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: OnePickRadius.lg,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   storeLogoPlaceholder: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: OnePickRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: OnePick.bgSubtle,
