@@ -184,7 +184,8 @@ export default function HomeScreen() {
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
-              style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
+            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
               <Text style={styles.moreText}>더보기</Text>
             </Pressable>
           </View>
@@ -204,6 +205,7 @@ export default function HomeScreen() {
         <View style={styles.feedHeader}>
           <Text accessibilityRole="header" style={styles.feedTitle}>사람들의 원픽</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="사람들의 원픽 더보기" onPress={() => router.push('/feed')}
+            hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
             <Text style={styles.moreText}>더보기</Text>
           </Pressable>
@@ -276,16 +278,18 @@ const styles = StyleSheet.create({
   scopeTextSelected: { color: OnePick.onAction },
   categoryFilterRow: { gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, paddingRight: OnePickSpace.xs, marginBottom: OnePickSpace.sm },
   fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.bgDefault },
-  rankingSection: { marginTop: OnePickSpace.sm },
-  rankingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.xs },
+  // Figma 30-1 (92:39): content starts 12 below the header; header row 28 high, 12 above the grid.
+  rankingSection: { marginTop: OnePickSpace.md },
+  rankingHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
   rankingSort: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: OnePickSpace.lg },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
   // Light gray rule between 인기 메뉴 and 사람들의 원픽, 24px above and below.
-  sectionDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: 24 },
-  feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.sm },
-  feedTitle: { ...OnePickType.headline, fontSize: 18, color: OnePick.textPrimary },
-  moreButton: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  moreText: { ...OnePickType.body, color: OnePick.textSecondary },
+  sectionDivider: { height: 1, backgroundColor: '#E5E5EB', marginVertical: 24 },
+  feedHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
+  feedTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  // 28-high header row; hitSlop keeps the 44 touch target.
+  moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
+  moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
   feedGap: { height: 12 },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },

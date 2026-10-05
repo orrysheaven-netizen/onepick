@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickPhoto } from '@/components/pick-photo';
+import { StoreBadge } from '@/components/store-badge';
 import { Avatar } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
@@ -11,7 +12,7 @@ import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
  * One current Pick in the Home / full feed (Figma 30-1, 30-1D):
  * photo | profile + flag, [매장] store (bold) menu, one-line review.
  * No comments/share on Home; the row opens the item and the person opens their profile.
- * Every feed row is a current Pick, so the flag is always shown.
+ * Every feed row is a current Pick, so the flag is always shown. Sizes follow Figma Feed Card (303:430).
  */
 export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onOpenProvider }: {
   pick: HomeFeedPick;
@@ -32,21 +33,21 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
   return <View style={styles.row}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
       style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
-      <PickPhoto feed uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
+      <PickPhoto square uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
     </Pressable>
     <View style={styles.copy}>
       <View style={styles.personRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={`@${pick.username} 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-          <Avatar name={pick.username} size={24} tone="subtle" />
+          <Avatar name={pick.username} size={32} tone="subtle" />
           <Text numberOfLines={1} style={styles.username}>@{pick.username}</Text>
         </Pressable>
-        <CurrentPickFlag mine={mine} />
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
         <View style={styles.titleRow}>
-          {channelLabel ? <View style={styles.badge}><Text style={styles.badgeText}>{channelLabel}</Text></View> : null}
+          {channel === 'offline' ? <StoreBadge />
+            : channelLabel ? <View style={styles.badge}><Text style={styles.badgeText}>{channelLabel}</Text></View> : null}
           <Text numberOfLines={1} style={styles.title}>
             {providerName ? <Text style={styles.provider} {...(onOpenProvider ? { accessibilityRole: 'link' as const,
               onPress: (event: { stopPropagation?: () => void }) => { event?.stopPropagation?.(); onOpenProvider(); } } : {})}>{providerName} </Text> : null}
@@ -56,17 +57,20 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
         {pick.oneLineReview ? <Text numberOfLines={2} style={styles.review}>{`“${pick.oneLineReview}”`}</Text> : null}
       </Pressable>
     </View>
+    {/* Figma Current Pick / 원픽 깃발: 24px, card top 16, right edge. */}
+    <View style={styles.flag}><CurrentPickFlag mine={mine} /></View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: OnePickSpace.md, paddingVertical: 8 },
-  photo: { borderRadius: OnePickRadius.md, overflow: 'hidden' },
-  copy: { flex: 1, minWidth: 0, gap: 6 },
-  personRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: OnePickSpace.sm },
+  row: { position: 'relative', flexDirection: 'row', gap: OnePickSpace.md, paddingVertical: 8 },
+  photo: { width: 80, height: 80, borderRadius: OnePickRadius.md, overflow: 'hidden' },
+  copy: { flex: 1, minWidth: 0, gap: OnePickSpace.xs, paddingRight: 28 },
+  flag: { position: 'absolute', top: 16, right: 0 },
+  personRow: { flexDirection: 'row', alignItems: 'center' },
   person: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm, minWidth: 0, flexShrink: 1, minHeight: 32 },
   username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
-  body: { gap: 4 },
+  body: { gap: OnePickSpace.xs },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
   badgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },

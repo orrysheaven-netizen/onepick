@@ -39,10 +39,10 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgPlaceholder },
   placeholderText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  // Image → text 8px; store + menu and the count on one line.
-  copy: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingTop: 8, minWidth: 0 },
-  name: { ...OnePickType.bodyMedium, fontWeight: '400', color: OnePick.textPrimary, flexShrink: 1 },
+  // Figma Menu Tile (303:425): image → text 8px; store (Bold 12) + menu (Regular 12) and the count (10) on one line, 8px apart.
+  copy: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 8, minWidth: 0 },
+  name: { ...OnePickType.caption, fontSize: 12, lineHeight: 24, color: OnePick.textPrimary, flexShrink: 1 },
   store: { fontWeight: '700' },
-  count: { ...OnePickType.caption, color: OnePick.textSecondary, flexShrink: 0 },
+  count: { ...OnePickType.caption, fontSize: 10, lineHeight: 18, color: OnePick.textSecondary, flexShrink: 0 },
   pressed: { opacity: 0.9 },
 });

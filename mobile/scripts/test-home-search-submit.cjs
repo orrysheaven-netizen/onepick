@@ -24,7 +24,8 @@ assert.match(header, /onPress=\{\(\) => onOpenItem\(item\.id\)\}/);
 assert.match(header, /테마 선택/);
 assert.match(header, /다른 테마는 준비 중입니다\./);
 assert.match(header, /맛집 ✓/);
-assert.doesNotMatch(header, /라멘|원픽21/, 'No hard-coded Figma sample results');
+// Only the Figma 30-1B placeholder may name an example; results are never hard-coded (PM, #709).
+assert.doesNotMatch(header.replace('placeholder="예: 라멘"', ''), /라멘|원픽 ?21/, 'No hard-coded Figma sample results');
 assert.match(explore, /useLocalSearchParams<ExploreParams>/);
 assert.match(explore, /incomingQuery/);
 assert.match(explore, /initialQuery=\{incomingQuery\}/);
