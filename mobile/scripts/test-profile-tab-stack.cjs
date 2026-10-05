@@ -17,6 +17,8 @@ assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false
 assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Old public-profile Stack route is removed');
 
 assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
+assert.match(profileLayout, /<Stack\.Screen name="u\/\[username\]" options=\{\{ gestureEnabled: false \}\} \/>/,
+  'Public profile disables native-stack swipe so only the safe edge handler owns the gesture');
 assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
 assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
@@ -42,8 +44,12 @@ assert.ok(publicSource.includes('const returnHref = profileReturnHref(returnTo)'
 assert.ok(publicSource.includes('useNavigation()'));
 assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
   'Native back/swipe stays owned by the native stack');
-assert.ok(!publicSource.includes('router.dismissTo(returnHref);'),
-  'Native swipe does not trigger a competing dismissal during the pop transition');
+assert.ok(publicSource.includes('router.dismissTo(returnHref);'),
+  'Safe edge swipe restores the validated origin after its own gesture completes');
+assert.match(publicSource, /PanResponder\.create/);
+assert.match(publicSource, /gesture\.x0 <= 32/);
+assert.match(publicSource, /gesture\.dx < 72 \|\| gesture\.vx <= 0/);
+assert.match(publicSource, /\.\.\.swipeBackResponder\.panHandlers/);
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
