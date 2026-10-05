@@ -252,7 +252,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: OnePick.background },
+  safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, padding: OnePickSpace.lg, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   signinCopy: { flex: 1, minWidth: 0 },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   scopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   scopeTextSelected: { color: OnePick.onAction },
   categoryFilterRow: { gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, paddingRight: OnePickSpace.xs, marginBottom: OnePickSpace.sm },
-  fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.background },
+  fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.bgDefault },
   rankingSection: { marginTop: OnePickSpace.sm },
   rankingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.xs },
   rankingSort: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },

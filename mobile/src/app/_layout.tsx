@@ -14,7 +14,7 @@ const theme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: OnePick.background,
+    background: OnePick.bgDefault,
     card: OnePick.surface,
     text: OnePick.text,
     border: OnePick.border,

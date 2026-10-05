@@ -264,8 +264,8 @@ async function main() {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
-    '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+    '@/components/item-search': { ItemSearch: () => null }, '@/components/explore-search-results': { ExploreSearchResults: () => null },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useFoodMenuPickCounts: () => ({ data: new Map(), isError: false, isFetching: false, isRefetching: false, refetch() {} }), useCategoryTopItems: () => rankingQuery,
       useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);

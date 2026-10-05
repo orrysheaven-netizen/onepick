@@ -237,6 +237,8 @@ export interface ReadRepository {
   getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
   getFoodItemRecentRanking(channel?: PickChannel | null, limit?: number): Promise<FoodItemRecentRankingItem[]>;
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
+  /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
+  getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */
@@ -246,6 +248,8 @@ export interface ReadRepository {
    * storesOnly keeps items with a 매장/온라인 channel (places), dropping plain products.
    */
   getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
+  /** Explore search (Figma 43): current Pick count and short store region per item. */
+  getSearchItemMeta(itemIds: string[]): Promise<Record<string, { pickCount: number; region: string | null }>>;
   countActivePicks(itemId: string): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
