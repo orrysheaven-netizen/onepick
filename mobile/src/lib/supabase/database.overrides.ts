@@ -299,6 +299,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
           p_thumbnail_path?: string | null;
           p_image_source_url?: string | null;
           p_remove_photo?: boolean;
+          p_name?: string | null;
         };
         Returns: Database['public']['Tables']['items']['Row'];
       };

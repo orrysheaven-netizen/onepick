@@ -131,6 +131,7 @@ export class SupabaseItemRepository implements ItemRepository {
       p_thumbnail_path: input.thumbnailPath,
       p_image_source_url: input.imageSourceUrl,
       p_remove_photo: input.removePhoto ?? false,
+      ...(input.name ? { p_name: input.name } : {}),
     });
     if (error) throw mapSupabaseError(error);
     if (!data) throw new AppError('INTERNAL_ERROR');

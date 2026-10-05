@@ -73,6 +73,8 @@ export interface ReviseItemRequestInput {
   thumbnailPath?: string | null;
   imageSourceUrl?: string | null;
   removePhoto?: boolean;
+  /** Figma 22: rename my own member-submitted store. */
+  name?: string | null;
 }
 
 export interface StageBrandItemInput {
