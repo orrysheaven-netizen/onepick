@@ -10,7 +10,7 @@ const home = read('src/app/(tabs)/index.tsx');
 const dish = read('src/components/dish-people-picks.tsx');
 const menu = read('src/app/menu/[slug].tsx');
 const own = read('src/app/(tabs)/(profile)/profile.tsx');
-const pub = read('src/app/(tabs)/(profile)/u/[username].tsx');
+const pub = read('src/app/u/[username].tsx');
 
 assert.match(screen, /<View style=\{styles\.storeHeader\}>/);
 assert.match(screen, /storeHeader:[\s\S]*?height: 56/);
