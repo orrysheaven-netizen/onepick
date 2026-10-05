@@ -37,8 +37,8 @@ assert.ok(!profile.includes("navigation.addListener('beforeRemove'"),
   'native stack back/swipe must not be intercepted with beforeRemove');
 assert.ok(!profile.includes('event.preventDefault()'),
   'native swipe-back must not cancel an in-flight native pop');
-assert.ok(!profile.includes('router.dismissTo(returnHref);'),
-  'native swipe-back must not start a second dismissal while the native pop is in flight');
+assert.ok(profile.includes('router.dismissTo(returnHref);'),
+  'safe edge swipe restores the validated origin after its own gesture completes');
 assert.ok(profile.includes("router.replace(returnHref ?? '/');"),
   'cold public-profile links fall back Home when there is no app history');
 assert.ok(!profile.includes("const goBack = () => router.replace"),
