@@ -12,7 +12,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { Avatar, Button, ChannelBadge, Chip, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -28,12 +28,6 @@ import { isSeedProfileId } from '@/lib/seedProfiles';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
-
-const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
-  offline: '매장',
-  online: '온라인',
-  recipe: '레시피',
-};
 
 const SAFE_PROFILE_RETURN_PATH = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
 function profileReturnHref(value: string | string[] | undefined): Href | null {
@@ -57,7 +51,6 @@ function PublicProfilePickRow({
   onOpenProvider: (providerId: string) => void;
 }) {
   const channel = item.pick.channel ?? item.item?.channels?.[0];
-  const channelLabel = channel ? PUBLIC_CHANNEL_LABELS[channel] : null;
   const title = isFood
     ? item.category?.name ?? item.item?.name ?? '원픽'
     : item.item?.name ?? item.category?.name ?? '원픽';
@@ -65,11 +58,6 @@ function PublicProfilePickRow({
     ? (channel === 'recipe' ? item.item?.creatorName ?? null : item.item?.name ?? null)
     : item.category?.name ?? null;
   const imageUri = item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl;
-  const badgeStyle = channel === 'offline'
-    ? styles.publicPickBadgeOffline
-    : channel === 'online'
-      ? styles.publicPickBadgeOnline
-      : styles.publicPickBadgeRecipe;
 
   return (
     <Pressable
@@ -87,6 +75,7 @@ function PublicProfilePickRow({
       />
       <View style={styles.publicPickCopy}>
         <View style={styles.publicPickTitleRow}>
+          {channel ? <ChannelBadge channel={channel} /> : null}
           {item.item ? (
             <Pressable
               accessibilityRole="button"
@@ -99,9 +88,6 @@ function PublicProfilePickRow({
               <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>
             </Pressable>
           ) : <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>}
-          {channelLabel ? <View style={[styles.publicPickBadge, badgeStyle]}>
-            <Text style={styles.publicPickBadgeText}>{channelLabel}</Text>
-          </View> : null}
         </View>
         {providerName ? item.item?.providerId ? (
           <Pressable
@@ -526,16 +512,6 @@ const styles = StyleSheet.create({
   publicPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
   publicPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
   publicPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  publicPickBadge: {
-    height: 28,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: OnePickRadius.full,
-  },
-  publicPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
-  publicPickBadgeOnline: { backgroundColor: OnePick.bgMuted },
-  publicPickBadgeRecipe: { backgroundColor: OnePick.bgAccentSubtle },
-  publicPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   publicPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   publicPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   safetyCard: {

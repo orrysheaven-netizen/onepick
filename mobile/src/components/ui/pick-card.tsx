@@ -3,13 +3,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 import { Avatar } from './avatar';
+import { ChannelBadge } from './channel-badge';
 import { PRESSED_OPACITY } from './touch';
 
 type Props = {
-  /** Short channel badge shown before the provider, e.g. 매장 / 온라인 / 레시피. */
-  channelLabel?: string | null;
+  /** Channel badge shown first in the context row (오프라인 / 온라인 / 레시피). */
+  channel?: PickChannel | null;
   /** Store, seller, brand or source. Kept visually separate from the menu title. */
   providerName?: string | null;
   /** The main content title. For food channel Picks this is the menu name. */
@@ -39,11 +41,11 @@ type Props = {
 };
 
 export function PickCard({
-  channelLabel, providerName, itemName, menuContext = false, review, fallbackText, photo,
+  channel, providerName, itemName, menuContext = false, review, fallbackText, photo,
   person, onPress, onPressProvider, accessibilityLabel, footer,
 }: Props) {
   const showPhoto = Boolean(photo.uri || photo.logoUri || photo.hasPhoto);
-  const showContext = Boolean(channelLabel || providerName);
+  const showContext = Boolean(channel || providerName);
 
   return (
     <View style={styles.card}>
@@ -67,7 +69,7 @@ export function PickCard({
           itemStatus={photo.itemStatus} hasPhoto={photo.hasPhoto} logoUri={photo.logoUri} /> : null}
         <View style={styles.copy}>
           {showContext ? <View style={styles.contextRow}>
-            {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
+            {channel ? <ChannelBadge channel={channel} /> : null}
             {providerName ? (onPressProvider
               ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
                   onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
@@ -99,8 +101,6 @@ const styles = StyleSheet.create({
   bodyWithoutPhoto: { minHeight: 0 },
   copy: { flex: 1, minWidth: 0, gap: 4 },
   contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
-  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
-  channelBadgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
   providerLink: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { ...OnePickType.bodyMedium, color: OnePick.text, flexShrink: 1 },
   providerNameMenuContext: { ...OnePickType.headline, color: OnePick.text, flexShrink: 1 },

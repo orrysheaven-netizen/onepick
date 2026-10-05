@@ -11,7 +11,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { Avatar, Button, ChannelBadge, Chip, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -101,12 +101,6 @@ function ItemRequestCard({ item, onOpenItem }: { item: ItemRequestItem; onOpenIt
   </View>;
 }
 
-const PROFILE_CHANNEL_LABELS: Record<string, string> = {
-  offline: '매장',
-  online: '온라인',
-  recipe: '레시피',
-};
-
 function ProfileCurrentPickRow({
   item,
   isFood,
@@ -121,7 +115,6 @@ function ProfileCurrentPickRow({
   onOpenProvider: (providerId: string) => void;
 }) {
   const channel = item.item?.channels?.[0];
-  const channelLabel = channel ? PROFILE_CHANNEL_LABELS[channel] : null;
   const title = isFood
     ? item.category?.name ?? item.item?.name ?? '원픽'
     : item.item?.name ?? item.category?.name ?? '원픽';
@@ -135,11 +128,6 @@ function ProfileCurrentPickRow({
   const photoReviewText = !waitsForPhoto ? null : item.item?.photoPendingReview
     ? '사진 검수 중 · 승인되면 다른 사람에게도 보여요.'
     : '사진이 반려됐어요 · 상세에서 다시 올려주세요.';
-  const badgeStyle = channel === 'offline'
-    ? styles.currentPickBadgeOffline
-    : channel === 'online'
-      ? styles.currentPickBadgeOnline
-      : styles.currentPickBadgeRecipe;
 
   return (
     <Pressable
@@ -157,6 +145,7 @@ function ProfileCurrentPickRow({
       />
       <View style={styles.currentPickCopy}>
         <View style={styles.currentPickTitleRow}>
+          {channel ? <ChannelBadge channel={channel} /> : null}
           {item.item ? (
             <Pressable
               accessibilityRole="button"
@@ -169,9 +158,6 @@ function ProfileCurrentPickRow({
               <Text numberOfLines={1} style={styles.currentPickTitle}>{title}</Text>
             </Pressable>
           ) : <Text numberOfLines={1} style={styles.currentPickTitle}>{title}</Text>}
-          {channelLabel ? <View style={[styles.currentPickBadge, badgeStyle]}>
-            <Text style={styles.currentPickBadgeText}>{channelLabel}</Text>
-          </View> : null}
         </View>
         {providerName ? item.item?.providerId ? (
           <Pressable
@@ -470,16 +456,6 @@ const styles = StyleSheet.create({
   currentPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
   currentPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
   currentPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  currentPickBadge: {
-    height: 28,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: OnePickRadius.sm,
-  },
-  currentPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
-  currentPickBadgeOnline: { backgroundColor: OnePick.bgMuted },
-  currentPickBadgeRecipe: { backgroundColor: OnePick.bgAccentSubtle },
-  currentPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   currentPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   currentPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   currentPickPhotoReview: { ...OnePickType.caption, color: OnePick.textSecondary },

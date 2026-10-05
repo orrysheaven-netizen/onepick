@@ -1,15 +1,17 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { ChannelBadge } from '@/components/ui/channel-badge';
 import { OnePick } from '@/constants/onepick';
+import type { PickChannel } from '@/lib/items/pickChannel';
 
 type Props = {
   categoryName: string;
   itemName: string;
   /** Food-channel provider/source shown before the menu title. */
   providerName?: string | null;
-  /** Short channel badge, e.g. 매장 / 온라인 / 레시피. */
-  channelLabel?: string | null;
+  /** Channel badge shown first in the context row (오프라인 / 온라인 / 레시피). */
+  channel?: PickChannel | null;
   review: string;
   imageUri?: string | null;
   itemId?: string;
@@ -28,7 +30,7 @@ export function ProfilePickCard({
   categoryName,
   itemName,
   providerName,
-  channelLabel,
+  channel,
   review,
   imageUri,
   itemId,
@@ -74,9 +76,9 @@ export function ProfilePickCard({
           accessibilityLabel={`${providerName ? `${providerName} ${itemName}` : `${categoryName} ${itemName}`} 원픽 상세 보기`}
           onPress={onPressPick}
           style={({ pressed }) => [styles.mainAction, pressed && styles.pressed]}>
-          {providerName || channelLabel ? (
+          {providerName || channel ? (
             <View style={styles.contextRow}>
-              {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
+              {channel ? <ChannelBadge channel={channel} /> : null}
               {providerName ? (onPressProvider
                 ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
                     onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
@@ -137,8 +139,6 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0, paddingLeft: 12 },
   mainAction: { minHeight: 0 },
   contextRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
-  channelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: OnePick.accentSoft },
-  channelBadgeText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   providerLink: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { flex: 1, minWidth: 0, color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '500' },
   providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },

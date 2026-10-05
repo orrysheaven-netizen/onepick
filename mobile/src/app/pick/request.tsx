@@ -398,7 +398,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <TextInput accessibilityLabel="온라인 판매처 링크" editable={!submitting} value={sellerLink} onChangeText={setSellerLink}
             autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" placeholderTextColor={OnePick.hint} style={styles.input} />
           {sellerLinkError ? <Text accessibilityRole="alert" style={styles.error}>{sellerLinkError}</Text>
-            : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요. 배달앱 주문은 매장으로 골라주세요.</Text>}
+            : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요. 배달앱 주문은 오프라인으로 골라주세요.</Text>}
         </> : null}
 
         {categoryId ? <>

@@ -11,7 +11,7 @@ const CHANNEL_ORDER: readonly PickChannel[] = ['offline', 'online', 'recipe'];
  */
 export const HOME_CHANNEL_TABS: readonly { channel: PickChannel | null; label: string }[] = [
   { channel: null, label: '전체' },
-  { channel: 'offline', label: '매장' },
+  { channel: 'offline', label: '오프라인' },
   { channel: 'online', label: '온라인' },
   { channel: 'recipe', label: '레시피' },
 ];
@@ -23,8 +23,8 @@ export function objectParticle(label: string) {
   return (code - 0xac00) % 28 === 0 ? '를' : '을';
 }
 
-// Content labels (cards, detail, rankings) match the Home tabs. The registration
-// choice keeps the short 매장/온라인 wording with its own descriptions.
+// Content labels for section headers and rankings. Tabs, the registration choice and
+// the channel badge use the short 오프라인/온라인/레시피 wording (docs/channel-badge.md).
 const CHANNEL_LABELS: Record<PickChannel, string> = { offline: '오프라인 맛집', online: '온라인 맛집', recipe: '레시피' };
 
 export function isPickChannel(value: unknown): value is PickChannel {

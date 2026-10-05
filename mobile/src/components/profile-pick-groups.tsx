@@ -4,15 +4,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ProfilePickCard } from '@/components/profile-pick-card';
 import { buildProfileThemeSections, defaultCollapsedProfilePickGroups } from '@/lib/profile/profilePickGroups';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
+import { isPickChannel } from '@/lib/items/pickChannel';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 import { OnePick } from '@/constants/onepick';
 
-const CHANNEL_LABELS: Record<string, string> = {
-  offline: '매장',
-  online: '온라인',
-  recipe: '레시피',
-};
 
 type Props = {
   picks: PickReadItem[];
@@ -99,7 +95,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                   <View style={styles.groupBody}>
                     {group.items.map((item) => {
                       const isFoodChannel = group.kind === 'channel';
-                      const channelLabel = isFoodChannel ? CHANNEL_LABELS[group.id] : undefined;
+                      const channel = isFoodChannel && isPickChannel(group.id) ? group.id : undefined;
                       const providerName = isFoodChannel
                         ? (group.id === 'recipe'
                           ? item.item?.creatorName ?? null
@@ -114,7 +110,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                         categoryName={isFoodChannel ? item.category?.name ?? '카테고리' : categoryWithChannels(item.category?.name ?? '카테고리', item.item?.channels)}
                         itemName={menuName}
                         providerName={providerName}
-                        channelLabel={channelLabel}
+                        channel={channel}
                         review={item.pick.oneLineReview}
                         imageUri={item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl}
                         itemId={item.item?.id}

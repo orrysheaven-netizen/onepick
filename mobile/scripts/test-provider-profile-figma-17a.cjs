@@ -21,7 +21,7 @@ assert.match(screen, /storeContent:[\s\S]*?maxWidth: 390[\s\S]*?minHeight: 720[\
 assert.match(screen, /query\.data\.brandLogoUrl \?/);
 assert.match(screen, /storeLogoPlaceholder:[\s\S]*?width: 64[\s\S]*?height: 64[\s\S]*?borderRadius: 20/);
 assert.match(screen, /로고\{"\\n"\}미등록/);
-assert.match(screen, /storeChannelBadge:[\s\S]*?height: 28[\s\S]*?paddingHorizontal: 9[\s\S]*?borderRadius: OnePickRadius\.full/);
+assert.match(screen, /<ChannelBadge channel=\{query\.data\.kind === 'offline_branch' \? 'offline' : 'online'\} \/>/, 'store identity uses the shared channel badge');
 assert.match(screen, /storeName: \{ \.\.\.OnePickType\.title/);
 assert.match(screen, /\[query\.data\.branchName, query\.data\.subtitle\]\.filter\(Boolean\)\.join\(' · '\)/);
 
