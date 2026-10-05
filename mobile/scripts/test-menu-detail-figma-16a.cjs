@@ -37,7 +37,8 @@ assert.ok(menuNameIndex >= 0 && providerIndex > menuNameIndex && reviewIndex > p
   'Figma 16A row order is menu → channel/provider → one-line review');
 assert.match(row, /personRow: \{ height: 36[\s\S]*?gap: 10/);
 assert.match(row, /body: \{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10 \}/);
-assert.match(row, /channelBadge:[\s\S]*?height: 28[\s\S]*?paddingHorizontal: 9[\s\S]*?borderRadius: OnePickRadius\.full/);
+assert.match(row, /\{channel \? <ChannelBadge channel=\{channel\} \/> : null\}/, 'channel uses the shared Foundations badge');
+assert.doesNotMatch(row, /channelBadge:/, 'no per-screen badge styles');
 assert.match(row, /review: \{ \.\.\.OnePickType\.body, color: OnePick\.textPrimary \}/);
 assert.match(row, /sharePick\(/);
 assert.match(row, /댓글/);

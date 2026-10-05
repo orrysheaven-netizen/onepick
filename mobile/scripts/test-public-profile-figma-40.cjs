@@ -22,7 +22,8 @@ assert.match(profile, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickR
 assert.match(profile, /publicPickRow:[\s\S]*?height: 94/);
 assert.match(profile, /publicPickCopy: \{ flex: 1, minWidth: 0, height: 82, gap: 3 \}/);
 assert.match(profile, /<PickPhoto[\s\S]*?size=\{62\}/);
-assert.match(profile, /publicPickBadge:[\s\S]*?paddingHorizontal: 9[\s\S]*?borderRadius: OnePickRadius\.full/);
+assert.match(profile, /publicPickTitleRow\}>\n\s*\{channel \? <ChannelBadge channel=\{channel\} \/> : null\}/, 'channel badge leads the title row (docs/channel-badge.md)');
+assert.doesNotMatch(profile, /publicPickBadge/, 'no per-screen channel colors');
 assert.doesNotMatch(profile, /<ProfilePickGroups/);
 assert.doesNotMatch(profile, /<SectionHeader/);
 assert.doesNotMatch(profile, /summaryCard/);

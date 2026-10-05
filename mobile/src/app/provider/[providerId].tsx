@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StateCard } from '@/components/ui';
+import { ChannelBadge, StateCard } from '@/components/ui';
 import { useBrandBranches, useBrandProfile, useProviderProfile } from '@/hooks/useProviderProfile';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
@@ -139,7 +139,7 @@ export default function ProviderProfileScreen() {
               </View>
             )}
             <View style={styles.storeNameRow}>
-              <View style={styles.storeChannelBadge}><Text style={styles.storeChannelText}>{query.data.channelLabel}</Text></View>
+              <ChannelBadge channel={query.data.kind === 'offline_branch' ? 'offline' : 'online'} />
               <Text numberOfLines={1} style={styles.storeName}>{query.data.name}</Text>
             </View>
             {query.data.branchName || query.data.subtitle ? (
@@ -236,14 +236,6 @@ const styles = StyleSheet.create({
   },
   storeLogoPlaceholderText: { ...OnePickType.caption, width: 56, color: OnePick.textSecondary, textAlign: 'center' },
   storeNameRow: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7 },
-  storeChannelBadge: {
-    height: 28,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: OnePickRadius.full,
-    backgroundColor: OnePick.bgPlaceholder,
-  },
-  storeChannelText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   storeName: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
   storeLocation: { ...OnePickType.caption, color: OnePick.muted, textAlign: 'center' },
   storeLinks: { alignItems: 'flex-start', gap: 9 },
@@ -281,8 +273,6 @@ const styles = StyleSheet.create({
   brandLogo: { width: 72, height: 72, marginBottom: 12 },
   more: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, maxWidth: '100%' },
-  channelBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: OnePickRadius.pill, backgroundColor: OnePick.accentSoft },
-  channelText: { ...OnePickType.captionMedium, color: OnePick.text },
   title: { ...OnePickType.pageTitle, color: OnePick.text, flexShrink: 1 },
   branch: { ...OnePickType.bodyMedium, color: OnePick.text, marginTop: 6 },
   subtitle: { ...OnePickType.caption, color: OnePick.muted, marginTop: 4, textAlign: 'center' },

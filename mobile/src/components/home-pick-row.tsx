@@ -2,14 +2,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar } from '@/components/ui';
+import { Avatar, ChannelBadge } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
-import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
  * One current Pick in the Home / full feed (Figma 30-1, 30-1D):
- * photo | profile + flag, [매장] store (bold) menu, one-line review.
+ * photo | profile + flag, [오프라인] store (bold) menu, one-line review.
  * No comments/share on Home; the row opens the item and the person opens their profile.
  * Every feed row is a current Pick, so the flag is always shown.
  */
@@ -23,7 +22,6 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
   onOpenProvider?: () => void;
 }) {
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
-  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
   // Store/online items are named for their provider; the menu is the category.
   const providerName = channel === 'offline' || channel === 'online' ? pick.name : undefined;
   const menuName = channel ? pick.categoryName : pick.name;
@@ -46,7 +44,7 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
       <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
         <View style={styles.titleRow}>
-          {channelLabel ? <View style={styles.badge}><Text style={styles.badgeText}>{channelLabel}</Text></View> : null}
+          {channel ? <ChannelBadge channel={channel} /> : null}
           <Text numberOfLines={1} style={styles.title}>
             {providerName ? <Text style={styles.provider} {...(onOpenProvider ? { accessibilityRole: 'link' as const,
               onPress: (event: { stopPropagation?: () => void }) => { event?.stopPropagation?.(); onOpenProvider(); } } : {})}>{providerName} </Text> : null}
@@ -68,8 +66,6 @@ const styles = StyleSheet.create({
   username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
   body: { gap: 4 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
-  badgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
   title: { flex: 1, minWidth: 0, color: OnePick.textPrimary },
   provider: { ...OnePickType.headline, color: OnePick.textPrimary },
   menu: { ...OnePickType.body, fontSize: 16, color: OnePick.textPrimary },

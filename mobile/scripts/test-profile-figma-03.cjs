@@ -18,7 +18,8 @@ assert.match(profile, /profileBody: \{ minHeight: 724, paddingTop: 10, gap: OneP
 assert.match(profile, /currentPickRow:[\s\S]*?height: 96/);
 assert.match(profile, /currentPickCopy: \{ flex: 1, minWidth: 0, height: 82, gap: 2 \}/);
 assert.match(profile, /profileScopeChip: \{ paddingHorizontal: 14 \}/);
-assert.match(profile, /currentPickBadge:[\s\S]*?paddingHorizontal: 9/);
+assert.match(profile, /currentPickTitleRow\}>\n\s*\{channel \? <ChannelBadge channel=\{channel\} \/> : null\}/, 'channel badge leads the title row (docs/channel-badge.md)');
+assert.doesNotMatch(profile, /currentPickBadge/, 'no per-screen channel colors');
 assert.doesNotMatch(profile, /Platform\.OS === 'web' \|\| profileQuery\.isRefetchError/, 'healthy web refresh must not occupy the Figma 03 header');
 assert.match(profile, /Platform\.OS === 'web' && !profileQuery\.isRefetchError \? <Button variant="ghost" size="sm"/, 'healthy web refresh is preserved below the primary viewport');
 assert.doesNotMatch(profile, /<ProfilePickGroups/);

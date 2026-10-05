@@ -186,8 +186,8 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /새로 고름|9\/21|2시간/, 'Home keeps Pick ordering but never renders time/status text');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
   assert.ok(page.indexOf('@friend') < page.indexOf('진라면'), 'Person comes before the provider/menu content');
-  assert.match(page, />매장</, 'Feed cards use the short 매장 channel badge');
-  assert.match(page, />매장</, 'Offline cards keep the short 매장 badge');
+  assert.match(page, />오프라인</, 'Offline cards use the shared 오프라인 channel badge (docs/channel-badge.md)');
+  assert.doesNotMatch(page, />매장</, 'Badge copy is 오프라인/온라인, not 매장');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');

@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar } from '@/components/ui';
+import { Avatar, ChannelBadge } from '@/components/ui';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
-import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
+import { OnePick, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { sharePick } from '@/lib/share/sharePick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -27,7 +26,6 @@ export function MenuDetailPickCard({
   const [sharing, setSharing] = useState(false);
   const [shareNotice, setShareNotice] = useState<'copied' | 'error' | null>(null);
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
-  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
   const providerName = channel === 'offline' || channel === 'online' ? pick.name : undefined;
   const menuName = pick.categoryName || pick.name;
   const contentName = providerName ? `${providerName} ${menuName}` : menuName;
@@ -68,7 +66,7 @@ export function MenuDetailPickCard({
         <View style={styles.copy}>
           <Text numberOfLines={1} style={styles.menuName}>{menuName}</Text>
           <View style={styles.providerRow}>
-            {channelLabel ? <View style={styles.channelBadge}><Text style={styles.channelBadgeText}>{channelLabel}</Text></View> : null}
+            {channel ? <ChannelBadge channel={channel} /> : null}
             {providerName ? (pick.providerId && onOpenProvider ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`${providerName} 제공처 프로필 보기`}
                 onPress={(event) => { event.stopPropagation(); onOpenProvider(); }}
@@ -117,14 +115,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0, gap: 3 },
   menuName: { ...OnePickType.headline, color: OnePick.textPrimary },
   providerRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
-  channelBadge: {
-    height: 28,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: OnePickRadius.full,
-    backgroundColor: OnePick.bgPlaceholder,
-  },
-  channelBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   providerAction: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   providerName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
   providerArrow: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },

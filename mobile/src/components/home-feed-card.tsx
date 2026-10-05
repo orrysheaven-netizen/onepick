@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { PickCard } from '@/components/ui';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickType } from '@/constants/onepick';
-import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import { sharePick } from '@/lib/share/sharePick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -30,7 +29,6 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
   const [sharing, setSharing] = useState(false);
   const [shareNotice, setShareNotice] = useState<'copied' | 'error' | null>(null);
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
-  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
 
   // Store/online provider items are named for their provider. Recipe videos need
   // creator_name in the feed read model before we can show a source name without
@@ -61,7 +59,7 @@ export function HomeFeedCard({ pick, mine, menuContext = false, onOpenItem, onOp
   };
 
   return <PickCard
-    channelLabel={channelLabel}
+    channel={channel}
     providerName={providerName}
     itemName={menuName}
     menuContext={menuContext}

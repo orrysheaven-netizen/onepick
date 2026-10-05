@@ -4,6 +4,7 @@ export { BrandMark } from './brand-mark';
 export { Button } from './button';
 export type { ButtonSize, ButtonVariant } from './button';
 export { Chip } from './chip';
+export { ChannelBadge, CHANNEL_BADGE_LABELS } from './channel-badge';
 export { PickCard } from './pick-card';
 export { SectionHeader } from './section-header';
 export { StateCard } from './state-card';
