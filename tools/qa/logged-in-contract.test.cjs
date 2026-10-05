@@ -54,6 +54,25 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await set('<button>내 댓글 보기</button>');
       await assert.rejects(api.openOwnComments(page, timeout));
     });
+    await t.test('home search follows the dialog contract and scopes results to the dialog', async () => {
+      await set(`<button aria-label="메뉴 검색" onclick="document.getElementById('search-dialog').hidden=false">열기</button>
+        <button aria-label="홈 카드 상세 보기">홈 카드</button>
+        <div id="search-dialog" hidden>
+          <h2>어떤 메뉴를 찾으세요?</h2>
+          <input aria-label="메뉴명">
+          <button onclick="window.searched=true">검색</button>
+          <button aria-label="라면 상세 보기" onclick="history.pushState({}, '', '/item/ramen')">라면</button>
+        </div>`);
+      await api.openHomeSearch(page, timeout);
+      const results = await api.submitHomeSearch(page, '라면', timeout);
+      assert.equal(await page.getByRole('textbox', { name: '메뉴명' }).inputValue(), '라면');
+      assert.equal(await page.evaluate(() => window.searched), true);
+      assert.equal(await results.count(), 1, 'Home cards behind the modal are not search results');
+      await results.first().click();
+      await page.waitForURL(/\/item\/ramen$/);
+      await set('<input aria-label="항목명 검색"><button>검색 실행</button>');
+      await assert.rejects(api.openHomeSearch(page, timeout));
+    });
     const menu = (label, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><button onclick="window.selected=true">${label}</button><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
     await t.test('menu supports plain/group names, default AI path, and trial-only Next', async () => {
       for (const label of ['도가니탕', '국물 › 도가니탕', 'AI 추천 도가니탕']) {
@@ -78,8 +97,10 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         await set(`<h1>알림</h1><button>새로고침</button><button>${row}</button>`);
         assert.equal(await api.assertNotifications(page, timeout), 1);
       }
-      await set('<h1>알림</h1><button>새로고침</button><div>아직 알림이 없어요</div>');
-      assert.equal(await api.assertNotifications(page, timeout), 0);
+      for (const emptyCopy of ['아직 알림이 없어요.', '아직 알림이 없어요']) {
+        await set(`<h1>알림</h1><button>새로고침</button><div>${emptyCopy}</div>`);
+        assert.equal(await api.assertNotifications(page, timeout), 0);
+      }
       await set('<h1>알림</h1><button>로그인</button>');
       await assert.rejects(api.assertNotifications(page, timeout), /비로그인/);
       await set('<h1>알림</h1><button>새로고침</button><div>알림을 불러오고 있어요.</div>');
