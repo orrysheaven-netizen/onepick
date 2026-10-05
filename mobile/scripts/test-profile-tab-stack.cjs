@@ -50,8 +50,8 @@ assert.match(publicSource, /PanResponder\.create/);
 assert.match(publicSource, /onMoveShouldSetPanResponderCapture/);
 assert.match(publicSource, /!connectionDirection[\s\S]*?gesture\.x0 <= 32/);
 assert.match(publicSource, /connectionDirection \|\| gesture\.dx < 72 \|\| gesture\.vx <= 0/);
-assert.match(publicSource, /if \(returnHref\) router\.dismissTo\(returnHref\);[\s\S]*?else router\.replace\('\/'\);/,
-  'Cold public-profile swipe falls back Home while internal origins dismiss to their validated route');
+assert.match(publicSource, /if \(returnHref\) router\.dismissTo\(returnHref\);[\s\S]*?else goBack\(\);/,
+  'Swipe without returnTo follows header back: pop app history, else fall back Home');
 assert.match(publicSource, /\.\.\.swipeBackResponder\.panHandlers/);
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');

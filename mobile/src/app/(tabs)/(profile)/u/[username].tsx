@@ -170,7 +170,7 @@ export default function PublicProfileScreen() {
     onPanResponderRelease: (_, gesture) => {
       if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
       if (returnHref) router.dismissTo(returnHref);
-      else router.replace('/');
+      else goBack();
     },
   }), [connectionDirection, returnHref, router]);
 
