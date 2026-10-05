@@ -6,12 +6,21 @@ const { load, screen, names } = require('./mvp-screen-harness.cjs');
 const constants = load('constants/onepick.ts', { './font-family': load('constants/font-family.ts') });
 const tree = load('lib/categories/categoryTree.ts');
 const early = load('lib/home/earlyHome.ts');
+const queryKeysModule = load('lib/query/queryKeys.ts');
 const notice = load('lib/home/firstPickNotice.ts');
 let passed = 0;
 // Values built inside the vm context carry another realm's prototypes; compare plain data.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const deepEq = (actual, expected, message) => assert.deepEqual(plain(actual), plain(expected), message);
-function test(name, run) { run(); passed++; console.log(`PASS ${name}`); }
+const asyncTests = [];
+function test(name, run) {
+  const result = run();
+  if (result && typeof result.then === 'function') {
+    asyncTests.push(result.then(() => { passed++; console.log(`PASS ${name}`); }));
+    return;
+  }
+  passed++; console.log(`PASS ${name}`);
+}
 
 // ---- Catalog: food › 면류 › {라면, 냉면, 칼국수}, food › 내장류 › {곱창, 막창, 대창}, culture › 영화 --
 const cat = (id, parentId, name, sortOrder, isPickable = true) =>
@@ -116,32 +125,131 @@ test('Unread replies: 0, 1, many; latest destination; other kinds untouched', ()
   assert.equal(many.target.groupId, 'c2', 'Only that group is handed to the read contract');
 });
 
-test('First-Pick handoff: one viewer, one Pick, consumed once', () => {
+test('First-Pick handoff: one viewer, one Pick, consumed once; unknown pre-save state never arms', () => {
   assert.equal(notice.peekFirstPickNotice('me'), null);
-  notice.armFirstPickNotice('me', 'p1');
+  notice.armFirstPickNotice('me', 'p1', []);
   assert.equal(notice.peekFirstPickNotice('someone'), null, 'Another account never sees it');
-  assert.equal(notice.peekFirstPickNotice('me'), 'p1');
+  deepEq(notice.peekFirstPickNotice('me'), { pickId: 'p1', priorPicks: [] });
   assert.equal(notice.consumeFirstPickNotice('me', 'other'), false);
   assert.equal(notice.consumeFirstPickNotice('me', 'p1'), true);
   assert.equal(notice.peekFirstPickNotice('me'), null, 'Consumed: never replayed');
+  for (const unknown of [undefined, null]) {
+    notice.armFirstPickNotice('me', 'p2', unknown);
+    assert.equal(notice.peekFirstPickNotice('me'), null, 'Pre-save count unknown → not armed (never assumed 0)');
+  }
+  notice.armFirstPickNotice('me', 'p3', []);
+  notice.armFirstPickNotice('me', 'p4', undefined);
+  assert.equal(notice.peekFirstPickNotice('me'), null, 'A later save with unknown state clears an older handoff');
 });
 
-test('Only successful saves arm the handoff (cancel/failure never reach onSuccess)', () => {
+test('R1 · first Pick is only a 0 → 1 transition (replace 1→1, add 1→2, repeat save, unknown → no)', () => {
+  const old = row('me', 'ramen', '2026-10-01T00:00:00Z', { id: 'old' });
+  const fresh = row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'fresh' });
+  const second = row('me', 'gopchang', '2026-10-06T00:00:00Z', { id: 'second' });
+  assert.equal(early.firstPickTransition([], [fresh], 'fresh'), true, '0 → 1 first save');
+  assert.equal(early.firstPickTransition([old], [fresh], 'fresh'), false, '1 → 1 replacement in the same menu');
+  assert.equal(early.firstPickTransition([old], [old, second], 'second'), false, '1 → 2 addition');
+  assert.equal(early.firstPickTransition([fresh], [fresh], 'fresh'), false, 'Repeated save of the current Pick');
+  assert.equal(early.firstPickTransition(null, [fresh], 'fresh'), false, 'Unknown pre-save state');
+  assert.equal(early.firstPickTransition(undefined, [fresh], 'fresh'), false);
+  assert.equal(early.firstPickTransition([], [fresh], 'other'), false, 'A different saved Pick');
+  assert.equal(early.firstPickTransition([], [], 'fresh'), false, 'Refreshed list not in yet');
+});
+
+test('R1 · pre-save Picks come only from a settled, valid Home context cache', () => {
+  const picks = [row('me', 'ramen', '2026-10-01T00:00:00Z', { id: 'old' })];
+  const q = (queryKey, state) => ({ queryKey, state: { status: 'success', isInvalidated: false, fetchStatus: 'idle', data: { currentPicks: picks }, ...state } });
+  const cache = (queries) => ({ getQueryCache: () => ({ findAll: ({ queryKey }) => queries.filter((x) => x.queryKey[0] === queryKey[0]) }) });
+  const ok = notice.captureTrustedCurrentPicks(cache([q(['home', 'me', 'context', 'offline', 'food'])]));
+  deepEq(ok.get('me').map((r) => r.pick.id), ['old']);
+  for (const [label, state] of [['invalidated', { isInvalidated: true }], ['refetching', { fetchStatus: 'fetching' }],
+    ['error', { status: 'error' }], ['pending', { status: 'pending', data: undefined }]]) {
+    assert.equal(notice.captureTrustedCurrentPicks(cache([q(['home', 'me', 'context', 'all', 'x'], state)])).has('me'), false, `${label} cache is not trusted`);
+  }
+  const others = notice.captureTrustedCurrentPicks(cache([
+    q(['home', 'public', 'context', 'all', 'x']), q(['home', 'me', 'participants']), q(['home', 'menu-ranking', 'all', 'all']),
+  ]));
+  assert.equal(others.size, 0, 'Only signed-in Home context entries count');
+  deepEq([...queryKeysModule.queryKeys.home.data('me'), notice.HOME_CONTEXT_KEY.segment], [notice.HOME_CONTEXT_KEY.root, 'me', 'context'],
+    'Key shape matches queryKeys.home.data');
+  assert.match(require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/hooks/useHomeData.ts'), 'utf8'),
+    /queryKey: \[\.\.\.queryKeys\.home\.data\(userId\), 'context'/, 'useHomeData still caches currentPicks under that key');
+  const empty = notice.captureTrustedCurrentPicks(cache([q(['home', 'me', 'context', 'all', 'x'], { data: { currentPicks: [] } })]));
+  deepEq(empty.get('me'), [], 'A settled empty list is a known zero');
+});
+
+test('Only successful saves arm the handoff, with the pre-save list captured before the save', () => {
   const armed = [];
+  let cacheState = new Map([['me', ['before']]]);
   const imports = {
     '@tanstack/react-query': { useMutation: (options) => options, useQuery: () => ({}), useQueryClient: () => ({}) },
-    '@/lib/query/invalidatePickData': { invalidatePickData: () => {} },
-    '@/lib/home/firstPickNotice': { armFirstPickNotice: (userId, pickId) => armed.push(`${userId}:${pickId}`) },
+    '@/lib/query/invalidatePickData': { invalidatePickData: () => { cacheState = new Map(); } },
+    '@/lib/home/firstPickNotice': {
+      captureTrustedCurrentPicks: () => cacheState,
+      armFirstPickNotice: (userId, pickId, prior) => armed.push(`${userId}:${pickId}:${prior === undefined || prior === null ? 'unknown' : prior.join('|') || 'none'}`),
+    },
     '@/services': { pickService: {}, registrationService: {}, observabilityService: { captureProductEvent: async () => {} } },
   };
   const register = load('hooks/useRegisterPick.ts', imports);
   const choose = load('hooks/useChoosePick.ts', imports);
-  register.useRegisterItemPick().onSuccess({ pickId: 'p-store', itemId: 'i' }, { userId: 'me', categoryId: 'ramen' });
-  register.useRegisterPick().onSuccess({ type: 'pick', pick: { id: 'p-reg', userId: 'me', itemId: 'i', categoryId: 'ramen' } });
-  register.useRegisterPick().onSuccess({ type: 'pending_item', item: { id: 'pending' } });
-  choose.useChoosePick().onSuccess({ id: 'p-choose', userId: 'me', itemId: 'i', categoryId: 'ramen' });
-  deepEq(armed, ['me:p-store', 'me:p-reg', 'me:p-choose'], 'Pending item requests and errors never arm completion');
+  const storeInput = { userId: 'me', categoryId: 'ramen' };
+  const storeCtx = register.useRegisterItemPick().onMutate(storeInput);
+  register.useRegisterItemPick().onSuccess({ pickId: 'p-store', itemId: 'i' }, storeInput, storeCtx);
+  cacheState = new Map([['me', []]]);
+  const regCtx = register.useRegisterPick().onMutate({ userId: 'me' });
+  register.useRegisterPick().onSuccess({ type: 'pick', pick: { id: 'p-reg', userId: 'me', itemId: 'i', categoryId: 'ramen' } }, { userId: 'me' }, regCtx);
+  register.useRegisterPick().onSuccess({ type: 'pending_item', item: { id: 'pending' } }, { userId: 'me' }, regCtx);
+  cacheState = new Map([['me', []]]);
+  const chooseCtx = choose.useChoosePick().onMutate({ categoryId: 'ramen', itemId: 'i', oneLineReview: 'x' });
+  choose.useChoosePick().onSuccess({ id: 'p-choose', userId: 'me', itemId: 'i', categoryId: 'ramen' }, {}, chooseCtx);
+  cacheState = new Map();
+  const unknownCtx = choose.useChoosePick().onMutate({});
+  choose.useChoosePick().onSuccess({ id: 'p-unknown', userId: 'me', itemId: 'i', categoryId: 'ramen' }, {}, unknownCtx);
+  deepEq(armed, ['me:p-store:before', 'me:p-reg:none', 'me:p-choose:none', 'me:p-unknown:unknown'],
+    'Pre-save state is passed through (captured before invalidation); pending items and errors never arm');
   assert.equal(typeof register.useRegisterItemPick().onError, 'undefined', 'No failure path arms it');
+});
+
+test('R2 · reply count is complete beyond the first 20 groups and never partial', async () => {
+  const filler = (n, kind = 'reply', unread = 0) => Array.from({ length: n }, (_, i) => group(`${kind}-${i}`, kind, unread, `2026-10-0${(i % 5) + 1}T00:00:00Z`));
+  const pager = (pages, total, failAt = -1) => {
+    const calls = { pages: 0 };
+    return { calls, source: {
+      unreadCount: async () => total,
+      page: async (cursor) => {
+        const index = cursor ?? 0;
+        calls.pages++;
+        if (index === failAt) throw new Error('page failed');
+        return { items: pages[index], nextCursor: index + 1 < pages.length ? index + 1 : null };
+      },
+    } };
+  };
+  // First 20 groups read or other kinds; the 21st is an unread comment with 2.
+  const deep = pager([filler(20, 'reply'), [group('c-21', 'comment', 2, '2026-09-01T00:00:00Z', 'pick-deep')]], 2);
+  const deepResult = await early.collectReplyBanner(deep.source);
+  assert.equal(deepResult.banner.count, 2, '21st group is counted');
+  assert.equal(deepResult.banner.target.pickId, 'pick-deep');
+  assert.equal(deep.calls.pages, 2);
+  // Other kinds unread up front: still reaches the comment group.
+  const mixed = pager([[...filler(19, 'pick_review', 1), group('f', 'fix_needed', 1, '2026-10-01T00:00:00Z')], [group('c', 'comment', 3, '2026-09-01T00:00:00Z')]], 23);
+  assert.equal((await early.collectReplyBanner(mixed.source)).banner.count, 3);
+  // Every unread event already accounted for on page 1 → no further pages.
+  const early1 = pager([[group('c', 'comment', 1, '2026-10-05T00:00:00Z'), ...filler(19)], filler(20)], 1);
+  assert.equal((await early.collectReplyBanner(early1.source)).banner.count, 1);
+  assert.equal(early1.calls.pages, 1, 'Stops as soon as the badge total is accounted for');
+  // Badge 0: no page read, exact zero from the server.
+  const zero = pager([filler(20)], 0);
+  deepEq(await early.collectReplyBanner(zero.source), { banner: null, unreadTotal: 0 });
+  assert.equal(zero.calls.pages, 0);
+  // Extra page fails: an error, never a partial "0".
+  await assert.rejects(() => early.collectReplyBanner(pager([filler(20), filler(1, 'comment', 1)], 1, 1).source), /page failed/);
+  // Bounded: more than maxPages without accounting for everything → incomplete error, not unlimited paging.
+  const endless = pager(Array.from({ length: 10 }, () => filler(20)), 5);
+  await assert.rejects(() => early.collectReplyBanner(endless.source), (error) => error.name === 'ReplyBannerIncompleteError');
+  assert.equal(endless.calls.pages, early.REPLY_BANNER_MAX_PAGES, 'Never pages past the bound');
+  // List ends before the (newer) badge total is reached: the whole list was read → complete.
+  const ended = pager([[group('c', 'comment', 1, '2026-10-05T00:00:00Z')]], 4);
+  assert.equal((await early.collectReplyBanner(ended.source)).banner.count, 1);
 });
 
 // Repository: the settings read must not name an undeployed column (PR #777 preview QA saw a 400).
@@ -193,7 +301,7 @@ const sections = load('components/home-early-sections.tsx', {
 function home(options = {}) {
   const {
     user = { id: 'me' }, counts = countsOf({ ramen: 3 }), question = 'naengmyeon', currentPicks = [], participants = [],
-    groups = [], countsQuery, questionQuery, participantsComplete = true,
+    groups = [], countsQuery, questionQuery, participantsComplete = true, replyQuery, badge,
   } = options;
   const calls = { routes: [], shares: [] };
   const view = screen('app/(tabs)/index.tsx', {
@@ -209,7 +317,15 @@ function home(options = {}) {
     },
     '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
-    '@/hooks/useNotifications': { useNotifications: (userId, enabled) => { calls.notifications = { userId, enabled }; return query(enabled ? { pages: [{ items: groups }] } : undefined); } },
+    '@/hooks/useNotifications': {
+      useHomeReplyBanner: (userId, enabled) => {
+        calls.replies = { userId, enabled };
+        const unreadTotal = groups.reduce((sum, g) => sum + g.unread_count, 0);
+        const result = replyQuery ?? query(enabled ? { banner: early.replyBanner(groups), unreadTotal } : undefined);
+        return { ...result, refetch: () => { calls.replyRefetch = (calls.replyRefetch ?? 0) + 1; return Promise.resolve(); } };
+      },
+      useNotificationCount: (userId, enabled) => { calls.badge = { userId, enabled }; return query(enabled ? badge : undefined); },
+    },
     '@/lib/categories/categoryTree': tree,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => [], filterHomeFeedByCategory: (items) => items },
@@ -281,7 +397,7 @@ test('First Pick: success shows the completion line once; cancel/failure never d
   const first = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'new-1' })];
   const cancelled = home({ currentPicks: [] });
   assert.match(cancelled.text(), /첫 원픽을 남겨보세요/, 'Cancelled registration (no save) keeps the 0-Pick line');
-  notice.armFirstPickNotice('me', 'new-1');
+  notice.armFirstPickNotice('me', 'new-1', []);
   const shown = home({ currentPicks: first });
   shown.view.flushEffects(); shown.view.render();
   assert.match(shown.text(), /원픽 완료 · 친구에게 공유하기/, 'Just after the first successful save');
@@ -293,11 +409,28 @@ test('First Pick: success shows the completion line once; cancel/failure never d
   assert.match(shown.text(), /내 원픽 1개 · 다른 원픽 남기기/);
   const again = home({ currentPicks: first }); again.view.flushEffects(); again.view.render();
   assert.doesNotMatch(again.text(), /원픽 완료/, 'Never shown a second time');
-  notice.armFirstPickNotice('me', 'new-2');
+  notice.armFirstPickNotice('me', 'new-2', first);
   const notFirst = home({ currentPicks: [...first, row('me', 'gopchang', '2026-10-06T01:00:00Z', { id: 'new-2' })] });
   notFirst.view.flushEffects(); notFirst.view.render();
   assert.doesNotMatch(notFirst.text(), /원픽 완료/, 'A second Pick is not a first Pick');
   assert.equal(notice.peekFirstPickNotice('me'), null);
+});
+
+test('R1 · replacing the only Pick (1→1) or an unknown pre-save state never shows completion', () => {
+  const old = row('me', 'ramen', '2026-10-01T00:00:00Z', { id: 'old' });
+  const replacement = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'replacement' })];
+  notice.armFirstPickNotice('me', 'replacement', [old]);
+  const replaced = home({ currentPicks: replacement }); replaced.view.flushEffects(); replaced.view.render();
+  assert.doesNotMatch(replaced.text(), /원픽 완료/, '1 → 1 replacement');
+  assert.match(replaced.text(), /내 원픽 1개 · 다른 원픽 남기기/);
+  assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed (ruled out)');
+  // An old out-of-scope Pick (another menu set) does not make a new in-scope Pick "not first".
+  notice.armFirstPickNotice('me', 'replacement', [row('me', 'movie', '2026-10-01T00:00:00Z', { id: 'film' })]);
+  const outside = home({ currentPicks: replacement }); outside.view.flushEffects(); outside.view.render();
+  assert.match(outside.text(), /원픽 완료/, 'Only Home’s scope counts toward 0 → 1');
+  notice.armFirstPickNotice('me', 'replacement', undefined);
+  const unknown = home({ currentPicks: replacement }); unknown.view.flushEffects(); unknown.view.render();
+  assert.doesNotMatch(unknown.text(), /원픽 완료/, 'Unknown pre-save state');
 });
 
 test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
@@ -322,9 +455,33 @@ test('Reply banner: 0 hidden, 1 and many route to the latest group with read par
   } }, 'Same destination + per-group snapshot the notifications tab uses; nothing else is marked read');
 });
 
+test('R2 · unknown or incomplete reply count hides the banner instead of claiming 0', () => {
+  const failed = home({ replyQuery: query(undefined, { isError: true, isPending: false }) });
+  assert.doesNotMatch(failed.text(), /새 답글/);
+  const deep = home({ replyQuery: query({ banner: { count: 2, target: { groupId: 'c-21', snapshot: 's', pickId: 'pick-deep' } }, unreadTotal: 2 }) });
+  assert.match(deep.text(), /내 원픽에 새 답글 2개/, 'Banner comes from the complete count, not the inbox tab cache');
+});
+
+test('R3 · refresh and a moved badge refetch the reply banner (signed in)', () => {
+  const member = home({ groups: [group('c1', 'comment', 1, '2026-10-05T00:00:00Z')], badge: 1 });
+  member.view.flushEffects();
+  assert.equal(member.calls.replyRefetch, undefined, 'Badge unchanged → no extra request');
+  member.view.find('RefreshControl').onRefresh();
+  assert.equal(member.calls.replyRefetch, 1, 'Explicit Home refresh includes the reply banner');
+  const moved = home({ groups: [group('c1', 'comment', 1, '2026-10-05T00:00:00Z')], badge: 3 });
+  moved.view.flushEffects();
+  assert.equal(moved.calls.replyRefetch, 1, 'New unread events on the polled badge refresh the banner');
+  const readElsewhere = home({ groups: [group('c1', 'comment', 1, '2026-10-05T00:00:00Z')], badge: 0 });
+  readElsewhere.view.flushEffects();
+  assert.equal(readElsewhere.calls.replyRefetch, 1, 'Read on another device (badge dropped) refreshes it too');
+});
+
 test('Signed-out Home: no reply/invite, question still asks, login handled by registration', () => {
   const guest = home({ user: null });
-  assert.equal(guest.calls.notifications.enabled, false, 'Notifications are never queried signed out');
+  assert.equal(guest.calls.replies.enabled, false, 'Replies are never queried signed out');
+  assert.equal(guest.calls.badge.enabled, false);
+  guest.view.find('RefreshControl').onRefresh();
+  assert.equal(guest.calls.replyRefetch, undefined, 'Signed-out refresh never requests notifications');
   assert.doesNotMatch(guest.text(), /새 답글|친구 초대 링크/);
   assert.match(guest.text(), /당신의 냉면 원픽은\?/);
   assert.match(guest.text(), /첫 원픽을 남겨보세요/);
@@ -364,6 +521,6 @@ test('Feed card keeps offline Store Badge and online label', () => {
   assert.ok(JSON.stringify(online.map((n) => n.props?.children)).includes('온라인'), 'Online card keeps its text label');
 });
 
-repositoryChecks().then(() => {
+Promise.all(asyncTests).then(repositoryChecks).then(() => {
   console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);
 }).catch((error) => { console.error(error); process.exitCode = 1; });

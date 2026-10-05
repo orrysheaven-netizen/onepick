@@ -82,7 +82,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/home-early-sections': load('components/home-early-sections.tsx', {
     'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': onepickConstants,
   }),
-  '@/hooks/useNotifications': { useNotifications: () => emptyQuery(undefined) },
+  '@/hooks/useNotifications': { useHomeReplyBanner: () => emptyQuery(undefined), useNotificationCount: () => emptyQuery(undefined) },
   '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') }),
   '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
   '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),

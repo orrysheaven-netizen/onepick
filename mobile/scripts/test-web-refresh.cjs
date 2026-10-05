@@ -47,7 +47,7 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]),
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
-    '@/hooks/useNotifications': { useNotifications: () => query(undefined) },
+    '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },

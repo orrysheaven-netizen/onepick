@@ -35,7 +35,7 @@ function home(count = 20, followingCount = 0) {
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]),
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
-    '@/hooks/useNotifications': { useNotifications: () => query(undefined) },
+    '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/components/home-early-sections': names('HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus'),
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),

@@ -13,11 +13,11 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories, useFoodMenuPickCounts } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useDailyQuestionCategory, useHomeData, useHomeItemRanking, useHomeParticipantPicks } from '@/hooks/useHomeData';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useHomeReplyBanner, useNotificationCount } from '@/hooks/useNotifications';
 import { browseScope } from '@/lib/categories/browseScope';
 import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import {
-  earlyHomeDiscovery, homeParticipants, myQuestionAnswer, myScopedPicks, questionFooter, replyBanner,
+  earlyHomeDiscovery, firstPickTransition, homeParticipants, myQuestionAnswer, myScopedPicks, questionFooter,
   showParticipants, totalPickCount, unpickedCategories,
 } from '@/lib/home/earlyHome';
 import { consumeFirstPickNotice, peekFirstPickNotice } from '@/lib/home/firstPickNotice';
@@ -113,18 +113,28 @@ export default function HomeScreen() {
   const participantsQuery = useHomeParticipantPicks(user?.id, homeEnabled);
   const people = useMemo(() => participantsQuery.data?.complete
     ? homeParticipants(participantsQuery.data.rows, menuIds, mvpChannel) : [], [participantsQuery.data, menuIds, mvpChannel]);
-  // Unread replies on the viewer's Picks come from the inbox's own grouped notifications.
-  const notificationsQuery = useNotifications(user?.id, homeEnabled && Boolean(user));
-  const banner = useMemo(() => replyBanner(notificationsQuery.data?.pages.flatMap((page) => page.items) ?? []), [notificationsQuery.data]);
+  // Unread replies on the viewer's Picks: a complete count from the inbox's own grouped
+  // notifications, read independently of the inbox tab's pages. Unknown/incomplete → hidden.
+  const replyUserId = homeEnabled ? user?.id : undefined;
+  const replyBannerQuery = useHomeReplyBanner(replyUserId, Boolean(replyUserId));
+  const banner = replyBannerQuery.data?.banner ?? null;
+  // The tab badge already polls the unread total; when it moves, the banner is out of date.
+  const unreadBadge = useNotificationCount(replyUserId, Boolean(replyUserId)).data;
+  useEffect(() => {
+    if (!replyUserId || unreadBadge === undefined || !replyBannerQuery.data || replyBannerQuery.isFetching) return;
+    if (unreadBadge !== replyBannerQuery.data.unreadTotal) void replyBannerQuery.refetch({ cancelRefetch: false });
+  }, [replyUserId, unreadBadge, replyBannerQuery.data?.unreadTotal]);
   // "원픽 완료 · 친구에게 공유하기" appears once, right after a successful first save.
   const [firstPickNoticeId, setFirstPickNoticeId] = useState<string | null>(null);
   const myPickIds = myPicks.map(({ pick }) => pick.id).join(',');
   useEffect(() => {
     const pending = peekFirstPickNotice(user?.id);
     if (!pending || !data) return;
-    if (!myPicks.some(({ pick }) => pick.id === pending)) return; // wait for the refreshed list
-    consumeFirstPickNotice(user?.id, pending);
-    if (myPicks.length === 1) setFirstPickNoticeId(pending);
+    if (!myPicks.some(({ pick }) => pick.id === pending.pickId)) return; // wait for the refreshed list
+    consumeFirstPickNotice(user?.id, pending.pickId);
+    // Only a 0 → 1 transition (pre-save state known) is a first Pick.
+    const priorScoped = myScopedPicks(pending.priorPicks, menuIds, mvpChannel);
+    if (firstPickTransition(priorScoped, myPicks, pending.pickId)) setFirstPickNoticeId(pending.pickId);
   }, [user?.id, myPickIds, Boolean(data)]);
   // Leaving Home after the line was on screen ends it.
   useFocusEffect(useCallback(() => {
@@ -168,6 +178,8 @@ export default function HomeScreen() {
     if (!menuCountsQuery.isFetching) void menuCountsQuery.refetch({ cancelRefetch: false });
     if (!questionQuery.isFetching) void questionQuery.refetch({ cancelRefetch: false });
     if (!participantsQuery.isFetching) void participantsQuery.refetch({ cancelRefetch: false });
+    // Signed in only: a disabled query's refetch() would still run for a signed-out viewer.
+    if (replyUserId && !replyBannerQuery.isFetching) void replyBannerQuery.refetch({ cancelRefetch: false });
     if (showFollowing) {
       if (!followingQuery.isFetching) void followingQuery.refetch({ cancelRefetch: false });
       return;

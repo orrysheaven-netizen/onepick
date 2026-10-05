@@ -62,6 +62,23 @@ export function myQuestionAnswer(scopedPicks: readonly PickReadItem[], questionC
   return scopedPicks.find(({ pick }) => pick.categoryId === questionCategoryId) ?? null;
 }
 
+/**
+ * First-Pick completion (#777 review R1): true only for a 0 → 1 transition in Home's scope —
+ * the pre-save list (known, see firstPickNotice) had no scoped Pick and the refreshed list holds
+ * exactly the saved Pick. Replacing a single Pick (1→1), adding one (1→2) and repeating a save of
+ * an already-current Pick are not first Picks. Unknown pre-save state is never treated as zero.
+ */
+export function firstPickTransition(
+  priorScopedPicks: readonly PickReadItem[] | null | undefined,
+  currentScopedPicks: readonly PickReadItem[],
+  savedPickId: string | null | undefined,
+) {
+  if (!priorScopedPicks || !savedPickId) return false;
+  return priorScopedPicks.length === 0
+    && currentScopedPicks.length === 1
+    && currentScopedPicks[0].pick.id === savedPickId;
+}
+
 export type QuestionFooter =
   | { kind: 'first-pick-done'; pick: PickReadItem }
   | { kind: 'none-yet' }
@@ -151,4 +168,61 @@ export function replyBanner(groups: readonly NotificationGroupRow[]): ReplyBanne
     count: unread.reduce((sum, group) => sum + group.unread_count, 0),
     target: { groupId: latest.group_id, snapshot: latest.snapshot, pickId: latest.target.pick_id! },
   };
+}
+
+/** Inbox pages (20 groups each) Home reads at most before giving up on a complete count. */
+export const REPLY_BANNER_MAX_PAGES = 5;
+
+export interface ReplyBannerSource<Cursor> {
+  /** Unread events of the whole visible inbox (`notification_unread_count`, the badge). */
+  unreadCount: () => Promise<number>;
+  page: (cursor: Cursor | null) => Promise<{ items: readonly NotificationGroupRow[]; nextCursor: Cursor | null }>;
+}
+
+export interface ReplyBannerResult {
+  banner: ReplyBanner | null;
+  /** The badge total this result was checked against; a different badge means it is out of date. */
+  unreadTotal: number;
+}
+
+export class ReplyBannerIncompleteError extends Error {
+  constructor() {
+    super('Unread replies could not be fully counted');
+    this.name = 'ReplyBannerIncompleteError';
+  }
+}
+
+/**
+ * Complete unread-reply count for Home (#777 review R2), independent of how far the inbox tab
+ * was scrolled. The grouped inbox lists exactly the events the badge counts, so once the loaded
+ * groups account for every unread event (or the list ends) no unread `comment` group can be
+ * further down. Pages are read only until then, at most `maxPages`; if that bound is reached, or
+ * a page fails, this throws instead of returning a partial count — a partial list is never
+ * reported as "no replies". Nothing here marks anything read.
+ */
+export async function collectReplyBanner<Cursor>(
+  source: ReplyBannerSource<Cursor>,
+  maxPages = REPLY_BANNER_MAX_PAGES,
+): Promise<ReplyBannerResult> {
+  const unreadTotal = Math.max(0, Number(await source.unreadCount()) || 0);
+  if (unreadTotal === 0) return { banner: null, unreadTotal };
+
+  const groups: NotificationGroupRow[] = [];
+  const seen = new Set<string>();
+  let accounted = 0;
+  let cursor: Cursor | null = null;
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+    const page = await source.page(cursor);
+    for (const group of page.items) {
+      if (seen.has(group.group_id)) continue;
+      seen.add(group.group_id);
+      groups.push(group);
+      accounted += Math.max(0, group.unread_count);
+    }
+    if (accounted >= unreadTotal || !page.nextCursor) {
+      return { banner: replyBanner(groups), unreadTotal };
+    }
+    cursor = page.nextCursor;
+  }
+  throw new ReplyBannerIncompleteError();
 }
