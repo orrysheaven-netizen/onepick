@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { AppError } from '@/errors/appError';
 import { useFollowActions, useFollowState } from '@/hooks/useFollow';
-import { OnePick, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
@@ -159,9 +159,9 @@ const styles = StyleSheet.create({
   textFollowing: { color: OnePick.muted },
   confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   confirmRowFullWidth: { alignSelf: 'stretch', justifyContent: 'flex-end' },
-  confirmAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: OnePick.danger },
+  confirmAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: OnePickRadius.md, borderWidth: 1, borderColor: OnePick.danger },
   confirmText: { color: OnePick.danger, fontSize: 12, fontWeight: '700' },
-  cancelAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10 },
+  cancelAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: OnePickRadius.md },
   cancelText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 6 },
   pressed: { opacity: 0.7 },
