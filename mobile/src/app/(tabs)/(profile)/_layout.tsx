@@ -1,6 +1,10 @@
 import { Stack } from 'expo-router';
 
-
 export default function ProfileTabStackLayout() {
-  return (\n    <Stack screenOptions={{ headerShown: false }}>\n      <Stack.Screen name=\"profile\" />\n      <Stack.Screen name=\"u/[username]\" options={{ gestureEnabled: false }} />\n    </Stack>\n  );
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="u/[username]" options={{ gestureEnabled: false }} />
+    </Stack>
+  );
 }
