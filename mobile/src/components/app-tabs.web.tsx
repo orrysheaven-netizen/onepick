@@ -64,7 +64,7 @@ function TabLink({ href, icon, label, active, unread = false }: { href: Href; ic
 }
 
 const styles = StyleSheet.create({
-  tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.background },
+  tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.bgDefault },
   slot: { flex: 1, minHeight: 0 },
   bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
