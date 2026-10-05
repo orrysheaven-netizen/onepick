@@ -7,7 +7,7 @@ function read(relative) {
 }
 
 const owner = read('src/app/(tabs)/(profile)/profile.tsx');
-const publicProfile = read('src/app/(tabs)/(profile)/u/[username].tsx');
+const publicProfile = read('src/app/u/[username].tsx');
 const aiComment = read('src/components/profile-ai-comment.tsx');
 
 const headerIndex = owner.indexOf('<View style={styles.profileHeader}>');
