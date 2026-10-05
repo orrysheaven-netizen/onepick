@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: main
           # Full history so the status table can compare each function's last

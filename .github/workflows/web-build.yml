@@ -38,7 +38,7 @@ jobs:
       # The gate script always comes from the base commit, never from the PR under
       # test, so a PR cannot rewrite the gate to skip its own required checks (#576 M1).
       - name: Checkout gate script (base commit)
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
@@ -101,7 +101,7 @@ jobs:
         run: echo "No relevant changes; heavy verify-web steps skipped."
       - name: Checkout
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup Node
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
