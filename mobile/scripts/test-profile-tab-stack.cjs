@@ -40,10 +40,10 @@ const itemDetail = read('src/app/item/[itemId].tsx');
 assert.ok(publicSource.includes('const { username, connections, returnTo } = useLocalSearchParams'));
 assert.ok(publicSource.includes('const returnHref = profileReturnHref(returnTo)'));
 assert.ok(publicSource.includes('useNavigation()'));
-assert.ok(publicSource.includes("navigation.addListener('beforeRemove'"),
-  'Native back subscribes to removal events');
-assert.ok(publicSource.includes('router.dismissTo(returnHref);'),
-  'Native back returns toward the real origin instead of stale nested Profile history');
+assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
+  'Native back/swipe stays owned by the native stack');
+assert.ok(!publicSource.includes('router.dismissTo(returnHref);'),
+  'Native swipe does not trigger a competing dismissal during the pop transition');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
