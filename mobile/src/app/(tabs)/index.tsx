@@ -18,7 +18,7 @@ import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 const HOME_FEED_LIMIT = 10;
 const HOME_MENU_LIMIT = 6;
-// Same candidate size as /popular's first rows, so both screens share one ordering.
+// Fetch enough candidates to select the six Home cards after exposure filtering.
 const HOME_RANKING_CANDIDATES = 20;
 
 export default function HomeScreen() {
@@ -183,11 +183,6 @@ export default function HomeScreen() {
         {ready ? <View style={styles.rankingSection}>
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
-              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
-            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
-              <Text style={styles.moreText}>더보기</Text>
-            </Pressable>
           </View>
           {itemRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {itemRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
