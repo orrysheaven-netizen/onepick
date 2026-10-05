@@ -110,7 +110,7 @@ async function main() {
     return saved;
   } };
   const native = {
-    View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+    View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,\n    PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
     StyleSheet: { create: (styles) => styles, absoluteFill: {} },
     Pressable: (p) => { buttons.push(p); return React.createElement('button', null, p.children); },
     TextInput: (p) => { input = p; return React.createElement('textarea', { value: p.value, readOnly: true }); },
