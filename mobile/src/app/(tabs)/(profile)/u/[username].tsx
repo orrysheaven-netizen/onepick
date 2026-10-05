@@ -162,18 +162,10 @@ export default function PublicProfileScreen() {
     router.replace(returnHref ?? '/');
   };
 
-  useEffect(() => {
-    if (!returnHref) return;
-    let unsubscribe: (() => void) | undefined;
-    unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      const actionType = event.data.action.type;
-      if (actionType !== 'GO_BACK' && actionType !== 'POP' && actionType !== 'POP_TO_TOP') return;
-      event.preventDefault();
-      unsubscribe?.();
-      router.dismissTo(returnHref);
-    });
-    return () => unsubscribe?.();
-  }, [navigation, returnHref, router]);
+  // Let the native stack own iOS swipe-back and Android back transitions.
+  // Intercepting native-stack removal with beforeRemove + preventDefault can
+  // desynchronize the native view controller from JS navigation state.
+  // Explicit header back still falls back to returnTo for cold/deep links.
   const openFollowLogin = (targetUsername: string) => {
     setLoginTargetUsername(targetUsername);
     setLoginSheetOpen(true);
