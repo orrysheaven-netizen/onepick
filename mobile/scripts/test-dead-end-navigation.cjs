@@ -37,12 +37,23 @@ assert.ok(!profile.includes("navigation.addListener('beforeRemove'"),
   'native stack back/swipe must not be intercepted with beforeRemove');
 assert.ok(!profile.includes('event.preventDefault()'),
   'native swipe-back must not cancel an in-flight native pop');
-assert.ok(profile.includes('router.dismissTo(returnHref);'),
-  'safe edge swipe restores the validated origin after its own gesture completes');
 assert.ok(profile.includes("router.replace(returnHref ?? '/');"),
   'cold public-profile links fall back Home when there is no app history');
 assert.ok(!profile.includes("const goBack = () => router.replace"),
   'public-profile header back must not always recreate the origin route');
 assert.match(profile, /onBlocked=\{goBack\}/);
+
+const appFrame = read('src/components/app-frame.tsx');
+assert.match(appFrame, /testID="global-swipe-back-edge"/,
+  'All non-admin web/PWA user screens inherit one global swipe edge from AppFrame');
+assert.match(appFrame, /Platform\.OS === 'web'/,
+  'Global JS edge handler is web/PWA-only; native stacks retain system gestures');
+assert.match(appFrame, /!router\.canGoBack\(\)/,
+  'Root/deep-link states with no real previous screen do not synthesize a swipe destination');
+assert.match(appFrame, /router\.back\(\)/,
+  'Global swipe returns to the real previous history entry');
+assert.match(appFrame, /onPanResponderTerminationRequest: \(\) => false/);
+assert.match(appFrame, /touchAction: 'pan-y'/);
+assert.match(appFrame, /width: EDGE_WIDTH/);
 
 console.log('dead-end navigation checks passed');
