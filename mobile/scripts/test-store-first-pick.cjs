@@ -172,7 +172,7 @@ async function main() {
   render(); // first render binds the account-owned draft scope
   page = render(); // next render may apply the validated entry prefill
   assert.equal(input('매장명 검색').value, '서울집 성수점');
-  assert.match(page, /보고 있던 매장을 선택해 두었어요/);
+  assert.match(page, /보고 있던 매장을 선택해 뒀어요/);
   assert.match(page, /서울집 · 성수점/);
   press('다음'); page = render();
   assert.equal(step(page), '2');
