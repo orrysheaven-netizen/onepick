@@ -30,6 +30,7 @@ where public.category_is_open_leaf(c.id)
 limit 1;
 
 select ok((select count(*)=1 from hdq_ids), 'fixture has an open food leaf');
+select set_config('test.hdq_food_leaf',(select id::text from hdq_ids where key='food_leaf'),true);
 
 insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at) values
   ('f1240000-0000-4000-8000-000000000001','authenticated','authenticated','hdq-admin@example.invalid','',now(),now()),
@@ -47,11 +48,11 @@ select set_config('request.jwt.claim.sub','f1240000-0000-4000-8000-000000000001'
 select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 
 update public.home_settings
-set daily_question_category_id=(select id from hdq_ids where key='food_leaf')
+set daily_question_category_id=current_setting('test.hdq_food_leaf')::uuid
 where id;
 select is(
   (select daily_question_category_id from public.home_settings where id),
-  (select id from hdq_ids where key='food_leaf'),
+  current_setting('test.hdq_food_leaf')::uuid,
   'AAL2 admin can store a valid open food leaf'
 );
 
@@ -68,13 +69,13 @@ select lives_ok(
 );
 select is(
   (select daily_question_category_id from public.home_settings where id),
-  (select id from hdq_ids where key='food_leaf'),
+  current_setting('test.hdq_food_leaf')::uuid,
   'ordinary user cannot change the setting'
 );
 
 reset role;
 
-delete from public.categories where id=(select id from hdq_ids where key='food_leaf');
+delete from public.categories where id=current_setting('test.hdq_food_leaf')::uuid;
 select is(
   (select daily_question_category_id from public.home_settings where id),
   null::uuid,
