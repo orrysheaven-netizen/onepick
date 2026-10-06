@@ -164,8 +164,10 @@ export default function PublicProfileScreen() {
   };
 
   const swipeBackResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 12 && Math.abs(gesture.dy) < 24,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.x0 <= 32
+      && gesture.dx > 12
+      && Math.abs(gesture.dy) < 24,
     onPanResponderTerminationRequest: () => false,
     onPanResponderRelease: (_, gesture) => {
       if (gesture.dx < 72 || gesture.vx <= 0) return;
