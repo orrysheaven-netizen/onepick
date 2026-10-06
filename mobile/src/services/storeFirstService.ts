@@ -50,6 +50,18 @@ export function isNaverMapUrl(value: string) {
   return url.length > 0 && url.length <= 2048 && !/\s/.test(url) && NAVER_MAP_URL.test(url);
 }
 
+/** Accept Naver's share text while keeping the existing URL allowlist as the trust boundary. */
+export function extractNaverMapUrl(value: string) {
+  const direct = value.trim();
+  if (isNaverMapUrl(direct)) return direct;
+  const candidates = value.match(/https:\/\/[^\s]+/gi) ?? [];
+  for (const candidate of candidates) {
+    const cleaned = candidate.replace(/[),.;!?\]\}>'"”’]+$/g, '');
+    if (isNaverMapUrl(cleaned)) return cleaned;
+  }
+  return null;
+}
+
 function cleanQuery(query: string) {
   return query.trim().replace(/\s+/g, ' ');
 }
