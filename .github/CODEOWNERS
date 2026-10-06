@@ -1,0 +1,10 @@
+# Decision Lock control plane — only the human repository owner may approve changes.
+/.github/CODEOWNERS @orrysheaven-netizen
+/.github/workflows/locked-contracts.yml @orrysheaven-netizen
+/docs/decisions/ @orrysheaven-netizen
+/tools/contracts/ @orrysheaven-netizen
+
+# Executable locked-contract tests. Changing or weakening these requires Code Owner review.
+/mobile/scripts/test-brand-controls.cjs @orrysheaven-netizen
+/mobile/scripts/test-profile-tab-stack.cjs @orrysheaven-netizen
+/mobile/scripts/test-dead-end-navigation.cjs @orrysheaven-netizen
