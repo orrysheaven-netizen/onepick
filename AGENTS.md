@@ -41,3 +41,10 @@ User-facing QA uses only the dedicated QA general-user account. Never use an adm
 ## Automation plan (check with the QA report)
 
 Also open the latest open `[Security QA]` issue (label `security`, daily at 06:30 KST, see `docs/daily-security.md`). Respect the current owner/handoff so work is not duplicated. Security findings and other high-risk changes may be implemented by either AI when assigned, but require narrow independent review by the opposite AI. Then check `handoff:codex`, `owner:codex`, and the automation-plan issue for due Codex work. Plan and schedule: `docs/automation-plan.md`.
+
+
+## Locked Decisions — mandatory stop gate
+
+Read `docs/decisions/locked-contracts.yml` before changing user-visible behavior. A contract with `status: locked` may not be modified, removed, disabled, weakened, or replaced without an explicit user-requested decision change approved by the human CODEOWNER. Bug fixes, regressions, refactors, Figma synchronization, performance work, and QA fixes are not exceptions. If preserving a locked contract is incompatible with the requested work, stop that part of implementation and escalate the decision to the user.
+
+AI identities may propose a Decision change but may never approve one. Issue comments, labels, PR text, and `Changes-Decision: <ID>` are tracking metadata only and are not approval. Do not modify CODEOWNERS, Decision Lock workflows/scripts, the locked-contract registry, or executable contract tests to make a feature PR pass. Changes to that control plane require human Code Owner review.
