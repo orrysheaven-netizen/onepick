@@ -75,7 +75,7 @@ function setup(overrides = {}) {
   };
   const native = { StyleSheet: { create: (styles) => styles } };
   for (const name of ['View', 'Text', 'TextInput', 'ScrollView', 'ActivityIndicator', 'Pressable']) native[name] = name;
-  const { default: Find } = load('app/pick/find.tsx', {
+  const { default: Find } = load('app/pick/find.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
     react: hooks, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     'expo-router': { useRouter: () => ({
       push: (route) => routes.push({ action: 'push', route }), replace: (route) => routes.push({ action: 'replace', route }),

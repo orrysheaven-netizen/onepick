@@ -77,7 +77,7 @@ const hooks = {
   useSelectStoreItem: () => mutation('select', () => selectResult),
 };
 
-const { default: Screen } = load('app/pick/new.tsx', {
+const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
