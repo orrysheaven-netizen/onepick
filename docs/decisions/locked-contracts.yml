@@ -18,9 +18,8 @@ contracts:
     executable_checks:
       - mobile/scripts/test-profile-tab-stack.cjs
   - id: UX-SWIPE-001
-    status: staged
-    activation_condition: "Activate only after the user-approved swipe restoration PR is merged and the executable contract passes on main."
-    statement: "A supported left-to-right back swipe returns to the actual origin without app termination, blank screen, or competing native-pop/JS navigation."
+    status: locked
+    statement: "On every OnePick user screen with a real previous screen, a left-to-right back swipe returns to that actual previous screen. If no real previous screen exists, swipe-back is a no-op. The gesture must not terminate the app, show a blank screen, double-navigate, or break existing back-button taps. Admin routes are outside this user-app contract."
     executable_checks:
       - mobile/scripts/test-profile-tab-stack.cjs
       - mobile/scripts/test-dead-end-navigation.cjs
