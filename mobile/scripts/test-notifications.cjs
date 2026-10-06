@@ -41,6 +41,7 @@ const group = (i, kind = 'comment') => ({
     user_id: kind === 'followee_pick' ? `u-${i}` : null,
   },
   reason: kind === 'fix_needed' ? '지도 링크를 다시 확인해주세요.' : null,
+  ...(i === 0 ? { preview: '저도 여기 국물이 제일 좋았어요.' } : {}),
 });
 let rows = Array.from({ length: 21 }, (_, i) => group(i, i % 2 ? 'followee_pick' : 'comment'));
 let preferenceRow = { followee_pick_change: false };
@@ -101,6 +102,8 @@ const { default: Screen } = load('app/(tabs)/notifications.tsx', {
   '@/constants/onepick': require('./design-tokens.cjs'),
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useNotifications': { useNotifications: () => inbox },
+  '@/lib/format/relativeTime': load('lib/format/relativeTime.ts'),
+  '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'),
   '@/services': { commentService: { locateComment: async () => ({
     rootCommentId: 'root-1',
     pickId: 'pick-1',
@@ -156,7 +159,14 @@ async function main() {
   assert.match(html, /지도 링크를 다시 확인해주세요/);
   assert.doesNotMatch(html, /승인됐어요|등록 결과|승인 대기/, 'approval/merge lifecycle rows are not created by the grouped UI');
 
-  const commentButton = buttons.find((button) => button.accessibilityLabel?.includes('신라면 내 한줄평에 댓글'));
+  // Figma 39 copy: store + menu title, relative time, "새 댓글 2" without a dot.
+  assert.match(html, /신라면의 내 한줄평에 댓글을 남겼어요\./, 'A store name already ending with the menu is not doubled');
+  assert.match(html, /메뉴1 라면에서 내 댓글에 답글을 남겼어요\./, 'Store items read store + menu');
+  assert.match(html, /새 댓글 2/);
+  assert.match(html, /“저도 여기 국물이 제일 좋았어요\.”/, 'A comment group shows one line of the comment');
+  assert.equal((html.match(/“/g) ?? []).length, 1, 'Groups without a preview (or other kinds) show none');
+  assert.doesNotMatch(html, /새 댓글 · 2|오전|오후/, 'No dot in the badge and no absolute clock time');
+  const commentButton = buttons.find((button) => button.accessibilityLabel?.includes('신라면의 내 한줄평에 댓글'));
   assert.ok(commentButton);
   await commentButton.onPress();
   assert.equal(destination.pathname, '/pick/[pickId]');

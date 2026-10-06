@@ -1,4 +1,7 @@
-/** Short Korean "how long ago" label for feed cards: 방금 · 5분 전 · 3시간 전 · 2일 전 · 9월 12일 · 2025.03.01 */
+/**
+ * Short Korean "how long ago" label: 방금 · 5분 전 · 3시간 전 · 1~3일 전, then the date
+ * (9월 12일, other years 2025.03.01). Over 3 days reads as a date (user decision 2026-10-04).
+ */
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const time = new Date(iso).getTime();
   if (Number.isNaN(time)) return '';
@@ -9,7 +12,7 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}시간 전`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}일 전`;
+  if (days <= 3) return `${days}일 전`;
   const date = new Date(time);
   if (date.getFullYear() === now.getFullYear()) return `${date.getMonth() + 1}월 ${date.getDate()}일`;
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;

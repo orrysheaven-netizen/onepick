@@ -6,12 +6,9 @@ import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/o
 import { commentService } from '@/services';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications } from '@/hooks/useNotifications';
+import { formatRelativeTime } from '@/lib/format/relativeTime';
+import { itemTitle } from '@/lib/items/itemTitle';
 import type { AppNotificationGroup } from '@/services/notificationService';
-
-function formatNotificationTime(value: string) {
-  const time = Date.parse(value);
-  return Number.isFinite(time) ? new Date(time).toLocaleString('ko-KR') : '시간 정보 없음';
-}
 
 function subjectParticle(word: string) {
   const code = word.charCodeAt(word.length - 1) - 0xac00;
@@ -26,19 +23,22 @@ function actorLabel(item: AppNotificationGroup) {
 }
 
 function describe(item: AppNotificationGroup) {
-  const name = item.target.item_name ?? '원픽';
+  // Store items read "중앙해장 삼성점 해장국" (store + menu), as in Figma 39.
+  const name = item.target.item_name
+    ? itemTitle(item.target.item_name, item.target.category_name, item.target.channel === 'offline')
+    : '원픽';
   const sender = actorLabel(item);
   switch (item.kind) {
     case 'pick_review': {
-      const message = `${name} 원픽에 새 한줄평이 생겼어요.`;
+      const message = `내 원픽 ${name}에 새 한줄평이 생겼어요.`;
       return { sender, badge: '새 한줄평', message, label: `${sender}, ${message}` };
     }
     case 'comment': {
-      const message = `${name} 내 한줄평에 댓글을 남겼어요.`;
+      const message = `${name}의 내 한줄평에 댓글을 남겼어요.`;
       return { sender, badge: '새 댓글', message, label: `${sender}, ${message}` };
     }
     case 'reply': {
-      const message = `${name} 댓글에 답글을 남겼어요.`;
+      const message = `${name}에서 내 댓글에 답글을 남겼어요.`;
       return { sender, badge: '새 답글', message, label: `${sender}, ${message}` };
     }
     case 'followee_pick': {
@@ -125,11 +125,12 @@ export default function NotificationsScreen() {
           <View style={styles.row}>
             {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
             <Text style={styles.sender}>{copy.sender}</Text>
-            {unread ? <Text style={styles.newLabel}>{copy.badge}{item.unread_count > 1 ? ` · ${item.unread_count}` : ''}</Text> : null}
+            {unread ? <Text style={styles.newLabel}>{copy.badge}{item.unread_count > 1 ? ` ${item.unread_count}` : ''}</Text> : null}
           </View>
           <Text style={styles.message}>{copy.message}</Text>
+          {(item.kind === 'comment' || item.kind === 'reply') && item.preview ? <Text style={styles.body} numberOfLines={1}>“{item.preview}”</Text> : null}
           {item.kind === 'fix_needed' && item.reason ? <Text style={styles.body} numberOfLines={3}>사유: {item.reason}</Text> : null}
-          <Text style={styles.time}>{formatNotificationTime(item.latest_at)}</Text>
+          <Text style={styles.time}>{formatRelativeTime(item.latest_at)}</Text>
         </Pressable>;
       }}
       ListHeaderComponent={ready && query.isError && items.length > 0
@@ -139,8 +140,8 @@ export default function NotificationsScreen() {
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>
           : session.error ? <><Text style={styles.message}>로그인 상태를 확인하지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={session.retry}><Text style={styles.link}>다시 시도</Text></Pressable></>
           : !session.user ? <><Text style={styles.message}>로그인하면 내 원픽의 새 한줄평과 댓글, 팔로우한 사람의 새 원픽, 수정 필요 알림을 확인할 수 있어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => router.push({ pathname: '/auth/login', params: { action: 'notifications' } })}><Text style={styles.link}>로그인</Text></Pressable></>
-          : query.isError ? <><Text accessibilityRole="alert" style={styles.message}>알림을 불러오지 못했어요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
-          : <><Text style={styles.sender}>아직 알림이 없어요.</Text><Text style={styles.message}>내 원픽에 새 한줄평이나 댓글이 생기면 여기에 알려드려요.</Text></>}
+          : query.isError ? <><Text accessibilityRole="alert" style={styles.sender}>알림을 불러오지 못했어요.</Text><Text style={styles.message}>연결 상태를 확인하고 다시 시도해 주세요.</Text><Pressable accessibilityRole="button" style={styles.action} onPress={refresh}><Text style={styles.link}>다시 불러오기</Text></Pressable></>
+          : <><Text style={styles.sender}>아직 알림이 없어요.</Text><Text style={styles.message}>내 원픽에 새 한줄평·댓글·답글이 생기면 여기에 알려드려요.</Text></>}
       </View>}
       ListFooterComponent={ready && query.hasNextPage ? <Pressable accessibilityRole="button" disabled={query.isFetching} style={styles.more} onPress={() => { if (!query.isFetching) void query.fetchNextPage(); }}><Text style={styles.link}>{query.isFetchingNextPage ? '불러오는 중…' : '이전 알림 더 보기'}</Text></Pressable> : null}
     />

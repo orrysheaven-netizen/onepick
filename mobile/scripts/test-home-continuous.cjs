@@ -118,6 +118,7 @@ async function main() {
   assert.equal(formatRelativeTime('2026-09-21T11:15:00+09:00', now), '45분 전');
   assert.equal(formatRelativeTime('2026-09-21T03:00:00+09:00', now), '9시간 전');
   assert.equal(formatRelativeTime('2026-09-18T12:00:00+09:00', now), '3일 전');
+  assert.equal(formatRelativeTime('2026-09-17T12:00:00+09:00', now), '9월 17일', 'Over 3 days reads as a date (10-04)');
   assert.match(formatRelativeTime('2026-08-30T12:00:00+09:00', now), /^8월 30일$/);
   assert.equal(formatRelativeTime('2025-03-01T12:00:00+09:00', now), '2025.03.01');
   assert.equal(formatRelativeTime('not-a-date', now), '', 'Bad timestamps render nothing instead of NaN');
