@@ -57,14 +57,14 @@ select is(
 );
 
 select throws_ok(
-  $update public.home_settings set daily_question_category_id='f1241000-0000-4000-8000-000000000001'::uuid where id$,
+  $sql$update public.home_settings set daily_question_category_id='f1241000-0000-4000-8000-000000000001'::uuid where id$sql$,
   'P0001','HOME_DAILY_QUESTION_CATEGORY_INVALID',
   'non-food category is rejected'
 );
 
 select set_config('request.jwt.claim.sub','f1240000-0000-4000-8000-000000000002',true);
 select lives_ok(
-  $update public.home_settings set daily_question_category_id=null where id$,
+  $sql$update public.home_settings set daily_question_category_id=null where id$sql$,
   'ordinary authenticated update is filtered by RLS without privilege error'
 );
 select is(
