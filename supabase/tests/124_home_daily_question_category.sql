@@ -31,14 +31,48 @@ limit 1;
 
 select ok((select count(*)=1 from hdq_ids), 'fixture has an open food leaf');
 
+insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at) values
+  ('f1240000-0000-4000-8000-000000000001','authenticated','authenticated','hdq-admin@example.invalid','',now(),now()),
+  ('f1240000-0000-4000-8000-000000000002','authenticated','authenticated','hdq-user@example.invalid','',now(),now());
+insert into public.profiles(id,username,onboarding_completed) values
+  ('f1240000-0000-4000-8000-000000000001','hdq_admin',true),
+  ('f1240000-0000-4000-8000-000000000002','hdq_user',true);
+insert into private.admin_users(user_id) values ('f1240000-0000-4000-8000-000000000001');
+
+insert into public.categories(id,name,slug,status,is_visible,is_pickable)
+values ('f1241000-0000-4000-8000-000000000001','HDQ non-food','hdq-non-food','open',true,true);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','f1240000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
+
 update public.home_settings
 set daily_question_category_id=(select id from hdq_ids where key='food_leaf')
 where id;
 select is(
   (select daily_question_category_id from public.home_settings where id),
   (select id from hdq_ids where key='food_leaf'),
-  'valid open food leaf can be stored'
+  'AAL2 admin can store a valid open food leaf'
 );
+
+select throws_ok(
+  $update public.home_settings set daily_question_category_id='f1241000-0000-4000-8000-000000000001'::uuid where id$,
+  'P0001','HOME_DAILY_QUESTION_CATEGORY_INVALID',
+  'non-food category is rejected'
+);
+
+select set_config('request.jwt.claim.sub','f1240000-0000-4000-8000-000000000002',true);
+select lives_ok(
+  $update public.home_settings set daily_question_category_id=null where id$,
+  'ordinary authenticated update is filtered by RLS without privilege error'
+);
+select is(
+  (select daily_question_category_id from public.home_settings where id),
+  (select id from hdq_ids where key='food_leaf'),
+  'ordinary user cannot change the setting'
+);
+
+reset role;
 
 delete from public.categories where id=(select id from hdq_ids where key='food_leaf');
 select is(
