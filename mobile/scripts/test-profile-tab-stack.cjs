@@ -47,7 +47,9 @@ assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
 assert.ok(publicSource.includes('router.dismissTo(returnHref);'),
   'Safe edge swipe restores the validated origin after its own gesture completes');
 assert.match(publicSource, /PanResponder\.create/);
-assert.match(publicSource, /onStartShouldSetPanResponder: \(\) => true/);
+assert.match(publicSource, /onStartShouldSetPanResponder: \(\) => false/);
+assert.match(publicSource, /gesture\.x0 <= 32[\s\S]*?gesture\.dx > 12/,
+  'Native public-profile edge does not swallow taps before horizontal swipe intent');
 assert.match(publicSource, /onMoveShouldSetPanResponder/);
 assert.match(publicSource, /testID="public-profile-swipe-edge"/);
 assert.match(publicSource, /\{Platform\.OS !== 'web' \? \(\s*<View\s+testID="public-profile-swipe-edge"/,
@@ -67,11 +69,14 @@ assert.match(publicSource, /useSwipeBackHandler\(swipeBack, \{ confirmUnsaved: f
 const rootLayout = read('src/app/_layout.tsx');
 const webEdge = read('src/components/swipe-back-edge.web.tsx');
 const nativeEdge = read('src/components/swipe-back-edge.tsx');
+assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 8/,
+  'Web hit strip stays clear of header back buttons while preserving edge-swipe start');
+assert.match(webEdge, /width: WEB_EDGE_HIT_WIDTH/);
 const swipeLib = read('src/lib/navigation/swipeBack.ts');
 assert.match(rootLayout, /<\/Stack>\s*<SwipeBackEdge \/>/, 'Root layout mounts one edge above every screen');
 assert.match(nativeEdge, /return null;/, 'Native keeps the native stack swipe; no global JS edge');
-assert.match(webEdge, /getSwipeBackHandler\(\) != null \|\| canPopFocusedStack\(/,
-  'Web edge only exists where there is somewhere to go back to (tab roots: none)');
+assert.match(webEdge, /const hasRealBackTarget = canPopFocusedStack\(rootState as never\) && router\.canGoBack\(\)/,
+  'Web swipe is disabled for cold/deep links with no real previous screen');
 assert.match(webEdge, /onPanResponderTerminationRequest: \(\) => false/);
 assert.match(webEdge, /touchAction: 'pan-y'/);
 assert.match(webEdge, /gesture\.dx < SWIPE_RELEASE_DX \|\| gesture\.vx <= 0/);
