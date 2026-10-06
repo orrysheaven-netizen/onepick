@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { useUpdateProfileBio } from '@/hooks/useUpdateProfileBio';
 import { MAX_PROFILE_BIO_LENGTH, profileBioLength, ProfileBioValidationError } from '@/lib/profileBio';
 import { OnePick } from '@/constants/onepick';
@@ -71,7 +72,7 @@ function BioEditor({ profileUserId, bio }: Props) {
           {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 편집 취소" disabled={mutation.isPending}
-          onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>취소</Text></Pressable>
+          onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>{DIALOG_CANCEL_LABEL}</Text></Pressable>
         {draft ? <Pressable accessibilityRole="button" accessibilityLabel="자기소개 내용 지우기" disabled={mutation.isPending}
           onPress={() => { if (!inFlight.current) { setDraft(''); setError(''); } }}
           style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.clearText}>내용 지우기</Text></Pressable> : null}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
+import { DIALOG_CANCEL_LABEL, DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useManagePick } from '@/hooks/useManagePick';
 import type { Pick } from '@/types/domain/pick';
 import { OnePick } from '@/constants/onepick';
@@ -155,7 +156,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
       )}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{getErrorMessage(error)}</Text> : null}
       <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setMode('idle')} style={[styles.secondaryButton, isBusy && styles.disabled]}>
-        <Text style={styles.secondaryText}>취소</Text>
+        <Text style={styles.secondaryText}>{mode === 'edit' ? DIALOG_CANCEL_LABEL : DIALOG_CLOSE_LABEL}</Text>
       </Pressable>
     </View>
   );

@@ -10,6 +10,7 @@ import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
 import { Button, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
@@ -136,7 +137,7 @@ export default function SettingsScreen() {
                   <Button variant="dangerText" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
                 )}
                 {confirmDelete && !deleteAccount.isPending ? (
-                  <Button variant="secondary" size="sm" label="취소" onPress={() => setConfirmDelete(false)} />
+                  <Button variant="secondary" size="sm" label={DIALOG_CLOSE_LABEL} onPress={() => setConfirmDelete(false)} />
                 ) : null}
               </View>
             </View>
