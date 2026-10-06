@@ -46,7 +46,7 @@ export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => voi
         <Pressable accessibilityRole="button" accessibilityLabel="테마 선택 닫기" onPress={close} style={StyleSheet.absoluteFill} />
         <View style={styles.dialog}>
           <Text accessibilityRole="header" style={styles.title}>테마 선택</Text>
-          <Text style={styles.text}>다른 테마는 준비 중입니다.</Text>
+          <Text style={styles.text}>다른 테마는 준비 중이에요.</Text>
           <View accessibilityRole="radio" accessibilityState={{ selected: true }} style={styles.themeOption}>
             <Text style={styles.themeOptionText}>맛집 ✓</Text>
           </View>

@@ -177,7 +177,7 @@ export default function ExploreScreen() {
         {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
         {scope.showChips && categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
-        {!scope.showChips && !searchActive && menuLoadFailed ? <StateCard tone="danger" title="메뉴를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해 주세요."
+        {!scope.showChips && !searchActive && menuLoadFailed ? <StateCard tone="danger" title="메뉴를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해주세요."
           action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
         {scope.showChips && !categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
           <Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected={!parentId}

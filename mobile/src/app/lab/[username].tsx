@@ -72,7 +72,7 @@ export default function LabScreen() {
               onPressItem={openItem}
             />
           ) : (
-            <StateCard title="아직 실험실 원픽이 없어요." text={isMine ? '아래 카테고리에서 하나씩 골라볼 수 있어요.' : '이 사용자가 맛집 외 취향을 고르면 여기에 표시됩니다.'} />
+            <StateCard title="아직 실험실 원픽이 없어요." text={isMine ? '아래 카테고리에서 하나씩 골라볼 수 있어요.' : '이 사용자가 맛집 외 취향을 고르면 여기에 보여요.'} />
           )}
 
           {startable.length > 0 ? <View style={styles.startArea}>

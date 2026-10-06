@@ -8,10 +8,10 @@ import { OnePick } from '@/constants/onepick';
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'BLOCK_SELF') return '내 계정은 차단할 수 없습니다.';
-    if (error.code === 'PROFILE_NOT_FOUND') return '사용자 정보를 찾을 수 없습니다.';
+    if (error.code === 'BLOCK_SELF') return '내 계정은 차단할 수 없어요.';
+    if (error.code === 'PROFILE_NOT_FOUND') return '사용자 정보를 찾을 수 없어요.';
   }
-  return '차단하지 못했습니다. 다시 시도해주세요.';
+  return '차단하지 못했어요. 다시 시도해주세요.';
 }
 
 export function BlockUserButton({

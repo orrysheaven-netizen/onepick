@@ -586,8 +586,8 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>1 / 4 · {requesting && requestPart === 'link' ? newStoreName : '오프라인 매장'}</Text>
             <Text style={styles.title}>
-              {linkEntry ? '네이버 지도 링크를 넣어 주세요.'
-                : !requesting ? '상호명을 검색해 주세요.' : requestPart === 'name' ? '매장 이름을 알려 주세요.' : '네이버 지도 링크를 넣어 주세요.'}
+              {linkEntry ? '네이버 지도 링크를 입력해주세요.'
+                : !requesting ? '상호명을 검색해주세요.' : requestPart === 'name' ? '매장명을 입력해주세요.' : '네이버 지도 링크를 입력해주세요.'}
             </Text>
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
@@ -601,12 +601,12 @@ export default function NewPickScreen() {
               </View>
               {linkLookup.isPending ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
               {linkLookup.isError ? <Text accessibilityRole="alert" style={styles.error}>{linkLookup.error instanceof AppError && linkLookup.error.code === 'RATE_LIMITED'
-                ? errorMessage(linkLookup.error) : '링크로 매장을 찾지 못했어요. 링크를 확인하거나 상호명으로 검색해 주세요.'}</Text> : null}
+                ? errorMessage(linkLookup.error) : '링크로 매장을 찾지 못했어요. 링크를 확인하거나 상호명으로 검색해주세요.'}</Text> : null}
               {linkLookup.isSuccess && !linkResult
                 ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도의 매장 링크인지 확인해주세요.</Text> : null}
               {linkResult ? <View style={styles.results}>
                 <Text style={styles.helper}>{linkSelected
-                  ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해 주세요.'
+                  ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해주세요.'
                   : linkMatches.length > 0
                     ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라 주세요.`
                     : linkName ? `${linkName}은(는) 아직 목록에 없어요. 새 매장으로 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
@@ -632,7 +632,7 @@ export default function NewPickScreen() {
                       setQuery(value);
                     }}
                     value={storeSearchValue} returnKeyType="search" style={[styles.input, styles.inputWithClear]}
-                    placeholderTextColor={OnePick.textTertiary} placeholder="상호명을 입력해 주세요." />
+                    placeholderTextColor={OnePick.textTertiary} placeholder="상호명을 입력해주세요." />
                   {storeSearchValue ? <Pressable accessibilityRole="button" accessibilityLabel="매장명 지우기"
                     onPress={() => { setPrefillDismissed(true); setStore(null); setQuery(''); }}
                     style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
@@ -640,11 +640,11 @@ export default function NewPickScreen() {
                   </Pressable> : null}
                 </View>
                 {providerPrefillStore
-                  ? <Text style={styles.helper}>보고 있던 매장을 선택해 두었어요. 다른 매장이면 다시 검색해 주세요.</Text>
+                  ? <Text style={styles.helper}>보고 있던 매장을 선택해 뒀어요. 다른 매장이면 다시 검색해주세요.</Text>
                   : providerPrefill.isLoading
                     ? <Text style={styles.helper}>보고 있던 매장을 확인하고 있어요.</Text>
                     : search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
-                      ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해 주세요.</Text>
+                      ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해주세요.</Text>
                       : <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text>}
               </View>
               {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
@@ -802,7 +802,7 @@ export default function NewPickScreen() {
             </View> : null}
             {preflight?.brand ? <View style={styles.fieldBlock}>
               <FieldLabel label="원픽 범위" />
-              <Text style={styles.helper}>지점을 고르면 이 매장만, 브랜드 전체를 고르면 모든 지점과 별개의 원픽이 됩니다.</Text>
+              <Text style={styles.helper}>지점을 고르면 이 매장만, 브랜드 전체를 고르면 모든 지점과 별개의 원픽이 돼요.</Text>
               <View style={styles.chips}>
                 <FlowChip label="이 지점" selected={pickScope === 'branch'} onPress={() => {
                   setPickScope('branch'); setItemId(null); setItemHadPhoto(false); setItemPending(false);
@@ -830,7 +830,7 @@ export default function NewPickScreen() {
             <Text style={styles.title}>대표 사진을 올려주세요.</Text>
             <Text style={styles.helper}>{needsPhoto
               ? `이 메뉴에는 아직 사진이 없어요. 올린 사진은 관리자 검수 후 ${pickDisplayName} ${menu?.name ?? '메뉴'}의 대표 사진으로 쓰여요.`
-              : '이미 대표 사진이 있어 사진 단계는 자동으로 건너뜁니다.'}</Text>
+              : '이미 대표 사진이 있어 사진 단계는 자동으로 건너뛰어요.'}</Text>
             {needsPhoto ? <View style={styles.photoPanel}>
               {photoReselect && !photo
                 ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.noticeText}>사진을 다시 선택해주세요.</Text></View> : null}
@@ -844,7 +844,7 @@ export default function NewPickScreen() {
                 style={({ pressed }) => [styles.photoPicker, pressed && !choosePhoto.isPending && styles.flowPressed]}>
                 {choosePhoto.isPending ? <ActivityIndicator color={OnePick.textPrimary} /> : <Text style={styles.photoPickerText}>사진 선택</Text>}
               </Pressable>}
-            </View> : <StateCard compact title="사진이 등록됐어요." />}
+            </View> : <StateCard compact title="사진을 등록했어요." />}
           </View>
           <View style={styles.footer}>
             <FlowButton label="다음" disabled={needsPhoto && !photo} onPress={() => setStep(5)} />
@@ -856,7 +856,7 @@ export default function NewPickScreen() {
             <Text style={styles.stepMeta}>4 / 4 · {pickDisplayName} · {menu.name}</Text>
             <Text style={styles.title}>한줄평을 남겨주세요.</Text>
             {pickChangedElsewhere
-              ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체합니다.</Text></View>
+              ? <View style={styles.notice}><Text style={styles.noticeText}>다른 기기에서 이 메뉴의 원픽이 바뀌었어요. 다시 등록하면 방금 확인한 최신 원픽을 기준으로 교체해요.</Text></View>
               : !itemPending && replacingVisiblePick
                 ? <View style={styles.notice}><Text style={styles.noticeText}>저장하면 이 메뉴의 매장 원픽이 바뀌어요.</Text></View> : null}
             <View style={styles.fieldBlock}>

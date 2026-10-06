@@ -217,16 +217,16 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 레시피 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 레시피 영상의 YouTube 링크를 붙여넣고, 어떤 요리의 레시피인지 골라주세요. 요리마다 오프라인·온라인·레시피 원픽을 하나씩 둘 수 있어요.</Text>
-      <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거합니다.</Text>
+      <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거해요.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
         <Text style={styles.stateTitle}>YouTube 영상 확인 전 동의가 필요해요.</Text>
-        <Text style={styles.stateText}>레시피 영상 정보는 YouTube Data API Services로 확인합니다. 아래 안내와 약관을 확인한 뒤 동의해야 등록할 수 있어요.</Text>
+        <Text style={styles.stateText}>레시피 영상 정보는 YouTube Data API Services로 확인해요. 아래 안내와 약관을 확인한 뒤 동의해야 등록할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
-        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다." loading={consentSaving}
+        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의해요." loading={consentSaving}
           disabled={consentSaving} onPress={() => void acceptConsent()} style={styles.consentButton} />
       </View> : null}
 
@@ -314,7 +314,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         text={`관리자가 '${requested}' 요리를 확인해요. 승인돼도 자동으로 원픽이 되거나 승인 알림이 오지 않아요. 확인이 끝난 뒤 직접 선택할 수 있어요.`}
         action={{ label: '홈으로', variant: 'secondary', onPress: () => router.replace('/') }} /></View> : null}
 
-      <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>
+      <Text style={styles.attribution}>YouTube Data API Services를 사용해요. YouTube는 OnePick을 후원하거나 승인하지 않아요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

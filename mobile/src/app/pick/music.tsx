@@ -198,7 +198,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 노래 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? musicErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 노래 정보가 준비됐어요.' : '이전 노래 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? musicErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 노래 정보를 준비했어요.' : '이전 노래 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continueMusic(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 노래로 계속</Text></Pressable>
@@ -241,7 +241,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 노래를 찾지 못했어요.</Text>
         <Text style={styles.stateText}>곡명 철자나 가수명을 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용합니다.</Text>
+      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
