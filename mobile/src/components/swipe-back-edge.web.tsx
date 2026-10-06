@@ -21,8 +21,11 @@ export default function SwipeBackEdge() {
   useSwipeBackRegistryVersion();
 
   const excluded = EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const hasInternalBackTarget = getSwipeBackHandler()?.hasInternalBackTarget === true;
   const hasRealBackTarget = canPopFocusedStack(rootState as never) && router.canGoBack();
-  const enabled = !excluded && hasRealBackTarget;
+  // A screen may expose a real previous state inside itself even when the router
+  // stack cannot pop. A registered handler alone is not a back target.
+  const enabled = !excluded && (hasInternalBackTarget || hasRealBackTarget);
 
   const routerRef = useRef(router);
   routerRef.current = router;
