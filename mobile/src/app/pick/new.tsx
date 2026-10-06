@@ -17,7 +17,7 @@ import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
 import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
-import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
+import { extractNaverMapUrl, isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
@@ -590,7 +590,7 @@ export default function NewPickScreen() {
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
                 <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
-                  value={entryLink} onChangeText={(value) => { setEntryLink(value); linkLookup.reset(); }}
+                  value={entryLink} onChangeText={(value) => { setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
                   placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
                 {entryLink.trim() && !validEntryLink
@@ -678,7 +678,7 @@ export default function NewPickScreen() {
               <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어 주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
-                value={mapLink} onChangeText={setMapLink} style={styles.input}
+                value={mapLink} onChangeText={(value) => setMapLink(extractNaverMapUrl(value) ?? value)} style={styles.input}
                 placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
               {mapLink.trim() && !validMapLink
                 ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
