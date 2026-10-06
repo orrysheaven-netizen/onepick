@@ -261,7 +261,7 @@ async function main() {
   params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
   const onlinePage = render();
-  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
+  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장돼 관리자 검수에 사용돼요/,
     'The user sees which host will be attached before submitting');
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-online');
