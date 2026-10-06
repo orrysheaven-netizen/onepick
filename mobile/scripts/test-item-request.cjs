@@ -284,7 +284,7 @@ async function main() {
   assert.match(sellerPage, /https:\/\/로 시작하는 판매처 링크/);
   assert.equal(button('등록하기').disabled, true);
   sellerLink().onChangeText('https://smartstore.example/gomtang'); sellerPage = render();
-  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장되어/);
+  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장돼/);
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-seller');
   assert.equal(attachedPendingLink.url, 'https://smartstore.example/gomtang', 'The typed seller link is attached for admin review');
