@@ -86,14 +86,18 @@ assert.match(webEdge, /if \(routerRef\.current\.canGoBack\(\)\) routerRef\.curre
 assert.match(webEdge, /'\/admin', '\/auth\/callback'/);
 assert.match(swipeLib, /SWIPE_EDGE_WIDTH = 32[\s\S]*SWIPE_START_DX = 12[\s\S]*SWIPE_MAX_START_DY = 24[\s\S]*SWIPE_RELEASE_DX = 72/);
 assert.match(swipeLib, /node\.type === 'stack' && index > 0/);
-assert.match(read('src/app/pick/new.tsx'), /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false \}\)/,
-  'Registration swipes one step back, like the header');
+assert.match(read('src/app/pick/new.tsx'),
+  /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget \}\)/,
+  'Registration swipes one step back, like the header, only when it has an internal target');
 assert.match(webEdge,
   /hasInternalBackTarget = getSwipeBackHandler\(\)\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
   'Only a real internal back target can enable web swipe without a router pop target');
 assert.match(read('src/app/pick/new.tsx'),
-  /hasInternalBackTarget = step !== 1 \|\| linkEntry \|\| requesting[\s\S]*useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget \}\)/,
-  'Registration root 1\/4 stays a no-op while later and nested step-1 states can swipe back');
+  /hasInternalBackTarget = \(step !== 1 && step !== 6\) \|\| linkEntry \|\| requesting[\s\S]*useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget \}\)/,
+  'Registration root 1\/4 and completion stay no-op while active steps and nested step-1 states can swipe back');
+assert.match(swipeLib,
+  /previousInternalTarget[\s\S]*options\?\.hasInternalBackTarget[\s\S]*notify\(\)/,
+  'Changing an internal back target notifies the mounted web edge to re-render');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
