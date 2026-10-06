@@ -304,7 +304,7 @@ async function main() {
   categories.isError = true; params = { itemName: '새 텀블러' }; mutation.isError = false; mutation.error = null;
   outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 텀블러' } });
   const generalPage = render();
-  assert.match(generalPage, /이름만 등록하면 됩니다/);
+  assert.match(generalPage, /이름만 등록하면 돼요/);
   assert.doesNotMatch(generalPage, /카테고리를 불러오지 못했어요|선택한 종류를 확인하지 못했어요/);
   press('등록하기'); await settle();
   assert.equal(payload.itemName, '새 텀블러');
@@ -314,7 +314,7 @@ async function main() {
   assert.equal(suggestionItemId, 'general-pending');
   assert.equal(applyItemId, 'general-pending');
   assert.match(aiPage, /AI가 카테고리를 추천했어요/);
-  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않습니다/);
+  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않아요/);
   assert.equal(appliedCategoryId, undefined, 'AI suggestions never apply automatically');
 
   press('먹을것 › 라면'); render();
