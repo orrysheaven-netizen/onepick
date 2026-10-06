@@ -21,8 +21,11 @@ export default function SwipeBackEdge() {
   useSwipeBackRegistryVersion();
 
   const excluded = EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const hasRegisteredHandler = getSwipeBackHandler() !== null;
   const hasRealBackTarget = canPopFocusedStack(rootState as never) && router.canGoBack();
-  const enabled = !excluded && hasRealBackTarget;
+  // Step flows can have a real in-screen previous step even when the router stack
+  // itself cannot pop (for example after returning from login).
+  const enabled = !excluded && (hasRegisteredHandler || hasRealBackTarget);
 
   const routerRef = useRef(router);
   routerRef.current = router;
