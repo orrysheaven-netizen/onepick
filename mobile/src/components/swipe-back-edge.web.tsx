@@ -9,7 +9,7 @@ import {
 
 // Track a 32px start zone at document level instead of covering it with a View.
 // This preserves header button taps while giving iPhone Safari a larger app gesture zone.
-const WEB_EDGE_HIT_WIDTH = 32;
+const WEB_EDGE_HIT_WIDTH = 20;
 const IOS_SYSTEM_EDGE_WIDTH = 20;
 
 // Screens where a back swipe must never navigate (no back affordance by design).
@@ -39,9 +39,17 @@ export default function SwipeBackEdge() {
     let activeTouchId: number | null = null;
     let startX = 0;
     let startY = 0;
+    let lastX = 0;
     let claimed = false;
+    let reservedSystemEdge = false;
+    let startTarget: EventTarget | null = null;
 
-    const reset = () => { activeTouchId = null; claimed = false; };
+    const reset = () => {
+      activeTouchId = null;
+      claimed = false;
+      reservedSystemEdge = false;
+      startTarget = null;
+    };
     const activeTouch = (touches: TouchList) => {
       if (activeTouchId === null) return null;
       for (let index = 0; index < touches.length; index += 1) {
@@ -57,11 +65,15 @@ export default function SwipeBackEdge() {
       activeTouchId = touch.identifier;
       startX = touch.clientX;
       startY = touch.clientY;
+      lastX = touch.clientX;
+      startTarget = event.target;
       claimed = false;
+      reservedSystemEdge = false;
       // Safari can claim its native history gesture immediately at the extreme
       // edge. Only active internal step flows reserve that system edge on touchstart.
       if (reserveSystemEdge && touch.clientX <= IOS_SYSTEM_EDGE_WIDTH) {
         claimed = true;
+        reservedSystemEdge = true;
         event.preventDefault();
       }
     };
@@ -76,13 +88,25 @@ export default function SwipeBackEdge() {
       }
       // iOS Safari may otherwise turn this horizontal touch into browser history-back.
       event.preventDefault();
+      lastX = touch.clientX;
     };
     const onTouchEnd = (event: TouchEvent) => {
       const touch = activeTouch(event.changedTouches);
       if (!touch) return;
       const dx = touch.clientX - startX;
-      const shouldRun = claimed && dx >= SWIPE_RELEASE_DX;
+      const dy = touch.clientY - startY;
+      const endedMovingRight = touch.clientX >= lastX;
+      const shouldRun = claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight;
+      const shouldReplayTap = reservedSystemEdge
+        && Math.abs(dx) <= SWIPE_START_DX
+        && Math.abs(dy) <= SWIPE_START_DX;
+      const tapTarget = startTarget;
       reset();
+      if (shouldReplayTap && tapTarget instanceof Element) {
+        const button = tapTarget.closest<HTMLElement>('button, a, [role="button"]');
+        button?.click();
+        return;
+      }
       if (!shouldRun) return;
       const handler = getSwipeBackHandler();
       const confirmUnsaved = handler ? handler.confirmUnsaved : true;
