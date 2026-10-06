@@ -19,6 +19,9 @@ export type SwipeBackHandler = {
   // false when the handler only moves within the screen (e.g. previous step),
   // so the unsaved-input confirmation is not needed.
   confirmUnsaved: boolean;
+  // True only while this screen has a real in-screen previous state. This may
+  // enable the web edge gesture even when the router stack itself cannot pop.
+  hasInternalBackTarget: boolean;
 };
 
 let current: { token: object; get: () => SwipeBackHandler | null } | null = null;
@@ -41,9 +44,28 @@ export function useSwipeBackRegistryVersion(): number {
 }
 
 /** Registers the focused screen's swipe-back behaviour (web edge gesture). */
-export function useSwipeBackHandler(run: (() => void) | null, options?: { confirmUnsaved?: boolean }) {
+export function useSwipeBackHandler(
+  run: (() => void) | null,
+  options?: { confirmUnsaved?: boolean; hasInternalBackTarget?: boolean },
+) {
   const latest = useRef<SwipeBackHandler | null>(null);
-  latest.current = run ? { run, confirmUnsaved: options?.confirmUnsaved ?? true } : null;
+  const previousInternalTarget = useRef<boolean | undefined>(undefined);
+  latest.current = run ? {
+    run,
+    confirmUnsaved: options?.confirmUnsaved ?? true,
+    hasInternalBackTarget: options?.hasInternalBackTarget ?? false,
+  } : null;
+  useEffect(() => {
+    const next = latest.current?.hasInternalBackTarget ?? false;
+    if (previousInternalTarget.current === undefined) {
+      previousInternalTarget.current = next;
+      return;
+    }
+    if (previousInternalTarget.current !== next) {
+      previousInternalTarget.current = next;
+      notify();
+    }
+  }, [options?.hasInternalBackTarget]);
   useFocusEffect(useCallback(() => {
     const token = {};
     current = { token, get: () => latest.current };
