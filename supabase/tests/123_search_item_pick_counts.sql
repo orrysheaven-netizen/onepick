@@ -41,7 +41,15 @@ insert into public.items(id,category_id,name,normalized_name,status)
 select i.id, c.id, v.name, v.name, v.status
 from (values ('item','SIPC visible','active'),('hidden','SIPC hidden','hidden')) v(ikey,name,status)
 join sipc_ids i on i.key=v.ikey
-cross join lateral (select id from public.categories where is_pickable and status='open' limit 1) c;
+cross join lateral (
+  select c.id
+  from public.categories c
+  left join public.categories parent on parent.id = c.parent_id
+  left join public.categories gp on gp.id = parent.parent_id
+  where c.is_pickable and c.status='open'
+    and 'food' in (c.slug, parent.slug, gp.slug)
+  limit 1
+) c;
 
 insert into public.picks(user_id,category_id,item_id,channel,one_line_review,status)
 select u.id, i.category_id, i.id, 'offline', 'sipc', v.status
