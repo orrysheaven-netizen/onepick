@@ -91,7 +91,7 @@ const tree = [
 ];
 const categoryTree = load('lib/categories/categoryTree.ts');
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
-const { default: Find } = load('app/pick/find.tsx', {
+const { default: Find } = load('app/pick/find.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact,
   'expo-router': {
     useLocalSearchParams: () => params,

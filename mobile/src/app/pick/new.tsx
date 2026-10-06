@@ -16,6 +16,7 @@ import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel
 import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
+import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import type { PickPhotoDraft } from '@/types/domain/photo';
@@ -337,6 +338,9 @@ export default function NewPickScreen() {
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
   };
+  // Web edge swipe = this header's "이전 단계": step back inside the flow; leaving
+  // from step 1 keeps the account-bound draft, so no unsaved-input prompt.
+  useSwipeBackHandler(goBack, { confirmUnsaved: false });
   const applyEntryMenuPrefill = () => {
     if (!entryMenuName || restoredDraftRef.current || entryMenuPrefillConsumedRef.current) return;
     entryMenuPrefillConsumedRef.current = true;

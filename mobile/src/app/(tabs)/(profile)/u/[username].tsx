@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,6 +25,7 @@ import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profile
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
+import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
@@ -165,19 +166,16 @@ export default function PublicProfileScreen() {
   const swipeBackResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 12 && Math.abs(gesture.dy) < 24,
-    // Web: a tiny vertical scroll during the drag emits a scroll event, and
-    // react-native-web then asks the responder to terminate. Keep ownership so
-    // release still runs; the edge zone itself never scrolls.
     onPanResponderTerminationRequest: () => false,
     onPanResponderRelease: (_, gesture) => {
-      if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
-      if (returnHref) router.dismissTo(returnHref);
-      else goBack();
+      if (gesture.dx < 72 || gesture.vx <= 0) return;
+      swipeBackRef.current();
     },
-  }), [connectionDirection, returnHref, router]);
+  }), []);
 
-  // Public profile uses one explicit edge gesture owner. Native-stack swipe is
-  // disabled for this route so JS dismiss/back cannot race a native pop.
+  // Native: this route's own edge zone owns swipe-back (native-stack swipe is
+  // disabled so JS dismiss/back cannot race a native pop). Web: the root-layout
+  // edge (lib/navigation/swipeBack) runs swipeBack via useSwipeBackHandler.
   const openFollowLogin = (targetUsername: string) => {
     setLoginTargetUsername(targetUsername);
     setLoginSheetOpen(true);
@@ -211,6 +209,17 @@ export default function PublicProfileScreen() {
     }
     router.replace('/');
   };
+  // Swipe-back target: follower/following list -> its profile, otherwise the
+  // validated origin (returnTo), else the same rule as the header back.
+  const swipeBack = () => {
+    if (connectionDirection) { closeConnections(); return; }
+    if (returnHref) router.dismissTo(returnHref);
+    else goBack();
+  };
+  const swipeBackRef = useRef(swipeBack);
+  swipeBackRef.current = swipeBack;
+  // Web: the root-layout edge gesture runs this while the profile is focused.
+  useSwipeBackHandler(swipeBack, { confirmUnsaved: false });
 
   useEffect(() => {
     if (Platform.OS === 'web' || !connectionDirection || typeof username !== 'string') return;
@@ -303,10 +312,10 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {!connectionDirection ? (
+      {Platform.OS !== 'web' ? (
         <View
           testID="public-profile-swipe-edge"
-          style={[styles.swipeEdgeZone, Platform.OS === 'web' && styles.swipeEdgeZoneWeb]}
+          style={styles.swipeEdgeZone}
           {...swipeBackResponder.panHandlers}
         />
       ) : null}
@@ -492,9 +501,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 32,
   },
-  // Web only: the browser keeps vertical panning but hands horizontal drags to
-  // JS, so it does not claim the edge swipe as a scroll.
-  swipeEdgeZoneWeb: { touchAction: 'pan-y' } as never,
   content: {
     width: '100%',
     maxWidth: OnePick.maxWidth,

@@ -247,7 +247,7 @@ const service = load('services/storeFirstService.ts', {
 let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
-const { default: Screen } = load('app/pick/new.tsx', {
+const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {

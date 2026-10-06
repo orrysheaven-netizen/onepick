@@ -50,19 +50,39 @@ assert.match(publicSource, /PanResponder\.create/);
 assert.match(publicSource, /onStartShouldSetPanResponder: \(\) => true/);
 assert.match(publicSource, /onMoveShouldSetPanResponder/);
 assert.match(publicSource, /testID="public-profile-swipe-edge"/);
-assert.ok(!publicSource.includes("Platform.OS !== 'web' ? ("),
-  'Web (Safari/home-screen app) gets the same edge zone; it must not be native-only');
-assert.match(publicSource, /\{!connectionDirection \? \(\s*<View\s+testID="public-profile-swipe-edge"/,
-  'Edge zone is mounted on every platform except follower/following lists');
-assert.match(publicSource, /onPanResponderTerminationRequest: \(\) => false/,
-  'Web scroll events must not terminate the swipe before release');
-assert.match(publicSource, /Platform\.OS === 'web' && styles\.swipeEdgeZoneWeb[\s\S]*?swipeEdgeZoneWeb: \{ touchAction: 'pan-y' \}/,
-  'Web edge zone hands horizontal drags to JS instead of browser scrolling');
+assert.match(publicSource, /\{Platform\.OS !== 'web' \? \(\s*<View\s+testID="public-profile-swipe-edge"/,
+  'Native: the profile owns its edge zone (native-stack swipe is off for this route)');
+assert.match(publicSource, /onPanResponderTerminationRequest: \(\) => false/);
 assert.match(publicSource, /swipeEdgeZone:[\s\S]*?position: 'absolute'[\s\S]*?zIndex: 100[\s\S]*?width: 32/);
-assert.match(publicSource, /connectionDirection \|\| gesture\.dx < 72 \|\| gesture\.vx <= 0/);
+assert.match(publicSource, /if \(gesture\.dx < 72 \|\| gesture\.vx <= 0\) return;\s*swipeBackRef\.current\(\);/);
+assert.match(publicSource, /const swipeBack = \(\) => \{\s*if \(connectionDirection\) \{ closeConnections\(\); return; \}/,
+  'Follower/following list swipes back to its profile (user decision 2026-10-06)');
 assert.match(publicSource, /if \(returnHref\) router\.dismissTo\(returnHref\);[\s\S]*?else goBack\(\);/,
   'Swipe without returnTo follows header back: pop app history, else fall back Home');
-assert.match(publicSource, /style=\{\[styles\.swipeEdgeZone,[\s\S]*?\.\.\.swipeBackResponder\.panHandlers/);
+assert.match(publicSource, /style=\{styles\.swipeEdgeZone\}[\s\S]*?\.\.\.swipeBackResponder\.panHandlers/);
+assert.match(publicSource, /useSwipeBackHandler\(swipeBack, \{ confirmUnsaved: false \}\);/,
+  'Web: the root-layout edge runs the profile swipe target while it is focused');
+
+// App-wide web swipe-back (user decision 2026-10-06: every screen with somewhere to go back to).
+const rootLayout = read('src/app/_layout.tsx');
+const webEdge = read('src/components/swipe-back-edge.web.tsx');
+const nativeEdge = read('src/components/swipe-back-edge.tsx');
+const swipeLib = read('src/lib/navigation/swipeBack.ts');
+assert.match(rootLayout, /<\/Stack>\s*<SwipeBackEdge \/>/, 'Root layout mounts one edge above every screen');
+assert.match(nativeEdge, /return null;/, 'Native keeps the native stack swipe; no global JS edge');
+assert.match(webEdge, /getSwipeBackHandler\(\) != null \|\| canPopFocusedStack\(/,
+  'Web edge only exists where there is somewhere to go back to (tab roots: none)');
+assert.match(webEdge, /onPanResponderTerminationRequest: \(\) => false/);
+assert.match(webEdge, /touchAction: 'pan-y'/);
+assert.match(webEdge, /gesture\.dx < SWIPE_RELEASE_DX \|\| gesture\.vx <= 0/);
+assert.match(webEdge, /confirmUnsaved && hasUnsavedTypedText\(\) && !window\.confirm\(UNSAVED_SWIPE_MESSAGE\)/,
+  'Leaving with typed text asks first (user decision 2026-10-06)');
+assert.match(webEdge, /if \(routerRef\.current\.canGoBack\(\)\) routerRef\.current\.back\(\);/);
+assert.match(webEdge, /'\/admin', '\/auth\/callback'/);
+assert.match(swipeLib, /SWIPE_EDGE_WIDTH = 32[\s\S]*SWIPE_START_DX = 12[\s\S]*SWIPE_MAX_START_DY = 24[\s\S]*SWIPE_RELEASE_DX = 72/);
+assert.match(swipeLib, /node\.type === 'stack' && index > 0/);
+assert.match(read('src/app/pick/new.tsx'), /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false \}\)/,
+  'Registration swipes one step back, like the header');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,

@@ -23,6 +23,7 @@ import type { ImportedMovieItem, MovieCatalogEntry } from '@/types/domain/movieC
 import type { ImportedPlaceItem, PlaceCatalogEntry } from '@/types/domain/placeCatalog';
 import { isLabCategory } from '@/lib/profile/profilePickGroups';
 import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
+import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 
 type Params = {
   categoryId?: string | string[];
@@ -307,6 +308,8 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
     setPlaceSelection((current) => current?.phase === 'loading' ? { ...current, phase: 'paused' } : current);
     if (router.canGoBack()) router.back(); else router.replace('/');
   };
+  // Web edge swipe = this screen's "돌아가기" (also pauses in-flight lookups).
+  useSwipeBackHandler(back);
 
   // Recipe Picks are YouTube videos registered from a link, never a name search.
   if (selectedCategory?.slug === 'recipe') {
