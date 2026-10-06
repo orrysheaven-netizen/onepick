@@ -71,7 +71,7 @@ set local role anon;
 
 select is(
   (select pick_count from public.search_item_pick_counts(
-    array[(select id from sipc_ids where key='item')]
+    array['f1232000-0000-4000-8000-000000000001'::uuid]
   )),
   2::bigint,
   'anon aggregate counts active visible-item users and excludes suspended users'
@@ -80,7 +80,7 @@ select is(
 select ok(
   not exists (
     select 1 from public.search_item_pick_counts(
-      array[(select id from sipc_ids where key='hidden')]
+      array['f1232000-0000-4000-8000-000000000002'::uuid]
     )
   ),
   'hidden item Picks are excluded'
