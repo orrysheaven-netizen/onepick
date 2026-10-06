@@ -431,14 +431,17 @@ export class SupabaseReadRepository implements ReadRepository {
     const meta: Record<string, { pickCount: number; region: string | null }> = {};
     if (!ids.length) return meta;
     for (const id of ids) meta[id] = { pickCount: 0, region: null };
-    const [picks, places] = await Promise.all([
-      this.countClient.from('picks').select('item_id').in('item_id', ids).eq('status', 'active'),
+    const [counts, places] = await Promise.all([
+      // Server aggregate avoids PostgREST row limits under-counting popular search results.
+      (this.countClient as any).rpc('search_item_pick_counts', { p_item_ids: ids }),
       // places/item_places are public reads; an item without a store simply has no region.
       (this.countClient as any).from('item_places').select('item_id, places(region_1, region_2)').in('item_id', ids),
     ]);
-    if (picks.error) throw mapSupabaseError(picks.error);
+    if (counts.error) throw mapSupabaseError(counts.error);
     if (places.error) throw mapSupabaseError(places.error);
-    for (const row of (picks.data ?? []) as { item_id: string }[]) meta[row.item_id].pickCount += 1;
+    for (const row of (counts.data ?? []) as { item_id: string; pick_count: number | string }[]) {
+      if (meta[row.item_id]) meta[row.item_id].pickCount = Number(row.pick_count) || 0;
+    }
     for (const row of (places?.data ?? []) as { item_id: string; places: { region_1?: string | null; region_2?: string | null } | null }[]) {
       if (meta[row.item_id]) meta[row.item_id].region = shortRegion(row.places?.region_1, row.places?.region_2);
     }
