@@ -17,7 +17,11 @@ assert.equal(fs.existsSync(path.join(root, 'src/app/(tabs)/profile.tsx')), false
 assert.equal(fs.existsSync(path.join(root, 'src/app/u/[username].tsx')), false, 'Old public-profile Stack route is removed');
 
 assert.match(profileLayout, /<Stack[^>]*screenOptions=\{\{ headerShown: false \}\}/);
-assert.match(profileLayout, /<Stack\\.Screen name="u\\/\\[username\\]" \\/>/,\n  'Public profile inherits the stack native swipe contract instead of disabling it');\nassert.doesNotMatch(profileLayout, /gestureEnabled: false/,\n  'No user profile route may disable native swipe-back');\nassert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
+assert.match(profileLayout, /<Stack\.Screen name="u\/\[username\]" \/>/,
+  'Public profile inherits the stack native swipe contract instead of disabling it');
+assert.doesNotMatch(profileLayout, /gestureEnabled: false/,
+  'No user profile route may disable native swipe-back');
+assert.doesNotMatch(profileLayout, /initialRouteName|anchor/,
   'Direct public-profile links must not synthesize /profile underneath the deep link');
 assert.match(nativeTabs, /<NativeTabs\.Trigger name="\(profile\)"[^>]*listeners=\{\{ tabPress: \(\) => router\.replace\('\/profile'\) \}\}/,
   'Native Profile tab owns the nested Stack and an explicit tab press returns to the own-profile root');
@@ -47,7 +51,6 @@ assert.ok(!publicSource.includes('PanResponder.create'),
 assert.ok(!publicSource.includes('gestureEnabled: false'),
   'Public profile must not disable native swipe-back');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
-  'Cold public-profile links still fall back Home when there is no app history');
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
   'Home -> public profile records Home as the return target');
