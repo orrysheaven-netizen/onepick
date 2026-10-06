@@ -57,7 +57,7 @@ assert.ok(publicInfoIndex > publicPicksIndex, 'optional public profile tools sta
 assert.ok(publicTasteIndex > publicInfoIndex, 'public taste composition remains retained after the primary view');
 assert.ok(publicAiIndex > publicTasteIndex, 'public AI remains retained after taste composition');
 assert.match(publicProfile, /<Chip label="음식"/);
-assert.match(publicProfile, /<Chip label="다른 취향"/);
+assert.match(publicProfile, /<Chip label="기타"/);
 assert.match(publicProfile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
 assert.doesNotMatch(publicProfile, /<SectionHeader/);

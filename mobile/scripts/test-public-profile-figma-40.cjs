@@ -16,7 +16,7 @@ assert.match(profile, /<Avatar name=\{query\.data\.profile\.username\} size=\{68
 assert.match(profile, /<View style=\{styles\.followActions\}>[\s\S]*?<FollowButton[\s\S]*?fullWidth \/>[\s\S]*?<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"/,
   'Figma 40 keeps Follow/Following and Share in one core action row');
 assert.match(profile, /<Chip label="음식"/);
-assert.match(profile, /<Chip label="다른 취향"/);
+assert.match(profile, /<Chip label="기타"/, 'Same tab name as my profile (Figma 68-1)');
 assert.match(profile, /profileScopeChip: \{ paddingHorizontal: 13 \}/);
 assert.match(profile, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/);
 assert.match(profile, /publicPickRow:[\s\S]*?height: 94/);
@@ -30,11 +30,10 @@ assert.doesNotMatch(profile, /summaryCard/);
 const bodyIndex = profile.indexOf('<View style={styles.publicBody}>');
 const joinIndex = profile.indexOf('styles.joinCard');
 const safetyIndex = profile.indexOf('styles.safetyCard');
-const shareIndex = profile.indexOf('styles.shareCard');
 assert.ok(bodyIndex >= 0, 'Figma 40 public body must exist');
 assert.ok(joinIndex > bodyIndex, 'logged-out join CTA stays below the primary Figma 40 body');
 assert.ok(safetyIndex > bodyIndex, 'safety controls stay below the primary Figma 40 body');
-assert.ok(shareIndex > bodyIndex, 'share card stays below the primary Figma 40 body');
+assert.doesNotMatch(profile, /styles\.shareCard|프로필 공유하기/, 'Share lives only beside 팔로우 (Figma 40)');
 
 assert.match(profile, /action: 'follow_profile'/);
 assert.match(profile, /OnePickFeatures\.profileFollow && !query\.data\.isMine/);
@@ -42,7 +41,8 @@ assert.match(profile, /autoFollow=\{autoFollow && Boolean\(user\)\}/);
 assert.match(profile, /로그인하면 바로 팔로우되고 이 프로필로 돌아와요/);
 assert.match(profile, /<ReportAction/);
 assert.match(profile, /<BlockUserButton/);
-assert.match(profile, /<Text style=\{styles\.publicHeaderMenu\}>공유<\/Text>/);
+assert.doesNotMatch(profile, /publicHeaderMenu/, 'The header has no share action (Figma 40-1)');
+assert.match(profile, /<Text style=\{styles\.publicHeaderBackGlyph\}>‹<\/Text>/, 'The header shows ‹');
 assert.match(profile, /accessibilityLabel="프로필 공유"/);
 assert.match(profile, /followShareButton: \{ width: 67 \}/);
 
@@ -55,4 +55,4 @@ assert.match(photo, /size\?: 62 \| 64 \| 86/);
 assert.match(photo, /thumb62: \{ width: 62, height: 62, borderRadius: 12 \}/);
 assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 68 \| 72/);
 
-console.log('Figma 40 public profile checks passed: primary identity/follow/tabs/rows match the approved structure while join, safety, share and follow-resume contracts stay retained below it.');
+console.log('Figma 40 public profile checks passed: primary identity/follow/tabs/rows match the approved structure while join, safety and follow-resume contracts stay retained below it.');
