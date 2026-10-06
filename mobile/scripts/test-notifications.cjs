@@ -11,6 +11,7 @@ function load(file, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
+    if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
