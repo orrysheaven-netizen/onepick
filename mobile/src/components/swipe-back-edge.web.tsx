@@ -33,30 +33,45 @@ export default function SwipeBackEdge() {
   useEffect(() => {
     if (!enabled || typeof document === 'undefined') return;
 
-    let startX: number | null = null;
+    let activeTouchId: number | null = null;
+    let startX = 0;
     let startY = 0;
     let claimed = false;
 
-    const reset = () => { startX = null; claimed = false; };
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse' || event.clientX > WEB_EDGE_HIT_WIDTH) return;
-      startX = event.clientX;
-      startY = event.clientY;
+    const reset = () => { activeTouchId = null; claimed = false; };
+    const activeTouch = (touches: TouchList) => {
+      if (activeTouchId === null) return null;
+      for (let index = 0; index < touches.length; index += 1) {
+        const touch = touches.item(index);
+        if (touch?.identifier === activeTouchId) return touch;
+      }
+      return null;
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      if (activeTouchId !== null || event.touches.length !== 1) return;
+      const touch = event.touches.item(0);
+      if (!touch || touch.clientX > WEB_EDGE_HIT_WIDTH) return;
+      activeTouchId = touch.identifier;
+      startX = touch.clientX;
+      startY = touch.clientY;
       claimed = false;
     };
-    const onPointerMove = (event: PointerEvent) => {
-      if (startX === null) return;
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (Math.abs(dy) >= SWIPE_MAX_START_DY || dx <= SWIPE_START_DX) return;
-      claimed = true;
-      // Only claim after horizontal intent is clear, so ordinary taps (including
-      // the header back button) keep their normal click behaviour.
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = activeTouch(event.touches);
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (!claimed) {
+        if (Math.abs(dy) >= SWIPE_MAX_START_DY || dx <= SWIPE_START_DX) return;
+        claimed = true;
+      }
+      // iOS Safari may otherwise turn this horizontal touch into browser history-back.
       event.preventDefault();
     };
-    const onPointerUp = (event: PointerEvent) => {
-      if (startX === null) return;
-      const dx = event.clientX - startX;
+    const onTouchEnd = (event: TouchEvent) => {
+      const touch = activeTouch(event.changedTouches);
+      if (!touch) return;
+      const dx = touch.clientX - startX;
       const shouldRun = claimed && dx >= SWIPE_RELEASE_DX;
       reset();
       if (!shouldRun) return;
@@ -67,15 +82,15 @@ export default function SwipeBackEdge() {
       if (routerRef.current.canGoBack()) routerRef.current.back();
     };
 
-    document.addEventListener('pointerdown', onPointerDown, { capture: true });
-    document.addEventListener('pointermove', onPointerMove, { capture: true, passive: false });
-    document.addEventListener('pointerup', onPointerUp, { capture: true });
-    document.addEventListener('pointercancel', reset, { capture: true });
+    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
+    document.addEventListener('touchcancel', reset, { capture: true, passive: true });
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown, { capture: true });
-      document.removeEventListener('pointermove', onPointerMove, { capture: true });
-      document.removeEventListener('pointerup', onPointerUp, { capture: true });
-      document.removeEventListener('pointercancel', reset, { capture: true });
+      document.removeEventListener('touchstart', onTouchStart, { capture: true });
+      document.removeEventListener('touchmove', onTouchMove, { capture: true });
+      document.removeEventListener('touchend', onTouchEnd, { capture: true });
+      document.removeEventListener('touchcancel', reset, { capture: true });
     };
   }, [enabled]);
 
