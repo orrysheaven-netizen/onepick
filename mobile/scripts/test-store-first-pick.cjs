@@ -220,7 +220,7 @@ async function main() {
   reset();
   page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /상호명을 검색해 주세요/);
+  assert.match(page, /상호명을 검색해주세요/);
   assert.match(page, /오프라인 매장/);
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
   input('매장명 검색').onChangeText('을밀대'); page = render();
@@ -437,7 +437,7 @@ async function main() {
   press('이전 단계'); page = render();
   assert.match(page, /링크와 같은 매장을 찾았어요/, 'Back from step 2 keeps the link result');
   press('이전 단계'); page = render();
-  assert.match(page, /상호명을 검색해 주세요/, 'Back from the link screen returns to the name search');
+  assert.match(page, /상호명을 검색해주세요/, 'Back from the link screen returns to the name search');
 
   // Several similar rows and no exact one: the person picks, nothing is preselected.
   reset();
