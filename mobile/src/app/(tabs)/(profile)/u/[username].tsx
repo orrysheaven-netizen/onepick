@@ -2,6 +2,11 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+// TEMP swipe debug (preview branch only, never merge)
+let pushSwipeDbg: (line: string) => void = () => {};
+const swipeDbg = (line: string) => pushSwipeDbg(line);
+const swipePath = () => (typeof window !== 'undefined' ? window.location.pathname : '?');
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
@@ -162,17 +167,37 @@ export default function PublicProfileScreen() {
     router.replace(returnHref ?? '/');
   };
 
+  const [dbgLines, setDbgLines] = useState<string[]>([]);
+  useEffect(() => {
+    pushSwipeDbg = (line) => setDbgLines((prev) => [...prev.slice(-7), line]);
+    if (typeof document === 'undefined') return;
+    const nav = typeof navigator !== 'undefined' ? (navigator as unknown as { standalone?: boolean }).standalone : undefined;
+    swipeDbg(`env ${Platform.OS} standalone=${String(nav)} w=${window.innerWidth} path=${swipePath()} rt=${String(returnTo)}`);
+    const onStart = (e: TouchEvent) => { const t = e.touches[0]; if (t && t.clientX < 60) swipeDbg(`doc touchstart x=${Math.round(t.clientX)} tgt=${(e.target as HTMLElement)?.dataset?.testid ?? (e.target as HTMLElement)?.tagName}`); };
+    const onCancel = () => swipeDbg('doc touchcancel');
+    document.addEventListener('touchstart', onStart, true);
+    document.addEventListener('touchcancel', onCancel, true);
+    return () => { document.removeEventListener('touchstart', onStart, true); document.removeEventListener('touchcancel', onCancel, true); pushSwipeDbg = () => {}; };
+  }, []);
+
   const swipeBackResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: (_, g) => swipeDbg(`grant x0=${Math.round(g.x0)}`),
+    onPanResponderTerminate: (_, g) => swipeDbg(`TERMINATED dx=${Math.round(g.dx)}`),
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 12 && Math.abs(gesture.dy) < 24,
     // Web: a tiny vertical scroll during the drag emits a scroll event, and
     // react-native-web then asks the responder to terminate. Keep ownership so
     // release still runs; the edge zone itself never scrolls.
     onPanResponderTerminationRequest: () => false,
     onPanResponderRelease: (_, gesture) => {
-      if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
-      if (returnHref) router.dismissTo(returnHref);
-      else goBack();
+      swipeDbg(`release dx=${Math.round(gesture.dx)} dy=${Math.round(gesture.dy)} vx=${gesture.vx.toFixed(2)}`);
+      if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) { swipeDbg('-> below threshold, no nav'); return; }
+      const before = swipePath();
+      try {
+        if (returnHref) { swipeDbg(`-> dismissTo(${returnHref})`); router.dismissTo(returnHref); }
+        else { swipeDbg(`-> goBack canGoBack=${router.canGoBack()}`); goBack(); }
+      } catch (error) { swipeDbg(`nav ERROR ${String(error)}`); }
+      setTimeout(() => swipeDbg(`after 400ms path ${before} -> ${swipePath()}`), 400);
     },
   }), [connectionDirection, returnHref, router]);
 
@@ -309,6 +334,11 @@ export default function PublicProfileScreen() {
           style={[styles.swipeEdgeZone, Platform.OS === 'web' && styles.swipeEdgeZoneWeb]}
           {...swipeBackResponder.panHandlers}
         />
+      ) : null}
+      {dbgLines.length ? (
+        <View pointerEvents="none" style={{ position: 'absolute', zIndex: 200, left: 8, right: 8, bottom: 110, padding: 8, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.78)' }}>
+          {dbgLines.map((line, i) => <Text key={i} style={{ color: '#fff', fontSize: 11 }}>{line}</Text>)}
+        </View>
       ) : null}
       {query.data && OnePickFeatures.profileFollowConnections && connectionDirection ? (
         <FollowConnectionsView
