@@ -21,6 +21,7 @@ assert.ok(results.includes('메뉴 이름과 일치하는 결과는 없어요. �
 assert.match(results, /title=\{`‘\$\{needle\}’과 맞는 메뉴나 매장이 없어요\.`\}/);
 assert.match(results, /label: '원픽 등록하기'/);
 assert.match(repository, /async getSearchItemMeta\(itemIds: string\[\]\)/);
-assert.match(repository, /from\('picks'\)\.select\('item_id'\)\.in\('item_id', ids\)\.eq\('status', 'active'\)/, 'one batch read for Pick counts');
+assert.match(repository, /rpc\('search_item_pick_counts', \{ p_item_ids: ids \}\)/, 'one server aggregate for Pick counts');
+assert.doesNotMatch(repository, /from\('picks'\)\.select\('item_id'\)\.in\('item_id', ids\)/, 'search metadata must not download Pick rows to count in JS');
 
 console.log('Explore inline search checks passed: menu + store Pick groups, notice, empty state with registration, × clear.');
