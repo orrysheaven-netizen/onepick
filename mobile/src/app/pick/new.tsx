@@ -341,7 +341,8 @@ export default function NewPickScreen() {
   // Web edge swipe = this header's "이전 단계": step back inside the flow; leaving
   // from step 1 keeps the account-bound draft, so no unsaved-input prompt.
   const hasInternalBackTarget = step === 1 ? (linkEntry || requesting) : step !== 6;
-  useSwipeBackHandler(goBack, { confirmUnsaved: false, hasInternalBackTarget });
+  const reserveSystemEdge = step !== 1 && step !== 6;
+  useSwipeBackHandler(goBack, { confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge });
   const applyEntryMenuPrefill = () => {
     if (!entryMenuName || restoredDraftRef.current || entryMenuPrefillConsumedRef.current) return;
     entryMenuPrefillConsumedRef.current = true;
