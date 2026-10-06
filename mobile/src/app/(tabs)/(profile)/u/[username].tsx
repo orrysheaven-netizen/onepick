@@ -163,10 +163,8 @@ export default function PublicProfileScreen() {
   };
 
   const swipeBackResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_, gesture) => !connectionDirection
-      && gesture.x0 <= 32
-      && gesture.dx > 12
-      && Math.abs(gesture.dy) < 24,
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 12 && Math.abs(gesture.dy) < 24,
     onPanResponderRelease: (_, gesture) => {
       if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
       if (returnHref) router.dismissTo(returnHref);
@@ -174,10 +172,8 @@ export default function PublicProfileScreen() {
     },
   }), [connectionDirection, returnHref, router]);
 
-  // Let the native stack own iOS swipe-back and Android back transitions.
-  // Intercepting native-stack removal with beforeRemove + preventDefault can
-  // desynchronize the native view controller from JS navigation state.
-  // Explicit header back still falls back to returnTo for cold/deep links.
+  // Public profile uses one explicit edge gesture owner. Native-stack swipe is
+  // disabled for this route so JS dismiss/back cannot race a native pop.
   const openFollowLogin = (targetUsername: string) => {
     setLoginTargetUsername(targetUsername);
     setLoginSheetOpen(true);
@@ -302,7 +298,14 @@ export default function PublicProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']} {...swipeBackResponder.panHandlers}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {!connectionDirection && Platform.OS !== 'web' ? (
+        <View
+          testID="public-profile-swipe-edge"
+          style={styles.swipeEdgeZone}
+          {...swipeBackResponder.panHandlers}
+        />
+      ) : null}
       {query.data && OnePickFeatures.profileFollowConnections && connectionDirection ? (
         <FollowConnectionsView
           profileId={query.data.profile.id}
@@ -477,6 +480,14 @@ export default function PublicProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
+  swipeEdgeZone: {
+    position: 'absolute',
+    zIndex: 100,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 32,
+  },
   content: {
     width: '100%',
     maxWidth: OnePick.maxWidth,
