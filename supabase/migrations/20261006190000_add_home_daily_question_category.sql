@@ -9,7 +9,7 @@ grant update (daily_question_category_id) on public.home_settings to authenticat
 create function private.validate_home_daily_question_category()
 returns trigger
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 begin
