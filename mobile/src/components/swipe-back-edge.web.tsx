@@ -23,8 +23,10 @@ export default function SwipeBackEdge() {
   routerRef.current = router;
 
   const responder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > SWIPE_START_DX && Math.abs(gesture.dy) < SWIPE_MAX_START_DY,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.x0 <= SWIPE_EDGE_WIDTH
+      && gesture.dx > SWIPE_START_DX
+      && Math.abs(gesture.dy) < SWIPE_MAX_START_DY,
     // A small scroll during the drag makes react-native-web request termination;
     // keep ownership so the release still runs.
     onPanResponderTerminationRequest: () => false,
