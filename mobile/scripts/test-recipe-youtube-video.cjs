@@ -466,7 +466,7 @@ async function main() {
   assert.match(screen, /acceptYouTubePolicyConsent/);
   assert.match(screen, /YouTube 이용약관/);
   assert.match(screen, /Google 개인정보처리방침/);
-  assert.match(screen, /YouTube는 OnePick을 후원하거나 승인하지 않습니다/);
+  assert.match(screen, /YouTube는 OnePick을 후원하거나 승인하지 않아요/);
   assert.doesNotMatch(screen, /viewCount|likeCount|statistics/);
   assert.match(screen, /channel: 'recipe'/, 'the recipe is picked under the recipe channel');
   assert.match(screen, /어떤 요리의 레시피인가요\?/);
