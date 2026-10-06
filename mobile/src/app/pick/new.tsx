@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, Text
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StateCard } from '@/components/ui';
+import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -549,7 +550,7 @@ export default function NewPickScreen() {
     </Pressable>
     <Text style={styles.headerTitle}>새 원픽 등록</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={cancel} style={[styles.headerSide, styles.headerRight]}>
-      <Text style={styles.headerAction}>취소</Text>
+      <Text style={styles.headerAction}>{DIALOG_CANCEL_LABEL}</Text>
     </Pressable>
   </View>;
 

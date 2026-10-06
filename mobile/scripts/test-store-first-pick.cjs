@@ -15,6 +15,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);

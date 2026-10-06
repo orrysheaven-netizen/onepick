@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name in imports) return imports[name];
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');

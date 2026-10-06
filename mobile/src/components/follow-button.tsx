@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useFollowActions, useFollowState } from '@/hooks/useFollow';
 import { OnePick, OnePickType } from '@/constants/onepick';
 
@@ -135,11 +136,11 @@ export function FollowButton({
           </Pressable>
           <Pressable
             accessibilityRole="menuitem"
-            accessibilityLabel="팔로우 취소하지 않기"
+            accessibilityLabel="팔로우 취소 확인 닫기"
             disabled={pending}
             onPress={() => setConfirmingUnfollow(false)}
             style={({ pressed }) => [styles.cancelAction, pressed && styles.pressed]}>
-            <Text style={styles.cancelText}>취소</Text>
+            <Text style={styles.cancelText}>{DIALOG_CLOSE_LABEL}</Text>
           </Pressable>
         </View>
       ) : null}

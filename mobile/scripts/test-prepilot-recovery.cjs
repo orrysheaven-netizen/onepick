@@ -12,6 +12,7 @@ function load(file, imports) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require(name) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
@@ -221,7 +222,7 @@ async function main() {
     assert.equal(deleteButtons().length, 1, 'Only my own comment is deletable');
     c.view.button('내 댓글 삭제').onPress(); assert.equal(c.deletes.length, 0, 'The first tap only asks for confirmation');
     assert.match(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
-    c.view.button('댓글 삭제 취소').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
+    c.view.button('댓글 삭제 확인 닫기').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.view.button('내 댓글 삭제').onPress(); c.view.render({ pickId: 'pick' });
     c.removal.fail = true; c.view.button('댓글 삭제 확인').onPress(); await flush();
     assert.deepEqual(c.deletes, ['mine']);

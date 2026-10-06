@@ -11,6 +11,7 @@ import {
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -172,10 +173,10 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
               style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
               {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 취소" disabled={deleteComment.isPending}
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인 닫기" disabled={deleteComment.isPending}
               onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
               style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
-              <Text style={styles.textActionLabel}>취소</Text>
+              <Text style={styles.textActionLabel}>{DIALOG_CLOSE_LABEL}</Text>
             </Pressable>
           </View>
         </View> : <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 삭제" disabled={deleteComment.isPending}
