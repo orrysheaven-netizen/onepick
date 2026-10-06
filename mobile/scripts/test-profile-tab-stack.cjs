@@ -69,17 +69,19 @@ assert.match(publicSource, /useSwipeBackHandler\(swipeBack, \{ confirmUnsaved: f
 const rootLayout = read('src/app/_layout.tsx');
 const webEdge = read('src/components/swipe-back-edge.web.tsx');
 const nativeEdge = read('src/components/swipe-back-edge.tsx');
-assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 8/,
-  'Web hit strip stays clear of header back buttons while preserving edge-swipe start');
-assert.match(webEdge, /width: WEB_EDGE_HIT_WIDTH/);
+assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 32/,
+  'Web tracks the full 32px swipe start zone without covering header controls');
+assert.match(webEdge, /document\.addEventListener\('pointerdown',[\s\S]*capture: true[\s\S]*pointermove[\s\S]*passive: false/);
+assert.match(webEdge, /pointerEvents="none"[\s\S]*width: 0/,
+  'Web swipe capture does not place a hit-test overlay over header buttons');
 const swipeLib = read('src/lib/navigation/swipeBack.ts');
 assert.match(rootLayout, /<\/Stack>\s*<SwipeBackEdge \/>/, 'Root layout mounts one edge above every screen');
 assert.match(nativeEdge, /return null;/, 'Native keeps the native stack swipe; no global JS edge');
 assert.match(webEdge, /const hasRealBackTarget = canPopFocusedStack\(rootState as never\) && router\.canGoBack\(\)/,
   'Web swipe is disabled for cold/deep links with no real previous screen');
-assert.match(webEdge, /onPanResponderTerminationRequest: \(\) => false/);
-assert.match(webEdge, /touchAction: 'pan-y'/);
-assert.match(webEdge, /gesture\.dx < SWIPE_RELEASE_DX \|\| gesture\.vx <= 0/);
+assert.match(webEdge, /event\.clientX > WEB_EDGE_HIT_WIDTH/);
+assert.match(webEdge, /dx <= SWIPE_START_DX[\s\S]*event\.preventDefault\(\)/);
+assert.match(webEdge, /claimed && dx >= SWIPE_RELEASE_DX/);
 assert.match(webEdge, /confirmUnsaved && hasUnsavedTypedText\(\) && !window\.confirm\(UNSAVED_SWIPE_MESSAGE\)/,
   'Leaving with typed text asks first (user decision 2026-10-06)');
 assert.match(webEdge, /if \(routerRef\.current\.canGoBack\(\)\) routerRef\.current\.back\(\);/);
