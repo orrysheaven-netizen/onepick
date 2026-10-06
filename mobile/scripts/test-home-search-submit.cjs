@@ -22,7 +22,7 @@ assert.match(header, /어떤 메뉴를 찾으세요\?/);
 assert.match(header, /label="검색" onPress=\{search\}/);
 assert.match(header, /onPress=\{\(\) => onOpenItem\(item\.id\)\}/);
 assert.match(header, /테마 선택/);
-assert.match(header, /다른 테마는 준비 중입니다\./);
+assert.match(header, /다른 테마는 준비 중이에요\./);
 assert.match(header, /맛집 ✓/);
 // Only the Figma 30-1B placeholder may name an example; results are never hard-coded (PM, #709).
 assert.doesNotMatch(header.replace('placeholder="예: 라멘"', ''), /라멘|원픽 ?21/, 'No hard-coded Figma sample results');
