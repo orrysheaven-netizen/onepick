@@ -28,6 +28,7 @@ insert into sipc_ids values
   ('u1','f1230000-0000-4000-8000-000000000001'),
   ('u2','f1230000-0000-4000-8000-000000000002'),
   ('u3','f1230000-0000-4000-8000-000000000003'),
+  ('u4','f1230000-0000-4000-8000-000000000004'),
   ('item','f1232000-0000-4000-8000-000000000001'),
   ('hidden','f1232000-0000-4000-8000-000000000002');
 
@@ -57,7 +58,7 @@ from (values
   ('u1','item','active'),
   ('u2','item','active'),
   ('u3','item','active'),
-  ('u1','hidden','active')
+  ('u4','hidden','active')
 ) v(ukey,ikey,status)
 join sipc_ids u on u.key=v.ukey
 join sipc_ids x on x.key=v.ikey
