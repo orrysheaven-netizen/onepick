@@ -1,0 +1,26 @@
+version: 1
+approval_authority: human_code_owner
+tracking_tag_only: Changes-Decision
+contracts:
+  - id: UI-BOTTOM-001
+    status: locked
+    statement: "Web bottom navigation uses 56px content + 8px top padding + max(device bottom inset, 34px); reference height is 98px when inset <= 34px, and the divider must not add layout height."
+    executable_checks:
+      - mobile/scripts/test-brand-controls.cjs
+  - id: UI-BG-001
+    status: locked
+    statement: "The default OnePick screen canvas/background is #FFFFFF."
+    executable_checks:
+      - mobile/scripts/test-brand-controls.cjs
+  - id: UX-NAV-001
+    status: locked
+    statement: "Public profile remains inside the Profile tab stack so the established five-tab bottom navigation remains mounted."
+    executable_checks:
+      - mobile/scripts/test-profile-tab-stack.cjs
+  - id: UX-SWIPE-001
+    status: staged
+    activation_condition: "Activate only after the user-approved swipe restoration PR is merged and the executable contract passes on main."
+    statement: "A supported left-to-right back swipe returns to the actual origin without app termination, blank screen, or competing native-pop/JS navigation."
+    executable_checks:
+      - mobile/scripts/test-profile-tab-stack.cjs
+      - mobile/scripts/test-dead-end-navigation.cjs
