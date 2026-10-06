@@ -100,7 +100,7 @@ assert.match(read('src/app/pick/new.tsx'),
   /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge \}\)/,
   'Registration swipes one step back, like the header, only when it has an internal target');
 assert.match(webEdge,
-  /hasInternalBackTarget = getSwipeBackHandler\(\)\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
+  /registeredHandler = getSwipeBackHandler\(\)[\s\S]*hasInternalBackTarget = registeredHandler\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
   'Only a real internal back target can enable web swipe without a router pop target');
 assert.match(read('src/app/pick/new.tsx'),
   /hasInternalBackTarget = step === 1 \? \(linkEntry \|\| requesting\) : step !== 6[\s\S]*useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget \}\)/,
