@@ -47,12 +47,15 @@ assert.ok(!publicSource.includes("navigation.addListener('beforeRemove'"),
 assert.ok(publicSource.includes('router.dismissTo(returnHref);'),
   'Safe edge swipe restores the validated origin after its own gesture completes');
 assert.match(publicSource, /PanResponder\.create/);
-assert.match(publicSource, /onMoveShouldSetPanResponderCapture/);
-assert.match(publicSource, /!connectionDirection[\s\S]*?gesture\.x0 <= 32/);
+assert.match(publicSource, /onStartShouldSetPanResponder: \(\) => true/);
+assert.match(publicSource, /onMoveShouldSetPanResponder/);
+assert.match(publicSource, /testID="public-profile-swipe-edge"/);
+assert.match(publicSource, /Platform\.OS !== 'web'/);
+assert.match(publicSource, /swipeEdgeZone:[\s\S]*?position: 'absolute'[\s\S]*?zIndex: 100[\s\S]*?width: 32/);
 assert.match(publicSource, /connectionDirection \|\| gesture\.dx < 72 \|\| gesture\.vx <= 0/);
 assert.match(publicSource, /if \(returnHref\) router\.dismissTo\(returnHref\);[\s\S]*?else goBack\(\);/,
   'Swipe without returnTo follows header back: pop app history, else fall back Home');
-assert.match(publicSource, /\.\.\.swipeBackResponder\.panHandlers/);
+assert.match(publicSource, /style=\{styles\.swipeEdgeZone\}[\s\S]*?\.\.\.swipeBackResponder\.panHandlers/);
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
