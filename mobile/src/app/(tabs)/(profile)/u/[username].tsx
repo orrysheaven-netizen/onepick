@@ -193,9 +193,10 @@ export default function PublicProfileScreen() {
       swipeDbg(`release dx=${Math.round(gesture.dx)} dy=${Math.round(gesture.dy)} vx=${gesture.vx.toFixed(2)}`);
       if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) { swipeDbg('-> below threshold, no nav'); return; }
       const before = swipePath();
+      swipeDbg(returnHref ? `-> dismissTo(${returnHref})` : `-> goBack canGoBack=${router.canGoBack()}`);
       try {
-        if (returnHref) { swipeDbg(`-> dismissTo(${returnHref})`); router.dismissTo(returnHref); }
-        else { swipeDbg(`-> goBack canGoBack=${router.canGoBack()}`); goBack(); }
+      if (returnHref) router.dismissTo(returnHref);
+      else goBack();
       } catch (error) { swipeDbg(`nav ERROR ${String(error)}`); }
       setTimeout(() => swipeDbg(`after 400ms path ${before} -> ${swipePath()}`), 400);
     },
