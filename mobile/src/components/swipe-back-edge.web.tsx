@@ -10,6 +10,7 @@ import {
 // Track a 32px start zone at document level instead of covering it with a View.
 // This preserves header button taps while giving iPhone Safari a larger app gesture zone.
 const WEB_EDGE_HIT_WIDTH = 32;
+const IOS_SYSTEM_EDGE_WIDTH = 20;
 
 // Screens where a back swipe must never navigate (no back affordance by design).
 const EXCLUDED_PREFIXES = ['/admin', '/auth/callback', '/auth/admin-security'];
@@ -21,7 +22,9 @@ export default function SwipeBackEdge() {
   useSwipeBackRegistryVersion();
 
   const excluded = EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-  const hasInternalBackTarget = getSwipeBackHandler()?.hasInternalBackTarget === true;
+  const registeredHandler = getSwipeBackHandler();
+  const hasInternalBackTarget = registeredHandler?.hasInternalBackTarget === true;
+  const reserveSystemEdge = registeredHandler?.reserveSystemEdge === true;
   const hasRealBackTarget = canPopFocusedStack(rootState as never) && router.canGoBack();
   // A screen may expose a real previous state inside itself even when the router
   // stack cannot pop. A registered handler alone is not a back target.
@@ -55,6 +58,12 @@ export default function SwipeBackEdge() {
       startX = touch.clientX;
       startY = touch.clientY;
       claimed = false;
+      // Safari can claim its native history gesture immediately at the extreme
+      // edge. Only active internal step flows reserve that system edge on touchstart.
+      if (reserveSystemEdge && touch.clientX <= IOS_SYSTEM_EDGE_WIDTH) {
+        claimed = true;
+        event.preventDefault();
+      }
     };
     const onTouchMove = (event: TouchEvent) => {
       const touch = activeTouch(event.touches);
@@ -82,7 +91,7 @@ export default function SwipeBackEdge() {
       if (routerRef.current.canGoBack()) routerRef.current.back();
     };
 
-    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
     document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
     document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
     document.addEventListener('touchcancel', reset, { capture: true, passive: true });
@@ -92,7 +101,7 @@ export default function SwipeBackEdge() {
       document.removeEventListener('touchend', onTouchEnd, { capture: true });
       document.removeEventListener('touchcancel', reset, { capture: true });
     };
-  }, [enabled]);
+  }, [enabled, reserveSystemEdge]);
 
   if (!enabled) return null;
   return <View testID="swipe-back-edge" pointerEvents="none" style={styles.edge} />;
