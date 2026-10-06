@@ -49,11 +49,23 @@ export function useSwipeBackHandler(
   options?: { confirmUnsaved?: boolean; hasInternalBackTarget?: boolean },
 ) {
   const latest = useRef<SwipeBackHandler | null>(null);
+  const previousInternalTarget = useRef<boolean | undefined>(undefined);
   latest.current = run ? {
     run,
     confirmUnsaved: options?.confirmUnsaved ?? true,
     hasInternalBackTarget: options?.hasInternalBackTarget ?? false,
   } : null;
+  useEffect(() => {
+    const next = latest.current?.hasInternalBackTarget ?? false;
+    if (previousInternalTarget.current === undefined) {
+      previousInternalTarget.current = next;
+      return;
+    }
+    if (previousInternalTarget.current !== next) {
+      previousInternalTarget.current = next;
+      notify();
+    }
+  }, [options?.hasInternalBackTarget]);
   useFocusEffect(useCallback(() => {
     const token = {};
     current = { token, get: () => latest.current };
