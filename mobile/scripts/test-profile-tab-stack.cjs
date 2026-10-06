@@ -88,6 +88,9 @@ assert.match(swipeLib, /SWIPE_EDGE_WIDTH = 32[\s\S]*SWIPE_START_DX = 12[\s\S]*SW
 assert.match(swipeLib, /node\.type === 'stack' && index > 0/);
 assert.match(read('src/app/pick/new.tsx'), /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false \}\)/,
   'Registration swipes one step back, like the header');
+assert.match(webEdge,
+  /hasRegisteredHandler = getSwipeBackHandler\(\) !== null[\s\S]*\(hasRegisteredHandler \|\| hasRealBackTarget\)/,
+  'A registered step-flow handler keeps web swipe active even when the router stack cannot pop');
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
