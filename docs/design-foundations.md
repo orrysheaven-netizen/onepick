@@ -65,7 +65,7 @@
 | Header | Title, Action, Show Back, Show Action | 높이 56, 뒤로 ‹ + 가운데 제목 + 오른쪽 텍스트 동작 |
 | List Row | Title, Meta | 썸네일 36 + 제목 + 보조 정보 |
 | Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필 |
-| Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
+| Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay. 보조 버튼을 둘 때 기본 문구는 "닫기" |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
 | App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
@@ -86,7 +86,7 @@
 | Comment Row | Mode=Comment/Reply, Show Reply | 댓글 아바타 32, 답글 24 + 들여쓰기. 시간·답글 동작 터치 44 |
 | Pick Button | State=Default/Change/Mine | Default·Change=잉크 주 버튼 + ○, Mine=탠저린 면 + 잉크 글자 + ✓(비활성 흐림 없음) |
 | Loading State | Mode=Page/Inline | 첫 로드는 틀 유지 + 가운데 스피너/문구, 다음 페이지는 목록 끝 44 영역. 스켈레톤 미사용 |
-| Confirm Dialog | Title, Body (+ Cancel/Confirm 버튼) | 되돌리기 어려운 동작 확인 |
+| Confirm Dialog | Title, Body (+ Close/Confirm 버튼) | 되돌리기 어려운 동작 확인. 왼쪽 보조 버튼 기본 문구는 "닫기"(단순히 창을 닫음). 진행 중인 입력·작업을 실제로 취소할 때만 인스턴스에서 "취소"로 바꿈. 앱은 `components/ui/dialog-labels.ts`의 `DIALOG_CLOSE_LABEL`/`DIALOG_CANCEL_LABEL`로 같은 규칙을 공유 |
 
 예외: 로그인 버튼(카카오 노랑 #FEE500, Apple 검정)은 각 사 가이드 색을 그대로 씁니다.
 

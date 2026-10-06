@@ -13,6 +13,7 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -485,7 +486,7 @@ export default function PublicProfileScreen() {
               <Text style={styles.appleText}>Apple로 계속하기</Text>
             </Pressable>
             {socialSignIn.isError ? <Text accessibilityRole="alert" style={styles.loginError}>로그인을 완료하지 못했어요. 다시 시도해주세요.</Text> : null}
-            <Button variant="ghost" size="sm" label="취소" onPress={closeFollowLogin} />
+            <Button variant="ghost" size="sm" label={DIALOG_CLOSE_LABEL} onPress={closeFollowLogin} />
           </View>
         </View>
       </Modal>

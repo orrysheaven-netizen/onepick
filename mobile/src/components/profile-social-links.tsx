@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { useChangeSocialLink, useSocialLinks } from '@/hooks/useSocialLinks';
 import { normalizeSocialLink, SOCIAL_PLATFORMS, SocialLinkValidationError } from '@/lib/socialLinks';
 import type { SocialLink, SocialPlatform } from '@/lib/socialLinks';
@@ -114,7 +115,7 @@ function SocialLinksContent({ profileUserId, viewerId, editable }: Props & { vie
                     <Text style={styles.saveText}>{busy ? '처리 중…' : '저장'}</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setEditing(null); setError(''); }}
-                    style={[styles.manage, busy && styles.disabled]}><Text style={styles.action}>취소</Text></Pressable>
+                    style={[styles.manage, busy && styles.disabled]}><Text style={styles.action}>{DIALOG_CANCEL_LABEL}</Text></Pressable>
                   {saved ? <Pressable accessibilityRole="button" accessibilityLabel={`${platform.label} 연결 해제`}
                     disabled={busy} onPress={() => void change(true)} style={[styles.manage, busy && styles.disabled]}>
                     <Text style={styles.remove}>연결 해제</Text>

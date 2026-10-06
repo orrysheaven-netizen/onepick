@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useSafetyActions } from '@/hooks/useSafety';
 import { OnePick } from '@/constants/onepick';
 
@@ -62,7 +63,7 @@ export function BlockUserButton({
         </Pressable>
         {confirming && !blockUser.isPending ? (
           <Pressable onPress={() => setConfirming(false)} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
-            <Text style={styles.cancelText}>취소</Text>
+            <Text style={styles.cancelText}>{DIALOG_CLOSE_LABEL}</Text>
           </Pressable>
         ) : null}
       </View>
