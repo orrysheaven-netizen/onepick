@@ -97,7 +97,7 @@ assert.match(webEdge, /'\/admin', '\/auth\/callback'/);
 assert.match(swipeLib, /SWIPE_EDGE_WIDTH = 32[\s\S]*SWIPE_START_DX = 12[\s\S]*SWIPE_MAX_START_DY = 24[\s\S]*SWIPE_RELEASE_DX = 72/);
 assert.match(swipeLib, /node\.type === 'stack' && index > 0/);
 assert.match(read('src/app/pick/new.tsx'),
-  /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget \}\)/,
+  /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge \}\)/,
   'Registration swipes one step back, like the header, only when it has an internal target');
 assert.match(webEdge,
   /hasInternalBackTarget = getSwipeBackHandler\(\)\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
