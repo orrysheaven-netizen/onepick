@@ -227,7 +227,7 @@ async function main() {
   render(); press('등록하기'); await settle();
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
-  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요/);
+  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요/);
   button('사진 제거'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
   press('사진 제거'); render();
   assert.equal(button('등록하기').disabled, false, 'Image-free requests remain supported');
