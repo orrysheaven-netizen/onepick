@@ -416,6 +416,14 @@ async function main() {
   input('매장 찾기 네이버 지도 링크').onChangeText('https://blog.naver.com/x'); page = render();
   assert.match(page, /네이버 지도 링크를 확인해주세요/);
   assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'Only Naver map links are looked up');
+  const naverShare = '[네이버지도]\n머시기쪽갈비 신림점\n서울 관악구 신림동길 23-1 1층 101, 102호\nhttps://naver.me/FvTtTqVA';
+  input('매장 찾기 네이버 지도 링크').onChangeText(naverShare); page = render();
+  assert.equal(input('매장 찾기 네이버 지도 링크').value, 'https://naver.me/FvTtTqVA',
+    'Naver share text is normalized to its allowlisted map URL');
+  assert.ok(!pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled,
+    'A valid URL extracted from Naver share text enables lookup');
+  assert.equal(service.extractNaverMapUrl(naverShare), 'https://naver.me/FvTtTqVA');
+
   input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/starbucks'); render();
   press('매장 찾기'); page = render();
   assert.equal(calls.find(([name]) => name === 'link')[1].url, 'https://naver.me/starbucks');
