@@ -225,7 +225,7 @@ async function main() {
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
   input('매장명 검색').onChangeText('을밀대'); page = render();
   assert.equal(storeSearchEnabled, true, 'normal entry enables store search even while disabled prefill query is pending');
-  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해 주세요/);
+  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해주세요/);
 
   // Existing item: store -> menu -> photo -> review, then response ids.
   await chooseExistingOffline();
