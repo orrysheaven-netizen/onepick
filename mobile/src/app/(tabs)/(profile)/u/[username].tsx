@@ -165,6 +165,10 @@ export default function PublicProfileScreen() {
   const swipeBackResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 12 && Math.abs(gesture.dy) < 24,
+    // Web: a tiny vertical scroll during the drag emits a scroll event, and
+    // react-native-web then asks the responder to terminate. Keep ownership so
+    // release still runs; the edge zone itself never scrolls.
+    onPanResponderTerminationRequest: () => false,
     onPanResponderRelease: (_, gesture) => {
       if (connectionDirection || gesture.dx < 72 || gesture.vx <= 0) return;
       if (returnHref) router.dismissTo(returnHref);
@@ -299,10 +303,10 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {!connectionDirection && Platform.OS !== 'web' ? (
+      {!connectionDirection ? (
         <View
           testID="public-profile-swipe-edge"
-          style={styles.swipeEdgeZone}
+          style={[styles.swipeEdgeZone, Platform.OS === 'web' && styles.swipeEdgeZoneWeb]}
           {...swipeBackResponder.panHandlers}
         />
       ) : null}
@@ -488,6 +492,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 32,
   },
+  // Web only: the browser keeps vertical panning but hands horizontal drags to
+  // JS, so it does not claim the edge swipe as a scroll.
+  swipeEdgeZoneWeb: { touchAction: 'pan-y' } as never,
   content: {
     width: '100%',
     maxWidth: OnePick.maxWidth,

@@ -50,12 +50,19 @@ assert.match(publicSource, /PanResponder\.create/);
 assert.match(publicSource, /onStartShouldSetPanResponder: \(\) => true/);
 assert.match(publicSource, /onMoveShouldSetPanResponder/);
 assert.match(publicSource, /testID="public-profile-swipe-edge"/);
-assert.match(publicSource, /Platform\.OS !== 'web'/);
+assert.ok(!publicSource.includes("Platform.OS !== 'web' ? ("),
+  'Web (Safari/home-screen app) gets the same edge zone; it must not be native-only');
+assert.match(publicSource, /\{!connectionDirection \? \(\s*<View\s+testID="public-profile-swipe-edge"/,
+  'Edge zone is mounted on every platform except follower/following lists');
+assert.match(publicSource, /onPanResponderTerminationRequest: \(\) => false/,
+  'Web scroll events must not terminate the swipe before release');
+assert.match(publicSource, /Platform\.OS === 'web' && styles\.swipeEdgeZoneWeb[\s\S]*?swipeEdgeZoneWeb: \{ touchAction: 'pan-y' \}/,
+  'Web edge zone hands horizontal drags to JS instead of browser scrolling');
 assert.match(publicSource, /swipeEdgeZone:[\s\S]*?position: 'absolute'[\s\S]*?zIndex: 100[\s\S]*?width: 32/);
 assert.match(publicSource, /connectionDirection \|\| gesture\.dx < 72 \|\| gesture\.vx <= 0/);
 assert.match(publicSource, /if \(returnHref\) router\.dismissTo\(returnHref\);[\s\S]*?else goBack\(\);/,
   'Swipe without returnTo follows header back: pop app history, else fall back Home');
-assert.match(publicSource, /style=\{styles\.swipeEdgeZone\}[\s\S]*?\.\.\.swipeBackResponder\.panHandlers/);
+assert.match(publicSource, /style=\{\[styles\.swipeEdgeZone,[\s\S]*?\.\.\.swipeBackResponder\.panHandlers/);
 assert.ok(publicSource.includes("router.replace(returnHref ?? '/');"),
   'Cold public-profile links still fall back Home when there is no app history');
 assert.match(home, /params: \{ username, returnTo: '\/' \}/,
