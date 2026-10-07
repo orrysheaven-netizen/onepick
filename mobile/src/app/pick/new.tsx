@@ -22,7 +22,7 @@ import { extractNaverMapUrl, isNaverMapUrl, type MenuOption, type StoreCandidate
 import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
-// 원픽 등록 4단계: 매장 → 메뉴 → 사진 → 한줄평. 지도 링크는 매장 단계 안에서 받는다.
+// 원픽 등록 4단계: 네이버 지도 링크/매장 → 메뉴 → 사진 → 한줄평. 기본 진입은 링크이며 URL 없음만 매장 검색으로 전환한다.
 // Everything the user enters lives in this one screen's state, so moving back
 // and forth between steps never loses a typed review or a chosen photo. The same
 // state is mirrored to an account-bound draft (lib/pick/pickDraft) so a login round
@@ -149,8 +149,9 @@ export default function NewPickScreen() {
   const [requesting, setRequesting] = useState(false);
   const [requestPart, setRequestPart] = useState<'name' | 'link'>('name');
   const [newName, setNewName] = useState('');
-  // Step 1 can start from a Naver map link instead of a name search.
-  const [linkEntry, setLinkEntry] = useState(false);
+  // Step 1 starts from a Naver map link. A validated provider-context entry keeps
+  // the store the person was already viewing instead of asking for its link again.
+  const [linkEntry, setLinkEntry] = useState(!entryProviderId);
   const [entryLink, setEntryLink] = useState('');
   // The link could not give a name: only the name is asked, the pasted link is kept.
   const [nameOnlyFromLink, setNameOnlyFromLink] = useState(false);
@@ -192,7 +193,7 @@ export default function NewPickScreen() {
 
   const resetForm = () => {
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
-    setLinkEntry(false); setEntryLink(''); setNameOnlyFromLink(false);
+    setLinkEntry(!entryProviderId); setEntryLink(''); setNameOnlyFromLink(false);
     setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
@@ -207,6 +208,9 @@ export default function NewPickScreen() {
     setPrefillDismissed(true);
     setMenuPrefilled(false);
     setQuery(draft.query); setRequesting(draft.requesting); setRequestPart(draft.requestPart ?? 'name'); setNewName(draft.newName);
+    // A saved name-search path must remain the previous in-flow screen when a
+    // restored menu/photo/review step goes back to 1/4.
+    setLinkEntry(!(draft.query || draft.requesting));
     setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
     setManualCategory(draft.manualCategory); setCategoryQuery(draft.categoryQuery); setMenu(draft.menu);
     setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
@@ -228,7 +232,7 @@ export default function NewPickScreen() {
 
   const providerPrefill = useProviderStorePrefill(
     entryProviderId,
-    Boolean(user) && hydratedFor === user?.id && !restoredDraftRef.current && !prefillDismissed && step === 1 && !requesting,
+    Boolean(user) && hydratedFor === user?.id && !restoredDraftRef.current && !prefillDismissed && step === 1 && !linkEntry && !requesting,
   );
   const providerPrefillStore = !query && !store && !prefillDismissed ? providerPrefill.data ?? null : null;
   const providerPrefillDisplayName = providerPrefillStore
@@ -242,7 +246,7 @@ export default function NewPickScreen() {
   const search = useStoreSearch(
     'offline',
     query,
-    Boolean(user) && step === 1 && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
+    Boolean(user) && step === 1 && !linkEntry && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
   );
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const linkLookup = useLinkCategorySuggestions();
@@ -322,6 +326,9 @@ export default function NewPickScreen() {
   const saving = registration.isPending;
   const replacingVisiblePick = expectedPreviousPickId !== undefined && expectedPreviousPickId !== null
     && itemDetail.data?.myPickStatus?.type !== 'selected_this';
+  // A provider-profile entry already has a real previous screen. Its step-1 prefill
+  // is the root of this registration flow, not the name-search fallback.
+  const providerContextRoot = step === 1 && Boolean(entryProviderId) && !prefillDismissed && !restoredDraftRef.current;
 
   const previousFrom = (from: Step): Step => {
     if (from === 2) return 1;
@@ -332,16 +339,20 @@ export default function NewPickScreen() {
   const goBack = () => {
     if (saving || busy.current) return;
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
-    if (step === 1 && linkEntry) { setLinkEntry(false); return; }
     if (step === 1 && requesting && nameOnlyFromLink) { setRequesting(false); setNameOnlyFromLink(false); setLinkEntry(true); return; }
     if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
-    if (step === 1 && requesting) { setRequesting(false); return; }
+    if (step === 1 && requesting) { setRequesting(false); setLinkEntry(false); return; }
+    if (step === 1 && !linkEntry && providerContextRoot) {
+      if (router.canGoBack()) router.back(); else router.replace('/');
+      return;
+    }
+    if (step === 1 && !linkEntry) { setLinkEntry(true); return; }
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
   };
   // Web edge swipe = this header's "이전 단계": step back inside the flow; leaving
   // from step 1 keeps the account-bound draft, so no unsaved-input prompt.
-  const hasInternalBackTarget = step === 1 ? (linkEntry || requesting) : step !== 6;
+  const hasInternalBackTarget = step === 1 ? ((!linkEntry && !providerContextRoot) || requesting) : step !== 6;
   useSwipeBackHandler(goBack, { confirmUnsaved: false, hasInternalBackTarget });
   const applyEntryMenuPrefill = () => {
     if (!entryMenuName || restoredDraftRef.current || entryMenuPrefillConsumedRef.current) return;
@@ -690,7 +701,11 @@ export default function NewPickScreen() {
           <View style={styles.footer}>
             {linkEntry
               ? !linkResult
-                ? <FlowButton label="매장 찾기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
+                ? <>
+                  <FlowButton label="매장명 가져오기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
+                  {!linkLookup.isPending ? <FlowButton variant="text" label="URL 없음"
+                    onPress={() => { setLinkEntry(false); linkLookup.reset(); }} /> : null}
+                </>
                 : <>
                   {linkSelected ? <FlowButton label="다음" onPress={() => pickStore(linkSelected)} /> : null}
                   <FlowButton variant={linkSelected || linkMatches.length > 0 ? 'secondary' : 'primary'}
@@ -700,12 +715,8 @@ export default function NewPickScreen() {
               : !requesting && providerPrefillStore
               ? <FlowButton label="다음" onPress={() => pickStore(providerPrefillStore)} />
               : !requesting
-                ? <>
-                  <FlowButton variant="secondary" label="찾는 매장이 없어요."
+                ? <FlowButton variant="secondary" label="찾는 매장이 없어요."
                     onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); setNameOnlyFromLink(false); }} />
-                  <FlowButton variant="text" label="네이버 지도 링크로 찾기"
-                    onPress={() => { setLinkEntry(true); setEntryLink(''); linkLookup.reset(); }} />
-                </>
               : requestPart === 'name'
                 ? <FlowButton label="다음" disabled={!validNewName} onPress={() => {
                     if (nameOnlyFromLink && validMapLink) pickStore({ kind: 'new', name: newStoreName, channel: 'offline', mapUrl: mapLink.trim() });
