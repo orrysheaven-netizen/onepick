@@ -256,6 +256,10 @@ export type AppDatabase = Omit<Database, 'public'> & {
         Args: { p_query: string; p_limit?: number };
         Returns: StoreCatalogRow[];
       };
+      search_store_catalog_page: {
+        Args: { p_query: string; p_cursor?: string | null; p_limit?: number };
+        Returns: (StoreCatalogRow & { next_cursor: string | null })[];
+      };
       search_online_sellers: {
         Args: { p_query: string; p_limit?: number };
         Returns: { provider_id: string; name: string; host: string; official_url: string }[];
