@@ -73,6 +73,17 @@ export default function PickDetailScreen() {
     () => itemQuery.data?.picks.find(({ pick }) => pick.id === pickId) ?? null,
     [itemQuery.data?.picks, pickId],
   );
+  const focusedItemHasPhoto = Boolean(itemQuery.data?.item && [
+    itemQuery.data.item.imagePath,
+    itemQuery.data.item.imageUrl,
+    itemQuery.data.item.thumbnailUrl,
+    itemQuery.data.item.imageSourceUrl,
+  ].some((value) => typeof value === 'string' && value.trim().length > 0));
+  const hiddenPhotoLessPick = Boolean(
+    focused
+    && focused.pick.userId !== user?.id
+    && !focusedItemHasPhoto
+  );
 
   useEffect(() => {
     if (!user || !focused || !notificationGroupId || !notificationSnapshot) return;
@@ -113,6 +124,13 @@ export default function PickDetailScreen() {
         : hiddenFutureChannel ? <View style={styles.state}>
           <Text style={styles.stateTitle}>현재 공개 중인 원픽이 아니에요.</Text>
           <Text style={styles.stateText}>지금은 매장에서 고른 음식 원픽만 공개하고 있어요.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.retry}>
+            <Text style={styles.retryText}>홈으로</Text>
+          </Pressable>
+        </View>
+        : hiddenPhotoLessPick ? <View style={styles.state}>
+          <Text style={styles.stateTitle}>현재 공개 중인 원픽이 아니에요.</Text>
+          <Text style={styles.stateText}>사진이 있는 원픽만 공개하고 있어요.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.retry}>
             <Text style={styles.retryText}>홈으로</Text>
           </Pressable>
