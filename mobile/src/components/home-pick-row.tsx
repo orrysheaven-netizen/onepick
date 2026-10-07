@@ -28,7 +28,7 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }:
   const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
 
   return <View style={styles.card}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
+    <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
       style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
       <PickPhoto feedCard uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
     </Pressable>
@@ -43,7 +43,7 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }:
               </Pressable>
             : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
           : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
           style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={styles.menu}>{menuName}</Text>
         </Pressable>
