@@ -72,7 +72,7 @@ const nativeEdge = read('src/components/swipe-back-edge.tsx');
 assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 20/,
   'Web limits capture to the iOS system-edge width to reduce horizontal-scroll conflicts');
 assert.match(webEdge, /document\.addEventListener\('touchstart',[\s\S]*passive: false[\s\S]*touchmove[\s\S]*passive: false/,
-  'iOS web claims horizontal edge movement with a non-passive touchmove listener');
+  'iOS web claims horizontal edge movement with non-passive touch listeners');
 assert.match(webEdge, /pointerEvents="none"[\s\S]*width: 0/,
   'Web swipe capture does not place a hit-test overlay over header buttons');
 const swipeLib = read('src/lib/navigation/swipeBack.ts');
@@ -91,8 +91,8 @@ assert.match(webEdge, /endWebSwipeGesture\(gesture, touch\.clientX, touch\.clien
 assert.match(webEdge, /reserved\) event\.preventDefault\(\)/,
   'Only active internal step flows reserve the iOS system edge on touchstart');
 assert.match(read('src/app/pick/new.tsx'),
-  /reserveSystemEdge = step !== 1 && step !== 6[\s\S]*reserveSystemEdge,[\s\S]*onGestureProgress: updateSwipeBack[\s\S]*onGestureCancel: cancelSwipeBack/,
-  'Registration reserves Safari system edge only for active internal steps and renders interactive progress');
+  /reserveSystemEdge = hasInternalBackTarget && step !== 6[\s\S]*reserveSystemEdge,[\s\S]*onGestureProgress: updateSwipeBack[\s\S]*onGestureCancel: cancelSwipeBack/,
+  'Registration reserves Safari system edge only when the link-first flow has a real internal target');
 assert.match(webEdge, /end\.replayTap[\s\S]*focusTarget[\s\S]*focusTarget\.focus\(\)[\s\S]*button\?\.click\(\)/,
   'A short reserved-edge tap restores inputs as well as buttons');
 assert.match(read('src/lib/navigation/webSwipeGesture.ts'),
@@ -123,8 +123,8 @@ assert.match(webEdge,
   /registeredHandler = getSwipeBackHandler\(\)[\s\S]*hasInternalBackTarget = registeredHandler\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
   'Only a real internal back target can enable web swipe without a router pop target');
 assert.match(read('src/app/pick/new.tsx'),
-  /hasInternalBackTarget = step === 1 \? \(linkEntry \|\| requesting\) : step !== 6[\s\S]*useSwipeBackHandler\(runSwipeBack, \{/,
-  'Registration root 1\/4 and completion stay no-op while active steps and nested step-1 states can swipe back');
+  /providerContextRoot = step === 1 && Boolean\(entryProviderId\)[\s\S]*hasInternalBackTarget = step === 1 \? \(\(!linkEntry && !providerContextRoot\) \|\| requesting\) : step !== 6[\s\S]*useSwipeBackHandler\(runSwipeBack, \{/,
+  'Registration link-first/provider roots stay no-op internally while real fallback states can swipe back');
 assert.match(swipeLib,
   /previousInternalTarget[\s\S]*options\?\.hasInternalBackTarget[\s\S]*notify\(\)/,
   'Changing an internal back target notifies the mounted web edge to re-render');
