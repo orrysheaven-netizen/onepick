@@ -83,15 +83,20 @@ assert.match(webEdge, /const hasRealBackTarget = canPopFocusedStack\(rootState a
 assert.match(webEdge, /touch\.clientX > WEB_EDGE_HIT_WIDTH/);
 assert.match(webEdge, /activeTouchId[\s\S]*touch\?\.identifier === activeTouchId/,
   'Only the touch that started the edge gesture can drive it');
-assert.match(webEdge, /dx <= SWIPE_START_DX[\s\S]*claimed = true[\s\S]*event\.preventDefault\(\)/);
-assert.match(webEdge, /reserveSystemEdge && touch\.clientX <= IOS_SYSTEM_EDGE_WIDTH[\s\S]*claimed = true[\s\S]*event\.preventDefault\(\)/,
+assert.match(webEdge, /beginWebSwipeGesture\(touch\.clientX, touch\.clientY, reserved\)/);
+assert.match(webEdge, /moveWebSwipeGesture\(gesture, touch\.clientX, touch\.clientY\)/);
+assert.match(webEdge, /move\.kind === 'vertical'[\s\S]*scrollTarget\.scrollTop = Math\.max\(0, startScrollTop - move\.dy\)/,
+  'Reserved iOS edge restores vertical scrolling when vertical intent wins');
+assert.match(webEdge, /endWebSwipeGesture\(gesture, touch\.clientX, touch\.clientY\)/);
+assert.match(webEdge, /reserved\) event\.preventDefault\(\)/,
   'Only active internal step flows reserve the iOS system edge on touchstart');
 assert.match(read('src/app/pick/new.tsx'),
   /reserveSystemEdge = step !== 1 && step !== 6[\s\S]*reserveSystemEdge,[\s\S]*onGestureProgress: updateSwipeBack[\s\S]*onGestureCancel: cancelSwipeBack/,
   'Registration reserves Safari system edge only for active internal steps and renders interactive progress');
-assert.match(webEdge, /shouldReplayTap[\s\S]*tapTarget instanceof Element[\s\S]*button\?\.click\(\)/,
-  'A short tap cancelled at the reserved iOS edge replays the original interactive control');
-assert.match(webEdge, /endedMovingRight[\s\S]*claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight/,
+assert.match(webEdge, /end\.replayTap[\s\S]*focusTarget[\s\S]*focusTarget\.focus\(\)[\s\S]*button\?\.click\(\)/,
+  'A short reserved-edge tap restores inputs as well as buttons');
+assert.match(read('src/lib/navigation/webSwipeGesture.ts'),
+  /endedMovingRight[\s\S]*state\.claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight/,
   'Swipe-back only completes when the release is still moving right');
 assert.match(webEdge, /onGestureProgress\?\.\(Math\.max\(0, dx\)\)/,
   'Claimed web swipes report live horizontal progress to the focused screen');
@@ -104,7 +109,7 @@ assert.match(read('src/app/pick/new.tsx'), /fontSize: 16/,
 assert.doesNotMatch(read('src/app/pick/new.tsx'),
   /accessibilityLabel="매장 찾기 네이버 지도 링크"\s+autoFocus/,
   'Naver link input never auto-focuses and zooms the iPhone viewport');
-assert.match(webEdge, /claimed && dx >= SWIPE_RELEASE_DX/);
+assert.match(webEdge, /if \(!end\.complete\) return;/);
 assert.match(webEdge, /confirmUnsaved && hasUnsavedTypedText\(\) && !window\.confirm\(UNSAVED_SWIPE_MESSAGE\)/,
   'Leaving with typed text asks first (user decision 2026-10-06)');
 assert.match(webEdge, /if \(routerRef\.current\.canGoBack\(\)\) routerRef\.current\.back\(\);/);
