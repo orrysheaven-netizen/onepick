@@ -22,6 +22,12 @@ export type SwipeBackHandler = {
   // True only while this screen has a real in-screen previous state. This may
   // enable the web edge gesture even when the router stack itself cannot pop.
   hasInternalBackTarget: boolean;
+  // When true, web may reserve the extreme iOS edge immediately to prevent
+  // Safari history-back. Use only for step flows where an internal target exists.
+  reserveSystemEdge: boolean;
+  // Optional visual hooks for screens that render an interactive back transition.
+  onGestureProgress?: (dx: number) => void;
+  onGestureCancel?: () => void;
 };
 
 let current: { token: object; get: () => SwipeBackHandler | null } | null = null;
@@ -46,7 +52,13 @@ export function useSwipeBackRegistryVersion(): number {
 /** Registers the focused screen's swipe-back behaviour (web edge gesture). */
 export function useSwipeBackHandler(
   run: (() => void) | null,
-  options?: { confirmUnsaved?: boolean; hasInternalBackTarget?: boolean },
+  options?: {
+    confirmUnsaved?: boolean;
+    hasInternalBackTarget?: boolean;
+    reserveSystemEdge?: boolean;
+    onGestureProgress?: (dx: number) => void;
+    onGestureCancel?: () => void;
+  },
 ) {
   const latest = useRef<SwipeBackHandler | null>(null);
   const previousInternalTarget = useRef<boolean | undefined>(undefined);
@@ -54,6 +66,9 @@ export function useSwipeBackHandler(
     run,
     confirmUnsaved: options?.confirmUnsaved ?? true,
     hasInternalBackTarget: options?.hasInternalBackTarget ?? false,
+    reserveSystemEdge: options?.reserveSystemEdge ?? false,
+    onGestureProgress: options?.onGestureProgress,
+    onGestureCancel: options?.onGestureCancel,
   } : null;
   useEffect(() => {
     const next = latest.current?.hasInternalBackTarget ?? false;

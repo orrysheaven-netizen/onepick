@@ -210,8 +210,17 @@ let states, refs, stateIndex, refIndex, effectIndex, effectDeps, pendingEffects,
 const part = (tag) => ({ children }) => React.createElement(tag, null, children);
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
 const { AppError } = load('errors/appError.ts');
+const animatedValue = class {
+  constructor(value) { this.value = value; }
+  setValue(value) { this.value = value; }
+};
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+  Animated: {
+    Value: animatedValue,
+    View: part('div'),
+    timing: (value, config) => ({ start: (done) => { value.setValue(config.toValue); done?.({ finished: true }); } }),
+  },
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
   TextInput: (props) => { inputs.push(props); return React.createElement('input', { 'aria-label': props.accessibilityLabel, placeholder: props.placeholder }); },
   Pressable: (props) => { pressables.push(props); return React.createElement('button', null, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children); },
