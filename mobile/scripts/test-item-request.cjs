@@ -319,7 +319,7 @@ async function main() {
 
   press('먹을것 › 라면'); render();
   assert.equal(appliedCategoryId, undefined, 'Selecting a suggestion still does not mutate the item');
-  press('이 카테고리 적용'); await settle();
+  press('이 카테고리로 정하기'); await settle();
   assert.equal(appliedCategoryId, 'ramen', 'Only the explicit apply action writes the category');
   assert.match(render(), /카테고리를 적용했어요/);
 
@@ -360,7 +360,7 @@ async function main() {
   params = { itemName: '새 제품' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
   applyOutcome = () => ({ type: 'existing_item', itemId: 'existing-ramen', categoryId: 'ramen' });
   render(); press('등록하기'); await settle(); render();
-  press('먹을것 › 라면'); render(); press('이 카테고리 적용'); await settle();
+  press('먹을것 › 라면'); render(); press('이 카테고리로 정하기'); await settle();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'existing-ramen');
 
