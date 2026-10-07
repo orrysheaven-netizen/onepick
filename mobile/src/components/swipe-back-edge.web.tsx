@@ -50,6 +50,10 @@ export default function SwipeBackEdge() {
       reservedSystemEdge = false;
       startTarget = null;
     };
+    const cancelGesture = () => {
+      getSwipeBackHandler()?.onGestureCancel?.();
+      reset();
+    };
     const activeTouch = (touches: TouchList) => {
       if (activeTouchId === null) return null;
       for (let index = 0; index < touches.length; index += 1) {
@@ -89,6 +93,7 @@ export default function SwipeBackEdge() {
       // iOS Safari may otherwise turn this horizontal touch into browser history-back.
       event.preventDefault();
       lastX = touch.clientX;
+      getSwipeBackHandler()?.onGestureProgress?.(Math.max(0, dx));
     };
     const onTouchEnd = (event: TouchEvent) => {
       const touch = activeTouch(event.changedTouches);
@@ -102,6 +107,7 @@ export default function SwipeBackEdge() {
         && Math.abs(dy) <= SWIPE_START_DX;
       const tapTarget = startTarget;
       reset();
+      if (!shouldRun) getSwipeBackHandler()?.onGestureCancel?.();
       if (shouldReplayTap && tapTarget instanceof Element) {
         const button = tapTarget.closest<HTMLElement>('button, a, [role="button"]');
         button?.click();
@@ -118,12 +124,12 @@ export default function SwipeBackEdge() {
     document.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
     document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
     document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
-    document.addEventListener('touchcancel', reset, { capture: true, passive: true });
+    document.addEventListener('touchcancel', cancelGesture, { capture: true, passive: true });
     return () => {
       document.removeEventListener('touchstart', onTouchStart, { capture: true });
       document.removeEventListener('touchmove', onTouchMove, { capture: true });
       document.removeEventListener('touchend', onTouchEnd, { capture: true });
-      document.removeEventListener('touchcancel', reset, { capture: true });
+      document.removeEventListener('touchcancel', cancelGesture, { capture: true });
     };
   }, [enabled, reserveSystemEdge]);
 
