@@ -318,7 +318,7 @@ const count = (name) => calls.filter(([n]) => n === name).length;
 
 // Store -> menu -> photo -> review typed on the last step (not submitted).
 async function writeUntilReview() {
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
   press('다음'); await flush(); await render();
   press('사진 고르기'); await flush(); await render(); press('다음'); await render();
@@ -416,7 +416,7 @@ async function screenTests() {
   // 6. Item already has a photo: no photo request, review step returns directly.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
   press('다음'); await flush(); await render();
   input('원픽 한줄평').onChangeText('또 가고 싶어요'); await render();
@@ -469,11 +469,17 @@ async function screenTests() {
 
   // 9. Early steps restore as they were (menu step keeps its selection).
   reset();
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render();
   mount(); page = await render(); page = await render();
   assert.equal(stepOf(page), '2');
   assert.equal(input('메뉴 이름').value, '평양냉면');
+  press('이전 단계'); page = await render();
+  assert.equal(stepOf(page), '1');
+  assert.equal(input('매장명 검색').value, '을밀대',
+    'restored name-search flow returns to the saved store query, not an empty link screen');
+  assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
+    'restored name-search results remain available after going back from 2/4');
   assert.equal(count('register'), 0);
 }
 
