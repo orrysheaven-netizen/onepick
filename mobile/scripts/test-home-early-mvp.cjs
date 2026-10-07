@@ -311,7 +311,10 @@ function home(options = {}) {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user, isLoading: false, error: null, retry: () => {} }) },
     '@/hooks/useHomeData': {
       useHomeData: () => query({ currentPicks, picks: [] }),
-      useHomeItemRanking: () => query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }]),
+      useHomeItemRanking: (...args) => {
+        calls.itemRanking = args;
+        return query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }]);
+      },
       useDailyQuestionCategory: () => questionQuery ?? query(question),
       useHomeParticipantPicks: () => query({ rows: participants, complete: participantsComplete }),
     },
@@ -348,14 +351,16 @@ function home(options = {}) {
 
 test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)', () => {
   for (const total of [0, 29]) {
-    const { text } = home({ counts: countsOf(total ? { ramen: total } : {}) });
+    const { text, calls } = home({ counts: countsOf(total ? { ramen: total } : {}) });
     assert.match(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
     assert.doesNotMatch(text(), /최근 7일 원픽 많은 순/, `total ${total} hides 많이 고른 메뉴`);
+    assert.equal(calls.itemRanking[2], false, `total ${total} does not fetch the hidden ranking`);
   }
   for (const total of [30, 31]) {
-    const { text } = home({ counts: countsOf({ ramen: total }) });
+    const { text, calls } = home({ counts: countsOf({ ramen: total }) });
     assert.doesNotMatch(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
     assert.match(text(), /최근 7일 원픽 많은 순/, `total ${total} restores 많이 고른 메뉴`);
+    assert.equal(calls.itemRanking[2], true, `total ${total} enables the visible ranking`);
   }
   const chips = home({ counts: countsOf({ ramen: 2 }) });
   deepEq(chips.view.all('Chip').map((c) => c.label), ['+ 칼국수', '+ 곱창', '+ 막창', '+ 대창'],
@@ -367,6 +372,7 @@ test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)'
 test('Loading and error keep the discovery slot honest', () => {
   const loading = home({ countsQuery: query(undefined) });
   assert.doesNotMatch(loading.text(), /아직 아무도 안 골랐어요|최근 7일 원픽 많은 순/, 'Unknown total shows neither section');
+  assert.equal(loading.calls.itemRanking[2], false, 'Unknown total does not speculate by fetching the ranking');
   assert.doesNotMatch(loading.text(), /명이 답했어요/, 'Answer count waits for the shared counts');
   const failed = home({ countsQuery: query(undefined, { isError: true, isPending: false }) });
   assert.match(failed.text(), /메뉴별 원픽 수를 불러오지 못했어요/);
