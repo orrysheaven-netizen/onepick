@@ -283,19 +283,41 @@ export class StoreFirstService {
     let brand: StoreBrandScope | null = null;
 
     if (store.kind === 'place') {
-      const { data, error } = await this.client.rpc('search_place_catalog', {
+      const { data: enabled, error: categoryError } = await this.client.rpc('category_uses_place_catalog', {
         p_category_id: categoryId,
-        p_query: store.name,
-        p_limit: 20,
       });
-      if (error) throw mapSupabaseError(error);
-      const row = (data ?? []).find((entry) => entry.catalog_id === store.catalogId);
-      itemId = row?.existing_item_id ?? null;
-      if (row) {
-        brand = await this.placeBrandScope(categoryId, {
-          place_provider: row.place_provider,
-          provider_place_id: row.provider_place_id,
-        });
+      if (categoryError) throw mapSupabaseError(categoryError);
+      if (enabled) {
+        // A selected store may be on any search page. Resolve its identity directly
+        // instead of searching its name again with the legacy first-20 limit.
+        const { data: catalogData, error: catalogError } = await this.db().from('place_catalog')
+          .select('place_provider,provider_place_id')
+          .eq('id', store.catalogId)
+          .eq('business_status', 'open')
+          .maybeSingle();
+        if (catalogError) throw mapSupabaseError(catalogError);
+        const catalog = catalogData as { place_provider: string; provider_place_id: string } | null;
+        if (catalog) {
+          const { data: placeData, error: placeError } = await this.db().from('places')
+            .select('id')
+            .eq('place_provider', catalog.place_provider)
+            .eq('provider_place_id', catalog.provider_place_id)
+            .eq('is_visible', true)
+            .maybeSingle();
+          if (placeError) throw mapSupabaseError(placeError);
+          const place = placeData as { id: string } | null;
+          if (place) {
+            const { data: itemPlaceData, error: itemPlaceError } = await this.db().from('item_places')
+              .select('item_id,items!inner(status)')
+              .eq('place_id', place.id)
+              .eq('category_id', categoryId)
+              .in('items.status', ['active', 'discontinued'])
+              .maybeSingle();
+            if (itemPlaceError) throw mapSupabaseError(itemPlaceError);
+            itemId = (itemPlaceData as { item_id: string } | null)?.item_id ?? null;
+            brand = await this.placeBrandScope(categoryId, catalog);
+          }
+        }
       }
     } else {
       const { data, error } = await this.db().from('item_providers')

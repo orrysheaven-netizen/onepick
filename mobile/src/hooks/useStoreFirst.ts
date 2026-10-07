@@ -38,7 +38,7 @@ export function useStoreSearch(channel: PickChannel, searchText: string, enabled
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: valid && !isWaiting,
     staleTime: 10 * 60_000,
-    retry: false,
+    ...(channel === 'offline' ? { retry: false } : {}),
   });
   return {
     ...query,

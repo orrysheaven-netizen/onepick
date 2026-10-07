@@ -248,6 +248,11 @@ export default function NewPickScreen() {
     query,
     Boolean(user) && step === 1 && !linkEntry && !requesting && !providerPrefillStore && !providerPrefill.isLoading,
   );
+  const storeSearchReady = search.valid && !search.isWaiting;
+  const fetchNextStores = () => {
+    if (!storeSearchReady || !search.hasNextPage || search.isFetching) return;
+    void search.fetchNextPage({ cancelRefetch: false });
+  };
   const menus = useMenuOptions(Boolean(user) && step === 2);
   const linkLookup = useLinkCategorySuggestions();
   const validEntryLink = isNaverMapUrl(entryLink);
@@ -590,7 +595,13 @@ export default function NewPickScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={100}
+        onScroll={({ nativeEvent }) => {
+          if (search.isError) return;
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 96) fetchNextStores();
+        }}>
         {header}
 
         {step === 1 ? <>
@@ -654,12 +665,12 @@ export default function NewPickScreen() {
                   ? <Text style={styles.helper}>보고 있던 매장을 선택해 뒀어요. 다른 매장이면 다시 검색해주세요.</Text>
                   : providerPrefill.isLoading
                     ? <Text style={styles.helper}>보고 있던 매장을 확인하고 있어요.</Text>
-                    : search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length > 0
+                    : storeSearchReady && (search.data ?? []).length > 0
                       ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해주세요.</Text>
                       : <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text>}
               </View>
-              {search.valid && (search.isWaiting || search.isFetching) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
-              {search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요." action={{ label: '다시 검색', onPress: () => { void search.refetch(); } }} /> : null}
+              {search.valid && (search.isWaiting || (search.isFetching && !search.isFetchingNextPage)) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
+              {storeSearchReady && search.isError && !search.isFetchNextPageError ? <StateCard compact tone="danger" title="검색하지 못했어요." action={{ label: '다시 검색해요', onPress: () => { void search.refetch(); } }} /> : null}
               <View style={styles.results}>
                 {providerPrefillStore ? <View accessibilityLabel={`${providerPrefillStore.name} 선택됨`}
                   style={[styles.resultCard, styles.resultCardSelected]}>
@@ -681,6 +692,14 @@ export default function NewPickScreen() {
                   </Text>
                 </Pressable>)}
               </View>
+              {storeSearchReady && search.isFetchingNextPage ? <View style={styles.loading}>
+                <ActivityIndicator color={OnePick.textPrimary} />
+                <Text style={styles.helper}>매장을 더 불러오는 중이에요.</Text>
+              </View> : null}
+              {storeSearchReady && search.isFetchNextPageError && !search.isFetching ? <StateCard compact tone="danger"
+                title="다음 매장을 불러오지 못했어요." action={{ label: '다시 불러와요', onPress: fetchNextStores }} /> : null}
+              {storeSearchReady && search.isSuccess && !search.isFetching && !search.hasNextPage && (search.data ?? []).length > 0
+                ? <Text style={styles.helper}>검색 결과를 모두 확인했어요.</Text> : null}
               {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
                 ? <Text style={styles.helper}>검색한 이름의 매장을 찾지 못했어요.</Text> : null}
             </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
