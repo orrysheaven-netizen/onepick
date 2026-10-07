@@ -179,12 +179,12 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       <TextInput autoFocus accessibilityLabel="원픽 노래 제목 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={title}
         onChangeText={(value) => { if (!busy.current) { setTitle(value); setSelection(null); } }}
-        placeholder="예: 밤편지" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 밤편지" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       <Text style={styles.label}>가수명 · 선택</Text>
       <TextInput accessibilityLabel="원픽 가수 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={artist}
         onChangeText={(value) => { if (!busy.current) { setArtist(value); setSelection(null); } }}
-        placeholder="예: 아이유" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 아이유" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       {cleanTitle.length === 1 && cleanArtist.length < 2 ? <Text style={styles.stateText}>한 글자 곡명은 가수명을 함께 입력해주세요.</Text> : null}
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 노래와 MusicBrainz를 함께 찾고 있어요.</Text></View> : null}

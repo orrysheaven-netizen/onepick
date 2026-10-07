@@ -138,7 +138,7 @@ export function ItemSearch({
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
           onChangeText={setSearchText} onSubmitEditing={submitSearch}
-          placeholder={placeholder} placeholderTextColor={OnePick.hint}
+          placeholder={placeholder} placeholderTextColor={OnePick.textSecondary}
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>

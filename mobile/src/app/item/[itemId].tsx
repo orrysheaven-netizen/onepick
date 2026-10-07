@@ -346,7 +346,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             value={revisionLink}
             onChangeText={(value) => { setRevisionLink(value); setRevisionError(null); }}
             placeholder="새 네이버 지도 링크가 있으면 입력"
-            placeholderTextColor={OnePick.textTertiary}
+            placeholderTextColor={OnePick.textSecondary}
             style={styles.revisionInput}
           />
           {revisionPhoto ? <Image source={{ uri: revisionPhoto.uri }} style={styles.revisionPreview} resizeMode="contain" accessibilityLabel="수정할 대표 이미지 미리보기" /> : null}

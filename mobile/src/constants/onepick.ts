@@ -13,7 +13,7 @@ export const OnePick = {
   // Ink
   text: '#141416', // approved ink
   muted: '#5C5C63', // approved secondary text
-  hint: '#8A909C', // placeholders, inactive icons and chevrons only — never readable copy
+  hint: '#8A909C', // legacy auxiliary alias; do not use for user-facing placeholders or readable copy
 
   // Brand: fills/decorations only; never use brand for small text on white.
   brand: '#FF8A00',

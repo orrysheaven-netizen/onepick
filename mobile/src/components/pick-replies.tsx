@@ -271,7 +271,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       multiline
                       onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
                       placeholder={replyingTo ? '답글을 남겨보세요.' : '이 원픽에 대해 이야기해보세요.'}
-                      placeholderTextColor={OnePick.hint}
+                      placeholderTextColor={OnePick.textSecondary}
                       style={styles.commentInput}
                       value={commentBody}
                     />

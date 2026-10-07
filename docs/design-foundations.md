@@ -25,7 +25,7 @@
 | `color/action/primary` | 주 버튼·선택된 칩·탭 + 버튼 | #141416 |
 | `color/action/disabled` | 비활성 주 버튼 | #ADB0BA |
 | `color/text/primary` | 본문·제목 | #141416 |
-| `color/text/secondary` | 닉네임·메타 등 읽어야 하는 보조 텍스트 | #55596A |
+| `color/text/secondary` | 닉네임·메타·입력 placeholder 등 읽어야 하는 보조 텍스트 | #55596A |
 | `color/text/tertiary` | 비활성 아이콘·셰브론 전용. 일반 텍스트·입력 placeholder 금지 | #8A909C |
 | `color/text/on-action` | 주 버튼 위 글자 | #FFFFFF |
 | `color/text/accent` | "필수" 같은 작은 강조 글자 | #B84F00 |
@@ -134,7 +134,7 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 ## 접근성·상태 공통 규칙 (2026-10-03)
 
-- `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자와 입력 placeholder는 tertiary를 사용하지 않으며 충분한 대비의 역할을 사용합니다. tertiary는 비활성 아이콘·셰브론 같은 비텍스트 보조 UI에만 사용합니다.
+- `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 입력 placeholder는 `color/text/secondary`를 사용합니다. tertiary는 비활성 아이콘·셰브론 같은 비텍스트 보조 UI에만 사용합니다.
 - 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다. Home Feed의 상호·지점/닉네임 링크도 실제 wrapper를 44×44 이상으로 만들고, 웹에서 무시되는 hitSlop만으로 충족 처리하지 않습니다.
 - 하단 탭의 비활성 **라벨은 secondary**, 비활성 **아이콘은 tertiary**를 사용합니다.
 - 탭 안 화면(40·41·67 포함)은 하단 탭을 유지하고, 36·45·68·75 같은 하위 흐름 화면은 하단 탭을 숨깁니다.
