@@ -25,8 +25,8 @@
 | `color/action/primary` | 주 버튼·선택된 칩·탭 + 버튼 | #141416 |
 | `color/action/disabled` | 비활성 주 버튼 | #ADB0BA |
 | `color/text/primary` | 본문·제목 | #141416 |
-| `color/text/secondary` | 보조 설명 | #6B6E78 |
-| `color/text/tertiary` | 플레이스홀더·비활성 아이콘·셰브론 전용. 일반 텍스트 금지 | #8A909C |
+| `color/text/secondary` | 닉네임·메타 등 읽어야 하는 보조 텍스트 | #55596A |
+| `color/text/tertiary` | 비활성 아이콘·셰브론 전용. 일반 텍스트·입력 placeholder 금지 | #8A909C |
 | `color/text/on-action` | 주 버튼 위 글자 | #FFFFFF |
 | `color/text/accent` | "필수" 같은 작은 강조 글자 | #B84F00 |
 | `color/text/danger` | 오류·삭제 | #B4432A |
@@ -45,12 +45,21 @@
 | Caption Medium | 12/18 | Medium | 칩·탭·라벨 |
 | Caption | 12/18 | Regular | 보조 정보 |
 
-800·900 굵기와 이 7개 밖의 크기는 쓰지 않습니다.
+기본 공용 스케일은 위 7개를 유지합니다. 홈 피드는 전역 Body/Caption을 바꾸지 않고 아래 역할별 semantic style을 추가합니다.
+
+| Feed 스타일 | 크기/행간 | 굵기 | 쓰임 |
+| --- | --- | --- | --- |
+| Feed / Store Branch | 14/21 | Medium | 상호명 + 지점명 |
+| Feed / Nickname | 13/20 | Medium | 작성자 닉네임 |
+| Feed / Review | 15/22 | Regular | 한줄평 |
+| Feed / Meta | 13/20 | Regular | 시간·카운트 등 읽어야 하는 메타 |
+
+메뉴명은 기존 Title 20/28 Bold를 재사용합니다. 이 Feed 예외 외에 임의 크기나 800·900 굵기를 추가하지 않습니다.
 
 ## 간격·모서리
 
 - 간격: `spacing/xs 4` · `sm 8` · `md 12` · `lg 16` · `xl 20` · `2xl 24` · `3xl 32`
-- 화면 좌우 여백: `layout/gutter 16` (390 폭 화면에서 내용 폭 358)
+- 화면 좌우 여백: `layout/gutter 16` (390 폭 화면에서 내용 폭 358). 홈 피드 콘텐츠 surface만 `layout/home-feed-gutter 20` (내용 폭 350)을 사용하며 헤더·팝업·다른 화면으로 확대하지 않습니다.
 - 모서리: `radius/sm 8`(태그·썸네일) · `md 12`(버튼·입력칸) · `lg 16`(카드·팝업) · `xl 24`(시트) · `full`(칩·아바타)
 
 ## 컴포넌트 v1
@@ -71,7 +80,7 @@
 | App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
 | Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
 | Menu Tile | Name, Count | 홈 메뉴 2열 격자 한 칸, 사진 없으면 bg/placeholder |
-| Feed Card | Username, Item, Provider, Review, Meta | 피드 한 건, 채널 태그는 Tag/Soft |
+| Feed Card | Photo, Store/Branch, Menu, Nickname, Review, Meta | 홈 Feed v3는 사진 → 상호·지점 → 메뉴 → 닉네임 → 한줄평 순서. 홈에서는 아바타·현재 원픽 깃발·채널 배지를 두지 않는다. 채널이 실제로 혼합 노출되는 다른 surface의 오프라인/온라인 배지 규칙은 유지 |
 | Progress Banner | Title, Caption, Action, Show Action | 온보딩 미완료 시 홈 상단에 다음 행동을 안내. 초기 MVP에서는 AI 평가 수치·CTA를 표시하지 않음 |
 | Category Card | Category, Question (+ Parent 태그) | 온보딩 카테고리 제안: 원픽 고르기(주 버튼) / 넘기기 |
 | Profile Header | Username, Bio, Stats | 프로필 상단: 아바타 64 + 사용자명 + 소개 + 원픽·팔로워·팔로잉 |
@@ -108,7 +117,7 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 ## 코드 반영 (F2)
 
-코드의 `mobile/src/constants/onepick.ts` 토큰을 위 역할 이름에 맞춰 옮기고, 공용 `components/ui/*`가 이 컴포넌트와 1:1로 대응하게 합니다. 특히 공용 `Button` primary를 탠저린에서 `color/action/primary`(잉크)로, `OnePickType`을 위 7개 스타일로 바꿉니다. 하단 탭은 "댓글" 대신 "알림"으로 바뀝니다.
+코드의 `mobile/src/constants/onepick.ts` 토큰을 위 역할 이름에 맞춰 옮기고, 공용 `components/ui/*`가 이 컴포넌트와 1:1로 대응하게 합니다. 기본 공용 타이포는 `OnePickType` 7종을 유지하고 홈 피드 역할은 `OnePickFeedType` 4종으로 분리합니다. `OnePickLayout.homeFeedGutter`는 홈 피드 surface에서만 사용합니다. 특히 공용 `Button` primary를 탠저린에서 `color/action/primary`(잉크)로 유지하며 하단 탭은 "댓글" 대신 "알림"을 사용합니다.
 
 ## 아이콘 (2026-10-06)
 
@@ -125,8 +134,8 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 ## 접근성·상태 공통 규칙 (2026-10-03)
 
-- `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자는 `color/text/secondary` 이상을 사용합니다. tertiary는 플레이스홀더·비활성 아이콘·셰브론에만 사용합니다.
-- 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다.
+- `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자와 입력 placeholder는 tertiary를 사용하지 않으며 충분한 대비의 역할을 사용합니다. tertiary는 비활성 아이콘·셰브론 같은 비텍스트 보조 UI에만 사용합니다.
+- 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다. Home Feed의 상호·지점/닉네임 링크도 실제 wrapper를 44×44 이상으로 만들고, 웹에서 무시되는 hitSlop만으로 충족 처리하지 않습니다.
 - 하단 탭의 비활성 **라벨은 secondary**, 비활성 **아이콘은 tertiary**를 사용합니다.
 - 탭 안 화면(40·41·67 포함)은 하단 탭을 유지하고, 36·45·68·75 같은 하위 흐름 화면은 하단 탭을 숨깁니다.
 - 첫 불러오기는 기존 화면 틀을 유지한 채 가운데 스피너와 `{무엇}을 불러오고 있어요` 문구를 표시합니다. 0.3초 미만의 짧은 로딩은 표시하지 않습니다.
