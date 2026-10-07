@@ -751,7 +751,7 @@ export default function NewPickScreen() {
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
                   style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
-                  <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.clearText}>×</Text>
+                  <Icon name="clear" size="sm" color={OnePick.textTertiary} />
                 </Pressable> : null}
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
@@ -904,7 +904,6 @@ const styles = StyleSheet.create({
   },
   headerSide: { width: 48, height: 56, justifyContent: 'center', alignItems: 'flex-start' },
   headerRight: { alignItems: 'flex-end' },
-  backText: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   headerAction: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   body: { flexGrow: 1, gap: OnePickSpace.md, paddingTop: OnePickSpace.md, paddingHorizontal: OnePickSpace.gutter },
@@ -943,7 +942,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearText: { ...OnePickType.title, color: OnePick.textTertiary },
   reviewInput: { height: 120, padding: OnePickSpace.lg, textAlignVertical: 'top' },
   helper: { ...OnePickType.caption, color: OnePick.textSecondary },
   helperInline: { ...OnePickType.caption, color: OnePick.textSecondary },
@@ -963,7 +961,6 @@ const styles = StyleSheet.create({
   resultCardSelected: { borderWidth: 1, borderColor: OnePick.actionPrimary, backgroundColor: OnePick.bgDefault },
   resultCardRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   resultCopy: { flex: 1, minWidth: 0, gap: OnePickSpace.xs },
-  resultCheck: { ...OnePickType.headline, color: OnePick.textPrimary },
   resultTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   resultMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },
