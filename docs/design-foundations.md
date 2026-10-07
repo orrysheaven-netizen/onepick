@@ -80,7 +80,7 @@
 | App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
 | Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
 | Menu Tile | Name, Count | 홈 메뉴 2열 격자 한 칸, 사진 없으면 bg/placeholder |
-| Feed Card | Username, Item, Provider, Review, Meta | 피드 한 건, 채널 태그는 Tag/Soft |
+| Feed Card | Photo, Store/Branch, Menu, Nickname, Review, Meta | 홈 Feed v3는 사진 → 상호·지점 → 메뉴 → 닉네임 → 한줄평 순서. 홈에서는 아바타·현재 원픽 깃발·채널 배지를 두지 않는다. 채널이 실제로 혼합 노출되는 다른 surface의 오프라인/온라인 배지 규칙은 유지 |
 | Progress Banner | Title, Caption, Action, Show Action | 온보딩 미완료 시 홈 상단에 다음 행동을 안내. 초기 MVP에서는 AI 평가 수치·CTA를 표시하지 않음 |
 | Category Card | Category, Question (+ Parent 태그) | 온보딩 카테고리 제안: 원픽 고르기(주 버튼) / 넘기기 |
 | Profile Header | Username, Bio, Stats | 프로필 상단: 아바타 64 + 사용자명 + 소개 + 원픽·팔로워·팔로잉 |
@@ -135,7 +135,7 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 ## 접근성·상태 공통 규칙 (2026-10-03)
 
 - `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자와 입력 placeholder는 tertiary를 사용하지 않으며 충분한 대비의 역할을 사용합니다. tertiary는 비활성 아이콘·셰브론 같은 비텍스트 보조 UI에만 사용합니다.
-- 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다.
+- 모든 동작의 실제 터치 영역은 최소 44×44입니다. 시각 크기가 작아도 상호작용 영역은 줄이지 않습니다. Home Feed의 상호·지점/닉네임 링크도 실제 wrapper를 44×44 이상으로 만들고, 웹에서 무시되는 hitSlop만으로 충족 처리하지 않습니다.
 - 하단 탭의 비활성 **라벨은 secondary**, 비활성 **아이콘은 tertiary**를 사용합니다.
 - 탭 안 화면(40·41·67 포함)은 하단 탭을 유지하고, 36·45·68·75 같은 하위 흐름 화면은 하단 탭을 숨깁니다.
 - 첫 불러오기는 기존 화면 틀을 유지한 채 가운데 스피너와 `{무엇}을 불러오고 있어요` 문구를 표시합니다. 0.3초 미만의 짧은 로딩은 표시하지 않습니다.

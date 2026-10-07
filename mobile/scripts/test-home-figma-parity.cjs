@@ -17,7 +17,12 @@ assert.match(tokens, /review: \{ fontFamily: BodyFont, fontSize: 15, lineHeight:
 assert.match(tokens, /meta: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '400' \}/);
 
 const row = src('components/home-pick-row.tsx');
-assert.doesNotMatch(row, /Avatar|CurrentPickFlag|StoreBadge/, 'Feed Card v3 drops the legacy avatar, flag and channel badge');
+assert.doesNotMatch(row, /Avatar|CurrentPickFlag|StoreBadge/, 'Home Feed v3 intentionally omits legacy avatar, current-Pick flag and channel badge');
+assert.match(row, /import \{ MIN_TOUCH_TARGET \} from '@\/components\/ui\/touch';/, 'Interactive Home text uses the shared 44px target contract');
+assert.match(row, /storeAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.storeBranch\.lineHeight/, 'Store/provider action keeps a real 44×44 target without changing visual line height');
+assert.match(row, /profileAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.nickname\.lineHeight/, 'Nickname profile action keeps a real 44×44 target without changing visual line height');
+assert.match(row, /hasProviderContext = channel === 'offline' \|\| channel === 'online'/, 'Only provider-backed rows get the store/provider line');
+assert.match(row, /menuName = hasProviderContext \? pick\.categoryName : pick\.name/, 'Legacy no-channel rows keep item name as the menu/title');
 assert.match(row, /<PickPhoto feedCard/, 'Feed Card v3 uses the full-width photo variant');
 assert.match(row, /photo: \{ width: '100%', height: 176, borderRadius: OnePickRadius\.lg/, 'Feed Card v3 photo is full-width × 176, radius 16');
 assert.match(row, /textArea: \{ width: '100%', paddingTop: OnePickSpace\.md, gap: OnePickSpace\.md \}/, 'Feed Card v3 text starts 12 below photo and groups are 12 apart');
