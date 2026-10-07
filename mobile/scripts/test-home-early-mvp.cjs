@@ -269,16 +269,16 @@ async function repositoryChecks() {
     const client = { from(table) { seen.table = table; return chain; } };
     return { repo: new SupabaseReadRepository(client, client), seen };
   };
-  const before = settings({ data: { id: true, minimum_pick_count: 3, updated_at: 'x' }, error: null });
-  assert.equal(await before.repo.getDailyQuestionCategoryId(), null, 'Before the migration the row has no field → no question');
-  assert.equal(before.seen.table, 'home_settings');
-  assert.equal(before.seen.select, '*', 'Never name the new column (would 400 before deploy)');
-  deepEq(before.seen.eq, ['id', true]);
-  assert.equal(await settings({ data: { id: true, daily_question_category_id: null }, error: null }).repo.getDailyQuestionCategoryId(), null, 'Unset → no question');
-  assert.equal(await settings({ data: { id: true, daily_question_category_id: 'naengmyeon' }, error: null }).repo.getDailyQuestionCategoryId(), 'naengmyeon');
-  assert.equal(await settings({ data: null, error: { code: '42703', message: 'column does not exist' } }).repo.getDailyQuestionCategoryId(), null);
+  const unset = settings({ data: { daily_question_category_id: null }, error: null });
+  assert.equal(await unset.repo.getDailyQuestionCategoryId(), null, 'Unset → no question');
+  assert.equal(unset.seen.table, 'home_settings');
+  assert.equal(unset.seen.select, 'daily_question_category_id', 'Read only the public display setting');
+  deepEq(unset.seen.eq, ['id', true]);
+  assert.equal(await settings({ data: { daily_question_category_id: 'naengmyeon' }, error: null }).repo.getDailyQuestionCategoryId(), 'naengmyeon');
+  await assert.rejects(() => settings({ data: null, error: { code: '42703', message: 'column does not exist' } }).repo.getDailyQuestionCategoryId(),
+    'Schema drift surfaces instead of widening the read');
   await assert.rejects(() => settings({ data: null, error: { code: '500', message: 'boom' } }).repo.getDailyQuestionCategoryId(), 'Real failures still surface as errors');
-  passed++; console.log('PASS Daily question setting read is safe before and after the DB column ships');
+  passed++; console.log('PASS Daily question setting read is least-privilege and surfaces schema drift');
 }
 
 // ---------------------------------------------------------------------------------------------
