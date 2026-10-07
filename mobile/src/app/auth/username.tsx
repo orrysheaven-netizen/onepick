@@ -113,7 +113,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
                 }}
                 onSubmitEditing={() => void handleSave()}
                 placeholder="onepick_user"
-                placeholderTextColor={OnePick.textTertiary}
+                placeholderTextColor={OnePick.textSecondary}
                 returnKeyType="done"
                 style={[styles.input, error ? styles.inputError : null]}
                 value={username}

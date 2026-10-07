@@ -183,7 +183,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <TextInput autoFocus accessibilityLabel="원픽 게임 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={searchText}
         onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-        placeholder="예: Minecraft" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: Minecraft" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 게임과 IGDB를 함께 찾고 있어요.</Text></View> : null}
