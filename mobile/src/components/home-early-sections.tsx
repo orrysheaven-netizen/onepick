@@ -2,7 +2,7 @@
 // with lib/home/earlyHome and passes callbacks that reuse existing routes.
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, Button, Chip } from '@/components/ui';
+import { Avatar, Button, Chip, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeParticipant, QuestionFooter } from '@/lib/home/earlyHome';
@@ -14,7 +14,7 @@ export function HomeReplyBanner({ count, onPress }: { count: number; onPress: ()
     <Pressable accessibilityRole="button" accessibilityLabel={`내 원픽에 새 답글 ${count}개 보기`} onPress={onPress}
       style={({ pressed }) => [styles.banner, pressed && styles.pressed]}>
       <Text style={styles.bannerText} numberOfLines={1}>{`내 원픽에 새 답글 ${count}개`}</Text>
-      <Text style={styles.chevron} importantForAccessibility="no">›</Text>
+      <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
     </Pressable>
   );
 }
@@ -52,7 +52,8 @@ export function HomeQuestionCard({ category, parentName, answerCount, answered, 
       <Pressable accessibilityRole="button" accessibilityLabel={footerLabel}
         onPress={footer.kind === 'first-pick-done' ? onShareFirstPick : onRegister}
         style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
-        <Text style={styles.footerText}>{`${footerLabel} ›`}</Text>
+        <Text style={styles.footerText}>{footerLabel}</Text>
+        <Icon name="chevronRight" size="sm" color={OnePick.textPrimary} />
       </Pressable>
     </View>
   );
@@ -112,7 +113,6 @@ const styles = StyleSheet.create({
   // 834:4749: bg/subtle, radius md, 14×13 padding, 10 between text and chevron.
   banner: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 13, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
-  chevron: { ...OnePickType.bodyMedium, color: OnePick.textTertiary },
   // 305:799: white card, 1px border/default, radius lg, padding 24, 8 between rows.
   card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   cardKicker: { ...OnePickType.caption, color: OnePick.textSecondary },
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },
   // Text button 284:263: 40 visual height, 44 touch area.
-  footerLink: { minHeight: MIN_TOUCH_TARGET, alignSelf: 'flex-start', justifyContent: 'center' },
+  footerLink: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.xs, alignSelf: 'flex-start', justifyContent: 'center' },
   footerText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   section: { gap: OnePickSpace.md },
   sectionHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
