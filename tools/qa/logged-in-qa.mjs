@@ -398,14 +398,21 @@ async function main() {
         if (warm.status >= 400) throw new Error(`"${STORE_QUERY}" warm 검색 HTTP ${warm.status}`);
         const firstPageCount = await result.count();
         if (firstPageCount < 20) throw new Error(`"${STORE_QUERY}" 첫 페이지가 20개 미만(${firstPageCount})이라 pagination 계약을 검증할 수 없음`);
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        const appendError = page.getByText('다음 매장을 불러오지 못했어요.', { exact: true });
         const deadline = Date.now() + STEP_TIMEOUT_MS;
         while (await result.count() <= 20 && Date.now() < deadline) {
-          await page.mouse.wheel(0, 1200);
+          await result.last().scrollIntoViewIfNeeded();
+          await page.mouse.wheel(0, 900);
+          if (await appendError.isVisible().catch(() => false)) break;
           await page.waitForTimeout(200);
         }
         const pagedCount = await result.count();
-        if (pagedCount <= 20) throw new Error(`"${STORE_QUERY}" 21번째 이후 결과가 로드되지 않음 · 현재 ${pagedCount}개`);
+        if (pagedCount <= 20) {
+          const pageCalls = rpcCalls.filter((call) => call.name === 'search_store_catalog_page');
+          const rpc = pageCalls.map((call, index) => `p${index + 1} ${call.status} ${call.ms}ms ${call.rows ?? '?'}행`).join(', ') || '페이지 RPC 없음';
+          const state = await appendError.isVisible().catch(() => false) ? '추가 조회 오류 카드 표시' : '추가 결과 없음';
+          throw new Error(`"${STORE_QUERY}" 21번째 이후 결과가 로드되지 않음 · ${state} · 현재 ${pagedCount}개 · rpc=[${rpc}]`);
+        }
         await result.nth(20).click();
         await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         await noErrorCopy(page);
