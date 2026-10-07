@@ -41,17 +41,20 @@ vm.runInNewContext(ts.transpileModule(read('functions/_lib/mvp-scope.ts'), {
 const food = { category_taste_dimensions: [{ dimension_code: 'food', is_primary: true }] };
 const culture = { category_taste_dimensions: [{ dimension_code: 'culture', is_primary: true }] };
 const unmapped = { category_taste_dimensions: [] };
-const offlineItem = { item_channels: [{ channel: 'offline' }] };
-const onlineItem = { item_channels: [{ channel: 'online' }] };
-const legacyPlace = { item_channels: [], external_source: 'onepick_place' };
+const photo = { image_source_url: 'https://onepick.test/item.jpg' };
+const offlineItem = { ...photo, item_channels: [{ channel: 'offline' }] };
+const onlineItem = { ...photo, item_channels: [{ channel: 'online' }] };
+const legacyPlace = { ...photo, item_channels: [], external_source: 'onepick_place' };
 
 assert.equal(scopeExports.isMvpPublicPick({ channel: 'offline' }, food, offlineItem), true);
 assert.equal(scopeExports.isMvpPublicPick({ channel: 'online' }, food, onlineItem), false);
 assert.equal(scopeExports.isMvpPublicPick({ channel: null }, food, offlineItem), true, 'legacy FOOD Pick inherits an offline-capable item');
 assert.equal(scopeExports.isMvpPublicPick({ channel: null }, food, onlineItem), false);
-assert.equal(scopeExports.isMvpPublicPick({ channel: null }, culture, {}), true, 'direct non-food Pick links stay available');
-assert.equal(scopeExports.isMvpProfilePick({ channel: null }, culture, {}), false, 'lab themes stay out of profile OG');
-assert.equal(scopeExports.isMvpProfilePick({ channel: null }, unmapped, {}), true, 'unmapped legacy Picks stay on the main profile');
+assert.equal(scopeExports.isMvpPublicPick({ channel: null }, culture, photo), true, 'direct non-food Pick links stay available when photographed');
+assert.equal(scopeExports.isMvpPublicPick({ channel: null }, culture, {}), false, 'photo-less direct Pick links are not publicly exposed');
+assert.equal(scopeExports.isMvpProfilePick({ channel: null }, culture, photo), false, 'lab themes stay out of profile OG');
+assert.equal(scopeExports.isMvpProfilePick({ channel: null }, unmapped, photo), true, 'photographed unmapped legacy Picks stay on the main profile');
+assert.equal(scopeExports.isMvpProfilePick({ channel: null }, unmapped, {}), false, 'photo-less legacy Picks stay out of profile OG');
 assert.equal(scopeExports.isMvpPublicItem(food, legacyPlace), true, 'legacy place item is treated as offline');
 assert.equal(scopeExports.isMvpPublicItem(food, onlineItem), false);
 assert.equal(scopeExports.isMvpPublicItem(food, {}, true), true, 'a public offline Pick keeps a legacy no-channel food item reachable');

@@ -12,6 +12,14 @@ function normalizeUsername(value: string) {
   return username;
 }
 
+function itemHasVisiblePhoto(item: Item | null | undefined) {
+  return Boolean(item && (item.imagePath || item.imageUrl || item.thumbnailUrl || item.imageSourceUrl));
+}
+
+function visibleCurrentPicks<T extends { item: Item | null }>(rows: T[]) {
+  return rows.filter((row) => itemHasVisiblePhoto(row.item));
+}
+
 export class ProfileService {
   constructor(
     private readonly profileRepository: ProfileRepository,
@@ -50,7 +58,8 @@ export class ProfileService {
       limit: 100,
     });
 
-    return { profile, currentPicks: await this.withMyPendingPhotos(userId, currentPicks) };
+    const withPendingPhotos = await this.withMyPendingPhotos(userId, currentPicks);
+    return { profile, currentPicks: visibleCurrentPicks(withPendingPhotos) };
   }
 
   /**
@@ -124,7 +133,7 @@ export class ProfileService {
 
     return {
       profile,
-      currentPicks,
+      currentPicks: visibleCurrentPicks(currentPicks),
       isMine: currentUserId === profile.id,
     };
   }
