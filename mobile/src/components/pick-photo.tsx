@@ -44,8 +44,8 @@ function LogoBadge({ uri, large, onError }: { uri: string; large: boolean; onErr
   </View>;
 }
 
-// Every frame is square and fits the whole photo inside it: restaurant photos
-// come in any shape and cropping cut off the dish or the storefront.
+// Photo frames keep their declared aspect ratio and fit the whole image inside it: restaurant photos
+// come in many shapes and cropping can cut off the dish or storefront.
 // Image order: the menu photo, then the brand logo, then the name placeholder.
 export function PickPhoto({ uri, label, large = false, size = 86, compactRadius, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, wide = false, logoUri }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
