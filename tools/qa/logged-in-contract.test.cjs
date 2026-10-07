@@ -43,6 +43,11 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         await assert.rejects(api.assertPublicProfile(page, timeout));
       }
     });
+    await t.test('home profile labels use nickname without a forced @ prefix', async () => {
+      await set('<button aria-label="오리 프로필 보기">오리</button>');
+      assert.equal(await page.getByRole('button', { name: /.+ 프로필 보기$/ }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: /^@.+ 프로필 보기$/ }).count(), 0);
+    });
     await t.test('profile comments and notification tab really navigate', async () => {
       await set('<button onclick="history.pushState({}, \'\', \'/comments\')">내 댓글 보기</button>');
       await api.openOwnComments(page, timeout);
