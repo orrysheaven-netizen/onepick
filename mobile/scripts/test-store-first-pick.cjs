@@ -28,8 +28,17 @@ const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ?
 const { AppError } = load('errors/appError.ts');
 
 let states, refs, stateIndex, refIndex, pressables, inputs, destination, uuidCounter, routeParams;
+const animatedValue = class {
+  constructor(value) { this.value = value; }
+  setValue(value) { this.value = value; }
+};
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+  Animated: {
+    Value: animatedValue,
+    View: part('div'),
+    timing: (value, config) => ({ start: (done) => { value.setValue(config.toValue); done?.({ finished: true }); } }),
+  },
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
   TextInput: (props) => { inputs.push(props); return React.createElement('input', { 'aria-label': props.accessibilityLabel, placeholder: props.placeholder }); },
   Pressable: (props) => { pressables.push(props); return React.createElement('button', null, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children); },
@@ -413,6 +422,10 @@ async function main() {
   ]);
   render(); press('네이버 지도 링크로 찾기'); page = render();
   assert.match(page, /네이버 지도 링크를 넣어 주세요/);
+  assert.equal(input('매장 찾기 네이버 지도 링크').autoFocus, undefined,
+    'Naver link input does not auto-focus and shift/zoom the iPhone viewport');
+  assert.equal(input('매장 찾기 네이버 지도 링크').style.fontSize, 16,
+    'Registration inputs stay at 16px so iPhone Safari does not zoom on focus');
   assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'No link, no lookup');
   input('매장 찾기 네이버 지도 링크').onChangeText('https://blog.naver.com/x'); page = render();
   assert.match(page, /네이버 지도 링크를 확인해주세요/);
