@@ -43,6 +43,11 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         await assert.rejects(api.assertPublicProfile(page, timeout));
       }
     });
+    await t.test('home profile labels use nickname without a forced @ prefix', async () => {
+      await set('<button aria-label="오리 프로필 보기">오리</button>');
+      assert.equal(await page.getByRole('button', { name: /.+ 프로필 보기$/ }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: /^@.+ 프로필 보기$/ }).count(), 0);
+    });
     await t.test('profile comments and notification tab really navigate', async () => {
       await set('<button onclick="history.pushState({}, \'\', \'/comments\')">내 댓글 보기</button>');
       await api.openOwnComments(page, timeout);
@@ -60,7 +65,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         <div id="search-dialog" hidden>
           <h2>어떤 메뉴를 찾으세요?</h2>
           <input aria-label="메뉴명">
-          <button onclick="window.searched=true">검색</button>
+          <button onclick="window.searched=true">검색하기</button>
           <button aria-label="라면 상세 보기" onclick="history.pushState({}, '', '/item/ramen')">라면</button>
         </div>`);
       await api.openHomeSearch(page, timeout);
