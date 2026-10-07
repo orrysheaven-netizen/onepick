@@ -7,8 +7,8 @@ import {
   SWIPE_RELEASE_DX, SWIPE_START_DX, UNSAVED_SWIPE_MESSAGE, useSwipeBackRegistryVersion,
 } from '@/lib/navigation/swipeBack';
 
-// Track a 32px start zone at document level instead of covering it with a View.
-// This preserves header button taps while giving iPhone Safari a larger app gesture zone.
+// Track only the iOS system-edge zone (20px) at document level instead of covering it with a View.
+// This keeps the capture area narrow while preserving ordinary content interaction outside the edge.
 const WEB_EDGE_HIT_WIDTH = 20;
 const IOS_SYSTEM_EDGE_WIDTH = 20;
 
