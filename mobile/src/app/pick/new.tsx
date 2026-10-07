@@ -597,7 +597,7 @@ export default function NewPickScreen() {
                   placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
                 {entryLink.trim() && !validEntryLink
                   ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
-                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러 주세요.{'\n'}링크의 매장 이름으로 같은 매장을 찾아 드려요.</Text>}
+                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크의 매장 이름으로 같은 매장을 찾아드려요.</Text>}
               </View>
               {linkLookup.isPending ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
               {linkLookup.isError ? <Text accessibilityRole="alert" style={styles.error}>{linkLookup.error instanceof AppError && linkLookup.error.code === 'RATE_LIMITED'
@@ -608,7 +608,7 @@ export default function NewPickScreen() {
                 <Text style={styles.helper}>{linkSelected
                   ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해주세요.'
                   : linkMatches.length > 0
-                    ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라 주세요.`
+                    ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라주세요.`
                     : linkName ? `${linkName}은(는) 아직 목록에 없어요. 새 매장으로 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
                 {(linkSelected ? [linkSelected] : linkMatches).map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
@@ -677,14 +677,14 @@ export default function NewPickScreen() {
               <FieldLabel label="상호명" />
               <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
                 placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
-              <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어 주세요.</Text>
+              <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                 value={mapLink} onChangeText={(value) => setMapLink(extractNaverMapUrl(value) ?? value)} style={styles.input}
                 placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
               {mapLink.trim() && !validMapLink
                 ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
-                : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러 주세요.{'\n'}링크를 붙여넣으면 다음으로 넘어갈 수 있어요.</Text>}
+                : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크를 붙여넣으면 다음으로 넘어갈 수 있어요.</Text>}
             </View>}
           </View>
           <View style={styles.footer}>
@@ -745,7 +745,7 @@ export default function NewPickScreen() {
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
                 ? `${entryMenuName} 메뉴에서 시작해 메뉴명을 미리 채웠어요. 매장에서 부르는 이름으로 고쳐 써도 돼요.`
-                : '매장에서 부르는 메뉴 이름 그대로 적어 주세요. 카테고리는 입력한 이름으로 추천해 드려요.'}</Text>
+                : '매장에서 부르는 메뉴 이름 그대로 적어주세요. 카테고리는 입력한 이름으로 추천해드려요.'}</Text>
             </View>
 
             {menus.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
@@ -786,7 +786,7 @@ export default function NewPickScreen() {
 
             {showManualCategory ? <View style={styles.fieldBlock}>
               <FieldLabel label="카테고리" />
-              <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라 주세요.</Text>
+              <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라주세요.</Text>
               <TextInput accessibilityLabel="카테고리 검색" value={categoryQuery} onChangeText={setCategoryQuery}
                 style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={OnePick.textTertiary} />
               <View style={styles.chips}>
@@ -798,7 +798,7 @@ export default function NewPickScreen() {
             </View> : null}
 
             {requestedMenu && exactMenuMatches.length === 0 && !aiTried && !prefilledMenu ? <View style={styles.loadingRow}>
-              <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해 드려요.</Text>
+              <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해드려요.</Text>
             </View> : null}
             {preflight?.brand ? <View style={styles.fieldBlock}>
               <FieldLabel label="원픽 범위" />
