@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Props = {
   /** Lab Picks of the profile shown; 0 still renders for the owner so they can start one. */
@@ -24,7 +25,7 @@ export function ProfileLabEntry({ count, description, onPress }: Props) {
         </View>
         <Text style={styles.description}>{description}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
     </Pressable>
   );
 }
@@ -36,6 +37,5 @@ const styles = StyleSheet.create({
   title: { color: OnePick.text, fontSize: 14, lineHeight: 20, fontWeight: '800' },
   count: { color: OnePick.accent, fontSize: 12, lineHeight: 16, fontWeight: '700' },
   description: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24 },
   pressed: { opacity: 0.68 },
 });

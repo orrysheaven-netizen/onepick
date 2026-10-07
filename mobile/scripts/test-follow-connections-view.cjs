@@ -79,6 +79,7 @@ const hooks = {
 };
 
 const ui = {
+  ...require('./icon-stub.cjs'),
   Avatar: ({ name }) => React.createElement('span', null, `avatar:${name}`),
   StateCard: ({ title, text }) => React.createElement('section', null, title, text),
 };

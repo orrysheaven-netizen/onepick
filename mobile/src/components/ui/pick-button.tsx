@@ -1,6 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickIcon, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+
+import { Icon } from './icon';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from './touch';
 
 export type PickButtonState = 'default' | 'change' | 'mine';
@@ -36,7 +38,7 @@ export function PickButton({ state = 'default', onPress, loading, fullWidth = tr
       <View style={[styles.visual, mine ? styles.mine : styles.selectable, fullWidth && styles.fullWidthVisual]}>
         {loading && !mine ? <ActivityIndicator color={OnePick.onAction} /> : (
           <>
-            {mine ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.mineIcon}>✓</Text> : <View accessibilityElementsHidden importantForAccessibility="no" style={styles.circleIcon} />}
+            {mine ? <Icon name="check" size="sm" color={OnePick.textPrimary} /> : <View accessibilityElementsHidden importantForAccessibility="no" style={styles.circleIcon} />}
             <Text style={[styles.label, mine ? styles.mineLabel : styles.selectableLabel]}>{labels[state]}</Text>
           </>
         )}
@@ -52,8 +54,7 @@ const styles = StyleSheet.create({
   fullWidthVisual: { alignSelf: 'stretch' },
   selectable: { backgroundColor: OnePick.actionPrimary },
   mine: { backgroundColor: OnePick.bgAccent },
-  circleIcon: { width: 18, height: 18, borderRadius: OnePickRadius.full, borderWidth: 2, borderColor: OnePick.onAction },
-  mineIcon: { ...OnePickType.headline, color: OnePick.textPrimary },
+  circleIcon: { width: OnePickIcon.sm, height: OnePickIcon.sm, borderRadius: OnePickRadius.full, borderWidth: 2, borderColor: OnePick.onAction },
   label: { ...OnePickType.bodyMedium },
   selectableLabel: { color: OnePick.onAction },
   mineLabel: { color: OnePick.textPrimary },

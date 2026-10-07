@@ -13,7 +13,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { YouTubeVideoLink } from '@/components/youtube-video-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -330,7 +330,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
@@ -418,7 +418,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
           {myPickStatus.type === 'selected_this' ? (
             <View accessible accessibilityLabel="내 원픽이에요" style={[styles.pickMark, styles.pickMarkMine]}>
-              <View style={[styles.pickDot, styles.pickDotMine]}><Text style={styles.pickCheck}>✓</Text></View>
+              <View style={[styles.pickDot, styles.pickDotMine]}><Icon name="check" size="sm" color={OnePick.bgAccent} /></View>
               <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
             </View>
           ) : canChoose ? (
@@ -487,7 +487,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   revisionPanel: {
     borderWidth: 1,
     borderColor: OnePick.borderDefault,
@@ -614,7 +613,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pickDotMine: { borderColor: OnePick.textPrimary, backgroundColor: OnePick.textPrimary },
-  pickCheck: { ...OnePickType.captionMedium, color: OnePick.bgAccent },
   pickMarkText: { ...OnePickType.headline, color: OnePick.textPrimary },
   pickMarkTextMine: { color: OnePick.textPrimary },
   sectionGap: { height: OnePickSpace.xl },

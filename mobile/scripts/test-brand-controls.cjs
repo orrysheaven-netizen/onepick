@@ -41,6 +41,8 @@ function load(file) {
   return exports;
 }
 mocks['./touch'] = load('src/components/ui/touch.ts');
+mocks['./icon-paths'] = load('src/components/ui/icon-paths.ts');
+mocks['@/components/ui/icon'] = load('src/components/ui/icon.web.tsx');
 const { Button } = load('src/components/ui/button.tsx');
 const { Chip } = load('src/components/ui/chip.tsx');
 const { Avatar } = load('src/components/ui/avatar.tsx');

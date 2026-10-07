@@ -11,7 +11,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -300,7 +300,7 @@ export default function ProfileScreen() {
               disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
             <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
               style={({ pressed }) => [styles.profileHeaderMenuButton, pressed && styles.pressed]}>
-              <Text style={styles.profileHeaderMenu}>⋯</Text>
+              <Icon name="more" color={OnePick.textPrimary} />
             </Pressable>
           </View>
         </View>
@@ -376,10 +376,10 @@ export default function ProfileScreen() {
 
           <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
             <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인해요.</Text></View>
-            <Text style={styles.chevron}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.chevron} />
           </Pressable>
           {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리해요.</Text></View><Text style={styles.adminChevron}>›</Text>
+            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리해요.</Text></View><Icon name="chevronRight" size="sm" color={OnePick.onAction} style={styles.adminChevron} />
           </Pressable> : null}
         </View>
 
@@ -439,7 +439,6 @@ const styles = StyleSheet.create({
   profileHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
   profileHeaderActions: { flexDirection: 'row', alignItems: 'center' },
   profileHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  profileHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   profileBody: { minHeight: 724, paddingTop: 10, gap: OnePickSpace.md },
   identity: { height: 82, flexDirection: 'row', alignItems: 'center', gap: 18 },
   stats: { flexDirection: 'row', alignItems: 'flex-start', gap: 22 },
@@ -537,7 +536,7 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     paddingRight: OnePickSpace.md,
   },
-  adminChevron: { ...OnePickType.title, color: OnePick.onAction, paddingHorizontal: OnePickSpace.xs },
+  adminChevron: { paddingHorizontal: OnePickSpace.xs },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -579,7 +578,7 @@ const styles = StyleSheet.create({
   requestName: { ...OnePickType.headline, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
   requestDescription: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
   requestAction: { ...OnePickType.captionMedium, color: OnePick.textAccent, marginTop: OnePickSpace.sm },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary, paddingHorizontal: OnePickSpace.xs },
+  chevron: { paddingHorizontal: OnePickSpace.xs },
   noHistory: { ...OnePickType.caption, color: OnePick.textSecondary, paddingVertical: OnePickSpace.sm },
   signOutArea: {
     marginTop: OnePickSpace.xxl,

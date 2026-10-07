@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { SectionHeader, StateCard } from '@/components/ui';
+import { Icon, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import { useSearchItemMeta } from '@/hooks/useSearchItemMeta';
@@ -47,7 +47,7 @@ export function ExploreSearchResults({ query, menus, menuIds, onOpenMenu, onOpen
               <Text style={styles.name}>{category.name}</Text>
               <Text style={styles.meta}>{count >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${count}` : '원픽을 모으고 있어요.'}</Text>
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
           </Pressable>
         ))}
       </> : null}
@@ -66,7 +66,7 @@ export function ExploreSearchResults({ query, menus, menuIds, onOpenMenu, onOpen
                 <Text numberOfLines={1} style={styles.name}>{title}</Text>
                 {line ? <Text style={styles.meta}>{line}</Text> : null}
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
             </Pressable>
           );
         })}
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   name: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   meta: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
-  arrow: { ...OnePickType.body, color: OnePick.textTertiary },
   notice: { ...OnePickType.caption, color: OnePick.textSecondary, marginBottom: OnePickSpace.sm },
   gap: { height: OnePickSpace.xl },
   loading: { marginTop: OnePickSpace.lg },

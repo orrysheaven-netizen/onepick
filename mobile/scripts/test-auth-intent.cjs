@@ -18,6 +18,7 @@ function loadSource(relativePath, imports = {}) {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name in imports) return imports[name];
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+      if (name === '@/components/ui') return require('./icon-stub.cjs');
       throw new Error('Unexpected runtime dependency: ' + name);
     },
   });
