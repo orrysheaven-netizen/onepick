@@ -65,7 +65,7 @@
 | Header | Title, Action, Show Back, Show Action | 높이 56, 뒤로 ‹ + 가운데 제목 + 오른쪽 텍스트 동작 |
 | List Row | Title, Meta | 썸네일 36 + 제목 + 보조 정보 |
 | Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필 |
-| Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay |
+| Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay. 보조 버튼을 둘 때 기본 문구는 "닫기" |
 | Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
 | App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
@@ -86,7 +86,7 @@
 | Comment Row | Mode=Comment/Reply, Show Reply | 댓글 아바타 32, 답글 24 + 들여쓰기. 시간·답글 동작 터치 44 |
 | Pick Button | State=Default/Change/Mine | Default·Change=잉크 주 버튼 + ○, Mine=탠저린 면 + 잉크 글자 + ✓(비활성 흐림 없음) |
 | Loading State | Mode=Page/Inline | 첫 로드는 틀 유지 + 가운데 스피너/문구, 다음 페이지는 목록 끝 44 영역. 스켈레톤 미사용 |
-| Confirm Dialog | Title, Body (+ Cancel/Confirm 버튼) | 되돌리기 어려운 동작 확인 |
+| Confirm Dialog | Title, Body (+ Close/Confirm 버튼) | 되돌리기 어려운 동작 확인. 왼쪽 보조 버튼 기본 문구는 "닫기"(단순히 창을 닫음). 진행 중인 입력·작업을 실제로 취소할 때만 인스턴스에서 "취소"로 바꿈. 앱은 `components/ui/dialog-labels.ts`의 `DIALOG_CLOSE_LABEL`/`DIALOG_CANCEL_LABEL`로 같은 규칙을 공유 |
 
 예외: 로그인 버튼(카카오 노랑 #FEE500, Apple 검정)은 각 사 가이드 색을 그대로 씁니다.
 
@@ -126,3 +126,17 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 - 취소, 사진 빼기, 차단 해제, 원픽 변경처럼 되돌릴 수 있거나 단순 선택인 동작에는 Danger를 사용하지 않습니다.
 - 한 화면/확인창에는 Danger 주요 동작을 하나만 둡니다.
 - Figma의 Text 변형은 앱에서 `ghost`/`dangerText` 등 의미별 보조 변형으로 구현할 수 있으나, 시각적 위계와 semantic 색 규칙은 Foundations를 따릅니다.
+
+## UX 라이팅 공통 원칙 (2026-10-06)
+
+Figma와 앱의 모든 사용자 노출 문구(버튼·안내문·빈 상태·오류·온보딩·알림·다이얼로그·placeholder/helper·토스트·탭/메뉴/설정·상태 문구)에 공통 적용합니다.
+
+1. 모든 문구는 해요체로 통일합니다. `준비 중입니다` → `준비 중이에요`, `등록되었습니다` → `등록했어요`.
+2. 명사형보다 문장형을 우선합니다. `저장 완료` → `저장했어요`, `등록 실패` → `등록하지 못했어요`.
+3. 수동형보다 능동형을 우선합니다. `선택되었습니다` → `선택했어요`. 단, 관리자 검수 결과처럼 사용자가 한 행동이 아닌 상태(`반려됐어요`, `보류됐어요`)는 행위 주체를 오해하지 않도록 수동형을 유지할 수 있습니다.
+4. 과도한 경어를 쓰지 않습니다. `확인해주시기 바랍니다` → `확인해주세요`, `~하시겠습니까?` → `~할까요?`. 보조 용언은 붙여 씁니다(`해 주세요` → `해주세요`).
+5. 짧고 직접적으로 씁니다. 같은 뜻을 두 문장으로 반복하지 않고, 필요한 정보와 다음 행동만 남깁니다.
+6. 제품 용어(`원픽`, `한줄평`, `매장`, `메뉴`, `오프라인/온라인`)는 화면마다 다른 말로 바꾸지 않습니다. 같은 기능의 문구는 Figma에서 확정한 문구를 앱이 그대로 씁니다.
+7. 다이얼로그의 왼쪽(보조) 버튼은 `취소`가 아니라 `닫기`입니다. 등록 흐름 헤더의 `취소`(흐름 자체를 중단)는 예외입니다.
+
+법적 고지(이용약관·개인정보 처리방침) 본문과 사용자 작성 예시 문구(자기소개 예시 등)는 이 원칙의 대상이 아닙니다. 오류 원인·권한 제한·되돌릴 수 없는 동작 경고는 어투만 바꾸고 의미를 줄이지 않습니다.

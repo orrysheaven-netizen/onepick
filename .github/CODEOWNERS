@@ -1,0 +1,15 @@
+# Decision Lock control plane — only the human repository owner may approve changes.
+# Protect the whole GitHub control plane so an AI cannot add a same-name workflow/check.
+/.github/ @orrysheaven-netizen
+
+# Decision registry and enforcement code.
+/docs/decisions/ @orrysheaven-netizen
+/tools/contracts/ @orrysheaven-netizen
+
+# Executable locked-contract tests and their direct runtime/config dependencies.
+/mobile/scripts/test-brand-controls.cjs @orrysheaven-netizen
+/mobile/scripts/test-profile-tab-stack.cjs @orrysheaven-netizen
+/mobile/scripts/test-dead-end-navigation.cjs @orrysheaven-netizen
+/mobile/scripts/design-tokens.cjs @orrysheaven-netizen
+/mobile/package.json @orrysheaven-netizen
+/mobile/package-lock.json @orrysheaven-netizen

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
+import { DIALOG_CANCEL_LABEL, DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useManagePick } from '@/hooks/useManagePick';
 import type { Pick } from '@/types/domain/pick';
 import { OnePick } from '@/constants/onepick';
@@ -138,7 +139,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
         </>
       ) : mode === 'remove' ? (
         <>
-          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남습니다. 해제하면 24시간 동안 같은 원픽을 다시 고를 수 없어요.</Text>
+          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남아요. 해제하면 24시간 동안 같은 원픽을 다시 고를 수 없어요.</Text>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
@@ -146,7 +147,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
         </>
       ) : (
         <>
-          <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제되고, 24시간 동안 같은 원픽을 다시 고를 수 없어요. 댓글이 있으면 대화는 익명 자리로 남습니다.</Text>
+          <Text style={styles.description}>한줄평을 삭제할까요? 현재 원픽의 한줄평을 삭제하면 원픽도 함께 해제되고, 24시간 동안 같은 원픽을 다시 고를 수 없어요. 댓글이 있으면 대화는 익명 자리로 남아요.</Text>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmReviewDeletion()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 삭제하기</Text>}
@@ -155,7 +156,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
       )}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{getErrorMessage(error)}</Text> : null}
       <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setMode('idle')} style={[styles.secondaryButton, isBusy && styles.disabled]}>
-        <Text style={styles.secondaryText}>취소</Text>
+        <Text style={styles.secondaryText}>{mode === 'edit' ? DIALOG_CANCEL_LABEL : DIALOG_CLOSE_LABEL}</Text>
       </Pressable>
     </View>
   );

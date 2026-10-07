@@ -92,7 +92,7 @@ export default function LoginScreen() {
           </View>
         ) : null}
         {socialSignIn.isSuccess && !socialSignIn.data ? (
-          <Text accessibilityLiveRegion="polite" style={styles.note}>{Platform.OS === 'web' ? `${pendingLabel} 로그인 화면으로 이동합니다.` : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.note}>{Platform.OS === 'web' ? `${pendingLabel} 로그인 화면으로 이동해요.` : '로그인을 취소했어요. 준비되면 다시 시작해주세요.'}</Text>
         ) : null}
       </View>
     </SafeAreaView>

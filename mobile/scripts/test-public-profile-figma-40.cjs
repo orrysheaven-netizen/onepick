@@ -50,7 +50,7 @@ assert.match(follow, /fullWidth\?: boolean/);
 assert.match(follow, /buttonFullWidth: \{ width: '100%', height: 52, minHeight: 52/);
 assert.match(follow, /setConfirmingUnfollow\(true\)/, '팔로잉 press opens a confirmation state');
 assert.match(follow, />팔로우 취소<\/Text>/, 'confirmation exposes an explicit unfollow action');
-assert.match(follow, /accessibilityLabel="팔로우 취소하지 않기"/, 'confirmation exposes a cancel action');
+assert.match(follow, /accessibilityLabel="팔로우 취소 확인 닫기"/, 'confirmation exposes a cancel action');
 assert.match(photo, /size\?: 62 \| 64 \| 86/);
 assert.match(photo, /thumb62: \{ width: 62, height: 62, borderRadius: 12 \}/);
 assert.match(avatar, /type Size = 24 \| 32 \| 40 \| 64 \| 68 \| 72/);

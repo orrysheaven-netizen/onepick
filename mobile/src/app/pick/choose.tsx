@@ -19,7 +19,7 @@ import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   switch (error.code) {
-    case 'AUTH_REQUIRED': return '로그인이 만료되었거나 확인되지 않았어요. 다시 로그인한 뒤 선택을 이어가주세요.';
+    case 'AUTH_REQUIRED': return '로그인이 만료됐거나 확인되지 않았어요. 다시 로그인한 뒤 선택을 이어가주세요.';
     case 'PROFILE_NOT_FOUND': return '원픽을 남기려면 사용자명을 먼저 정해주세요.';
     case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
     case 'ITEM_NOT_ELIGIBLE':
@@ -199,7 +199,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         {hasItem && item && canChoose && !user ? <View style={styles.panel}>
           {itemPhoto}
           <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요.</Text>
-          <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
+          <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아와요.</Text>
           <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
@@ -210,7 +210,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 변경해요.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정해요.' : '이걸 새 원픽으로 선택해요.'}</Text>
             </View>
           </View>
           {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 바뀌어요.` : '저장하면 이 카테고리의 원픽이 바뀌어요.'}</Text></View> : null}

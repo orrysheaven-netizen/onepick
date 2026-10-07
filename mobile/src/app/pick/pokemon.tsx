@@ -169,7 +169,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
       <Text style={styles.title}>나의 포켓몬 원픽</Text>
       <Text style={styles.subtitle}>한국어·영문 이름이나 전국도감 번호로 가장 좋아하는 포켓몬 하나를 골라보세요.</Text>
-      <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않습니다.</Text>
+      <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않아요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>포켓몬 카테고리를 사용할 수 없어요.</Text>
@@ -196,7 +196,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 포켓몬 정보를 확인하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보가 준비됐어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보를 준비했어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continuePokemon(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 포켓몬으로 계속</Text></Pressable>
@@ -238,7 +238,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 포켓몬을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>한국어·영문 이름이나 도감 번호를 바꿔서 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
-      <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토합니다. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시합니다.</Text>
+      <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토해요. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

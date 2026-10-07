@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name in imports) return imports[name];
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
@@ -223,7 +224,7 @@ async function main() {
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
   canWrite = false;
-  assert.match(render(Pick), /현재 댓글을 남길 수 없는 한줄평입니다/);
+  assert.match(render(Pick), /지금은 댓글을 남길 수 없는 한줄평이에요/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   canWrite = true;

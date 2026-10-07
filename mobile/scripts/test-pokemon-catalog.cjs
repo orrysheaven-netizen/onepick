@@ -214,9 +214,9 @@ async function main() {
 
   const screen=fs.readFileSync(path.join(root,'mobile/src/app/pick/pokemon.tsx'),'utf8');
   assert.match(screen,/피카츄, Pikachu, #25/);
-  assert.match(screen,/이미지 파일을 OnePick Storage에 복사하지 않습니다/);
+  assert.match(screen,/이미지 파일을 OnePick Storage에 복사하지 않아요/);
   assert.match(screen,/uri=\{entry\.imageUrl\}/);
-  assert.match(screen,/상업화 전에 다시 검토합니다/);
+  assert.match(screen,/상업화 전에 다시 검토해요/);
 
   const indexSource=fs.readFileSync(path.join(root,'supabase/functions/pokemon-catalog/index.ts'),'utf8');
   assert.match(indexSource,/graphql\.pokeapi\.co\/v1beta2/);

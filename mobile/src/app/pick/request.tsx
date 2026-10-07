@@ -20,7 +20,7 @@ function errorMessage(error: unknown) {
   if (error instanceof AppError) {
     if (error.code === 'PHOTO_INVALID') return '사진을 읽지 못했어요. JPG·PNG 사진을 다시 선택해주세요.';
     if (error.code === 'PHOTO_TOO_LARGE') return '사진이 서버의 최대 저장 용량을 초과했어요. 다른 사진을 선택해주세요.';
-    if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요. 선택한 사진은 유지됩니다. 다시 시도해주세요.';
+    if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요. 선택한 사진은 유지돼요. 다시 시도해주세요.';
     if (error.code === 'IMAGE_SOURCE_UNSUPPORTED') return '지원하는 제조사 사이트의 HTTPS 링크를 넣어주세요. 다른 링크는 직접 사진 선택을 이용해주세요.';
     if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 직접 사진 선택을 이용해주세요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';
@@ -231,7 +231,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <StateCard title="사용자명을 먼저 정해주세요." text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요합니다."
+          <StateCard title="사용자명을 먼저 정해주세요." text="등록 요청을 남긴 사람을 연결하기 위해 프로필이 필요해요."
             action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: intent }) }} />
         </View>
       </SafeAreaView>
@@ -243,7 +243,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="등록 요청을 보냈어요." text={`${submittedItem.name}\n관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요. 진행 상태는 내 프로필에서 볼 수 있습니다.`}
+            <StateCard title="등록 요청을 보냈어요." text={`${submittedItem.name}\n관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요. 진행 상태는 내 프로필에서 볼 수 있어요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -255,7 +255,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
       return (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <StateCard title="카테고리를 적용했어요." text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택은 직접 적용되었습니다. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
+            <StateCard title="카테고리를 적용했어요." text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택을 직접 적용했어요. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
               action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
@@ -282,12 +282,12 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>AI가 카테고리를 추천했어요.</Text>
           <Text style={styles.requestedNameLeft}>{submittedItem.name}</Text>
-          <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않습니다.</Text>
+          <Text style={styles.subtitle}>가장 잘 맞는 카테고리를 선택해주세요. AI의 추천은 자동으로 적용되지 않아요.</Text>
 
           {categorySuggestions.isPending ? (
             <View style={styles.block}><StateCard loading title="이름과 기존 카테고리를 비교하고 있어요." /></View>
           ) : categorySuggestions.isError ? (
-            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요." text="등록 요청은 유지됩니다. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
+            <View style={styles.block}><StateCard tone="danger" title="AI 추천을 불러오지 못했어요." text="등록 요청은 유지돼요. 다시 시도하거나 카테고리를 나중에 정할 수 있어요."
               action={{ label: 'AI 추천 다시 받기', onPress: () => void categorySuggestions.refetch() }} /></View>
           ) : categorySuggestions.data ? (
             <View style={styles.suggestionCard}>
@@ -310,7 +310,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
               )}
 
               {categorySuggestions.data.needsNewCategory ? (
-                <Text style={styles.categoryGapNotice}>딱 맞는 기존 카테고리가 없을 수 있어요. 억지로 적용하지 않아도 됩니다.</Text>
+                <Text style={styles.categoryGapNotice}>딱 맞는 기존 카테고리가 없을 수 있어요. 억지로 적용하지 않아도 돼요.</Text>
               ) : null}
 
               {manualCategories.length > 0 ? (
@@ -339,7 +339,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
           <View style={styles.hintCard}>
             <Text style={styles.suggestionTitle}>맞는 카테고리가 없나요?</Text>
-            <Text style={styles.helper}>원하는 카테고리를 직접 적어주세요. 관리자가 힌트를 참고해 실제 카테고리를 정합니다.</Text>
+            <Text style={styles.helper}>원하는 카테고리를 직접 적어주세요. 관리자가 힌트를 참고해 실제 카테고리를 정해요.</Text>
             {hintMode ? <>
               <TextInput
                 accessibilityLabel="원하는 카테고리"
@@ -378,8 +378,8 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
         <Text style={styles.subtitle}>{isOnlineRequest
-          ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결합니다.'
-          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있습니다.'}</Text>
+          ? '택배·온라인몰로 주문한 판매처를 알려주세요. 관리자가 판매처 링크를 확인한 뒤 온라인 원픽으로 연결해요.'
+          : '찾는 원픽이 없나요? 이름을 등록해주세요. 등록 후 AI가 카테고리를 추천하고, 원하는 카테고리를 직접 선택할 수 있어요.'}</Text>
 
         <Text style={styles.label}>{isOnlineRequest ? '판매처·메뉴 이름' : '이름'}</Text>
         <TextInput
@@ -411,7 +411,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           ) : selectedCategory ? <Text style={styles.selectedCategory}>{selectedCategory.label ?? selectedCategory.name}</Text>
             : <Text style={styles.error}>선택한 콘텐츠 종류를 사용할 수 없어요. 검색 화면에서 다시 선택해주세요.</Text>}
         </> : <View style={styles.notice}>
-          <Text style={styles.noticeText}>지금은 이름만 등록하면 됩니다. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
+          <Text style={styles.noticeText}>지금은 이름만 등록하면 돼요. 등록 후 AI 추천에서 고르거나, 맞는 카테고리가 없으면 직접 힌트를 적을 수 있어요.</Text>
         </View>}
 
         <View style={styles.photoCard}>
@@ -430,12 +430,12 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
             <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="대표 이미지 미리보기" />
             <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting} label="사진 제거" onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }} />
           </> : null}
-          <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장됩니다.</Text>
+          <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장돼요.</Text>
         </View>
 
         {!auth.user ? (
           <View style={styles.notice}>
-            <Text style={styles.noticeText}>요청을 보내기 전에 로그인합니다. 지금 입력한 정보는 로그인 후 그대로 이어집니다.</Text>
+            <Text style={styles.noticeText}>요청을 보내기 전에 로그인해요. 지금 입력한 정보는 로그인 후 그대로 이어져요.</Text>
           </View>
         ) : null}
 
@@ -447,7 +447,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </View>
         ) : null}
 
-        {source ? <Text style={styles.helper}>{`이 요청에는 원본 링크(${source.host})가 함께 저장되어 관리자 검수에 사용됩니다.`}</Text> : null}
+        {source ? <Text style={styles.helper}>{`이 요청에는 원본 링크(${source.host})가 함께 저장돼 관리자 검수에 사용돼요.`}</Text> : null}
         {registration.isError ? <Text style={styles.error}>{errorMessage(registration.error)}</Text> : null}
         {linkAttach.isError ? <Text style={styles.error}>등록 요청은 만들어졌지만 원본 링크를 저장하지 못했어요. 같은 버튼을 눌러 다시 시도해주세요.</Text> : null}
 

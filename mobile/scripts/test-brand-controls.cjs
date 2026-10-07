@@ -5,13 +5,14 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const tokens = require('./design-tokens.cjs');
-const { OnePick } = tokens;
+const { OnePick, OnePickLayout } = tokens;
 const root = path.resolve(__dirname, '..');
 const jsx = (type, props) => ({ type, props: props ?? {} });
 const flattenStyle = (style) => Array.isArray(style) ? Object.assign({}, ...style.map(flattenStyle)) : style ?? {};
 const native = { ActivityIndicator: 'Spinner', Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: (styles) => styles, flatten: flattenStyle } };
 let pathname = '/';
 let navigated = null;
+let bottomInset = 20;
 const mocks = {
   react: { useState: (initial) => [initial, () => {}] },
   'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
@@ -20,7 +21,7 @@ const mocks = {
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null, isLoading: false, error: null }) },
   '@/hooks/useNotifications': { useNotificationCount: () => ({ data: 0, isError: false }) },
   'expo-router': { Link: 'Link', Slot: 'Slot', usePathname: () => pathname, useRouter: () => ({ push: (href) => { navigated = href; } }) },
-  'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 20 }) },
+  'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: bottomInset }) },
   'expo-image': { Image: 'Image' },
   '../../public/brand/onepick-wordmark.svg': 'logo-light.svg',
   '../../public/brand/onepick-wordmark-white.svg': 'logo-dark.svg',
@@ -179,6 +180,63 @@ test('web inactive tab separates tertiary icon from readable secondary label', (
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
 
+test('screen canvas is white and web tab bar keeps the 34px Figma safe-area minimum', () => {
+  assert.equal(OnePick.background, '#FFFFFF');
+  assert.equal(OnePick.background, OnePick.bgDefault);
+  assert.equal(OnePickLayout.safeAreaBottom, 34);
+  assert.equal(
+    OnePickLayout.tabBarContentHeight + OnePickLayout.tabBarTopPadding + OnePickLayout.safeAreaBottom,
+    OnePickLayout.tabBarReferenceHeight,
+  );
+  pathname = '/';
+  const tree = expand(AppTabs());
+  const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
+  const style = styleOf(bar);
+  assert.equal(style.backgroundColor, OnePick.bgDefault);
+  const divider = all(bar, (n) => n.type === 'View' && styleOf(n).position === 'absolute' && styleOf(n).height === 1)[0];
+  assert.ok(divider, 'top separator is drawn inside the bar');
+  assert.equal(styleOf(divider).backgroundColor, OnePick.borderDefault);
+  assert.equal(styleOf(divider).top, 0);
+  assert.equal(styleOf(divider).left, 0);
+  assert.equal(styleOf(divider).right, 0);
+  assert.equal(divider.props.pointerEvents, 'none');
+  assert.equal(style.paddingTop, OnePickLayout.tabBarTopPadding);
+  assert.equal(style.paddingBottom, OnePickLayout.safeAreaBottom, 'mocked inset is 20px, so Figma minimum 34px wins');
+});
+
+test('web tab bar layout includes the separator without adding a 99th pixel', () => {
+  bottomInset = 34;
+  try {
+    const tree = expand(AppTabs());
+    const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
+    const barStyle = styleOf(bar);
+    const tabs = all(bar, (n) => n.type === 'Pressable');
+    assert.equal(tabs.length, 5);
+    const contentHeight = Math.max(...tabs.map((tab) => styleOf(tab).minHeight));
+    const layoutHeight = contentHeight + barStyle.paddingTop + barStyle.paddingBottom
+      + (barStyle.borderTopWidth ?? 0) + (barStyle.borderBottomWidth ?? 0);
+    assert.equal(layoutHeight, OnePickLayout.tabBarReferenceHeight, 'rendered layout, not just token arithmetic, must be 98px');
+  } finally {
+    bottomInset = 20;
+  }
+});
+
+test('web tab bar preserves the 34px minimum and larger device insets', () => {
+  try {
+    for (const inset of [0, 20, 34, 59]) {
+      bottomInset = inset;
+      const tree = expand(AppTabs());
+      const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
+      assert.equal(styleOf(bar).paddingBottom, Math.max(inset, OnePickLayout.safeAreaBottom), `inset ${inset}`);
+      assert.equal(styleOf(bar).flexShrink, 0);
+      const tabs = all(bar, (n) => n.type === 'Pressable');
+      for (const tab of tabs) assert.equal(styleOf(tab).minHeight, OnePickLayout.tabBarContentHeight);
+    }
+  } finally {
+    bottomInset = 20;
+  }
+});
+
 test('web active tab uses ink icon and label without a brand fill', () => {
   pathname = '/explore';
   const tree = expand(AppTabs());
@@ -197,22 +255,22 @@ test('web register control matches Figma Add Button 287:261 and preserves route'
   assert.equal(Number(svg.props.width), 32, 'Figma: 32px circle');
   assert.equal(svg.props.stroke, OnePick.actionPrimary);
   const circle = first(svg, 'circle');
-  assert.equal(circle.props.fill, OnePick.surface);
+  assert.equal(circle.props.fill, OnePick.bgDefault);
   assert.equal(String(circle.props.strokeWidth), '1.5', 'Figma: 1.5 border');
   assert.ok(first(svg, 'path'), 'plus is drawn as a path, not a text glyph');
   readable(svg.props.stroke, circle.props.fill, styleOf(button, true).opacity ?? 1);
   assert.equal(styleOf(first(button, 'Text')).color, OnePick.textPrimary, 'Figma: the register label is text/primary');
   button.props.onPress(); assert.equal(navigated, '/pick/new');
 });
-test('web active tab icons are filled; inactive icons are outlines', () => {
-  for (const [path, label] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
+test('web active fill is reserved for Home; other active tabs stay outlined', () => {
+  for (const [path, activeLabel] of [['/', '홈'], ['/explore', '탐색'], ['/notifications', '알림'], ['/profile', '프로필']]) {
     pathname = path;
     const tree = expand(AppTabs());
-    for (const other of ['홈', '탐색', '알림', '프로필']) {
-      const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === other)[0];
+    for (const label of ['홈', '탐색', '알림', '프로필']) {
+      const tab = all(tree, (n) => n.type === 'Pressable' && n.props.accessibilityLabel === label)[0];
       const fills = all(first(tab, 'svg'), (n) => n.props && n.props.fill !== undefined).map((n) => n.props.fill);
-      if (other === label) assert.ok(fills.includes(OnePick.actionPrimary), `${other} active icon is filled`);
-      else assert.ok(!fills.includes(OnePick.actionPrimary), `${other} inactive icon is an outline`);
+      if (label === '홈' && activeLabel === '홈') assert.ok(fills.includes(OnePick.actionPrimary), 'Home is filled when active');
+      else assert.ok(!fills.includes(OnePick.actionPrimary), `${label} does not use an active fill`);
     }
   }
 });
