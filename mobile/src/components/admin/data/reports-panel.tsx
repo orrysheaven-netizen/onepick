@@ -225,7 +225,7 @@ export function ReportsPanel() {
                   <Text style={adminStyles.secondaryButtonText}>검토 중</Text>
                 </Pressable>
                 <Pressable disabled={processing} onPress={() => changeStatus('resolved')} style={adminStyles.primaryButton}>
-                  <Text style={adminStyles.primaryButtonText}>처리 완료</Text>
+                  <Text style={adminStyles.primaryButtonText}>처리 완료로 표시</Text>
                 </Pressable>
                 <Pressable disabled={processing} onPress={() => changeStatus('dismissed')} style={adminStyles.dangerButton}>
                   <Text style={adminStyles.dangerButtonText}>기각</Text>

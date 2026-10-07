@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { PickPhotoStep } from '@/components/pick-photo-step';
-import { BrandMark, Button, StateCard } from '@/components/ui';
+import { BrandMark, Button, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -98,9 +98,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
-    if (pickStatus?.type === 'selected_other') return '바꾸기';
-    if (pickStatus?.type === 'selected_this') return '한줄평 저장';
-    return '내 원픽으로 선택';
+    if (pickStatus?.type === 'selected_other') return '원픽 바꾸기';
+    if (pickStatus?.type === 'selected_this') return '한줄평 저장하기';
+    return '내 원픽으로 고르기';
   }, [pickStatus]);
 
   const handleSubmit = async () => {
@@ -179,7 +179,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
         {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요." /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
           <StateCard tone="danger" title="정보를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
@@ -274,7 +274,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
             <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 원픽을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
             <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요.</Text>
-            <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
+            <Button variant="secondary" label="사진 등록하기" accessibilityLabel="내 원픽 사진 등록하기" onPress={openPhoto} style={styles.offerAction} />
             <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}
         </View> : null}
@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
   markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 12 },
   noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },

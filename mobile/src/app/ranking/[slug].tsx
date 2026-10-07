@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DishPeoplePicks } from '@/components/dish-people-picks';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, SectionHeader, StateCard } from '@/components/ui';
+import { Button, Icon, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryRanking, useRankingCategories } from '@/hooks/useExploreData';
 import { homeChannelLabel } from '@/lib/home/homeChannels';
@@ -81,7 +81,7 @@ export default function CategoryRankingScreen() {
       </Head>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         {loading ? <ActivityIndicator accessibilityLabel="랭킹 불러오는 중" style={styles.loading} /> : null}
@@ -123,7 +123,7 @@ export default function CategoryRankingScreen() {
                   {homeChannelLabel(item.channels) ? <Text style={styles.rankChannel}>{homeChannelLabel(item.channels)}</Text> : null}
                   {showRankingDetail ? <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text> : null}
                 </View>
-                <Text style={styles.arrow}>›</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
               </Pressable>
             </View>)}
           </View>
@@ -155,7 +155,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   loading: { marginVertical: 32 },
   eyebrow: { color: OnePick.muted, fontSize: 12, fontWeight: '700', marginTop: 6 },
   title: { color: OnePick.text, fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.6, marginTop: 4 },
@@ -171,7 +170,7 @@ const styles = StyleSheet.create({
   rankName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '800' },
   rankChannel: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   rankCount: { color: OnePick.accent, fontSize: 12, fontWeight: '700', marginTop: 8 },
-  arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 5 },
+  arrow: { marginLeft: 5  },
   footnote: { color: OnePick.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
   joinCard: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 18, marginTop: 22 },
   joinTitle: { color: OnePick.text, fontSize: 16, lineHeight: 22, fontWeight: '800' },

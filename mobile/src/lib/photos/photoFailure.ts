@@ -52,5 +52,5 @@ export function showPhotoFailure(error: unknown, context: string) {
     if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(`${PHOTO_FAILURE_TITLE}\n\n${message}`);
     return;
   }
-  Alert.alert(PHOTO_FAILURE_TITLE, message, [{ text: '확인' }]);
+  Alert.alert(PHOTO_FAILURE_TITLE, message, [{ text: '닫기' }]);
 }

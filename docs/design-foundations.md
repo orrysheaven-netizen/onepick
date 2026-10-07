@@ -62,11 +62,11 @@
 | Tag | Style=Ink/Soft, Label | "원픽" 모티프, 높이 24, radius/sm |
 | Field Label | Label, Required | "필수"는 text/accent |
 | Input | Type=Single/Multiline × State=Empty/Filled, Value | 높이 52/120, bg/subtle, 테두리 없음 |
-| Header | Title, Action, Show Back, Show Action | 높이 56, 뒤로 ‹ + 가운데 제목 + 오른쪽 텍스트 동작 |
+| Header | Title, Action, Show Back, Show Action | 높이 56, 뒤로 Icon/Back 24(터치 48×44) + 가운데 제목 + 오른쪽 텍스트 동작 |
 | List Row | Title, Meta | 썸네일 36 + 제목 + 보조 정보 |
 | Tab Bar | Active=Home/Explore/Notifications/Profile | 홈 · 탐색 · (+) · 알림 · 프로필 |
 | Dialog | Title, Body | 폭 300, radius/lg, 뒤 배경 bg/overlay. 보조 버튼을 둘 때 기본 문구는 "닫기" |
-| Empty State | Title, Description, Show Action | 막다른 화면 방지를 위해 다음 행동 버튼 기본 포함 |
+| Empty State | Title, Description, Show Action | 사용자가 실행할 수 있는 기존 다음 행동이 있을 때만 버튼을 노출. 행동할 수 없는 빈 상태는 상태 설명만 표시 |
 | Result Card | Title, Meta | 검색 결과 한 건(상호·지점 + 주소) |
 | App Header | Show Theme | 홈 상단 로고. 단일 테마 MVP에서는 테마 선택을 숨김 |
 | Section Header | Title, Action, Show Action | 섹션 제목(Headline) + 오른쪽 이동 링크 |
@@ -78,13 +78,13 @@
 | Toast | Message | 짧은 완료 알림, 하단 가운데, action/primary 바탕 |
 | Notification Row | Actor, Message, Quote, Time, Unread (+ Kind 태그) | 알림 한 건, 안 읽음은 탠저린 점 |
 | Settings Row | Label, Show Chevron | 설정 목록 한 줄, 위험 동작은 text/danger |
-| My Pick Row | Item, Provider, Review (+ Channel 태그) | 내 프로필 원픽 한 줄. 행은 아이템 상세(36)로 이동하며 프로필에는 관리 ⋯ 메뉴를 두지 않음 |
+| My Pick Row | Item, Provider, Review (+ Channel 태그) | 내 프로필 원픽 한 줄. 행은 아이템 상세(36)로 이동하며 프로필에는 관리 더보기 메뉴를 두지 않음(컴포넌트의 More는 Icon/More 24 + 44 wrapper) |
 | Avatar | Size=24/32/40/64/68/72 × Tone=Subtle/Accent | 프로필/댓글/목록 공용 아바타. 이미지가 없으면 이니셜 대체 |
 | Tab Header | Title, Action, Show Action | 메인 탭 제목 + 오른쪽 텍스트 동작. 높이 56 |
 | Menu Row | Title, Meta, Leading | 사진/자리 56 + 메뉴명 + 보조 정보 + 셰브론. 행 최소 76 |
 | Review Row | Mode=Others/Mine | Body Medium 사용자명, 현재 원픽 표시, 댓글·공유. Others=신고, Mine=수정·원픽 해제·한줄평 삭제(삭제는 danger) |
 | Comment Row | Mode=Comment/Reply, Show Reply | 댓글 아바타 32, 답글 24 + 들여쓰기. 시간·답글 동작 터치 44 |
-| Pick Button | State=Default/Change/Mine | Default·Change=잉크 주 버튼 + ○, Mine=탠저린 면 + 잉크 글자 + ✓(비활성 흐림 없음) |
+| Pick Button | State=Default/Change/Mine | Default·Change=잉크 주 버튼 + ○(16), Mine=탠저린 면 + 잉크 글자 + Icon/Check 16(비활성 흐림 없음) |
 | Loading State | Mode=Page/Inline | 첫 로드는 틀 유지 + 가운데 스피너/문구, 다음 페이지는 목록 끝 44 영역. 스켈레톤 미사용 |
 | Confirm Dialog | Title, Body (+ Close/Confirm 버튼) | 되돌리기 어려운 동작 확인. 왼쪽 보조 버튼 기본 문구는 "닫기"(단순히 창을 닫음). 진행 중인 입력·작업을 실제로 취소할 때만 인스턴스에서 "취소"로 바꿈. 앱은 `components/ui/dialog-labels.ts`의 `DIALOG_CLOSE_LABEL`/`DIALOG_CANCEL_LABEL`로 같은 규칙을 공유 |
 
@@ -110,6 +110,19 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 코드의 `mobile/src/constants/onepick.ts` 토큰을 위 역할 이름에 맞춰 옮기고, 공용 `components/ui/*`가 이 컴포넌트와 1:1로 대응하게 합니다. 특히 공용 `Button` primary를 탠저린에서 `color/action/primary`(잉크)로, `OnePickType`을 위 7개 스타일로 바꿉니다. 하단 탭은 "댓글" 대신 "알림"으로 바뀝니다.
 
+## 아이콘 (2026-10-06)
+
+기준: 피그마 Foundations `OnePick / Icon`(Back · Chevron Right/Down/Up · Close · Clear · Plus · Search · Share · More · Check · Comment · Home · Explore · Bell · Profile) ↔ 앱 `components/ui/icon`(`icon-paths.ts` 단일 기하). 토스 UX 가이드 5번의 일관성 원칙을 OnePick에 맞게 적용하며, 사진·사용자 콘텐츠 중심 구조는 그대로 둡니다.
+
+- 공용 크기는 `icon/size/md 24`(주요 액션)와 `icon/size/sm 16`(행 끝 셰브론·입력 지우기·보조 표시)을 기본으로 씁니다. 화면마다 21/22/23px 같은 임의 크기를 새로 만들지 않습니다.
+- 아이콘 크기와 터치 영역은 별개입니다. 시각 크기가 16·24여도 실제 터치 wrapper는 최소 44×44를 유지합니다.
+- `‹ › × ＋ ⋯ ✓ ⌄ ⌃ ⇪` 같은 문자 글리프를 UI 아이콘으로 쓰지 않습니다. 단, 카테고리 경로(`먹을것 › 라면`)나 문장 안 문장부호처럼 **텍스트 의미**로 쓰는 기호는 예외입니다.
+- 같은 기능에는 같은 아이콘을 씁니다(뒤로=Back, 더보기=More, 지우기=Clear 등). 색은 기본 text/primary, 비활성 아이콘·셰브론은 text/tertiary, 카드 보조 동작은 text/secondary를 사용합니다.
+- 하단 탭의 **웹 커스텀 탭** 아이콘은 24로 통일합니다. 하단바 높이 98·Safe Area 34·흰 배경·원픽 등록 32 원형 버튼 구조는 바꾸지 않습니다(UI-BOTTOM-001).
+- **네이티브 iOS/Android 탭은 예외**입니다. Expo Router `NativeTabs`가 OS 탭바를 직접 그리므로 SF Symbols/Material Symbols를 유지합니다. Figma/Web과 아이콘 의미(Home/Explore/Bell/Profile), 선택 상태, 라벨, 색상 역할은 맞추되 픽셀 기하를 강제로 동일하게 만들지 않습니다. 이 예외는 하단 탭에만 적용하며 일반 화면의 OnePick UI 아이콘은 공용 Icon 체계를 사용합니다.
+- 콘텐츠 이미지(음식·메뉴·매장 사진, 프로필 이미지, 피드 썸네일, 원픽 이미지)는 그래픽 제한 대상이 아닙니다. 제한은 장식 일러스트·강조 이펙트에만 적용합니다.
+- Figma 메인 페이지의 기능성 문자 글리프는 공용 Icon 인스턴스로 교체하며, 앱 회귀 검사 `scripts/test-ui-icons.cjs`가 크기 토큰·생성 에셋 동기화·글리프 미사용·네이티브 탭 예외 의미를 확인합니다.
+
 ## 접근성·상태 공통 규칙 (2026-10-03)
 
 - `color/text/tertiary`는 읽어야 하는 일반 텍스트에 쓰지 않습니다. 일반 보조 글자는 `color/text/secondary` 이상을 사용합니다. tertiary는 플레이스홀더·비활성 아이콘·셰브론에만 사용합니다.
@@ -122,10 +135,37 @@ Button·Chip·Tag는 글자에 맞춰 폭이 늘어납니다(hug). 화면 하단
 
 ### Danger 사용 범위
 
-- Danger 채움 버튼은 **되돌릴 수 없거나 데이터를 지우는 확인 동작**에만 사용합니다(예: 원픽 선택 해제, 한줄평 삭제, 계정 삭제 확인).
+- Danger 채움 버튼은 **되돌릴 수 없거나 데이터를 지우는 확인 동작**에만 사용합니다(예: 원픽 해제하기, 한줄평 삭제하기, 계정 삭제하기).
 - 취소, 사진 빼기, 차단 해제, 원픽 변경처럼 되돌릴 수 있거나 단순 선택인 동작에는 Danger를 사용하지 않습니다.
 - 한 화면/확인창에는 Danger 주요 동작을 하나만 둡니다.
 - Figma의 Text 변형은 앱에서 `ghost`/`dangerText` 등 의미별 보조 변형으로 구현할 수 있으나, 시각적 위계와 semantic 색 규칙은 Foundations를 따릅니다.
+
+### CTA 문구 규칙 (2026-10-06)
+
+버튼 문구만 보고도 눌렀을 때 무슨 일이 일어나는지 알 수 있어야 합니다. Figma와 앱 코드에 같은 문구를 씁니다.
+
+- `확인`·`완료`·`적용`·`선택`·`진행`처럼 결과를 알 수 없는 문구는 쓰지 않습니다. 실제 행동을 동사형으로 씁니다: `등록하기`, `저장하기`, `삭제하기`, `해제하기`, `차단하기`, `검색하기`, `로그아웃하기`.
+- 되돌리기 어려운 동작은 대상을 함께 씁니다: `원픽 해제하기`, `한줄평 삭제하기`, `댓글 삭제하기`, `계정 삭제하기`. 문맥에서 대상이 분명하면 짧은 쪽을 우선합니다.
+- 공용 Confirm Dialog의 실행 버튼은 호출부에서 항상 명시합니다(`confirmLabel="삭제하기"`처럼). 기본값 `확인`에 기대지 않습니다. 정보 안내용 Dialog(Alert)의 단일 버튼은 `닫기`입니다.
+- 왼쪽 보조 버튼: 단순히 창을 닫으면 `닫기`, 진행 중인 작업·입력을 실제로 취소할 때만 `취소`.
+- 단계 이동(`다음`)은 온보딩·다단계 등록처럼 다음 단계로 간다는 뜻이 분명할 때만 씁니다. 마지막 단계는 `다음`·`완료` 대신 실제 최종 행동(`원픽 등록하기`)을 씁니다.
+- 같은 행동은 같은 단어로 씁니다(아이템 상세·등록 화면 공통):
+
+| 행동 | 문구 |
+| --- | --- |
+| 원픽으로 고르기 / 바꾸기 | `원픽으로 고르기` · `원픽 바꾸기` · 목록 행은 `이 지점을 원픽으로 고르기 ›` |
+| 등록 마지막 단계 | `원픽 등록하기` |
+| 원픽 해제 확인 | `원픽 해제하기` |
+| 한줄평 저장·삭제 확인 | `한줄평 저장하기` · `한줄평 삭제하기` |
+| 댓글·답글 | `댓글 남기기` · `답글 남기기` · 삭제 확인 `댓글 삭제하기` |
+| 사진 | 고르기 전 `사진 고르기`, 고른 뒤 `다른 사진 고르기` · `이 사진 등록하기` · `사진 빼기`, 아이템 상세 진입 `사진 올리기` |
+| 팔로우 | `팔로우` · `팔로잉`(상태형 토글, 예외) · 해제 확인 `팔로우 취소` |
+| 신고 | `신고하기`, 사유 패널 닫기 `닫기` |
+| 차단 | `차단하기` · `차단 해제하기` |
+| 로그아웃 | `모든 기기에서 로그아웃하기` |
+| 검색 실행 | `검색하기` |
+| 아이디 만들기 마지막 | `이 아이디로 시작하기` |
+| 프로필·자기소개·SNS 저장 | `저장하기` |
 
 ## UX 라이팅 공통 원칙 (2026-10-06)
 

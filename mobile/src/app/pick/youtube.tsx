@@ -13,6 +13,7 @@ import { useImportYouTubeChannel, useYouTubeCatalogSearch } from '@/hooks/useYou
 import { acceptYouTubePolicyConsent, getYouTubePolicyConsent } from '@/lib/youtube/consent';
 import type { ImportedYouTubeChannelItem, YouTubeChannelEntry } from '@/types/domain/youtubeCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -193,7 +194,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 유튜브 채널 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 YouTube 채널 하나를 골라보세요.</Text>
       <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계했어요.</Text>
@@ -259,7 +260,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
             onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
             <Text style={styles.itemCategory}>유튜브 · 등록됨</Text>
             <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
-            <Text style={styles.itemAction}>이 채널을 원픽으로 선택 ›</Text>
+            <Text style={styles.itemAction}>이 채널을 원픽으로 고르기 ›</Text>
           </Pressable>
         </View>)}
 
@@ -271,7 +272,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <View style={styles.itemCopy}>
             <Text style={styles.itemCategory}>유튜브 · YouTube</Text>
             <Text style={styles.itemName}>{entry.title}</Text>
-            <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '채널 정보를 확인하고 있어요…' : '이 채널을 원픽으로 선택 ›'}</Text>
+            <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '채널 정보를 확인하고 있어요…' : '이 채널을 원픽으로 고르기 ›'}</Text>
           </View>
         </Pressable>)}
 
@@ -288,7 +289,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

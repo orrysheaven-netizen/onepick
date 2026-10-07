@@ -60,7 +60,7 @@ const { default: FullFeed } = load('app/feed.tsx', {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/home-pick-row': { HomePickRow: (props) => { rowProps.push(props); return React.createElement('p', null, '@' + props.pick.username); } },
-  '@/components/ui': { StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
+  '@/components/ui': { ...require('./icon-stub.cjs'), StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
   '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.deepEqual(args.slice(2), ['offline', 'food']); return feed; } },

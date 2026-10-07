@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
+import { BrandMark, Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions, useSetItemCategoryHint } from '@/hooks/useItemCategoryAi';
@@ -21,8 +21,8 @@ function errorMessage(error: unknown) {
     if (error.code === 'PHOTO_INVALID') return '사진을 읽지 못했어요. JPG·PNG 사진을 다시 선택해주세요.';
     if (error.code === 'PHOTO_TOO_LARGE') return '사진이 서버의 최대 저장 용량을 초과했어요. 다른 사진을 선택해주세요.';
     if (error.code === 'PHOTO_UPLOAD_FAILED') return '사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요. 선택한 사진은 유지돼요. 다시 시도해주세요.';
-    if (error.code === 'IMAGE_SOURCE_UNSUPPORTED') return '지원하는 제조사 사이트의 HTTPS 링크를 넣어주세요. 다른 링크는 직접 사진 선택을 이용해주세요.';
-    if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 직접 사진 선택을 이용해주세요.';
+    if (error.code === 'IMAGE_SOURCE_UNSUPPORTED') return '지원하는 제조사 사이트의 HTTPS 링크를 넣어주세요. 다른 링크는 사진 고르기를 이용해주세요.';
+    if (error.code === 'IMAGE_IMPORT_FAILED') return '링크에서 사진을 가져오지 못했어요. 사진 고르기를 이용해주세요.';
     if (error.code === 'CATEGORY_NOT_PICKABLE') return '현재 등록 요청을 받을 수 없는 카테고리예요.';
     if (error.code === 'ITEM_NAME_INVALID') return '이름은 1~100자로 입력해주세요.';
     if (error.code === 'REVIEW_INVALID') return '한줄평을 1~100자로 입력해주세요.';
@@ -332,7 +332,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
               {applyCategory.isError ? <Text style={styles.error}>카테고리를 적용하지 못했어요. 선택은 유지되니 다시 시도하거나 나중에 정할 수 있어요.</Text> : null}
 
-              <Button size="lg" fullWidth label="이 카테고리 적용" disabled={!selectedSuggestedCategoryId} loading={applyCategory.isPending}
+              <Button size="lg" fullWidth label="이 카테고리로 정하기" disabled={!selectedSuggestedCategoryId} loading={applyCategory.isPending}
                 onPress={() => void applySelectedCategory()} style={styles.primaryAction} />
             </View>
           ) : null}
@@ -373,7 +373,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
-          <Text style={styles.back}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
@@ -418,7 +418,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.photoTitle}>대표 이미지 · 선택</Text>
           <Text style={styles.helper}>승인된 대표 사진 한 장을 같은 원픽을 고른 사람들이 함께 사용해요.</Text>
           {auth.user ? <>
-            <Button variant="soft" fullWidth disabled={submitting} label={photo ? '사진 바꾸기' : '직접 사진 선택'} onPress={() => void getPhoto(false)} style={styles.photoButton} />
+            <Button variant="soft" fullWidth disabled={submitting} label={photo ? '다른 사진 고르기' : '사진 고르기'} onPress={() => void getPhoto(false)} style={styles.photoButton} />
             <Text style={styles.helper}>또는 공식 페이지·이미지 링크에서 가져올 수 있어요.</Text>
             <TextInput accessibilityLabel="대표 이미지 링크" editable={!submitting} value={imageLink} onChangeText={setImageLink}
               autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" style={[styles.input, styles.linkInput]} />
@@ -428,7 +428,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {photoPicker.isError || imageImport.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(photoPicker.error ?? imageImport.error)}</Text> : null}
           {photo ? <>
             <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="대표 이미지 미리보기" />
-            <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting} label="사진 제거" onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }} />
+            <Button variant="ghost" size="sm" style={styles.inlineAction} disabled={submitting} label="사진 빼기" onPress={() => { setPhoto(null); photoPicker.reset(); imageImport.reset(); registration.reset(); }} />
           </> : null}
           <Text style={styles.helper}>사용 권한이 있는 사진을 선택해주세요. 선택한 사진은 요청을 보낼 때 크기를 줄인 이미지로 저장돼요.</Text>
         </View>
@@ -470,7 +470,6 @@ const styles = StyleSheet.create({
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },
-  back: { color: OnePick.text, fontSize: 36, lineHeight: 42 },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginTop: 24, marginBottom: 8 },

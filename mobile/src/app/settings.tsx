@@ -9,7 +9,7 @@ import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
@@ -48,7 +48,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text style={styles.title}>설정</Text>
 
@@ -92,7 +92,7 @@ export default function SettingsScreen() {
               {blocked.data?.map((item) => (
                 <View key={item.blockedUserId} style={styles.blockRow}>
                   <Text style={styles.blockName}>{item.blockedUsername ? `@${item.blockedUsername}` : '비공개 사용자'}</Text>
-                  <Button variant="secondary" size="sm" label="차단 해제" disabled={safety.unblockUser.isPending}
+                  <Button variant="secondary" size="sm" label="차단 해제하기" disabled={safety.unblockUser.isPending}
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
                       blockedUserId: item.blockedUserId,
@@ -106,10 +106,10 @@ export default function SettingsScreen() {
             <Text style={styles.sectionLabel}>안내</Text>
             <View style={styles.card}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/privacy')} style={({ pressed }) => [styles.linkRow, styles.linkRowDivider, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')} style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>YouTube API 이용조건</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>YouTube API 이용조건</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
             </View>
 
@@ -127,14 +127,14 @@ export default function SettingsScreen() {
                 {confirmDelete ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="계정 삭제 확인"
+                    accessibilityLabel="계정 삭제하기"
                     disabled={deleteAccount.isPending}
                     onPress={() => void handleDeleteAccount()}
                     style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제 확인</Text>}
+                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제하기</Text>}
                   </Pressable>
                 ) : (
-                  <Button variant="dangerText" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
+                  <Button variant="dangerText" size="sm" label="계정 삭제하기" onPress={() => void handleDeleteAccount()} />
                 )}
                 {confirmDelete && !deleteAccount.isPending ? (
                   <Button variant="secondary" size="sm" label={DIALOG_CLOSE_LABEL} onPress={() => setConfirmDelete(false)} />
@@ -166,7 +166,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   title: {
     ...OnePickType.pageTitle,
     color: OnePick.textPrimary,
@@ -223,7 +222,6 @@ const styles = StyleSheet.create({
   },
   linkRowDivider: { borderBottomWidth: 1, borderBottomColor: OnePick.borderDefault },
   linkText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary },
   signOut: { alignItems: 'center', marginTop: OnePickSpace.xl },
   deleteButton: {
     minHeight: 40,

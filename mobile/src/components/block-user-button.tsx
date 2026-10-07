@@ -58,7 +58,7 @@ export function BlockUserButton({
           {blockUser.isPending ? (
             <ActivityIndicator size="small" color={confirming ? OnePick.surface : undefined} />
           ) : (
-            <Text style={[styles.buttonText, confirming && styles.dangerText]}>{confirming ? '차단 확인' : '차단'}</Text>
+            <Text style={[styles.buttonText, confirming && styles.dangerText]}>차단하기</Text>
           )}
         </Pressable>
         {confirming && !blockUser.isPending ? (

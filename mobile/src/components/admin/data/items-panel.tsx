@@ -705,7 +705,7 @@ function AliasManager({ itemId, itemName }: { itemId: string; itemName: string }
                   style={[adminStyles.input, styles.aliasEditInput]}
                 />
                 <View style={styles.aliasActions}>
-                  <Pressable disabled={saving} onPress={() => saveEdit(alias)}><Text style={styles.aliasAction}>저장</Text></Pressable>
+                  <Pressable disabled={saving} onPress={() => saveEdit(alias)}><Text style={styles.aliasAction}>저장하기</Text></Pressable>
                   <Pressable disabled={saving} onPress={() => { setEditingId(null); setEditingValue(''); }}><Text style={styles.aliasActionMuted}>취소</Text></Pressable>
                 </View>
               </>

@@ -3,16 +3,14 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { OnePickBrand } from '@/components/onepick-brand';
-import { Button } from '@/components/ui';
+import { Button, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useItemSearch } from '@/hooks/useItemSearch';
 
-// Figma 30-1 icons: search (656:3466), theme chevron (303:420), input clear (514:2856).
-const searchIcon = require('../../public/icons/search.svg');
-const chevronIcon = require('../../public/icons/chevron-down.svg');
-const clearIcon = require('../../public/icons/clear.svg');
+// Figma 30-1 icons (search 656:3466, theme chevron 303:420, input clear 514:2856) now come
+// from the shared OnePick / Icon set: search 24 (md), chevron 16 (sm), clear 16 (sm).
 
 /**
  * Home header (Figma 30-1): English wordmark, the 맛집 theme button and a search button.
@@ -30,14 +28,14 @@ export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => voi
         style={({ pressed }) => [styles.themeTouch, pressed && styles.pressed]}>
         <View style={styles.themeButton}>
           <Text style={styles.themeText}>맛집</Text>
-          <Image source={chevronIcon} alt="" style={styles.chevron} contentFit="contain" />
+          <Icon name="chevronDown" size="sm" color={OnePick.textPrimary} />
         </View>
       </Pressable>
     </View>
     <View pointerEvents="box-none" style={[styles.side, styles.sideEnd]}>
       <Pressable accessibilityRole="button" accessibilityLabel="메뉴 검색" onPress={() => setDialog('search')}
         style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-        <Image source={searchIcon} alt="" style={styles.icon} contentFit="contain" />
+        <Icon name="search" color={OnePick.textPrimary} />
       </Pressable>
     </View>
 
@@ -89,7 +87,7 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
             value={text} onChangeText={setText} onSubmitEditing={search} returnKeyType="search"
             placeholder="예: 라멘" placeholderTextColor={OnePick.hint} style={styles.input} />
           {text ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setText('')} style={styles.clear}>
-            <Image source={clearIcon} alt="" style={styles.clearIcon} contentFit="contain" />
+            <Icon name="clear" size="sm" color={OnePick.textTertiary} />
           </Pressable> : null}
         </View>
 
@@ -114,12 +112,12 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
                   <Text style={styles.resultStore}>{item.name}</Text>{menuName ? ` ${menuName}` : ''}
                 </Text>
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
             </Pressable>;
           })}
         </ScrollView> : null}
 
-        <Button label="검색" onPress={search} disabled={!normalized} fullWidth />
+        <Button label="검색하기" onPress={search} disabled={!normalized} fullWidth />
         <CloseButton onPress={onClose} />
       </View>
     </KeyboardAvoidingView>
@@ -132,12 +130,10 @@ const styles = StyleSheet.create({
   side: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   sideEnd: { alignItems: 'flex-end' },
   themeTouch: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center' },
-  // Figma Theme Selector (303:418): Title 20 + 14 chevron, 4 apart, padding 12×4, radius 12, bg/muted.
+  // Figma Theme Selector (303:418): Title 20 + 16 chevron (icon/size/sm), 4 apart, padding 12×4, radius 12, bg/muted.
   themeButton: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.xs, paddingHorizontal: OnePickSpace.md, paddingVertical: OnePickSpace.xs, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgMuted },
   themeText: { ...OnePickType.title, color: OnePick.textPrimary },
-  chevron: { width: 14, height: 14 },
   iconButton: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
-  icon: { width: 24, height: 24 },
   pressed: { opacity: 0.65 },
   backdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: OnePick.bgOverlay },
   // Figma 30-1A/B/C popups: radius 16, padding 20×24, 16 between parts.
@@ -146,11 +142,10 @@ const styles = StyleSheet.create({
   text: { ...OnePickType.body, color: OnePick.textSecondary },
   themeOption: { height: 52, justifyContent: 'center', paddingHorizontal: OnePickSpace.lg, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   themeOptionText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  // Figma Input (285:261): 52 high, bg/subtle, no border, left 16 / right 4, clear 18 in a 44 target.
+  // Figma Input (285:261): 52 high, bg/subtle, no border, left 16 / right 4, clear 16 (icon/size/sm) in a 44 target.
   inputRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingRight: OnePickSpace.xs, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   input: { ...OnePickType.body, flex: 1, minWidth: 0, height: 52, paddingLeft: OnePickSpace.lg, color: OnePick.textPrimary },
   clear: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
-  clearIcon: { width: 18, height: 18 },
   state: { alignItems: 'center', gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, textAlign: 'center' },
   results: { flexGrow: 0, maxHeight: 304 },
   // Figma Menu Row (508:2345): 76 high, 56 photo (radius 12), 12 apart, bottom rule.
@@ -160,7 +155,6 @@ const styles = StyleSheet.create({
   resultCopy: { flex: 1, minWidth: 0 },
   resultName: { ...OnePickType.body, fontSize: 16, lineHeight: 24, color: OnePick.textPrimary },
   resultStore: { fontWeight: '700' },
-  arrow: { ...OnePickType.title, color: OnePick.textTertiary },
   closeButton: { height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: OnePickRadius.md },
   closeText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
 });
