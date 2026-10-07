@@ -215,7 +215,7 @@ async function main() {
   assert.doesNotMatch(render(), /이 제품의 사진이 맞으며|체크해주세요/, 'No consent checkbox is rendered');
   chosenPhoto = null;
   press('사진 바꾸기'); await settle(); render();
-  button('사진 제거');
+  button('사진 빼기');
   assert.equal(button('등록하기').disabled, false, 'Cancelling the picker keeps the chosen photo');
   nameInput().onChangeText('사진 있는 라면'); render();
   assert.equal(button('등록하기').disabled, false, 'Changing the name keeps the photo ready to send');
@@ -228,8 +228,8 @@ async function main() {
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
   assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요/);
-  button('사진 제거'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
-  press('사진 제거'); render();
+  button('사진 빼기'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
+  press('사진 빼기'); render();
   assert.equal(button('등록하기').disabled, false, 'Image-free requests remain supported');
   inputs.find((p) => p.accessibilityLabel === '대표 이미지 링크').onChangeText('https://maker.example/ramen');
   render(); press('링크에서 이미지 가져오기'); await settle(); render();

@@ -232,7 +232,7 @@ async function main() {
   page = render();
   assert.equal(step(page), '3');
   assert.doesNotMatch(page, /사진 없이 계속/);
-  press('사진 선택'); await flush(); render(); press('다음');
+  press('사진 고르기'); await flush(); render(); press('다음');
   page = render();
   assert.equal(step(page), '4');
   input('원픽 한줄평').onChangeText('육수가 깔끔해요'); render();
@@ -283,7 +283,7 @@ async function main() {
   assert.match(page, /을밀대 전체/);
   press('을밀대 전체'); render(); press('다음'); await flush();
   page = render(); assert.equal(step(page), '3', 'A new brand-wide product still needs its photo');
-  press('사진 선택'); await flush(); render(); press('다음'); render();
+  press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('어느 지점이든 좋아요'); render(); press('원픽 등록하기'); await flush();
   const brandSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(brandSave.brandId, 'brand-1');
@@ -343,7 +343,7 @@ async function main() {
   render(); press('다음'); page = render();
   assert.equal(step(page), '2');
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
-  page = render(); assert.equal(step(page), '3'); press('사진 선택'); await flush(); render(); press('다음'); render();
+  page = render(); assert.equal(step(page), '3'); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const newSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(newSave.channel, 'offline');
@@ -463,7 +463,7 @@ async function main() {
   assert.equal(step(page), '2');
   assert.match(page, /2 \/ 4 · 골목 냉면/);
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
-  render(); press('사진 선택'); await flush(); render(); press('다음'); render();
+  render(); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const linkSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(linkSave.newPlace.name, '골목 냉면');
@@ -485,7 +485,7 @@ async function main() {
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'));
   assert.match(page, /2 \/ 4 · 이름 모를 집/);
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
-  render(); press('사진 선택'); await flush(); render(); press('다음'); render();
+  render(); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const namedSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(namedSave.newPlace.name, '이름 모를 집');

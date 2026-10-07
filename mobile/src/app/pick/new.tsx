@@ -836,13 +836,13 @@ export default function NewPickScreen() {
                 ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.noticeText}>사진을 다시 선택해주세요.</Text></View> : null}
               {photo ? <>
                 <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
-                <FlowButton variant="secondary" label="사진 바꾸기" loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
+                <FlowButton variant="secondary" label="다른 사진 고르기" loading={choosePhoto.isPending} onPress={() => void pickNewPhoto()} />
                 <FlowButton variant="text" label="사진 빼기" onPress={() => setPhoto(null)} />
-              </> : <Pressable accessibilityRole="button" accessibilityLabel="사진 선택"
+              </> : <Pressable accessibilityRole="button" accessibilityLabel="사진 고르기"
                 accessibilityState={{ disabled: choosePhoto.isPending, busy: choosePhoto.isPending }}
                 disabled={choosePhoto.isPending} onPress={() => void pickNewPhoto()}
                 style={({ pressed }) => [styles.photoPicker, pressed && !choosePhoto.isPending && styles.flowPressed]}>
-                {choosePhoto.isPending ? <ActivityIndicator color={OnePick.textPrimary} /> : <Text style={styles.photoPickerText}>사진 선택</Text>}
+                {choosePhoto.isPending ? <ActivityIndicator color={OnePick.textPrimary} /> : <Text style={styles.photoPickerText}>사진 고르기</Text>}
               </Pressable>}
             </View> : <StateCard compact title="사진을 등록했어요." />}
           </View>

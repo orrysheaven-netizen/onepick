@@ -130,7 +130,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
           <View style={styles.footer}>
             <Button size="lg" fullWidth
               disabled={!valid || createProfile.isPending || phase.current !== 'idle'}
-              label={createProfile.isPending || phase.current === 'saving' ? '아이디 저장 중...' : '이 아이디로 시작'}
+              label={createProfile.isPending || phase.current === 'saving' ? '아이디 저장 중...' : '이 아이디로 시작하기'}
               onPress={() => void handleSave()} />
           </View>
         ) : null}

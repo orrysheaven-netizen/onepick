@@ -145,7 +145,7 @@ export function ItemSearch({
         {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
           accessibilityState={{ disabled: !normalizedSearch }} disabled={!normalizedSearch}
           onPress={submitSearch} style={({ pressed }) => [styles.submitButton, (!normalizedSearch || pressed) && styles.pressed]}>
-          <Text style={styles.submitText}>검색</Text>
+          <Text style={styles.submitText}>검색하기</Text>
         </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}

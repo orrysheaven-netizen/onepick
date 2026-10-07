@@ -220,7 +220,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.developer}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear].filter(Boolean).join(' · ')}</Text>
-          <Text style={styles.itemAction}>이 게임을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 게임을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -234,7 +234,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{entry.title}</Text>
           {entry.developerName ? <Text style={styles.developer}>{entry.developerName}</Text> : null}
           <Text style={styles.meta}>{[entry.releaseYear, entry.gameType, entry.platformNames.slice(0, 4).join(' · ')].filter(Boolean).join(' · ') || '출시 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '게임 정보를 준비하고 있어요…' : '이 게임을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '게임 정보를 준비하고 있어요…' : '이 게임을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 

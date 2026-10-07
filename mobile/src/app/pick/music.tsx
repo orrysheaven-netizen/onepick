@@ -220,7 +220,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.meta}>{item.creatorName}</Text> : null}
           {item.collectionName ? <Text style={styles.meta}>{item.collectionName}{item.releaseYear ? ` · ${item.releaseYear}` : ''}</Text> : item.releaseYear ? <Text style={styles.meta}>{item.releaseYear}</Text> : null}
-          <Text style={styles.itemAction}>이 노래를 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 노래를 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -234,7 +234,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
           <Text style={styles.itemName}>{entry.title}</Text>
           <Text style={styles.artist}>{entry.artistName}</Text>
           <Text style={styles.meta}>{[entry.releaseTitle, entry.releaseYear, entry.disambiguation].filter(Boolean).join(' · ') || '음반 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '노래 정보를 준비하고 있어요…' : '이 노래를 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '노래 정보를 준비하고 있어요…' : '이 노래를 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 

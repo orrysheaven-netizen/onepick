@@ -112,7 +112,7 @@ function SocialLinksContent({ profileUserId, viewerId, editable }: Props & { vie
                   <Pressable accessibilityRole="button" accessibilityLabel={`${platform.label} 링크 저장`}
                     disabled={busy || !input.trim()} onPress={() => void change()}
                     style={[styles.save, (busy || !input.trim()) && styles.disabled]}>
-                    <Text style={styles.saveText}>{busy ? '처리 중…' : '저장'}</Text>
+                    <Text style={styles.saveText}>{busy ? '처리 중…' : '저장하기'}</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setEditing(null); setError(''); }}
                     style={[styles.manage, busy && styles.disabled]}><Text style={styles.action}>{DIALOG_CANCEL_LABEL}</Text></Pressable>
