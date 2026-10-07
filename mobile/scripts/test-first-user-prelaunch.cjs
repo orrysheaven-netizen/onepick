@@ -165,11 +165,8 @@ async function main() {
   // 5) Profile -> public profile -> native share payload with a stable public URL.
   const profileSource = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicProfileSource = read('src/app/(tabs)/(profile)/u/[username].tsx');
-  assert.match(
-    profileSource,
-    /openPublicProfile = \(\) => router\.push\({ pathname: '\/u\/\[username\]'[\s\S]*?username: profile\.username/,
-    'the owner profile must open its public profile by username',
-  );
+  // #757: the own profile no longer links its public view; it shares the public URL directly.
+  assert.doesNotMatch(profileSource, /openPublicProfile/, 'the 공개 프로필 보기 entry left the own profile (#757)');
   assert.match(
     profileSource,
     /shareProfile\({ username: profile\.username, pickCount: publicMainPicks\.length }\)/,
@@ -181,7 +178,7 @@ async function main() {
     /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
     'the public profile fallback must share the loaded username and current Pick count',
   );
-  assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
+  assert.match(publicProfileSource, /accessibilityLabel="프로필 공유"/, 'the public profile must expose a share CTA (header icon, #757)');
 
   const oldShareBase = process.env.EXPO_PUBLIC_SHARE_BASE_URL;
   process.env.EXPO_PUBLIC_SHARE_BASE_URL = 'https://onepick.example';
