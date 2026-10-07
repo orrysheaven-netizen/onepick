@@ -219,7 +219,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
-            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
+            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.textSecondary} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {OnePickFeatures.purchaseLinks ? <>
@@ -227,7 +227,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!saving}
             inputMode="url" maxLength={2048}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftUrl(value); }}
-            placeholder="https://" placeholderTextColor={OnePick.hint}
+            placeholder="https://" placeholderTextColor={OnePick.textSecondary}
             style={[styles.linkInput, hasUrlDraft && !isValidUrl && styles.reviewInputError]} value={draftUrl ?? ''} />
           <Text style={styles.helperText}>안 남겨도 괜찮아요. 제휴 링크는 저장할 때 추적 정보를 떼고 보관해요.</Text>
           {hasUrlDraft && !isValidUrl ? <Text accessibilityRole="alert" style={styles.reviewError}>https:// 로 시작하는 주소만 남길 수 있어요.</Text> : null}
@@ -244,7 +244,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <View style={styles.inputHeader}><Text style={styles.inputLabel}>살 때 팁</Text><Text style={styles.counter}>{(draftTip ?? '').length}/100</Text></View>
             <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!saving}
               onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftTip(value); }}
-              placeholder="예: 6개입이 낱개보다 싸요." placeholderTextColor={OnePick.hint}
+              placeholder="예: 6개입이 낱개보다 싸요." placeholderTextColor={OnePick.textSecondary}
               style={styles.linkInput} value={draftTip ?? ''} />
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}

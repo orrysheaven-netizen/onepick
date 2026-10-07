@@ -59,7 +59,7 @@ function BioEditor({ profileUserId, bio }: Props) {
       <Text style={styles.hint}>다른 사람이 내 프로필에서 볼 수 있는 공개 소개예요.</Text>
       <TextInput accessibilityLabel="자기소개 입력" multiline textAlignVertical="top"
         placeholder="라면과 영화를 좋아해요. 오래 좋아한 것들을 모읍니다."
-        placeholderTextColor={OnePick.hint} value={draft}
+        placeholderTextColor={OnePick.textSecondary} value={draft}
         onChangeText={(value) => { setDraft(value); setError(''); }}
         editable={!mutation.isPending} maxLength={Math.max(MAX_PROFILE_BIO_LENGTH * 2, (bio ?? '').length)}
         style={styles.input} />

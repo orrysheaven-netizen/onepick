@@ -73,6 +73,18 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await set('<input aria-label="항목명 검색"><button>검색 실행</button>');
       await assert.rejects(api.openHomeSearch(page, timeout));
     });
+    await t.test('registration fixture keeps link-first fallback before store search', async () => {
+      await set(`<div>1 / 4 · 오프라인 매장</div>
+        <h1 id="title">네이버 지도 링크를 입력해주세요.</h1>
+        <input aria-label="매장 찾기 네이버 지도 링크">
+        <button aria-label="URL 없음" onclick="document.getElementById('title').textContent='상호명을 검색해주세요.'; document.getElementById('store').hidden=false">URL 없음</button>
+        <div id="store" hidden><input aria-label="매장명 검색"></div>`);
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout });
+      assert.equal(await page.getByRole('textbox', { name: '매장명 검색', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'URL 없음', exact: true }).click();
+      await page.getByRole('textbox', { name: '매장명 검색', exact: true }).waitFor({ state: 'visible', timeout });
+      assert.equal(await page.getByText('상호명을 검색해주세요.', { exact: true }).count(), 1);
+    });
     const menu = (label, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><button onclick="window.selected=true">${label}</button><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
     await t.test('menu supports plain/group names, default AI path, and trial-only Next', async () => {
       for (const label of ['도가니탕', '국물 › 도가니탕', 'AI 추천 도가니탕']) {

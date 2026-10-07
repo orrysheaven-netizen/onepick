@@ -154,7 +154,7 @@ export default function LinkCategorySuggestionScreen() {
               setSelectedCategoryId(null);
             }}
             placeholder="https://naver.me/... 또는 https://..."
-            placeholderTextColor={OnePick.hint}
+            placeholderTextColor={OnePick.textSecondary}
             style={styles.input}
           />
 
@@ -170,7 +170,7 @@ export default function LinkCategorySuggestionScreen() {
             }}
             maxLength={100}
             placeholder="예: 대성집, 곱창김 20매"
-            placeholderTextColor={OnePick.hint}
+            placeholderTextColor={OnePick.textSecondary}
             style={styles.input}
           />
 
@@ -244,7 +244,7 @@ export default function LinkCategorySuggestionScreen() {
                       value={categorySearch}
                       onChangeText={setCategorySearch}
                       placeholder="예: 도가니탕, 설렁탕, 곱창김"
-                      placeholderTextColor={OnePick.hint}
+                      placeholderTextColor={OnePick.textSecondary}
                       style={styles.input}
                     />
                     {categorySearch.trim().length >= 1 && categoryOptions.length === 0 ? (

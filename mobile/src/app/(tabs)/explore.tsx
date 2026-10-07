@@ -144,7 +144,7 @@ export default function ExploreScreen() {
           </> : null}
           {!scope.showChips ? <View style={styles.searchBox}>
             <TextInput accessibilityLabel="메뉴나 매장 이름으로 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
-              placeholder="메뉴나 매장 이름으로 검색" placeholderTextColor={OnePick.textTertiary} returnKeyType="search"
+              placeholder="메뉴나 매장 이름으로 검색" placeholderTextColor={OnePick.textSecondary} returnKeyType="search"
               value={searchText} onChangeText={setSearchText} style={styles.searchInput} />
             {searchText.length ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')}
               style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}>
