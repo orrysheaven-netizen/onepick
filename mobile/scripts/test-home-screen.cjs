@@ -160,7 +160,7 @@ assert.ok(lowSampleMenu, 'Low-sample menu stays browsable');
 assert.doesNotMatch(textOf(lowSampleMenu.children), /원픽 2/, 'A menu below the 3-person exposure threshold hides its recent count');
 assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 원픽/);
 assert.match(allFirstPage, /서울집<\/span> 미역국/, 'Cards show the store (bold) then the menu (10-05)');
-press('인기 메뉴 더보기'); assert.equal(destination, '/popular', 'Popular 더보기 opens the ordered popular screen');
+assert.equal(presses.find((p) => p.accessibilityLabel === '인기 메뉴 더보기'), undefined, 'Popular 더보기 stays hidden until its destination is explicitly decided');
 assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
 assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
 
