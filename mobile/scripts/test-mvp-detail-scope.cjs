@@ -17,6 +17,9 @@ assert.match(pickRoute, /!OnePickFeatures\.foodChannelPicker/);
 assert.match(pickRoute, /pickQuery\.data\.pick\.channel !== OnePickMvp\.publicPickChannel/);
 assert.match(pickRoute, /: hiddenFutureChannel \? <View style=\{styles\.state\}>/);
 assert.match(pickRoute, /지금은 매장에서 고른 음식 원픽만 공개하고 있어요/);
+assert.match(pickRoute, /hiddenPhotoLessPick = Boolean\(/);
+assert.match(pickRoute, /focused\.pick\.userId !== user\?\.id/);
+assert.match(pickRoute, /사진이 있는 원픽만 공개하고 있어요/);
 
 const itemRoute = read('src/app/item/[itemId].tsx');
 assert.match(itemRoute, /publicFoodChannel = OnePickFeatures\.foodChannelPicker \? undefined : OnePickMvp\.publicPickChannel/);
@@ -24,6 +27,9 @@ assert.match(itemRoute, /useItemDetail\(itemId, user\?\.id, focusPickId, true, !
 assert.match(itemRoute, /mvpFoodScope = isRestaurant && !OnePickFeatures\.foodChannelPicker/);
 assert.match(itemRoute, /item\.channels\?\.includes\(OnePickMvp\.publicPickChannel\)/);
 assert.match(itemRoute, /item\.externalSource === 'onepick_place'/);
+assert.match(itemRoute, /hasCurrentPick = allPicks\.some/);
+assert.match(itemRoute, /hasOwnCurrentPick = Boolean\(user && allPicks\.some/);
+assert.match(itemRoute, /!hasPhoto && hasCurrentPick && !hasOwnCurrentPick/);
 assert.match(itemRoute, /hasPublicCurrentPick = allPicks\.some/);
 assert.match(itemRoute, /\|\| hasPublicCurrentPick/);
 assert.match(itemRoute, /allPicks\.filter\(\(\{ pick \}\) => pick\.channel === OnePickMvp\.publicPickChannel/);

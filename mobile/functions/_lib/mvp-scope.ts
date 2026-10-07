@@ -25,10 +25,8 @@ function foodItemHasPublicChannel(item: RecordValue | null | undefined) {
 }
 
 function itemHasPublicPhoto(item: RecordValue | null | undefined) {
-  return [
-    item?.thumbnail_path, item?.image_path, item?.image_source_url,
-    item?.thumbnailUrl, item?.imageUrl, item?.imageSourceUrl,
-  ].some((value) => typeof value === 'string' && value.trim().length > 0);
+  return [item?.thumbnail_path, item?.image_path, item?.image_source_url]
+    .some((value) => typeof value === 'string' && value.trim().length > 0);
 }
 
 /** Direct Pick links keep non-food Picks, but FOOD is limited to the public channel. */

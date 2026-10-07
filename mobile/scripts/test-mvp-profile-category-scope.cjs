@@ -61,8 +61,8 @@ async function main() {
   const mine = await service.getMyProfile(ownerId);
   assert.deepEqual(
     Array.from(mine.currentPicks, (entry) => entry.category.slug),
-    ['pyeongyang-naengmyeon', 'movie', 'game', 'book', 'music', 'ganjang-gejang'],
-    'My Profile keeps every photographed current Pick while hiding legacy photo-less Picks',
+    ['pyeongyang-naengmyeon', 'movie', 'game', 'book', 'music', 'ganjang-gejang', 'youtube'],
+    'My Profile keeps photo-less legacy current Picks reachable for owner management',
   );
   assert.deepEqual(Array.from(calls[0].statuses), ['active', 'needs_review']);
   assert.equal(Object.hasOwn(calls[0], 'categoryId'), false, 'My Profile must not apply an MVP restaurant category filter');
@@ -93,7 +93,7 @@ async function main() {
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 
-  console.log('MVP profile scope checks passed: photographed current Picks remain available; legacy photo-less Picks are excluded from profile exposure.');
+  console.log('MVP profile scope checks passed: owner management keeps legacy Picks while public profiles hide photo-less current Picks.');
 }
 
 main().catch((error) => {

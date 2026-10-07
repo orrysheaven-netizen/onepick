@@ -50,11 +50,11 @@ async function main() {
 
   const failing = { getMyPendingPhotos: async () => { throw new Error('offline'); } };
   const fallback = await new ProfileService(profileRepository, readRepository, failing).getMyProfile('me');
-  assert.deepEqual(Array.from(fallback.currentPicks, (row) => row.item.id), ['shown', 'sourced'],
-    'A failed candidate read hides the photo-less current Pick but keeps published photos');
+  assert.deepEqual(Array.from(fallback.currentPicks, (row) => row.item.id), ['bare', 'shown', 'sourced'],
+    'My profile keeps the photo-less current Pick reachable for management when candidate lookup fails');
   const legacy = await new ProfileService(profileRepository, readRepository).getMyProfile('me');
-  assert.deepEqual(Array.from(legacy.currentPicks, (row) => row.item.id), ['shown', 'sourced'],
-    'Without a pending-photo repository, photo-less current Picks stay hidden');
+  assert.deepEqual(Array.from(legacy.currentPicks, (row) => row.item.id), ['bare', 'shown', 'sourced'],
+    'My profile keeps legacy photo-less current Picks reachable even without a pending-photo repository');
 
   // Repository: own pending rows only, scoped to the asked items.
   const filters = [];
@@ -91,7 +91,7 @@ async function main() {
   const queue = tabs.ADMIN_NAV_SECTIONS.find((section) => section.title === '처리 대기');
   assert.ok(queue.items.some((item) => item.tab === 'photos'), 'Photo review sits with the other review queues');
 
-  console.log('Item photo review checks passed: pending-photo overlay stays visible while legacy photo-less current Picks are hidden.');
+  console.log('Item photo review checks passed: owner management keeps legacy Picks while public exposure can filter photo-less items.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
