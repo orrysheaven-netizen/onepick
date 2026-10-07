@@ -154,7 +154,7 @@ async function main() {
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '바꾸기');
+  const changeButton = () => presses.find((p) => p.accessibilityLabel === '원픽 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
   assert.equal(changeButton().disabled, false);

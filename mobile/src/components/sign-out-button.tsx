@@ -41,7 +41,7 @@ export function SignOutButton({ showSettingsLink = true }: { showSettingsLink?: 
         disabled={signOut.isPending}
         onPress={() => { if (!signOut.isPending) signOut.mutate(); }}
         style={({ pressed }) => [styles.button, (pressed || signOut.isPending) && styles.muted]}>
-        {signOut.isPending ? <ActivityIndicator /> : <Text style={styles.label}>모든 기기에서 로그아웃</Text>}
+        {signOut.isPending ? <ActivityIndicator /> : <Text style={styles.label}>모든 기기에서 로그아웃하기</Text>}
       </Pressable>
       {signOut.isError ? (
         <Text accessibilityRole="alert" style={styles.error}>로그아웃하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text>

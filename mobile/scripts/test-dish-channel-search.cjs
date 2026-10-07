@@ -90,7 +90,7 @@ async function main() {
   const offline = html.indexOf('오프라인 맛집'), online = html.indexOf('온라인 맛집'), recipe = html.indexOf('레시피</span>');
   assert.ok(offline > -1 && offline < online && online < recipe, '오프라인 맛집, 온라인 맛집, 레시피 in that order');
   assert.match(html, /3명이 원픽/);
-  assert.match(html, /아직 미역국 온라인 맛집 원픽이 없어요/);
+  assert.match(html, /미역국 온라인 맛집의 첫 원픽을 골라보세요/);
   pressed.find((p) => p.accessibilityLabel === '미역국 온라인 맛집 원픽 등록하기').onPress();
   assert.deepEqual(registered, [['dish', 'online']]);
   pressed.find((p) => /^레시피 1위, 초간단 미역국/.test(p.accessibilityLabel)).onPress();

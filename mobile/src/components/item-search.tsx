@@ -145,7 +145,7 @@ export function ItemSearch({
         {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
           accessibilityState={{ disabled: !normalizedSearch }} disabled={!normalizedSearch}
           onPress={submitSearch} style={({ pressed }) => [styles.submitButton, (!normalizedSearch || pressed) && styles.pressed]}>
-          <Text style={styles.submitText}>검색</Text>
+          <Text style={styles.submitText}>검색하기</Text>
         </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
@@ -168,7 +168,7 @@ export function ItemSearch({
           <Text style={styles.description}>
             {externalActions.length
               ? 'OnePick에 아직 등록된 항목이 없어요. 아래 외부 DB에서 계속 찾아보세요.'
-              : '일치하는 항목이 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
+              : '검색 결과가 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
           </Text>
           {externalActions.map((action) => <Pressable key={action.key} accessibilityRole="button"
             accessibilityLabel={action.accessibilityLabel} onPress={action.run}

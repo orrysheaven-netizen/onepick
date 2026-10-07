@@ -117,7 +117,7 @@ async function main() {
   assert.match(render(), /검색하고 있어요/);
   assert.doesNotMatch(render(), /이전 결과/);
   state = { hasSearchText: true, data: [] };
-  assert.match(render(), /일치하는 항목이 없어요/);
+  assert.match(render(), /검색 결과가 없어요\. 다른 이름이나 카테고리로 찾아보세요/);
   state = { hasSearchText: true, isError: true, refetch: () => { retried = true; } };
   assert.match(render(), /다시 검색하기/);
   presses[0]();

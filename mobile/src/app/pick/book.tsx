@@ -231,7 +231,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{item.name}</Text>
           {item.creatorName ? <Text style={styles.creator}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear, item.modelCode].filter(Boolean).join(' · ')}</Text>
-          <Text style={styles.itemAction}>이 책을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 책을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -246,7 +246,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {entry.subtitle ? <Text style={styles.subtitleLine}>{entry.subtitle}</Text> : null}
           {entry.authorName ? <Text style={styles.creator}>{entry.authorName}</Text> : null}
           <Text style={styles.meta}>{[entry.publisherName, entry.releaseYear, entry.isbn].filter(Boolean).join(' · ') || '출판 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '책 정보를 준비하고 있어요…' : '이 책을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '책 정보를 준비하고 있어요…' : '이 책을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 

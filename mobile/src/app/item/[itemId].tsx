@@ -351,7 +351,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           />
           {revisionPhoto ? <Image source={{ uri: revisionPhoto.uri }} style={styles.revisionPreview} resizeMode="contain" accessibilityLabel="수정할 대표 이미지 미리보기" /> : null}
           <View style={styles.revisionActions}>
-            <Button variant="secondary" label={revisionPhoto ? '사진 다시 선택' : '사진 수정'} loading={photoPicker.isPending}
+            <Button variant="secondary" label={revisionPhoto ? '다른 사진 고르기' : '사진 바꾸기'} loading={photoPicker.isPending}
               disabled={revisionMutation.isPending} onPress={() => void chooseRevisionPhoto()} style={styles.revisionAction} />
             <Button label="수정 내용 보내기" loading={revisionMutation.isPending}
               disabled={photoPicker.isPending} onPress={() => void saveRevision()} style={styles.revisionAction} />
@@ -376,15 +376,15 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
                   <Text style={styles.photoContributionHint}>올린 사진은 관리자 검수 후 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요.</Text>
                   <View style={styles.photoActions}>
-                    <Button variant="secondary" label="다시 선택" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
-                    <Button label="대표 이미지 등록" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
+                    <Button variant="secondary" label="다른 사진 고르기" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
+                    <Button label="이 사진 등록하기" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
                   </View>
-                  <Button variant="ghost" size="sm" label="사진 선택 취소" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
+                  <Button variant="ghost" size="sm" label="사진 빼기" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
                 </>
               ) : (
                 <View style={styles.uploadRow}>
                   <Text numberOfLines={1} style={styles.uploadText}>사진을 올려주세요.</Text>
-                  <Button size="sm" label="사진 업로드" accessibilityLabel={`${item.name} 사진 업로드`}
+                  <Button size="sm" label="사진 올리기" accessibilityLabel={`${item.name} 사진 올리기`}
                     disabled={Boolean(user) && photoBusy && !photoPicker.isPending} loading={photoPicker.isPending}
                     onPress={() => user ? void choosePhoto() : router.push({ pathname: '/auth/login', params: photoIntent })} />
                 </View>
@@ -449,7 +449,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요." text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
+          <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>

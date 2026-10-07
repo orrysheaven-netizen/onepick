@@ -95,7 +95,7 @@ async function checkUntouchedLinkIsNotSent() {
   render();
   assert.ok(field('산 곳 링크'), '링크 입력은 등록 화면에 있다');
   type('원픽 한줄평', '결국 이걸로 돌아온다');
-  render(); button('내 원픽으로 선택').onPress(); await flush();
+  render(); button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts.length, 1);
   // 저장된 링크를 지우지 않으려면 건드리지 않은 필드는 아예 보내지 않아야 한다.
   assert.equal('purchaseUrl' in attempts[0], false, '링크를 건드리지 않으면 링크 인자를 보내지 않는다');
@@ -114,7 +114,7 @@ async function checkQuestionOnlyAfterALink() {
 
   // "그냥 판매 링크예요"를 고르면 팁 없이 링크만 저장된다.
   render(); button('그냥 판매 링크예요.').onPress();
-  render(); button('내 원픽으로 선택').onPress(); await flush();
+  render(); button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts[0].purchaseUrl, 'https://www.coupang.com/vp/products/1');
   assert.equal(attempts[0].purchaseTip, '', '팁 없음은 빈 문자열로 보내 이전 팁을 지운다');
 }
@@ -127,7 +127,7 @@ async function checkTipIsSavedWhenOffered() {
   render();
   assert.ok(field('살 때 팁'), '있어요를 고르면 팁 칸이 열린다');
   type('살 때 팁', '  새벽배송이 빨라요  ');
-  render(); button('내 원픽으로 선택').onPress(); await flush();
+  render(); button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts[0].purchaseUrl, 'https://ssg.com/item/1');
   assert.equal(attempts[0].purchaseTip, '새벽배송이 빨라요', '앞뒤 공백은 떼고 보낸다');
 }
@@ -139,7 +139,7 @@ async function checkNonHttpsIsRefusedBeforeSaving() {
   const page = render();
   assert.match(page, /https:\/\/ 로 시작하는 주소만/, 'https가 아니면 이유를 알려준다');
   assert.doesNotMatch(page, /살 때 알아두면 좋은 게 있나요/, '잘못된 링크에는 팁을 묻지 않는다');
-  button('내 원픽으로 선택').onPress(); await flush();
+  button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts.length, 0, '잘못된 링크로는 저장하지 않는다');
 }
 
@@ -152,7 +152,7 @@ async function checkClearingTheLinkClearsTheTip() {
   type('산 곳 링크', '');
   const page = render();
   assert.doesNotMatch(page, /살 때 알아두면 좋은 게 있나요/, '링크를 지우면 질문도 사라진다');
-  render(); button('내 원픽으로 선택').onPress(); await flush();
+  render(); button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts[0].purchaseUrl, '', '빈 문자열로 링크를 지운다');
   assert.equal(attempts[0].purchaseTip, '', '살 곳이 없으면 팁도 함께 끝난다');
 }

@@ -34,7 +34,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
     });
     await t.test('public profile accepts the current food control and rejects legacy or hidden controls', async () => {
       const food = '<button aria-label="음식 원픽 보기">음식</button>';
-      await set(`${food}<div>아직 공개된 음식 원픽이 없어요</div>`);
+      await set(`${food}<div>아직 고른 원픽이 없어요</div>`);
       await api.assertPublicProfile(page, timeout);
       await set(`<div hidden>${food}</div>${food}<div>공개 원픽 목록</div>`);
       await api.assertPublicProfile(page, timeout);
@@ -164,7 +164,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       const header = '<button aria-label="이전 화면">‹</button><h1>한줄평 대화</h1>';
       await at('/pick/p1', `${header}<div>@someone</div><div>“국물이 진해요”</div>`);
       await api.assertPickConversation(page, 'p1', timeout);
-      await at('/pick/p1', `${header}<div>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</div>`);
+      await at('/pick/p1', `${header}<div>삭제된 한줄평이에요. 기존 대화만 남아 있어요.</div>`);
       await api.assertPickConversation(page, 'p1', timeout);
       await at('/item/i1', `${header}<div>“국물이 진해요”</div>`);
       await assert.rejects(api.assertPickConversation(page, 'p1', timeout), /다른 화면/);

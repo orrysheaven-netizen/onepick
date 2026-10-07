@@ -148,5 +148,5 @@ export async function assertPickConversation(page, pickId, timeout = 15_000) {
     if (await page.getByText(blocked, { exact: true }).filter({ visible: true }).count()) throw new Error(`원픽 딥링크 오류 화면: ${blocked}`);
   }
   await page.getByRole('button', { name: '이전 화면', exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
-  await page.getByText(/^“.*”$|^삭제된 한줄평입니다/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+  await page.getByText(/^“.*”$|^삭제된 한줄평이에요/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }

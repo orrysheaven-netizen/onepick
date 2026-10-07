@@ -83,7 +83,7 @@ function render() {
   return renderToStaticMarkup(Choose());
 }
 const review = () => inputs.find((props) => props.accessibilityLabel === '원픽 한줄평');
-const submit = (label = '내 원픽으로 선택') => buttons.find((props) => textOf(props.children).includes(label));
+const submit = (label = '내 원픽으로 고르기') => buttons.find((props) => textOf(props.children).includes(label));
 
 async function main() {
   // 1. No photo yet: the photo step is shown first, then the numbered review.
@@ -94,7 +94,7 @@ async function main() {
   assert.equal(photoStep.userId, 'owner');
   assert.ok(page.indexOf('PHOTO-STEP') < page.indexOf('2. 한 줄 이유'), 'The photo step comes before the review');
   assert.ok(photoCards.length > 0 && photoCards.every((props) => props.itemId === undefined),
-    'The card has no "사진 등록" shortcut that would leave this screen');
+    'The card has no "사진 등록하기" shortcut that would leave this screen');
 
   // 2. The photo is required: with a valid review but no photo, the save button
   // is disabled and even a forced press saves nothing.
@@ -137,8 +137,8 @@ async function main() {
   review().onChangeText('이걸로 바꿀래요');
   render();
   assert.ok(photoStep, 'Switching to a photo-less item shows the photo step');
-  assert.equal(submit('바꾸기').disabled, true, 'Switching is disabled before the photo is saved');
-  submit('바꾸기').onPress();
+  assert.equal(submit('원픽 바꾸기').disabled, true, 'Switching is disabled before the photo is saved');
+  submit('원픽 바꾸기').onPress();
   await flush();
   assert.equal(saves.length, 0, 'No switch is saved without a photo');
 
@@ -146,8 +146,8 @@ async function main() {
   arrange({}, { type: 'selected_this', pickId: 'p1', oneLineReview: '기존 이유' });
   render();
   assert.equal(photoStep, undefined, 'Review edits skip the photo step');
-  assert.equal(submit('한줄평 저장').disabled, false, 'Review edits stay allowed without a photo');
-  submit('한줄평 저장').onPress();
+  assert.equal(submit('한줄평 저장하기').disabled, false, 'Review edits stay allowed without a photo');
+  submit('한줄평 저장하기').onPress();
   await flush();
   assert.equal(saves.length, 1, 'A review edit of a photo-less pick still saves');
 
@@ -172,11 +172,11 @@ async function main() {
   assert.match(stepPage, /1\. 대표 사진 <span>필수<\/span>/, 'The photo step is marked required');
   assert.match(stepPage, /사진을 등록해야 원픽을 저장할 수 있어요/);
   assert.doesNotMatch(stepPage, /사진이 없어도|사진 없이 계속/, 'Nothing suggests going on without a photo');
-  buttons.find((props) => textOf(props.children).includes('사진 선택')).onPress();
+  buttons.find((props) => textOf(props.children).includes('사진 고르기')).onPress();
   await flush();
   stepPage = renderStep();
   assert.match(stepPage, /선택한 대표 이미지 미리보기/);
-  buttons.find((props) => textOf(props.children).includes('이 사진 등록')).onPress();
+  buttons.find((props) => textOf(props.children).includes('이 사진 등록하기')).onPress();
   await flush();
   assert.equal(JSON.stringify(uploads), JSON.stringify([{ userId: 'owner', itemId, photo: draft }]), 'The chosen photo is uploaded for this item');
   assert.equal(attached.imagePath, 'owner/p.jpg', 'The saved item is handed back to the choose screen');

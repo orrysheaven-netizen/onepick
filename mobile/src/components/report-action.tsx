@@ -72,7 +72,7 @@ export function ReportAction({
           submitReport.reset();
         }}
         style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}>
-        <Text style={styles.reportButtonText}>{open ? '신고 취소' : '신고'}</Text>
+        <Text style={styles.reportButtonText}>{open ? '닫기' : '신고하기'}</Text>
       </Pressable>
       {open ? (
         <View style={styles.panel}>

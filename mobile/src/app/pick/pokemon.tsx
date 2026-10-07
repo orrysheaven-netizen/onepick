@@ -218,7 +218,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.itemCategory}>포켓몬 · 등록됨</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.meta}>{item.externalId ? dex(item.externalId) : ''}{item.originalName && item.originalName !== item.name ? ` · ${item.originalName}` : ''}</Text>
-          <Text style={styles.itemAction}>이 포켓몬을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 포켓몬을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -231,7 +231,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.itemCategory}>포켓몬 · PokéAPI</Text>
           <Text style={styles.itemName}>{entry.name}</Text>
           <Text style={styles.meta}>{dex(entry.dexNumber)}{entry.englishName !== entry.name ? ` · ${entry.englishName}` : ''}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '포켓몬 정보를 확인하고 있어요…' : '이 포켓몬을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '포켓몬 정보를 확인하고 있어요…' : '이 포켓몬을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 
