@@ -89,7 +89,7 @@ function choice() {
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useChoosePick': { useChoosePick: () => mutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
-  const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('한줄평 저장').onPress(); };
+  const start = () => { view.render(); view.nodes().find((n) => n.type === 'TextInput').props.onChangeText('나의 이유'); view.render(); view.button('한줄평 저장하기').onPress(); };
   const finish = async () => { pending[0].resolve({ id: pickId, itemId, categoryId, userId: 'owner', oneLineReview: '나의 이유', status: 'active' }); await flush(); return view.render(); };
   return { auth, params, query, mutation, view, writes, destinations, pending, start, finish };
 }
@@ -101,11 +101,11 @@ async function main() {
   assert.match(page, /같은 원픽을 고른 사람들의 카드/);
   assert.ok(c.view.hasButton('내 원픽 보기')); assert.ok(c.view.hasButton('다른 사람의 원픽 계속 보기'));
   assert.ok(page.indexOf('다른 사람의 원픽 계속 보기') < page.indexOf('사진도 남겨볼까요'), 'Primary browsing actions are not replaced by the optional task');
-  const invitation = c.view.button('내 원픽 사진 등록').onPress;
+  const invitation = c.view.button('내 원픽 사진 등록하기').onPress;
   invitation(); invitation();
   assert.equal(c.destinations.length, 1); assert.equal(c.writes.length, 1, 'Invitation never saves the Pick again');
   assert.equal(c.destinations[0].pathname, '/item/[itemId]'); assert.equal(c.destinations[0].params.itemId, itemId); assert.equal(c.destinations[0].params.photo, '1');
-  c = choice(); c.start(); await c.finish(); const old = c.view.button('내 원픽 사진 등록').onPress;
+  c = choice(); c.start(); await c.finish(); const old = c.view.button('내 원픽 사진 등록하기').onPress;
   c.view.button('지금은 넘어가기').onPress(); old(); page = c.view.render();
   assert.doesNotMatch(page, /사진도 남겨볼까요/); assert.equal(c.destinations.length, 0); assert.equal(c.writes.length, 1);
   assert.ok(c.view.hasButton('내 원픽 보기')); assert.ok(c.view.hasButton('다른 사람의 원픽 계속 보기'));
@@ -196,7 +196,7 @@ async function main() {
   assert.equal(itemDetailArgs[4], false, 'Loading session keeps the detail query disabled');
   auth.isLoading = false; view.render();
   view.button('사진 등록자 @photo_owner 프로필 보기').onPress(); assert.equal(routes[0].params.username, 'photo_owner');
-  assert.doesNotMatch(view.render(), /사진 업로드/);
+  assert.doesNotMatch(view.render(), /사진 올리기/);
   query.photoCredit = { ...credit, imagePath: 'stale.jpg' }; assert.doesNotMatch(view.render(), /@photo_owner/);
   query.photoCredit = null; assert.doesNotMatch(view.render(), /사진 등록 ·/);
   query.data.item = { ...baseItem };
@@ -207,7 +207,7 @@ async function main() {
   assert.equal(view.scrolls.length, 0, 'Photo entry stays on uploader instead of jumping to the saved review');
   params.photo = undefined; view.render(); view.nodes().find((n) => n.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { y: 700 } } });
   assert.equal(view.scrolls.length, 1, 'Normal discussion deep links still focus the review');
-  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 업로드/);
+  query.isError = true; assert.doesNotMatch(view.render(), /사진 등록 ·|사진 올리기/);
   assert.match(fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8'), /case 'ITEM_NOT_ELIGIBLE': return '지금은 여기에 이미지를 추가할 수 없어요.'/);
   console.log('Photo contribution passed: optional post-save offer, skip and no duplicate write, current-photo exclusion, credit reads/cache isolation, profile link and uploader focus.');
 }

@@ -53,7 +53,7 @@ native.showPhotoFailure(new AppError('NETWORK_ERROR'), 'request_item_photo_uploa
 assert.equal(native.calls.alert.length, 1, 'Native keeps the RN alert');
 assert.equal(native.calls.alert[0][0], '사진을 업로드하지 못했어요.');
 assert.match(native.calls.alert[0][1], /인터넷 연결/);
-assert.equal(JSON.stringify(native.calls.alert[0][2]), JSON.stringify([{ text: '확인' }]));
+assert.equal(JSON.stringify(native.calls.alert[0][2]), JSON.stringify([{ text: '닫기' }]));
 
 const unknown = load('web', true);
 unknown.showPhotoFailure(new Error('boom'), 'item_photo_choose');

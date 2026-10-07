@@ -69,7 +69,7 @@ function BioEditor({ profileUserId, bio }: Props) {
       <View style={styles.buttons}>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 저장" disabled={disabled}
           onPress={() => void save()} style={[styles.save, disabled && styles.disabled]}>
-          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
+          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장하기</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 편집 취소" disabled={mutation.isPending}
           onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>{DIALOG_CANCEL_LABEL}</Text></Pressable>

@@ -321,7 +321,7 @@ async function writeUntilReview() {
   await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
   press('다음'); await flush(); await render();
-  press('사진 선택'); await flush(); await render(); press('다음'); await render();
+  press('사진 고르기'); await flush(); await render(); press('다음'); await render();
   input('원픽 한줄평').onChangeText('육수가 깔끔해요'); return render();
 }
 
@@ -399,7 +399,7 @@ async function screenTests() {
   assert.equal(isDisabled('다음'), true, 'required photo cannot be skipped');
   assert.equal(count('register'), 0);
   choosePhotoResult = { ...photo };
-  press('사진 선택'); await flush(); page = await render();
+  press('사진 고르기'); await flush(); page = await render();
   assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
   press('다음'); page = await render();
   assert.equal(stepOf(page), '4');
