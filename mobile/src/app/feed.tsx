@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10 },
   backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
-  gap: { height: 12 },
+  gap: { height: OnePickSpace.xxl },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
   pressed: { opacity: 0.65 },
