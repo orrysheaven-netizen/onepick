@@ -23,8 +23,9 @@ export function Icon({ name, size = 'md', color = OnePick.textPrimary, filled = 
           return <path key={index} d={shape.d} stroke={twoTone ? OnePick.onAction : undefined} fill={filled ? color : undefined} />;
         }
         if (shape.type === 'circle') {
+          const shapeFilled = 'filled' in shape && shape.filled;
           return <circle key={index} cx={shape.cx} cy={shape.cy} r={shape.r}
-            fill={shape.filled || filled ? color : undefined} stroke={shape.filled ? 'none' : undefined} />;
+            fill={shapeFilled || filled ? color : undefined} stroke={shapeFilled ? 'none' : undefined} />;
         }
         return <rect key={index} x={shape.x} y={shape.y} width={shape.w} height={shape.h} rx={shape.rx} fill={filled ? color : undefined} />;
       })}
