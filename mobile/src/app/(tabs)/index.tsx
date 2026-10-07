@@ -105,7 +105,7 @@ export default function HomeScreen() {
   );
   // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
   const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
-  // Only an admin-set category that is an open menu becomes a question; nothing is picked here.
+  // Resolve the DB-selected daily menu against the current public food catalog.
   const questionCategory = questionQuery.data ? menuCategories.find((category) => category.id === questionQuery.data) ?? null : null;
   const myPicks = useMemo(() => myScopedPicks(data?.currentPicks ?? [], menuIds, mvpChannel), [data?.currentPicks, menuIds, mvpChannel]);
   const myAnswer = myQuestionAnswer(myPicks, questionCategory?.id ?? null);

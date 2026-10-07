@@ -26,13 +26,23 @@ export function useHomeItemRanking(channel: PickChannel | null = null, limit = 2
   });
 }
 
-/** Figma 30E "오늘의 질문": the admin-set category id, or null when none is set. */
+/** Time until the next Korean midnight; refresh when the DB's daily seed changes. */
+export function dailyQuestionRefreshDelay(now = Date.now()) {
+  const day = 24 * 60 * 60_000;
+  const koreaOffset = 9 * 60 * 60_000;
+  return day - ((now + koreaOffset) % day) + 100;
+}
+
+/** The server chooses the daily menu; local time only schedules a fresh read. */
 export function useDailyQuestionCategory(enabled = true) {
   return useQuery({
     enabled,
     queryKey: queryKeys.home.dailyQuestion(),
     queryFn: () => homeService.getDailyQuestionCategoryId(),
     staleTime: HOME_CONTEXT_STALE_TIME,
+    refetchInterval: () => dailyQuestionRefreshDelay(),
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 }
 

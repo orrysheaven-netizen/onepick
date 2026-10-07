@@ -36,8 +36,6 @@ export interface AdminItemUpdateInput extends Partial<AdminItemInput> {
 }
 
 export interface AdminRepository {
-  getHomeDailyQuestionCategoryId(): Promise<string | null>;
-  setHomeDailyQuestionCategoryId(categoryId: string | null): Promise<string | null>;
   getHomeMinimumPickCount(): Promise<number>;
   setHomeMinimumPickCount(count: number): Promise<number>;
   isAdmin(): Promise<boolean>;
@@ -59,4 +57,3 @@ export interface AdminRepository {
   createItem(input: AdminItemInput & { normalizedName: string; createdBy?: string | null }): Promise<Item>;
   updateItem(itemId: string, input: AdminItemUpdateInput & { normalizedName?: string }, expectedStatus?: ItemStatus): Promise<Item>;
 }
-

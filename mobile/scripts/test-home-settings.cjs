@@ -71,7 +71,6 @@ async function main() {
   const mutation = { isPending: false, mutateAsync: async (count) => { saved.push(count); if (failSave) throw new Error('offline'); query.data = count; return count; } };
   const component = ({ children }) => React.createElement('div', null, children);
   const { AdminHomeSettings } = load('components/admin-home-settings.tsx', {
-    '@/components/admin-daily-question-settings': { AdminDailyQuestionSettings: () => null },
     react: { useRef: () => busy, useState: (initial) => { const i = index++; if (!(i in state)) state[i] = initial; return [state[i], (value) => { state[i] = value; }]; } },
     'react-native': { Text: component, View: component, ActivityIndicator: () => null, StyleSheet: { create: (s) => s },
       TextInput: (props) => { input = props; return null; }, Pressable: (props) => { presses.push(props); return component(props); } },
@@ -91,4 +90,3 @@ async function main() {
   console.log('Home settings checks passed: admin gate, integer bounds, public aggregate mapping, all-home invalidation, save/retry and duplicate-submit protection.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
-

@@ -240,8 +240,8 @@ export interface ReadRepository {
   /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
   getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
   /**
-   * Admin-chosen category for Home's "오늘의 질문" (Figma 30E), from `home_settings`.
-   * null when no category is set or the setting does not exist yet in this database.
+   * Daily random open food menu chosen by the DB, using the Asia/Seoul calendar.
+   * null when the public food catalog has no eligible menu.
    */
   getDailyQuestionCategoryId(): Promise<string | null>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */

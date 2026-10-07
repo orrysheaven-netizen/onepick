@@ -33,7 +33,7 @@ export class HomeService {
     };
   }
 
-  /** Admin-chosen "오늘의 질문" category (Figma 30E); null when none is set. */
+  /** Date-seeded random food menu chosen by the DB each Korean calendar day. */
   getDailyQuestionCategoryId() {
     return this.readRepository.getDailyQuestionCategoryId();
   }

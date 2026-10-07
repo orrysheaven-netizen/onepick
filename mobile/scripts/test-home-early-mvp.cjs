@@ -252,7 +252,7 @@ test('R2 · reply count is complete beyond the first 20 groups and never partial
   assert.equal((await early.collectReplyBanner(ended.source)).banner.count, 1);
 });
 
-// Repository: the settings read must not name an undeployed column (PR #777 preview QA saw a 400).
+// Repository: the DB owns the daily draw; no administrator setting is read.
 async function repositoryChecks() {
   const { AppError } = load('errors/appError.ts');
   const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
@@ -263,22 +263,16 @@ async function repositoryChecks() {
   };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
-  const settings = (result) => {
-    const seen = {};
-    const chain = { select(cols) { seen.select = cols; return chain; }, eq(col, val) { seen.eq = [col, val]; return chain; }, maybeSingle: async () => result };
-    const client = { from(table) { seen.table = table; return chain; } };
-    return { repo: new SupabaseReadRepository(client, client), seen };
+  const daily = (result) => {
+    const client = { rpc: (name, args) => { assert.equal(name, 'home_daily_question'); assert.equal(args, undefined); return result; },
+      from: () => assert.fail('No administrator settings read') };
+    return new SupabaseReadRepository({}, client);
   };
-  const unset = settings({ data: { daily_question_category_id: null }, error: null });
-  assert.equal(await unset.repo.getDailyQuestionCategoryId(), null, 'Unset → no question');
-  assert.equal(unset.seen.table, 'home_settings');
-  assert.equal(unset.seen.select, 'daily_question_category_id', 'Read only the public display setting');
-  deepEq(unset.seen.eq, ['id', true]);
-  assert.equal(await settings({ data: { daily_question_category_id: 'naengmyeon' }, error: null }).repo.getDailyQuestionCategoryId(), 'naengmyeon');
-  await assert.rejects(() => settings({ data: null, error: { code: '42703', message: 'column does not exist' } }).repo.getDailyQuestionCategoryId(),
-    'Schema drift surfaces instead of widening the read');
-  await assert.rejects(() => settings({ data: null, error: { code: '500', message: 'boom' } }).repo.getDailyQuestionCategoryId(), 'Real failures still surface as errors');
-  passed++; console.log('PASS Daily question setting read is least-privilege and surfaces schema drift');
+  assert.equal(await daily({ data: null, error: null }).getDailyQuestionCategoryId(), null, 'Empty eligible catalog → no question');
+  assert.equal(await daily({ data: 'naengmyeon', error: null }).getDailyQuestionCategoryId(), 'naengmyeon');
+  await assert.rejects(() => daily({ data: null, error: { code: 'PGRST202', message: 'RPC missing' } }).getDailyQuestionCategoryId(), 'Missing migration is an error, never an admin-setting fallback');
+  await assert.rejects(() => daily({ data: null, error: { code: '500', message: 'boom' } }).getDailyQuestionCategoryId());
+  passed++; console.log('PASS Daily question uses the public DB draw and surfaces failures');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -382,7 +376,7 @@ test('Category tree is deferred unless a visible Home feature needs it', () => {
   assert.equal(home({ question: null, counts: countsOf({ ramen: 30 }) }).calls.categoriesEnabled, false);
   assert.equal(home({ question: null, countsQuery: query(undefined) }).calls.categoriesEnabled, false);
   assert.equal(home({ question: null, counts: countsOf({}) }).calls.categoriesEnabled, true, 'Unpicked menus need names');
-  assert.equal(home({ counts: countsOf({ ramen: 30 }) }).calls.categoriesEnabled, true, 'Configured question needs its menu');
+  assert.equal(home({ counts: countsOf({ ramen: 30 }) }).calls.categoriesEnabled, true, 'DB-selected daily question needs its menu');
   const participants = ['amy', 'ben', 'cat'].map((id) => row(id, 'ramen', '2026-10-05T00:00:00Z'));
   assert.equal(home({ question: null, counts: countsOf({ ramen: 30 }), participants }).calls.categoriesEnabled, true, 'People need scoped categories');
 });
@@ -399,9 +393,9 @@ test('Loading and error keep the discovery slot honest', () => {
   assert.doesNotMatch(questionFailed.text(), /당신의/);
 });
 
-test('Today’s question: admin category only, answer count, 답하기 / 내 답 보기', () => {
+test('Today’s question: DB daily menu only, answer count, 답하기 / 내 답 보기', () => {
   const none = home({ question: null });
-  assert.doesNotMatch(none.text(), /오늘의 질문|당신의/, 'No admin category → no question card (nothing is picked for it)');
+  assert.doesNotMatch(none.text(), /오늘의 질문|당신의/, 'No eligible daily menu → no question card');
   const closed = home({ question: 'movie' });
   assert.doesNotMatch(closed.text(), /당신의/, 'A category outside the open food menus is not asked');
   const open = home({ counts: countsOf({ naengmyeon: 4 }) });

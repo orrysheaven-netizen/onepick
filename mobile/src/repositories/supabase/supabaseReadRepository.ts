@@ -332,14 +332,9 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 
   async getDailyQuestionCategoryId() {
-    // Production has the daily-question migration, so keep the public read least-privilege:
-    // only the display column is selected. Schema drift is an error instead of silently widening
-    // this read to every future home_settings column.
-    const { data, error } = await (this.countClient as any).from('home_settings')
-      .select('daily_question_category_id').eq('id', true).maybeSingle();
+    const { data, error } = await this.countClient.rpc('home_daily_question');
     if (error) throw mapSupabaseError(error);
-    const value = (data as { daily_question_category_id?: unknown } | null)?.daily_question_category_id;
-    return typeof value === 'string' && value ? value : null;
+    return data ?? null;
   }
 
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {

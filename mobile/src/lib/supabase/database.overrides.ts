@@ -226,12 +226,6 @@ type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
 export type AppDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Functions' | 'Tables'> & {
     Tables: Database['public']['Tables'] & {
-      home_settings: {
-        Row: Database['public']['Tables']['home_settings']['Row'] & { daily_question_category_id: string | null };
-        Insert: Database['public']['Tables']['home_settings']['Insert'] & { daily_question_category_id?: string | null };
-        Update: Database['public']['Tables']['home_settings']['Update'] & { daily_question_category_id?: string | null };
-        Relationships: [];
-      };
       profile_onboarding_state: TableShape<OnboardingStateRow, {
         profile_id: string;
         current_category_id?: string | null;
@@ -258,6 +252,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'home_editorial_items'> & {
+      home_daily_question: { Args: never; Returns: string | null };
       search_store_catalog: {
         Args: { p_query: string; p_limit?: number };
         Returns: StoreCatalogRow[];

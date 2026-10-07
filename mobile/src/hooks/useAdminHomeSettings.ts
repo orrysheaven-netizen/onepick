@@ -23,30 +23,3 @@ export function useUpdateAdminHomeSettings(userId?: string) {
     },
   });
 }
-
-
-const dailyQuestionKey = (userId?: string) => ['admin', 'home-daily-question', userId] as const;
-
-export function useAdminDailyQuestionSettings(userId?: string) {
-  return useQuery({
-    queryKey: dailyQuestionKey(userId),
-    queryFn: () => adminService.getHomeDailyQuestionSettings(),
-    enabled: Boolean(userId),
-    retry: false,
-  });
-}
-
-export function useUpdateAdminDailyQuestion(userId?: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: (categoryId: string | null) => adminService.setHomeDailyQuestionCategoryId(categoryId),
-    onSuccess: async (categoryId) => {
-      client.setQueryData<Awaited<ReturnType<typeof adminService.getHomeDailyQuestionSettings>>>(dailyQuestionKey(userId),
-        (previous) => previous ? { ...previous, categoryId } : previous);
-      await Promise.all([
-        client.invalidateQueries({ queryKey: dailyQuestionKey(userId) }),
-        client.invalidateQueries({ queryKey: queryKeys.home.all }),
-      ]);
-    },
-  });
-}
