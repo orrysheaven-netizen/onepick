@@ -397,7 +397,10 @@ async function main() {
 
         if (warm.status >= 400) throw new Error(`"${STORE_QUERY}" warm 검색 HTTP ${warm.status}`);
         const firstPageCount = await result.count();
-        if (firstPageCount < 20) throw new Error(`"${STORE_QUERY}" 첫 페이지가 20개 미만(${firstPageCount})이라 pagination 계약을 검증할 수 없음`);
+        if (firstPageCount < 20) return {
+          status: 'warn',
+          detail: `pagination 검증 데이터 전제 불충족: "${STORE_QUERY}" 첫 페이지 ${firstPageCount}개(<20) · 제품 실패 판정 아님 · QA_STORE_QUERY로 20개 초과 검색어 지정 필요`,
+        };
         const appendError = page.getByText('다음 매장을 불러오지 못했어요.', { exact: true });
         const deadline = Date.now() + STEP_TIMEOUT_MS;
         while (await result.count() <= 20 && Date.now() < deadline) {
