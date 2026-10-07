@@ -98,7 +98,7 @@ assert.match(webEdge, /end\.replayTap[\s\S]*focusTarget[\s\S]*focusTarget\.focus
 assert.match(read('src/lib/navigation/webSwipeGesture.ts'),
   /endedMovingRight[\s\S]*state\.claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight/,
   'Swipe-back only completes when the release is still moving right');
-assert.match(webEdge, /onGestureProgress\?\.\(Math\.max\(0, dx\)\)/,
+assert.match(webEdge, /onGestureProgress\?\.\(move\.progress\)/,
   'Claimed web swipes report live horizontal progress to the focused screen');
 assert.match(webEdge, /onGestureCancel\?\.\(\)/,
   'Cancelled web swipes restore the focused screen');
