@@ -56,6 +56,21 @@ function mapClientErrorEvent(row: any): ClientErrorEvent {
 export class SupabaseAdminRepository implements AdminRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
+  async getHomeDailyQuestionCategoryId() {
+    const { data, error } = await this.client.from('home_settings')
+      .select('daily_question_category_id').eq('id', true).single();
+    if (error) throw mapSupabaseError(error);
+    return data.daily_question_category_id;
+  }
+
+  async setHomeDailyQuestionCategoryId(categoryId: string | null) {
+    const { data, error } = await this.client.from('home_settings')
+      .update({ daily_question_category_id: categoryId }).eq('id', true)
+      .select('daily_question_category_id').single();
+    if (error) throw mapSupabaseError(error);
+    return data.daily_question_category_id;
+  }
+
   async getHomeMinimumPickCount() {
     const { data, error } = await this.client.from('home_settings').select('minimum_pick_count').eq('id', true).single();
     if (error) throw mapSupabaseError(error);
@@ -312,3 +327,4 @@ export class SupabaseAdminRepository implements AdminRepository {
     return mapItemRow(data);
   }
 }
+

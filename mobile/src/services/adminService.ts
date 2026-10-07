@@ -1,5 +1,5 @@
 import { AppError } from '@/errors/appError';
-import { selectableCategories } from '@/lib/categories/categoryTree';
+import { categoryRootSlug, selectableCategories } from '@/lib/categories/categoryTree';
 import type { Category } from '@/types/domain/category';
 import type { ItemStatus } from '@/types/domain/item';
 import { canonicalItemName } from '@/lib/items/itemIdentity';
@@ -37,6 +37,28 @@ export class AdminService {
   ) {}
 
   isAdmin() { return this.adminRepository.isAdmin(); }
+
+  async getHomeDailyQuestionSettings() {
+    await this.assertAdmin();
+    const [categoryId, categories] = await Promise.all([
+      this.adminRepository.getHomeDailyQuestionCategoryId(),
+      this.adminRepository.getCategories(),
+    ]);
+    return { categoryId, categories };
+  }
+
+  async setHomeDailyQuestionCategoryId(categoryId: string | null) {
+    await this.assertAdmin();
+    if (categoryId !== null) {
+      const categories = await this.adminRepository.getCategories();
+      const category = selectableCategories(categories).find((item) => item.id === categoryId);
+      if (!category || categoryRootSlug(category, categories) !== 'food') {
+        throw new RangeError('HOME_DAILY_QUESTION_CATEGORY_INVALID');
+      }
+    }
+    // The existing database trigger and admin AAL2 RLS remain authoritative.
+    return this.adminRepository.setHomeDailyQuestionCategoryId(categoryId);
+  }
 
   async getHomeMinimumPickCount() {
     await this.assertAdmin();
@@ -299,3 +321,4 @@ export class AdminService {
     if (!(await this.adminRepository.isAdmin())) throw new AppError('FORBIDDEN');
   }
 }
+
