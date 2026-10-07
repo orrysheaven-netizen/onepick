@@ -242,7 +242,7 @@ async function main() {
     const data = query.data; query.data = undefined; query.hasNextPage = false;
     assert.match(render(), new RegExp(`${label}을 불러오지 못했어요`));
     await control().onPress(); assert.equal(refetchCalls, 2);
-    assert.match(render(), /음식 원픽/, 'A failed list must not take down the profile');
+    assert.match(render(), /첫 원픽을 골라보세요/, 'A failed list must not take down the profile');
     query.isPending = true; query.isError = false;
     render(); assert.equal(control(), undefined, 'The pending list must not offer a misleading retry');
     query.isPending = false; query.data = data;

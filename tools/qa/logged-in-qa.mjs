@@ -527,8 +527,8 @@ async function main() {
     await check(flow, '내 원픽 목록 표시', async () => {
       // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
       const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
-      // Empty copy per scope tab (profile.tsx): "아직 고른 음식 원픽이 없어요" / "아직 다른 취향 원픽이 없어요".
-      const empty = page.getByText(/아직 (고른 음식|다른 취향) 원픽이 없어요/);
+      // Empty copy per scope tab (profile.tsx): "첫 원픽을 골라보세요" / "다른 취향 원픽도 골라보세요".
+      const empty = page.getByText(/첫 원픽을 골라보세요|다른 취향 원픽도 골라보세요/);
       await rows.first().or(empty).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await rows.count();
       if (!count) {

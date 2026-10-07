@@ -343,8 +343,8 @@ export default function ProfileScreen() {
               onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
             />)}
           </View> : (
-            <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요.' : '아직 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
+            <StateCard title={profileScope === 'food' ? '첫 원픽을 골라보세요.' : '다른 취향 원픽도 골라보세요.'}
+              text={profileScope === 'food' ? '지금 가장 좋아하는 메뉴 하나면 돼요.' : '영화, 게임, 책 같은 취향을 고르면 여기에 모여요.'}
               action={profileScope === 'food'
                 ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
                 : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
