@@ -183,7 +183,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <TextInput autoFocus accessibilityLabel="원픽 포켓몬 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={searchText}
         onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-        placeholder="예: 피카츄, Pikachu, #25" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 피카츄, Pikachu, #25" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 포켓몬과 PokéAPI 색인을 함께 찾고 있어요.</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 포켓몬 검색을 불러오지 못했어요.</Text>

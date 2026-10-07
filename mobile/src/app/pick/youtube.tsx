@@ -223,7 +223,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <TextInput autoFocus={Platform.OS !== 'web'} accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
           editable={Boolean(category) && !importing} maxLength={1000} value={searchText}
           onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
         <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줘요. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용해요.</Text>
         {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
