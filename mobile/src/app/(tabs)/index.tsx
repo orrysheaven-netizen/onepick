@@ -12,7 +12,6 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData, useHomeItemRanking } from '@/hooks/useHomeData';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -51,9 +50,9 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || followDefaultPending || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  // Home search, category filters and Explore share one cached category-tree query.
-  // Start it alongside Home context instead of waiting for Home to finish first.
-  const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
+  // Hidden category chips need no initial request. The search dialog loads the
+  // same cached tree when opened; future chip rollout still loads it here.
+  const categoriesQuery = useExploreCategories(Boolean(OnePickFeatures.categoryChips) && !isSessionLoading && !sessionError);
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -69,15 +68,13 @@ export default function HomeScreen() {
     [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const searchCategories = useMemo(() => selectableCategories(categoryCatalog).map((category) => ({
-    ...category,
-    label: categoryLabel(category, categoryCatalog),
-  })), [categoryCatalog]);
   // Figma 30-1 (10-04/10-05): no group chips; the top six store×menu items in a 2×3 grid.
   const itemRankingQuery = useHomeItemRanking(mvpChannel, HOME_RANKING_CANDIDATES, !isSessionLoading && !sessionError);
   // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
   const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
   const ready = !isLoading && !sessionError && Boolean(data);
+  // Ranking has its own loading/error state and must not wait for feed enrichment.
+  const showRanking = !isSessionLoading && !sessionError && !followDefaultPending;
 
   useEffect(() => {
     if (selectedCategoryGroupId && (!showCategoryFilters || !categoryFilters.some((group) => group.id === selectedCategoryGroupId))) {
@@ -180,7 +177,7 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} />
         </View>}
 
-        {ready ? <View style={styles.rankingSection}>
+        {showRanking ? <View style={styles.rankingSection}>
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
@@ -191,7 +188,7 @@ export default function HomeScreen() {
           </View>
           {itemRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {itemRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
-            text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있어요."
+            text="메뉴 탐색은 탐색 탭에서 이어갈 수 있어요."
             action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
           {!itemRankingQuery.isPending && !itemRankingQuery.isError && rankedItems.length ? <View style={styles.menuGrid}>
             {rankedItems.map((item) => <RecentItemCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
@@ -305,3 +302,4 @@ const styles = StyleSheet.create({
   footerText: { ...OnePickType.body, color: OnePick.textSecondary, flex: 1 },
   pressed: { opacity: 0.65 },
 });
+
