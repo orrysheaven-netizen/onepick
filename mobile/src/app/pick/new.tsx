@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StateCard } from '@/components/ui';
+import { Icon, StateCard } from '@/components/ui';
 import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
@@ -556,7 +556,7 @@ export default function NewPickScreen() {
   };
   const header = <View style={styles.header}>
     <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.headerSide}>
-      <Text style={styles.backText}>‹</Text>
+      <Icon name="back" />
     </Pressable>
     <Text style={styles.headerTitle}>새 원픽 등록</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={cancel} style={[styles.headerSide, styles.headerRight]}>
@@ -629,7 +629,7 @@ export default function NewPickScreen() {
                       <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
                       <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
                     </View>
-                    {candidate === linkSelected ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text> : null}
+                    {candidate === linkSelected ? <Icon name="check" size="sm" color={OnePick.textPrimary} /> : null}
                   </View>
                 </Pressable>)}
               </View> : null}
@@ -647,7 +647,7 @@ export default function NewPickScreen() {
                   {storeSearchValue ? <Pressable accessibilityRole="button" accessibilityLabel="매장명 지우기"
                     onPress={() => { setPrefillDismissed(true); setStore(null); setQuery(''); }}
                     style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
-                    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.clearText}>×</Text>
+                    <Icon name="clear" size="sm" color={OnePick.textTertiary} />
                   </Pressable> : null}
                 </View>
                 {providerPrefillStore
@@ -670,7 +670,7 @@ export default function NewPickScreen() {
                         {[providerPrefillStore.region, providerPrefillStore.address ? '상세 주소 표시 ›' : providerPrefillStore.providerCategory].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
-                    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text>
+                    <Icon name="check" size="sm" color={OnePick.textPrimary} />
                   </View>
                 </View> : (search.data ?? []).filter((candidate) => candidate.kind === 'place').map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
