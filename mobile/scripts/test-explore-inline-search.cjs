@@ -11,7 +11,7 @@ const repository = read('src/repositories/supabase/supabaseReadRepository.ts');
 assert.match(explore, /const searchActive = !scope\.showChips && searchText\.trim\(\)\.length > 0;/);
 assert.match(explore, /!scope\.showChips && !searchActive && !selectedCategoryId/, 'menu list hides while searching');
 assert.match(explore, /!scope\.showChips && !searchActive && menuLoadFailed/, 'the menu-load error card hides while searching');
-assert.match(explore, /accessibilityLabel="검색어 지우기"[\s\S]{0,200}>×<\/Text>/, '× clears the box');
+assert.match(explore, /accessibilityLabel="검색어 지우기"[\s\S]{0,200}<Icon name="clear" size="sm"/, 'the shared 16px clear icon (not a × glyph) clears the box');
 assert.match(explore, /onRegister=\{\(\) => router\.push\('\/pick\/new'\)\}/, 'empty results lead to registration (75)');
 // Two groups: "메뉴 N" → menu detail, then "매장 원픽 N" → item detail with "원픽 N 지역".
 assert.match(results, /title=\{`메뉴 \$\{matchedMenus\.length\}`\}/);

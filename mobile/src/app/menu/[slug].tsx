@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DishPeoplePicks } from '@/components/dish-people-picks';
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
@@ -34,7 +34,7 @@ export default function MenuPeoplePicksScreen() {
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
           style={({ pressed }) => [styles.headerSide, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{name ?? '메뉴'}</Text>
         <View style={styles.headerSide} />
@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
     backgroundColor: OnePick.bgDefault,
   },
   headerSide: { width: 48, minHeight: 44, justifyContent: 'center' },
-  backText: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: {
     width: '100%',

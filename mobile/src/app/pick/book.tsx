@@ -11,6 +11,7 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -170,7 +171,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 책 원픽 찾기</Text>
       <Text style={styles.subtitle}>책 제목을 입력하고, 필요하면 작가 이름을 함께 넣어 가장 정확한 판본을 찾아보세요.</Text>
       <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있어요.</Text>
@@ -262,7 +263,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

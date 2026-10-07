@@ -30,6 +30,7 @@ vm.runInNewContext(ts.transpileModule(source, {
     if (name === 'react/jsx-runtime') return require(name);
     if (name === 'react-native') return native;
     if (name === '@/components/pick-photo') return { PickPhoto: () => React.createElement('img', { alt: 'photo' }) };
+    if (name === '@/components/ui') return require('./icon-stub.cjs');
     assert.fail(`Unexpected import: ${name}`);
   },
 });

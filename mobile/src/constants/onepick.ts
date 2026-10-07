@@ -118,6 +118,16 @@ export const OnePickLayout = {
   tabBarReferenceHeight: 98,
 } as const;
 
+// Icon sizes (Figma Foundations `icon/size/*`). Two shared sizes only:
+// md 24 for primary actions (tabs, back, search, share, bell, add, close,
+// profile actions, comments); sm 16 for supporting marks (row chevrons,
+// badges, meta, in-card hints). Touch targets stay ≥ 44 regardless of size.
+export const OnePickIcon = {
+  sm: 16,
+  md: 24,
+  strokeWidth: 1.8,
+} as const;
+
 
 // Feature exposure gates. Database support can be ready while an MVP feature
 // remains intentionally hidden until an explicit product rollout decision.
