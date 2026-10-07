@@ -54,7 +54,7 @@ export async function openHomeSearch(page, timeout = 15_000) {
 export async function submitHomeSearch(page, searchText, timeout = 15_000) {
   const dialog = homeSearchDialog(page);
   await dialog.getByRole('textbox', { name: '메뉴명', exact: true }).fill(searchText, { timeout });
-  await dialog.getByRole('button', { name: '검색', exact: true }).click({ timeout });
+  await dialog.getByRole('button', { name: '검색하기', exact: true }).click({ timeout });
   const results = dialog.getByRole('button', { name: / 상세 보기$/ });
   await results.first().waitFor({ state: 'visible', timeout });
   return results;
