@@ -9,9 +9,9 @@ const output = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 
-const exports = {};
+const moduleExports = {};
 vm.runInNewContext(output, {
-  exports,
+  exports: moduleExports,
   require: (name) => {
     if (name === './swipeBack') return {
       SWIPE_START_DX: 12,
@@ -22,7 +22,7 @@ vm.runInNewContext(output, {
   },
 });
 
-const { beginWebSwipeGesture, moveWebSwipeGesture, endWebSwipeGesture } = exports;
+const { beginWebSwipeGesture, moveWebSwipeGesture, endWebSwipeGesture } = moduleExports;
 
 // Reserved iOS edge: horizontal drag is owned immediately and can complete.
 let state = beginWebSwipeGesture(8, 100, true);
