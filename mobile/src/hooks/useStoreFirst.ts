@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import type { PickChannel } from '@/lib/items/pickChannel';
@@ -29,15 +29,22 @@ export function useStoreSearch(channel: PickChannel, searchText: string, enabled
   const minimum = channel === 'online' ? 1 : 2;
   const valid = enabled && clean.length >= minimum && clean.length <= 100;
   const isWaiting = valid && clean !== settled;
-  const query = useQuery({
-    queryKey: ['store-first', 'search', channel, settled],
-    queryFn: ({ signal }) => channel === 'online'
-      ? storeFirstService.searchSellers(settled, signal)
-      : storeFirstService.searchStores(settled, signal),
+  const query = useInfiniteQuery({
+    queryKey: ['store-first', 'search-page', channel, settled],
+    initialPageParam: null as string | null,
+    queryFn: async ({ signal, pageParam }) => channel === 'online'
+      ? { items: await storeFirstService.searchSellers(settled, signal), nextCursor: null }
+      : storeFirstService.searchStorePage(settled, pageParam, signal),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: valid && !isWaiting,
     staleTime: 10 * 60_000,
+    ...(channel === 'offline' ? { retry: false } : {}),
   });
-  return { ...query, valid, isWaiting, minimum };
+  return {
+    ...query,
+    data: valid && !isWaiting ? query.data?.pages.flatMap((page) => page.items) : undefined,
+    valid, isWaiting, minimum,
+  };
 }
 
 /** Step 2: every food menu the user may choose by hand. */
