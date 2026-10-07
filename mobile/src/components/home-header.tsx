@@ -85,7 +85,7 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
         <View style={styles.inputRow}>
           <TextInput accessibilityLabel="메뉴명" autoFocus autoCapitalize="none" autoCorrect={false} maxLength={100}
             value={text} onChangeText={setText} onSubmitEditing={search} returnKeyType="search"
-            placeholder="예: 라멘" placeholderTextColor={OnePick.hint} style={styles.input} />
+            placeholder="예: 라멘" placeholderTextColor={OnePick.textSecondary} style={styles.input} />
           {text ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setText('')} style={styles.clear}>
             <Icon name="clear" size="sm" color={OnePick.textTertiary} />
           </Pressable> : null}

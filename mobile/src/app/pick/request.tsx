@@ -347,7 +347,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
                 maxLength={CATEGORY_HINT_MAX_LENGTH}
                 onChangeText={(value) => { setHintText(value); if (categoryHint.isError) categoryHint.reset(); }}
                 placeholder="예: 텀블러, 캠핑 의자, 반려동물 간식"
-                placeholderTextColor={OnePick.hint}
+                placeholderTextColor={OnePick.textSecondary}
                 style={[styles.input, styles.hintInput]}
                 value={hintText}
               />
@@ -388,7 +388,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           maxLength={100}
           onChangeText={setName}
           placeholder={isOnlineRequest ? '예: ○○곰탕 온라인몰 도가니탕' : '이름'}
-          placeholderTextColor={OnePick.hint}
+          placeholderTextColor={OnePick.textSecondary}
           style={styles.input}
           value={name}
         />
@@ -396,7 +396,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         {isOnlineRequest ? <>
           <Text style={styles.label}>판매처 링크</Text>
           <TextInput accessibilityLabel="온라인 판매처 링크" editable={!submitting} value={sellerLink} onChangeText={setSellerLink}
-            autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" placeholderTextColor={OnePick.hint} style={styles.input} />
+            autoCapitalize="none" keyboardType="url" maxLength={2048} placeholder="https://…" placeholderTextColor={OnePick.textSecondary} style={styles.input} />
           {sellerLinkError ? <Text accessibilityRole="alert" style={styles.error}>{sellerLinkError}</Text>
             : <Text style={styles.helper}>공식몰·스마트스토어 등 주문한 곳의 링크예요. 배달앱 주문은 매장으로 골라주세요.</Text>}
         </> : null}

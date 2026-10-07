@@ -334,7 +334,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         ? '어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장이나 온라인에서 맛집을 찾을 수 있어요.'
         : '어떤 메뉴의 원픽인가요? 메뉴를 고르면 매장에서 가장 좋아하는 곳을 찾을 수 있어요.'}</Text>
       <TextInput autoFocus accessibilityLabel="메뉴 검색" autoCapitalize="none" maxLength={100} onChangeText={setMenuQuery}
-        placeholder="메뉴 검색: 도가니탕, 국밥…" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={menuQuery} />
+        placeholder="메뉴 검색: 도가니탕, 국밥…" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} value={menuQuery} />
       {menuTree.isPending ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>메뉴를 불러오고 있어요.</Text></View> : null}
       {menuTree.isError ? <View style={styles.block}><StateCard compact tone="danger" title="메뉴를 불러오지 못했어요."
         action={{ label: '메뉴 다시 불러오기', disabled: menuTree.isFetching, onPress: () => { if (!menuTree.isFetching) void menuTree.refetch(); } }} /></View> : null}
@@ -387,7 +387,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
       {hasPlaceReturn && categoryCapabilityReady && !validPlaceReturn ? <Text accessibilityRole="alert" style={styles.errorText}>장소 선택 링크와 카테고리를 확인해주세요. 해당 카테고리에서 다시 검색할 수 있어요.</Text> : null}
       <TextInput autoFocus={!validReturn && !validPlaceReturn} accessibilityLabel={isOnlineChannel ? '원픽 온라인 판매처 검색' : isPlaceCategory ? '원픽 맛집 검색' : isCatalogCategory ? `원픽 ${label} 검색` : selectedCategory ? '원픽 항목 검색' : '원픽 검색'} autoCapitalize="none"
         maxLength={100} editable={hasSearchScope && !importing} onChangeText={(value) => { if (!busy.current) { setQuery(value); setSelection(null); setPlaceSelection(null); } }}
-        placeholder={isOnlineChannel ? '온라인 판매처·메뉴 이름 검색' : isPlaceCategory ? '맛집 이름 검색' : isCatalogCategory ? `${label} 제목 검색` : '이름 검색'} placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} value={query} />
+        placeholder={isOnlineChannel ? '온라인 판매처·메뉴 이름 검색' : isPlaceCategory ? '맛집 이름 검색' : isCatalogCategory ? `${label} 제목 검색` : '이름 검색'} placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} value={query} />
       {isCatalogCategory && normalizedQuery.length > 60 ? <Text accessibilityRole="alert" style={styles.stateText}>{label} DB 검색어는 60자 이내로 입력해주세요. 등록된 원픽 검색은 계속 사용할 수 있어요.</Text> : null}
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{isOnlineChannel ? '등록된 온라인 판매처를 찾고 있어요.' : isPlaceCategory ? '등록된 장소와 원픽을 함께 찾고 있어요.' : isCatalogCategory ? `등록된 ${label}와 TMDB를 함께 찾고 있어요.` : '등록된 원픽을 찾고 있어요.'}</Text></View> : null}
       {search.isError ? <View style={styles.block}><StateCard compact tone="danger" title={isPlaceCategory ? '등록된 맛집 검색을 불러오지 못했어요.' : '검색 결과를 불러오지 못했어요.'} action={{ label: '다시 검색', disabled: search.isFetching, onPress: () => { if (!search.isFetching) void search.refetch(); } }} /></View> : null}
