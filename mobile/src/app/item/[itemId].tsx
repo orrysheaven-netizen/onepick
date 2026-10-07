@@ -300,6 +300,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   // Legacy food items may have no item_channels row, while an explicit Pick
   // channel is still valid by the DB contract. If a current public offline Pick
   // reached Home/Profile, its item detail must stay reachable too.
+  const hasCurrentPick = allPicks.some(({ pick }) =>
+    pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'));
+  const hasOwnCurrentPick = Boolean(user && allPicks.some(({ pick }) =>
+    pick.userId === user.id
+    && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'))));
   const hasPublicCurrentPick = allPicks.some(({ pick }) =>
     pick.channel === OnePickMvp.publicPickChannel
     && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review')));
@@ -316,6 +321,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   if (!itemSupportsPublicChannel) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
       <StateCard title="현재 공개 중인 원픽이 아니에요." text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
+      <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
+    </View></SafeAreaView>;
+  }
+  if (!hasPhoto && hasCurrentPick && !hasOwnCurrentPick) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
+      <StateCard title="현재 공개 중인 원픽이 아니에요." text="사진이 있는 원픽만 공개하고 있어요." />
       <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
     </View></SafeAreaView>;
   }
