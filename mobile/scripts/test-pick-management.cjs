@@ -159,3 +159,4 @@ async function main() {
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

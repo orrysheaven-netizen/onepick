@@ -74,8 +74,16 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
   const menuNames = useMemo(() => new Map((categories.data ?? []).map((category) => [category.id, category.name])), [categories.data]);
   const normalized = text.trim().replace(/\s+/g, ' ');
   const search = () => { if (normalized) setSubmitted(normalized); };
-  const loading = query.hasSearchText && (query.isWaiting || query.isPending);
-  const results = query.hasSearchText && !loading && !query.isError ? query.data ?? [] : null;
+  // Categories now start on dialog open. Wait for them before rendering menu
+  // names, while keeping a usable cached tree on background refresh failure.
+  const categoriesFailed = categories.isError && !categories.data;
+  const failed = query.isError || categoriesFailed;
+  const loading = query.hasSearchText && (query.isWaiting || query.isPending || categories.isPending);
+  const results = query.hasSearchText && !loading && !failed ? query.data ?? [] : null;
+  const retrySearch = () => {
+    if (query.isError) void query.refetch();
+    if (categoriesFailed) void categories.refetch();
+  };
 
   return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
@@ -85,16 +93,16 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
         <View style={styles.inputRow}>
           <TextInput accessibilityLabel="메뉴명" autoFocus autoCapitalize="none" autoCorrect={false} maxLength={100}
             value={text} onChangeText={setText} onSubmitEditing={search} returnKeyType="search"
-            placeholder="예: 라멘" placeholderTextColor={OnePick.hint} style={styles.input} />
+            placeholder="예: 라멘" placeholderTextColor={OnePick.textSecondary} style={styles.input} />
           {text ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setText('')} style={styles.clear}>
             <Icon name="clear" size="sm" color={OnePick.textTertiary} />
           </Pressable> : null}
         </View>
 
         {loading ? <View style={styles.state}><ActivityIndicator color={OnePick.accent} /><Text style={styles.text}>검색하고 있어요.</Text></View> : null}
-        {query.hasSearchText && !loading && query.isError ? <View style={styles.state}>
+        {query.hasSearchText && !loading && failed ? <View style={styles.state}>
           <Text accessibilityRole="alert" style={styles.text}>검색 결과를 불러오지 못했어요.</Text>
-          <Button variant="ghost" size="sm" label="다시 검색하기" onPress={() => void query.refetch()} />
+          <Button variant="ghost" size="sm" label="다시 검색하기" disabled={query.isFetching || categories.isFetching} onPress={retrySearch} />
         </View> : null}
         {results && !results.length ? <Text accessibilityLiveRegion="polite" style={[styles.text, styles.state]}>
           ‘{submitted}’ 메뉴를 찾지 못했어요.
@@ -158,3 +166,4 @@ const styles = StyleSheet.create({
   closeButton: { height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: OnePickRadius.md },
   closeText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
 });
+

@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs, categoriesEnabled;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -102,6 +102,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     'react-native': native,
     '@/components/ui': ui,
     '@/components/pick-photo': pickPhoto,
+    '@/components/ui/touch': { MIN_TOUCH_TARGET: 44 },
     '@/components/current-pick-flag': load('components/current-pick-flag.tsx', { 'react-native': native, 'expo-image': { Image: component('img') },
       '../../public/icons/flag-mine.svg': 'flag-mine.svg', '../../public/icons/flag-other.svg': 'flag-other.svg' }),
     '@/components/store-badge': { StoreBadge: () => React.createElement('b', null, '매장') },
@@ -116,7 +117,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/home-header': { HomeHeader: (props) => { homeHeaderProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useExploreData': { useFoodMenuPickCounts: () => menuCountsQuery, useExploreCategories: () => ({ data: [
+  '@/hooks/useExploreData': { useFoodMenuPickCounts: () => menuCountsQuery, useExploreCategories: (enabled) => { categoriesEnabled = enabled; return { data: [
     { id: 'food', parentId: null, name: '먹을것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
     { id: 'noodles', parentId: 'food', name: '면류', slug: 'noodles', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
     { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
@@ -125,7 +126,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'movie', parentId: 'culture', name: '영화', slug: 'movie', status: 'open', isVisible: true, isPickable: true, sortOrder: 1 },
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
-  ] }) },
+  ] }; } },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; },
     useDailyQuestionCategory: () => emptyQuery(null), useHomeParticipantPicks: () => emptyQuery({ rows: [], complete: true }) },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
@@ -143,11 +144,12 @@ const press = (label) => {
 
 // Initial MVP keeps the following feed hidden even though profile follow is enabled.
 const allFirstPage = render();
+assert.equal(categoriesEnabled, false, 'Hidden category chips do not load the tree on Home; search loads it when opened');
 assert.doesNotMatch(allFirstPage, /팔로잉/, 'Initial MVP hides the Following scope');
 assert.doesNotMatch(allFirstPage, /data-notification-user=/, 'Home header is logo only: notifications live in the bottom tab');
 assert.equal(presses.find((p) => p.accessibilityLabel === '내 프로필'), undefined, 'Home header is logo only: the profile lives in the bottom tab');
-assert.match(allFirstPage, />friend<\/span>/);
-assert.match(allFirstPage, />neighbor<\/span>/, 'Member Home stays on the public feed while follow is hidden');
+assert.match(allFirstPage, />friend</);
+assert.match(allFirstPage, />neighbor</, 'Member Home stays on the public feed while follow is hidden');
 assert.doesNotMatch(allFirstPage, /원픽 더 둘러보기|모아보기/, 'Figma 30-1: no explore/my-picks links under the feed');
 assert.equal(homeDataArgs[2], true, 'Hidden following-feed mode enables the public feed');
 assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
@@ -158,6 +160,16 @@ assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the 
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
+const storeAction = presses.find((p) => p.accessibilityLabel === '진라면 매장 보기');
+assert.ok(storeAction, 'Provider-backed Home card keeps store-profile navigation');
+assert.equal(storeAction.style({ pressed: false })[0].minHeight, 44, 'Store/provider action has a real 44px target');
+assert.equal(storeAction.style({ pressed: false })[0].minWidth, 44, 'Store/provider action has a real 44px target');
+const profileAction = presses.find((p) => p.accessibilityLabel === 'friend 프로필 보기');
+assert.ok(profileAction, 'Home card keeps nickname profile navigation');
+assert.equal(profileAction.style({ pressed: false })[0].minHeight, 44, 'Nickname action has a real 44px target');
+assert.equal(profileAction.style({ pressed: false })[0].minWidth, 44, 'Nickname action has a real 44px target');
+assert.equal(presses.find((p) => p.accessibilityLabel === '라면 상세 보기'), undefined,
+  'Legacy no-channel Home row keeps item name as its menu/title instead of promoting the category name');
 assert.doesNotMatch(allFirstPage, /최근 7일 많이 고른 메뉴/, 'Figma 30-1 drops the ranking title');
 assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under the tabs names the 7-day window');
 assert.match(allFirstPage, /원픽 7/);
@@ -181,8 +193,8 @@ assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden on
 onepickConstants.OnePickFeatures.followingFeed = true;
 followCountsQuery.data.followingCount = 2;
 const followingFirstPage = render();
-assert.match(followingFirstPage, />friend<\/span>/);
-assert.doesNotMatch(followingFirstPage, />neighbor<\/span>/, 'Following can still become the default after a future rollout');
+assert.match(followingFirstPage, />friend</);
+assert.doesNotMatch(followingFirstPage, />neighbor</, 'Following can still become the default after a future rollout');
 assert.equal(homeDataArgs[2], false, 'Following rollout does not prefetch the public feed');
 assert.equal(followingFeedArgs[1], true, 'Following rollout enables the viewer-bound feed');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기').accessibilityState.selected, false);
@@ -193,17 +205,18 @@ render();
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, />friend<\/span>/); assert.match(page, /다른 사람의 이유/, 'Each card shows that person’s own reason');
-  assert.match(page, />neighbor<\/span>/); assert.match(page, /이웃도 신라면/);
+  assert.match(page, />friend</); assert.match(page, />다른 사람의 이유</, 'Each card quotes that person’s own reason');
+  assert.match(page, />neighbor</); assert.match(page, /이웃도 신라면/);
   assert.doesNotMatch(page, /✓ 내 원픽/, 'Figma 30 (10-04): no "✓ 내 원픽" text on feed rows');
   assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
   assert.equal(presses.find((p) => / (댓글 보기|공유)$/.test(p.accessibilityLabel ?? '')), undefined, 'Home rows drop comments/share (10-04)');
   assert.doesNotMatch(page, /새로 고름|9\/21|2시간/, 'Home keeps Pick ordering but never renders time/status text');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
-  assert.ok(page.indexOf('진라면') < page.indexOf('friend'), 'Figma v3 puts provider/menu before the person');
-  assert.ok(page.indexOf('friend') < page.indexOf('다른 사람의 이유'), 'Figma v3 puts the reason after the person');
-  assert.match(page, />매장</, 'Feed cards use the short 매장 channel badge');
-  assert.match(page, />매장</, 'Offline cards keep the short 매장 badge');
+  const storePos = page.indexOf('>진라면</span>');
+  const menuPos = page.indexOf('>라면</span>');
+  const nicknamePos = page.indexOf('>friend</span>');
+  assert.ok(storePos >= 0 && menuPos > storePos && nicknamePos > menuPos, 'Feed v3 orders store, menu and nickname as separate text blocks');
+  assert.doesNotMatch(page, />매장<\//, 'Feed Card v3 has no legacy channel badge');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
@@ -215,7 +228,7 @@ for (width of [390, 800, 1200]) {
   assert.doesNotMatch(page, /원픽 더 둘러보기|내 원픽 \d+개 모아보기/, 'Signed-in Home has no footer links either');
   assert.doesNotMatch(page, /비공개 확인 대기 원픽/);
   press('신라면 상세 보기'); assert.equal(destination.params.itemId, 'ramen');
-  press('진라면 라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+  press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
   press('모두의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
@@ -235,6 +248,7 @@ render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 �
 query.data.picks.pop();
 onepickConstants.OnePickFeatures.categoryChips = true;
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined);
+assert.equal(categoriesEnabled, true, 'A future category-chip rollout still loads its tree');
 query.data.picks.push({ ...smallFeed[1], pickId: 'pick-19', itemId: 'item-19' });
 render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 카테고리 보기'), undefined, 'A single food group needs no filter chips');
 assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
@@ -243,7 +257,7 @@ query.data.picks = smallFeed;
 // Home (10-04): the newest ten only, no automatic or manual next page; the full feed pages.
 query.data.picks = Array.from({ length: 20 }, (_, i) => ({ ...smallFeed[0], pickId: `ten-${i}`, itemId: `ten-item-${i}`, username: `user${i}` }));
 const capped = render();
-assert.match(capped, />user9<\/span>/); assert.doesNotMatch(capped, />user10<\/span>/, 'Home shows at most ten Picks');
+assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home shows at most ten Picks');
 assert.equal(endReached, undefined, 'Home never loads more on scroll');
 query.isFetchNextPageError = true;
 assert.doesNotMatch(render(), /다음 원픽을 불러오지 못했어요|모두 확인했어요/);
@@ -269,12 +283,14 @@ rankingQuery.data = rankingData;
 assert.doesNotMatch(publicPage, /비공개 확인 대기 원픽|✓ 내 원픽|이미 내 원픽이에요/, 'Visitors see only the public feed, never the cached private collection');
 assert.doesNotMatch(publicPage, /나도 이게 원픽/, 'Home no longer promotes copying someone else’s Pick');
 assert.doesNotMatch(publicPage, />댓글<|>공유</, 'Visitors also get rows without comments/share');
-press('진라면 라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
+press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
 query.data.mode = 'single_category'; query.data.singleCategoryItems = [{ id: 'public', name: '공개 제품' }];
 assert.doesNotMatch(render(), /공개 제품/, 'The legacy single-category catalog must not bypass the threshold');
 
 auth.user = { id: 'owner' }; auth.error = new Error('offline');
 assert.doesNotMatch(render(), /신라면|진라면/);
+assert.doesNotMatch(render(), /라면집|최근 7일 원픽 많은 순/);
+assert.equal(categoriesEnabled, false, 'Session errors disable the category query even with chips enabled');
 assert.equal(pullToRefresh, undefined, 'Session errors must not refresh data for an unverified user');
 press('다시 불러오기'); assert.equal(sessionRetries, 1);
 auth.error = null; query.isError = true;
@@ -296,11 +312,13 @@ assert.ok(refreshButton(), 'Web refresh remains available after recovery');
 pullToRefresh.props.onRefresh(); assert.equal(queryRetries, 3);
 const cached = query.data; query.data = undefined; query.isError = true;
 assert.match(render(), /원픽을 불러오지 못했어요/);
+assert.match(render(), /라면집/, 'A failed feed does not hide successful popular menus');
 assert.equal(refreshButton(), undefined);
 press('다시 불러오기'); assert.equal(queryRetries, 4);
 query.data = cached;
 auth.isLoading = true;
 assert.doesNotMatch(render(), /신라면|진라면/);
+assert.doesNotMatch(render(), /라면집|최근 7일 원픽 많은 순/, 'Session verification still gates public ranking display');
 assert.equal(pullToRefresh, undefined);
 auth.isLoading = false; auth.user = null;
 assert.match(render(), /진라면/);
@@ -310,5 +328,18 @@ query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
 assert.match(render(), /아직 공개된 매장 원픽이 없어요/, 'Signed-out Home empty state describes the state without a CTA');
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
-assert.match(render(), /원픽을 불러오고 있어요/);
+query.data = undefined;
+const pendingFeed = render();
+assert.match(pendingFeed, /원픽을 불러오고 있어요/);
+assert.match(pendingFeed, /라면집/, 'Popular menus render before the feed and its enrichment finish');
+rankingQuery.isPending = true; rankingQuery.data = undefined;
+assert.match(render(), /인기 메뉴를 불러오고 있어요/, 'Ranking has an independent loading state');
+rankingQuery.isPending = false; rankingQuery.isError = true;
+assert.match(render(), /인기 메뉴를 불러오지 못했어요/, 'Ranking errors do not wait for the feed');
+rankingQuery.isError = false; rankingQuery.data = [];
+assert.match(render(), /최근 7일 원픽이 아직 없어요/, 'An empty ranking is visible even while the feed loads');
+query.data = cached; query.isPending = false; rankingQuery.isPending = true;
+assert.match(render(), /진라면/, 'The feed also renders independently of pending ranking');
 console.log('Home screen checks passed: all-first member entry, filter boundary, public-feed cards/actions, routes, empty states, refresh recovery and session privacy.');
+
+

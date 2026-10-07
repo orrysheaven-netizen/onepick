@@ -182,57 +182,45 @@ test('web inactive tab separates tertiary icon from readable secondary label', (
   readable(styleOf(first(tab, 'Text')).color, OnePick.surface);
 });
 
-test('screen canvas is white and web tab bar keeps the 34px Figma safe-area minimum', () => {
+test('screen canvas is white and floating tab bar matches the approved Figma geometry', () => {
   assert.equal(OnePick.background, '#FFFFFF');
   assert.equal(OnePick.background, OnePick.bgDefault);
   assert.equal(OnePickLayout.safeAreaBottom, 34);
-  assert.equal(
-    OnePickLayout.tabBarContentHeight + OnePickLayout.tabBarTopPadding + OnePickLayout.safeAreaBottom,
-    OnePickLayout.tabBarReferenceHeight,
-  );
+  assert.equal(OnePickLayout.tabBarHeight, 64);
+  assert.equal(OnePickLayout.tabBarHorizontalGutter, 16);
+  assert.equal(OnePickLayout.tabBarRadius, 24);
+  assert.equal(OnePickLayout.tabBarSafeAreaGap, 8);
+  assert.equal(OnePickLayout.tabBarContentGap, 8);
   pathname = '/';
   const tree = expand(AppTabs());
-  const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
+  const bar = all(tree, (n) => n.type === 'View' && styleOf(n).position === 'absolute' && styleOf(n).flexDirection === 'row')[0];
   const style = styleOf(bar);
   assert.equal(style.backgroundColor, OnePick.bgDefault);
-  const divider = all(bar, (n) => n.type === 'View' && styleOf(n).position === 'absolute' && styleOf(n).height === 1)[0];
-  assert.ok(divider, 'top separator is drawn inside the bar');
-  assert.equal(styleOf(divider).backgroundColor, OnePick.borderDefault);
-  assert.equal(styleOf(divider).top, 0);
-  assert.equal(styleOf(divider).left, 0);
-  assert.equal(styleOf(divider).right, 0);
-  assert.equal(divider.props.pointerEvents, 'none');
-  assert.equal(style.paddingTop, OnePickLayout.tabBarTopPadding);
-  assert.equal(style.paddingBottom, OnePickLayout.safeAreaBottom, 'mocked inset is 20px, so Figma minimum 34px wins');
-});
-
-test('web tab bar layout includes the separator without adding a 99th pixel', () => {
-  bottomInset = 34;
-  try {
-    const tree = expand(AppTabs());
-    const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
-    const barStyle = styleOf(bar);
-    const tabs = all(bar, (n) => n.type === 'Pressable');
-    assert.equal(tabs.length, 5);
-    const contentHeight = Math.max(...tabs.map((tab) => styleOf(tab).minHeight));
-    const layoutHeight = contentHeight + barStyle.paddingTop + barStyle.paddingBottom
-      + (barStyle.borderTopWidth ?? 0) + (barStyle.borderBottomWidth ?? 0);
-    assert.equal(layoutHeight, OnePickLayout.tabBarReferenceHeight, 'rendered layout, not just token arithmetic, must be 98px');
-  } finally {
-    bottomInset = 20;
+  assert.equal(style.left, 16);
+  assert.equal(style.right, 16);
+  assert.equal(style.height, 64);
+  assert.equal(style.borderRadius, 24);
+  assert.equal(style.bottom, 42);
+  const tabs = all(bar, (n) => n.type === 'Pressable');
+  assert.equal(tabs.length, 5);
+  for (const tab of tabs) {
+    assert.ok(styleOf(tab).minWidth >= 44);
+    assert.ok(styleOf(tab).minHeight >= 44);
   }
 });
 
-test('web tab bar preserves the 34px minimum and larger device insets', () => {
+test('web floating tab bar preserves larger device insets and content clearance', () => {
   try {
     for (const inset of [0, 20, 34, 59]) {
       bottomInset = inset;
       const tree = expand(AppTabs());
-      const bar = all(tree, (n) => n.type === 'View' && styleOf(n).flexDirection === 'row' && styleOf(n).flexShrink === 0)[0];
-      assert.equal(styleOf(bar).paddingBottom, Math.max(inset, OnePickLayout.safeAreaBottom), `inset ${inset}`);
-      assert.equal(styleOf(bar).flexShrink, 0);
-      const tabs = all(bar, (n) => n.type === 'Pressable');
-      for (const tab of tabs) assert.equal(styleOf(tab).minHeight, OnePickLayout.tabBarContentHeight);
+      const safeBottom = Math.max(inset, OnePickLayout.safeAreaBottom);
+      const bar = all(tree, (n) => n.type === 'View' && styleOf(n).position === 'absolute' && styleOf(n).flexDirection === 'row')[0];
+      assert.equal(styleOf(bar).bottom, safeBottom + OnePickLayout.tabBarSafeAreaGap);
+      const slots = all(tree, (n) => n.type === 'View' && styleOf(n).flex === 1 && styleOf(n).minHeight === 0);
+      const slot = slots.find((n) => styleOf(n).paddingBottom !== undefined);
+      assert.ok(slot);
+      assert.equal(styleOf(slot).paddingBottom, safeBottom + OnePickLayout.tabBarSafeAreaGap + OnePickLayout.tabBarHeight + OnePickLayout.tabBarContentGap);
     }
   } finally {
     bottomInset = 20;

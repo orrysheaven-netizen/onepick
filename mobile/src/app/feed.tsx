@@ -71,3 +71,4 @@ const styles = StyleSheet.create({
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
   pressed: { opacity: 0.65 },
 });
+

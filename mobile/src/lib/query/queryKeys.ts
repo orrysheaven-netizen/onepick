@@ -106,3 +106,4 @@ export const queryKeys = {
     reports: ['safety', 'reports'] as const,
   },
 } as const;
+

@@ -13,7 +13,7 @@ export const OnePick = {
   // Ink
   text: '#141416', // approved ink
   muted: '#5C5C63', // approved secondary text
-  hint: '#8A909C', // placeholders, inactive icons and chevrons only — never readable copy
+  hint: '#8A909C', // legacy auxiliary alias; do not use for user-facing placeholders or readable copy
 
   // Brand: fills/decorations only; never use brand for small text on white.
   brand: '#FF8A00',
@@ -32,8 +32,8 @@ export const OnePick = {
   actionDisabled: '#ADB0BA',
   onAction: '#FFFFFF',
   textPrimary: '#141416',
-  textSecondary: '#6B6E78',
-  textTertiary: '#8A909C', // placeholders, inactive icons and chevrons only
+  textSecondary: '#55596A',
+  textTertiary: '#8A909C', // inactive icons and chevrons only; never readable text
   textAccent: '#B84F00',
   textDanger: '#B4432A',
   borderDefault: '#E8E8ED',
@@ -72,7 +72,7 @@ export const OnePickFont = {
   english: 'Outfit',
 } as const;
 
-// Foundations type scale: exactly seven reusable IBM Plex Sans KR styles.
+// Foundations base type scale: seven reusable IBM Plex Sans KR styles.
 export const OnePickType = {
   pageTitle: { fontFamily: BodyFont, fontSize: 22, lineHeight: 30, fontWeight: '700' },
   title: { fontFamily: BodyFont, fontSize: 20, lineHeight: 28, fontWeight: '700' },
@@ -81,6 +81,15 @@ export const OnePickType = {
   body: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '400' },
   captionMedium: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '500' },
   caption: { fontFamily: BodyFont, fontSize: 12, lineHeight: 18, fontWeight: '400' },
+} as const;
+
+// Home Feed semantic text styles mirror the approved Figma roles without changing
+// the global Body/Caption scale.
+export const OnePickFeedType = {
+  storeBranch: { fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  nickname: { fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '500' },
+  review: { fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  meta: { fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '400' },
 } as const;
 
 export const OnePickRadius = {
@@ -112,10 +121,15 @@ export const OnePickSpace = {
 // reference frame with a 34px bottom safe area; real native devices still use
 // their platform-provided inset when it is larger or otherwise different.
 export const OnePickLayout = {
+  homeFeedGutter: 20,
   safeAreaBottom: 34,
   tabBarContentHeight: 56,
-  tabBarTopPadding: 8,
-  tabBarReferenceHeight: 98,
+  tabBarHeight: 64,
+  tabBarHorizontalGutter: 16,
+  tabBarRadius: 24,
+  tabBarSafeAreaGap: 8,
+  tabBarContentGap: 8,
+  tabBarReferenceHeight: 114,
 } as const;
 
 // Icon sizes (Figma Foundations `icon/size/*`). Two shared sizes only:

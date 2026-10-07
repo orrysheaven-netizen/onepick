@@ -1,95 +1,100 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickPhoto } from '@/components/pick-photo';
-import { StoreBadge } from '@/components/store-badge';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
-import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
+import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
+import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
- * One current Pick in Home / full feed.
- * Approved information order (Figma v3, 2026-10-07):
- * photo → store/branch → menu → person → one-line review.
- * Channel badge and Current Pick flag remain as existing product contracts.
+ * One current Pick in the Home feed (Figma Feed Card v3, 993:7228):
+ * photo → store/branch → menu → nickname → one-line review.
+ *
+ * The read model does not expose branch as a separate field yet, so the current
+ * provider/item name stays on the Store Branch role without guessing a split.
  */
-export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onOpenProvider }: {
+export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }: {
   pick: HomeFeedPick;
-  /** The viewer's own current Pick (orange flag). */
+  /** Kept for caller compatibility; v3 no longer draws the legacy current-Pick flag. */
   mine?: boolean;
   onOpenItem: () => void;
   onOpenProfile: () => void;
-  /** Store profile (Figma 17A); the store name links there when the Pick has a provider. */
+  /** Store profile; the store/branch line links there when a provider is available. */
   onOpenProvider?: () => void;
 }) {
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
-  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
-  // Store items are named for their provider (including branch display when present);
-  // the category is the menu. #804 will replace username with the public nickname data source.
-  const providerName = channel === 'offline' || channel === 'online' ? pick.name : undefined;
-  const menuName = channel ? pick.categoryName : pick.name;
-  const contentName = providerName ? `${providerName} ${menuName}` : menuName;
-  const personLabel = pick.username;
+  // Only provider-backed offline/online rows have a store/provider line. Legacy
+  // rows without a channel keep their historical item name as the menu/title;
+  // never promote the category name into a fake 20px menu title.
+  const hasProviderContext = channel === 'offline' || channel === 'online';
+  const storeBranchName = hasProviderContext ? pick.name : undefined;
+  const menuName = hasProviderContext ? pick.categoryName : pick.name;
+  const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
 
   return <View style={styles.card}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
+    <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
       style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
-      <PickPhoto wide uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
-      <View pointerEvents="none" style={styles.flag}><CurrentPickFlag mine={mine} /></View>
-      {channel === 'offline' ? <View pointerEvents="none" style={styles.channelBadge}><StoreBadge /></View>
-        : channelLabel ? <View pointerEvents="none" style={[styles.channelBadge, styles.textBadge]}>
-            <Text style={styles.badgeText}>{channelLabel}</Text>
-          </View> : null}
+      <PickPhoto feedCard uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
     </Pressable>
 
-    <View style={styles.copy}>
-      <View style={styles.primaryGroup}>
-        {providerName ? <Pressable accessibilityRole={onOpenProvider ? 'link' : 'button'}
-          accessibilityLabel={onOpenProvider ? `${providerName} 매장 보기` : `${providerName} 상세 보기`}
-          onPress={onOpenProvider ?? onOpenItem}
-          style={({ pressed }) => [styles.inlinePressable, pressed && styles.pressed]}>
-          <Text numberOfLines={1} style={styles.provider}>{providerName}</Text>
-        </Pressable> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={`${menuName} 상세 보기`} onPress={onOpenItem}
-          style={({ pressed }) => [styles.inlinePressable, pressed && styles.pressed]}>
-          <Text numberOfLines={2} style={styles.menu}>{menuName}</Text>
+    <View style={styles.textArea}>
+      <View style={styles.itemGroup}>
+        {storeBranchName
+          ? onOpenProvider
+            ? <Pressable accessibilityRole="button" accessibilityLabel={`${storeBranchName} 매장 보기`} onPress={onOpenProvider}
+                style={({ pressed }) => [styles.storeAction, pressed && styles.pressed]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
+              </Pressable>
+            : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
+          : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
+          style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.menu}>{menuName}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.socialGroup}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${personLabel} 프로필 보기`} onPress={onOpenProfile}
-          style={({ pressed }) => [styles.inlinePressable, pressed && styles.pressed]}>
-          <Text numberOfLines={1} style={styles.person}>{personLabel}</Text>
+      <View style={styles.personGroup}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+          style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{pick.username}</Text>
         </Pressable>
-        {pick.oneLineReview ? <Text numberOfLines={2} style={styles.review}>{pick.oneLineReview}</Text> : null}
+        {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
+          style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{pick.oneLineReview}</Text>
+        </Pressable> : null}
       </View>
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  card: { position: 'relative' },
-  photo: { position: 'relative', width: '100%', borderRadius: OnePickRadius.lg, overflow: 'hidden' },
-  flag: { position: 'absolute', top: OnePickSpace.md, right: OnePickSpace.md },
-  channelBadge: { position: 'absolute', left: OnePickSpace.md, bottom: OnePickSpace.md },
-  textBadge: {
-    minHeight: 28,
-    paddingHorizontal: OnePickSpace.sm,
-    borderRadius: OnePickRadius.full,
-    backgroundColor: OnePick.bgDefault,
-    borderWidth: 1,
-    borderColor: OnePick.borderStrong,
-    alignItems: 'center',
+  card: { width: '100%', alignItems: 'stretch' },
+  photo: { width: '100%', height: 176, borderRadius: OnePickRadius.lg, overflow: 'hidden' },
+  textArea: { width: '100%', paddingTop: OnePickSpace.md, gap: OnePickSpace.md },
+  itemGroup: { width: '100%', gap: OnePickSpace.xs },
+  personGroup: { width: '100%', gap: OnePickSpace.xs },
+  // Keep the 21/20px visual rows in place while their actual web/native targets
+  // meet the 44px product contract. This follows the shared Avatar/footer pattern.
+  storeAction: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    marginVertical: -(MIN_TOUCH_TARGET - OnePickFeedType.storeBranch.lineHeight) / 2,
     justifyContent: 'center',
   },
-  badgeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
-  copy: { paddingTop: OnePickSpace.md },
-  primaryGroup: { gap: OnePickSpace.xs },
-  socialGroup: { gap: OnePickSpace.xs, marginTop: OnePickSpace.md },
-  inlinePressable: { alignSelf: 'flex-start', maxWidth: '100%' },
-  provider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  profileAction: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    marginVertical: -(MIN_TOUCH_TARGET - OnePickFeedType.nickname.lineHeight) / 2,
+    justifyContent: 'center',
+  },
+  blockAction: { width: '100%' },
+  storeBranch: { ...OnePickFeedType.storeBranch, color: OnePick.textPrimary },
   menu: { ...OnePickType.title, color: OnePick.textPrimary },
-  person: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
-  review: { ...OnePickType.body, color: OnePick.textPrimary },
+  username: { ...OnePickFeedType.nickname, color: OnePick.textSecondary },
+  review: { ...OnePickFeedType.review, color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });
+

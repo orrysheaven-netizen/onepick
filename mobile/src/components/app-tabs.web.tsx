@@ -24,11 +24,13 @@ export default function AppTabs() {
   const notificationCount = useNotificationCount(auth.user?.id, !auth.isLoading && !auth.error && Boolean(auth.user));
   const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
 
+  const safeBottom = Math.max(insets.bottom, OnePickLayout.safeAreaBottom);
+  const reservedBottom = safeBottom + OnePickLayout.tabBarSafeAreaGap + OnePickLayout.tabBarHeight + OnePickLayout.tabBarContentGap;
+
   return (
     <View style={styles.tabs}>
-      <View style={styles.slot}><Slot /></View>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, OnePickLayout.safeAreaBottom) }]}>
-        <View pointerEvents="none" accessibilityElementsHidden style={styles.barDivider} />
+      <View style={[styles.slot, { paddingBottom: reservedBottom }]}><Slot /></View>
+      <View style={[styles.bar, { bottom: safeBottom + OnePickLayout.tabBarSafeAreaGap }]}>
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
@@ -75,10 +77,24 @@ function TabLink({ href, icon, label, active, unread = false }: { href: Href; ic
 const styles = StyleSheet.create({
   tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.bgDefault },
   slot: { flex: 1, minHeight: 0 },
-  bar: { position: 'relative', flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.bgDefault, paddingTop: OnePickLayout.tabBarTopPadding },
-  // Figma draws this line inside the 98px frame; an in-flow border adds a 99th pixel.
-  barDivider: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: OnePick.borderDefault },
-  tab: { flex: 1, minHeight: OnePickLayout.tabBarContentHeight, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  bar: {
+    position: 'absolute',
+    left: OnePickLayout.tabBarHorizontalGutter,
+    right: OnePickLayout.tabBarHorizontalGutter,
+    height: OnePickLayout.tabBarHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: OnePick.bgDefault,
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    borderRadius: OnePickLayout.tabBarRadius,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  tab: { flex: 1, minWidth: 44, minHeight: OnePickLayout.tabBarContentHeight, alignItems: 'center', justifyContent: 'center', gap: 4 },
   icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   active: { backgroundColor: 'transparent' },
   unreadDot: {

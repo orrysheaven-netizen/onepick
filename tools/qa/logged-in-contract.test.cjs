@@ -43,6 +43,11 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         await assert.rejects(api.assertPublicProfile(page, timeout));
       }
     });
+    await t.test('home profile labels use nickname without a forced @ prefix', async () => {
+      await set('<button aria-label="오리 프로필 보기">오리</button>');
+      assert.equal(await page.getByRole('button', { name: /.+ 프로필 보기$/ }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: /^@.+ 프로필 보기$/ }).count(), 0);
+    });
     await t.test('profile comments and notification tab really navigate', async () => {
       await set('<button onclick="history.pushState({}, \'\', \'/comments\')">내 댓글 보기</button>');
       await api.openOwnComments(page, timeout);
@@ -60,7 +65,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         <div id="search-dialog" hidden>
           <h2>어떤 메뉴를 찾으세요?</h2>
           <input aria-label="메뉴명">
-          <button onclick="window.searched=true">검색</button>
+          <button onclick="window.searched=true">검색하기</button>
           <button aria-label="라면 상세 보기" onclick="history.pushState({}, '', '/item/ramen')">라면</button>
         </div>`);
       await api.openHomeSearch(page, timeout);
@@ -72,6 +77,18 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await page.waitForURL(/\/item\/ramen$/);
       await set('<input aria-label="항목명 검색"><button>검색 실행</button>');
       await assert.rejects(api.openHomeSearch(page, timeout));
+    });
+    await t.test('registration fixture keeps link-first fallback before store search', async () => {
+      await set(`<div>1 / 4 · 오프라인 매장</div>
+        <h1 id="title">네이버 지도 링크를 입력해주세요.</h1>
+        <input aria-label="매장 찾기 네이버 지도 링크">
+        <button aria-label="URL 없음" onclick="document.getElementById('title').textContent='상호명을 검색해주세요.'; document.getElementById('store').hidden=false">URL 없음</button>
+        <div id="store" hidden><input aria-label="매장명 검색"></div>`);
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout });
+      assert.equal(await page.getByRole('textbox', { name: '매장명 검색', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'URL 없음', exact: true }).click();
+      await page.getByRole('textbox', { name: '매장명 검색', exact: true }).waitFor({ state: 'visible', timeout });
+      assert.equal(await page.getByText('상호명을 검색해주세요.', { exact: true }).count(), 1);
     });
     const menu = (label, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><button onclick="window.selected=true">${label}</button><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
     await t.test('menu supports plain/group names, default AI path, and trial-only Next', async () => {

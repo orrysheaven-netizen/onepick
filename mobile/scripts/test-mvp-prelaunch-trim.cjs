@@ -300,3 +300,4 @@ async function main() {
   console.log(`MVP prelaunch runtime cases passed: ${passed}/${passed}. Host/hook harness; no live network or browser.`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

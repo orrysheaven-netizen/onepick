@@ -187,14 +187,14 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <TextInput autoFocus accessibilityLabel="원픽 책 제목 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={titleText}
         onChangeText={(value) => { if (!busy.current) { setTitleText(value); setSelection(null); } }}
-        placeholder="예: 아리랑" placeholderTextColor={OnePick.hint} returnKeyType="next" style={styles.input} />
+        placeholder="예: 아리랑" placeholderTextColor={OnePick.textSecondary} returnKeyType="next" style={styles.input} />
       {cleanTitle.length === 1 ? <Text style={styles.stateText}>책 제목은 두 글자 이상 입력해주세요.</Text> : null}
 
       <Text style={styles.authorLabel}>작가 이름 <Text style={styles.optional}>(선택)</Text></Text>
       <TextInput accessibilityLabel="원픽 책 작가 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={authorText}
         onChangeText={(value) => { if (!busy.current) { setAuthorText(value); setSelection(null); } }}
-        placeholder="예: 조정래" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 조정래" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       <Text style={styles.helperText}>작가를 알고 있다면 함께 입력하면 더 정확한 결과를 찾을 수 있어요.</Text>
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{cleanAuthor ? '책 제목과 작가 이름으로 찾고 있어요.' : '책 제목으로 찾고 있어요.'}</Text></View> : null}

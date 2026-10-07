@@ -237,7 +237,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         <TextInput autoFocus={Platform.OS !== 'web' && !validReturn} accessibilityLabel="레시피 YouTube 영상 링크" autoCapitalize="none" autoCorrect={false}
           editable={!busy} maxLength={2048} value={link} keyboardType="url"
           onChangeText={(value) => { if (!busy) { setLink(value); setActionError(null); setChosenDishId(null); setRequestMode(false); } }}
-          placeholder="https://youtu.be/…" placeholderTextColor={OnePick.hint} returnKeyType="done" style={styles.input} />
+          placeholder="https://youtu.be/…" placeholderTextColor={OnePick.textSecondary} returnKeyType="done" style={styles.input} />
         <Text style={styles.hint}>YouTube 앱의 공유 › 링크 복사로 받은 영상·Shorts 링크를 붙여넣으세요. 채널·재생목록 링크는 등록할 수 없어요.</Text>
 
         {trimmedLink && !videoId ? <Text accessibilityRole="alert" style={styles.errorText}>{recipeErrorMessage(new AppError('VIDEO_URL_INVALID'))}</Text> : null}
@@ -279,7 +279,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                 : null}
             </View>
             <TextInput accessibilityLabel="요리 검색" autoCapitalize="none" maxLength={100} editable={!busy} value={dishQuery}
-              onChangeText={setDishQuery} placeholder="다른 요리 검색: 미역국, 파김치…" placeholderTextColor={OnePick.hint} style={[styles.input, styles.dishSearch]} />
+              onChangeText={setDishQuery} placeholder="다른 요리 검색: 미역국, 파김치…" placeholderTextColor={OnePick.textSecondary} style={[styles.input, styles.dishSearch]} />
             {dishMatches.length ? <View style={styles.dishList}>
               {dishMatches.map((dish) => <Chip key={dish.id} label={dish.name} selected={!requestMode && selectedDish?.id === dish.id}
                 accessibilityLabel={`${dish.name} 레시피로 고르기`} onPress={() => pickDish(dish.id)} />)}
@@ -300,7 +300,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               <Text style={styles.stateText}>요리 이름을 남기면 관리자가 확인해요. 승인돼도 레시피 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 확인 후 직접 원픽으로 선택할 수 있어요.</Text>
               <Text style={styles.label}>요리 이름</Text>
               <TextInput accessibilityLabel="요리 이름" maxLength={DISH_NAME_MAX} editable={!busy} value={dishName} onChangeText={setDishName}
-                placeholder="예: 파김치" placeholderTextColor={OnePick.hint} style={styles.input} />
+                placeholder="예: 파김치" placeholderTextColor={OnePick.textSecondary} style={styles.input} />
               <Button fullWidth size="lg" label="등록 요청하기" loading={requestVideo.isPending} disabled={busy || !canRequest}
                 onPress={() => void request(video)} style={styles.submit} />
               <Button variant="ghost" label="목록에서 고르기" disabled={busy} onPress={() => setRequestMode(false)} style={styles.centered} />

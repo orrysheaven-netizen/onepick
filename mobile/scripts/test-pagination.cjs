@@ -155,7 +155,7 @@ async function main() {
   picks.push({ ...row(9000), user_id: owner }, { ...row(9001), status: 'replaced' });
   let before = calls.length;
   const basicProfile = await profileService.getMyProfile(owner);
-  assert.equal(basicProfile.currentPicks.length, 1);
+  assert.equal(basicProfile.currentPicks.length, 1, 'Owner profile keeps the current Pick without extra history or request reads');
   assert.equal(calls.length - before, 1, 'Consumers of the basic profile must not fetch unneeded history or requests');
   before = calls.length;
   await assert.rejects(() => profileService.getMyProfile(id(9999)), (error) => error.code === 'PROFILE_NOT_FOUND');

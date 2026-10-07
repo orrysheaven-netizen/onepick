@@ -63,3 +63,4 @@ export function consumeFirstPickNotice(userId: string | undefined, pickId: strin
   pending = null;
   return true;
 }
+

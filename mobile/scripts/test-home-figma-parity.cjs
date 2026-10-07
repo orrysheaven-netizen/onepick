@@ -7,19 +7,38 @@ const path = require('node:path');
 const src = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
 const icon = (file) => fs.readFileSync(path.join(__dirname, '../public/icons', file), 'utf8');
 
-const row = src('components/home-pick-row.tsx');
-assert.match(row, /<PickPhoto wide /, 'Feed Card v3: full-width 358×176 photo');
-assert.match(row, /copy: \{ paddingTop: OnePickSpace\.md \}/, 'Feed Card v3: image → copy gap 12');
-assert.match(row, /primaryGroup: \{ gap: OnePickSpace\.xs \}/, 'Feed Card v3: store → menu gap 4');
-assert.match(row, /socialGroup: \{ gap: OnePickSpace\.xs, marginTop: OnePickSpace\.md \}/, 'Feed Card v3: menu → person group 12, person → review 4');
-assert.match(row, /menu: \{ \.\.\.OnePickType\.title, color: OnePick\.textPrimary \}/, 'Feed Card v3: menu uses Title 20\/28');
-assert.match(row, /person: \{ \.\.\.OnePickType\.captionMedium, color: OnePick\.textSecondary \}/, 'Feed Card v3: person remains secondary');
-assert.match(row, /review: \{ \.\.\.OnePickType\.body, color: OnePick\.textPrimary \}/, 'Feed Card v3: one-line review is primary body text');
-assert.match(row, /channel === 'offline' \? <View[^>]*style=\{styles\.channelBadge\}><StoreBadge \/><\/View>/, 'Feed Card keeps the offline Store Badge contract');
-assert.match(row, /flag: \{ position: 'absolute', top: OnePickSpace\.md, right: OnePickSpace\.md \}/, 'Feed Card keeps Current Pick flag overlay');
+const tokens = src('constants/onepick.ts');
+assert.match(tokens, /textSecondary: '#55596A'/, 'Semantic text\/secondary matches the approved 10-07 Figma value');
+assert.match(tokens, /gutter: 16,/, 'Global layout\/gutter stays 16');
+assert.match(tokens, /homeFeedGutter: 20,/, 'Home Feed gets a dedicated 20px gutter');
+assert.match(tokens, /storeBranch: \{ fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '500' \}/);
+assert.match(tokens, /nickname: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '500' \}/);
+assert.match(tokens, /review: \{ fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' \}/);
+assert.match(tokens, /meta: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '400' \}/);
 
+const row = src('components/home-pick-row.tsx');
+assert.doesNotMatch(row, /<Avatar|<CurrentPickFlag|<StoreBadge|import \{ Avatar|import \{ CurrentPickFlag|import \{ StoreBadge/, 'Home Feed v3 intentionally omits legacy avatar, current-Pick flag and channel badge');
+assert.match(row, /import \{ MIN_TOUCH_TARGET \} from '@\/components\/ui\/touch';/, 'Interactive Home text uses the shared 44px target contract');
+assert.match(row, /storeAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.storeBranch\.lineHeight/, 'Store/provider action keeps a real 44×44 target without changing visual line height');
+assert.match(row, /profileAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.nickname\.lineHeight/, 'Nickname profile action keeps a real 44×44 target without changing visual line height');
+assert.match(row, /hasProviderContext = channel === 'offline' \|\| channel === 'online'/, 'Only provider-backed rows get the store/provider line');
+assert.match(row, /menuName = hasProviderContext \? pick\.categoryName : pick\.name/, 'Legacy no-channel rows keep item name as the menu/title');
+assert.match(row, /<PickPhoto feedCard/, 'Feed Card v3 uses the full-width photo variant');
+assert.match(row, /photo: \{ width: '100%', height: 176, borderRadius: OnePickRadius\.lg/, 'Feed Card v3 photo is full-width × 176, radius 16');
+assert.match(row, /textArea: \{ width: '100%', paddingTop: OnePickSpace\.md, gap: OnePickSpace\.md \}/, 'Feed Card v3 text starts 12 below photo and groups are 12 apart');
+assert.match(row, /itemGroup: \{ width: '100%', gap: OnePickSpace\.xs \}/, 'Store/menu group uses 4px gap');
+assert.match(row, /personGroup: \{ width: '100%', gap: OnePickSpace\.xs \}/, 'Nickname/review group uses 4px gap');
+assert.match(row, /numberOfLines=\{1\} ellipsizeMode="tail" style=\{styles\.storeBranch\}/, 'Store/branch is separate from menu and stays one line');
+assert.match(row, /numberOfLines=\{2\} ellipsizeMode="tail" style=\{styles\.menu\}/, 'Menu is a separate auto-height Title up to two lines');
+assert.match(row, /numberOfLines=\{1\} ellipsizeMode="tail" style=\{styles\.username\}/, 'Nickname stays one line');
+assert.match(row, /numberOfLines=\{2\} ellipsizeMode="tail" style=\{styles\.review\}/, 'Review is auto-height up to two lines');
+assert.match(row, /storeBranch: \{ \.\.\.OnePickFeedType\.storeBranch, color: OnePick\.textPrimary \}/, 'Feed Card store/branch uses 14\/21 Medium');
+assert.match(row, /menu: \{ \.\.\.OnePickType\.title, color: OnePick\.textPrimary \}/, 'Feed Card menu uses Title 20\/28 Bold without mixed inline line-height');
+assert.match(row, /username: \{ \.\.\.OnePickFeedType\.nickname, color: OnePick\.textSecondary \}/, 'Feed Card nickname uses 13\/20 Medium + secondary');
+assert.match(row, /review: \{ \.\.\.OnePickFeedType\.review, color: OnePick\.textPrimary \}/, 'Feed Card review uses 15\/22 Regular');
 const photo = src('components/pick-photo.tsx');
-assert.match(photo, /wide: \{ width: '100%', aspectRatio: 358 \/ 176, borderRadius: 16 \}/, 'Feed Card v3 photo ratio is 358:176');
+assert.match(photo, /feedCard: \{ width: '100%', height: 176, borderRadius: 16 \}/, 'Shared photo exposes the v3 176px frame');
+assert.match(photo, /feedCard[\s\S]*contentFit="cover"/, 'v3 photo uses the Figma cover crop');
 
 const badge = src('components/store-badge.tsx');
 assert.match(badge, /width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: OnePick\.borderStrong/, 'Store Badge: 28px white circle, 1px border/strong');
@@ -36,9 +55,11 @@ assert.match(home, /rankingHeader: \{ height: 28,[^}]*marginBottom: OnePickSpace
 assert.match(home, /sectionDivider: \{ height: 1, backgroundColor: '#E5E5EB', marginVertical: 24 \}/, 'Divider 681:4049');
 assert.match(home, /feedTitle: \{ \.\.\.OnePickType\.headline, color/, 'Section Header 303:422: Headline 16');
 assert.match(home, /moreText: \{ \.\.\.OnePickType\.caption, color: OnePick\.textSecondary \}/, 'Section Header: 더보기 Caption 12');
-assert.match(home, /feedGap: \{ height: OnePickSpace\.xxl \}/, 'Feed Card v3: Home card-to-card gap is 24');
+assert.match(home, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGutter/, 'Home feed surface uses the dedicated 20px gutter');
+assert.match(home, /feedGap: \{ height: OnePickSpace\.xxl \}/, 'Home feed cards keep the Figma 24px vertical gap');
+assert.match(home, /fixedHeader: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, 'Header\/overlay surface keeps the global 16px gutter');
 const fullFeed = src('app/feed.tsx');
-assert.match(fullFeed, /gap: \{ height: OnePickSpace\.xxl \}/, 'Feed Card v3: full feed uses the same 24px card gap');
+assert.match(fullFeed, /content: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, '/feed keeps the global 16px gutter; Home-only 20px must not leak here');
 
 const header = src('components/home-header.tsx');
 assert.match(header, /themeText: \{ \.\.\.OnePickType\.title,/, 'Theme Selector 303:418: Title 20');
@@ -56,4 +77,5 @@ assert.match(header, /<Icon name="clear" size="sm"/, 'Input clear 514:2856 at ic
 assert.ok(icon('ui/search.svg').includes('M15.5 15.5 20 20'), 'Search icon 656:3466 geometry');
 assert.ok(icon('ui/clear.svg').includes('m8.5 8.5 7 7'), 'Input clear 514:2856 geometry');
 
-console.log('Home Figma parity checks passed: v3 feed card rhythm, 24px list gap, store badge/flag contracts, menu tile, sections, theme selector, popups and icons.');
+console.log('Home Figma parity checks passed: v3 feed card, Home-only gutter, menu tile, sections, theme selector, popups and icons.');
+

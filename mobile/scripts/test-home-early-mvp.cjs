@@ -313,13 +313,13 @@ function home(options = {}) {
       useHomeData: () => query({ currentPicks, picks: [] }),
       useHomeItemRanking: (...args) => {
         calls.itemRanking = args;
-        return query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }]);
+        return query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }], { refetch: () => { calls.rankingRefetch = (calls.rankingRefetch ?? 0) + 1; } });
       },
       useDailyQuestionCategory: () => questionQuery ?? query(question),
       useHomeParticipantPicks: () => query({ rows: participants, complete: participantsComplete }),
     },
     '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
-    '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
+    '@/hooks/useExploreData': { useExploreCategories: (enabled) => { calls.categoriesEnabled = enabled; return query(catalog); }, useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
     '@/hooks/useNotifications': {
       useHomeReplyBanner: (userId, enabled) => {
         calls.replies = { userId, enabled };
@@ -351,14 +351,15 @@ function home(options = {}) {
 
 test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)', () => {
   for (const total of [0, 29]) {
-    const { text, calls } = home({ counts: countsOf(total ? { ramen: total } : {}) });
-    assert.match(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
+    const { text, calls, view } = home({ counts: countsOf(total ? { ramen: total } : {}) });
+    assert.ok(view.all('Chip').some((chip) => chip.label.startsWith('+ ')), `total ${total} retains menu actions`);
+    assert.doesNotMatch(text(), /오늘의 질문|아직 아무도 안 골랐어요|내 원픽 \d+개/, 'Legacy labels are removed');
     assert.doesNotMatch(text(), /최근 7일 원픽 많은 순/, `total ${total} hides 많이 고른 메뉴`);
     assert.equal(calls.itemRanking[2], false, `total ${total} does not fetch the hidden ranking`);
   }
   for (const total of [30, 31]) {
-    const { text, calls } = home({ counts: countsOf({ ramen: total }) });
-    assert.doesNotMatch(text(), /아직 아무도 안 골랐어요/, `total ${total}`);
+    const { text, calls, view } = home({ counts: countsOf({ ramen: total }) });
+    assert.equal(view.all('Chip').filter((chip) => chip.label.startsWith('+ ')).length, 0, `total ${total}`);
     assert.match(text(), /최근 7일 원픽 많은 순/, `total ${total} restores 많이 고른 메뉴`);
     assert.equal(calls.itemRanking[2], true, `total ${total} enables the visible ranking`);
   }
@@ -367,6 +368,23 @@ test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)'
     'Unpicked menus skip picked 라면 and today’s 냉면; only four remain');
   const route = chips.press('곱창 첫 원픽 남기기');
   deepEq(route, { pathname: '/pick/new', params: { categoryId: 'gopchang', menuName: '곱창' } }, 'Chip opens the existing registration flow');
+});
+
+test('Refresh requests ranking only while the popular section is visible', () => {
+  for (const total of [0, 29, 30, 31, undefined]) {
+    const current = total === undefined ? home({ countsQuery: query(undefined) }) : home({ counts: countsOf({ ramen: total }) });
+    current.view.find('RefreshControl').onRefresh();
+    assert.equal(current.calls.rankingRefetch ?? 0, total >= 30 ? 1 : 0, `total ${total}`);
+  }
+});
+
+test('Category tree is deferred unless a visible Home feature needs it', () => {
+  assert.equal(home({ question: null, counts: countsOf({ ramen: 30 }) }).calls.categoriesEnabled, false);
+  assert.equal(home({ question: null, countsQuery: query(undefined) }).calls.categoriesEnabled, false);
+  assert.equal(home({ question: null, counts: countsOf({}) }).calls.categoriesEnabled, true, 'Unpicked menus need names');
+  assert.equal(home({ counts: countsOf({ ramen: 30 }) }).calls.categoriesEnabled, true, 'Configured question needs its menu');
+  const participants = ['amy', 'ben', 'cat'].map((id) => row(id, 'ramen', '2026-10-05T00:00:00Z'));
+  assert.equal(home({ question: null, counts: countsOf({ ramen: 30 }), participants }).calls.categoriesEnabled, true, 'People need scoped categories');
 });
 
 test('Loading and error keep the discovery slot honest', () => {
@@ -389,11 +407,11 @@ test('Today’s question: admin category only, answer count, 답하기 / 내 답
   const open = home({ counts: countsOf({ naengmyeon: 4 }) });
   assert.match(open.text(), /당신의 냉면 원픽은\?/);
   assert.match(open.text(), /4명이 답했어요/);
-  assert.match(open.text(), /첫 원픽을 남겨보세요/, '0 Picks');
+  assert.match(open.text(), /다른 원픽을 남겨요/, '0 Picks');
   deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
-  assert.equal(open.press('첫 원픽을 남겨보세요'), '/pick/new');
+  assert.equal(open.press('다른 원픽을 남겨요'), '/pick/new');
   const answered = home({ currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' }), row('me', 'ramen', '2026-10-04T00:00:00Z', { id: 'r1' })] });
-  assert.match(answered.text(), /내 원픽 2개 · 다른 원픽 남기기/, '1+ Picks');
+  assert.match(answered.text(), /다른 원픽을 남겨요/, '1+ Picks');
   deepEq(answered.press('내 냉면 원픽 보기'), { pathname: '/item/[itemId]', params: { itemId: 'item-naengmyeon-me' } }, 'Answered → existing item detail');
   const zeroAnswers = home({ counts: countsOf({ ramen: 1 }) });
   assert.match(zeroAnswers.text(), /0명이 답했어요/, 'A menu nobody answered shows 0, not a made-up number');
@@ -402,17 +420,17 @@ test('Today’s question: admin category only, answer count, 답하기 / 내 답
 test('First Pick: success shows the completion line once; cancel/failure never do', () => {
   const first = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'new-1' })];
   const cancelled = home({ currentPicks: [] });
-  assert.match(cancelled.text(), /첫 원픽을 남겨보세요/, 'Cancelled registration (no save) keeps the 0-Pick line');
+  assert.match(cancelled.text(), /다른 원픽을 남겨요/, 'Cancelled registration (no save) keeps the 0-Pick line');
   notice.armFirstPickNotice('me', 'new-1', []);
   const shown = home({ currentPicks: first });
   shown.view.flushEffects(); shown.view.render();
-  assert.match(shown.text(), /원픽 완료 · 친구에게 공유하기/, 'Just after the first successful save');
-  shown.press('원픽 완료 · 친구에게 공유하기');
+  assert.match(shown.text(), /원픽 완료 · 친구에게 공유해요/, 'Just after the first successful save');
+  shown.press('원픽 완료 · 친구에게 공유해요');
   assert.equal(shown.calls.shares[0].pickId, 'new-1', 'Shares the new Pick through the existing share path');
   assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed');
   const leave = shown.calls.focus(); leave(); shown.view.render();
   assert.doesNotMatch(shown.text(), /원픽 완료/, 'Leaving Home ends the one-time line');
-  assert.match(shown.text(), /내 원픽 1개 · 다른 원픽 남기기/);
+  assert.match(shown.text(), /다른 원픽을 남겨요/);
   const again = home({ currentPicks: first }); again.view.flushEffects(); again.view.render();
   assert.doesNotMatch(again.text(), /원픽 완료/, 'Never shown a second time');
   notice.armFirstPickNotice('me', 'new-2', first);
@@ -428,7 +446,7 @@ test('R1 · replacing the only Pick (1→1) or an unknown pre-save state never s
   notice.armFirstPickNotice('me', 'replacement', [old]);
   const replaced = home({ currentPicks: replacement }); replaced.view.flushEffects(); replaced.view.render();
   assert.doesNotMatch(replaced.text(), /원픽 완료/, '1 → 1 replacement');
-  assert.match(replaced.text(), /내 원픽 1개 · 다른 원픽 남기기/);
+  assert.match(replaced.text(), /다른 원픽을 남겨요/);
   assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed (ruled out)');
   // An old out-of-scope Pick (another menu set) does not make a new in-scope Pick "not first".
   notice.armFirstPickNotice('me', 'replacement', [row('me', 'movie', '2026-10-01T00:00:00Z', { id: 'film' })]);
@@ -445,6 +463,7 @@ test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
   const three = home({ participants: people(3) });
   assert.match(three.text(), /함께하는 사람들/);
   assert.match(three.text(), /3명/);
+  assert.ok(three.text().indexOf('모두의 원픽') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
   deepEq(three.press('@user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
   assert.doesNotMatch(home({ participants: people(3), participantsComplete: false }).text(), /함께하는 사람들/,
     'Partial reads never show undercounted people');
@@ -490,7 +509,7 @@ test('Signed-out Home: no reply/invite, question still asks, login handled by re
   assert.equal(guest.calls.replyRefetch, undefined, 'Signed-out refresh never requests notifications');
   assert.doesNotMatch(guest.text(), /새 답글|친구 초대 링크/);
   assert.match(guest.text(), /당신의 냉면 원픽은\?/);
-  assert.match(guest.text(), /첫 원픽을 남겨보세요/);
+  assert.match(guest.text(), /다른 원픽을 남겨요/);
   const member = home();
   assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
   assert.match(member.text(), /친구 초대 링크/);
@@ -506,12 +525,12 @@ test('Hidden early-MVP entries stay hidden; feed is the single 모두의 원픽'
   assert.doesNotMatch(text(), /랭킹|단골|AI/, 'No ranking/단골모임/AI entry on early Home');
 });
 
-// Feed Card channel badge (main's current rule): offline → Store Badge, online → text label.
-test('Feed card keeps offline Store Badge and online label', () => {
+// Feed Card v3 (#810): preserve the current main implementation without legacy badges.
+test('Feed card v3 keeps content and omits legacy channel badges', () => {
   const row = load('components/home-pick-row.tsx', {
     'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/pick-photo': names('PickPhoto'),
     '@/components/current-pick-flag': names('CurrentPickFlag'), '@/components/store-badge': names('StoreBadge'),
-    '@/constants/onepick': constants, '@/lib/items/pickChannel': load('lib/items/pickChannel.ts'),
+    '@/constants/onepick': constants, '@/components/ui/touch': load('components/ui/touch.ts'),
   });
   const visitTree = (channels) => {
     const nodes = [];
@@ -521,12 +540,14 @@ test('Feed card keeps offline Store Badge and online label', () => {
     return nodes;
   };
   const offline = visitTree(['offline']);
-  assert.ok(offline.some((n) => n.type === 'StoreBadge'), 'Offline card shows the Store Badge');
+  assert.equal(offline.some((n) => n.type === 'StoreBadge'), false, 'v3 omits the legacy store badge');
+  assert.ok(JSON.stringify(offline).includes('이유'), 'Review content remains visible');
   const online = visitTree(['online']);
   assert.equal(online.some((n) => n.type === 'StoreBadge'), false, 'Online card never shows the store badge');
-  assert.ok(JSON.stringify(online.map((n) => n.props?.children)).includes('온라인'), 'Online card keeps its text label');
+  assert.ok(JSON.stringify(online).includes('가게'), 'Provider name remains visible');
 });
 
 Promise.all(asyncTests).then(repositoryChecks).then(() => {
   console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);
 }).catch((error) => { console.error(error); process.exitCode = 1; });
+

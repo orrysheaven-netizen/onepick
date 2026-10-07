@@ -177,3 +177,4 @@ async function main() {
   console.log('Shared photo actions passed: visibility, source/failure protection, scoped navigation, login return, consent, cancel/retry, double taps, remount isolation, service guards and all-surface cache invalidation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

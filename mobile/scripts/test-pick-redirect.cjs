@@ -61,7 +61,7 @@ itemQuery = {
   isError: false,
   refetch() {},
   data: {
-    item: { id: 'product', name: '중앙해장' },
+    item: { id: 'product', name: '중앙해장', imageSourceUrl: 'https://onepick.test/product.jpg' },
     category: { name: '내장탕' },
     isRestaurant: true,
     picks: [{

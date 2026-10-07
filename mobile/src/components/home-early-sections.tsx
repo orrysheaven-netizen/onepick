@@ -21,7 +21,6 @@ export function HomeReplyBanner({ count, onPress }: { count: number; onPress: ()
 
 type QuestionCardProps = {
   category: Category;
-  parentName: string | null;
   /** null while the shared menu counts are still loading. */
   answerCount: number | null;
   answered: boolean;
@@ -33,20 +32,16 @@ type QuestionCardProps = {
 };
 
 /** 834:4755 (Category Card 305:799) — today's question with the viewer's Pick status underneath. */
-export function HomeQuestionCard({ category, parentName, answerCount, answered, footer, onAnswer, onViewAnswer, onRegister, onShareFirstPick }: QuestionCardProps) {
+export function HomeQuestionCard({ category, answerCount, answered, footer, onAnswer, onViewAnswer, onRegister, onShareFirstPick }: QuestionCardProps) {
   const footerLabel = footer.kind === 'first-pick-done'
-    ? '원픽 완료 · 친구에게 공유하기'
-    : footer.kind === 'none-yet'
-      ? '첫 원픽을 남겨보세요'
-      : `내 원픽 ${footer.count}개 · 다른 원픽 남기기`;
+    ? '원픽 완료 · 친구에게 공유해요'
+    : '다른 원픽을 남겨요';
   return (
     <View style={styles.card}>
-      <Text style={styles.cardKicker}>오늘의 질문</Text>
-      {parentName ? <View style={styles.parentTag}><Text style={styles.parentText}>{parentName}</Text></View> : null}
       <Text accessibilityRole="header" style={styles.cardTitle}>{`당신의 ${category.name} 원픽은?`}</Text>
       {answerCount !== null ? <Text style={styles.cardCount}>{`${answerCount.toLocaleString()}명이 답했어요`}</Text> : null}
       <View style={styles.cardGap} />
-      <Button fullWidth label={answered ? '내 답 보기' : '답하기'}
+      <Button fullWidth label={answered ? '내 원픽을 봐요' : `내 ${category.name} 원픽을 남겨요`}
         accessibilityLabel={answered ? `내 ${category.name} 원픽 보기` : `${category.name} 원픽 답하기`}
         onPress={answered ? onViewAnswer : onAnswer} />
       <Pressable accessibilityRole="button" accessibilityLabel={footerLabel}
@@ -87,10 +82,6 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
 export function HomeUnpickedMenus({ categories, onPick }: { categories: Category[]; onPick: (category: Category) => void }) {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>아직 아무도 안 골랐어요</Text>
-      </View>
-      <Text style={styles.sectionHint}>첫 번째 원픽의 주인공이 되어보세요</Text>
       <View style={styles.chipWrap}>
         {categories.map((category) => <Chip key={category.id} label={`+ ${category.name}`}
           accessibilityLabel={`${category.name} 첫 원픽 남기기`} onPress={() => onPick(category)} />)}
@@ -115,9 +106,6 @@ const styles = StyleSheet.create({
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
   // 305:799: white card, 1px border/default, radius lg, padding 24, 8 between rows.
   card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
-  cardKicker: { ...OnePickType.caption, color: OnePick.textSecondary },
-  parentTag: { height: 24, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', paddingHorizontal: OnePickSpace.sm, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
-  parentText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   cardTitle: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },
@@ -128,13 +116,13 @@ const styles = StyleSheet.create({
   sectionHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, color: OnePick.textPrimary },
   sectionAction: { ...OnePickType.caption, color: OnePick.textSecondary },
-  sectionHint: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: -OnePickSpace.xs },
   peopleRow: { gap: 14, paddingRight: OnePickSpace.xs },
   person: { width: 64, alignItems: 'center', gap: OnePickSpace.xs },
   personName: { ...OnePickType.captionMedium, maxWidth: 64, color: OnePick.textPrimary },
   // Figma 30E uses text/tertiary here; Foundations reserves tertiary for non-copy (test-tertiary-usage), so secondary.
   personCount: { ...OnePickType.caption, color: OnePick.textSecondary },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', columnGap: OnePickSpace.sm },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },
   inviteRow: { flexDirection: 'row', gap: 10 },
   inviteButton: { flex: 1 },
 });
+
