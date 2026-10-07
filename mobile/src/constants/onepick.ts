@@ -124,8 +124,12 @@ export const OnePickLayout = {
   homeFeedGutter: 20,
   safeAreaBottom: 34,
   tabBarContentHeight: 56,
-  tabBarTopPadding: 8,
-  tabBarReferenceHeight: 98,
+  tabBarHeight: 64,
+  tabBarHorizontalGutter: 16,
+  tabBarRadius: 24,
+  tabBarSafeAreaGap: 8,
+  tabBarContentGap: 8,
+  tabBarReferenceHeight: 114,
 } as const;
 
 // Icon sizes (Figma Foundations `icon/size/*`). Two shared sizes only:
