@@ -83,10 +83,6 @@ export default function HomeScreen() {
     ...category,
     label: categoryLabel(category, categoryCatalog),
   })), [categoryCatalog]);
-  // Figma 30-1 (10-04/10-05): no group chips; the top six store×menu items in a 2×3 grid.
-  const itemRankingQuery = useHomeItemRanking(mvpChannel, HOME_RANKING_CANDIDATES, !isSessionLoading && !sessionError);
-  // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
-  const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
   const ready = !isLoading && !sessionError && Boolean(data);
 
   // ---- Figma 30E early-MVP Home (#758 / #762) --------------------------------------------
@@ -101,6 +97,15 @@ export default function HomeScreen() {
   // Everyone's Picks per menu (server aggregate, suspended members excluded): total, answers, unpicked.
   const menuCountsQuery = useFoodMenuPickCounts(mvpChannel, homeEnabled);
   const discovery = earlyHomeDiscovery(totalPickCount(menuCountsQuery.data));
+  // The 7-day ranking is only visible after the 30-Pick threshold, so do not pay for its RPC
+  // in the early-MVP state or while the threshold total is still unknown.
+  const itemRankingQuery = useHomeItemRanking(
+    mvpChannel,
+    HOME_RANKING_CANDIDATES,
+    homeEnabled && discovery === 'popular',
+  );
+  // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
+  const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
   const questionQuery = useDailyQuestionCategory(homeEnabled);
   // Only an admin-set category that is an open menu becomes a question; nothing is picked here.
   const questionCategory = questionQuery.data ? menuCategories.find((category) => category.id === questionQuery.data) ?? null : null;
