@@ -92,7 +92,7 @@ export default function SettingsScreen() {
               {blocked.data?.map((item) => (
                 <View key={item.blockedUserId} style={styles.blockRow}>
                   <Text style={styles.blockName}>{item.blockedUsername ? `@${item.blockedUsername}` : '비공개 사용자'}</Text>
-                  <Button variant="secondary" size="sm" label="차단 해제" disabled={safety.unblockUser.isPending}
+                  <Button variant="secondary" size="sm" label="차단 해제하기" disabled={safety.unblockUser.isPending}
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
                       blockedUserId: item.blockedUserId,
@@ -127,14 +127,14 @@ export default function SettingsScreen() {
                 {confirmDelete ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="계정 삭제 확인"
+                    accessibilityLabel="계정 삭제하기"
                     disabled={deleteAccount.isPending}
                     onPress={() => void handleDeleteAccount()}
                     style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제 확인</Text>}
+                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제하기</Text>}
                   </Pressable>
                 ) : (
-                  <Button variant="dangerText" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
+                  <Button variant="dangerText" size="sm" label="계정 삭제하기" onPress={() => void handleDeleteAccount()} />
                 )}
                 {confirmDelete && !deleteAccount.isPending ? (
                   <Button variant="secondary" size="sm" label={DIALOG_CLOSE_LABEL} onPress={() => setConfirmDelete(false)} />

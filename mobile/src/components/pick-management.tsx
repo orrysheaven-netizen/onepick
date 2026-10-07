@@ -28,7 +28,7 @@ export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'rem
       <Text style={styles.actionText}>수정</Text>
     </Pressable>
     <Text style={styles.actionDot}>·</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="원픽 선택 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
+    <Pressable accessibilityRole="button" accessibilityLabel="원픽 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
       <Text style={styles.actionText}>원픽 해제</Text>
     </Pressable>
     <Text style={styles.actionDot}>·</Text>
@@ -134,7 +134,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
             disabled={!canSave || isBusy}
             onPress={() => void saveReview()}
             style={[styles.button, (!canSave || isBusy) && styles.disabled]}>
-            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 저장</Text>}
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>한줄평 저장하기</Text>}
           </Pressable>
         </>
       ) : mode === 'remove' ? (
@@ -142,7 +142,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
           <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남아요. 해제하면 24시간 동안 같은 원픽을 다시 고를 수 없어요.</Text>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
-            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
+            {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>원픽 해제하기</Text>}
           </Pressable>
         </>
       ) : (

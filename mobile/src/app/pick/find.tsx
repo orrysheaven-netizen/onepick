@@ -423,7 +423,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
           <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} 원픽 선택`} disabled={importing} onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, styles.itemActionArea, pressed && styles.pressed]}>
             {selectedCategory ? <Text style={styles.itemCategory}>{isPlaceCategory ? categoryWithChannels(category?.name ?? '맛집', [channel]) : category?.name ?? '등록된 카테고리'}</Text> : null}<Text style={styles.itemName}>{item.name}</Text>
             {isCatalogCategory ? <Text style={styles.movieMeta}>{[item.releaseYear, item.originalName !== item.name ? item.originalName : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text> : null}
-            <Text style={styles.itemAction}>{isOnlineChannel ? '이 판매처를 원픽으로 선택 ›' : isPlaceCategory ? '이 지점을 원픽으로 선택 ›' : '이걸 원픽으로 선택 ›'}</Text>
+            <Text style={styles.itemAction}>{isOnlineChannel ? '이 판매처를 원픽으로 고르기 ›' : isPlaceCategory ? '이 지점을 원픽으로 고르기 ›' : '이걸 원픽으로 고르기 ›'}</Text>
           </Pressable>
         </View>;
       })}
@@ -432,7 +432,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <PickPhoto uri={movie.posterUrl} label={`${movie.title} 포스터`} />
         <View style={styles.itemCopy}><Text style={styles.itemCategory}>{label} · TMDB</Text><Text style={styles.itemName}>{movie.title}</Text>
           <Text style={styles.movieMeta}>{[movie.releaseYear, movie.originalTitle !== movie.title ? movie.originalTitle : null].filter(Boolean).join(' · ') || (isDramaCategory ? '첫 방영 정보 없음' : '개봉 정보 없음')}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && movieImporting ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 선택 ›`}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === movie.externalId && movieImporting ? `${label} 정보를 불러오고 있어요…` : `이 ${label}를 원픽으로 고르기 ›`}</Text>
         </View>
       </Pressable>)}
       {!placeCatalog.isWaiting && !placeCatalog.isError && isPlaceSearch && canSearchPlaceCatalog && externalPlaces.map((place) => <Pressable key={`${place.placeProvider}:${place.providerPlaceId}`} accessibilityRole="button"
@@ -440,7 +440,7 @@ function FindPickItemContent({ auth, params }: { auth: ReturnType<typeof useAuth
         <View style={styles.placeMarker}><Text style={styles.placeMarkerText}>장소</Text></View>
         <View style={styles.itemCopy}><Text style={styles.itemCategory}>{homeChannelLabel(['offline'])} · {place.region1 ?? '지역 정보 없음'}{place.region2 ? ` ${place.region2}` : ''}</Text><Text style={styles.itemName}>{place.name}{place.branchName ? ` ${place.branchName}` : ''}</Text>
           <Text style={styles.movieMeta}>{place.roadAddress ?? place.address ?? '주소 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{placeSelection?.catalogId === place.id && placeImporting ? '장소를 원픽에 연결하고 있어요…' : '이 지점을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{placeSelection?.catalogId === place.id && placeImporting ? '장소를 원픽에 연결하고 있어요…' : '이 지점을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
       {noResults && (!selectedCategory || (!isPlaceCategory && !isCatalogCategory && !isMusicCategory && !isGameCategory && !isYoutubeCategory && !isBookCategory && !isPokemonCategory)) ? <View style={styles.block}><StateCard title="찾는 원픽이 없나요?" text="검색한 이름을 그대로 등록 요청할 수 있어요. 카테고리는 비워두고 이름만 먼저 등록해요."

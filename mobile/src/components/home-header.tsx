@@ -119,7 +119,7 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
           })}
         </ScrollView> : null}
 
-        <Button label="검색" onPress={search} disabled={!normalized} fullWidth />
+        <Button label="검색하기" onPress={search} disabled={!normalized} fullWidth />
         <CloseButton onPress={onClose} />
       </View>
     </KeyboardAvoidingView>

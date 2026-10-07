@@ -168,10 +168,10 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
           <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 답글이 있으면 대화 자리는 남아요.</Text>
           {deleteComment.isError ? <Text accessibilityRole="alert" style={styles.commentError}>댓글을 삭제하지 못했어요. 다시 시도해주세요.</Text> : null}
           <View style={styles.deleteActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인" disabled={deleteComment.isPending}
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제하기" disabled={deleteComment.isPending}
               onPress={() => void handleCommentDelete(comment.id)}
               style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
-              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>댓글 삭제하기</Text>}
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인 닫기" disabled={deleteComment.isPending}
               onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
