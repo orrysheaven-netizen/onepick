@@ -677,7 +677,7 @@ export default function NewPickScreen() {
               <FieldLabel label="상호명" />
               <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
                 placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
-              <Text style={styles.helper}>검색한 이름을 넣어 두었어요. 지점이 있으면 지점명까지 적어주세요.</Text>
+              <Text style={styles.helper}>검색한 이름을 넣어뒀어요. 지점이 있으면 지점명까지 적어주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                 value={mapLink} onChangeText={(value) => setMapLink(extractNaverMapUrl(value) ?? value)} style={styles.input}
