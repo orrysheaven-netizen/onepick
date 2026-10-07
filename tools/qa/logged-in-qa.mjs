@@ -31,10 +31,10 @@ import {
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
-// Registration is store-first (#412): /pick/new starts with a store/seller-name
-// search (step 1), then a menu step (step 2) scoped to the chosen store. The
-// store query is one of the screen's own placeholder examples.
-const STORE_QUERY = process.env.QA_STORE_QUERY || '을밀대';
+// Registration is link-first (#794): /pick/new starts with a Naver-map URL.
+// Daily QA deliberately chooses the visible "URL 없음" fallback, then uses a
+// query with >20 production catalog rows so #811 pagination is exercised.
+const STORE_QUERY = process.env.QA_STORE_QUERY || '카페인중독';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
 // Opt-in registration safety only; not a guarantee that the entire live QA is offline.
 const BLOCK_MENU_AI = process.env.QA_BLOCK_MENU_AI === '1';
@@ -323,10 +323,10 @@ async function main() {
     await check(flow, '등록 화면 진입', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: '원픽 등록', exact: true }).click();
-      // Store-first flow (#412): the button now opens /pick/new (a single-screen
-      // 4-step wizard), not the old /pick/find.
       await page.waitForURL(/\/pick\/new/, { timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('button', { name: 'URL 없음', exact: true }).click({ timeout: STEP_TIMEOUT_MS });
     });
     await check(flow, '매장 검색 cold/warm + 선택 가능 (1/4 매장)', async () => {
       await page.getByText('1 / 4 · 오프라인 매장', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
@@ -376,7 +376,7 @@ async function main() {
         const coldUiMs = Date.now() - coldUiStarted;
         await page.waitForTimeout(50);
 
-        const searchable = new Set(['search_store_catalog', 'search_place_catalog']);
+        const searchable = new Set(['search_store_catalog_page', 'search_store_catalog', 'search_place_catalog']);
         const coldCall = rpcCalls.find((call) => searchable.has(call.name)) ?? rpcCalls[0];
         if (!coldCall) throw new Error(`"${STORE_QUERY}" 검색 RPC를 확인하지 못함`);
 
@@ -396,10 +396,21 @@ async function main() {
         }, { url: coldCall.url, headers: replayHeaders, body: coldCall.body });
 
         if (warm.status >= 400) throw new Error(`"${STORE_QUERY}" warm 검색 HTTP ${warm.status}`);
-        await result.first().click();
+        const firstPageCount = await result.count();
+        if (firstPageCount < 20) throw new Error(`"${STORE_QUERY}" 첫 페이지가 20개 미만(${firstPageCount})이라 pagination 계약을 검증할 수 없음`);
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        const deadline = Date.now() + STEP_TIMEOUT_MS;
+        while (await result.count() <= 20 && Date.now() < deadline) {
+          await page.mouse.wheel(0, 1200);
+          await page.waitForTimeout(200);
+        }
+        const pagedCount = await result.count();
+        if (pagedCount <= 20) throw new Error(`"${STORE_QUERY}" 21번째 이후 결과가 로드되지 않음 · 현재 ${pagedCount}개`);
+        await result.nth(20).click();
+        await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         await noErrorCopy(page);
         const rows = (value) => value == null ? '?' : value;
-        return `"${STORE_QUERY}" cold RPC ${coldCall.ms}ms / warm RPC ${warm.ms}ms · UI 첫 결과 ${coldUiMs}ms · cold ${coldCall.name} ${coldCall.status} ${rows(coldCall.rows)}행 · warm ${warm.status} ${rows(warm.rows)}행 · 매장 선택`;
+        return `"${STORE_QUERY}" cold RPC ${coldCall.ms}ms / warm RPC ${warm.ms}ms · UI 첫 결과 ${coldUiMs}ms · 첫 페이지 ${firstPageCount}개 → ${pagedCount}개 · 21번째 이후 매장 선택 · cold ${coldCall.name} ${coldCall.status} ${rows(coldCall.rows)}행 · warm ${warm.status} ${rows(warm.rows)}행`;
       } finally {
         page.off('request', onRpcRequest);
         page.off('response', onRpcResponse);
