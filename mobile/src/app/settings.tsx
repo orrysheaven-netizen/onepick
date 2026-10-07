@@ -10,6 +10,7 @@ import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
 import { Button, Icon, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
