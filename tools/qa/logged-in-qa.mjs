@@ -599,10 +599,10 @@ async function main() {
     let otherProfilePath = null;
     await check(flow, '피드에서 다른 사용자 프로필 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      const people = page.getByRole('button', { name: /^@.+ 프로필 보기$/ });
+      const people = page.getByRole('button', { name: /.+ 프로필 보기$/ });
       await people.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const names = await people.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
-      const index = names.findIndex((name) => name && name !== `@${qaUsername} 프로필 보기`);
+      const index = names.findIndex((name) => name && name !== `${qaUsername} 프로필 보기`);
       if (index < 0) return { status: 'warn', detail: '피드에 다른 사용자 없음' };
       await people.nth(index).click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
