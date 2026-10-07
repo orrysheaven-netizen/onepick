@@ -12,8 +12,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
-import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
+import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -333,7 +332,7 @@ export default function PublicProfileScreen() {
           onRequireLogin={openFollowLogin}
         />
       ) : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable> : null}
+        {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable> : null}
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요." /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard title="프로필을 찾을 수 없어요." text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
@@ -519,7 +518,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   publicHeader: {
     height: 56,
     flexDirection: 'row',

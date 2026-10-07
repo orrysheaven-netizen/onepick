@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StateCard } from '@/components/ui';
-import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
+import { Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -545,7 +544,7 @@ export default function NewPickScreen() {
   };
   const header = <View style={styles.header}>
     <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={goBack} style={styles.headerSide}>
-      <Text style={styles.backText}>‹</Text>
+      <Icon name="back" />
     </Pressable>
     <Text style={styles.headerTitle}>새 원픽 등록</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 취소" onPress={cancel} style={[styles.headerSide, styles.headerRight]}>
@@ -618,7 +617,7 @@ export default function NewPickScreen() {
                       <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
                       <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
                     </View>
-                    {candidate === linkSelected ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text> : null}
+                    {candidate === linkSelected ? <Icon name="check" size="sm" color={OnePick.textPrimary} /> : null}
                   </View>
                 </Pressable>)}
               </View> : null}
@@ -636,7 +635,7 @@ export default function NewPickScreen() {
                   {storeSearchValue ? <Pressable accessibilityRole="button" accessibilityLabel="매장명 지우기"
                     onPress={() => { setPrefillDismissed(true); setStore(null); setQuery(''); }}
                     style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
-                    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.clearText}>×</Text>
+                    <Icon name="clear" size="sm" color={OnePick.textTertiary} />
                   </Pressable> : null}
                 </View>
                 {providerPrefillStore
@@ -659,7 +658,7 @@ export default function NewPickScreen() {
                         {[providerPrefillStore.region, providerPrefillStore.address ? '상세 주소 표시 ›' : providerPrefillStore.providerCategory].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
-                    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.resultCheck}>✓</Text>
+                    <Icon name="check" size="sm" color={OnePick.textPrimary} />
                   </View>
                 </View> : (search.data ?? []).filter((candidate) => candidate.kind === 'place').map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
@@ -740,7 +739,7 @@ export default function NewPickScreen() {
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
                   style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
-                  <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.clearText}>×</Text>
+                  <Icon name="clear" size="sm" color={OnePick.textTertiary} />
                 </Pressable> : null}
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
@@ -893,7 +892,6 @@ const styles = StyleSheet.create({
   },
   headerSide: { width: 48, height: 56, justifyContent: 'center', alignItems: 'flex-start' },
   headerRight: { alignItems: 'flex-end' },
-  backText: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   headerAction: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   body: { flexGrow: 1, gap: OnePickSpace.md, paddingTop: OnePickSpace.md, paddingHorizontal: OnePickSpace.gutter },
@@ -932,7 +930,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearText: { ...OnePickType.title, color: OnePick.textTertiary },
   reviewInput: { height: 120, padding: OnePickSpace.lg, textAlignVertical: 'top' },
   helper: { ...OnePickType.caption, color: OnePick.textSecondary },
   helperInline: { ...OnePickType.caption, color: OnePick.textSecondary },
@@ -952,7 +949,6 @@ const styles = StyleSheet.create({
   resultCardSelected: { borderWidth: 1, borderColor: OnePick.actionPrimary, backgroundColor: OnePick.bgDefault },
   resultCardRow: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   resultCopy: { flex: 1, minWidth: 0, gap: OnePickSpace.xs },
-  resultCheck: { ...OnePickType.headline, color: OnePick.textPrimary },
   resultTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   resultMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },

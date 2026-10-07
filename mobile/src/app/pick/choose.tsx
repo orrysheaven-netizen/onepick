@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { PickPhotoStep } from '@/components/pick-photo-step';
-import { BrandMark, Button, StateCard } from '@/components/ui';
+import { BrandMark, Button, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -179,7 +179,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
         {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요." /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
           <StateCard tone="danger" title="정보를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
   markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 12 },
   noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },

@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfilePickGroups } from '@/components/profile-pick-groups';
-import { Chip, SectionHeader, StateCard } from '@/components/ui';
+import { Chip, Icon, SectionHeader, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
@@ -45,7 +45,7 @@ export default function LabScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text style={styles.eyebrow}>LAB</Text>
         <Text style={styles.title}>실험실</Text>
@@ -94,7 +94,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 56 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   eyebrow: { color: OnePick.textSecondary, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginTop: 8 },
   title: { color: OnePick.text, fontSize: 24, lineHeight: 30, fontWeight: '900', letterSpacing: -0.5, marginTop: 2 },
   description: { color: OnePick.muted, fontSize: 13, lineHeight: 19, marginTop: 8, marginBottom: 22 },

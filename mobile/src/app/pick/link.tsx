@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useLinkCategorySuggestions } from '@/hooks/useLinkCategorySuggestions';
 import { isDeliveryAppUrl } from '@/lib/items/pickChannel';
@@ -134,7 +134,7 @@ export default function LinkCategorySuggestionScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButton}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         <Text style={styles.title}>링크로 원픽 찾기</Text>
@@ -293,8 +293,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingBottom: 48, gap: 16 },
   center: { flex: 1, justifyContent: 'center', padding: 24 },
-  backButton: { width: 40, height: 40, justifyContent: 'center' },
-  backText: { color: OnePick.text, fontSize: 30 },
+  backButton: { width: 44, height: 44, justifyContent: 'center', marginLeft: -10 },
   title: { color: OnePick.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 21 },
   card: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 16, padding: 16, gap: 12 },

@@ -5,6 +5,7 @@ import { channelLabel } from '@/lib/home/homeChannels';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { DishChannelOverview as Overview } from '@/repositories/interfaces/readRepository';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 const CHANNELS: readonly PickChannel[] = ['offline', 'online', 'recipe'];
 
@@ -42,7 +43,7 @@ export function DishChannelOverview({ overview, onSelectItem, onRegister, visibl
                   <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
                   <Text style={styles.meta}>{item.pickCount}명이 원픽</Text>
                 </View>
-                <Text style={styles.arrow}>›</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textSecondary} />
               </Pressable>
             )) : (
               <View style={styles.empty}>
@@ -71,7 +72,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   name: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
   meta: { color: OnePick.muted, fontSize: 12, marginTop: 2 },
-  arrow: { color: OnePick.muted, fontSize: 20 },
   empty: { paddingVertical: 6 },
   emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
   register: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },

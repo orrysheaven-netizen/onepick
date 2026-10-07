@@ -9,8 +9,7 @@ import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Button, StateCard } from '@/components/ui';
-import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
@@ -48,7 +47,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text style={styles.title}>설정</Text>
 
@@ -106,10 +105,10 @@ export default function SettingsScreen() {
             <Text style={styles.sectionLabel}>안내</Text>
             <View style={styles.card}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/privacy')} style={({ pressed }) => [styles.linkRow, styles.linkRowDivider, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')} style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>YouTube API 이용조건</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>YouTube API 이용조건</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
             </View>
 
@@ -166,7 +165,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   title: {
     ...OnePickType.pageTitle,
     color: OnePick.textPrimary,
@@ -223,7 +221,6 @@ const styles = StyleSheet.create({
   },
   linkRowDivider: { borderBottomWidth: 1, borderBottomColor: OnePick.borderDefault },
   linkText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary },
   signOut: { alignItems: 'center', marginTop: OnePickSpace.xl },
   deleteButton: {
     minHeight: 40,

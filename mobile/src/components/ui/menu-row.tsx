@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+
+import { Icon } from './icon';
 import { PRESSED_OPACITY } from './touch';
 
 type Props = {
@@ -23,7 +25,7 @@ export function MenuRow({ title, meta, leading, onPress, accessibilityLabel }: P
         <Text numberOfLines={1} style={styles.title}>{title}</Text>
         {meta ? <Text numberOfLines={1} style={styles.meta}>{meta}</Text> : null}
       </View>
-      {onPress ? <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>›</Text> : null}
+      {onPress ? <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} /> : null}
     </Pressable>
   );
 }
@@ -35,6 +37,5 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0, gap: 2 },
   title: { ...OnePickType.headline, color: OnePick.textPrimary },
   meta: { ...OnePickType.caption, color: OnePick.textSecondary },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary },
   pressed: { opacity: PRESSED_OPACITY },
 });

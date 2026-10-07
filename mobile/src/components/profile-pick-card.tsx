@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Props = {
   categoryName: string;
@@ -82,17 +83,17 @@ export function ProfilePickCard({
                     onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
                     style={({ pressed }) => [styles.providerLink, pressed && styles.pressed]}>
                     <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>
-                    <Text style={styles.providerArrow}>›</Text>
+                    <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
                   </Pressable>
                 : <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>) : null}
-              {!providerName || !onPressProvider ? <Text style={styles.chevron}>›</Text> : null}
+              {!providerName || !onPressProvider ? <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.chevron} /> : null}
             </View>
           ) : (
             <View style={styles.categoryRow}>
               <View style={styles.categoryPill}>
                 <Text numberOfLines={1} style={styles.category}>{categoryName}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.chevron} />
             </View>
           )}
 
@@ -109,7 +110,7 @@ export function ProfilePickCard({
             onPress={onPressItem}
             style={({ pressed }) => [styles.itemAction, pressed && styles.pressed]}>
             <Text style={styles.itemActionText}>상세 보기</Text>
-            <Text style={styles.itemActionArrow}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.accent} />
           </Pressable>
         ) : null}
       </View>
@@ -141,11 +142,10 @@ const styles = StyleSheet.create({
   channelBadgeText: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   providerLink: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { flex: 1, minWidth: 0, color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '500' },
-  providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   categoryPill: { maxWidth: '78%', borderRadius: 999, backgroundColor: OnePick.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
   category: { color: OnePick.accentDeep, fontSize: 11, lineHeight: 14, fontWeight: '700' },
-  chevron: { color: OnePick.hint, fontSize: 22, lineHeight: 24, marginTop: -2 },
+  chevron: { marginTop: -2  },
   name: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '700', letterSpacing: -0.3, marginTop: 6 },
   review: { color: OnePick.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
   status: { color: OnePick.textSecondary, fontSize: 12, lineHeight: 16, marginTop: 4, fontWeight: '600' },
@@ -161,6 +161,5 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   itemActionText: { color: OnePick.accent, fontSize: 12, lineHeight: 16, fontWeight: '600' },
-  itemActionArrow: { color: OnePick.accent, fontSize: 15, lineHeight: 16 },
   pressed: { opacity: 0.68 },
 });

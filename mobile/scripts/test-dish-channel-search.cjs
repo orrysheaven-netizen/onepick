@@ -13,6 +13,7 @@ function load(file, imports = {}) {
   }).outputText, { exports, require: (name) => {
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui') return require('./icon-stub.cjs');
     assert.ok(name in imports, `Unexpected import: ${name}`);
     return imports[name];
   } });

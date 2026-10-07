@@ -19,7 +19,8 @@ function visit(dir) {
     const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
     lines.forEach((line, index) => {
       if (!line.includes('OnePick.hint') && !line.includes('OnePick.textTertiary')) return;
-      const allowed = /placeholderTextColor|chevron|Chevron|arrow|Arrow|actionDot|clearText|borderColor|stroke=/.test(line);
+      // `<Icon …color={OnePick.textTertiary}` is an inactive icon, chevron or clear mark (Foundations icon rule).
+      const allowed = /placeholderTextColor|chevron|Chevron|arrow|Arrow|actionDot|clearText|borderColor|stroke=|<Icon /.test(line);
       if (!allowed) violations.push(`${rel}:${index + 1}: ${line.trim()}`);
     });
   }
