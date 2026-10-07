@@ -124,8 +124,8 @@ function instrument(page) {
       const t = req.timing();
       const ms = t.responseEnd > 0 ? Math.round(t.responseEnd) : null;
       const headers = await res?.allHeaders().catch(() => ({})) ?? {};
-      const requestId = headers['x-request-id'] ?? null;
-      const cfRay = headers['cf-ray'] ?? null;
+      const requestId = typeof headers['x-request-id'] === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(headers['x-request-id']) ? headers['x-request-id'] : null;
+      const cfRay = typeof headers['cf-ray'] === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(headers['cf-ray']) ? headers['cf-ray'] : null;
       const startedAt = Number.isFinite(t.startTime) && t.startTime > 0
         ? new Date(t.startTime).toISOString()
         : null;
