@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StateCard } from '@/components/ui';
@@ -323,6 +323,8 @@ export default function NewPickScreen() {
   const replacingVisiblePick = expectedPreviousPickId !== undefined && expectedPreviousPickId !== null
     && itemDetail.data?.myPickStatus?.type !== 'selected_this';
 
+  const swipeTranslateX = useRef(new Animated.Value(0)).current;
+
   const previousFrom = (from: Step): Step => {
     if (from === 2) return 1;
     if (from === 4) return 2;
@@ -339,11 +341,41 @@ export default function NewPickScreen() {
     if (step === 1) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     setStep(previousFrom(step));
   };
+  const cancelSwipeBack = () => {
+    Animated.timing(swipeTranslateX, {
+      toValue: 0,
+      duration: 140,
+      useNativeDriver: false,
+    }).start();
+  };
+  const runSwipeBack = () => {
+    if (saving || busy.current) { cancelSwipeBack(); return; }
+    const width = typeof window !== 'undefined' ? window.innerWidth : 390;
+    Animated.timing(swipeTranslateX, {
+      toValue: Math.max(width, 320),
+      duration: 140,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      swipeTranslateX.setValue(0);
+      goBack();
+    });
+  };
+  const updateSwipeBack = (dx: number) => {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 390;
+    swipeTranslateX.setValue(Math.min(Math.max(dx, 0), Math.max(width, 320)));
+  };
   // Web edge swipe = this header's "이전 단계": step back inside the flow; leaving
   // from step 1 keeps the account-bound draft, so no unsaved-input prompt.
   const hasInternalBackTarget = step === 1 ? (linkEntry || requesting) : step !== 6;
   const reserveSystemEdge = step !== 1 && step !== 6;
-  useSwipeBackHandler(goBack, { confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge });
+  useSwipeBackHandler(runSwipeBack, {
+    confirmUnsaved: false,
+    hasInternalBackTarget,
+    reserveSystemEdge,
+    onGestureProgress: updateSwipeBack,
+    onGestureCancel: cancelSwipeBack,
+  });
   const applyEntryMenuPrefill = () => {
     if (!entryMenuName || restoredDraftRef.current || entryMenuPrefillConsumedRef.current) return;
     entryMenuPrefillConsumedRef.current = true;
@@ -580,6 +612,7 @@ export default function NewPickScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <Animated.View style={[styles.swipeScene, { transform: [{ translateX: swipeTranslateX }] }]}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {header}
 
@@ -592,7 +625,7 @@ export default function NewPickScreen() {
             </Text>
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
-                <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
+                <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                   value={entryLink} onChangeText={(value) => { setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
                   placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
@@ -876,6 +909,7 @@ export default function NewPickScreen() {
           </View>
         </> : null}
       </ScrollView>
+      </Animated.View>
 
     </SafeAreaView>
   );
@@ -883,6 +917,7 @@ export default function NewPickScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.bgDefault },
+  swipeScene: { flex: 1 },
   stateArea: { padding: OnePickSpace.lg },
   content: { flexGrow: 1, width: '100%', maxWidth: 390, alignSelf: 'center' },
   header: {
@@ -922,6 +957,8 @@ const styles = StyleSheet.create({
     paddingVertical: OnePickSpace.md,
     color: OnePick.textPrimary,
     ...OnePickType.body,
+    // iPhone Safari zooms focused inputs below 16px; registration never zooms on focus.
+    fontSize: 16,
   },
   inputWithClear: { paddingRight: 52 },
   clearButton: {
