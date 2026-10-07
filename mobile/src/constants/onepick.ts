@@ -167,10 +167,12 @@ export const OnePickFeatures = {
   // Keep both profile features implemented, but unmounted during the early MVP.
   tasteComposition: false,
   profileAi: false,
+  // #757 (PM confirmed 2026-10-05): the own profile's private 기록 tab shows past
+  // Picks and pending/rejected registration requests.
+  profilePickHistory: true,
+  profileItemRequests: true,
   // Hidden during the early MVP; the data and components stay in place.
-  profilePickHistory: false,
   profileSocialLinks: false,
-  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
   // Initial food MVP exposes only the physical-store channel in registration.

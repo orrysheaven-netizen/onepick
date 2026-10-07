@@ -32,6 +32,7 @@ function fixture(kind, platform = 'web') {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
     'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
+    'profile-current-pick-row': 'ProfileCurrentPickRow', 'profile-identity': 'ProfileIdentity', 'profile-tabs': 'ProfileTabs', 'profile-records': 'ProfileRecords',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
     'profile-taste-composition': 'ProfileTasteComposition', 'sign-out-button': 'SignOutButton',
@@ -47,6 +48,7 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
+      usePublicFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
@@ -60,6 +62,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
+    '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/lib/home/homeCategoryFilters': { buildHomeCategoryFilters: () => [], homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (picks) => picks },
     ...Object.fromEntries(Object.entries(components).map(([file, name]) => [`@/components/${file}`, names(name)])),
   }, platform);
@@ -149,20 +152,24 @@ async function main() {
   await test('Web profile refresh updates all three queries and reveals newly arrived request status', async () => {
     flags.profilePickHistory = true; flags.profileItemRequests = true;
     const { view, profile, history, requests, calls } = fixture('profile');
-    assert.doesNotMatch(view.text(), /활동 기록/); assert.ok(button(view, profileLabel));
+    assert.ok(button(view, profileLabel));
+    view.find('ProfileTabs').onChange('records'); view.render();
+    assert.equal(view.find('ProfileRecords').requestsQuery, requests); assert.equal(view.find('ProfileRecords').historyQuery, history);
     const originalRefetch = requests.refetch;
     requests.refetch = function (options) {
       this.data = [{ item: { id: 'request', name: '새 제품', status: 'pending' }, category }];
       return originalRefetch.call(this, options);
     };
-    await button(view, profileLabel).onPress(); view.render(); assert.match(view.text(), /승인 대기/);
+    await button(view, profileLabel).onPress(); view.render();
+    assert.equal(view.find('ProfileRecords').requestsQuery.data[0].item.name, '새 제품', 'Refreshed requests reach the 기록 tab');
     requests.refetch = function (options) { this.data[0].item.status = 'active'; return originalRefetch.call(this, options); };
-    await button(view, profileLabel).onPress(); view.render(); assert.match(view.text(), /승인됨/);
+    await button(view, profileLabel).onPress(); view.render();
     assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [2, 2, 2]);
     assert.equal(calls.historyId, 'owner'); assert.equal(calls.requestsId, 'owner');
     assert.equal(view.all('ProfileAiPanel').length, 0); assert.equal(view.all('ProfileTasteComposition').length, 0);
   });
   await test('Web profile refresh skips the hidden activity lists', async () => {
+    flags.profilePickHistory = false; flags.profileItemRequests = false;
     const { view, profile, history, requests, calls } = fixture('profile');
     assert.equal(button(view, profileLabel), undefined);
     await button(view, hiddenListsProfileLabel).onPress(); assert.deepEqual([profile.refetches, history.refetches, requests.refetches], [1, 0, 0]);

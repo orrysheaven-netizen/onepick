@@ -30,22 +30,21 @@ assert.match(queryKeys, /profileTaste:\s*\{/);
 assert.match(queryKeys, /composition: \(profileId: string, viewerId\?: string\)/);
 assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 
-const picksIndex = profile.indexOf('visibleProfilePicks.map');
-const managementIndex = profile.indexOf('<View style={styles.managementSection}>');
+const actionsIndex = profile.indexOf('<View style={styles.profileActions}>');
 const infoIndex = profile.indexOf('<ProfileBioEditor');
+const picksIndex = profile.indexOf('visibleProfilePicks.map');
 const tasteIndex = profile.indexOf('<ProfileTasteComposition');
 const aiIndex = profile.indexOf('<ProfileAiPanel');
 
-assert.ok(picksIndex >= 0, 'Figma 03 primary category Picks are missing');
-assert.ok(managementIndex > picksIndex, 'optional profile tools stay below the Figma 03 primary collection');
-assert.ok(infoIndex > managementIndex, 'profile editing remains available inside management');
-assert.ok(tasteIndex > infoIndex, 'gated taste composition remains retained after profile info editing');
+assert.ok(picksIndex >= 0, 'Primary category Picks are missing');
+assert.ok(infoIndex > actionsIndex, 'profile editing opens from 프로필 편집 (#757)');
+assert.ok(tasteIndex > picksIndex, 'optional profile tools stay below the primary collection');
 assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation remains retained after taste composition');
 assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);
 assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
 const publicBodyIndex = publicProfile.indexOf('<View style={styles.publicBody}>');
-const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <PublicProfilePickRow');
+const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <ProfileCurrentPickRow');
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
 const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');

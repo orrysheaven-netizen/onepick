@@ -2,7 +2,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const own = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
+const readSrc = (relative) => fs.readFileSync(path.join(__dirname, '../src', relative), 'utf8');
+// #757: the own profile composes shared profile components; check the screen with them.
+const own = ['app/(tabs)/(profile)/profile.tsx', 'components/profile-identity.tsx', 'components/profile-current-pick-row.tsx',
+  'components/profile-tabs.tsx', 'components/profile-records.tsx'].map(readSrc).join('\n');
 const pub = fs.readFileSync(path.join(__dirname, '../src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
 
 for (const [label, source] of [['own profile', own], ['public profile', pub]]) {

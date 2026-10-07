@@ -96,10 +96,11 @@ function profile(isPublic = false) {
     '@/lib/auth/authIntent': { getPostAuthRoute: () => '/u/owner' },
     '@/lib/auth/followProfileIntent': { armFollowProfileIntent: () => true, clearFollowProfileIntent() {}, consumeFollowProfileIntent: () => false },
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
+    '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/lib/share/shareProfileCard': { shareProfileCardImage: async (payload) => { calls.share = payload; return 'shared'; } },
     '@/components/profile-taste-composition': { ProfileTasteComposition: mount('taste') },
     '@/components/profile-ai-panel': { ProfileAiPanel: mount('ai') }, '@/components/profile-ai-comment': { ProfileAiComment: mount('ai') },
-    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'follow-connections-view': 'FollowConnectionsView', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
+    ...Object.fromEntries(Object.entries({ 'pick-photo': 'PickPhoto', 'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard', 'profile-pick-groups': 'ProfilePickGroups', 'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments', 'sign-out-button': 'SignOutButton', 'profile-current-pick-row': 'ProfileCurrentPickRow', 'profile-identity': 'ProfileIdentity', 'profile-tabs': 'ProfileTabs', 'profile-records': 'ProfileRecords', 'block-user-button': 'BlockUserButton', 'follow-button': 'FollowButton', 'follow-connections-view': 'FollowConnectionsView', 'report-action': 'ReportAction' }).map(([file, name]) => [`@/components/${file}`, names(name)])),
   });
   view.render(); return { view, q, history, requests, calls, auth };
 }
@@ -109,7 +110,8 @@ async function main() {
     assert.equal(flags.profileFollow, true, 'MVP exposes the approved public-profile follow CTA');
     assert.equal(flags.followingFeed, false, 'MVP keeps the following feed separately deferred');
     assert.equal(flags.followNotifications, false, 'MVP keeps follow-change notifications separately deferred');
-    assert.equal(flags.profilePickHistory, false); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, false);
+    // #757: the owner-only 기록 tab shows past Picks and pending/rejected requests.
+    assert.equal(flags.profilePickHistory, true); assert.equal(flags.profileSocialLinks, false); assert.equal(flags.profileItemRequests, true);
     assert.equal(flags.foodChannelPicker, false, 'Initial MVP keeps online/recipe food registration entries hidden');
     assert.equal(constants.OnePickMvp.publicPickChannel, 'offline'); assert.equal(constants.OnePickMvp.browseGroupSlug, 'food');
     assert.equal(thresholds.exploreRankingMinPicks, 3); assert.equal(thresholds.homeCategoryFilterMinPicks, 20);
@@ -230,35 +232,30 @@ async function main() {
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render(); view.find('Chip', (p) => p.label === 'movie').onPress(); view.render();
     assert.match(view.text(), /외부 카탈로그/); assert.equal(typeof view.find('ItemSearch').onSearchMovie, 'function'); assert.doesNotMatch(view.text(), /외부 DB/);
   });
-  await test('Owner profile hides confirmed-empty activity but continues both queries', () => {
-    const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|원픽 활동|불러온 \d+개|PROFILE TOOLS|ACTIVITY/);
+  await test('Owner profile opens on 원픽 and keeps both 기록 queries scoped to the owner', () => {
+    const { view, calls } = profile(); assert.doesNotMatch(view.text(), /활동 기록|내 원픽 등록 요청|원픽 활동|PROFILE TOOLS|ACTIVITY|내 프로필 관리/);
     assert.equal(calls.history, 1); assert.equal(calls.requests, 1); assert.equal(calls.ai, 0); assert.equal(calls.taste, 0);
-    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0); assert.equal(view.all('SignOutButton').length, 1);
-    assert.equal(view.find('Button', (p) => p.accessibilityLabel?.includes('새로고침')), undefined);
+    assert.equal(view.find('ProfileTabs').value, 'picks'); assert.equal(view.all('ProfileRecords').length, 0);
+    assert.equal(view.all('ProfileBioEditor').length, 0, 'The bio editor waits for 프로필 편집');
+    assert.equal(view.all('SignOutButton').length, 0, 'Sign-out lives in Settings (#757)');
+    view.find('Button', (p) => p.label === '프로필 편집').onPress(); view.render();
+    assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0);
+    view.find('ProfileTabs').onChange('records'); view.render();
+    assert.equal(view.all('ProfileRecords').length, 1);
   });
-  await test('Owner activity preserves loading, errors, next pages and later-arriving rows', () => {
-    flags.profilePickHistory = true; flags.profileItemRequests = true;
-    const { view, history, requests } = profile(); history.isSuccess = false; history.isPending = true; history.data = undefined; view.render();
-    assert.match(view.text(), /활동 기록/); assert.equal(view.all('ActivityIndicator').length, 1); assert.doesNotMatch(view.text(), /내 원픽 등록 요청/);
-    history.isPending = false; history.isError = true; view.render(); let button = view.find('Button', (p) => p.accessibilityLabel === '활동 다시 불러오기'); assert.ok(button); button.onPress(); assert.equal(history.refetches, 1);
-    history.isError = false; history.isSuccess = true; history.data = []; history.hasNextPage = true; view.render(); button = view.find('Button', (p) => p.label === '활동 더 보기'); assert.ok(button); button.onPress(); assert.equal(history.nextPages, 1);
-    history.hasNextPage = false; requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }]; view.render();
-    assert.match(view.text(), /New request/); assert.equal(view.all('Text').some((p) => p.children === '원픽 활동'), false);
-    requests.isError = true; requests.isSuccess = false; view.render(); assert.match(view.text(), /New request/); assert.match(view.text(), /최신 목록/);
-  });
-  await test('Owner header refresh appears only on profile refetch error', async () => {
+  await test('Owner header refresh retries the profile and both 기록 lists on refetch error', async () => {
     const { view, q, history, requests } = profile(); q.isRefetchError = true; view.render();
+    await view.find('Button', (p) => p.accessibilityLabel === '프로필과 원픽 등록 요청 상태 새로고침').onPress();
+    assert.equal(q.refetches, 1); assert.equal(history.refetches, 1); assert.equal(requests.refetches, 1);
+    flags.profilePickHistory = false; flags.profileItemRequests = false; view.render();
     await view.find('Button', (p) => p.accessibilityLabel === '프로필 새로고침').onPress();
-    assert.equal(q.refetches, 1); assert.equal(history.refetches, 0); assert.equal(requests.refetches, 0);
+    assert.equal(q.refetches, 2); assert.equal(history.refetches, 1, 'A gated-off list is not refetched'); assert.equal(requests.refetches, 1);
   });
-  await test('Activity, pick history and social links stay hidden until restored', () => {
+  await test('Social links stay hidden until restored', () => {
     const owner = profile();
-    owner.requests.data = [{ item: { id: 'request', status: 'pending', name: 'New request' }, category: catalog[2] }];
-    owner.history.data = [{ pick: { id: 'old', itemId: 'item', status: 'replaced' }, item: { id: 'item', name: 'Old pick' }, category: catalog[2] }]; owner.view.render();
-    assert.doesNotMatch(owner.view.text(), /활동 기록|등록 요청|New request|원픽 활동|기록으로 남아요/); assert.equal(owner.view.all('ProfilePickCard').length, 0);
-    flags.profileItemRequests = true; owner.view.render(); assert.match(owner.view.text(), /활동 기록/); assert.match(owner.view.text(), /New request/);
-    flags.profilePickHistory = true; flags.profileSocialLinks = true; owner.view.render();
-    assert.match(owner.view.text(), /원픽 활동/); assert.equal(owner.view.all('ProfilePickCard').length, 1); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
+    owner.view.find('Button', (p) => p.label === '프로필 편집').onPress(); owner.view.render();
+    assert.equal(owner.view.all('ProfileSocialLinks').length, 0);
+    flags.profileSocialLinks = true; owner.view.render(); assert.equal(owner.view.all('ProfileSocialLinks').length, 1);
     flags.profileSocialLinks = false; const visitor = profile(true); assert.equal(visitor.view.all('ProfileSocialLinks').length, 0);
     flags.profileSocialLinks = true; visitor.view.render(); assert.equal(visitor.view.all('ProfileSocialLinks').length, 1);
   });
@@ -274,10 +271,10 @@ async function main() {
     assert.equal(view.all('FollowButton').length, 1); assert.equal(view.all('ReportAction').length, 1); assert.equal(view.all('BlockUserButton').length, 1);
     flags.profileFollow = false; view.render(); assert.equal(view.all('FollowButton').length, 0, 'Profile follow can still be independently disabled');
     flags.profileFollow = true; view.render(); assert.equal(view.all('FollowButton').length, 1);
-    view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
+    view.find('Pressable', (p) => p.accessibilityLabel === '프로필 공유').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment, null);
     auth.user = null; view.render(); assert.doesNotMatch(view.text(), /AI 취향평가도/); assert.match(view.text(), /내 원픽 만들기/);
     flags.profileAi = true; view.render(); assert.match(view.text(), /AI 취향평가도/);
-    view.find('Button', (p) => p.label === '프로필 공유하기').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment.text, 'cached AI comment');
+    view.find('Pressable', (p) => p.accessibilityLabel === '프로필 공유').onPress(); await new Promise(setImmediate); assert.equal(calls.share.aiComment.text, 'cached AI comment');
   });
   await test('Actual AI comment hook disables automatic requests without a profile ID', () => {
     let calls = 0;
