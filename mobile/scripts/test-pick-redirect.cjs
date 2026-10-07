@@ -41,7 +41,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../s
     ? require('./design-tokens.cjs')
     : name === 'react' || name === 'react/jsx-runtime'
       ? require(name)
-      : imports[name],
+      : name === '@/components/ui'
+        ? { ...require('./icon-stub.cjs'), ...(imports[name] ?? {}) }
+        : imports[name],
 });
 
 const render = () => renderToStaticMarkup(React.createElement(exportsObject.default));

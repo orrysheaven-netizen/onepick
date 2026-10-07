@@ -31,7 +31,7 @@ assert.match(home, /moreText: \{ \.\.\.OnePickType\.caption, color: OnePick\.tex
 
 const header = src('components/home-header.tsx');
 assert.match(header, /themeText: \{ \.\.\.OnePickType\.title,/, 'Theme Selector 303:418: Title 20');
-assert.match(header, /<Image source=\{chevronIcon\}/, 'Theme Selector: 14px chevron icon, not a ▾ glyph');
+assert.match(header, /<Icon name="chevronDown" size="sm"/, 'Theme Selector: shared 16px chevron icon (icon/size/sm), not a ▾ glyph');
 assert.doesNotMatch(header, /맛집 ▾/);
 assert.match(header, /paddingHorizontal: 20, paddingVertical: 24, borderRadius: OnePickRadius\.lg/, 'Popups 656:3474: padding 20×24, radius 16');
 assert.match(header, /inputRow: \{ height: 52,[^}]*backgroundColor: OnePick\.bgSubtle \}/, 'Input 285:261: 52 high, bg/subtle');
@@ -39,8 +39,10 @@ assert.match(header, /result: \{ minHeight: 76,/, 'Menu Row 508:2345: 76 high');
 assert.match(header, /thumb: \{ width: 56, height: 56, borderRadius: OnePickRadius\.md \}/, 'Menu Row: 56px photo');
 assert.match(header, /closeButton: \{ height: 44,/, 'Button / 닫기 656:3479: 44 high');
 assert.match(header, /placeholder="예: 라멘"/, 'Search 30-1B input placeholder');
-assert.ok(icon('search.svg').includes('M15.5 15.5L20 20'), 'Search icon 656:3466');
-assert.ok(icon('chevron-down.svg').includes('M3.5 5.25L7 8.75L10.5 5.25'), 'Chevron 303:420');
-assert.ok(icon('clear.svg').includes('M6.2 6.2L11.8 11.8M11.8 6.2L6.2 11.8'), 'Input clear 514:2856');
+// Icons come from the shared OnePick / Icon set (Foundations): search 24, chevron 16, clear 16.
+assert.match(header, /<Icon name="search" color=\{OnePick\.textPrimary\} \/>/, 'Search icon 656:3466 at icon/size/md');
+assert.match(header, /<Icon name="clear" size="sm"/, 'Input clear 514:2856 at icon/size/sm');
+assert.ok(icon('ui/search.svg').includes('M15.5 15.5 20 20'), 'Search icon 656:3466 geometry');
+assert.ok(icon('ui/clear.svg').includes('m8.5 8.5 7 7'), 'Input clear 514:2856 geometry');
 
 console.log('Home Figma parity checks passed: feed card, store badge, flag position, menu tile, sections, theme selector, popups and icons.');

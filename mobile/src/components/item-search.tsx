@@ -8,6 +8,7 @@ import { useDishChannels } from '@/hooks/useDishChannels';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type ItemSearchProps = {
   categoryId?: string;
@@ -187,7 +188,7 @@ export function ItemSearch({
               </Text> : null}
               <Text style={styles.description}>상세 보기</Text>
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
           </Pressable>
         </View>)}
         {showExternalActionsWithResults && query.data.length > 0 && externalActions.length > 0 ? <View style={styles.moreSearch}>
@@ -230,6 +231,6 @@ const styles = StyleSheet.create({
   itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   moreSearch: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
   moreSearchTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
-  arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 10 },
+  arrow: { marginLeft: 10  },
   pressed: { opacity: 0.7 },
 });

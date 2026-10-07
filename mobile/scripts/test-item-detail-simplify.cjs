@@ -122,7 +122,7 @@ assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineRevi
 // Share actions: icon per card, 신고 only behind ⋯ and never on my own Pick.
 const shareSource = source('components/pick-share-actions.tsx');
 assert.match(shareSource, /accessibilityLabel="이 원픽 공유"/);
-assert.match(shareSource, /<Text style=\{styles\.more\}>⋯<\/Text>/);
+assert.match(shareSource, /<Icon name="more" color=\{OnePick\.textSecondary\} \/>/, '더보기 is the shared 24px More icon, not a ⋯ glyph');
 assert.match(shareSource, /menuOpen && canReport && user \? <View style=\{styles\.menu\}>\s*<ReportAction/);
 assert.match(shareSource, /user\.id !== props\.authorUserId/);
 
