@@ -47,7 +47,7 @@ export function BlockUserButton({
 
   return (
     <View style={styles.container}>
-      {confirming ? <Text style={styles.confirm}>@{username}님을 차단할까요? 서로의 공개 콘텐츠가 보이지 않게 됩니다.</Text> : null}
+      {confirming ? <Text style={styles.confirm}>@{username}님을 차단할까요? 서로의 공개 콘텐츠가 보이지 않게 돼요.</Text> : null}
       {blockUser.isError ? <Text style={styles.error}>{errorText(blockUser.error)}</Text> : null}
       <View style={styles.row}>
         <Pressable
