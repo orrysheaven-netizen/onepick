@@ -69,8 +69,8 @@ assert.match(publicSource, /useSwipeBackHandler\(swipeBack, \{ confirmUnsaved: f
 const rootLayout = read('src/app/_layout.tsx');
 const webEdge = read('src/components/swipe-back-edge.web.tsx');
 const nativeEdge = read('src/components/swipe-back-edge.tsx');
-assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 32/,
-  'Web tracks the full 32px swipe start zone without covering header controls');
+assert.match(webEdge, /WEB_EDGE_HIT_WIDTH = 20/,
+  'Web limits capture to the iOS system-edge width to reduce horizontal-scroll conflicts');
 assert.match(webEdge, /document\.addEventListener\('touchstart',[\s\S]*passive: false[\s\S]*touchmove[\s\S]*passive: false/,
   'iOS web claims horizontal edge movement with a non-passive touchmove listener');
 assert.match(webEdge, /pointerEvents="none"[\s\S]*width: 0/,
@@ -89,6 +89,10 @@ assert.match(webEdge, /reserveSystemEdge && touch\.clientX <= IOS_SYSTEM_EDGE_WI
 assert.match(read('src/app/pick/new.tsx'),
   /reserveSystemEdge = step !== 1 && step !== 6[\s\S]*reserveSystemEdge \}\)/,
   'Registration reserves Safari system edge only for active internal steps');
+assert.match(webEdge, /shouldReplayTap[\s\S]*tapTarget instanceof Element[\s\S]*button\?\.click\(\)/,
+  'A short tap cancelled at the reserved iOS edge replays the original interactive control');
+assert.match(webEdge, /endedMovingRight[\s\S]*claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight/,
+  'Swipe-back only completes when the release is still moving right');
 assert.match(webEdge, /claimed && dx >= SWIPE_RELEASE_DX/);
 assert.match(webEdge, /confirmUnsaved && hasUnsavedTypedText\(\) && !window\.confirm\(UNSAVED_SWIPE_MESSAGE\)/,
   'Leaving with typed text asks first (user decision 2026-10-06)');
