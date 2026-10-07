@@ -12,6 +12,7 @@ import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { itemTitle } from '@/lib/items/itemTitle';
 import { observabilityService } from '@/services';
+import { Icon } from '@/components/ui';
 
 type Params = {
   pickId?: string;
@@ -113,7 +114,7 @@ export default function PickDetailScreen() {
     <SafeAreaView style={styles.page} edges={['top']}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="이전 화면" onPress={goBack} style={styles.headerSide}>
-          <Text style={styles.back}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{title}</Text>
         <View style={styles.headerSide} />
@@ -176,7 +177,6 @@ const styles = StyleSheet.create({
     borderBottomColor: OnePick.borderDefault,
   },
   headerSide: { width: 48, minHeight: 44, justifyContent: 'center' },
-  back: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },

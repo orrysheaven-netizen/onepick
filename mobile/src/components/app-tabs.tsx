@@ -4,6 +4,10 @@ import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotificationCount } from '@/hooks/useNotifications';
 
+// NativeTabs is the deliberate tab-bar geometry exception to OnePick / Icon.
+// iOS/Android keep SF Symbols / Material Symbols drawn by the OS; semantics,
+// labels and active-state roles must stay aligned with the Figma/Web tab set.
+
 export default function AppTabs() {
   const router = useRouter();
   const auth = useAuthSession();

@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
+import { BrandMark, Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useApplyItemCategory, useItemCategorySuggestions, useSetItemCategoryHint } from '@/hooks/useItemCategoryAi';
@@ -373,7 +373,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={submitting} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
-          <Text style={styles.back}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <View style={styles.markRow}><BrandMark size="sm" /><Text style={styles.markLabel}>새로운 원픽의 시작</Text></View>
         <Text style={styles.title}>{isOnlineRequest ? '온라인 판매처 등록 요청' : '원픽 등록'}</Text>
@@ -470,7 +470,6 @@ const styles = StyleSheet.create({
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   center: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   backButton: { width: 44, minHeight: 44, justifyContent: 'center', marginLeft: -8, marginTop: 4, paddingLeft: 8 },
-  back: { color: OnePick.text, fontSize: 36, lineHeight: 42 },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   label: { color: OnePick.text, fontSize: 15, lineHeight: 22, fontWeight: '700', marginTop: 24, marginBottom: 8 },

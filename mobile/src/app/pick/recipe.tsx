@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, Chip, StateCard } from '@/components/ui';
+import { Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -214,7 +214,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 레시피 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 레시피 영상의 YouTube 링크를 붙여넣고, 어떤 요리의 레시피인지 골라주세요. 요리마다 오프라인·온라인·레시피 원픽을 하나씩 둘 수 있어요.</Text>
       <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거해요.</Text>
@@ -325,7 +325,6 @@ const styles = StyleSheet.create({
   gate: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   centered: { alignSelf: 'center' },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomePickRow } from '@/components/home-pick-row';
-import { StateCard } from '@/components/ui';
+import { Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useFullPickFeed } from '@/hooks/useHomeData';
@@ -41,7 +41,7 @@ export default function FullFeedScreen() {
         ListHeaderComponent={<View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Text style={styles.backText}>‹</Text>
+            <Icon name="back" />
           </Pressable>
           <Text accessibilityRole="header" style={styles.title}>사람들의 원픽</Text>
         </View>}
@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, marginBottom: OnePickSpace.sm },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
   gap: { height: 12 },
   pageLoading: { padding: OnePickSpace.xl },

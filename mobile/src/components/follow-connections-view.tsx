@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FollowButton } from '@/components/follow-button';
-import { Avatar, StateCard } from '@/components/ui';
+import { Avatar, Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useFollowConnections, usePublicFollowCounts } from '@/hooks/useFollow';
 import type { FollowConnection, FollowDirection } from '@/types/domain/safety';
@@ -89,7 +89,7 @@ export function FollowConnectionsView({
                 accessibilityLabel="이전 화면"
                 onPress={onBack}
                 style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-                <Text style={styles.backText}>‹</Text>
+                <Icon name="back" />
               </Pressable>
             ) : null}
           </View>
@@ -113,7 +113,7 @@ export function FollowConnectionsView({
               accessibilityLabel="이전 화면"
               onPress={onBack}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-              <Text style={styles.backText}>‹</Text>
+              <Icon name="back" />
             </Pressable>
           ) : null}
         </View>
@@ -213,7 +213,6 @@ const styles = StyleSheet.create({
   },
   headerSide: { width: 44, minHeight: 44, justifyContent: 'center' },
   backButton: { width: 44, minHeight: 44, alignItems: 'flex-start', justifyContent: 'center' },
-  backText: { ...OnePickType.title, color: OnePick.textPrimary },
   owner: { ...OnePickType.headline, color: OnePick.textPrimary, flex: 1, textAlign: 'center' },
   tabs: {
     flexDirection: 'row',

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
+import { Button, Chip, Icon, SectionHeader, StateCard } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,7 +129,7 @@ export default function ExploreScreen() {
           {scope.showChips ? <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
-            {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
+            {searchOpen ? <Icon name="close" color={OnePick.actionPrimary} /> : <Icon name="search" color={OnePick.textPrimary} />}
           </Pressable> : null}
         </View>
         {scope.showChips ? <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text> : null}
@@ -148,7 +148,7 @@ export default function ExploreScreen() {
               value={searchText} onChangeText={setSearchText} style={styles.searchInput} />
             {searchText.length ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')}
               style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}>
-              <Text style={styles.clearText}>×</Text>
+              <Icon name="clear" size="sm" color={OnePick.textTertiary} />
             </Pressable> : null}
           </View> : <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
             initialQuery={incomingQuery} showExternalActionsWithResults
@@ -220,7 +220,7 @@ export default function ExploreScreen() {
                 <Text style={styles.menuName}>{category.name}</Text>
                 <Text style={styles.menuHint}>{count >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${count}` : '원픽을 모으고 있어요.'}</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.menuArrow} />
             </Pressable>)}
           </View>
           {!visibleMenus.length ? <StateCard title="아직 공개된 메뉴가 없어요." text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
@@ -242,7 +242,7 @@ export default function ExploreScreen() {
                 <Text style={styles.rankName}>{item.name}</Text>
                 <Text style={styles.recentCategory}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
             </Pressable>
           </View>)}
           {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽이 있는 매장이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
@@ -282,7 +282,7 @@ export default function ExploreScreen() {
                 {homeChannelLabel(item.channels) ? <Text style={styles.rankCount}>{homeChannelLabel(item.channels)}</Text> : null}
                 {showRankingDetail ? <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text> : null}
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
             </Pressable>
           </View>)}
           {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
@@ -304,15 +304,10 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: OnePickSpace.md },
   searchButton: { width: 44, height: 44, borderRadius: OnePickRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderDefault },
   searchButtonActive: { backgroundColor: OnePick.bgMuted, borderColor: OnePick.borderStrong },
-  magnifier: { width: 24, height: 24 },
-  magnifierRing: { position: 'absolute', width: 16, height: 16, borderWidth: 2, borderColor: OnePick.textPrimary, borderRadius: OnePickRadius.sm, top: 1, left: 1 },
-  magnifierHandle: { position: 'absolute', width: 10, height: 2, borderRadius: 1, backgroundColor: OnePick.textPrimary, transform: [{ rotate: '45deg' }], top: 18, left: 14 },
-  closeSearch: { ...OnePickType.title, color: OnePick.actionPrimary },
   searchPanel: { marginTop: OnePickSpace.lg, gap: OnePickSpace.sm },
   searchBox: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: OnePickRadius.md, borderWidth: 1, borderColor: OnePick.borderDefault, backgroundColor: OnePick.bgDefault, paddingLeft: OnePickSpace.md },
   searchInput: { ...OnePickType.body, flex: 1, minHeight: 46, color: OnePick.textPrimary },
   clearButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  clearText: { ...OnePickType.title, color: OnePick.textTertiary },
   searchScope: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   searchHint: { ...OnePickType.caption, color: OnePick.textSecondary },
   subtitle: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
@@ -333,7 +328,7 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, minWidth: 0, gap: 2 },
   menuName: { ...OnePickType.headline, color: OnePick.textPrimary },
   menuHint: { ...OnePickType.caption, color: OnePick.textSecondary },
-  menuArrow: { ...OnePickType.title, color: OnePick.textTertiary, marginLeft: OnePickSpace.xs },
+  menuArrow: { marginLeft: OnePickSpace.xs  },
   rankingSection: { marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg },
   rankingLoading: { marginVertical: OnePickSpace.xl },
   rankCard: { flexDirection: 'row', alignItems: 'center', padding: OnePickSpace.md, marginBottom: OnePickSpace.sm, borderRadius: OnePickRadius.lg, borderWidth: 1, borderColor: OnePick.borderDefault, backgroundColor: OnePick.bgDefault },
@@ -349,7 +344,7 @@ const styles = StyleSheet.create({
   rankingFootnote: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: 2 },
   rankingLinkRow: { alignItems: 'flex-end', marginTop: OnePickSpace.xs },
   sectionHeader: { marginBottom: OnePickSpace.lg },
-  arrow: { ...OnePickType.title, color: OnePick.textTertiary, marginLeft: OnePickSpace.xs },
+  arrow: { marginLeft: OnePickSpace.xs  },
   stateText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', marginTop: OnePickSpace.sm },
   refreshError: { ...OnePickType.body, alignSelf: 'stretch', color: OnePick.textDanger },
   pressed: { opacity: 0.7 },

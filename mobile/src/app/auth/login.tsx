@@ -11,6 +11,7 @@ import { observabilityService } from '@/services';
 import { OnePickBrand } from '@/components/onepick-brand';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
+import { Icon } from '@/components/ui';
 
 const PROVIDER_LABEL: Record<SocialAuthProvider, string> = {
   kakao: '카카오',
@@ -61,7 +62,7 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기"
           onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         <View style={styles.brand}><OnePickBrand /></View>
@@ -103,7 +104,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
   content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter },
   backButton: { width: 44, height: 56, justifyContent: 'center' },
-  backText: { color: OnePick.textPrimary, fontSize: 28, lineHeight: 30 },
   brand: { marginTop: 10 },
   title: { ...OnePickType.pageTitle, color: OnePick.textPrimary, marginTop: 24 },
   providerStack: { gap: OnePickSpace.md, marginTop: OnePickSpace.xxl },

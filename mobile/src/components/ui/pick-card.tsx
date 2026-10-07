@@ -6,6 +6,7 @@ import { OnePick, OnePickRadius, OnePickType } from '@/constants/onepick';
 
 import { Avatar } from './avatar';
 import { PRESSED_OPACITY } from './touch';
+import { Icon } from './icon';
 
 type Props = {
   /** Short channel badge shown before the provider, e.g. 매장 / 온라인 / 레시피. */
@@ -73,7 +74,7 @@ export function PickCard({
                   onPress={(event) => { event?.stopPropagation?.(); onPressProvider(); }}
                   style={({ pressed }) => [styles.providerLink, pressed && styles.pressed]}>
                   <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text>
-                  <Text style={styles.providerArrow}>›</Text>
+                  <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
                 </Pressable>
               : <Text numberOfLines={1} style={menuContext ? styles.providerNameMenuContext : styles.providerName}>{providerName}</Text>) : null}
           </View> : null}
@@ -104,7 +105,6 @@ const styles = StyleSheet.create({
   providerLink: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
   providerName: { ...OnePickType.bodyMedium, color: OnePick.text, flexShrink: 1 },
   providerNameMenuContext: { ...OnePickType.headline, color: OnePick.text, flexShrink: 1 },
-  providerArrow: { color: OnePick.hint, fontSize: 16, lineHeight: 18 },
   itemName: { ...OnePickType.headline, color: OnePick.text },
   review: { ...OnePickType.body, color: OnePick.text },
   fallback: { ...OnePickType.caption, color: OnePick.muted },
