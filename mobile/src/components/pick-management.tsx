@@ -139,7 +139,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
         </>
       ) : mode === 'remove' ? (
         <>
-          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남습니다. 해제하면 24시간 동안 같은 원픽을 다시 고를 수 없어요.</Text>
+          <Text style={styles.description}>{categoryName}의 현재 원픽 선택을 해제할까요? 한줄평과 기존 댓글은 남아요. 해제하면 24시간 동안 같은 원픽을 다시 고를 수 없어요.</Text>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => void confirmRemoval()}
             style={[styles.button, styles.removeButton, isBusy && styles.disabled]}>
             {isBusy ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.buttonText}>선택 해제하기</Text>}
