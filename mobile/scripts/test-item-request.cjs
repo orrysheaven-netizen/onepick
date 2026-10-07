@@ -210,11 +210,11 @@ async function main() {
   assert.equal(destination.params.itemId, 'available-ramen');
 
   state = []; render();
-  press('직접 사진 선택'); await settle(); render();
+  press('사진 고르기'); await settle(); render();
   assert.equal(button('등록하기').disabled, false, 'A chosen photo can be sent without a separate confirmation step');
   assert.doesNotMatch(render(), /이 제품의 사진이 맞으며|체크해주세요/, 'No consent checkbox is rendered');
   chosenPhoto = null;
-  press('사진 바꾸기'); await settle(); render();
+  press('다른 사진 고르기'); await settle(); render();
   button('사진 빼기');
   assert.equal(button('등록하기').disabled, false, 'Cancelling the picker keeps the chosen photo');
   nameInput().onChangeText('사진 있는 라면'); render();

@@ -224,10 +224,10 @@ async function main() {
     assert.match(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.view.button('댓글 삭제 확인 닫기').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.view.button('내 댓글 삭제').onPress(); c.view.render({ pickId: 'pick' });
-    c.removal.fail = true; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    c.removal.fail = true; c.view.button('댓글 삭제하기').onPress(); await flush();
     assert.deepEqual(c.deletes, ['mine']);
     assert.match(c.view.render({ pickId: 'pick' }), /댓글을 삭제하지 못했어요/, 'A failed delete keeps the confirmation and says so');
-    c.removal.fail = false; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    c.removal.fail = false; c.view.button('댓글 삭제하기').onPress(); await flush();
     assert.deepEqual(c.deletes, ['mine', 'mine']);
     assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.auth.user = null; c.view.render({ pickId: 'pick' });
