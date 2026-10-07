@@ -4,7 +4,7 @@ tracking_tag_only: Changes-Decision
 contracts:
   - id: UI-BOTTOM-001
     status: locked
-    statement: "Web bottom navigation uses 56px content + 8px top padding + max(device bottom inset, 34px); reference height is 98px when inset <= 34px, and the divider must not add layout height."
+    statement: "Web bottom navigation uses the approved floating five-tab layout: 16px horizontal gutter, 64px bar height, 24px radius, 8px gap above max(device bottom inset, 34px), and at least 8px clear space between scroll content and the floating bar; every tab keeps a minimum 44x44px touch target."
     executable_checks:
       - mobile/scripts/test-brand-controls.cjs
   - id: UI-BG-001
