@@ -60,7 +60,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         <div id="search-dialog" hidden>
           <h2>어떤 메뉴를 찾으세요?</h2>
           <input aria-label="메뉴명">
-          <button onclick="window.searched=true">검색</button>
+          <button onclick="window.searched=true">검색하기</button>
           <button aria-label="라면 상세 보기" onclick="history.pushState({}, '', '/item/ramen')">라면</button>
         </div>`);
       await api.openHomeSearch(page, timeout);
