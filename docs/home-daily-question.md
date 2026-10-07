@@ -12,4 +12,4 @@
 
 배포 의존성: `20261007232019_daily_random_home_question.sql`. 독립 DB 리뷰와 전체 DB 검사 후 사용자 승인으로 운영 적용합니다. 닉네임·질문 이미지와는 별도 계약입니다.
 
-검증 상태: 실제 `category_is_open_leaf`와 `category_is_food` 함수 정의를 사용한 격리 PostgreSQL 실행에서 비음식 제외, 상위 음식 분류 숨김 시 null, 단일 후보 반환, 비회원·회원·세션 시간대 간 동일 결과를 확인했습니다. `125_home_daily_random_question.sql`에는 선택 메뉴 숨김·음식 루트 숨김·복구 검사를 추가했습니다. 격리 실행은 전체 Supabase migration/권한/trigger를 포함한 pgTAP 검사를 대체하지 않으며, 전체 DB CI와 독립 리뷰는 아직 대기 중입니다.
+검증 상태: 실제 `category_is_open_leaf`와 `category_is_food` 함수 정의를 사용한 격리 PostgreSQL 실행에서 비음식 제외, 상위 음식 분류 숨김 시 null, 단일 후보 반환, 비회원·회원·세션 시간대 간 동일 결과를 확인했습니다. `125_home_daily_random_question.sql`에는 선택 메뉴 숨김·음식 루트 숨김·복구 검사를 추가했습니다. 격리 실행에 이어, PR #825의 head `9a684ba278dcfab88a10a1c7647b2be485de1e29`에서 전체 Supabase DB CI가 통과했습니다(129 files / 979 tests, [run 37703463302](https://github.com/orrysheaven-netizen/onepick/actions/runs/37703463302)). [Claude 독립 DB 리뷰](https://github.com/orrysheaven-netizen/onepick/pull/825#pullrequestreview-5449753995)는 High 0 / Medium 0 / Low 2로 완료됐습니다. Low 1인 검증 문서 상태를 이 변경으로 갱신하며, 미사용 관리자 설정 권한·트리거 정리(Low 2)는 #827에서 추적합니다. 이후 문서만 변경된 커밋의 CI 결과는 PR에서 별도로 확인합니다. main 병합과 운영 DB 적용은 아직 수행하지 않았으며 사용자 승인이 필요합니다.
