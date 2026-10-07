@@ -1,4 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { ImageStyle, StyleProp } from 'react-native';
 
 import type { IconName } from './icon-paths';
 
@@ -14,5 +14,5 @@ export type IconProps = {
   color?: string;
   /** Fill closed shapes with `color` as well (active Home tab). */
   filled?: boolean;
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<ImageStyle>;
 };
