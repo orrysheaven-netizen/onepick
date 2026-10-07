@@ -39,5 +39,22 @@ select is(public.home_daily_question(), (
   order by md5(to_char(current_timestamp at time zone 'Asia/Seoul', 'YYYY-MM-DD') || ':' || c.id::text), c.id limit 1
 ), 'Server date and category ID seed the daily draw');
 
+-- Exercise the real taxonomy helpers: hiding a leaf must immediately exclude it.
+savepoint visible_menu;
+update public.categories set is_visible = false
+where id = current_setting('test.daily_menu')::uuid;
+select ok(public.home_daily_question() is distinct from current_setting('test.daily_menu')::uuid,
+  'A hidden menu is no longer selected');
+rollback to savepoint visible_menu;
+
+-- No food branch is eligible when its root is hidden, even if leaves remain open.
+savepoint visible_food_root;
+update public.categories set is_visible = false where slug = 'food';
+select is(public.home_daily_question(), null::uuid,
+  'Hidden food ancestry produces no daily question');
+rollback to savepoint visible_food_root;
+select is(public.home_daily_question()::text, current_setting('test.daily_menu'),
+  'Restoring catalog visibility restores the same daily draw');
+
 select * from finish();
 rollback;

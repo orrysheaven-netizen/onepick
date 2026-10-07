@@ -11,3 +11,5 @@
 - 관리자의 질문 메뉴 선택·저장·숨김 편집기는 제거합니다. 기존 구버전 상품 집계 설정은 별개로 유지합니다.
 
 배포 의존성: `20261007232019_daily_random_home_question.sql`. 독립 DB 리뷰와 전체 DB 검사 후 사용자 승인으로 운영 적용합니다. 닉네임·질문 이미지와는 별도 계약입니다.
+
+검증 상태: 실제 `category_is_open_leaf`와 `category_is_food` 함수 정의를 사용한 격리 PostgreSQL 실행에서 비음식 제외, 상위 음식 분류 숨김 시 null, 단일 후보 반환, 비회원·회원·세션 시간대 간 동일 결과를 확인했습니다. `125_home_daily_random_question.sql`에는 선택 메뉴 숨김·음식 루트 숨김·복구 검사를 추가했습니다. 격리 실행은 전체 Supabase migration/권한/trigger를 포함한 pgTAP 검사를 대체하지 않으며, 전체 DB CI와 독립 리뷰는 아직 대기 중입니다.
