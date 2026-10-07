@@ -90,6 +90,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     'react-native': native,
     '@/components/ui': ui,
     '@/components/pick-photo': pickPhoto,
+    '@/components/ui/touch': { MIN_TOUCH_TARGET: 44 },
     '@/components/current-pick-flag': load('components/current-pick-flag.tsx', { 'react-native': native, 'expo-image': { Image: component('img') },
       '../../public/icons/flag-mine.svg': 'flag-mine.svg', '../../public/icons/flag-other.svg': 'flag-other.svg' }),
     '@/components/store-badge': { StoreBadge: () => React.createElement('b', null, '매장') },
@@ -145,6 +146,16 @@ assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the 
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
 assert.ok(refreshButton(), 'Successful web Home retains a manual refresh button');
+const storeAction = presses.find((p) => p.accessibilityLabel === '진라면 매장 보기');
+assert.ok(storeAction, 'Provider-backed Home card keeps store-profile navigation');
+assert.equal(storeAction.style({ pressed: false })[0].minHeight, 44, 'Store/provider action has a real 44px target');
+assert.equal(storeAction.style({ pressed: false })[0].minWidth, 44, 'Store/provider action has a real 44px target');
+const profileAction = presses.find((p) => p.accessibilityLabel === 'friend 프로필 보기');
+assert.ok(profileAction, 'Home card keeps nickname profile navigation');
+assert.equal(profileAction.style({ pressed: false })[0].minHeight, 44, 'Nickname action has a real 44px target');
+assert.equal(profileAction.style({ pressed: false })[0].minWidth, 44, 'Nickname action has a real 44px target');
+assert.equal(presses.find((p) => p.accessibilityLabel === '라면 상세 보기'), undefined,
+  'Legacy no-channel Home row keeps item name as its menu/title instead of promoting the category name');
 assert.doesNotMatch(allFirstPage, /최근 7일 많이 고른 메뉴/, 'Figma 30-1 drops the ranking title');
 assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under the tabs names the 7-day window');
 assert.match(allFirstPage, /원픽 7/);
