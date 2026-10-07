@@ -28,11 +28,6 @@ type ItemRow = Database['public']['Tables']['items']['Row'];
 type CommentRow = Database['public']['Tables']['comments']['Row'];
 type RpcErrorLike = { code?: string; message?: string } | null | undefined;
 
-// 42703: undefined column (Postgres); PGRST204: column not in the schema cache (PostgREST).
-function missingSettingColumn(error: RpcErrorLike) {
-  return error?.code === '42703' || error?.code === 'PGRST204';
-}
-
 function missingScopedHomeRpc(error: RpcErrorLike, rpc: 'home_following_feed_page' | 'home_editorial_items') {
   if (!error) return false;
   if (error.code === 'PGRST202' || error.code === '42883') return true;
@@ -337,17 +332,13 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 
   async getDailyQuestionCategoryId() {
-    // One public display setting row (same table as the showcase threshold). Read the whole row
-    // so the request never names a column that is not deployed yet: naming it would make every
-    // Home load fail with a 400 until the migration lands (PR #777 preview QA). A row without the
-    // field means "no question", not an error.
+    // Production has the daily-question migration, so keep the public read least-privilege:
+    // only the display column is selected. Schema drift is an error instead of silently widening
+    // this read to every future home_settings column.
     const { data, error } = await (this.countClient as any).from('home_settings')
-      .select('*').eq('id', true).maybeSingle();
-    if (error) {
-      if (missingSettingColumn(error)) return null;
-      throw mapSupabaseError(error);
-    }
-    const value = (data as Record<string, unknown> | null)?.daily_question_category_id;
+      .select('daily_question_category_id').eq('id', true).maybeSingle();
+    if (error) throw mapSupabaseError(error);
+    const value = (data as { daily_question_category_id?: unknown } | null)?.daily_question_category_id;
     return typeof value === 'string' && value ? value : null;
   }
 
