@@ -173,7 +173,7 @@ assert.ok(lowSampleMenu, 'Low-sample menu stays browsable');
 assert.doesNotMatch(textOf(lowSampleMenu.children), /원픽 2/, 'A menu below the 3-person exposure threshold hides its recent count');
 assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 원픽/);
 assert.match(allFirstPage, /서울집<\/span> 미역국/, 'Cards show the store (bold) then the menu (10-05)');
-press('인기 메뉴 더보기'); assert.equal(destination, '/popular', 'Popular 더보기 opens the ordered popular screen');
+assert.equal(presses.find((p) => p.accessibilityLabel === '인기 메뉴 더보기'), undefined, 'Unapproved /popular destination stays hidden');
 assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
 assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
 
@@ -307,7 +307,7 @@ assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|내 원픽/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports error refresh too');
 query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
-assert.match(render(), /아직 공개된 매장 원픽이 없어요/);
+assert.match(render(), /아직 공개된 매장 원픽이 없어요/, 'Signed-out Home empty state describes the state without a CTA');
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);
