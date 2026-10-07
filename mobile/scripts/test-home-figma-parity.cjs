@@ -51,6 +51,7 @@ assert.match(home, /sectionDivider: \{ height: 1, backgroundColor: '#E5E5EB', ma
 assert.match(home, /feedTitle: \{ \.\.\.OnePickType\.headline, color/, 'Section Header 303:422: Headline 16');
 assert.match(home, /moreText: \{ \.\.\.OnePickType\.caption, color: OnePick\.textSecondary \}/, 'Section Header: 더보기 Caption 12');
 assert.match(home, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGutter/, 'Home feed surface uses the dedicated 20px gutter');
+assert.match(home, /feedGap: \{ height: OnePickSpace\.xxl \}/, 'Home feed cards keep the Figma 24px vertical gap');
 assert.match(home, /fixedHeader: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, 'Header\/overlay surface keeps the global 16px gutter');
 const fullFeed = src('app/feed.tsx');
 assert.match(fullFeed, /content: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, '/feed keeps the global 16px gutter; Home-only 20px must not leak here');

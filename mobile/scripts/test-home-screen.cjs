@@ -149,7 +149,7 @@ assert.doesNotMatch(allFirstPage, /최근 7일 많이 고른 메뉴/, 'Figma 30-
 assert.match(allFirstPage, /최근 7일 원픽 많은 순/, 'The sort line under the tabs names the 7-day window');
 assert.match(allFirstPage, /원픽 7/);
 assert.doesNotMatch(allFirstPage, /사진없는메뉴/, 'Legacy ranking rows without a cover are never rendered as photo-less cards');
-const rankingButtons = presses.filter((p) => /^\S+ \S+ 보기$/.test(p.accessibilityLabel ?? '') && !/상세 보기|프로필 보기/.test(p.accessibilityLabel));
+const rankingButtons = presses.filter((p) => /^\S+ \S+ 보기$/.test(p.accessibilityLabel ?? '') && !/상세 보기|프로필 보기|매장 보기/.test(p.accessibilityLabel));
 assert.equal(rankingButtons.length, 6, 'Photo-less legacy rows are backfilled so Home still shows six ranking cards (2×3)');
 assert.doesNotMatch(allFirstPage, /초과메뉴/, 'Home caps the visible recent ranking at six cards');
 const rankingCardStyle = rankingButtons[0].style({ pressed: false })[0];
@@ -187,7 +187,10 @@ for (width of [390, 800, 1200]) {
   assert.equal(presses.find((p) => / (댓글 보기|공유)$/.test(p.accessibilityLabel ?? '')), undefined, 'Home rows drop comments/share (10-04)');
   assert.doesNotMatch(page, /새로 고름|9\/21|2시간/, 'Home keeps Pick ordering but never renders time/status text');
   assert.doesNotMatch(page, /명이 추천|추천 이유|MY PICK/, 'PR 1A does not invent aggregate counts before the feed contract provides them');
-  assert.ok(page.indexOf('진라면') < page.indexOf('라면') && page.indexOf('라면') < page.indexOf('friend'), 'Feed v3 orders store/menu before nickname');
+  const storePos = page.indexOf('>진라면</span>');
+  const menuPos = page.indexOf('>라면</span>');
+  const nicknamePos = page.indexOf('>friend</span>');
+  assert.ok(storePos >= 0 && menuPos > storePos && nicknamePos > menuPos, 'Feed v3 orders store, menu and nickname as separate text blocks');
   assert.doesNotMatch(page, />매장<\//, 'Feed Card v3 has no legacy channel badge');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');

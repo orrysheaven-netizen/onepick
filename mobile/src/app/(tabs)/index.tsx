@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   // 28-high header row; hitSlop keeps the 44 touch target.
   moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
   moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  feedGap: { height: 12 },
+  feedGap: { height: OnePickSpace.xxl },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
