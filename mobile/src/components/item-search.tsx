@@ -168,7 +168,7 @@ export function ItemSearch({
           <Text style={styles.description}>
             {externalActions.length
               ? 'OnePick에 아직 등록된 항목이 없어요. 아래 외부 DB에서 계속 찾아보세요.'
-              : '일치하는 항목이 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
+              : '검색 결과가 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
           </Text>
           {externalActions.map((action) => <Pressable key={action.key} accessibilityRole="button"
             accessibilityLabel={action.accessibilityLabel} onPress={action.run}

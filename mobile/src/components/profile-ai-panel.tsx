@@ -15,7 +15,7 @@ function progressCopy(status: ProfileAiStatus) {
     if (status.currentPickCount < status.minimumPicks) {
       return `${status.currentPickCount}/${status.minimumPicks} · 원픽 ${status.minimumPicks - status.currentPickCount}개만 더 고르면 AI 평가가 열려요.`;
     }
-    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가가 가능합니다.`;
+    return `${status.minimumPicks}/${status.minimumPicks}개를 채웠으니 AI 평가를 받을 수 있어요.`;
   }
   if (status.reviewPickCount < status.recommendedPicks) {
     if (status.currentPickCount < status.recommendedPicks) {
@@ -82,7 +82,7 @@ export function ProfileAiPanel({
       </Pressable>
       {generate.isError ? <Text accessibilityRole="alert" style={styles.error}>AI 평가를 만들지 못했어요. 잠시 후 다시 시도해주세요.</Text> : null}
     </View> : fallbackReadyForFirstReview ? <View style={styles.progressCard}>
-      <Text style={styles.progressText}>10/10개를 채웠으니 AI 평가가 가능합니다.</Text>
+      <Text style={styles.progressText}>10/10개를 채웠으니 AI 평가를 받을 수 있어요.</Text>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${Math.min(100, (Math.min(currentPickCount, 10) / 10) * 100)}%` }]} />
       </View>

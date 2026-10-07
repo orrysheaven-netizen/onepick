@@ -71,7 +71,7 @@ async function main() {
   assert.match(finder, /action: 'choose_place'/);
   assert.match(finder, /externalSource === 'onepick_place'/,
     'Place-enabled categories must not surface legacy name-only items as physical branches');
-  assert.match(finder, /장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않습니다/,
+  assert.match(finder, /장소가 확인되지 않은 이름만으로 맛집 원픽을 만들지는 않아요/,
     'No-result UX must not fall back to generic name-only restaurant registration');
   assert.match(finder, /아직 등록된 가게가 없어요/);
   assert.match(finder, /가게 등록 요청하기/);

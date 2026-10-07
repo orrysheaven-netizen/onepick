@@ -138,7 +138,7 @@ export default function LinkCategorySuggestionScreen() {
         </Pressable>
 
         <Text style={styles.title}>링크로 원픽 찾기</Text>
-        <Text style={styles.subtitle}>카테고리를 먼저 고르지 않아도 됩니다. 링크를 확인한 뒤 가능한 후보만 추천하고, 마지막 선택은 직접 합니다.</Text>
+        <Text style={styles.subtitle}>카테고리를 먼저 고르지 않아도 돼요. 링크를 확인한 뒤 가능한 후보만 추천하고, 마지막 선택은 직접 해요.</Text>
 
         <View style={styles.card}>
           <Text style={styles.label}>네이버 지도 · 공식몰 · 판매 링크</Text>
@@ -178,7 +178,7 @@ export default function LinkCategorySuggestionScreen() {
             <Text style={styles.error}>배달앱 링크는 매장 원픽이에요. 메뉴를 고른 뒤 매장에서 가게 이름으로 찾아주세요. 네이버 지도 링크를 붙여넣어도 돼요.</Text>
             <Button variant="secondary" label="메뉴 고르고 매장 찾기" onPress={() => router.push('/pick/find')} />
           </View> : null}
-          {!auth.user ? <Text style={styles.notice}>추천 요청 전에 로그인합니다. 입력한 링크와 이름은 로그인 후 그대로 이어집니다.</Text> : null}
+          {!auth.user ? <Text style={styles.notice}>추천 요청 전에 로그인해요. 입력한 링크와 이름은 로그인 후 그대로 이어져요.</Text> : null}
           <Button
             label={suggestion.isPending ? '확인 중…' : auth.user ? '링크 확인하고 추천받기' : '로그인하고 추천받기'}
             disabled={suggestion.isPending || !url.trim() || isDeliveryLink}
@@ -197,7 +197,7 @@ export default function LinkCategorySuggestionScreen() {
               <Text style={styles.muted}>{result.host}</Text>
 
               {result.kind === 'place' && result.places.length === 0 ? (
-                <Text style={styles.notice}>현재 OnePick 장소 데이터에서 같은 가게를 찾지 못했습니다. 이름을 확인해 다시 시도해주세요. 이름만으로 새 맛집을 만들지는 않습니다.</Text>
+                <Text style={styles.notice}>현재 OnePick 장소 데이터에서 같은 가게를 찾지 못했어요. 이름을 확인해 다시 시도해주세요. 이름만으로 새 맛집을 만들지는 않아요.</Text>
               ) : null}
 
               {result.kind === 'place' && result.places.map((place) => (
@@ -216,9 +216,9 @@ export default function LinkCategorySuggestionScreen() {
             {(result.kind === 'online' || selectedPlace) ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>추천 카테고리</Text>
-                <Text style={styles.muted}>추천은 확정이 아닙니다. 가장 맞는 항목을 직접 선택해주세요.</Text>
+                <Text style={styles.muted}>추천은 확정이 아니에요. 가장 맞는 항목을 직접 선택해주세요.</Text>
 
-                {result.suggestions.length === 0 ? <Text style={styles.notice}>자동 추천 후보가 없습니다. 아래에서 카테고리를 검색해주세요.</Text> : null}
+                {result.suggestions.length === 0 ? <Text style={styles.notice}>자동 추천 후보가 없어요. 아래에서 카테고리를 검색해주세요.</Text> : null}
 
                 <View style={styles.choiceWrap}>
                   {result.suggestions.map((category) => (
@@ -248,7 +248,7 @@ export default function LinkCategorySuggestionScreen() {
                       style={styles.input}
                     />
                     {categorySearch.trim().length >= 1 && categoryOptions.length === 0 ? (
-                      <Text style={styles.notice}>현재 등록된 카테고리에 없습니다. 새 카테고리 제안은 관리자 검수 흐름으로 남길 수 있도록 후속 단계에서 연결합니다.</Text>
+                      <Text style={styles.notice}>현재 등록된 카테고리에 없어요. 새 카테고리 제안은 관리자 검수 흐름으로 남길 수 있도록 후속 단계에서 연결해요.</Text>
                     ) : null}
                     {categoryOptions.map((category: LinkCategoryOption) => (
                       <Pressable
@@ -276,7 +276,7 @@ export default function LinkCategorySuggestionScreen() {
                       onPress={() => requestItem()}
                     />
                     <Text style={styles.muted}>
-                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류합니다.' : '이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
+                      {displayName ? '맞는 카테고리가 없으면 관리자가 검수하며 분류해요.' : '이름을 입력하고 다시 확인하면 카테고리 없이 요청할 수 있어요.'}
                     </Text>
                   </>
                 ) : null}

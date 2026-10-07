@@ -8,10 +8,10 @@ import { OnePick } from '@/constants/onepick';
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'BLOCK_SELF') return '내 계정은 차단할 수 없습니다.';
-    if (error.code === 'PROFILE_NOT_FOUND') return '사용자 정보를 찾을 수 없습니다.';
+    if (error.code === 'BLOCK_SELF') return '내 계정은 차단할 수 없어요.';
+    if (error.code === 'PROFILE_NOT_FOUND') return '사용자 정보를 찾을 수 없어요.';
   }
-  return '차단하지 못했습니다. 다시 시도해주세요.';
+  return '차단하지 못했어요. 다시 시도해주세요.';
 }
 
 export function BlockUserButton({
@@ -47,7 +47,7 @@ export function BlockUserButton({
 
   return (
     <View style={styles.container}>
-      {confirming ? <Text style={styles.confirm}>@{username}님을 차단할까요? 서로의 공개 콘텐츠가 보이지 않게 됩니다.</Text> : null}
+      {confirming ? <Text style={styles.confirm}>@{username}님을 차단할까요? 서로의 공개 콘텐츠가 보이지 않게 돼요.</Text> : null}
       {blockUser.isError ? <Text style={styles.error}>{errorText(blockUser.error)}</Text> : null}
       <View style={styles.row}>
         <Pressable

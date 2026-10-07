@@ -227,7 +227,7 @@ async function main() {
   render(); press('등록하기'); await settle();
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
-  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요/);
+  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요/);
   button('사진 제거'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
   press('사진 제거'); render();
   assert.equal(button('등록하기').disabled, false, 'Image-free requests remain supported');
@@ -261,7 +261,7 @@ async function main() {
   params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
   const onlinePage = render();
-  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
+  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장돼 관리자 검수에 사용돼요/,
     'The user sees which host will be attached before submitting');
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-online');
@@ -284,7 +284,7 @@ async function main() {
   assert.match(sellerPage, /https:\/\/로 시작하는 판매처 링크/);
   assert.equal(button('등록하기').disabled, true);
   sellerLink().onChangeText('https://smartstore.example/gomtang'); sellerPage = render();
-  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장되어/);
+  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장돼/);
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-seller');
   assert.equal(attachedPendingLink.url, 'https://smartstore.example/gomtang', 'The typed seller link is attached for admin review');
@@ -304,7 +304,7 @@ async function main() {
   categories.isError = true; params = { itemName: '새 텀블러' }; mutation.isError = false; mutation.error = null;
   outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 텀블러' } });
   const generalPage = render();
-  assert.match(generalPage, /이름만 등록하면 됩니다/);
+  assert.match(generalPage, /이름만 등록하면 돼요/);
   assert.doesNotMatch(generalPage, /카테고리를 불러오지 못했어요|선택한 종류를 확인하지 못했어요/);
   press('등록하기'); await settle();
   assert.equal(payload.itemName, '새 텀블러');
@@ -314,7 +314,7 @@ async function main() {
   assert.equal(suggestionItemId, 'general-pending');
   assert.equal(applyItemId, 'general-pending');
   assert.match(aiPage, /AI가 카테고리를 추천했어요/);
-  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않습니다/);
+  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않아요/);
   assert.equal(appliedCategoryId, undefined, 'AI suggestions never apply automatically');
 
   press('먹을것 › 라면'); render();

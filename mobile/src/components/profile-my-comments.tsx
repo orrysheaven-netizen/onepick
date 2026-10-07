@@ -23,7 +23,7 @@ export function ProfileMyComments({ query, emptyText }: { query: ReturnType<type
       action={{ label: '다시 불러오기', variant: 'secondary', disabled: query.isFetching, onPress: () => void query.refetch({ cancelRefetch: false }) }} />;
   }
   if (comments.length === 0) {
-    return <StateCard title="아직 남긴 댓글이 없어요." text={emptyText ?? '상세 화면의 한줄평에서 댓글 쓰기를 눌러 이야기를 나눠보세요.'} />;
+    return <StateCard title="아직 남긴 댓글이 없어요." text={emptyText ?? '한줄평에 댓글을 남기면 여기에 모여요.'} />;
   }
 
   const openReview = async (entry: MyCommentReadItem) => {

@@ -226,7 +226,7 @@ export default function ProfileScreen() {
   }
   if (isProfileMissing) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="프로필을 완성해주세요." text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다."
+      <StateCard title="프로필을 완성해주세요." text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 돼요."
         action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: { action: 'profile' } }) }} />
       <SignOutButton />
     </View></SafeAreaView>;
@@ -343,8 +343,8 @@ export default function ProfileScreen() {
               onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
             />)}
           </View> : (
-            <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요.' : '아직 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
+            <StateCard title={profileScope === 'food' ? '첫 원픽을 골라보세요.' : '다른 취향 원픽도 골라보세요.'}
+              text={profileScope === 'food' ? '지금 가장 좋아하는 메뉴 하나면 돼요.' : '영화, 게임, 책 같은 취향을 고르면 여기에 모여요.'}
               action={profileScope === 'food'
                 ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
                 : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
@@ -375,17 +375,17 @@ export default function ProfileScreen() {
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} /> : null}
 
           <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인해요.</Text></View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
+            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리해요.</Text></View><Text style={styles.adminChevron}>›</Text>
           </Pressable> : null}
         </View>
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>{showRequests ? '원픽 등록 요청 상태를 확인합니다.' : '원픽 활동을 확인합니다.'}</Text>
+          <Text style={styles.secondaryDescription}>{showRequests ? '원픽 등록 요청 상태를 확인해요.' : '원픽 활동을 확인해요.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>

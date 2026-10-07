@@ -283,7 +283,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요.' : '정보를 볼 수 없어요.'}
+          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청을 처리했어요.' : '정보를 볼 수 없어요.'}
             text={savedItem
               ? '서버의 처리 응답은 받았지만 최신 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
               : '연결 상태를 확인한 뒤 다시 시도해주세요. 없어졌거나 공개되지 않은 링크일 수도 있어요.'}
@@ -433,7 +433,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.sectionGap} />
 
-        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 현재 공개 범위에 없어요.</Text> : null}
+        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제됐거나 현재 공개 범위에 없어요.</Text> : null}
         {picks.length > 0 ? (
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
@@ -449,7 +449,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요." text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
+          <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>

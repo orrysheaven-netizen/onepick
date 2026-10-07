@@ -27,12 +27,12 @@ export function ExploreSearchResults({ query, menus, menuIds, onOpenMenu, onOpen
   const searching = search.isWaiting || (search.isPending && search.fetchStatus !== 'idle');
 
   if (search.isError) {
-    return <StateCard tone="danger" title="검색 결과를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해 주세요."
+    return <StateCard tone="danger" title="검색 결과를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
       action={{ label: '다시 검색하기', onPress: () => void search.refetch() }} />;
   }
   if (searching && !matchedMenus.length) return <ActivityIndicator accessibilityLabel="검색하고 있어요" style={styles.loading} />;
   if (!searching && !matchedMenus.length && !items.length) {
-    return <StateCard title={`‘${needle}’과 맞는 메뉴나 매장이 없어요.`} text="다른 이름으로 찾아보거나, 직접 원픽으로 등록할 수 있어요."
+    return <StateCard title={`‘${needle}’ 검색 결과가 없어요.`} text="다른 검색어로 찾아보거나 직접 원픽으로 등록할 수 있어요."
       action={{ label: '원픽 등록하기', variant: 'primary', onPress: onRegister }} />;
   }
 
