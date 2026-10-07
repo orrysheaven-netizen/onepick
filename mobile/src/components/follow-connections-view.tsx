@@ -43,6 +43,7 @@ export function FollowConnectionsView({
   const firstLoad = connections.isPending && items.length === 0;
   const firstError = connections.isError && items.length === 0;
   const unavailable = counts.data === null;
+  const isOwner = viewerUserId === profileId;
 
   const followerLabel = tabLabel('followers', counts.data?.followerCount);
   const followingLabel = tabLabel('following', counts.data?.followingCount);
