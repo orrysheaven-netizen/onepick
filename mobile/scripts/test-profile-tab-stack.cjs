@@ -87,12 +87,23 @@ assert.match(webEdge, /dx <= SWIPE_START_DX[\s\S]*claimed = true[\s\S]*event\.pr
 assert.match(webEdge, /reserveSystemEdge && touch\.clientX <= IOS_SYSTEM_EDGE_WIDTH[\s\S]*claimed = true[\s\S]*event\.preventDefault\(\)/,
   'Only active internal step flows reserve the iOS system edge on touchstart');
 assert.match(read('src/app/pick/new.tsx'),
-  /reserveSystemEdge = step !== 1 && step !== 6[\s\S]*reserveSystemEdge \}\)/,
-  'Registration reserves Safari system edge only for active internal steps');
+  /reserveSystemEdge = step !== 1 && step !== 6[\s\S]*reserveSystemEdge,[\s\S]*onGestureProgress: updateSwipeBack[\s\S]*onGestureCancel: cancelSwipeBack/,
+  'Registration reserves Safari system edge only for active internal steps and renders interactive progress');
 assert.match(webEdge, /shouldReplayTap[\s\S]*tapTarget instanceof Element[\s\S]*button\?\.click\(\)/,
   'A short tap cancelled at the reserved iOS edge replays the original interactive control');
 assert.match(webEdge, /endedMovingRight[\s\S]*claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight/,
   'Swipe-back only completes when the release is still moving right');
+assert.match(webEdge, /onGestureProgress\?\.\(Math\.max\(0, dx\)\)/,
+  'Claimed web swipes report live horizontal progress to the focused screen');
+assert.match(webEdge, /onGestureCancel\?\.\(\)/,
+  'Cancelled web swipes restore the focused screen');
+assert.match(read('src/app/pick/new.tsx'), /Animated\.timing\(swipeTranslateX,[\s\S]*duration: 140[\s\S]*goBack\(\)/,
+  'Successful registration swipes finish the visual transition before changing steps');
+assert.match(read('src/app/pick/new.tsx'), /fontSize: 16/,
+  'Registration inputs use a 16px minimum to avoid iPhone Safari focus zoom');
+assert.doesNotMatch(read('src/app/pick/new.tsx'),
+  /accessibilityLabel="매장 찾기 네이버 지도 링크"\s+autoFocus/,
+  'Naver link input never auto-focuses and zooms the iPhone viewport');
 assert.match(webEdge, /claimed && dx >= SWIPE_RELEASE_DX/);
 assert.match(webEdge, /confirmUnsaved && hasUnsavedTypedText\(\) && !window\.confirm\(UNSAVED_SWIPE_MESSAGE\)/,
   'Leaving with typed text asks first (user decision 2026-10-06)');
@@ -101,13 +112,13 @@ assert.match(webEdge, /'\/admin', '\/auth\/callback'/);
 assert.match(swipeLib, /SWIPE_EDGE_WIDTH = 32[\s\S]*SWIPE_START_DX = 12[\s\S]*SWIPE_MAX_START_DY = 24[\s\S]*SWIPE_RELEASE_DX = 72/);
 assert.match(swipeLib, /node\.type === 'stack' && index > 0/);
 assert.match(read('src/app/pick/new.tsx'),
-  /useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge \}\)/,
-  'Registration swipes one step back, like the header, only when it has an internal target');
+  /useSwipeBackHandler\(runSwipeBack, \{[\s\S]*confirmUnsaved: false,[\s\S]*hasInternalBackTarget,[\s\S]*reserveSystemEdge,[\s\S]*onGestureProgress: updateSwipeBack,[\s\S]*onGestureCancel: cancelSwipeBack/,
+  'Registration swipes one step back with an interactive transition only when it has an internal target');
 assert.match(webEdge,
   /registeredHandler = getSwipeBackHandler\(\)[\s\S]*hasInternalBackTarget = registeredHandler\?\.hasInternalBackTarget === true[\s\S]*\(hasInternalBackTarget \|\| hasRealBackTarget\)/,
   'Only a real internal back target can enable web swipe without a router pop target');
 assert.match(read('src/app/pick/new.tsx'),
-  /hasInternalBackTarget = step === 1 \? \(linkEntry \|\| requesting\) : step !== 6[\s\S]*useSwipeBackHandler\(goBack, \{ confirmUnsaved: false, hasInternalBackTarget, reserveSystemEdge \}\)/,
+  /hasInternalBackTarget = step === 1 \? \(linkEntry \|\| requesting\) : step !== 6[\s\S]*useSwipeBackHandler\(runSwipeBack, \{/,
   'Registration root 1\/4 and completion stay no-op while active steps and nested step-1 states can swipe back');
 assert.match(swipeLib,
   /previousInternalTarget[\s\S]*options\?\.hasInternalBackTarget[\s\S]*notify\(\)/,
