@@ -13,6 +13,7 @@ import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
 import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
