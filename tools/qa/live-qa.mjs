@@ -123,7 +123,14 @@ function instrument(page) {
     if (SUPABASE_HOST.test(host) && req.method() !== 'OPTIONS') {
       const t = req.timing();
       const ms = t.responseEnd > 0 ? Math.round(t.responseEnd) : null;
-      log.api.push({ method: req.method(), url, status, ms, ...splitTiming(t) });
+      const headers = await res?.allHeaders().catch(() => ({})) ?? {};
+      const validRequestId = (value) => typeof value === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(value) ? value : null;
+      const requestId = validRequestId(headers['sb-request-id']) ?? validRequestId(headers['x-request-id']);
+      const cfRay = typeof headers['cf-ray'] === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(headers['cf-ray']) ? headers['cf-ray'] : null;
+      const startedAt = Number.isFinite(t.startTime) && t.startTime > 0
+        ? new Date(t.startTime).toISOString()
+        : null;
+      log.api.push({ method: req.method(), url, status, ms, startedAt, requestId, cfRay, ...splitTiming(t) });
     }
   });
   return log;
