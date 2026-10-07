@@ -222,7 +222,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
               ) : null}
 
               {!compact && !commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
-                <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
+                <Text style={styles.emptyComments}>{canComment ? '첫 댓글을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
               {commentsQuery.data?.map((entry) => <View key={entry.comment.id}>

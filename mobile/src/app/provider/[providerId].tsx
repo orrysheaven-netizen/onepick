@@ -177,8 +177,8 @@ export default function ProviderProfileScreen() {
               </View>
               <Text style={styles.storeChevron}>›</Text>
             </Pressable>)}
-          </View> : <StateCard compact title="아직 공개된 원픽이 없어요."
-            text={query.data.kind === 'offline_branch' ? '이 매장에서 메뉴 원픽이 생기면 여기에 표시돼요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
+          </View> : <StateCard compact title={query.data.kind === 'offline_branch' ? '이 매장의 첫 원픽을 골라보세요.' : '아직 공개된 원픽이 없어요.'}
+            text={query.data.kind === 'offline_branch' ? '여기서 먹은 메뉴를 원픽으로 고르면 이 페이지에 모여요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
             action={query.data.kind === 'offline_branch' ? {
               label: '이곳에서 원픽 등록하기',
               variant: 'primary',

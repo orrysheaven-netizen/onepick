@@ -169,10 +169,10 @@ export function FollowConnectionsView({
           onEndReachedThreshold={0.6}
           ListEmptyComponent={
             <StateCard
-              title={direction === 'followers' ? '아직 팔로워가 없어요.' : '아직 팔로잉한 사람이 없어요.'}
+              title={direction === 'followers' ? '아직 팔로워가 없어요.' : isOwner ? '관심 있는 사람을 팔로우해보세요.' : '아직 팔로잉한 사람이 없어요.'}
               text={direction === 'followers'
                 ? `@${ownerUsername}님을 팔로우한 사람이 생기면 여기에 보여요.`
-                : `@${ownerUsername}님이 다른 사람을 팔로우하면 여기에 보여요.`}
+                : isOwner ? '팔로우한 사람이 여기에 모여요.' : `@${ownerUsername}님이 팔로우한 사람이 생기면 여기에 보여요.`}
             />
           }
           ListFooterComponent={

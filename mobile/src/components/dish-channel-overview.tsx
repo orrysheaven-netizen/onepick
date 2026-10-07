@@ -46,7 +46,7 @@ export function DishChannelOverview({ overview, onSelectItem, onRegister, visibl
               </Pressable>
             )) : (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>아직 {overview.categoryName} {label} 원픽이 없어요.</Text>
+                <Text style={styles.emptyText}>{onRegister ? `${overview.categoryName} ${label}의 첫 원픽을 골라보세요.` : `아직 ${overview.categoryName} ${label} 원픽이 없어요.`}</Text>
                 {onRegister ? <Pressable accessibilityRole="button" accessibilityLabel={`${overview.categoryName} ${label} 원픽 등록하기`}
                   onPress={() => onRegister(overview.categoryId, channel)} style={({ pressed }) => [styles.register, pressed && styles.pressed]}>
                   <Text style={styles.registerText}>첫 원픽 등록하기 ›</Text>
