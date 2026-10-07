@@ -616,7 +616,7 @@ export default function NewPickScreen() {
                 <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
                   value={entryLink} onChangeText={(value) => { setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
-                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
+                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textSecondary} />
                 {entryLink.trim() && !validEntryLink
                   ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
                   : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크의 매장 이름으로 같은 매장을 찾아드려요.</Text>}
@@ -654,7 +654,7 @@ export default function NewPickScreen() {
                       setQuery(value);
                     }}
                     value={storeSearchValue} returnKeyType="search" style={[styles.input, styles.inputWithClear]}
-                    placeholderTextColor={OnePick.textTertiary} placeholder="상호명을 입력해주세요." />
+                    placeholderTextColor={OnePick.textSecondary} placeholder="상호명을 입력해주세요." />
                   {storeSearchValue ? <Pressable accessibilityRole="button" accessibilityLabel="매장명 지우기"
                     onPress={() => { setPrefillDismissed(true); setStore(null); setQuery(''); }}
                     style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
@@ -706,12 +706,12 @@ export default function NewPickScreen() {
               {/* One input per screen (#593): the store name here, its Naver map link next. */}
               <FieldLabel label="상호명" />
               <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
-                placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textTertiary} />
+                placeholder="매장 이름 (지점명 포함)" placeholderTextColor={OnePick.textSecondary} />
               <Text style={styles.helper}>검색한 이름을 넣어뒀어요. 지점이 있으면 지점명까지 적어주세요.</Text>
             </View> : <View style={styles.fieldBlock}>
               <TextInput accessibilityLabel="네이버 지도 링크" autoCapitalize="none" keyboardType="url" maxLength={2048}
                 value={mapLink} onChangeText={(value) => setMapLink(extractNaverMapUrl(value) ?? value)} style={styles.input}
-                placeholder="https://naver.me/…" placeholderTextColor={OnePick.textTertiary} />
+                placeholder="https://naver.me/…" placeholderTextColor={OnePick.textSecondary} />
               {mapLink.trim() && !validMapLink
                 ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
                 : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크를 붙여넣으면 다음으로 넘어갈 수 있어요.</Text>}
@@ -761,7 +761,7 @@ export default function NewPickScreen() {
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
                   onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && !prefilledMenu) setAiMenuName(requestedMenu); }}
-                  returnKeyType="search" style={[styles.input, styles.inputWithClear]} placeholder="예: 미역국" placeholderTextColor={OnePick.textTertiary} />
+                  returnKeyType="search" style={[styles.input, styles.inputWithClear]} placeholder="예: 미역국" placeholderTextColor={OnePick.textSecondary} />
                 {menuQuery ? <Pressable accessibilityRole="button" accessibilityLabel="메뉴명 지우기"
                   onPress={() => {
                     setMenuPrefilled(false);
@@ -818,7 +818,7 @@ export default function NewPickScreen() {
               <FieldLabel label="카테고리" />
               <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라주세요.</Text>
               <TextInput accessibilityLabel="카테고리 검색" value={categoryQuery} onChangeText={setCategoryQuery}
-                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={OnePick.textTertiary} />
+                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={OnePick.textSecondary} />
               <View style={styles.chips}>
                 {manualMatches.map((option) => <FlowChip key={option.categoryId}
                   label={[option.groupName, option.name].filter(Boolean).join(' › ')}
@@ -893,7 +893,7 @@ export default function NewPickScreen() {
               <FieldLabel label="한줄평" />
               <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && step !== 6} value={review}
                 onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
-                placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={OnePick.textTertiary} />
+                placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={OnePick.textSecondary} />
             </View>
             <Text style={styles.counter}>{review.length} / 100자</Text>
             {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
