@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomePickRow } from '@/components/home-pick-row';
 import { Icon, StateCard } from '@/components/ui';
-import { OnePick, OnePickLayout, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useFullPickFeed } from '@/hooks/useHomeData';
 import { HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
@@ -62,7 +62,7 @@ export default function FullFeedScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickLayout.homeFeedGutter, paddingBottom: OnePickSpace.xxl },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, marginBottom: OnePickSpace.sm },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10 },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
