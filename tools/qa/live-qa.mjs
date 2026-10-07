@@ -123,7 +123,13 @@ function instrument(page) {
     if (SUPABASE_HOST.test(host) && req.method() !== 'OPTIONS') {
       const t = req.timing();
       const ms = t.responseEnd > 0 ? Math.round(t.responseEnd) : null;
-      log.api.push({ method: req.method(), url, status, ms, ...splitTiming(t) });
+      const headers = await res?.allHeaders().catch(() => ({})) ?? {};
+      const requestId = headers['x-request-id'] ?? null;
+      const cfRay = headers['cf-ray'] ?? null;
+      const startedAt = Number.isFinite(t.startTime) && t.startTime > 0
+        ? new Date(t.startTime).toISOString()
+        : null;
+      log.api.push({ method: req.method(), url, status, ms, startedAt, requestId, cfRay, ...splitTiming(t) });
     }
   });
   return log;
