@@ -3,9 +3,12 @@ import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  canPopFocusedStack, getSwipeBackHandler, hasUnsavedTypedText, SWIPE_MAX_START_DY,
-  SWIPE_RELEASE_DX, SWIPE_START_DX, UNSAVED_SWIPE_MESSAGE, useSwipeBackRegistryVersion,
+  canPopFocusedStack, getSwipeBackHandler, hasUnsavedTypedText,
+  UNSAVED_SWIPE_MESSAGE, useSwipeBackRegistryVersion,
 } from '@/lib/navigation/swipeBack';
+import {
+  beginWebSwipeGesture, endWebSwipeGesture, moveWebSwipeGesture, type WebSwipeGestureState,
+} from '@/lib/navigation/webSwipeGesture';
 
 // Track only the iOS system-edge zone (20px) at document level instead of covering it with a View.
 // This keeps the capture area narrow while preserving ordinary content interaction outside the edge.
@@ -37,18 +40,28 @@ export default function SwipeBackEdge() {
     if (!enabled || typeof document === 'undefined') return;
 
     let activeTouchId: number | null = null;
-    let startX = 0;
-    let startY = 0;
-    let lastX = 0;
-    let claimed = false;
-    let reservedSystemEdge = false;
+    let gesture: WebSwipeGestureState | null = null;
     let startTarget: EventTarget | null = null;
+    let scrollTarget: HTMLElement | null = null;
+    let startScrollTop = 0;
 
     const reset = () => {
       activeTouchId = null;
-      claimed = false;
-      reservedSystemEdge = false;
+      gesture = null;
       startTarget = null;
+      scrollTarget = null;
+      startScrollTop = 0;
+    };
+    const findScrollable = (target: EventTarget | null) => {
+      let element = target instanceof Element ? target : null;
+      while (element && element !== document.body) {
+        if (element instanceof HTMLElement) {
+          const style = window.getComputedStyle(element);
+          if (/(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight) return element;
+        }
+        element = element.parentElement;
+      }
+      return document.scrollingElement instanceof HTMLElement ? document.scrollingElement : null;
     };
     const cancelGesture = () => {
       getSwipeBackHandler()?.onGestureCancel?.();
@@ -67,53 +80,46 @@ export default function SwipeBackEdge() {
       const touch = event.touches.item(0);
       if (!touch || touch.clientX > WEB_EDGE_HIT_WIDTH) return;
       activeTouchId = touch.identifier;
-      startX = touch.clientX;
-      startY = touch.clientY;
-      lastX = touch.clientX;
       startTarget = event.target;
-      claimed = false;
-      reservedSystemEdge = false;
+      scrollTarget = findScrollable(event.target);
+      startScrollTop = scrollTarget?.scrollTop ?? 0;
+      const reserved = reserveSystemEdge && touch.clientX <= IOS_SYSTEM_EDGE_WIDTH;
+      gesture = beginWebSwipeGesture(touch.clientX, touch.clientY, reserved);
       // Safari can claim its native history gesture immediately at the extreme
-      // edge. Only active internal step flows reserve that system edge on touchstart.
-      if (reserveSystemEdge && touch.clientX <= IOS_SYSTEM_EDGE_WIDTH) {
-        claimed = true;
-        reservedSystemEdge = true;
-        event.preventDefault();
-      }
+      // edge. Active internal step flows reserve that lane on touchstart.
+      if (reserved) event.preventDefault();
     };
     const onTouchMove = (event: TouchEvent) => {
       const touch = activeTouch(event.touches);
       if (!touch) return;
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      if (!claimed) {
-        if (Math.abs(dy) >= SWIPE_MAX_START_DY || dx <= SWIPE_START_DX) return;
-        claimed = true;
-      }
-      // iOS Safari may otherwise turn this horizontal touch into browser history-back.
+      if (!gesture) return;
+      const move = moveWebSwipeGesture(gesture, touch.clientX, touch.clientY);
+      gesture = move.state;
+      if (move.kind === 'waiting') return;
       event.preventDefault();
-      lastX = touch.clientX;
-      getSwipeBackHandler()?.onGestureProgress?.(Math.max(0, dx));
+      if (move.kind === 'vertical') {
+        getSwipeBackHandler()?.onGestureCancel?.();
+        if (scrollTarget) scrollTarget.scrollTop = Math.max(0, startScrollTop - move.dy);
+        return;
+      }
+      getSwipeBackHandler()?.onGestureProgress?.(move.progress);
     };
     const onTouchEnd = (event: TouchEvent) => {
       const touch = activeTouch(event.changedTouches);
       if (!touch) return;
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      const endedMovingRight = touch.clientX >= lastX;
-      const shouldRun = claimed && dx >= SWIPE_RELEASE_DX && endedMovingRight;
-      const shouldReplayTap = reservedSystemEdge
-        && Math.abs(dx) <= SWIPE_START_DX
-        && Math.abs(dy) <= SWIPE_START_DX;
+      if (!gesture) return;
+      const end = endWebSwipeGesture(gesture, touch.clientX, touch.clientY);
       const tapTarget = startTarget;
       reset();
-      if (!shouldRun) getSwipeBackHandler()?.onGestureCancel?.();
-      if (shouldReplayTap && tapTarget instanceof Element) {
+      if (!end.complete) getSwipeBackHandler()?.onGestureCancel?.();
+      if (end.replayTap && tapTarget instanceof Element) {
+        const focusTarget = tapTarget.closest<HTMLElement>('input, textarea, select, [contenteditable="true"]');
+        if (focusTarget) { focusTarget.focus(); return; }
         const button = tapTarget.closest<HTMLElement>('button, a, [role="button"]');
         button?.click();
         return;
       }
-      if (!shouldRun) return;
+      if (!end.complete) return;
       const handler = getSwipeBackHandler();
       const confirmUnsaved = handler ? handler.confirmUnsaved : true;
       if (confirmUnsaved && hasUnsavedTypedText() && !window.confirm(UNSAVED_SWIPE_MESSAGE)) return;
