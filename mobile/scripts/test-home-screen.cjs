@@ -291,7 +291,7 @@ assert.match(render(), /진라면/);
 assert.doesNotMatch(render(), /비공개 확인 대기 원픽|내 원픽/);
 refreshButton().onPress(); assert.equal(queryRetries, 5, 'Public Home supports error refresh too');
 query.data = { ...cached, picks: [], currentPicks: [] }; query.isError = false;
-assert.match(render(), /아직 공개된 매장 원픽이 없어요/);
+assert.match(render(), /아직 공개된 매장 원픽이 없어요/, 'Signed-out Home empty state describes the state without a CTA');
 assert.doesNotMatch(render(), /명 이상/, 'No minimum pick count on the people feed');
 query.isError = false; query.isPending = true;
 assert.match(render(), /원픽을 불러오고 있어요/);

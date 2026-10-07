@@ -18,7 +18,7 @@ assert.match(results, /title=\{`메뉴 \$\{matchedMenus\.length\}`\}/);
 assert.match(results, /title=\{`매장 원픽 \$\{items\.length\}`\}/);
 assert.match(results, /'원픽을 모으고 있어요\.'/);
 assert.ok(results.includes('메뉴 이름과 일치하는 결과는 없어요. 매장 이름이 들어간 원픽만 보여드려요.'));
-assert.match(results, /title=\{`‘\$\{needle\}’과 맞는 메뉴나 매장이 없어요\.`\}/);
+assert.match(results, /title=\{`‘\$\{needle\}’ 검색 결과가 없어요\.`\}/);
 assert.match(results, /label: '원픽 등록하기'/);
 assert.match(repository, /async getSearchItemMeta\(itemIds: string\[\]\)/);
 assert.match(repository, /rpc\('search_item_pick_counts', \{ p_item_ids: ids \}\)/, 'one server aggregate for Pick counts');

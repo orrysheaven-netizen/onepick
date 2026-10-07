@@ -235,7 +235,7 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {!data.picks.length ? <StateCard title="아직 공개된 매장 원픽이 없어요." text="누군가 매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
+          {!data.picks.length ? <StateCard title={user ? '첫 원픽을 골라보세요.' : '아직 공개된 매장 원픽이 없어요.'} text="매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
             action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/new') } : undefined} /> : null}
         </> : null}
         </>}
