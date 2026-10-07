@@ -7,16 +7,11 @@ import { commentService } from '@/services';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { AppNotificationGroup } from '@/services/notificationService';
+import { objectParticle } from '@/lib/home/homeChannels';
 
 function formatNotificationTime(value: string) {
   const time = Date.parse(value);
   return Number.isFinite(time) ? new Date(time).toLocaleString('ko-KR') : '시간 정보 없음';
-}
-
-function subjectParticle(word: string) {
-  const code = word.charCodeAt(word.length - 1) - 0xac00;
-  if (code < 0 || code > 11171) return '이(가)';
-  return code % 28 ? '이' : '가';
 }
 
 function actorLabel(item: AppNotificationGroup) {
@@ -42,7 +37,7 @@ function describe(item: AppNotificationGroup) {
       return { sender, badge: '새 답글', message, label: `${sender}, ${message}` };
     }
     case 'followee_pick': {
-      const message = `${name}${subjectParticle(name)} 원픽이 됐어요.`;
+      const message = `${name}${objectParticle(name)} 원픽으로 골랐어요.`;
       return { sender, badge: '새 원픽', message, label: `${sender}, ${message}` };
     }
     case 'fix_needed': {
@@ -133,7 +128,7 @@ export default function NotificationsScreen() {
         </Pressable>;
       }}
       ListHeaderComponent={ready && query.isError && items.length > 0
-        ? <Text accessibilityRole="alert" style={styles.error}>새 알림을 갱신하지 못했어요. 마지막으로 불러온 알림을 표시합니다.</Text>
+        ? <Text accessibilityRole="alert" style={styles.error}>새 알림을 갱신하지 못했어요. 마지막으로 불러온 알림을 표시해요.</Text>
         : null}
       ListEmptyComponent={<View style={styles.empty}>
         {loading ? <><ActivityIndicator color={OnePick.accent} /><Text style={styles.message}>알림을 불러오고 있어요.</Text></>

@@ -64,7 +64,7 @@ export function ProfileTasteComposition({
       ) : value.dimensions.length === 0 ? (
         <View style={styles.stateCard}>
           <Text style={styles.collectingTitle}>아직 분류된 취향 구성이 없어요.</Text>
-          <Text style={styles.stateText}>카테고리의 취향 분류 기준이 준비되면 자동으로 반영됩니다.</Text>
+          <Text style={styles.stateText}>카테고리의 취향 분류 기준이 준비되면 자동으로 반영돼요.</Text>
         </View>
       ) : (
         <View style={styles.card}>

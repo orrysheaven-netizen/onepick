@@ -117,7 +117,7 @@ const tenFirstStatus = {
 };
 
 rendered = renderAi(tenFirstStatus, 10);
-assert.match(rendered.html, /10\/10개를 채웠으니 AI 평가가 가능합니다/);
+assert.match(rendered.html, /10\/10개를 채웠으니 AI 평가를 받을 수 있어요/);
 assert.ok(rendered.button('AI 평가 보기'), '10-pick state must show the first AI review CTA');
 assert.equal(rendered.button('AI 평가 보기').disabled, false, '10-pick AI review CTA must be enabled');
 

@@ -94,7 +94,7 @@ async function main() {
   assert.match(replies, /\(entry\.replies \?\? \[\]\)\.map\(\(reply\) => renderComment\(reply, true\)\)/);
   assert.match(replies, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/);
   assert.doesNotMatch(replies, /✓ 이 집 원픽|✓ 원픽/);
-  assert.match(replies, /삭제된 댓글입니다\./);
+  assert.match(replies, /삭제된 댓글이에요\./);
 
   const reviewCard = source('components/item-review-card.tsx');
   assert.match(reviewCard, /params: \{ pickId: pick\.id, itemId \}/,

@@ -118,7 +118,7 @@ export default function PickDetailScreen() {
         </View>
         : failed || !focused ? <View style={styles.state}>
           <Text style={styles.stateTitle}>한줄평을 볼 수 없어요.</Text>
-          <Text style={styles.stateText}>삭제되었거나 공개되지 않은 한줄평일 수 있어요.</Text>
+          <Text style={styles.stateText}>삭제됐거나 공개되지 않은 한줄평일 수 있어요.</Text>
           <Pressable accessibilityRole="button" onPress={() => { if (needsPickLookup) void pickQuery.refetch(); if (itemId) void itemQuery.refetch(); }} style={styles.retry}>
             <Text style={styles.retryText}>다시 불러오기</Text>
           </Pressable>
@@ -132,7 +132,7 @@ export default function PickDetailScreen() {
               {focused.pick.isCurrent ? <CurrentPickFlag mine={focused.pick.userId === user?.id} /> : null}
             </View>
             {focused.pick.isDeleted
-              ? <Text style={styles.reviewText}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+              ? <Text style={styles.reviewText}>삭제된 한줄평이에요. 기존 대화만 남아 있어요.</Text>
               : <Text style={styles.reviewText}>{'“' + focused.pick.oneLineReview + '”'}</Text>}
           </View>
           <PickReplies

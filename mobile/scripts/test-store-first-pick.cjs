@@ -172,7 +172,7 @@ async function main() {
   render(); // first render binds the account-owned draft scope
   page = render(); // next render may apply the validated entry prefill
   assert.equal(input('매장명 검색').value, '서울집 성수점');
-  assert.match(page, /보고 있던 매장을 선택해 두었어요/);
+  assert.match(page, /보고 있던 매장을 선택해 뒀어요/);
   assert.match(page, /서울집 · 성수점/);
   press('다음'); page = render();
   assert.equal(step(page), '2');
@@ -220,12 +220,12 @@ async function main() {
   reset();
   page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /상호명을 검색해 주세요/);
+  assert.match(page, /상호명을 검색해주세요/);
   assert.match(page, /오프라인 매장/);
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
   input('매장명 검색').onChangeText('을밀대'); page = render();
   assert.equal(storeSearchEnabled, true, 'normal entry enables store search even while disabled prefill query is pending');
-  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해 주세요/);
+  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해주세요/);
 
   // Existing item: store -> menu -> photo -> review, then response ids.
   await chooseExistingOffline();
@@ -327,17 +327,17 @@ async function main() {
   assert.ok(pressables.find((props) => textOf(props.children) === '다음')?.disabled, 'No link, no next');
   press('이전 단계'); page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /매장 이름을 알려 주세요/);
+  assert.match(page, /매장명을 입력해주세요/);
   assert.doesNotMatch(page, /도로명 주소/);
   assert.doesNotMatch(page, /다시 검색하기/);
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'), 'The link has its own screen');
   input('등록 요청 이름').onChangeText('새 냉면집');
   render(); press('다음'); page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
   press('이전 단계'); page = render();
-  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
+  assert.match(page, /매장명을 입력해주세요/, 'Back from the link returns to the name');
   press('다음'); render();
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore');
   render(); press('다음'); page = render();
@@ -412,7 +412,7 @@ async function main() {
     linkPlace('cat-sb-2', '스타벅스', '강남역'),
   ]);
   render(); press('네이버 지도 링크로 찾기'); page = render();
-  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
   assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'No link, no lookup');
   input('매장 찾기 네이버 지도 링크').onChangeText('https://blog.naver.com/x'); page = render();
   assert.match(page, /네이버 지도 링크를 확인해주세요/);
@@ -437,7 +437,7 @@ async function main() {
   press('이전 단계'); page = render();
   assert.match(page, /링크와 같은 매장을 찾았어요/, 'Back from step 2 keeps the link result');
   press('이전 단계'); page = render();
-  assert.match(page, /상호명을 검색해 주세요/, 'Back from the link screen returns to the name search');
+  assert.match(page, /상호명을 검색해주세요/, 'Back from the link screen returns to the name search');
 
   // Several similar rows and no exact one: the person picks, nothing is preselected.
   reset();
@@ -447,7 +447,7 @@ async function main() {
   ]);
   render(); press('네이버 지도 링크로 찾기'); render();
   input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/reserve'); render(); press('매장 찾기'); page = render();
-  assert.match(page, /맞는 매장을 골라 주세요/);
+  assert.match(page, /맞는 매장을 골라주세요/);
   assert.ok(!pressables.some((props) => textOf(props.children) === '다음'), 'No automatic choice without a unique match');
   press('스타벅스 선택'); page = render();
   assert.equal(step(page), '2');
@@ -476,7 +476,7 @@ async function main() {
   input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/unknown'); render(); press('매장 찾기'); page = render();
   assert.match(page, /링크에서 매장 이름을 읽지 못했어요/);
   press('매장 이름 입력하기'); page = render();
-  assert.match(page, /매장 이름을 알려 주세요/);
+  assert.match(page, /매장명을 입력해주세요/);
   press('이전 단계'); page = render();
   assert.match(page, /링크에서 매장 이름을 읽지 못했어요/, 'Back from the name returns to the link result');
   press('매장 이름 입력하기'); render();
@@ -495,7 +495,7 @@ async function main() {
   reset();
   render(); input('매장명 검색').onChangeText('없는 집'); render(); press('찾는 매장이 없어요'); render();
   press('다음'); page = render();
-  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
 
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);

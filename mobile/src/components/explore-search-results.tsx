@@ -27,7 +27,7 @@ export function ExploreSearchResults({ query, menus, menuIds, onOpenMenu, onOpen
   const searching = search.isWaiting || (search.isPending && search.fetchStatus !== 'idle');
 
   if (search.isError) {
-    return <StateCard tone="danger" title="검색 결과를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해 주세요."
+    return <StateCard tone="danger" title="검색 결과를 불러오지 못했어요." text="연결 상태를 확인하고 다시 시도해주세요."
       action={{ label: '다시 검색하기', onPress: () => void search.refetch() }} />;
   }
   if (searching && !matchedMenus.length) return <ActivityIndicator accessibilityLabel="검색하고 있어요" style={styles.loading} />;
