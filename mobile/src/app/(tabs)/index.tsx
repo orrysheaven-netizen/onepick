@@ -294,11 +294,6 @@ export default function HomeScreen() {
         {ready && discovery === 'popular' ? <View style={styles.rankingSection}>
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
-              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
-            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
-              <Text style={styles.moreText}>더보기</Text>
-            </Pressable>
           </View>
           {itemRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {itemRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
@@ -346,7 +341,7 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {!data.picks.length ? <StateCard title="아직 공개된 매장 원픽이 없어요." text="누군가 매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
+          {!data.picks.length ? <StateCard title={user ? '첫 원픽을 골라보세요.' : '아직 공개된 매장 원픽이 없어요.'} text="매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
             action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/new') } : undefined} /> : null}
         </> : null}
         </>}
